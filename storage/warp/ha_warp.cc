@@ -1707,7 +1707,7 @@ void exec_pushdown_join(
     auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
   
     uint32_t rownum =0;
-    auto matching_dim_rowids = new std::set<uint32_t> ;
+    auto matching_dim_rowids = new std::set<uint64_t> ;
     
     for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
       
