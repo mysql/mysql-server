@@ -4217,6 +4217,9 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   max_length = 3;  // 1-999
 
+  if (agg_arg_charsets_for_comparison(cmp_collation, args, 2)) {
+    return true;
+  }
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
       args[0]->may_eval_const_item(thd)) {
     Field *field = down_cast<Item_field *>(args[1])->field;
@@ -4226,26 +4229,27 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
       if (find != nullptr) {
         // find is not NULL pointer so args[0] is not a null-value
         assert(!args[0]->null_value);
-        enum_value = find_type(down_cast<Field_enum *>(field)->typelib,
-                               find->ptr(), find->length(), false);
-        enum_bit = 0;
-        if (enum_value) enum_bit = 1LL << (enum_value - 1);
+        m_enum_value = find_type(down_cast<Field_enum *>(field)->typelib,
+                                 find->ptr(), find->length(), false);
       }
     }
   }
-  return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
+  return false;
 }
 
 static const char separator = ',';
 
 longlong Item_func_find_in_set::val_int() {
-  assert(fixed == 1);
-  if (enum_value) {
+  assert(fixed);
+
+  null_value = false;
+
+  if (m_enum_value != 0) {
     // enum_value is set iff args[0]->const_item() in resolve_type().
     assert(args[0]->const_item());
 
-    ulonglong tmp = (ulonglong)args[1]->val_int();
-    null_value = args[1]->null_value;
+    ulonglong tmp = static_cast<ulonglong>(args[1]->val_int());
+    if (args[1]->null_value) return error_int();
     /*
       No need to check args[0]->null_value since enum_value is set iff
       args[0] is a non-null const item. Note: no assert on
@@ -4253,19 +4257,26 @@ longlong Item_func_find_in_set::val_int() {
       by an Item_cache on which val_int() has not been called. See
       BUG#11766317
     */
-    if (!null_value) {
-      if (tmp & enum_bit) return enum_value;
-    }
-    return 0L;
+    return (tmp & (1ULL << (m_enum_value - 1))) ? m_enum_value : 0;
   }
 
   String *find = args[0]->val_str(&value);
-  String *buffer = args[1]->val_str(&value2);
-  if (!find || !buffer) {
-    null_value = true;
-    return 0; /* purecov: inspected */
+  if (find == nullptr) return error_int();
+
+  if (args[1]->type() == FIELD_ITEM &&
+      down_cast<Item_field *>(args[1])->field->real_type() == MYSQL_TYPE_SET) {
+    Field *field = down_cast<Item_field *>(args[1])->field;
+
+    ulonglong tmp = static_cast<ulonglong>(args[1]->val_int());
+    if (args[1]->null_value) return error_int();
+
+    uint value = find_type(down_cast<Field_enum *>(field)->typelib, find->ptr(),
+                           find->length(), false);
+    return (value != 0 && (tmp & (1ULL << (value - 1)))) ? value : 0;
   }
-  null_value = false;
+
+  String *buffer = args[1]->val_str(&value2);
+  if (buffer == nullptr) return error_int();
 
   if (buffer->length() >= find->length()) {
     my_wc_t wc = 0;
@@ -4296,10 +4307,11 @@ longlong Item_func_find_in_set::val_int() {
         }
         str_end = substr_end;
       } else if (str_end - str_begin == 0 && find_str_len == 0 &&
-                 wc == (my_wc_t)separator)
-        return (longlong)++position;
-      else
-        return 0LL;
+                 wc == (my_wc_t)separator) {
+        return ++position;
+      } else {
+        return 0;
+      }
     }
   }
   return 0;

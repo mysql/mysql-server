@@ -1762,13 +1762,17 @@ class Item_func_ord final : public Item_int_func {
 
 class Item_func_find_in_set final : public Item_int_func {
   String value, value2;
-  uint enum_value;
-  ulonglong enum_bit;
+  /*
+    if m_enum_value is non-zero, it indicates the index of the value of
+    argument 0 in the set in argument 1, given that argument 0 is
+    a constant value and argument 1 is a field of type SET.
+  */
+  uint m_enum_value{0};
   DTCollation cmp_collation;
 
  public:
   Item_func_find_in_set(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b), enum_value(0) {}
+      : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "find_in_set"; }
   bool resolve_type(THD *) override;
