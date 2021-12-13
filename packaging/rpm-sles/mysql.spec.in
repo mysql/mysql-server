@@ -49,7 +49,6 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-%{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
@@ -61,13 +60,6 @@
 
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
-
-# No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
-%if 0%{?nodebuginfo}
-%global _enable_debug_package 0
-%global debug_package         %{nil}
-%global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
-%endif
 
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
@@ -252,6 +244,24 @@ and the manual for more information.
 
 This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
+
+%package        server-debug
+Summary:        The debug version of MySQL server
+Requires:       %{name}-server = %{version}-%{release}
+%if 0%{?commercial}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-server-debug < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-server-debug < %{version}-%{release}
+%endif # cluster
+%else
+%if 0%{?cluster}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%endif # cluster
+%endif # commercial
+
+%description    server-debug
+This packages contains the special debug build of MySQL server.
 
 %package        client
 Summary:        MySQL database client applications and tools
@@ -567,6 +577,10 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 %endif # with_router
 
+%if 0%{?suse_version}
+%debug_package
+%endif
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -709,12 +723,6 @@ rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
-# Remove upcoming man pages, to avoid breakage when they materialize
-# Keep this comment as a placeholder for future cases
-# rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
-
-# Remove removed manpages here until they are removed from the docs repo
-
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_sbindir}/service %{buildroot}%{_sbindir}/rcmysql
@@ -835,22 +843,23 @@ rm -r $(readlink var) var
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
@@ -859,31 +868,77 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
+%if 0%{?mecab}
+%{_libdir}/mysql/mecab
+%attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
+%endif
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
+%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%if 0%{?aws_sdk}
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
+%endif # aws
+%endif # commercial
+
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%attr(644, root, root) %{_unitdir}/mysql.service
+%attr(644, root, root) %{_unitdir}/mysql@.service
+%attr(644, root, root) %{_tmpfilesdir}/mysql.conf
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
+%dir %attr(751, mysql, mysql) /var/lib/mysql
+%dir %attr(755, mysql, mysql) /var/run/mysql
+%dir %attr(750, mysql, mysql) /var/log/mysql
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
+
+%files server-debug
+%doc %{?license_files_server}
+%attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -892,41 +947,20 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %if 0%{?mecab}
-%{_libdir}/mysql/mecab
-%attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
-%endif
+%endif # mecab
 %if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
-%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
-%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
-%attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
@@ -938,24 +972,9 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %if 0%{?aws_sdk}
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
-%endif
-%endif
-%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%attr(644, root, root) %{_unitdir}/mysql.service
-%attr(644, root, root) %{_unitdir}/mysql@.service
-%attr(644, root, root) %{_tmpfilesdir}/mysql.conf
-%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%dir %attr(751, mysql, mysql) /var/lib/mysql
-%dir %attr(755, mysql, mysql) /var/run/mysql
-%dir %attr(750, mysql, mysql) /var/log/mysql
-%dir %attr(750, mysql, mysql) /var/lib/mysql-files
-%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
+%endif # aws_sdk
+%endif # commercial
 
 %files common
 %defattr(-, root, root, -)
