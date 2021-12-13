@@ -1660,29 +1660,23 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
       return get_selectivity_dispatcher(items[1], op, typelib, selectivity);
     }
     case enum_operator::LESS_THAN_OR_EQUAL: {
-      double less_than_selectivity;
-      double equals_to_selectivity;
-      if (get_selectivity_dispatcher(items[1], enum_operator::LESS_THAN,
-                                     typelib, &less_than_selectivity) ||
-          get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
-                                     typelib, &equals_to_selectivity))
+      double greater_than_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::GREATER_THAN,
+                                     typelib, &greater_than_selectivity))
         return true;
 
-      *selectivity = std::min(less_than_selectivity + equals_to_selectivity,
-                              get_non_null_values_frequency());
+      *selectivity = std::max(
+          get_non_null_values_frequency() - greater_than_selectivity, 0.0);
       return false;
     }
     case enum_operator::GREATER_THAN_OR_EQUAL: {
-      double greater_than_selectivity;
-      double equals_to_selectivity;
-      if (get_selectivity_dispatcher(items[1], enum_operator::GREATER_THAN,
-                                     typelib, &greater_than_selectivity) ||
-          get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
-                                     typelib, &equals_to_selectivity))
+      double less_than_selectivity;
+      if (get_selectivity_dispatcher(items[1], enum_operator::LESS_THAN,
+                                     typelib, &less_than_selectivity))
         return true;
 
-      *selectivity = std::min(greater_than_selectivity + equals_to_selectivity,
-                              get_non_null_values_frequency());
+      *selectivity = std::max(
+          get_non_null_values_frequency() - less_than_selectivity, 0.0);
       return false;
     }
     case enum_operator::NOT_EQUALS_TO: {
@@ -1733,6 +1727,12 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
                               get_non_null_values_frequency());
       return false;
     }
+    /*
+      TODO(Tobias Christiani): Improve IN selectivity estimates by ensuring that
+      selectivity estimates from within each bucket do not exceed the bucket
+      frequency. This can be done without allocating additional memory if we
+      sort the list of items and "merge" them with the histogram buckets.
+    */
     case enum_operator::IN_LIST: {
       *selectivity = 0.0;
       for (size_t i = 1; i < item_count; ++i) {

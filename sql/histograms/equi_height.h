@@ -121,18 +121,6 @@ class Equi_height : public Histogram {
   */
   bool add_bucket_from_json(const Json_array *json_bucket);
 
-  /**
-    Find the fraction of values that is less than or equal to 'value'.
-
-    This function will estimate the fraction of values that is less than or
-    equal to the provided value.
-
-    @param value The value to estimate the selectivity for.
-
-    @return the selectivity between 0.0 and 1.0 inclusive.
-  */
-  double get_less_than_equal_selectivity(const T &value) const;
-
  protected:
   /**
     Populate this histogram with contents from a JSON object.

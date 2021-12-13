@@ -101,7 +101,7 @@ bool Value_map<T>::add_values(const T &value, const ha_rows count) {
 template <>
 bool Value_map<String>::add_values(const String &value, const ha_rows count) {
   /*
-    We only consider the susbtring. That is, if the strings differs after
+    We only consider the substring. That is, if the strings differs after
     character number HISTOGRAM_MAX_COMPARE_LENGTH, they will be considered
     equal.
 

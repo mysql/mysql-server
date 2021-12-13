@@ -100,7 +100,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
   This function will build an equi-height histogram. The algorithm works like
   the following:
 
-  - If the number of buckets specified is euqal to or greater than the number
+  - If the number of buckets specified is equal to or greater than the number
     of distinct values, a single bucket is created for each value.
 
   - If we have more distinct values than the number of buckets, we calculate a
@@ -416,38 +416,17 @@ double Equi_height<T>::get_equal_to_selectivity(const T &value) const {
     assert(bucket_frequency <= get_non_null_values_frequency());
   }
 
-  /*
-    Take into account how high the probability is for a given value existing
-    in the bucket. For example, consider the following bucket:
-
-      DOUBLE VALUES
-      Lower inclusive value: 0.0
-      Upper inclusive value: 1000000.0
-      Number of distinct values: 10
-
-    Any of the values between have a very low probability since there are so
-    many possible values for this data type.
-
-    For a different example, consider this bucket:
-
-      INTEGER VALUES
-      Lower inclusive value: 1
-      Upper inclusive value: 4
-      Number of distinct values: 4
-
-    Here we can see that all values must be present, since there are only four
-    possible values between 1 and 4 (1, 2, 3 and 4), and we have 4 distinct
-    values in the bucket.
-  */
-  return (bucket_frequency / found->get_num_distinct()) *
-         found->value_probability();
+  return (bucket_frequency / found->get_num_distinct());
 }
 
 template <class T>
-double Equi_height<T>::get_less_than_equal_selectivity(const T &value) const {
+double Equi_height<T>::get_less_than_selectivity(const T &value) const {
   /*
-    Find the first bucket where the upper inclusive value is not less than the
-    provided value.
+    Find the first bucket with endpoints [a, b] where the upper inclusive value
+    b is not less than the provided value, i.e. we have value <= b.
+    Buckets that come before the found bucket (previous buckets) have an upper
+    inclusive value strictly less than the provided value, and will therefore
+    count towards the selectivity.
   */
   const auto found = std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
                                       Histogram_comparator());
@@ -466,51 +445,76 @@ double Equi_height<T>::get_less_than_equal_selectivity(const T &value) const {
                              previous->get_cumulative_frequency();
   }
 
-  const double distance = found->get_distance_from_lower(value);
-
-  assert(distance >= 0.0);
-  assert(distance <= 1.0);
-
-  const double selectivity = previous_bucket_cumulative_frequency +
-                             (found_bucket_frequency * distance);
-
   /*
-    If we found the distance from lower to be zero and the value actually
-    is equal to the lower inclusive value, we must add the "equal_to"
-    selectivity in order to include the selectivity for the lower value.
+    We now consider how the found bucket contributes to the selectivity.
+    There are two cases:
 
-    Imagine these two buckets: [1   4]  [5   7]
-    Given the following predicate: foo <= 5;
+    1) a < value <= b
+    The value lies inside the bucket and we know that the bucket is
+    non-singleton since a < b. We include a fraction of the bucket's frequency
+    corresponding to the position of the value between a and b.
 
-    We would get the second bucket from std::lower_bound. The distance function
-    will return 0.0, since 5 is actually equal to 5. But that would cause the
-    selectivity to NOT include the selectivity for the value 5 itself.
-
-    We do this adjustment only if distance == 0.0, because if we have a bucket
-    where the upper and lower value are equal, the distance function will return
-    1.0 and we already have included the selectivity for the value itself.
+    2) value <= a <= b
+    In this case the found bucket contributes nothing since the lower inclusive
+    endpoint a is greater than or equal to the value.
   */
-  if (distance > 0.0 ||
-      Histogram_comparator()(found->get_lower_inclusive(), value))
-    return selectivity;
-
-  return selectivity + get_equal_to_selectivity(value);
+  if (Histogram_comparator()(found->get_lower_inclusive(), value)) {
+    const double distance = found->get_distance_from_lower(value);
+    assert(distance >= 0.0);
+    assert(distance <= 1.0);
+    return previous_bucket_cumulative_frequency +
+           (found_bucket_frequency * distance);
+  } else {
+    return previous_bucket_cumulative_frequency;
+  }
 }
 
 template <class T>
 double Equi_height<T>::get_greater_than_selectivity(const T &value) const {
-  const double less_than_equal = get_less_than_equal_selectivity(value);
+  /*
+    Find the first bucket with endpoints [a, b] where the upper inclusive value
+    b is greater than the provided value, i.e. we have value < b.
+    Buckets that come after the found bucket (next buckets) have a lower
+    inclusive value greater than the provided value, and will therefore
+    count towards the selectivity.
+  */
+  const auto found = std::upper_bound(m_buckets.begin(), m_buckets.end(), value,
+                                      Histogram_comparator());
 
-  return get_non_null_values_frequency() -
-         std::min(less_than_equal, get_non_null_values_frequency());
-}
+  if (found == m_buckets.end()) return 0.0;
 
-template <class T>
-double Equi_height<T>::get_less_than_selectivity(const T &value) const {
-  const double less_than_equal = get_less_than_equal_selectivity(value);
-  const double equal_to = get_equal_to_selectivity(value);
+  double found_bucket_frequency;
+  if (found == m_buckets.begin()) {
+    found_bucket_frequency = found->get_cumulative_frequency();
+  } else {
+    const auto previous = std::prev(found, 1);
+    found_bucket_frequency = found->get_cumulative_frequency() -
+                             previous->get_cumulative_frequency();
+  }
+  double next_buckets_frequency =
+      get_non_null_values_frequency() - found->get_cumulative_frequency();
 
-  return less_than_equal - equal_to;
+  /*
+    We now consider how the found bucket contributes to the selectivity.
+    There are two cases:
+
+    1) value < a <= b
+    The provided value is smaller than the inclusive lower endpoint and the
+    entire bucket should be included.
+
+    2) a <= value < b
+    The value lies inside the bucket and we know that the bucket is
+    non-singleton since a < b. We include a fraction of the bucket's frequency
+    corresponding to the position of the value between a and b.
+  */
+  if (Histogram_comparator()(value, found->get_lower_inclusive())) {
+    return found_bucket_frequency + next_buckets_frequency;
+  } else {
+    const double distance = found->get_distance_from_upper(value);
+    assert(distance >= 0.0);
+    assert(distance <= 1.0);
+    return distance * found_bucket_frequency + next_buckets_frequency;
+  }
 }
 
 // Explicit template instantiations.
