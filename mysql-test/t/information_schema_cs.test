@@ -868,7 +868,6 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
---skip_if_hypergraph  # Hits bug #31947466.
 SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
