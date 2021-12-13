@@ -1088,6 +1088,7 @@ class Item_func_equal final : public Item_func_comparison {
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "<=>"; }
   Item *truth_transformer(THD *, Bool_test) override { return nullptr; }
+  bool is_null() override { return false; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,

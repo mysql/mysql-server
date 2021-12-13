@@ -317,3 +317,8 @@ SELECT STRAIGHT_JOIN *
 show status like 'handler_read_key';
 
 drop table t1;
+
+--echo # Bug#33630225: Bad caching of converted constants in NULL-safe compare
+
+SELECT NULL <=> (0 <=> NULL);
+
