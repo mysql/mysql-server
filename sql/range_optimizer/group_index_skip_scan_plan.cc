@@ -1673,9 +1673,9 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
       range_flag |= EQ_RANGE; /* equality condition */
   }
   QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
-      sel_range->min_value, key_length, make_keypart_map(sel_range->part),
-      sel_range->max_value, key_length, make_keypart_map(sel_range->part),
-      range_flag, HA_READ_INVALID);
+      return_mem_root, sel_range->min_value, key_length,
+      make_keypart_map(sel_range->part), sel_range->max_value, key_length,
+      make_keypart_map(sel_range->part), range_flag, HA_READ_INVALID);
   if (!range) return true;
   if (range_array->push_back(range)) return true;
   return false;

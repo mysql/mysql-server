@@ -143,8 +143,6 @@
 
 using std::min;
 
-[[maybe_unused]] static uchar is_null_string[2] = {1, 0};
-
 static AccessPath *get_best_disjunct_quick(
     THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_union_allowed, bool index_merge_sort_union_allowed,
@@ -278,8 +276,8 @@ QUICK_RANGE::QUICK_RANGE()
       min_keypart_map(0),
       max_keypart_map(0) {}
 
-QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
-                         key_part_map min_keypart_map_arg,
+QUICK_RANGE::QUICK_RANGE(MEM_ROOT *mem_root, const uchar *min_key_arg,
+                         uint min_length_arg, key_part_map min_keypart_map_arg,
                          const uchar *max_key_arg, uint max_length_arg,
                          key_part_map max_keypart_map_arg, uint flag_arg,
                          enum ha_rkey_function rkey_func_flag_arg)
@@ -291,11 +289,14 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
       rkey_func_flag(rkey_func_flag_arg),
       min_keypart_map(min_keypart_map_arg),
       max_keypart_map(max_keypart_map_arg) {
-  min_key = static_cast<uchar *>(sql_memdup(min_key_arg, min_length_arg + 1));
-  max_key = static_cast<uchar *>(sql_memdup(max_key_arg, max_length_arg + 1));
-  // If we get is_null_string as argument, the memdup is undefined behavior.
-  assert(min_key_arg != is_null_string);
-  assert(max_key_arg != is_null_string);
+  min_key = mem_root->ArrayAlloc<uchar>(min_length_arg + 1);
+  max_key = mem_root->ArrayAlloc<uchar>(max_length_arg + 1);
+  if (min_key != nullptr) {
+    memcpy(min_key, min_key_arg, min_length_arg + 1);
+  }
+  if (max_key != nullptr) {
+    memcpy(max_key, max_key_arg, max_length_arg + 1);
+  }
 }
 
 /*

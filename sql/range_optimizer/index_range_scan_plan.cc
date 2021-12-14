@@ -1182,12 +1182,12 @@ static bool get_ranges_from_tree_given_base(
     }
 
     /* Get range for retrieving rows in RowIterator::Read() */
-    QUICK_RANGE *range = new (return_mem_root)
-        QUICK_RANGE(base_min_key, (uint)(tmp_min_key - base_min_key),
-                    min_part >= 0 ? make_keypart_map(min_part) : 0,
-                    base_max_key, (uint)(tmp_max_key - base_max_key),
-                    max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
-                    node->rkey_func_flag);
+    QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
+        return_mem_root, base_min_key, (uint)(tmp_min_key - base_min_key),
+        min_part >= 0 ? make_keypart_map(min_part) : 0, base_max_key,
+        (uint)(tmp_max_key - base_max_key),
+        max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
+        node->rkey_func_flag);
     if (range == nullptr) {
       return true;  // out of memory
     }
