@@ -3684,12 +3684,12 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
 
   if (left_item->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(left_item)->ref_type() == Item_ref::VIEW_REF) {
-    if (down_cast<Item_ref *>(left_item)->depended_from) return false;
+    if (down_cast<Item_ref *>(left_item)->is_outer_reference()) return false;
     left_item = left_item->real_item();
   }
   if (right_item->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(right_item)->ref_type() == Item_ref::VIEW_REF) {
-    if (down_cast<Item_ref *>(right_item)->depended_from) return false;
+    if (down_cast<Item_ref *>(right_item)->is_outer_reference()) return false;
     right_item = right_item->real_item();
   }
   const Item_field *left_item_field, *right_item_field;
