@@ -43,6 +43,9 @@ GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
 GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 
+-- this is a plugin priv that might not be registered
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'AUDIT_ABORT_EXEMPT', 'N');
+
 -- Create an user that is definer for information_schema view
 CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password
  AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED'
@@ -50,3 +53,6 @@ CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;
 GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost;
+
+-- this is a plugin priv that might not be registered
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.infoschema', 'localhost', 'AUDIT_ABORT_EXEMPT', 'N');
