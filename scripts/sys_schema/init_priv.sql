@@ -26,3 +26,7 @@ CURRENT_TIMESTAMP, 'Select', '');
 -- GRANT SYSTEM_USER ON *.* TO 'mysql.sys'@localhost
 INSERT IGNORE INTO mysql.global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
 VALUES ('mysql.sys','localhost','SYSTEM_USER','N');
+
+-- GRANT AUDIT_ABORT_EXEMPT ON *.* TO 'mysql.sys'@localhost
+INSERT IGNORE INTO mysql.global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
+VALUES ('mysql.sys','localhost','AUDIT_ABORT_EXEMPT','N');

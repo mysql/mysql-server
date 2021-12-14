@@ -1513,3 +1513,9 @@ ALTER TABLE user
 
 ALTER TABLE time_zone
   MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
+-- grant AUDIT_ABORT_EXEMPT to all current holders of SYSTEM_USER
+SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ABORT_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
