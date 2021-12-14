@@ -268,7 +268,7 @@ void Merge_file_sort::Output_file::duplicate_check(const mrec_t *mrec,
     auto last_mrec = m_last_mrec;
     size_t extra_size = *last_mrec++;
 
-    if (extra_size > 0x80) {
+    if (extra_size >= 0x80) {
       extra_size = (extra_size & 0x7f) << 8;
       extra_size |= *last_mrec++;
     }
