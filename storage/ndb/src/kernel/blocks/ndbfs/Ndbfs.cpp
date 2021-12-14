@@ -1100,56 +1100,57 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
 
   FsRef::NdbfsErrorCodeType errorCode;
 
-  AsyncFile* openFile = theOpenFiles.find(filePointer);
-  const NewVARIABLE *myBaseAddrRef =
-    &getBat(blockNumber, instanceNumber)[fsReq->varIndex];
-
-  const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
-  const Uint32  tSz   = myBaseAddrRef->nrr;
-  const Uint32 offset = fsReq->offset;
-  const Uint32 size   = fsReq->size;
-  const Uint32 synch_flag = fsReq->synch_flag;
   Request *request = theRequestPool->get();
-
-  if (openFile == NULL) {
-    jam();
-    errorCode = FsRef::fsErrFileDoesNotExist;
-    goto error;
-  }
-
-  if (myBaseAddrRef == NULL) {
-    jam(); // Ensure that a valid variable is used
-    errorCode = FsRef::fsErrInvalidParameters;
-    goto error;
-  }
-  
   if (fsReq->varIndex >= getBatSize(blockNumber, instanceNumber)) {
     jam();// Ensure that a valid variable is used    
     errorCode = FsRef::fsErrInvalidParameters;
     goto error;
   }
-  
-  if(offset + size > tSz){
-    jam(); // Ensure that a valid variable is used
-    errorCode = FsRef::fsErrInvalidParameters;
-    goto error;
+  {
+    AsyncFile* openFile = theOpenFiles.find(filePointer);
+    const NewVARIABLE *myBaseAddrRef =
+      &getBat(blockNumber, instanceNumber)[fsReq->varIndex];
+
+    const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
+    const Uint32  tSz   = myBaseAddrRef->nrr;
+    const Uint32 offset = fsReq->offset;
+    const Uint32 size   = fsReq->size;
+    const Uint32 synch_flag = fsReq->synch_flag;
+
+    if (openFile == NULL) {
+      jam();
+      errorCode = FsRef::fsErrFileDoesNotExist;
+      goto error;
+    }
+
+    if (myBaseAddrRef == NULL) {
+      jam(); // Ensure that a valid variable is used
+      errorCode = FsRef::fsErrInvalidParameters;
+      goto error;
+    }
+
+    if(offset + size > tSz){
+      jam(); // Ensure that a valid variable is used
+      errorCode = FsRef::fsErrInvalidParameters;
+      goto error;
+    }
+
+    request->error = 0;
+    request->set(userRef, userPointer, filePointer);
+    request->file = openFile;
+    request->theTrace = signal->getTrace();
+
+    request->par.append.buf = (const char *)(tWA + offset);
+    request->par.append.size = size << 2;
+
+    if (!synch_flag)
+      request->action = Request::append;
+    else
+      request->action = Request::append_synch;
+    request->m_do_bind = false;
+    ndbrequire(forward(openFile, request));
+    return;
   }
-
-  request->error = 0;
-  request->set(userRef, userPointer, filePointer);
-  request->file = openFile;
-  request->theTrace = signal->getTrace();
-  
-  request->par.append.buf = (const char *)(tWA + offset);
-  request->par.append.size = size << 2;
-
-  if (!synch_flag)
-    request->action = Request::append;
-  else
-    request->action = Request::append_synch;
-  request->m_do_bind = false;
-  ndbrequire(forward(openFile, request));
-  return;
   
 error:
   jam();
