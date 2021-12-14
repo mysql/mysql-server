@@ -901,6 +901,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
   /* if deadlock or lock timeout return the error*/
   if(lock_taken != LOCK_EX) {
+    //std::cerr << "DID NOT GET EX LOCK GGOT: " << lock_taken << "\n";
     DBUG_RETURN(lock_taken);
   }
 
@@ -918,7 +919,9 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   // if the write completed successfully.  The EX_LOCK
   // will still be held so the update can be retried
   // without having to lock the row again. 
+    //std::cerr << "Writing delete rows to the delete log for [" << deleted_rowid << "]\n";
     current_trx->write_delete_log_rowid(deleted_rowid);
+    //std::cerr << "Creating history lock for [" << deleted_rowid << "]\n";
     warp_state->create_lock(deleted_rowid, current_trx, LOCK_HISTORY);
   }
   
@@ -2090,20 +2093,20 @@ fetch_again:
   */
 
   
-  //is_trx_visible_to_read(row_trx_id);
+  is_trx_visible_to_read(row_trx_id);
   
-  //if(!is_trx_visible) {
-  //  goto fetch_again;
-  //}
+  if(!is_trx_visible) {
+    goto fetch_again;
+  }
   
   // if the row would be visible due to row_trx_id it might not
   // be visible if it has been changed in a future transaction.
   // because the delete_rows bitmap has bits possibly committed
   // from future transaction, a history lock is created to 
   // maintain row visiblity
-  //if(!is_row_visible_to_read(current_rowid)) {
-  //  goto fetch_again;
-  //}
+  if(!is_row_visible_to_read(current_rowid)) {
+    goto fetch_again;
+  }
   
   // Lock rows during a read if requested
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
@@ -3312,6 +3315,7 @@ void warp_trx::write_insert_log_rowid(uint64_t rowid) {
 
 void warp_trx::write_delete_log_rowid(uint64_t rowid) {
   int sz = 0;
+  //sql_print_warning("Writing delete rowid %d", rowid);
   sz = fwrite(&delete_marker, sizeof(delete_marker), 1, log);
   if(sz == 0 || ferror(log) != 0) {
     sql_print_error("failed to write rowid into insert log: %s", log_filename.c_str());
@@ -3429,7 +3433,7 @@ void warp_trx::commit() {
             sql_print_error("transaction log read failed");
             assert(false);
           }
-          
+          //std::cerr << "Setting deleted bit in delete bitmap: " << rowid << "\n";
           warp_state->delete_bitmap->set_bit(rowid);
           continue;
           break;
