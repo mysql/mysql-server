@@ -100,7 +100,7 @@
   1 - Initial Version. That is, the version when the metafile was introduced.
 */
 const uint16_t WARP_VERSION = 2;
-const uint64_t WARP_ROWID_BATCH_SIZE = 10000;
+const uint64_t WARP_ROWID_BATCH_SIZE = 100000;
 
 #define BLOB_MEMROOT_ALLOC_SIZE 8192
 
@@ -719,15 +719,15 @@ class ha_warp : public handler {
     return (HA_BINLOG_ROW_CAPABLE | HA_NO_AUTO_INCREMENT | HA_CAN_REPAIR);
   }
  
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys() const { return 16384; }
-  uint max_key_parts() const { return 1; }
-  uint max_key_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_supported_keys() const { return 16384; }
-  uint max_supported_key_length() const { return 1024; }
+  uint max_record_length() const { return 0; }
+  uint max_keys() const { return 0; }
+  uint max_key_parts() const { return 0; }
+  uint max_key_length() const { return 0; }
+  uint max_supported_keys() const { return 0; }
+  uint max_supported_key_length() const { return 0; }
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
-    return 1024;
+    return 0;
   }
 
   /*
