@@ -1557,10 +1557,10 @@ void filter_fact_column(
   std::set<uint64_t>* matching_dim_rids,
   uint32_t* running_filter_threads,
   std::mutex* fact_filter_mutex ) 
-  {
-    //auto matching_rids = new std::vector<uint32_t>;
+  { 
+    
     auto column_vals = column_query->getQualifiedInts((fact_filter->first)->fact_column.c_str());
-  
+    
     uint32_t rownum = 1;
     std::vector<uint64_t> matching_dim_rowids;
     matching_dim_rowids.clear();
@@ -1703,9 +1703,9 @@ void exec_pushdown_join(
   auto filter_it = fact_table_filters->begin();
 
   for ( filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
-
+    
     auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
-  
+
     uint32_t rownum =0;
     auto matching_dim_rowids = new std::set<uint64_t> ;
     
@@ -1742,6 +1742,9 @@ void exec_pushdown_join(
       matching_dim_rowids->insert(find_it->second);
     
     }
+    // free up columnar values
+    delete column_vals;
+    
     dimension_merge_mutex->lock();
     ++running_dimension_merges;
     dimension_merge_mutex->unlock();
@@ -1906,7 +1909,7 @@ fetch_again:
     if( running_dimension_merges == 0 ) {
       dimension_merge_mutex.unlock();
       all_dimension_merges_completed = true;  
-      break;
+      continue;
     }
     dimension_merge_mutex.unlock();
     
@@ -1956,13 +1959,17 @@ fetch_again:
       
       base_table = ibis::table::create(find_it->first.c_str());
       assert(base_table != NULL);
+            
       // this will do some IO to read in projected columns that where not used for filters
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-      assert(filtered_table);
+      
+      if(!filtered_table) {
+        ++part_it;
+        goto fetch_again;
+      }
       
       cursor = filtered_table->createCursor();
-      assert(cursor != NULL);
-      
+
     }
     
   } else {
@@ -1979,20 +1986,29 @@ fetch_again:
 
       base_table = ibis::table::create((*part_it)->currentDataDir());
       assert(base_table);
+      
+      
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-      assert(filtered_table);
+      
+      if(!filtered_table) {
+        ++part_it;
+        goto fetch_again;
+      }
       cursor = filtered_table->createCursor();
-      assert(cursor);
       
     } else {  
       // table scan (possibly with filters) without any joins
       if(cursor == NULL) {
         base_table = ibis::table::create(this->share->data_dir_name);
         assert(base_table != NULL);
+               
         filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-        assert(filtered_table != NULL);
-        cursor = filtered_table->createCursor();
-        assert(cursor != NULL);
+        
+        if(filtered_table==NULL) {
+          ++part_it;
+          goto fetch_again;
+        }
+        cursor = filtered_table->createCursor();  
       }
     }
   }
@@ -3036,12 +3052,14 @@ int ha_warp::bitmap_merge_join() {
     if(dim_pushdown_info->base_table == NULL) {
       continue;
     }
+        
     dim_pushdown_info->filtered_table = 
     dim_pushdown_info->base_table->select(dim_pushdown_info->column_set.c_str(), dim_pushdown_clause.c_str());
     
     if(dim_pushdown_info->filtered_table == NULL) {
       continue;
     }
+
     auto dim_cursor = dim_pushdown_info->filtered_table->createCursor();      
     if(dim_cursor == NULL) {
       continue;

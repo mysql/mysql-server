@@ -178,12 +178,13 @@ static MYSQL_THDVAR_STR(partition_filter, PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_MEMALLO
 
 static MYSQL_THDVAR_BOOL(adjust_table_stats_for_joins, PLUGIN_VAR_NOCMDARG,
                           "Sets the largest table in a query to have a row count of 2.  Can cause problems with some MySQL subquery optimizations.",
-                          nullptr, nullptr, false);
+                          nullptr, nullptr, true);
 
 static MYSQL_THDVAR_ULONG(max_degree_of_parallelism, PLUGIN_VAR_RQCMDARG,
                           "Maximum number of threads which can be used for join optimization",
                           nullptr, nullptr, std::thread::hardware_concurrency(), 1, std::thread::hardware_concurrency() * 4, 0);
 
+std::mutex memory_mtx;
 
 SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(partition_max_rows),

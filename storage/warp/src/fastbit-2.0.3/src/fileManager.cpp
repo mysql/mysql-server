@@ -12,6 +12,8 @@
 // resizing.  This may potentially cause problems with memory allocation
 // through the new operator provided by the C++ compiler.
 //
+#define HAVE_MMAP 1
+
 #if defined(_WIN32) && defined(_MSC_VER)
 #pragma warning(disable:4786)   // some identifier longer than 256 characters
 #endif
@@ -108,20 +110,7 @@ template int ibis::fileManager::tryGetFile<double>
 (char const*, array_t<double>&, ACCESS_PREFERENCE);
 
 // time to wait for other threads to unload files in use
-/*
- * #ifndef FASTBIT_MAX_WAIT_TIME
-#if defined(DEBUG) || defined(_DEBUG)
-#define FASTBIT_MAX_WAIT_TIME 1
-#else
-#define FASTBIT_MAX_WAIT_TIME 12
-#endif
-#endif
-*/
-#ifndef FASTBIT_MAX_WAIT_TIME
-  #undef FASTBIT_MAX_WAIT_TIME
-#endif
-// the server will crash if this time limit is exceeded! (similar to how innodb will halt if stuck after 600 seconds)
-#define FASTBIT_MAX_WAIT_TIME 12
+#define FASTBIT_MAX_WAIT_TIME 600
 
 /// Given a file name, place the content in an array_t<T>.  This function
 /// waits for memory to become available if there is enough memory to read
