@@ -42,6 +42,8 @@ drop table t1;
 CREATE TABLE t1(a INT, KEY(a));
 INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
 SET myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -80,6 +82,8 @@ Warnings:
 Error	1034	myisam_sort_buffer_size is too small
 Error	1034	Number of rows changed from 0 to 157
 SET myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	myisam_sort_buffer_size is too small
@@ -108,6 +112,8 @@ INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0');
 SET myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
