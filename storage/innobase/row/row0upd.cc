@@ -524,17 +524,9 @@ void row_upd_rec_in_place(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Writes into the redo log the values of trx id and roll ptr and enough info
- to determine their positions within a clustered index record.
- @return new pointer to mlog */
-byte *row_upd_write_sys_vals_to_log(
-    dict_index_t *index,         /*!< in: clustered index */
-    trx_id_t trx_id,             /*!< in: transaction id */
-    roll_ptr_t roll_ptr,         /*!< in: roll ptr of the undo log record */
-    byte *log_ptr,               /*!< pointer to a buffer of size > 20 opened
-                                 in mlog */
-    mtr_t *mtr [[maybe_unused]]) /*!< in: mtr */
-{
+byte *row_upd_write_sys_vals_to_log(dict_index_t *index, trx_id_t trx_id,
+                                    roll_ptr_t roll_ptr, byte *log_ptr,
+                                    mtr_t *mtr [[maybe_unused]]) {
   ut_ad(index->is_clustered());
   ut_ad(mtr);
 

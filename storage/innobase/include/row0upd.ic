@@ -131,13 +131,9 @@ static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
       ->m_col.copy_type(dfield_get_type(&upd_field->new_val));
 }
 
-/** Returns a field of an update vector by field_no.
- @return update vector field, or NULL */
-static inline const upd_field_t *upd_get_field_by_field_no(
-    const upd_t *update, /*!< in: update vector */
-    ulint no,            /*!< in: field_no */
-    bool is_virtual)     /*!< in: if it is virtual column */
-{
+static inline const upd_field_t *upd_get_field_by_field_no(const upd_t *update,
+                                                           ulint no,
+                                                           bool is_virtual) {
   ulint i;
   for (i = 0; i < upd_get_n_fields(update); i++) {
     const upd_field_t *uf = upd_get_nth_field(update, i);

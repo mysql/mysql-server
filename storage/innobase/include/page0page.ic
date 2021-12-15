@@ -144,11 +144,7 @@ static inline void page_header_set_field(
   }
 }
 
-/** Returns the offset stored in the given header field.
- @return offset from the start of the page, or 0 */
-static inline ulint page_header_get_offs(const page_t *page, /*!< in: page */
-                                         ulint field) /*!< in: PAGE_FREE, ... */
-{
+static inline ulint page_header_get_offs(const page_t *page, ulint field) {
   ulint offs;
 
   ut_ad(page);
@@ -389,32 +385,20 @@ static inline ibool page_rec_is_infimum(const rec_t *rec) /*!< in: record */
   return (page_rec_is_infimum_low(page_offset(rec)));
 }
 
-/** true if the record is the first user record on a page.
- @return true if the first user record */
-static inline bool page_rec_is_first(const rec_t *rec,   /*!< in: record */
-                                     const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_first(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 0);
 
   return (page_rec_get_next_const(page_get_infimum_rec(page)) == rec);
 }
 
-/** true if the record is the second user record on a page.
- @return true if the second user record */
-static inline bool page_rec_is_second(const rec_t *rec,   /*!< in: record */
-                                      const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_second(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 1);
 
   return (page_rec_get_next_const(
               page_rec_get_next_const(page_get_infimum_rec(page))) == rec);
 }
 
-/** true if the record is the last user record on a page.
- @return true if the last user record */
-static inline bool page_rec_is_last(const rec_t *rec,   /*!< in: record */
-                                    const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_last(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 0);
 
   return (page_rec_get_next_const(rec) == page_get_supremum_rec(page));
@@ -432,11 +416,8 @@ static inline bool page_rec_distance_is_at_most(const rec_t *left_rec,
   return (false);
 }
 
-/** true if the record is the second last user record on a page.
- @return true if the second last user record */
-static inline bool page_rec_is_second_last(const rec_t *rec, /*!< in: record */
-                                           const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_second_last(const rec_t *rec,
+                                           const page_t *page) {
   ut_ad(page_get_n_recs(page) > 1);
   ut_ad(!page_rec_is_last(rec, page));
 

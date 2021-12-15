@@ -2744,10 +2744,6 @@ buf_page_t *LRUItr::start() {
   return (m_hp);
 }
 
-/** Determine if a block is a sentinel for a buffer pool watch.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	bpage		block
-@return true if a sentinel for a buffer pool watch, false if not */
 ibool buf_pool_watch_is_sentinel(const buf_pool_t *buf_pool,
                                  const buf_page_t *bpage) {
   /* We must own the appropriate hash lock. */

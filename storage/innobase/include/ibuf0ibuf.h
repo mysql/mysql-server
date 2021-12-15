@@ -310,11 +310,13 @@ ulint ibuf_merge_space(space_id_t space); /*!< in: space id */
 
 #endif /* !UNIV_HOTBACKUP */
 /** Parses a redo log record of an ibuf bitmap page init.
- @return end of log record or NULL */
-byte *ibuf_parse_bitmap_init(byte *ptr,          /*!< in: buffer */
-                             byte *end_ptr,      /*!< in: buffer end */
-                             buf_block_t *block, /*!< in: block or NULL */
-                             mtr_t *mtr);        /*!< in: mtr or NULL */
+@param[in] ptr Buffer.
+@param[in] end_ptr Buffer end.
+@param[in] block Block or nullptr.
+@param[in] mtr MTR or nullptr.
+@return end of log record or NULL */
+byte *ibuf_parse_bitmap_init(byte *ptr, byte *end_ptr, buf_block_t *block,
+                             mtr_t *mtr);
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 

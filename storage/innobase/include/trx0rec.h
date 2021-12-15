@@ -246,11 +246,13 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
                                   byte *end_ptr, /*!< in: buffer end */
                                   page_t *page); /*!< in: page or NULL */
 /** Parses a redo log record of erasing of an undo page end.
- @return end of log record or NULL */
-byte *trx_undo_parse_erase_page_end(byte *ptr,     /*!< in: buffer */
-                                    byte *end_ptr, /*!< in: buffer end */
-                                    page_t *page,  /*!< in: page or NULL */
-                                    mtr_t *mtr);   /*!< in: mtr or NULL */
+@param[in,out]	ptr      Buffer.
+@param[in,out]	end_ptr  Buffer end.
+@param[in,out]	page     Page or nullptr.
+@param[in,out]	mtr      MTR or nullptr.
+@return end of log record or nullptr */
+byte *trx_undo_parse_erase_page_end(byte *ptr, byte *end_ptr, page_t *page,
+                                    mtr_t *mtr);
 
 /** Read from an undo log record a non-virtual column value.
 @param[in,out]	ptr		pointer to remaining part of the undo record

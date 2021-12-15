@@ -518,15 +518,8 @@ static inline bool rw_lock_x_lock_low(
   return true;
 }
 
-/** Low-level function for acquiring an sx lock.
- @return false if did not succeed, true if success. */
-bool rw_lock_sx_lock_low(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the lock will
-                           be passed to another thread to unlock */
-    const char *file_name, /*!< in: file name where lock requested */
-    ulint line)            /*!< in: line where requested */
-{
+bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, const char *file_name,
+                         ulint line) {
   if (rw_lock_lock_word_decr(lock, X_LOCK_HALF_DECR, X_LOCK_HALF_DECR)) {
     /* lock->recursive == true implies that the lock->writer_thread is the
     current writer. As we are going to write our own thread id in that field it
@@ -912,12 +905,6 @@ static void rw_lock_get_debug_info(const rw_lock_t *lock, Infos *infos) {
   rw_lock_debug_mutex_exit();
 }
 
-/** Checks if the thread has locked the rw-lock in the specified mode, with
-the pass value == 0.
-@param[in]	lock		rw-lock
-@param[in]	flags		specify lock types with OR of the
-                                rw_lock_flag_t values
-@return true if locked */
 bool rw_lock_own_flagged(const rw_lock_t *lock, rw_lock_flags_t flags) {
   Infos infos;
 

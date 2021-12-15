@@ -163,10 +163,11 @@ static inline void page_header_set_field(page_t *page, page_zip_des_t *page_zip,
                                          ulint field, ulint val);
 
 /** Returns the offset stored in the given header field.
- @return offset from the start of the page, or 0 */
-[[nodiscard]] static inline ulint page_header_get_offs(
-    const page_t *page, /*!< in: page */
-    ulint field);       /*!< in: PAGE_FREE, ... */
+@param[in] page Page.
+@param[in] field PAGE_FREE, ...
+@return offset from the start of the page, or 0 */
+[[nodiscard]] static inline ulint page_header_get_offs(const page_t *page,
+                                                       ulint field);
 
 /** Returns the pointer stored in the given header field, or NULL. */
 #define page_header_get_ptr(page, field)          \
@@ -417,22 +418,25 @@ static inline ibool page_rec_is_infimum_low(ulint offset);
     const rec_t *rec); /*!< in: record */
 
 /** true if the record is the first user record on a page.
- @return true if the first user record */
-[[nodiscard]] static inline bool page_rec_is_first(
-    const rec_t *rec,    /*!< in: record */
-    const page_t *page); /*!< in: page */
+@param[in] rec  Record.
+@param[in] page Page.
+@return true if the first user record */
+[[nodiscard]] static inline bool page_rec_is_first(const rec_t *rec,
+                                                   const page_t *page);
 
 /** true if the record is the second user record on a page.
- @return true if the second user record */
-[[nodiscard]] static inline bool page_rec_is_second(
-    const rec_t *rec,    /*!< in: record */
-    const page_t *page); /*!< in: page */
+@param[in] rec  Record.
+@param[in] page Page.
+@return true if the second user record */
+[[nodiscard]] static inline bool page_rec_is_second(const rec_t *rec,
+                                                    const page_t *page);
 
 /** true if the record is the last user record on a page.
- @return true if the last user record */
-[[nodiscard]] static inline bool page_rec_is_last(
-    const rec_t *rec,    /*!< in: record */
-    const page_t *page); /*!< in: page */
+@param[in] rec  Record.
+@param[in] page Page.
+@return true if the last user record */
+[[nodiscard]] static inline bool page_rec_is_last(const rec_t *rec,
+                                                  const page_t *page);
 
 /** true if distance between the records (measured in number of times we have to
 move to the next record) is at most the specified value
@@ -444,10 +448,11 @@ move to the next record) is at most the specified value
     const rec_t *left_rec, const rec_t *right_rec, ulint val);
 
 /** true if the record is the second last user record on a page.
- @return true if the second last user record */
-[[nodiscard]] static inline bool page_rec_is_second_last(
-    const rec_t *rec,    /*!< in: record */
-    const page_t *page); /*!< in: page */
+@param[in] rec  Record.
+@param[in] page Page.
+@return true if the second last user record */
+[[nodiscard]] static inline bool page_rec_is_second_last(const rec_t *rec,
+                                                         const page_t *page);
 
 /** Looks for the record which owns the given record.
  @return the owner record */

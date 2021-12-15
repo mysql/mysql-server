@@ -316,9 +316,8 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
                       ...) MY_ATTRIBUTE((format(printf, 2, 3)));
 
 /** Checks that an object is a memory heap (or a block of it)
-@param[in]	heap	Memory heap to check */
-static inline void mem_block_validate(const mem_heap_t *heap);
-
+@param[in]	block Memory block to check */
+static inline void mem_block_validate(const mem_block_t *block);
 #ifdef UNIV_DEBUG
 
 /** Validates the contents of a memory heap.

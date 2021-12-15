@@ -1589,21 +1589,6 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
   return (sym_node);
 }
 
-/** Parses a table creation operation.
-@param[in]	table_sym		table name node in the symbol table
-@param[in]	column_defs		list of column names
-@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
-                                        table which in simulations should be
-                                        simulated as not fitting in memory;
-                                        thread is put to sleep to simulate disk
-                                        accesses; NOTE that this flag is not
-                                        stored to the data dictionary on disk,
-                                        and the database will forget about
-                                        non-NULL value if it has to reload the
-                                        table definition from disk
-@param[in]	compact			non-NULL if COMPACT table
-@param[in]	block_size		block size (can be NULL)
-@return table create subgraph */
 tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
                               sym_node_t *compact, sym_node_t *block_size,
                               void *not_fit_in_memory [[maybe_unused]]) {

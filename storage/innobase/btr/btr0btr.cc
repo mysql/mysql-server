@@ -1142,28 +1142,8 @@ void btr_truncate_recover(const dict_index_t *index) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Reorganizes an index page.
-
- IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
- if this is a compressed leaf page in a secondary index. This has to
- be done either within the same mini-transaction, or by invoking
- ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
- IBUF_BITMAP_FREE is unaffected by reorganization.
-
- @retval true if the operation was successful
- @retval false if it is a compressed page, and recompression failed */
-bool btr_page_reorganize_low(
-    bool recovery,       /*!< in: true if called in recovery:
-                        locks should not be updated, i.e.,
-                        there cannot exist locks on the
-                        page, and a hash index should not be
-                        dropped: it cannot exist */
-    ulint z_level,       /*!< in: compression level to be used
-                         if dealing with compressed page */
-    page_cur_t *cursor,  /*!< in/out: page cursor */
-    dict_index_t *index, /*!< in: the index tree of the page */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
+                             dict_index_t *index, mtr_t *mtr) {
   buf_block_t *block = page_cur_get_block(cursor);
 #ifndef UNIV_HOTBACKUP
   buf_pool_t *buf_pool = buf_pool_from_bpage(&block->page);

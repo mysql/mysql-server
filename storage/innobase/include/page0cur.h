@@ -103,26 +103,27 @@ static inline void page_cur_move_to_prev(
     page_cur_t *cur); /*!< in/out: cursor; not before first */
 #ifndef UNIV_HOTBACKUP
 /** Inserts a record next to page cursor. Returns pointer to inserted record if
- succeed, i.e., enough space available, NULL otherwise. The cursor stays at
- the same logical position, but the physical position may change if it is
- pointing to a compressed page that was reorganized.
+succeed, i.e., enough space available, NULL otherwise. The cursor stays at the
+same logical position, but the physical position may change if it is pointing to
+a compressed page that was reorganized.
 
- IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
- if this is a compressed leaf page in a secondary index.
- This has to be done either within the same mini-transaction,
- or by invoking ibuf_reset_free_bits() before mtr_commit().
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is a
+compressed leaf page in a secondary index. This has to be done either within the
+same mini-transaction, or by invoking ibuf_reset_free_bits() before
+mtr_commit().
 
- @return pointer to record if succeed, NULL otherwise */
+@param[in,out] cursor    Page cursor.
+@param[in]     tuple     Pointer to a data tuple
+@param[in]     index     Index descriptor.
+@param[in]      offsets  Offsets on *rec.
+@param[in,out] heap      Pointer to memory heap, or to nullptr.
+@param[in]     mtr       Mini-transaction handle, or nullptr.
+@param[in]     use_cache If true, then use record cache to hold the tuple
+converted record.
+@return pointer to record if succeed, NULL otherwise */
 [[nodiscard]] static inline rec_t *page_cur_tuple_insert(
-    page_cur_t *cursor,    /*!< in/out: a page cursor */
-    const dtuple_t *tuple, /*!< in: pointer to a data tuple */
-    dict_index_t *index,   /*!< in: record descriptor */
-    ulint **offsets,       /*!< out: offsets on *rec */
-    mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
-    mtr_t *mtr,            /*!< in: mini-transaction handle, or NULL */
-    bool use_cache = false);
-/*!< in: if true, then use record cache to
-hold the tuple converted record. */
+    page_cur_t *cursor, const dtuple_t *tuple, dict_index_t *index,
+    ulint **offsets, mem_heap_t **heap, mtr_t *mtr, bool use_cache = false);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inserts a record next to page cursor. Returns pointer to inserted record

@@ -158,11 +158,12 @@ If len>0, tests the first len bytes of the content for equality.
                                                         const dfield_t *field2,
                                                         ulint len);
 /** Tests if dfield data length and content is equal to the given.
- @return true if equal */
+@param[in] field Field
+@param[in] len   Data length or UNIV_SQL_NULL
+@param[in] data  Data
+@return true if equal */
 [[nodiscard]] static inline bool dfield_data_is_binary_equal(
-    const dfield_t *field, /*!< in: field */
-    ulint len,             /*!< in: data length or UNIV_SQL_NULL */
-    const byte *data);     /*!< in: data */
+    const dfield_t *field, ulint len, const byte *data);
 /** Gets number of fields in a data tuple.
  @return number of fields */
 [[nodiscard]] static inline ulint dtuple_get_n_fields(

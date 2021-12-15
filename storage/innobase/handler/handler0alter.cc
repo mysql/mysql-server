@@ -1219,6 +1219,7 @@ static void dd_commit_inplace_alter_table(
 
 /** Update metadata in commit phase when the alter table does
 no change to the table
+@param[in]	ha_alter_info	the DDL operation
 @param[in]	old_dd_tab	Old dd::Table or dd::Partition
 @param[in]	new_dd_tab	New dd::Table or dd::Partition
 @param[in]	ignore_fts	ignore FTS update if true */
@@ -1259,6 +1260,7 @@ Basically, it should remember number of instant columns,
 and the default value of newly added columns.
 Note this function should only update the metadata
 which would not result in failure
+@param[in]	ha_alter_info	the DDL operation
 @param[in]	new_table	New InnoDB table object
 @param[in]	old_table	MySQL table as it is before the ALTER operation
 @param[in]	altered_table	MySQL table that is being altered
@@ -4188,16 +4190,6 @@ static void dd_commit_inplace_alter_table(
   }
 }
 
-/** Update metadata in commit phase for instant ADD COLUMN.
-Basically, it should remember number of instant columns,
-and the default value of newly added columns.
-Note this function should only update the metadata
-which would not result in failure
-@param[in]	new_table	New InnoDB table object
-@param[in]	old_table	MySQL table as it is before the ALTER operation
-@param[in]	altered_table	MySQL table that is being altered
-@param[in]	old_dd_tab	Old dd::Table
-@param[in,out]	new_dd_tab	New dd::Table */
 static void dd_commit_instant_table(const Alter_inplace_info *ha_alter_info,
                                     const dict_table_t *new_table,
                                     const TABLE *old_table,

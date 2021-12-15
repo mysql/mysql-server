@@ -272,12 +272,6 @@ static inline ulint xdes_arr_size(const page_size_t &page_size) {
   return (page_size.physical() / FSP_EXTENT_SIZE);
 }
 
-/** Check if a specified page is inode page or not. This is used for
-index root pages of hard-coded DD tables, we can safely assume that the passed
-in page number is in the range of pages which are only either index root page
-or inode page
-@param[in]	page	Page number to check
-@return true if it's inode page, otherwise false */
 inline bool fsp_is_inode_page(page_no_t page) {
   static const uint inode_per_page = FSP_SEG_INODES_PER_PAGE(univ_page_size);
 
@@ -381,9 +375,6 @@ inline bool fsp_flags_is_valid(uint32_t flags) {
   return (true);
 }
 
-/** Get the offset of SDI root page number in page 0.
-@param[in]	page_size	page size.
-@return	offset on success, otherwise 0. */
 inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
   ulint offset;
 #ifdef UNIV_DEBUG
@@ -401,9 +392,6 @@ inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
   return (offset);
 }
 
-/** Get the offset of encrytion progress information in page 0.
-@param[in]      page_size       page size.
-@return offset on success, otherwise 0. */
 inline ulint fsp_header_get_encryption_progress_offset(
     const page_size_t &page_size) {
   ulint offset;

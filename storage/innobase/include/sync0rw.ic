@@ -241,18 +241,9 @@ static inline void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock,
   lock->recursive.store(recursive, std::memory_order_release);
 }
 
-/** Low-level function which tries to lock an rw-lock in s-mode. Performs no
- spinning.
- @return TRUE if success */
 ALWAYS_INLINE
-bool rw_lock_s_lock_low(
-    rw_lock_t *lock, /*!< in: pointer to rw-lock */
-    ulint pass [[maybe_unused]],
-    /*!< in: pass value; != 0, if the lock will be
-    passed to another thread to unlock */
-    const char *file_name, /*!< in: file name where lock requested */
-    ulint line)            /*!< in: line where requested */
-{
+bool rw_lock_s_lock_low(rw_lock_t *lock, ulint pass [[maybe_unused]],
+                        const char *file_name, ulint line) {
   if (!rw_lock_lock_word_decr(lock, 1, 0)) {
     /* Locking did not succeed */
     return false;
@@ -659,18 +650,9 @@ static inline void pfs_rw_lock_sx_lock_func(
 
   rw_lock_sx_lock_func(lock, pass, file_name, line);
 }
-/** Performance schema instrumented wrap function for rw_lock_s_lock_func()
- NOTE! Please use the corresponding macro rw_lock_s_lock(), not
- directly this function!
- @return true if success */
-static inline ibool pfs_rw_lock_s_lock_low(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the
-                           lock will be passed to another
-                           thread to unlock */
-    const char *file_name, /*!< in: file name where lock requested */
-    ulint line)            /*!< in: line where requested */
-{
+
+static inline ibool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
+                                           const char *file_name, ulint line) {
   ibool ret;
 
   if (lock->pfs_psi != nullptr) {

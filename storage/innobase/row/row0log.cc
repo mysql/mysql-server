@@ -3038,22 +3038,9 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   return (error);
 }
 
-/** Allocate the row log for an index and flag the index
- for online creation.
- @retval true if success, false if not */
-bool row_log_allocate(
-    dict_index_t *index, /*!< in/out: index */
-    dict_table_t *table, /*!< in/out: new table being rebuilt,
-                         or NULL when creating a secondary index */
-    bool same_pk,        /*!< in: whether the definition of the
-                         PRIMARY KEY has remained the same */
-    const dtuple_t *add_cols,
-    /*!< in: default values of
-    added columns, or NULL */
-    const ulint *col_map, /*!< in: mapping of old column
-                          numbers to new ones, or NULL if !table */
-    const char *path)     /*!< in: where to create temporary file */
-{
+bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
+                      const dtuple_t *add_cols, const ulint *col_map,
+                      const char *path) {
   row_log_t *log;
   DBUG_TRACE;
 

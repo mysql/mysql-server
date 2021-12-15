@@ -64,7 +64,7 @@ Check if the event is set.
 bool os_event_is_set(const os_event_t event); /*!< in: event to set */
 
 /**
-Resets an event semaphore to the nonsignaled state. Waiting threads will
+Resets an event semaphore to the non-signaled state. Waiting threads will
 stop to wait for the event.
 The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
@@ -98,21 +98,20 @@ void os_event_wait_low(os_event_t event,         /*!< in/out: event to wait */
                                                 returned by previous call of
                                                 os_event_reset(). */
 
-/** Blocking infinite wait on an event, until signealled.
+/** Blocking infinite wait on an event, until signalled.
 @param e - event to wait on. */
 #define os_event_wait(e) os_event_wait_low((e), 0)
 
-/**
-Waits for an event object until it is in the signaled state or
+/** Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
+@param[in,out] event       Event to wait for.
+@param[in] timeout         Timeout, or std::chrono::microseconds::max().
+@param[in] reset_sig_count Zero or the value returned by previous call of
+os_event_reset().
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-ulint os_event_wait_time_low(
-    os_event_t event,                  /*!< in/out: event to wait */
-    std::chrono::microseconds timeout, /*!< in: timeout, or
-                              std::chrono::microseconds::max() */
-    int64_t reset_sig_count);          /*!< in: zero or the value
-                                       returned by previous call of
-                                       os_event_reset(). */
+ulint os_event_wait_time_low(os_event_t event,
+                             std::chrono::microseconds timeout,
+                             int64_t reset_sig_count);
 
 /** Blocking timed wait on an event.
 @param e - event to wait on.

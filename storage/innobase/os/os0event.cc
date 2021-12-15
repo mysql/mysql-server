@@ -139,7 +139,7 @@ struct os_event {
 
   /** Waits for an event object until it is in the signaled state or
   a timeout is exceeded.
-  @param  time_in_usec    Timeout, or std::chrono::microseconds::max()
+  @param  timeout Timeout, or std::chrono::microseconds::max()
   @param  reset_sig_count Zero or the value returned by previous call of
   os_event_reset().
   @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */

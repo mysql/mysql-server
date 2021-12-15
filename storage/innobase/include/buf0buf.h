@@ -1033,10 +1033,11 @@ buf_page_hash_get_low() function.
 ulint buf_get_free_list_len(void);
 
 /** Determine if a block is a sentinel for a buffer pool watch.
- @return true if a sentinel for a buffer pool watch, false if not */
-[[nodiscard]] ibool buf_pool_watch_is_sentinel(
-    const buf_pool_t *buf_pool, /*!< buffer pool instance */
-    const buf_page_t *bpage);   /*!< in: block */
+@param[in]	buf_pool	buffer pool instance
+@param[in]	bpage		block
+@return true if a sentinel for a buffer pool watch, false if not */
+[[nodiscard]] ibool buf_pool_watch_is_sentinel(const buf_pool_t *buf_pool,
+                                               const buf_page_t *bpage);
 
 /** Stop watching if the page has been read in.
 buf_pool_watch_set(same_page_id) must have returned NULL before.

@@ -1,5 +1,5 @@
 # Copyright (c) 2015, 2021, Oracle and/or its affiliates.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -55,61 +55,43 @@
 # << template to remove some files >>
 # BUG#XXXXXXXX - TITLE
 # DATE / BUG REPORT AUTHOR
-# include/m_ctype.h:*
+# include/m_ctype.h:[0-9]+: warning:
 #===========================================================================
 
 # BUG#31354781 - FIX DOXYGEN WARNINGS IN RPL CODE
 # 07-DEC-2020 Erlend Dahl
-sql/rpl_binlog_sender.cc:*
-sql/rpl_handler.h:*
-sql/rpl_io_monitor.h:*
-sql/rpl_rli_pdb.h:*
-sql/rpl_info_dummy.cc:*
-sql/rpl_trx_tracking.h:*
-sql/rpl_utility.h:*
-libbinlogevents/include/binlog_event.h:*
-libbinlogevents/include/codecs/binary.h:*
-libbinlogevents/include/trx_boundary_parser.h:*
+sql/rpl_binlog_sender.cc:[0-9]+: warning:
+sql/rpl_handler.h:[0-9]+: warning:
+sql/rpl_io_monitor.h:[0-9]+: warning:
+sql/rpl_rli_pdb.h:[0-9]+: warning:
+sql/rpl_trx_tracking.h:[0-9]+: warning:
+sql/rpl_utility.h:[0-9]+: warning:
+libbinlogevents/include/binlog_event.h:[0-9]+: warning:
+libbinlogevents/include/codecs/binary.h:[0-9]+: warning:
+libbinlogevents/include/trx_boundary_parser.h:[0-9]+: warning:
 #
 # BUG#32245629 - FIX DOXYGEN WARNINGS IN THE OPTIMIZER CODE
 # 07-DEC-2020 Erlend Dahl
-sql/join_optimizer/join_optimizer.cc:*
-sql/range_optimizer/range_optimizer.cc:*
-sql/protocol_callback.h:*
-sql/protocol_classic.cc:*
-sql/spatial.cc:*
-sql/spatial.h:*
-sql/sql_lex.h:*
-sql/sql_optimizer.cc:*
-sql/sql_optimizer_internal.h:*
-sql/sql_prepare.cc:*
-sql/sql_table.cc:*
-
-#===========================================================================
-# 08-DEC-2020 Marc Alff
-# Doxygen bug in 1.8.18, fixed in 1.8.19.
-# warning: Illegal command @td as part of a \b command
-storage/temptable/include/temptable/handler.h:*
-#===========================================================================
-
-#===========================================================================
-# 08-DEC-2020 Marc Alff
-# Doxygen bug in 1.8.18, fixed in 1.8.19.
-# todo:226: warning: unexpected token TK_COMMAND_BS as the argument of _internalref
-# todo:392: warning: unexpected token TK_COMMAND_BS as the argument of _internalref
-# todo:394: warning: Unexpected html tag </dd> found within <dt> context
-todo:*
-#===========================================================================
+sql/join_optimizer/join_optimizer.cc:[0-9]+: warning:
+sql/range_optimizer/range_optimizer.cc:[0-9]+: warning:
+sql/protocol_callback.h:[0-9]+: warning:
+sql/sql_lex.h:[0-9]+: warning:
+sql/sql_optimizer.cc:[0-9]+: warning:
+sql/sql_optimizer_internal.h:[0-9]+: warning:
+sql/sql_prepare.cc:[0-9]+: warning:
+sql/sql_table.cc:[0-9]+: warning:
 
 #===========================================================================
 # 08-DEC-2020 Marc Alff
 # Doxygen bug in 1.8.18
 # Doxygen is confused by anonymous namespaces,
-# which creates a lot of "warning: no matching class member found for".
+# which creates a lot of "warning: no matching class member found for"
+# and "warning: no uniquely matching class member found for"
 #
-# TODO: File a bug in https://github.com/doxygen/doxygen/issues
+# https://github.com/doxygen/doxygen/issues/8413
 #
-sql/auth/sql_authorization.cc:*
+no( uniquely)? matching class member found for
+
 #===========================================================================
 
 #===========================================================================
@@ -125,187 +107,121 @@ sql/auth/sql_authorization.cc:*
 #
 # To read a full error message, read tofix-all.log.
 #
-# anonymous_namespace
 Possible candidates:
 ^[ ]+
 #===========================================================================
 
 #===========================================================================
+# Bug#33594208 Doxygen CMake script does not parse correctly doxygen error
+# file with '[' and ']
 # 22-NOV-2021 Marcin Babij
-# Bug #33594208 Doxygen CMake script does not parse correctly doxygen error file with '[' and '] 
 #
-# Ignore rules are based on files that introduced errors since the parsing first broke.
+# Ignore rules are based on files that introduced errors since the parsing
+# first broke.
 #
-client/mysqltest.cc:*
-components/logging/log_filter_dragnet.cc:*
-components/logging/log_sink_syseventlog.cc:*
-components/mysqlbackup/backup_page_tracker.cc:*
-include/decimal.h:*
-include/lex_string.h:*
-include/m_string.h:*
-include/m_string.h:*
-include/my_dbug.h:*
-include/my_inttypes.h:*
-include/mysql.h:*
-include/mysql.h:*
-include/mysql/components/component_implementation.h:*
-include/mysql/components/services/registry.h:*
-include/mysql/mysql_lex_string.h:*
-include/mysql/udf_registration_types.h:*
-include/mysql_com.h:*
-include/sslopt-vars.h:*
-include/sslopt-vars.h:*
-include/template_utils.h:*
-libbinlogevents/include/wrapper_functions.h:*
-mysys/kqueue_timers.cc:*
-mysys/mf_unixpath.cc:*
-mysys/my_mess.cc:*
-mysys/my_syslog.cc:*
-plugin/group_replication/include/thread/mysql_thread.h:*
-plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h:*
-plugin/group_replication/src/applier.cc:*
-plugin/version_token/version_token.cc:*
-plugin/x/protocol/protobuf/mysqlx_session.proto:*
-router/src/router/src/router_app.h:*
-router/src/routing/src/destination.h:*
-sql-common/client.cc:*
-sql-common/compression.cc:*
-sql-common/net_serv.cc:*
-sql/auth/auth_internal.h:*
-sql/auth/partitioned_rwlock.h:*
-sql/auth/sha2_password.cc:*
-sql/auth/sql_auth_cache.cc:*
-sql/auth/sql_auth_cache.cc:*
-sql/auth/sql_auth_cache.cc:*
-sql/auth/sql_auth_cache.cc:*
-sql/auth/sql_user_table.cc:*
-sql/auto_thd.h:*
-sql/dd/impl/sdi.h:*
-sql/field.h:*
-sql/handler.cc:*
-sql/handler.cc:*
-sql/handler.cc:*
-sql/handler.h:*
-sql/handler.h:*
-sql/handler.h:*
-sql/handler.h:*
-sql/item.h:*
-sql/item.h:*
-sql/item.h:*
-sql/item_func.h:*
-sql/item_geofunc.cc:*
-sql/join_optimizer/explain_access_path.h:*
-sql/json_dom.h:*
-sql/key.cc:*
-sql/log.cc:*
-sql/log_event.h:*
-sql/log_event.h:*
-sql/memory/unique_ptr.h:*
-sql/memory/unique_ptr.h:*
-sql/opt_explain_format.h:*
-sql/opt_explain_json.cc:*
-sql/opt_hints.h:*
-sql/parse_tree_column_attrs.h:*
-sql/parse_tree_hints.h:*
-sql/partitioning/partition_handler.h:*
-sql/query_result.h:*
-sql/raii/read_write_lock_guard.h:*
-sql/raii/read_write_lock_guard.h:*
-sql/range_optimizer/index_range_scan_plan.cc:*
-sql/range_optimizer/index_skip_scan_plan.cc:*
-sql/range_optimizer/index_skip_scan_plan.h:*
-sql/range_optimizer/path_helpers.h:*
-sql/range_optimizer/range_analysis.cc:*
-sql/regexp/errors.cc:*
-sql/rpl_gtid_execution.cc:*
-sql/rpl_info_factory.cc:*
-sql/rpl_info_factory.h:*
-sql/rpl_info_table.cc:*
-sql/rpl_info_table.h:*
-sql/rpl_record.h:*
-sql/rpl_replica.cc:*
-sql/rwlock_scoped_lock.cc:*
-sql/server_component/log_sink_buffer.h:*
-sql/server_component/log_sink_perfschema.cc:*
-sql/server_component/log_sink_perfschema.cc:*
-sql/server_component/log_sink_trad.cc:*
-sql/sp_instr.h:*
-sql/sql_audit.cc:*
-sql/sql_parse.cc:*
-sql/sql_partition.cc:*
-sql/sql_plugin.cc:*
-sql/sql_thd_api.cc:*
-sql/sql_time.cc:*
-sql/sql_tmp_table.cc:*
-sql/sql_union.h:*
-sql/sys_vars.cc:*
-sql/sys_vars.h:*
-sql/table.h:*
-sql/uniques.cc:*
-storage/federated/ha_federated.h:*
-storage/innobase/btr/btr0btr.cc:*
-storage/innobase/btr/btr0sea.cc:*
-storage/innobase/buf/buf0buf.cc:*
-storage/innobase/dict/dict0dd.cc:*
-storage/innobase/dict/dict0dict.cc:*
-storage/innobase/fts/fts0fts.cc:*
-storage/innobase/handler/ha_innodb.cc:*
-storage/innobase/handler/ha_innodb.h:*
-storage/innobase/handler/ha_innopart.h:*
-storage/innobase/handler/ha_innopart.h:*
-storage/innobase/handler/handler0alter.cc:*
-storage/innobase/include/btr0btr.h:*
-storage/innobase/include/btr0btr.h:*
-storage/innobase/include/btr0cur.h:*
-storage/innobase/include/buf0buf.h:*
-storage/innobase/include/data0data.h:*
-storage/innobase/include/detail/ut/alloc.h:*
-storage/innobase/include/detail/ut/page_alloc.h:*
-storage/innobase/include/dict0dd.h:*
-storage/innobase/include/dict0dict.h:*
-storage/innobase/include/fsp0fsp.h:*
-storage/innobase/include/fts0priv.h:*
-storage/innobase/include/ha_prototypes.h:*
-storage/innobase/include/ibuf0ibuf.h:*
-storage/innobase/include/lock0priv.h:*
-storage/innobase/include/log0meb.h:*
-storage/innobase/include/mach0data.h:*
-storage/innobase/include/os0event.h:*
-storage/innobase/include/page0cur.h:*
-storage/innobase/include/page0page.h:*
-storage/innobase/include/page0zip.h:*
-storage/innobase/include/rem0cmp.h:*
-storage/innobase/include/rem0rec.h:*
-storage/innobase/include/row0ins.h:*
-storage/innobase/include/row0log.h:*
-storage/innobase/include/row0mysql.h:*
-storage/innobase/include/row0row.h:*
-storage/innobase/include/row0upd.h:*
-storage/innobase/include/srv0start.h:*
-storage/innobase/include/sync0rw.h:*
-storage/innobase/include/trx0rec.h:*
-storage/innobase/include/trx0trx.h:*
-storage/innobase/include/ut0new.h:*
-storage/innobase/include/ut0new.h:*
-storage/innobase/os/os0event.cc:*
-storage/innobase/os/os0event.cc:*
-storage/innobase/os/os0file.cc:*
-storage/innobase/pars/pars0pars.cc:*
-storage/innobase/rem/rem0cmp.cc:*
-storage/innobase/sync/sync0arr.cc:*
-storage/innobase/sync/sync0rw.cc:*
-storage/myisam/ha_myisam.h:*
-storage/perfschema/ha_perfschema.cc:*
-storage/perfschema/pfs_instr.cc:*
-storage/perfschema/pfs_plugin_table.cc:*
-storage/perfschema/service_pfs_notification.cc:*
-strings/ctype-cp932.cc:*
-strings/ctype-eucjpms.cc:*
-strings/ctype-gb18030.cc:*
-strings/ctype-sjis.cc:*
-strings/ctype-ujis.cc:*
-strings/ctype-utf8.cc:*
-vio/vio.cc:*
+client/mysqltest.cc:[0-9]+: warning:
+components/logging/log_filter_dragnet.cc:[0-9]+: warning:
+components/logging/log_sink_syseventlog.cc:[0-9]+: warning:
+components/mysqlbackup/backup_page_tracker.cc:[0-9]+: warning:
+include/my_dbug.h:[0-9]+: warning:
+libbinlogevents/include/binlog_event.h:[0-9]+: warning:
+libbinlogevents/include/codecs/binary.h:[0-9]+: warning:
+libbinlogevents/include/trx_boundary_parser.h:[0-9]+: warning:
+libbinlogevents/include/wrapper_functions.h:[0-9]+: warning:
+mysys/kqueue_timers.cc:[0-9]+: warning:
+mysys/mf_unixpath.cc:[0-9]+: warning:
+mysys/my_mess.cc:[0-9]+: warning:
+mysys/my_syslog.cc:[0-9]+: warning:
+plugin/group_replication/include/thread/mysql_thread.h:[0-9]+: warning:
+plugin/group_replication/src/applier.cc:[0-9]+: warning:
+plugin/version_token/version_token.cc:[0-9]+: warning:
+router/src/router/src/router_app.h:[0-9]+: warning:
+sql-common/client.cc:[0-9]+: warning:
+sql-common/compression.cc:[0-9]+: warning:
+sql-common/net_serv.cc:[0-9]+: warning:
+sql/auth/partitioned_rwlock.h:[0-9]+: warning:
+sql/auth/sha2_password.cc:[0-9]+: warning:
+sql/auth/sql_auth_cache.cc:[0-9]+: warning:
+sql/auth/sql_authorization.cc:[0-9]+: warning:
+sql/auth/sql_user_table.cc:[0-9]+: warning:
+sql/auto_thd.h:[0-9]+: warning:
+sql/dd/impl/sdi.h:[0-9]+: warning:
+sql/field.h:[0-9]+: warning:
+sql/handler.cc:[0-9]+: warning:
+sql/handler.h:[0-9]+: warning:
+sql/item.h:[0-9]+: warning:
+sql/item_func.h:[0-9]+: warning:
+sql/item_geofunc.cc:[0-9]+: warning:
+sql/join_optimizer/explain_access_path.h:[0-9]+: warning:
+sql/json_dom.h:[0-9]+: warning:
+sql/key.cc:[0-9]+: warning:
+sql/log.cc:[0-9]+: warning:
+sql/log_event.h:[0-9]+: warning:
+sql/opt_explain_format.h:[0-9]+: warning:
+sql/opt_explain_json.cc:[0-9]+: warning:
+sql/opt_hints.h:[0-9]+: warning:
+sql/parse_tree_column_attrs.h:[0-9]+: warning:
+sql/parse_tree_hints.h:[0-9]+: warning:
+sql/partitioning/partition_handler.h:[0-9]+: warning:
+sql/query_result.h:[0-9]+: warning:
+sql/raii/read_write_lock_guard.h:[0-9]+: warning:
+sql/range_optimizer/index_range_scan_plan.cc:[0-9]+: warning:
+sql/range_optimizer/index_skip_scan_plan.cc:[0-9]+: warning:
+sql/range_optimizer/index_skip_scan_plan.h:[0-9]+: warning:
+sql/range_optimizer/path_helpers.h:[0-9]+: warning:
+sql/range_optimizer/range_analysis.cc:[0-9]+: warning:
+sql/regexp/errors.cc:[0-9]+: warning:
+sql/rpl_gtid_execution.cc:[0-9]+: warning:
+sql/rpl_info_factory.cc:[0-9]+: warning:
+sql/rpl_info_factory.h:[0-9]+: warning:
+sql/rpl_info_table.h:[0-9]+: warning:
+sql/rpl_record.h:[0-9]+: warning:
+sql/rpl_replica.cc:[0-9]+: warning:
+sql/rpl_trx_tracking.h:[0-9]+: warning:
+sql/rpl_utility.h:[0-9]+: warning:
+sql/server_component/log_sink_buffer.h:[0-9]+: warning:
+sql/server_component/log_sink_perfschema.cc:[0-9]+: warning:
+sql/server_component/log_sink_trad.cc:[0-9]+: warning:
+sql/sp_instr.h:[0-9]+: warning:
+sql/sql_audit.cc:[0-9]+: warning:
+sql/sql_lex_hints.h:[0-9]+: warning:
+sql/sql_parse.cc:[0-9]+: warning:
+sql/sql_partition.cc:[0-9]+: warning:
+sql/sql_plugin.cc:[0-9]+: warning:
+sql/sql_thd_api.cc:[0-9]+: warning:
+sql/sql_time.cc:[0-9]+: warning:
+sql/sql_tmp_table.cc:[0-9]+: warning:
+sql/sql_union.h:[0-9]+: warning:
+sql/sys_vars.cc:[0-9]+: warning:
+sql/sys_vars.h:[0-9]+: warning:
+sql/uniques.cc:[0-9]+: warning:
+storage/federated/ha_federated.h:[0-9]+: warning:
+storage/innobase/include/detail/ut/alloc.h:[0-9]+: warning:
+storage/innobase/include/ut0new.h:[0-9]+: warning:
+storage/myisam/ha_myisam.h:[0-9]+: warning:
+storage/perfschema/ha_perfschema.cc:[0-9]+: warning:
+storage/perfschema/pfs_instr.cc:[0-9]+: warning:
+storage/perfschema/pfs_plugin_table.cc:[0-9]+: warning:
+storage/perfschema/service_pfs_notification.cc:[0-9]+: warning:
+strings/ctype-cp932.cc:[0-9]+: warning:
+strings/ctype-eucjpms.cc:[0-9]+: warning:
+strings/ctype-gb18030.cc:[0-9]+: warning:
+strings/ctype-sjis.cc:[0-9]+: warning:
+strings/ctype-ujis.cc:[0-9]+: warning:
+strings/ctype-utf8.cc:[0-9]+: warning:
+vio/vio.cc:[0-9]+: warning:
 #===========================================================================
 
-
+#===========================================================================
+# Bug #33603036 InnoDB: Fix doxygen errors, enable doxygen for .ic and .i files
+# 24-NOV-2021 Marcin Babij
+#
+# Ignore errors reported by doxygen incorrectly parsing [[maybe_unused]] attribute.
+# Fixed in Doxygen 1.9.2
+#
+\)\(\(maybe_unused\)
+#
+# New warnings that are reported by the 1.9.2 version:
+#
+sql/auth/sql_authentication.cc:[0-9]+: warning:
+sql/coding_guidelines.h:[0-9]+: warning:

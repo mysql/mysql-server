@@ -1569,8 +1569,8 @@ template void dd_copy_private<dd::Partition>(dd::Partition &,
 
 /** Check if given column is renamed during ALTER.
 @param[in]	ha_alter_info	alter info
-@param[in]	old_name	colmn old name
-@param[out]	new_col		column new name
+@param[in]	old_name	column old name
+@param[out]	new_name		column new name
 @return true if column is renamed, false otherwise. */
 static bool is_renamed(const Alter_inplace_info *ha_alter_info,
                        const char *old_name, std::string &new_name) {
@@ -1592,7 +1592,7 @@ static bool is_renamed(const Alter_inplace_info *ha_alter_info,
 
 /** Check if given column is dropped during ALTER.
 @param[in]	ha_alter_info	alter info
-@param[in]	dd_column	dd::Column
+@param[in]	old_dd_column	dd::Column
 @return true if column is dropped, false otherwise. */
 static bool is_dropped(const Alter_inplace_info *ha_alter_info,
                        const dd::Column *old_dd_column) {
@@ -1608,9 +1608,6 @@ static bool is_dropped(const Alter_inplace_info *ha_alter_info,
   return false;
 }
 
-/** Copy the engine-private parts of column definitions of a table.
-@param[in,out]	new_table	Copy of old table
-@param[in]	old_table	Old table */
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
                            dd::Table &new_table, const dd::Table &old_table) {
   /* Columns in new table maybe more than old tables, when this is
@@ -1725,11 +1722,6 @@ bool dd_instant_columns_exist(const dd::Table &dd_table) {
 }
 #endif /* UNIV_DEBUG */
 
-/** Add column default values for new instantly added columns
-@param[in]	old_table	MySQL table as it is before the ALTER operation
-@param[in]	altered_table	MySQL table that is being altered
-@param[in,out]	new_dd_table	New dd::Table
-@param[in]	new_table	New InnoDB table object */
 void dd_add_instant_columns(IF_DEBUG(const Alter_inplace_info *ha_alter_info, )
                                 const TABLE *old_table,
                             const TABLE *altered_table, dd::Table *new_dd_table,

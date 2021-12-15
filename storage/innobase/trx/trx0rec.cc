@@ -2098,14 +2098,8 @@ static ibool trx_undo_erase_page_end(
   return (first_free != TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 }
 
-/** Parses a redo log record of erasing of an undo page end.
- @return end of log record or NULL */
-byte *trx_undo_parse_erase_page_end(byte *ptr, /*!< in: buffer */
-                                    byte *end_ptr
-                                    [[maybe_unused]], /*!< in: buffer end */
-                                    page_t *page,     /*!< in: page or NULL */
-                                    mtr_t *mtr)       /*!< in: mtr or NULL */
-{
+byte *trx_undo_parse_erase_page_end(byte *ptr, byte *end_ptr [[maybe_unused]],
+                                    page_t *page, mtr_t *mtr) {
   if (page == nullptr) {
     return (ptr);
   }

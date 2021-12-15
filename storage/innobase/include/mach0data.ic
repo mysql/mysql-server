@@ -629,12 +629,8 @@ static inline void mach_float_write(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Reads a ulint stored in the little-endian format.
- @return unsigned long int */
-static inline ulint mach_read_from_n_little_endian(
-    const byte *buf, /*!< in: from where to read */
-    ulint buf_size)  /*!< in: from how many bytes to read */
-{
+static inline ulint mach_read_from_n_little_endian(const byte *buf,
+                                                   ulint buf_size) {
   ulint n = 0;
   const byte *ptr;
 

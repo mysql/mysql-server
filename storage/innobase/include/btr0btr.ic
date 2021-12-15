@@ -50,19 +50,6 @@ trace. */
      btr_page_get_level_low */
 
 #ifndef UNIV_HOTBACKUP
-/** Gets a buffer page and declares its latching order level.
-@param[in]	page_id	Page id
-@param[in]	mode	Latch mode
-@param[in]	file	File name
-@param[in]	line	Line where called */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	index	Index tree, may be NULL if it is not an insert buffer
-tree */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	mtr	Mini-transaction
-@return block */
 static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                               const page_size_t &page_size,
                                               ulint mode, const char *file,
@@ -148,13 +135,8 @@ static inline void btr_page_set_level(
   }
 }
 
-/** Gets the next index page number.
- @return next page number */
-static inline page_no_t btr_page_get_next(
-    const page_t *page, /*!< in: index page */
-    mtr_t *mtr [[maybe_unused]])
-/*!< in: mini-transaction handle */
-{
+static inline page_no_t btr_page_get_next(const page_t *page,
+                                          mtr_t *mtr [[maybe_unused]]) {
   ut_ad(page != nullptr);
   ut_ad(mtr != nullptr);
 
@@ -180,12 +162,8 @@ static inline void btr_page_set_next(
   }
 }
 
-/** Gets the previous index page number.
- @return prev page number */
-static inline page_no_t btr_page_get_prev(
-    const page_t *page,          /*!< in: index page */
-    mtr_t *mtr [[maybe_unused]]) /*!< in: mini-transaction handle */
-{
+static inline page_no_t btr_page_get_prev(const page_t *page,
+                                          mtr_t *mtr [[maybe_unused]]) {
   ut_ad(page != nullptr);
   ut_ad(mtr != nullptr);
 
@@ -211,16 +189,8 @@ static inline void btr_page_set_prev(
   }
 }
 
-/** Gets the child node file address in a node pointer.
- NOTE: the offsets array must contain all offsets for the record since
- we read the last field according to offsets and assume that it contains
- the child page number. In other words offsets must have been retrieved
- with rec_get_offsets(n_fields=ULINT_UNDEFINED).
- @return child node address */
-static inline page_no_t btr_node_ptr_get_child_page_no(
-    const rec_t *rec,     /*!< in: node pointer record */
-    const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
-{
+static inline page_no_t btr_node_ptr_get_child_page_no(const rec_t *rec,
+                                                       const ulint *offsets) {
   const byte *field;
   ulint len;
   page_no_t page_no;

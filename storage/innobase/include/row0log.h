@@ -48,20 +48,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class Alter_stage;
 
 /** Allocate the row log for an index and flag the index
- for online creation.
- @retval true if success, false if not */
-[[nodiscard]] bool row_log_allocate(
-    dict_index_t *index, /*!< in/out: index */
-    dict_table_t *table, /*!< in/out: new table being rebuilt,
-                         or NULL when creating a secondary index */
-    bool same_pk,        /*!< in: whether the definition of the
-                         PRIMARY KEY has remained the same */
-    const dtuple_t *add_cols,
-    /*!< in: default values of
-    added columns, or NULL */
-    const ulint *col_map, /*!< in: mapping of old column
-                          numbers to new ones, or NULL if !table */
-    const char *path);    /*!< in: where to create temporary file */
+for online creation.
+@param[in] index    Index.
+@param[in] table    New table being rebuilt, or NULL when creating a secondary
+index.
+@param[in] same_pk  Whether the definition of the PRIMARY KEY has remained the
+same.
+@param[in] add_cols Default values of added columns, or nullptr.
+@param[in] col_map  Mapping of old column numbers to new ones, or nullptr if
+!table.
+@param[in] path     Where to create temporary file.
+@retval true if success, false if not */
+bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
+                      const dtuple_t *add_cols, const ulint *col_map,
+                      const char *path);
 
 /** Free the row log for an index that was being created online. */
 void row_log_free(row_log_t *&log); /*!< in,own: row log */
@@ -71,16 +71,16 @@ void row_log_free(row_log_t *&log); /*!< in,own: row log */
 static inline void row_log_abort_sec(
     dict_index_t *index); /*!< in/out: index (x-latched) */
 
-/** Try to log an operation to a secondary index that is
- (or was) being created.
- @retval true if the operation was logged or can be ignored
- @retval false if online index creation is not taking place */
-[[nodiscard]] static inline bool row_log_online_op_try(
-    dict_index_t *index,   /*!< in/out: index, S or X latched */
-    const dtuple_t *tuple, /*!< in: index tuple */
-    trx_id_t trx_id);      /*!< in: transaction ID for insert,
-                          or 0 for delete */
-#endif                     /* !UNIV_HOTBACKUP */
+/** Try to log an operation to a secondary index that is (or was) being created.
+@param[in,out] index Index, S- or X-latched.
+@param[in] tuple Index tuple.
+@param[in] trx_id Transaction ID for insert, or 0 for delete.
+@retval true if the operation was logged or can be ignored
+@retval false if online index creation is not taking place */
+[[nodiscard]] static inline bool row_log_online_op_try(dict_index_t *index,
+                                                       const dtuple_t *tuple,
+                                                       trx_id_t trx_id);
+#endif /* !UNIV_HOTBACKUP */
 /** Logs an operation to a secondary index that is (or was) being created. */
 void row_log_online_op(
     dict_index_t *index,   /*!< in/out: index, S or X latched */

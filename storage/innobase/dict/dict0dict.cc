@@ -855,11 +855,6 @@ void dict_table_autoinc_unlock(dict_table_t *table) /*!< in/out: table */
   mutex_exit(table->autoinc_mutex);
 }
 
-/** Returns TRUE if the index contains a column or a prefix of that column.
-@param[in]	index		index
-@param[in]	n		column number
-@param[in]	is_virtual	whether it is a virtual col
-@return true if contains the column or its prefix */
 ibool dict_index_contains_col_or_prefix(const dict_index_t *index, ulint n,
                                         bool is_virtual) {
   const dict_field_t *field;
@@ -6013,9 +6008,6 @@ dict_persist_t::Enable_immediate::~Enable_immediate() {
   m_persister = nullptr;
 }
 
-/** @return number of base columns of virtual column in foreign key column
-@param[in]      vcol    in-memory virtual column
-@param[in]      foreign in-memory Foreign key constraint */
 uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
                                        dict_foreign_t *foreign) {
   const dict_table_t *table = foreign->foreign_table;

@@ -687,9 +687,9 @@ void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
 /**
   Append the authorization id for the user
 
-  @param [in]       thd     The THD to find the SQL mode
-  @param [in]       user    ACL User to retrieve the user information
-  @param [in, out]  str     The string in which authID is suffixed
+  @param [in]       thd      The THD to find the SQL mode
+  @param [in]       acl_user ACL User to retrieve the user information
+  @param [in, out]  str      The string in which authID is suffixed
 */
 void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str) {
   assert(thd);

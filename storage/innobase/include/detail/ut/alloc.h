@@ -305,6 +305,7 @@ struct Alloc_pfs : public allocator_traits<true> {
 
       @param[in] ptr  Pointer to the memory to be reallocated.
       @param[in] size New size of storage (in bytes) requested to be allocated.
+      @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @return Pointer to the reallocated storage. nullptr if dynamic storage
       allocation or reallocation failed or if new size requested was 0.
    */

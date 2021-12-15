@@ -403,12 +403,6 @@ inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
 [[nodiscard]] dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
     trx_t *trx);      /*!< in: transaction handle */
-/** Imports a tablespace. The space id in the .ibd file must match the space id
- of the table in the data dictionary.
- @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_import_tablespace_for_mysql(
-    dict_table_t *table,       /*!< in/out: table */
-    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in MySQL */
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'

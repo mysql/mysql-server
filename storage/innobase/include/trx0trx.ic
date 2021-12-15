@@ -32,14 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "read0read.h"
 
-/** Determines if a transaction is in the given state.
- The caller must hold trx_sys->mutex, or it must be the thread
- that is serving a running transaction.
- A running RW transaction must be in trx_sys->rw_trx_list.
- @return true if trx->state == state */
-static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
-                                trx_state_t state) /*!< in: state */
-{
+static inline bool trx_state_eq(const trx_t *trx, trx_state_t state) {
   const auto trx_state = trx->state.load(std::memory_order_relaxed);
 #ifdef UNIV_DEBUG
   switch (trx_state) {

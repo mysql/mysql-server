@@ -83,10 +83,13 @@ static inline int fts_update_doc_id_cmp(const void *p1, /*!< in: id1 */
   return ((int)(up1->doc_id - up2->doc_id));
 }
 
-/** Get the first character's code position for FTS index partition */
-extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
-                               const uchar *p2,        /*!< in: string */
-                               const ulint len2);      /*!< in: string length */
+/** Get the first character's code position for FTS index partition
+@param[in]	cs	  Character set
+@param[in]	p2	  string
+@param[in]	len2	string length
+*/
+extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, const uchar *p2,
+                               const ulint len2);
 
 /** Check if fts index charset is cjk
 @param[in]	cs	charset

@@ -7586,11 +7586,8 @@ int innobase_nocase_compare(const void *cs, const char *s1, const char *s2) {
 
 #ifndef UNIV_HOTBACKUP
 
-/** Get the first character's code position for FTS index partition. */
-ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
-                        const uchar *str,       /*!< in: string */
-                        const ulint len)        /*!< in: string length */
-{
+ulint innobase_strnxfrm(const CHARSET_INFO *cs, const uchar *str,
+                        const ulint len) {
   uchar mystr[2];
   ulint value;
 

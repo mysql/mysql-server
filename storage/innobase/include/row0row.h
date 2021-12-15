@@ -44,23 +44,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
- a clustered index record.
- @return offset of DATA_TRX_ID */
+a clustered index record.
+@param[in] index Clustered index.
+@param[in] offsets rec_get_offsets(rec, index).
+@return offset of DATA_TRX_ID */
 [[nodiscard]] static inline ulint row_get_trx_id_offset(
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets);     /*!< in: record offsets */
+    const dict_index_t *index, const ulint *offsets);
 /** Reads the trx id field from a clustered index record.
- @return value of the field */
+@param[in] rec Record.
+@param[in] index Clustered index.
+@param[in] offsets rec_get_offsets(rec, index).
+@return value of the field */
 [[nodiscard]] static inline trx_id_t row_get_rec_trx_id(
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
+    const rec_t *rec, const dict_index_t *index, const ulint *offsets);
 /** Reads the roll pointer field from a clustered index record.
- @return value of the field */
+@param[in] rec Record.
+@param[in] index Clustered index.
+@param[in] offsets rec_get_offsets(rec, index).
+@return value of the field */
 [[nodiscard]] static inline roll_ptr_t row_get_rec_roll_ptr(
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
+    const rec_t *rec, const dict_index_t *index, const ulint *offsets);
 
 /* Flags for row build type. */
 #define ROW_BUILD_NORMAL 0     /*!< build index row */
@@ -68,78 +71,58 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ROW_BUILD_FOR_UNDO 2   /*!< build row for undo. */
 #define ROW_BUILD_FOR_INSERT 3 /*!< build row for insert. */
 /** When an insert or purge to a table is performed, this function builds
- the entry to be inserted into or purged from an index on the table.
- @return index entry which should be inserted or purged
- @retval NULL if the externally stored columns in the clustered index record
- are unavailable and ext != NULL, or row is missing some needed columns. */
-[[nodiscard]] dtuple_t *row_build_index_entry_low(
-    const dtuple_t *row,       /*!< in: row which should be
-                               inserted or purged */
-    const row_ext_t *ext,      /*!< in: externally stored column
-                               prefixes, or NULL */
-    const dict_index_t *index, /*!< in: index on the table */
-    mem_heap_t *heap,          /*!< in: memory heap from which
-                               the memory for the index entry
-                               is allocated */
-    ulint flag);               /*!< in: ROW_BUILD_NORMAL,
-                              ROW_BUILD_FOR_PURGE
-                              or ROW_BUILD_FOR_UNDO */
+the entry to be inserted into or purged from an index on the table.
+@param[in] row   Row which should be inserted or purged.
+@param[in] ext   Externally stored column prefixes, or nullptr.
+@param[in] index Index on the table.
+@param[in] heap  Memory heap from which the memory for the index entry is
+allocated.
+@param[in] flag  ROW_BUILD_NORMAL, ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO.
+@return index entry which should be inserted or purged
+@retval NULL if the externally stored columns in the clustered index record
+are unavailable and ext != nullptr, or row is missing some needed columns. */
+[[nodiscard]] dtuple_t *row_build_index_entry_low(const dtuple_t *row,
+                                                  const row_ext_t *ext,
+                                                  const dict_index_t *index,
+                                                  mem_heap_t *heap, ulint flag);
 /** When an insert or purge to a table is performed, this function builds
- the entry to be inserted into or purged from an index on the table.
- @return index entry which should be inserted or purged, or NULL if the
- externally stored columns in the clustered index record are
- unavailable and ext != NULL */
+the entry to be inserted into or purged from an index on the table.
+@return index entry which should be inserted or purged, or NULL if the
+externally stored columns in the clustered index record are
+unavailable and ext != nullptr
+@param[in] row   Row which should be inserted or purged.
+@param[in] ext   Externally stored column prefixes, or nullptr.
+@param[in] index Index on the table.
+@param[in] heap  Memory heap from which the memory for the index entry is
+allocated. */
 [[nodiscard]] static inline dtuple_t *row_build_index_entry(
-    const dtuple_t *row,       /*!< in: row which should be
-                               inserted or purged */
-    const row_ext_t *ext,      /*!< in: externally stored column
-                               prefixes, or NULL */
-    const dict_index_t *index, /*!< in: index on the table */
-    mem_heap_t *heap);         /*!< in: memory heap from which
-                              the memory for the index entry
-                              is allocated */
+    const dtuple_t *row, const row_ext_t *ext, const dict_index_t *index,
+    mem_heap_t *heap);
 /** An inverse function to row_build_index_entry. Builds a row from a
- record in a clustered index.
- @return own: row built; see the NOTE below! */
-dtuple_t *row_build(ulint type,                /*!< in: ROW_COPY_POINTERS or
-                                               ROW_COPY_DATA; the latter
-                                               copies also the data fields to
-                                               heap while the first only
-                                               places pointers to data fields
-                                               on the index page, and thus is
-                                               more efficient */
-                    const dict_index_t *index, /*!< in: clustered index */
-                    const rec_t *rec,          /*!< in: record in the clustered
-                                               index; NOTE: in the case
-                                               ROW_COPY_POINTERS the data
-                                               fields in the row will point
-                                               directly into this record,
-                                               therefore, the buffer page of
-                                               this record must be at least
-                                               s-latched and the latch held
-                                               as long as the row dtuple is used! */
-                    const ulint *offsets, /*!< in: rec_get_offsets(rec,index)
-                                          or NULL, in which case this function
-                                          will invoke rec_get_offsets() */
-                    const dict_table_t *col_table,
-                    /*!< in: table, to check which
-                    externally stored columns
-                    occur in the ordering columns
-                    of an index, or NULL if
-                    index->table should be
-                    consulted instead; the user
-                    columns in this table should be
-                    the same columns as in index->table */
-                    const dtuple_t *add_cols,
-                    /*!< in: default values of
-                    added columns, or NULL */
-                    const ulint *col_map, /*!< in: mapping of old column
-                                          numbers to new ones, or NULL */
-                    row_ext_t **ext,      /*!< out, own: cache of
-                                          externally stored column
-                                          prefixes, or NULL */
-                    mem_heap_t *heap);    /*!< in: memory heap from which
-                                          the memory needed is allocated */
+record in a clustered index.
+@param[in] type      ROW_COPY_POINTERS or ROW_COPY_DATA; the latter copies also
+the data fields to heap while the first only places pointers to data fields on
+the index page, and thus is more efficient.
+@param[in] index     Clustered index.
+@param[in] rec       Record in the clustered index; NOTE: in the case
+ROW_COPY_POINTERS the data fields in the row will point directly into this
+record, therefore, the buffer page of this record must be at least s-latched and
+the latch held as long as the row dtuple is used!
+@param[in] offsets rec_get_offsets(rec,index) or nullptr, in which case this
+function will invoke rec_get_offsets().
+@param[in] col_table Table, to check which externally stored columns occur in
+the ordering columns of an index, or nullptr if index->table should be consulted
+instead; the user columns in this table should be the same columns as in
+index->table.
+@param[in] add_cols  Default values of added columns, or nullptr.
+@param[in] col_map   Mapping of old column numbers to new ones, or nullptr.
+@param[out] ext      cache of externally stored column prefixes, or nullptr.
+@param[in] heap      Memory heap from which the memory needed is allocated.
+@return own: row built; see the NOTE below! */
+dtuple_t *row_build(ulint type, const dict_index_t *index, const rec_t *rec,
+                    const ulint *offsets, const dict_table_t *col_table,
+                    const dtuple_t *add_cols, const ulint *col_map,
+                    row_ext_t **ext, mem_heap_t *heap);
 
 /** An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index, with possible indexing on ongoing

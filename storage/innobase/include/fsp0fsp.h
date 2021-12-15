@@ -185,7 +185,7 @@ header slots are reserved */
 
 /** @} */
 
-/* Maximum allowed value of AUTOEXTEND_SIZE attribue */
+/* Maximum allowed value of AUTOEXTEND_SIZE attribute */
 const uint64_t FSP_MAX_AUTOEXTEND_SIZE(4 * 1024 * 1024 * 1024ULL);
 
 /** @defgroup File Segment Inode Constants (moved from fsp0fsp.c)
@@ -452,7 +452,7 @@ void fsp_header_init_fields(
                          (FSP_SPACE_FLAGS): 0, or
                          table->flags if newer than COMPACT */
 
-/** Get the offset of encrytion information in page 0.
+/** Get the offset of encryption information in page 0.
 @param[in]	page_size	page size.
 @return	offset on success, otherwise 0. */
 ulint fsp_header_get_encryption_offset(const page_size_t &page_size);
@@ -684,10 +684,12 @@ static inline ibool fsp_descr_page(const page_id_t &page_id,
                                    const page_size_t &page_size);
 
 /** Parses a redo log record of a file page init.
- @return end of log record or NULL */
-byte *fsp_parse_init_file_page(byte *ptr,           /*!< in: buffer */
-                               byte *end_ptr,       /*!< in: buffer end */
-                               buf_block_t *block); /*!< in: block or NULL */
+@param[in] ptr Buffer.
+@param[in] end_ptr Buffer end.
+@param[in] block Block or nullptr.
+@return end of log record or nullptr */
+byte *fsp_parse_init_file_page(byte *ptr, byte *end_ptr, buf_block_t *block);
+
 #ifdef UNIV_BTR_PRINT
 /** Writes info of a segment. */
 void fseg_print(fseg_header_t *header, /*!< in: segment header */
@@ -753,7 +755,7 @@ static inline bool fsp_flags_are_equal(uint32_t flags1, uint32_t flags2);
 
 /** Initialize an FSP flags integer.
 @param[in]	page_size	page sizes in bytes and compression flag.
-@param[in]	atomic_blobs	Used by Dynammic and Compressed.
+@param[in]	atomic_blobs	Used by Dynamic and Compressed.
 @param[in]	has_data_dir	This tablespace is in a remote location.
 @param[in]	is_shared	This tablespace can be shared by many tables.
 @param[in]	is_temporary	This tablespace is temporary.
@@ -918,19 +920,19 @@ inline void fsp_header_size_update(fsp_header_t *header, ulint size,
 }
 
 /** Check if a specified page is inode page or not. This is used for
-index root pages of core DD table, we can safely assume that the passed in
-page number is in the range of pages which are only either index root page
+index root pages of hard-coded DD tables, we can safely assume that the passed
+in page number is in the range of pages which are only either index root page
 or inode page
 @param[in]	page	Page number to check
 @return true if it's inode page, otherwise false */
 inline bool fsp_is_inode_page(page_no_t page);
 
-/** Get the offset of SDI root page number in page 0
-@param[in]	page_size	page size
+/** Get the offset of SDI root page number in page 0.
+@param[in]	page_size	Page size.
 @return offset on success, else 0 */
 inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size);
 
-/** Get the offset of encrytion progress information in page 0.
+/** Get the offset of encryption progress information in page 0.
 @param[in]      page_size       page size.
 @return offset on success, otherwise 0. */
 inline ulint fsp_header_get_encryption_progress_offset(
