@@ -1097,6 +1097,8 @@ bool Item_func_reverse::resolve_type(THD *thd) {
 String *Item_func_replace::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String *res1 = args[0]->val_str(str);
   if (res1 == nullptr) return error_str();
 
@@ -1150,7 +1152,6 @@ String *Item_func_replace::val_str(String *str) {
       if (err) return error_str();
     }
   }
-  null_value = false;
 
   return result;
 }
@@ -2574,6 +2575,8 @@ end:
 String *Item_func_rpad::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String *res = eval_string_arg(collation.collation, args[0], str);
   if (res == nullptr) return error_str();
 
@@ -2777,6 +2780,8 @@ longlong Item_func_is_uuid::val_int() {
 String *Item_func_lpad::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   StringBuffer<STRING_BUFFER_USUAL_SIZE> base_string(nullptr, 0,
                                                      collation.collation);
   String *res = eval_string_arg(collation.collation, args[0], &base_string);
@@ -2841,7 +2846,7 @@ String *Item_func_lpad::val_str(String *str) {
                 collation.collation);
   }
   str->append(*res);
-  null_value = false;
+
   return str;
 }
 
