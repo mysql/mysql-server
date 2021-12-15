@@ -35,8 +35,6 @@ FOREACH(warning
     "error=shadow-field"
     # Downgrade -Werror=null-pointer-subtraction
     "error=null-pointer-subtraction"
-    # Downgrade -Werror=array-bounds to warning
-    "error=array-bounds"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

@@ -1163,6 +1163,7 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     // Do nothing
   } else {
     g_eventLogger->info("Unknown field: %s", field);
+    return -1;
   }
   return 0;
 }
@@ -1195,6 +1196,7 @@ status_ackumulate2(struct ndb_mgm_node_state2 * state,
     state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
     g_eventLogger->info("Unknown field: %s", field);
+    return -1;
   }
   return 0;
 }
@@ -1337,14 +1339,14 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   }
 
   state->no_of_nodes= noOfNodes;
-  ndb_mgm_node_state * ptr = &state->node_states[0];
-  int nodeId = 0;
-  int i;
-  for (i= 0; i < noOfNodes; i++) {
+  for (int i = 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
   }
-  i = -1; ptr--;
-  for(; i<noOfNodes; ){
+  ndb_mgm_node_state *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
     if(!in.gets(buf, sizeof(buf)))
     {
       free(state);
@@ -1358,31 +1360,54 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
     tmp.assign(buf);
 
-    if(tmp.trim() == ""){
+    if (tmp.trim(" \t\n") == "") {
       break;
     }
-    
+
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
     Vector<BaseString> split2;
     tmp.split(split2, ":.", 4);
-    if(split2.size() != 4)
-      break;
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      ndbout_c("tmp = %s of length %u", tmp.trim().c_str(), tmp.trim().length());
+      DBUG_RETURN(NULL);
+    }
     
     const int id = atoi(split2[1].c_str());
-    if(id != nodeId){
-      ptr++;
-      i++;
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
       nodeId = id;
-      ptr->node_id = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
     }
 
     split2[3].trim(" \t\n");
 
-    if(status_ackumulate(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
-      break;
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
     }
   }
 
-  if(i+1 != noOfNodes){
+  if (found_nodes != noOfNodes) {
     free(state);
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
@@ -1557,15 +1582,15 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   }
 
   state->no_of_nodes= noOfNodes;
-  ndb_mgm_node_state2 * ptr = &state->node_states[0];
-  int nodeId = 0;
-  int i;
-  for (i= 0; i < noOfNodes; i++) {
+  for (int i = 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
     state->node_states[i].is_single_user = 0;
   }
-  i = -1; ptr--;
-  for(; i<noOfNodes; ){
+  ndb_mgm_node_state2 *const base_ptr = &state->node_states[0];
+  ndb_mgm_node_state2 * curr_ptr = nullptr;
+  int nodeId = 0; // Invalid id
+  int found_nodes = 0;
+  while (found_nodes <= noOfNodes) {
     if(!in.gets(buf, sizeof(buf)))
     {
       free(state);
@@ -1579,31 +1604,53 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
     tmp.assign(buf);
 
-    if(tmp.trim() == ""){
+    if (tmp.trim(" \t\n") == "") {
       break;
     }
 
+    /**
+     * Expected reply format:
+     * "node.<node_id>.<field_name>: <value>\n"
+     * E.g node.1.type: NDB
+     * ...
+     */
     Vector<BaseString> split2;
     tmp.split(split2, ":.", 4);
-    if(split2.size() != 4)
-      break;
+    if (split2.size() != 4) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+      DBUG_RETURN(NULL);
+    }
 
     const int id = atoi(split2[1].c_str());
-    if(id != nodeId){
-      ptr++;
-      i++;
+    if (id == 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node id");
+      DBUG_RETURN(NULL);
+    }
+    if (id != nodeId) {
+      // Next series of values corresponding to a different node id found
       nodeId = id;
-      ptr->node_id = id;
+      found_nodes++;
+      if (curr_ptr == nullptr) {
+        curr_ptr = base_ptr;
+      } else {
+        curr_ptr++;
+      }
+      curr_ptr->node_id = id;
     }
 
     split2[3].trim(" \t\n");
 
-    if(status_ackumulate2(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
-      break;
+    assert(curr_ptr != nullptr);
+    if(status_ackumulate2(curr_ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Unknown field");
+      DBUG_RETURN(NULL);
     }
   }
 
-  if(i+1 != noOfNodes){
+  if (found_nodes != noOfNodes) {
     free(state);
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
