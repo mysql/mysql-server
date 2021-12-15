@@ -430,8 +430,9 @@ inline void TransientPagePool::MapPage::set(Uint32 i, Uint32 v)
  * class Test is friend of TransientPagePool.
  */
 
-struct Test
+class Test
 {
+public:
   Test();
 };
 
