@@ -6746,7 +6746,8 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   return true;
 }
 
-Ndb_binlog_thread::Ndb_binlog_thread() : Ndb_component("Binlog") {}
+Ndb_binlog_thread::Ndb_binlog_thread()
+    : Ndb_component("Binlog", "ndb_binlog") {}
 
 Ndb_binlog_thread::~Ndb_binlog_thread() {}
 

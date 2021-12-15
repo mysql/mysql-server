@@ -51,7 +51,7 @@ typedef NdbDictionary::Index NDBINDEX;
 
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
-    : Ndb_component("Index Stat"), client_waiting(false) {}
+    : Ndb_component("Index Stat", "ndb_index_stat"), client_waiting(false) {}
 
 int Ndb_index_stat_thread::do_init() {
   mysql_mutex_init(PSI_INSTRUMENT_ME, &LOCK_client_waiting, MY_MUTEX_INIT_FAST);

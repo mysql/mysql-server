@@ -46,7 +46,7 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"               // Thd_ndb
 
 Ndb_metadata_change_monitor::Ndb_metadata_change_monitor()
-    : Ndb_component("Metadata"), m_mark_sync_complete{false} {}
+    : Ndb_component("Metadata", "ndb_metadata"), m_mark_sync_complete{false} {}
 
 Ndb_metadata_change_monitor::~Ndb_metadata_change_monitor() {}
 
