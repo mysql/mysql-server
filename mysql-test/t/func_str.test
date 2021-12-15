@@ -2395,3 +2395,37 @@ CALL load_locale_format_table();
 SELECT * FROM locale_format;
 DROP PROCEDURE load_locale_format_table;
 DROP TABLE locale_format;
+
+--echo # Bug#33661337: more gcols corruption
+
+SET sql_mode = '';
+CREATE TABLE t (
+  a INT,
+  b BLOB,
+  c INT GENERATED ALWAYS AS (1) VIRTUAL,
+  d INT,
+  e INT GENERATED ALWAYS AS (LPAD('111', b, '1')) VIRTUAL,
+  UNIQUE KEY (e),
+  KEY(b(1),a,e),
+  KEY(e,b(1))
+);
+
+INSERT INTO t(b) VALUES('32');
+INSERT INTO t(d, b) VALUES(2, '222222') ON DUPLICATE KEY UPDATE a=644, b=3;
+INSERT IGNORE INTO t(a,b,d) VALUES (1, '1536999167', 1);
+CHECK TABLE t EXTENDED;
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+
+DROP TABLE t;
+
+SET sql_mode = DEFAULT;
+
+CREATE TABLE t1(c VARCHAR(10));
+INSERT INTO t1 VALUES(NULL), ('pad');
+SELECT RPAD(c, 4, 'x') FROM t1;
+SELECT RPAD(c, 3, 'x') FROM t1;
+SELECT LPAD(c, 4, 'x') FROM t1;
+SELECT LPAD(c, 3, 'x') FROM t1;
+
+DROP TABLE t1;
