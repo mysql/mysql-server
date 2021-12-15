@@ -355,7 +355,11 @@ SELECT @@global.innodb_lock_wait_timeout;
 @@global.innodb_lock_wait_timeout
 110
 SET GLOBAL myisam_repair_threads=27;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SET PERSIST myisam_repair_threads=12;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SET GLOBAL myisam_sort_buffer_size=16777216;
 SET PERSIST myisam_sort_buffer_size=default;
 SELECT @@global.innodb_lock_wait_timeout;

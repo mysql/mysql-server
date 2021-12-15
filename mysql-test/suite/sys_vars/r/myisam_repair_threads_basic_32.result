@@ -8,11 +8,15 @@ SELECT @start_session_value;
 1
 '#--------------------FN_DYNVARS_005_01-------------------------#'
 SET @@global.myisam_repair_threads  = 100;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SET @@global.myisam_repair_threads  = DEFAULT;
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 1
 SET @@session.myisam_repair_threads  = 200;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SET @@session.myisam_repair_threads  = DEFAULT;
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
@@ -32,10 +36,14 @@ SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 1
 SET @@global.myisam_repair_threads  = 4294967295;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 4294967295
 SET @@global.myisam_repair_threads  = 655354;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 655354
@@ -45,10 +53,14 @@ SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 1
 SET @@session.myisam_repair_threads  = 4294967295;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 4294967295
 SET @@session.myisam_repair_threads  = 655345;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 655345
@@ -93,12 +105,14 @@ SELECT @@global.myisam_repair_threads ;
 SET @@global.myisam_repair_threads  = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect myisam_repair_threads value: '4294967296'
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 4294967295
 SET @@global.myisam_repair_threads  = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect myisam_repair_threads value: '42949672950'
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 4294967295
@@ -132,12 +146,14 @@ SELECT @@session.myisam_repair_threads ;
 SET @@session.myisam_repair_threads  = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect myisam_repair_threads value: '4294967296'
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 4294967295
 SET @@session.myisam_repair_threads  = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect myisam_repair_threads value: '42949672950'
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 4294967295
@@ -166,11 +182,15 @@ SELECT @@global.myisam_repair_threads ;
 1
 '#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.myisam_repair_threads  = 10;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@myisam_repair_threads  = @@global.myisam_repair_threads ;
 @@myisam_repair_threads  = @@global.myisam_repair_threads
 0
 '#---------------------FN_DYNVARS_001_10----------------------#'
 SET @@myisam_repair_threads  = 100;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SELECT @@myisam_repair_threads  = @@local.myisam_repair_threads ;
 @@myisam_repair_threads  = @@local.myisam_repair_threads
 1
