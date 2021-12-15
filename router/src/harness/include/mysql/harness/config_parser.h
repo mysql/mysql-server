@@ -283,6 +283,7 @@ class HARNESS_EXPORT Config {
       : Config(flags, config_overwrites) {
     for (auto item : parameters)
       defaults_->set(item.first, item.second);  // throws bad_option
+    apply_overwrites();
   }
 
   /**
