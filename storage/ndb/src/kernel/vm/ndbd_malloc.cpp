@@ -52,6 +52,7 @@ struct AllocTouchMem
   size_t sz;
   void *p;
   Uint32 index;
+  bool make_readwritable;
 };
 
 
@@ -79,6 +80,7 @@ touch_mem(void* arg)
 
   size_t sz = touch_mem_ptr->sz;
   Uint32 index = touch_mem_ptr->index;
+  bool make_readwritable = touch_mem_ptr->make_readwritable;
   unsigned char *p = (unsigned char *)touch_mem_ptr->p;
   size_t num_pages_per_thread = 1;
   size_t first_page;
@@ -91,6 +93,18 @@ touch_mem(void* arg)
 
   const bool whole_pages = ((uintptr_t)p % TOUCH_PAGE_SIZE == 0) &&
                            (sz % TOUCH_PAGE_SIZE == 0);
+
+  if (make_readwritable)
+  {
+    /*
+     * make_readwritable must call NdbMem_PopulateSpace to change page
+     * protection to read-write, and that function requires whole pages.
+     *
+     * This is needed when memory for example have only been reserved by
+     * NdbMem_ReserveSpace.
+     */
+    require(whole_pages);
+  }
 
   if (tot_pages > TOUCH_PARALLELISM)
   {
@@ -117,10 +131,12 @@ touch_mem(void* arg)
        i += NUM_PAGES_BETWEEN_WATCHDOG_SETS,
        ptr += NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE)
   {
-    const size_t size = std::min(end - ptr,
-        ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
+    const size_t size = std::min({
+        ptrdiff_t(end - ptr),
+        ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE),
+        ptrdiff_t(num_pages_per_thread * TOUCH_PAGE_SIZE)});
 
-    if (whole_pages)
+    if (make_readwritable)
     {
       // Populate address space earlier Reserved.
       require(NdbMem_PopulateSpace(ptr, size) == 0);
@@ -155,7 +171,8 @@ touch_mem(void* arg)
 }
 
 void
-ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
+ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter,
+                     bool make_readwritable)
 {
   struct NdbThread *thread_ptr[TOUCH_PARALLELISM];
   struct AllocTouchMem touch_mem_struct[TOUCH_PARALLELISM];
@@ -191,6 +208,7 @@ ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
     touch_mem_struct[i].sz = sz;
     touch_mem_struct[i].p = p;
     touch_mem_struct[i].index = i;
+    touch_mem_struct[i].make_readwritable = make_readwritable;
 
     thread_ptr[i] = NULL;
     if (sz > MIN_START_THREAD_SIZE)
@@ -235,7 +253,7 @@ void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog)
   {
     g_allocated_memory += size;
 
-    ndbd_alloc_touch_mem(p, size, watch_dog);
+    ndbd_alloc_touch_mem(p, size, watch_dog, false /* touch only */);
 
 #ifdef TRACE_MALLOC
     {
