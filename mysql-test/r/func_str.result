@@ -5563,3 +5563,57 @@ es_UY	12.131.254.123.412.541,00
 es_VE	12.131.254.123.412.541,00
 DROP PROCEDURE load_locale_format_table;
 DROP TABLE locale_format;
+# Bug#33661337: more gcols corruption
+SET sql_mode = '';
+CREATE TABLE t (
+a INT,
+b BLOB,
+c INT GENERATED ALWAYS AS (1) VIRTUAL,
+d INT,
+e INT GENERATED ALWAYS AS (LPAD('111', b, '1')) VIRTUAL,
+UNIQUE KEY (e),
+KEY(b(1),a,e),
+KEY(e,b(1))
+);
+INSERT INTO t(b) VALUES('32');
+Warnings:
+Warning	1264	Out of range value for column 'e' at row 1
+INSERT INTO t(d, b) VALUES(2, '222222') ON DUPLICATE KEY UPDATE a=644, b=3;
+Warnings:
+Warning	1264	Out of range value for column 'e' at row 1
+Warning	1264	Out of range value for column 'e' at row 1
+Warning	1264	Out of range value for column 'e' at row 1
+INSERT IGNORE INTO t(a,b,d) VALUES (1, '1536999167', 1);
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DELETE FROM t;
+Warnings:
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+SET sql_mode = DEFAULT;
+CREATE TABLE t1(c VARCHAR(10));
+INSERT INTO t1 VALUES(NULL), ('pad');
+SELECT RPAD(c, 4, 'x') FROM t1;
+RPAD(c, 4, 'x')
+NULL
+padx
+SELECT RPAD(c, 3, 'x') FROM t1;
+RPAD(c, 3, 'x')
+NULL
+pad
+SELECT LPAD(c, 4, 'x') FROM t1;
+LPAD(c, 4, 'x')
+NULL
+xpad
+SELECT LPAD(c, 3, 'x') FROM t1;
+LPAD(c, 3, 'x')
+NULL
+pad
+DROP TABLE t1;
