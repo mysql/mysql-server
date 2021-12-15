@@ -4010,4 +4010,15 @@ SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 MAX(col2)
 NULL
 DROP TABLE t1;
+#
+# Bug#33611112: Reverse index scan is not sorted on implicit InnoDB primary key
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, NULL), (2, NULL), (3, 3), (4, NULL);
+SELECT a FROM t1 WHERE b IS NULL GROUP BY a ORDER BY a DESC;
+a
+4
+2
+1
+DROP TABLE t1;
 set optimizer_switch=default;

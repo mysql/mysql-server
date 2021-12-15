@@ -3173,3 +3173,12 @@ INSERT INTO t1 VALUES ('abcde', 10);
 --echo # Used to return 10. The expected result is NULL.
 SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33611112: Reverse index scan is not sorted on implicit InnoDB primary key
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, NULL), (2, NULL), (3, 3), (4, NULL);
+SELECT a FROM t1 WHERE b IS NULL GROUP BY a ORDER BY a DESC;
+DROP TABLE t1;

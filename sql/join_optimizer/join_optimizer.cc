@@ -1133,6 +1133,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   path->index_range_scan().reuse_handler = false;
   path->index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
   path->index_range_scan().reverse = false;
+  path->index_range_scan().using_extended_key_parts = false;
 
   *inexact |= (num_exact_key_parts != used_key_parts);
   return path;
@@ -1322,8 +1323,7 @@ bool CostingReceiver::FindIndexRangeScans(
     path.index_range_scan().can_be_used_for_imerge = scan.is_imerge_scan;
     path.index_range_scan().reuse_handler = false;
     path.index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
-    // TODO: Set this flag for reverse scans that need to be ordered on the
-    // primary key (bug#33611112).
+    path.index_range_scan().reverse = false;
     path.index_range_scan().using_extended_key_parts = false;
 
     bool contains_subqueries = false;  // Filled on the first iteration below.
@@ -1388,6 +1388,18 @@ bool CostingReceiver::FindIndexRangeScans(
       path.index_range_scan().can_be_used_for_imerge = is_imerge_scan;
       path.ordering_state = m_orderings->SetOrder(ordering_idx);
       path.index_range_scan().reverse = (order_direction == ORDER_DESC);
+
+      // Reverse index range scans need to be told whether they should be using
+      // extended key parts. If the requested scan ordering follows more
+      // interesting orderings than a scan ordered by the user-defined key parts
+      // only, it means the extended key parts are needed.
+      path.index_range_scan().using_extended_key_parts =
+          path.index_range_scan().reverse &&
+          m_orderings->MoreOrderedThan(
+              path.ordering_state,
+              m_orderings->SetOrder(m_orderings->RemapOrderingIndex(
+                  it->reverse_order_without_extended_key_parts)),
+              /*obsolete_orderings=*/0);
 
       for (bool materialize_subqueries : {false, true}) {
         AccessPath new_path = path;

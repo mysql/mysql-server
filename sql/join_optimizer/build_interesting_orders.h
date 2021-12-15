@@ -80,7 +80,8 @@ struct SortAheadOrdering {
 struct ActiveIndexInfo {
   TABLE *table;
   int key_idx;
-  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0;
+  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0,
+                               reverse_order_without_extended_key_parts = 0;
 };
 
 // A full-text index that we can use in the query, either for index lookup or
