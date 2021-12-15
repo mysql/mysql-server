@@ -148,13 +148,13 @@ void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
                                       PersistentTableMetadata *metadata);
 
 /** Determine bytes of column prefix to be stored in the undo log. Please
- note that if !dict_table_has_atomic_blobs(table), no prefix
- needs to be stored in the undo log.
- @return bytes of column prefix to be stored in the undo log */
+note that if !dict_table_has_atomic_blobs(table), no prefix
+needs to be stored in the undo log.
+@param[in] table Table.
+@param[in] col   Column which index prefix is based on.
+@return bytes of column prefix to be stored in the undo log */
 [[nodiscard]] static inline ulint dict_max_field_len_store_undo(
-    dict_table_t *table,    /*!< in: table */
-    const dict_col_t *col); /*!< in: column which index prefix
-                           is based on */
+    dict_table_t *table, const dict_col_t *col);
 
 /** Determine maximum bytes of a virtual column need to be stored
 in the undo log.
@@ -169,10 +169,11 @@ static inline ulint dict_max_v_field_len_store_undo(dict_table_t *table,
  @return col->ind, table column position (starting from 0) */
 [[nodiscard]] static inline ulint dict_col_get_no(
     const dict_col_t *col); /*!< in: column */
-/** Gets the column position in the clustered index. */
+/** Gets the column position in the clustered index.
+@param[in] col         Table column.
+@param[in] clust_index Clustered index. */
 [[nodiscard]] static inline ulint dict_col_get_clust_pos(
-    const dict_col_t *col,            /*!< in: table column */
-    const dict_index_t *clust_index); /*!< in: clustered index */
+    const dict_col_t *col, const dict_index_t *clust_index);
 
 #ifndef UNIV_HOTBACKUP
 /** Gets the column position in the given index.
@@ -517,10 +518,11 @@ static inline dict_v_col_t *dict_table_get_nth_v_col(const dict_table_t *table,
 #define dict_table_get_nth_v_col(table, pos) ((table)->v_cols + (pos))
 #endif /* UNIV_DEBUG */
 /** Gets the given system column number of a table.
- @return column number */
+@param[in] table Table.
+@param[in] sys   DATA_ROW_ID, ...
+@return column number */
 [[nodiscard]] static inline ulint dict_table_get_sys_col_no(
-    const dict_table_t *table, /*!< in: table */
-    ulint sys);                /*!< in: DATA_ROW_ID, ... */
+    const dict_table_t *table, ulint sys);
 /** Check whether the table uses the compact page format.
  @return true if table uses the compact page format */
 [[nodiscard]] static inline bool dict_table_is_comp(
@@ -723,12 +725,12 @@ include page no field.
     const dict_index_t *index); /*!< in: an internal representation
                                of index (in the dictionary cache) */
 /** Returns true if the index contains a column or a prefix of that column.
- @return true if contains the column or its prefix */
-[[nodiscard]] bool dict_index_contains_col_or_prefix(
-    const dict_index_t *index, /*!< in: index */
-    ulint n,                   /*!< in: column number */
-    bool is_virtual);
-/*!< in: whether it is a virtual col */
+@param[in]	index		index
+@param[in]	n		column number
+@param[in]	is_virtual	whether it is a virtual col
+@return true if contains the column or its prefix */
+[[nodiscard]] bool dict_index_contains_col_or_prefix(const dict_index_t *index,
+                                                     ulint n, bool is_virtual);
 /** Looks for a matching field in an index. The column has to be the same. The
  column in index must be complete, or must contain a prefix longer than the
  column in index2. That is, we must be able to construct the prefix in index2
@@ -801,16 +803,19 @@ inline bool dict_table_is_compressed_temporary(const dict_table_t *table);
     ulint level);              /*!< in: level of rec in tree:
                               0 means leaf level */
 /** Copies an initial segment of a physical record, long enough to specify an
- index entry uniquely.
- @return pointer to the prefix record */
-[[nodiscard]] rec_t *dict_index_copy_rec_order_prefix(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to
-                               copy prefix */
-    ulint *n_fields,           /*!< out: number of fields copied */
-    byte **buf,                /*!< in/out: memory buffer for the
-                               copied prefix, or NULL */
-    size_t *buf_size);         /*!< in/out: buffer size */
+index entry uniquely. In case buf is nullptr or the buf_size is not enough to
+store the prefix, the new buffer will be allocated.
+@param[in]	index	index
+@param[in]	rec	record for which to copy prefix
+@param[out]	n_fields	number of fields copied
+@param[in,out]	buf	 memory buffer for the copied prefix, or nullptr
+@param[in,out]	buf_size	buffer size, size of allocated buffer
+@return pointer to the prefix record */
+[[nodiscard]] rec_t *dict_index_copy_rec_order_prefix(const dict_index_t *index,
+                                                      const rec_t *rec,
+                                                      ulint *n_fields,
+                                                      byte **buf,
+                                                      size_t *buf_size);
 /** Builds a typed data tuple out of a physical record.
  @return own: data tuple */
 [[nodiscard]] dtuple_t *dict_index_build_data_tuple(
@@ -925,14 +930,14 @@ inline const dict_index_t *dict_table_get_index_on_name(
                                        committed));
 }
 
-/***************************************************************
-Check whether a column exists in an FTS index. */
-[[nodiscard]] static inline ulint dict_table_is_fts_column(
-    /*!< out: ULINT_UNDEFINED if no match else
-    the offset within the vector */
-    ib_vector_t *indexes, /*!< in: vector containing only FTS indexes */
-    ulint col_no,         /*!< in: col number to search for */
-    bool is_virtual);     /*!< in: whether it is a virtual column */
+/** Check whether a column exists in an FTS index.
+@param[in] indexes    Vector containing only FTS indexes
+@param[in] col_no     Column number to search for.
+@param[in] is_virtual Whether it is a virtual column.
+@return ULINT_UNDEFINED if no match else the offset within the vector. */
+[[nodiscard]] static inline ulint dict_table_is_fts_column(ib_vector_t *indexes,
+                                                           ulint col_no,
+                                                           bool is_virtual);
 /** Prevent table eviction by moving a table to the non-LRU list from the
  LRU list if it is not already there. */
 static inline void dict_table_prevent_eviction(
@@ -1676,7 +1681,7 @@ void dict_table_change_id_sys_tables();
                                            bool is_import_op);
 
 /** @return true if all base column of virtual column is foreign key column
-@param[in]	vcol	in-memory virtul column
+@param[in]	vcol	in-memory virtual column
 @param[in]	foreign	in-memory Foreign key constraint */
 uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
                                        dict_foreign_t *foreign);

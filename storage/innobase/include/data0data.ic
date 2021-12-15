@@ -284,13 +284,8 @@ inline bool dfield_datas_are_binary_equal(const dfield_t *field1,
           (len == UNIV_SQL_NULL || !memcmp(field1->data, field2->data, len)));
 }
 
-/** Tests if dfield data length and content is equal to the given.
- @return true if equal */
-static inline bool dfield_data_is_binary_equal(
-    const dfield_t *field, /*!< in: field */
-    ulint len,             /*!< in: data length or UNIV_SQL_NULL */
-    const byte *data)      /*!< in: data */
-{
+static inline bool dfield_data_is_binary_equal(const dfield_t *field, ulint len,
+                                               const byte *data) {
   if (dfield_is_multi_value(field)) {
     uint64_t field_len = dfield_get_len(field);
     if (field_len == UNIV_MULTI_VALUE_ARRAY_MARKER) {
@@ -370,20 +365,12 @@ static inline ulint dtuple_get_n_v_fields(const dtuple_t *tuple) {
   return (tuple->n_v_fields);
 }
 #ifdef UNIV_DEBUG
-/** Gets nth field of a tuple.
-@param[in]	tuple	tuple
-@param[in]	n	index of field
-@return nth field */
 static inline dfield_t *dtuple_get_nth_field(const dtuple_t *tuple, ulint n) {
   ut_ad(tuple);
   ut_ad(n < tuple->n_fields);
 
   return ((dfield_t *)tuple->fields + n);
 }
-/** Gets nth virtual field of a tuple.
-@param[in]	tuple	tuple
-@oaran[in]	n	the nth field to get
-@return nth field */
 static inline dfield_t *dtuple_get_nth_v_field(const dtuple_t *tuple, ulint n) {
   ut_ad(tuple);
   ut_ad(n < tuple->n_v_fields);

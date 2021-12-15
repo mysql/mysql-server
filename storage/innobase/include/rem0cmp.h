@@ -172,18 +172,21 @@ field that is not matched
                                                const ulint *offsets);
 /** Compare two physical records that contain the same number of columns,
 none of which are stored externally.
+@param[in] rec1 Physical record 1 to compare
+@param[in] rec2 Physical record 2 to compare
+@param[in] offsets1 rec_get_offsets(rec1, ...)
+@param[in] offsets2 rec_get_offsets(rec2, ...)
+@param[in] index Data dictionary index
+@param[in] table MySQL table, for reporting duplicate key value if applicable,
+or nullptr
 @retval positive if rec1 (including non-ordering columns) is greater than rec2
 @retval negative if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
-[[nodiscard]] int cmp_rec_rec_simple(
-    const rec_t *rec1,         /*!< in: physical record */
-    const rec_t *rec2,         /*!< in: physical record */
-    const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */
-    const ulint *offsets2,     /*!< in: rec_get_offsets(rec2, ...) */
-    const dict_index_t *index, /*!< in: data dictionary index */
-    struct TABLE *table);      /*!< in: MySQL table, for reporting
-                              duplicate key value if applicable,
-                              or NULL */
+[[nodiscard]] int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
+                                     const ulint *offsets1,
+                                     const ulint *offsets2,
+                                     const dict_index_t *index,
+                                     struct TABLE *table);
 /** Compare two B-tree records.
 @param[in] rec1 B-tree record
 @param[in] rec2 B-tree record

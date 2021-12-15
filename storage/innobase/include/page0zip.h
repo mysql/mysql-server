@@ -122,7 +122,7 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
                                                   m_nonempty */
                        const page_t *page,       /*!< in: uncompressed page */
                        dict_index_t *index,      /*!< in: index tree */
-                       ulint level,              /*!< in: commpression level */
+                       ulint level,              /*!< in: compression level */
                        mtr_t *mtr);              /*!< in/out: mini-transaction,
                                                  or NULL */
 
@@ -168,21 +168,22 @@ bool page_zip_validate(
     const dict_index_t *index);     /*!< in: index of the page, if known */
 #endif                              /* UNIV_ZIP_DEBUG */
 
-/** Determine how big record can be inserted without recompressing the page.
- @return a positive number indicating the maximum size of a record
- whose insertion is guaranteed to succeed, or zero or negative */
+/** Determine how big record can be inserted without re-compressing the page.
+@param[in] page_zip Compressed page.
+@param[in] is_clust True if clustered index.
+@return a positive number indicating the maximum size of a record
+whose insertion is guaranteed to succeed, or zero or negative */
 [[nodiscard]] static inline lint page_zip_max_ins_size(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust);                 /*!< in: true if clustered index */
+    const page_zip_des_t *page_zip, bool is_clust);
 
 /** Determine if enough space is available in the modification log.
- @return true if page_zip_write_rec() will succeed */
+@param[in] page_zip Compressed page.
+@param[in] is_clust True if clustered index.
+@param[in] length Combined size of the record.
+@param[in] create Nonzero=add the record to the heap.
+@return true if page_zip_write_rec() will succeed */
 [[nodiscard]] static inline bool page_zip_available(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust,                  /*!< in: true if clustered index */
-    ulint length,                   /*!< in: combined size of the record */
-    ulint create);                  /*!< in: nonzero=add the record to
-                                   the heap */
+    const page_zip_des_t *page_zip, bool is_clust, ulint length, ulint create);
 
 /** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.

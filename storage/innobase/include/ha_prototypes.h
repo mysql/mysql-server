@@ -191,10 +191,11 @@ std::chrono::seconds thd_lock_wait_timeout(
     THD *thd); /*!< in: thread handle, or NULL to query
 the global innodb_lock_wait_timeout */
 
-/** Set the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd, /*!< in/out: thread handle */
-                            std::chrono::steady_clock::duration
-                                value); /*!< in: time waited for the lock */
+/** Set the time waited for the lock for the current query.
+@param[in,out] thd Thread handle.
+@param[in] value Time waited for the lock. */
+void thd_set_lock_wait_time(THD *thd,
+                            std::chrono::steady_clock::duration value);
 
 /** Get the value of innodb_tmpdir.
 @param[in] thd	thread handle, or nullptr to query the global innodb_tmpdir.

@@ -205,7 +205,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	fts_indexes	affected FTS indexes
 @return true if successful */
 static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
-                               ib_vector_t *fts_indexes [[maybe_unused]]);
+                               ib_vector_t *fts_indexes);
 
 /** Update the last document id. This function could create a new
  transaction to update the last document id.
@@ -3543,13 +3543,6 @@ void fts_add_doc_from_tuple(fts_trx_table_t *ftt, doc_id_t doc_id,
   mtr_commit(&mtr);
 }
 
-/** Fetch the document just inserted right before we commit
-the transaction, and tokenize the inserted text data
-and insert into FTS auxiliary table and its cache.
-@param[in]	ftt		FTS transaction table
-@param[in]	doc_id		doc id
-@param[in]	fts_indexes	affected FTS indexes
-@return true if successful */
 static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
                                ib_vector_t *fts_indexes [[maybe_unused]]) {
   mtr_t mtr;

@@ -410,8 +410,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
 @param[in]	rw_latch		RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH
 @param[in]	guess			  Guessed block or NULL
 @param[in]	mode			  Fetch mode.
-@param[in]	file			  File name
-@param[in]	line			  Line where called
+@param[in]	location	  Location from where this method was called.
 @param[in]	mtr			    Mini-transaction
 @param[in]	dirty_with_no_latch	Mark page as dirty even if page is being
                         pinned without any latch
@@ -1032,10 +1031,11 @@ inline buf_block_t *buf_block_hash_get(buf_pool_t *b,
 ulint buf_get_free_list_len(void);
 
 /** Determine if a block is a sentinel for a buffer pool watch.
- @return true if a sentinel for a buffer pool watch, false if not */
-[[nodiscard]] bool buf_pool_watch_is_sentinel(
-    const buf_pool_t *buf_pool, /*!< buffer pool instance */
-    const buf_page_t *bpage);   /*!< in: block */
+@param[in]	buf_pool	buffer pool instance
+@param[in]	bpage		block
+@return true if a sentinel for a buffer pool watch, false if not */
+[[nodiscard]] bool buf_pool_watch_is_sentinel(const buf_pool_t *buf_pool,
+                                              const buf_page_t *bpage);
 
 /** Stop watching if the page has been read in.
 buf_pool_watch_set(same_page_id) must have returned NULL before.

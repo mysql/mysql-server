@@ -260,13 +260,14 @@ void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
 static inline void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
 
 /** Determines if a transaction is in the given state.
- The caller must hold trx_sys->mutex, or it must be the thread
- that is serving a running transaction.
- A running RW transaction must be in trx_sys->rw_trx_list.
- @return true if trx->state == state */
-[[nodiscard]] static inline bool trx_state_eq(
-    const trx_t *trx,   /*!< in: transaction */
-    trx_state_t state); /*!< in: state */
+The caller must hold trx_sys->mutex, or it must be the thread
+that is serving a running transaction.
+A running RW transaction must be in trx_sys->rw_trx_list.
+@param[in] trx   Transaction.
+@param[in] state State.
+@return true if trx->state == state */
+[[nodiscard]] static inline bool trx_state_eq(const trx_t *trx,
+                                              trx_state_t state);
 #ifdef UNIV_DEBUG
 /** Determines if trx can be handled by current thread, which is when
 trx->mysql_thd is nullptr (a "background" trx) or equals current_thd.

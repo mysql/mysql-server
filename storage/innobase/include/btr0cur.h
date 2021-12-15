@@ -279,16 +279,15 @@ bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
 /** See if there is enough place in the page modification log to log
  an update-in-place.
 
- @param[in,out] page_zip compressed page
- @param[in,out] cursor B-tree page cursor
- @param[in] index the index corresponding to cursor
- @param[in,out] offsets offsets of the cursor record
- @param[in] length size needed
- @param[in] create true=delete-and-insert, false=update-in-place
- @param[in,out] mtr mini-transaction
-
+ @param[in,out] page_zip Compressed page.
+ @param[in,out] cursor   B-tree page cursor.
+ @param[in]     index    The index corresponding to cursor.
+ @param[in,out] offsets  Offsets of the cursor record.
+ @param[in]     length   size needed
+ @param[in]     create   true=delete-and-insert, false=update-in-place
+ @param[in,out] mtr      Mini-transaction.
  @retval false if out of space; IBUF_BITMAP_FREE will be reset
- outside mtr if the page was recompressed
+ outside mtr if the page was re-compressed
  @retval true if enough place;
 
  IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is
@@ -347,33 +346,32 @@ holds an x-latch on the page. The operation does not succeed if there is too
 little space on the page or if the update would result in too empty a page,
 so that tree compression is recommended. We assume here that the ordering
 fields of the record do not change.
+@param[in]     flags     undo logging and locking flags
+@param[in]     cursor    cursor on the record to update; cursor stays valid and
+positioned on the same record
+@param[out]    offsets   offsets on cursor->page_cur.rec
+@param[in,out] heap      pointer to nullptr or memory heap
+@param[in]     update    update vector; this must also contain trx id and roll
+ptr fields
+@param[in]     cmpl_info compiler info on secondary index updates
+@param[in]     thr       query thread, or nullptr if flags &
+(BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
+BTR_KEEP_SYS_FLAG)
+@param[in]     trx_id    transaction id
+@param[in,out] mtr       mini-transaction; if this is a secondary index, the
+caller must mtr_commit(mtr) before latching any further pages
 @return error code, including
 @retval DB_SUCCESS on success
 @retval DB_OVERFLOW if the updated record does not fit
 @retval DB_UNDERFLOW if the page would become too empty
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-[[nodiscard]] dberr_t btr_cur_optimistic_update(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    btr_cur_t *cursor,   /*!< in: cursor on the record to update;
-                         cursor stays valid and positioned on the
-                         same record */
-    ulint **offsets,     /*!< out: offsets on cursor->page_cur.rec */
-    mem_heap_t **heap,   /*!< in/out: pointer to NULL or memory heap */
-    const upd_t *update, /*!< in: update vector; this must also
-                         contain trx id and roll ptr fields */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_UNDO_LOG_FLAG
-                         | BTR_NO_LOCKING_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr);         /*!< in/out: mini-transaction; if this
-                        is a secondary index, the caller must
-                        mtr_commit(mtr) before latching any
-                        further pages */
+[[nodiscard]] dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
+                                                ulint **offsets,
+                                                mem_heap_t **heap,
+                                                const upd_t *update,
+                                                ulint cmpl_info, que_thr_t *thr,
+                                                trx_id_t trx_id, mtr_t *mtr);
 
 /** Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -448,6 +446,10 @@ bool btr_cur_compress_if_useful(
                         cursor position even if compression occurs */
     mtr_t *mtr);       /*!< in/out: mini-transaction */
 
+[[nodiscard]] bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
+                                                  IF_DEBUG(ulint flags, )
+                                                      mtr_t *mtr);
+
 /** Removes the record on which the tree cursor is positioned on a leaf page.
  It is assumed that the mtr has an x-latch on the page where the cursor is
  positioned, but no latch on the whole tree.
@@ -458,10 +460,6 @@ bool btr_cur_compress_if_useful(
  @param[in] mtr if this function returns true on a leaf page of a secondary
  index, the mtr must be committed before latching any further pages
  @return true if success, i.e., the page did not become too empty */
-[[nodiscard]] bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
-                                                  IF_DEBUG(ulint flags, )
-                                                      mtr_t *mtr);
-
 inline bool btr_cur_optimistic_delete(btr_cur_t *cursor,
                                       ulint flags [[maybe_unused]],
                                       mtr_t *mtr) {

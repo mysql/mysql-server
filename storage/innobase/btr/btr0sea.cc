@@ -644,9 +644,6 @@ static void btr_search_update_hash_ref(const btr_search_t *info,
   }
 }
 
-/** Updates the search info.
-@param[in,out]	info	search info
-@param[in]	cursor	cursor which was just positioned */
 void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
   buf_block_t *block;
 

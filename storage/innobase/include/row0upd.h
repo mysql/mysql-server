@@ -88,21 +88,23 @@ static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                                             ulint field_no,
                                             const dict_index_t *index);
 /** Returns a field of an update vector by field_no.
- @return update vector field, or NULL */
+@param[in] update     Update vector.
+@param[in] no         Field no.
+@param[in] is_virtual If it is a virtual column.
+@return update vector field, or nullptr. */
 [[nodiscard]] static inline const upd_field_t *upd_get_field_by_field_no(
-    const upd_t *update, /*!< in: update vector */
-    ulint no,            /*!< in: field_no */
-    bool is_virtual);    /*!< in: if it is a virtual column */
+    const upd_t *update, ulint no, bool is_virtual);
 /** Writes into the redo log the values of trx id and roll ptr and enough info
- to determine their positions within a clustered index record.
- @return new pointer to mlog */
-byte *row_upd_write_sys_vals_to_log(
-    dict_index_t *index, /*!< in: clustered index */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    roll_ptr_t roll_ptr, /*!< in: roll ptr of the undo log record */
-    byte *log_ptr,       /*!< pointer to a buffer of size > 20 opened
-                         in mlog */
-    mtr_t *mtr);         /*!< in: mtr */
+to determine their positions within a clustered index record.
+@param[in] index    Clustered index.
+@param[in] trx_id   Transaction ID.
+@param[in] roll_ptr Roll ptr of the undo log record.
+@param[in] log_ptr  Pointer to a buffer of size > 20 opened in mlog.
+@param[in] mtr      Mini-transaction.
+@return new pointer to mlog */
+byte *row_upd_write_sys_vals_to_log(dict_index_t *index, trx_id_t trx_id,
+                                    roll_ptr_t roll_ptr, byte *log_ptr,
+                                    mtr_t *mtr);
 
 #ifndef UNIV_HOTBACKUP
 /** Updates the trx id and roll ptr field in a clustered index record when a

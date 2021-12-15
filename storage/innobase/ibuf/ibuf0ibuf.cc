@@ -559,14 +559,8 @@ void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Parses a redo log record of an ibuf bitmap page init.
- @return end of log record or NULL */
-byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
-                             byte *end_ptr
-                             [[maybe_unused]],   /*!< in: buffer end */
-                             buf_block_t *block, /*!< in: block or NULL */
-                             mtr_t *mtr)         /*!< in: mtr or NULL */
-{
+byte *ibuf_parse_bitmap_init(byte *ptr, byte *end_ptr [[maybe_unused]],
+                             buf_block_t *block, mtr_t *mtr) {
   if (block) {
     ibuf_bitmap_page_init(block, mtr);
   }

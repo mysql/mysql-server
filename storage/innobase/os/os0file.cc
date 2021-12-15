@@ -5463,11 +5463,6 @@ static bool os_file_handle_error_no_exit(const char *name,
       os_file_handle_error_cond_exit(name, operation, false, on_error_silent));
 }
 
-/** Tries to disable OS caching on an opened file descriptor.
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-                                message */
 void os_file_set_nocache(int fd [[maybe_unused]],
                          const char *file_name [[maybe_unused]],
                          const char *operation_name [[maybe_unused]]) {

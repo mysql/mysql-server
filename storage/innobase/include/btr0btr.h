@@ -178,10 +178,9 @@ page_t *btr_root_get(const dict_index_t *index, /*!< in: index tree */
 /** Gets a buffer page and declares its latching order level.
 @param[in]	page_id		Page id
 @param[in]	page_size	Page size
-@param[in]	mode		Latch mode
-@param[in]	file		File name
-@param[in]	line		Line where called
-@param[in]	index		Index tree, may be NULL if it is not an insert
+@param[in]	mode		  Latch mode
+@param[in]	location  Location from where this method is called.
+@param[in]	index  		Index tree, may be NULL if it is not an insert
                                 buffer tree
 @param[in,out]	mtr		Mini-transaction
 @return block */
@@ -193,6 +192,7 @@ static inline buf_block_t *btr_block_get_func(
 @param page_id Tablespace/page identifier
 @param page_size Page size
 @param mode Latch mode
+@param[in]	location  Location from where this method is called.
 @param index Index tree, may be NULL if not the insert buffer tree
 @param mtr Mini-transaction handle
 @return the block descriptor */
@@ -216,15 +216,17 @@ static inline buf_block_t *btr_block_get(const page_id_t &page_id,
  @return level, leaf level == 0 */
 [[nodiscard]] static inline ulint btr_page_get_level(const page_t *page);
 /** Gets the next index page number.
- @return next page number */
-[[nodiscard]] static inline page_no_t btr_page_get_next(
-    const page_t *page, /*!< in: index page */
-    mtr_t *mtr);        /*!< in: mini-transaction handle */
+@param[in] page Index page.
+@param[in] mtr  Mini-transaction handle.
+@return next page number */
+[[nodiscard]] static inline page_no_t btr_page_get_next(const page_t *page,
+                                                        mtr_t *mtr);
 /** Gets the previous index page number.
- @return prev page number */
-[[nodiscard]] static inline page_no_t btr_page_get_prev(
-    const page_t *page, /*!< in: index page */
-    mtr_t *mtr);        /*!< in: mini-transaction handle */
+@param[in] page Index page.
+@param[in] mtr  Mini-transaction handle.
+@return prev page number */
+[[nodiscard]] static inline page_no_t btr_page_get_prev(const page_t *page,
+                                                        mtr_t *mtr);
 
 #ifndef UNIV_HOTBACKUP
 /** Releases the latch on a leaf page and bufferunfixes it.
@@ -240,10 +242,11 @@ static inline void btr_leaf_page_release(buf_block_t *block, ulint latch_mode,
  we read the last field according to offsets and assume that it contains
  the child page number. In other words offsets must have been retrieved
  with rec_get_offsets(n_fields=ULINT_UNDEFINED).
+ @param[in] rec node Pointer record
+ @param[in] offsets  Array returned by rec_get_offsets()
  @return child node address */
 [[nodiscard]] static inline page_no_t btr_node_ptr_get_child_page_no(
-    const rec_t *rec,      /*!< in: node pointer record */
-    const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
+    const rec_t *rec, const ulint *offsets);
 
 /** Returns the child page of a node pointer and sx-latches it.
 @param[in]  node_ptr  node pointer
@@ -313,25 +316,25 @@ void btr_truncate_recover(const dict_index_t *index);
     mtr_t *mtr);           /*!< in: mtr */
 /** Reorganizes an index page.
 
- IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
- if this is a compressed leaf page in a secondary index. This has to
- be done either within the same mini-transaction, or by invoking
- ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
- IBUF_BITMAP_FREE is unaffected by reorganization.
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
 
- @retval true if the operation was successful
- @retval false if it is a compressed page, and recompression failed */
-[[nodiscard]] bool btr_page_reorganize_low(
-    bool recovery,       /*!< in: true if called in recovery:
-                        locks should not be updated, i.e.,
-                        there cannot exist locks on the
-                        page, and a hash index should not be
-                        dropped: it cannot exist */
-    ulint z_level,       /*!< in: compression level to be used
-                         if dealing with compressed page */
-    page_cur_t *cursor,  /*!< in/out: page cursor */
-    dict_index_t *index, /*!< in: the index tree of the page */
-    mtr_t *mtr);         /*!< in/out: mini-transaction */
+@param[in]     recovery True if called in recovery: locks should not be updated,
+i.e., there cannot exist locks on the page, and a hash index should not be
+dropped: it cannot exist.
+@param[in]     z_level  Compression level to be used if dealing with compressed
+page.
+@param[in,out] cursor   Page cursor.
+@param[in]     index    The index tree of the page.
+@param[in,out] mtr      Mini-transaction
+@retval true if the operation was successful
+@retval false if it is a compressed page, and re-compression failed */
+[[nodiscard]] bool btr_page_reorganize_low(bool recovery, ulint z_level,
+                                           page_cur_t *cursor,
+                                           dict_index_t *index, mtr_t *mtr);
 
 /** Reorganizes an index page.
 
@@ -416,22 +419,21 @@ void btr_node_ptr_delete(dict_index_t *index, buf_block_t *block, mtr_t *mtr);
 bool btr_check_node_ptr(dict_index_t *index, buf_block_t *block, mtr_t *mtr);
 #endif /* UNIV_DEBUG */
 /** Tries to merge the page first to the left immediate brother if such a
- brother exists, and the node pointers to the current page and to the
- brother reside on the same page. If the left brother does not satisfy these
+ brother exists, and the node pointers to the current page and to the brother
+ reside on the same page. If the left brother does not satisfy these
  conditions, looks at the right brother. If the page is the only one on that
  level lifts the records of the page to the father page, thus reducing the
  tree height. It is assumed that mtr holds an x-latch on the tree and on the
- page. If cursor is on the leaf level, mtr must also hold x-latches to
- the brothers, if they exist.
+ page. If cursor is on the leaf level, mtr must also hold x-latches to the
+ brothers, if they exist.
+ @param[in,out] cursor cursor on the page to merge or lift; the page must not be
+ empty: when deleting records, use btr_discard_page() if the page would become
+ empty
+ @param[in] adjust true if should adjust the cursor position even if compression
+ occurs.
+ @param[in,out] mtr mini-transaction
  @return true on success */
-bool btr_compress(
-    btr_cur_t *cursor, /*!< in/out: cursor on the page to merge
-                       or lift; the page must not be empty:
-                       when deleting records, use btr_discard_page()
-                       if the page would become empty */
-    bool adjust,       /*!< in: true if should adjust the
-                        cursor position even if compression occurs */
-    mtr_t *mtr);       /*!< in/out: mini-transaction */
+bool btr_compress(btr_cur_t *cursor, bool adjust, mtr_t *mtr);
 /** Discards a page from a B-tree. This is used to remove the last record from
  a B-tree page: the whole page must be removed at the same time. This cannot
  be used for the root page, which is allowed to be empty. */
@@ -523,8 +525,7 @@ void btr_page_create(
 @param[in]   block   block to be freed, x-latched
 @param[in]   level   page level (ULINT_UNDEFINED=BLOB)
 @param[in]   mtr     mini transaction context.
-@param[in]   file    caller source code file location
-@param[in]   line    caller source code line location */
+@param[in]   loc     caller source code location */
 void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
                          mtr_t *mtr IF_DEBUG(, const ut::Location &loc));
 

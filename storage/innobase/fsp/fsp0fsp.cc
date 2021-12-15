@@ -757,13 +757,8 @@ static void fsp_init_file_page(buf_block_t *block, mtr_t *mtr) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Parses a redo log record of a file page init.
- @return end of log record or NULL */
-byte *fsp_parse_init_file_page(byte *ptr, /*!< in: buffer */
-                               byte *end_ptr
-                               [[maybe_unused]],   /*!< in: buffer end */
-                               buf_block_t *block) /*!< in: block or NULL */
-{
+byte *fsp_parse_init_file_page(byte *ptr, byte *end_ptr [[maybe_unused]],
+                               buf_block_t *block) {
   if (block) {
     fsp_init_file_page_low(block);
   }
@@ -801,9 +796,6 @@ void fsp_header_init_fields(
   fsp_header_set_field(page, FSP_SPACE_FLAGS, flags);
 }
 
-/** Get the offset of encrytion information in page 0.
-@param[in]	page_size	page size.
-@return	offset on success, otherwise 0. */
 ulint fsp_header_get_encryption_offset(const page_size_t &page_size) {
   auto offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size);
 #ifdef UNIV_DEBUG

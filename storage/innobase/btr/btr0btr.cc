@@ -1144,28 +1144,8 @@ void btr_truncate_recover(const dict_index_t *index) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Reorganizes an index page.
-
- IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
- if this is a compressed leaf page in a secondary index. This has to
- be done either within the same mini-transaction, or by invoking
- ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
- IBUF_BITMAP_FREE is unaffected by reorganization.
-
- @retval true if the operation was successful
- @retval false if it is a compressed page, and recompression failed */
-bool btr_page_reorganize_low(
-    bool recovery,       /*!< in: true if called in recovery:
-                        locks should not be updated, i.e.,
-                        there cannot exist locks on the
-                        page, and a hash index should not be
-                        dropped: it cannot exist */
-    ulint z_level,       /*!< in: compression level to be used
-                         if dealing with compressed page */
-    page_cur_t *cursor,  /*!< in/out: page cursor */
-    dict_index_t *index, /*!< in: the index tree of the page */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
+                             dict_index_t *index, mtr_t *mtr) {
   buf_block_t *block = page_cur_get_block(cursor);
 #ifndef UNIV_HOTBACKUP
   buf_pool_t *buf_pool = buf_pool_from_bpage(&block->page);
@@ -2994,21 +2974,6 @@ static buf_block_t *btr_lift_page_up(
   return (lift_father_up ? block_orig : father_block);
 }
 
-/** Tries to merge the page first to the left immediate brother if such a
- brother exists, and the node pointers to the current page and to the brother
- reside on the same page. If the left brother does not satisfy these
- conditions, looks at the right brother. If the page is the only one on that
- level lifts the records of the page to the father page, thus reducing the
- tree height. It is assumed that mtr holds an x-latch on the tree and on the
- page. If cursor is on the leaf level, mtr must also hold x-latches to the
- brothers, if they exist.
- @param[in,out] cursor cursor on the page to merge or lift; the page must not be
- empty: when deleting records, use btr_discard_page() if the page would become
- empty
- @param[in] adjust true if should adjust the cursor position even if compression
- occurs.
- @param[in,out] mtr mini-transaction
- @return true on success */
 bool btr_compress(btr_cur_t *cursor, bool adjust, mtr_t *mtr) {
   dict_index_t *index;
   space_id_t space;

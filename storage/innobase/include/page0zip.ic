@@ -186,13 +186,8 @@ static inline ulint page_zip_get_trailer_len(
           page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-/** Determine how big record can be inserted without recompressing the page.
- @return a positive number indicating the maximum size of a record
- whose insertion is guaranteed to succeed, or zero or negative */
-static inline lint page_zip_max_ins_size(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust)                  /*!< in: true if clustered index */
-{
+static inline lint page_zip_max_ins_size(const page_zip_des_t *page_zip,
+                                         bool is_clust) {
   ulint trailer_len;
 
   trailer_len = page_zip_get_trailer_len(page_zip, is_clust);
@@ -210,15 +205,9 @@ static inline lint page_zip_max_ins_size(
           (REC_N_NEW_EXTRA_BYTES - 2));
 }
 
-/** Determine if enough space is available in the modification log.
- @return true if enough space is available */
-static inline bool page_zip_available(
-    const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust,                  /*!< in: true if clustered index */
-    ulint length,                   /*!< in: combined size of the record */
-    ulint create)                   /*!< in: nonzero=add the record to
-                                    the heap */
-{
+static inline bool page_zip_available(const page_zip_des_t *page_zip,
+                                      bool is_clust, ulint length,
+                                      ulint create) {
   ulint trailer_len;
 
   ut_ad(length > REC_N_NEW_EXTRA_BYTES);

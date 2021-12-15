@@ -181,13 +181,13 @@ static inline void rw_lock_s_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock);
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
- rw-lock in exclusive mode for the current thread. If the rw-lock is locked
- in shared or exclusive mode, or there is an exclusive lock request waiting,
- the function spins a preset time (controlled by srv_n_spin_wait_rounds),
- waiting for the lock, before suspending the thread. If the same thread has an
- x-lock on the rw-lock, locking succeed, with the following exception: if pass
- != 0, only a single x-lock may be taken on the lock. NOTE: If the same thread
- has an s-lock, locking does not succeed!
+rw-lock in exclusive mode for the current thread. If the rw-lock is locked
+in shared or exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by srv_n_spin_wait_rounds),
+waiting for the lock, before suspending the thread. If the same thread has an
+x-lock on the rw-lock, locking succeed, with the following exception: if pass
+!= 0, only a single x-lock may be taken on the lock. NOTE: If the same thread
+has an s-lock, locking does not succeed!
 @param[in] lock pointer to rw-lock
 @param[in] pass pass value; != 0, if the lock will be passed to another thread
 to unlock
@@ -195,23 +195,23 @@ to unlock
 void rw_lock_x_lock_func(rw_lock_t *lock, ulint pass, ut::Location location);
 
 /** Low-level function for acquiring an sx lock.
- @param[in] lock pointer to rw-lock
- @param[in] pass pass value; != 0, if the lock will be passed to another thread
- to unlock
- @param[in] location location where requested
- @return false if did not succeed, true if success. */
+@param[in] lock pointer to rw-lock
+@param[in] pass pass value; != 0, if the lock will be passed to another thread
+to unlock
+@param[in] location location where requested
+@return false if did not succeed, true if success. */
 bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location);
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
- rw-lock in SX mode for the current thread. If the rw-lock is locked
- in exclusive mode, or there is an exclusive lock request waiting,
- the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
- for the lock, before suspending the thread. If the same thread has an x-lock
- on the rw-lock, locking succeed, with the following exception: if pass != 0,
- only a single sx-lock may be taken on the lock. NOTE: If the same thread has
- an s-lock, locking does not succeed!
- @param[in] lock rw-lock
- @param[in] pass pass value; != 0, if the lock will
-                           be passed to another thread to unlock
+rw-lock in SX mode for the current thread. If the rw-lock is locked
+in exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single sx-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed!
+@param[in] lock rw-lock
+@param[in] pass pass value; != 0, if the lock will
+                          be passed to another thread to unlock
  @param[in] location location where requested */
 void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location);
 
@@ -300,14 +300,15 @@ owns RW_LOCK_X only, the rw_lock_own(..,RW_LOCK_S) will return false.
  */
 [[nodiscard]] bool rw_lock_own(const rw_lock_t *lock, ulint lock_type);
 
-/** Checks if the thread has locked the rw-lock in the specified mode, with
- the pass value == 0. */
-[[nodiscard]] bool rw_lock_own_flagged(
-    const rw_lock_t *lock,  /*!< in: rw-lock */
-    rw_lock_flags_t flags); /*!< in: specify lock types with
-                           OR of the rw_lock_flag_t values */
-#endif                      /* UNIV_DEBUG */
-#endif                      /* !UNIV_HOTBACKUP */
+/** Checks if the thread has locked the rw-lock in the specified mode, with the
+pass value == 0.
+@param[in] lock  rw-lock
+@param[in] flags specify lock types with OR of the rw_lock_flag_t values
+@return true if locked */
+[[nodiscard]] bool rw_lock_own_flagged(const rw_lock_t *lock,
+                                       rw_lock_flags_t flags);
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /** Checks if somebody has locked the rw-lock in the specified mode.
  @return true if locked */
 bool rw_lock_is_locked(rw_lock_t *lock,  /*!< in: rw-lock */

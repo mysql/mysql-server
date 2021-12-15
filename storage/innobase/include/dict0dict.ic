@@ -47,11 +47,8 @@ static inline ulint dict_col_get_no(const dict_col_t *col) /*!< in: column */
   return (col->ind);
 }
 
-/** Gets the column position in the clustered index. */
-static inline ulint dict_col_get_clust_pos(
-    const dict_col_t *col,           /*!< in: table column */
-    const dict_index_t *clust_index) /*!< in: clustered index */
-{
+static inline ulint dict_col_get_clust_pos(const dict_col_t *col,
+                                           const dict_index_t *clust_index) {
   ulint i;
 
   ut_ad(col);
@@ -262,12 +259,8 @@ static inline dict_v_col_t *dict_table_get_nth_v_col(const dict_table_t *table,
 }
 #endif /* UNIV_DEBUG */
 
-/** Gets the given system column number of a table.
- @return column number */
-static inline ulint dict_table_get_sys_col_no(
-    const dict_table_t *table, /*!< in: table */
-    ulint sys)                 /*!< in: DATA_ROW_ID, ... */
-{
+static inline ulint dict_table_get_sys_col_no(const dict_table_t *table,
+                                              ulint sys) {
   ut_ad(table);
   ut_ad(sys < table->get_n_sys_cols());
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -900,12 +893,8 @@ static inline bool dict_index_is_online_ddl(
                         ONLINE_INDEX_COMPLETE));
 }
 
-/** Check whether a column exists in an FTS index.
- @return ULINT_UNDEFINED if no match else the offset within the vector */
-static inline ulint dict_table_is_fts_column(
-    ib_vector_t *indexes, /*!< in: vector containing only FTS indexes */
-    ulint col_no,         /*!< in: col number to search for */
-    bool is_virtual)      /*!< in: whether it is a virtual column */
+static inline ulint dict_table_is_fts_column(ib_vector_t *indexes, ulint col_no,
+                                             bool is_virtual)
 
 {
   ulint i;
@@ -923,15 +912,8 @@ static inline ulint dict_table_is_fts_column(
   return (ULINT_UNDEFINED);
 }
 
-/** Determine bytes of column prefix to be stored in the undo log. Please
- note that if !dict_table_has_atomic_blobs(table), no prefix
- needs to be stored in the undo log.
- @return bytes of column prefix to be stored in the undo log */
-static inline ulint dict_max_field_len_store_undo(
-    dict_table_t *table,   /*!< in: table */
-    const dict_col_t *col) /*!< in: column which index prefix
-                           is based on */
-{
+static inline ulint dict_max_field_len_store_undo(dict_table_t *table,
+                                                  const dict_col_t *col) {
   if (!dict_table_has_atomic_blobs(table)) {
     return (0);
   }

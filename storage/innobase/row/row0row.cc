@@ -55,24 +55,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0mem.h"
 
-/** When an insert or purge to a table is performed, this function builds
- the entry to be inserted into or purged from an index on the table.
- @return index entry which should be inserted or purged
- @retval NULL if the externally stored columns in the clustered index record
- are unavailable and ext != NULL, or row is missing some needed columns. */
-dtuple_t *row_build_index_entry_low(
-    const dtuple_t *row,       /*!< in: row which should be
-                               inserted or purged */
-    const row_ext_t *ext,      /*!< in: externally stored column
-                               prefixes, or NULL */
-    const dict_index_t *index, /*!< in: index on the table */
-    mem_heap_t *heap,          /*!< in: memory heap from which
-                               the memory for the index entry
-                               is allocated */
-    ulint flag)                /*!< in: ROW_BUILD_NORMAL,
-                               ROW_BUILD_FOR_PURGE
-                               or ROW_BUILD_FOR_UNDO */
-{
+dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
+                                    const dict_index_t *index, mem_heap_t *heap,
+                                    ulint flag) {
   dtuple_t *entry;
   ulint entry_len;
   ulint i;
@@ -521,47 +506,10 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   return (row);
 }
 
-/** An inverse function to row_build_index_entry. Builds a row from a
- record in a clustered index.
- @return own: row built; see the NOTE below! */
-dtuple_t *row_build(ulint type,                /*!< in: ROW_COPY_POINTERS or
-                                               ROW_COPY_DATA; the latter
-                                               copies also the data fields to
-                                               heap while the first only
-                                               places pointers to data fields
-                                               on the index page, and thus is
-                                               more efficient */
-                    const dict_index_t *index, /*!< in: clustered index */
-                    const rec_t *rec,          /*!< in: record in the clustered
-                                               index; NOTE: in the case
-                                               ROW_COPY_POINTERS the data
-                                               fields in the row will point
-                                               directly into this record,
-                                               therefore, the buffer page of
-                                               this record must be at least
-                                               s-latched and the latch held
-                                               as long as the row dtuple is used! */
-                    const ulint *offsets, /*!< in: rec_get_offsets(rec,index)
-                                          or NULL, in which case this function
-                                          will invoke rec_get_offsets() */
-                    const dict_table_t *col_table,
-                    /*!< in: table, to check which
-                    externally stored columns
-                    occur in the ordering columns
-                    of an index, or NULL if
-                    index->table should be
-                    consulted instead */
-                    const dtuple_t *add_cols,
-                    /*!< in: default values of
-                    added columns, or NULL */
-                    const ulint *col_map, /*!< in: mapping of old column
-                                          numbers to new ones, or NULL */
-                    row_ext_t **ext,      /*!< out, own: cache of
-                                          externally stored column
-                                          prefixes, or NULL */
-                    mem_heap_t *heap)     /*!< in: memory heap from which
-                                           the memory needed is allocated */
-{
+dtuple_t *row_build(ulint type, const dict_index_t *index, const rec_t *rec,
+                    const ulint *offsets, const dict_table_t *col_table,
+                    const dtuple_t *add_cols, const ulint *col_map,
+                    row_ext_t **ext, mem_heap_t *heap) {
   return (row_build_low(type, index, rec, offsets, col_table, add_cols, nullptr,
                         col_map, ext, heap));
 }

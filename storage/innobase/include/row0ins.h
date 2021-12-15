@@ -69,30 +69,28 @@ void ins_node_set_new_row(
     ins_node_t *node, /*!< in: insert node */
     dtuple_t *row);   /*!< in: new row (or first row) for the node */
 /** Tries to insert an entry into a clustered index, ignoring foreign key
- constraints. If a record with the same unique key is found, the other
- record is necessarily marked deleted by a committed transaction, or a
- unique key violation error occurs. The delete marked record is then
- updated to an existing record, and we must write an undo log record on
- the delete marked record.
- @retval DB_SUCCESS on success
- @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
- @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
- @return error code */
+constraints. If a record with the same unique key is found, the other
+record is necessarily marked deleted by a committed transaction, or a
+unique key violation error occurs. The delete marked record is then
+updated to an existing record, and we must write an undo log record on
+the delete marked record.
+@param[in] flags Undo logging and locking flags.
+@param[in] mode BTR_MODIFY_LEAF or BTR_MODIFY_TREE, depending on whether we wish
+optimistic or pessimistic descent down the index tree.
+@param[in] index Clustered index.
+@param[in] n_uniq 0 or index->n_uniq.
+@param[in] entry Index entry to insert.
+@param[in] thr Query thread, or nullptr if flags & (BTR_NO_LOCKING_FLAG |
+BTR_NO_UNDO_LOG_FLAG) and a duplicate can't occur.
+@param[in] dup_chk_only If true, just do duplicate check and return. don't
+execute actual insert.
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
 [[nodiscard]] dberr_t row_ins_clust_index_entry_low(
-    uint32_t flags,      /*!< in: undo logging and locking flags */
-    ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-                         depending on whether we wish optimistic or
-                         pessimistic descent down the index tree */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint n_uniq,        /*!< in: 0 or index->n_uniq */
-    dtuple_t *entry,     /*!< in/out: index entry to insert */
-    que_thr_t *thr,      /*!< in: query thread,  or NULL if
-                         flags & (BTR_NO_LOCKING_FLAG
-                         | BTR_NO_UNDO_LOG_FLAG) and a duplicate
-                         can't occur */
-    bool dup_chk_only);
-/*!< in: if true, just do duplicate check
-and return. don't execute actual insert. */
+    uint32_t flags, ulint mode, dict_index_t *index, ulint n_uniq,
+    dtuple_t *entry, que_thr_t *thr, bool dup_chk_only);
 
 /** Tries to insert an entry into a secondary index. If a record with exactly
 the same fields is found, the other record is necessarily marked deleted.

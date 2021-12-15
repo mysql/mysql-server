@@ -4779,7 +4779,7 @@ class handler {
     This method is mainly provided as a temporary workaround for
     bug#33317872, where we fix problems caused by calling
     Cost_model::page_read_cost() directly from the optimizer.
-    That should be avoide, as it introduced assumption about all
+    That should be avoided, as it introduced assumption about all
     storage engines being disk-page based, and having a 'page' cost.
     Furthermore, this page cost was even compared against read_cost(),
     which was computed with an entirely different algorithm, and thus
@@ -4787,12 +4787,12 @@ class handler {
 
     The default implementation still call Cost_model::page_read_cost(),
     thus behaving just as before. However, handler implementation may
-    override it to call handler::read_cost() instead(), which propably
+    override it to call handler::read_cost() instead(), which probably
     will be more correct. (If a page_read_cost should be included
     in the cost estimate, that should preferable be done inside
     each read_cost() implementation)
 
-    Longer term we should considder to remove all page_read_cost()
+    Longer term we should consider to remove all page_read_cost()
     usage from the optimizer itself, making this method obsolete.
 
     @param index  the index number
@@ -4890,7 +4890,7 @@ class handler {
   int check_collation_compatibility();
 
   /**
-    Make a guestimate for how much of a table or index is in a memory
+    Make a guesstimate for how much of a table or index is in a memory
     buffer in the case where the storage engine has not provided any
     estimate for this.
 
@@ -4938,7 +4938,7 @@ class handler {
 
     @param error  error code received from the handler interface (HA_ERR_...)
 
-    @return   whether the error is ignorablel or not
+    @return   whether the error is ignorable or not
       @retval true  the error is ignorable
       @retval false the error is not ignorable
   */
@@ -5169,7 +5169,7 @@ class handler {
   }
 
   virtual int read_range_first(const key_range *start_key,
-                               const key_range *end_key, bool eq_range,
+                               const key_range *end_key, bool eq_range_arg,
                                bool sorted);
   virtual int read_range_next();
 

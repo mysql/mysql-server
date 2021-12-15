@@ -3446,39 +3446,10 @@ func_exit:
   return (err);
 }
 
-/** Tries to update a record on a page in an index tree. It is assumed that mtr
- holds an x-latch on the page. The operation does not succeed if there is too
- little space on the page or if the update would result in too empty a page,
- so that tree compression is recommended. We assume here that the ordering
- fields of the record do not change.
- @return error code, including
- @retval DB_SUCCESS on success
- @retval DB_OVERFLOW if the updated record does not fit
- @retval DB_UNDERFLOW if the page would become too empty
- @retval DB_ZIP_OVERFLOW if there is not enough space left
- on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-dberr_t btr_cur_optimistic_update(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    btr_cur_t *cursor,   /*!< in: cursor on the record to update;
-                         cursor stays valid and positioned on the
-                         same record */
-    ulint **offsets,     /*!< out: offsets on cursor->page_cur.rec */
-    mem_heap_t **heap,   /*!< in/out: pointer to NULL or memory heap */
-    const upd_t *update, /*!< in: update vector; this must also
-                         contain trx id and roll ptr fields */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_UNDO_LOG_FLAG
-                         | BTR_NO_LOCKING_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr)          /*!< in/out: mini-transaction; if this
-                         is a secondary index, the caller must
-                         mtr_commit(mtr) before latching any
-                         further pages */
-{
+dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
+                                  ulint **offsets, mem_heap_t **heap,
+                                  const upd_t *update, ulint cmpl_info,
+                                  que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr) {
   dict_index_t *index;
   page_cur_t *page_cursor;
   dberr_t err;

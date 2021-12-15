@@ -240,13 +240,6 @@ static inline void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock,
   lock->recursive.store(recursive, std::memory_order_release);
 }
 
-/** Low-level function which tries to lock an rw-lock in s-mode. Performs no
- spinning.
- @param[in] lock pointer to rw-lock
- @param[in] pass pass value; != 0, if the lock will be passed to another thread
- to unlock
- @param[in] location location where requested
- @return true if success */
 ALWAYS_INLINE
 bool rw_lock_s_lock_low(rw_lock_t *lock, ulint pass [[maybe_unused]],
                         ut::Location location) {
@@ -631,14 +624,6 @@ static inline void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass,
 
   rw_lock_sx_lock_func(lock, pass, location);
 }
-/** Performance schema instrumented wrap function for rw_lock_s_lock_func()
- NOTE! Please use the corresponding macro rw_lock_s_lock(), not
- directly this function!
- @param[in] lock pointer to rw-lock
- @param[in] pass pass value; != 0, if the lock will be passed to another thread
- to unlock
- @param[in] location location where requested
- @return true if success */
 static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
                                           ut::Location location) {
   bool ret;

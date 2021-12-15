@@ -75,7 +75,6 @@ The return value is only used in recursive calls (depth>0).
 @param[in]  arr     The wait array we limit our search for cycle to.
                     The caller must own the arr->mutex.
 @param[in]  cell    The cell to check
-@param[in]  pass    Non-zero if the rwlock taken by thread was passed
 @param[in]  depth   The recursion depth
 @return true iff deadlock detected (there might be false negatives) */
 static bool sync_array_detect_deadlock(sync_array_t *arr, sync_cell_t *cell,

@@ -47,23 +47,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0class_life_cycle.h"
 
 /** The following function is used to get the pointer of the next chained record
- on the same page.
- @return pointer to the next chained record, or NULL if none */
+on the same page.
+@param[in] rec  Physical record.
+@param[in] comp Nonzero=compact page format.
+@return pointer to the next chained record, or nullptr if none */
 [[nodiscard]] static inline const rec_t *rec_get_next_ptr_const(
-    const rec_t *rec, /*!< in: physical record */
-    ulint comp);      /*!< in: nonzero=compact page format */
+    const rec_t *rec, ulint comp);
 /** The following function is used to get the pointer of the next chained record
- on the same page.
- @return pointer to the next chained record, or NULL if none */
-[[nodiscard]] static inline rec_t *rec_get_next_ptr(
-    rec_t *rec,  /*!< in: physical record */
-    ulint comp); /*!< in: nonzero=compact page format */
+on the same page.
+@param[in] rec  Physical record.
+@param[in] comp Nonzero=compact page format.
+@return pointer to the next chained record, or nullptr if none */
+[[nodiscard]] static inline rec_t *rec_get_next_ptr(rec_t *rec, ulint comp);
 /** The following function is used to get the offset of the
- next chained record on the same page.
- @return the page offset of the next chained record, or 0 if none */
-[[nodiscard]] static inline ulint rec_get_next_offs(
-    const rec_t *rec, /*!< in: physical record */
-    ulint comp);      /*!< in: nonzero=compact page format */
+next chained record on the same page.
+@param[in] rec  Physical record.
+@param[in] comp Nonzero=compact page format.
+@return the page offset of the next chained record, or 0 if none */
+[[nodiscard]] static inline ulint rec_get_next_offs(const rec_t *rec,
+                                                    ulint comp);
 
 /** The following function is used to set the next record offset field of an
 old-style record.
@@ -115,11 +117,12 @@ static inline void rec_set_info_bits_new(rec_t *rec, ulint bits);
 static inline void rec_set_status(rec_t *rec, ulint bits);
 
 /** The following function is used to retrieve the info and status
- bits of a record.  (Only compact records have status bits.)
- @return info bits */
-[[nodiscard]] static inline ulint rec_get_info_and_status_bits(
-    const rec_t *rec, /*!< in: physical record */
-    bool comp);       /*!< in: true=compact page format */
+bits of a record.  (Only compact records have status bits.)
+@param[in] rec  Physical record.
+@param[in] comp Nonzero=compact page format.
+@return info bits */
+[[nodiscard]] static inline ulint rec_get_info_and_status_bits(const rec_t *rec,
+                                                               bool comp);
 
 /** The following function is used to set the info and status bits of a record.
 (Only compact records have status bits.)
@@ -128,10 +131,11 @@ static inline void rec_set_status(rec_t *rec, ulint bits);
 static inline void rec_set_info_and_status_bits(rec_t *rec, ulint bits);
 
 /** The following function tells if record is delete marked.
- @return nonzero if delete marked */
-[[nodiscard]] static inline bool rec_get_deleted_flag(
-    const rec_t *rec, /*!< in: physical record */
-    bool comp);       /*!< in: nonzero=compact page format */
+@param[in] rec Physical record.
+@param[in] comp Nonzero=compact page format.
+@return nonzero if delete marked */
+[[nodiscard]] static inline bool rec_get_deleted_flag(const rec_t *rec,
+                                                      bool comp);
 
 /** The following function is used to set the deleted bit.
 @param[in]	rec		old-style physical record
@@ -180,40 +184,18 @@ record.
 @param[in]	heap_no	the heap number */
 static inline void rec_set_heap_no_new(rec_t *rec, ulint heap_no);
 
-/** The following function is used to test whether the data offsets
- in the record are stored in one-byte or two-byte format.
- @return true if 1-byte form */
-[[nodiscard]] static inline bool rec_get_1byte_offs_flag(
-    const rec_t *rec); /*!< in: physical record */
-
 /** The following function is used to set the 1-byte offsets flag.
 @param[in]	rec	physical record
 @param[in]	flag	true if 1byte form */
 static inline void rec_set_1byte_offs_flag(rec_t *rec, bool flag);
 
-/** Returns the offset of nth field end if the record is stored in the 1-byte
- offsets form. If the field is SQL null, the flag is ORed in the returned
- value.
- @return offset of the start of the field, SQL null flag ORed */
-[[nodiscard]] static inline ulint rec_1_get_field_end_info(
-    const rec_t *rec, /*!< in: record */
-    ulint n);         /*!< in: field index */
-
-/** Returns the offset of nth field end if the record is stored in the 2-byte
- offsets form. If the field is SQL null, the flag is ORed in the returned
- value.
- @return offset of the start of the field, SQL null flag and extern
- storage flag ORed */
-[[nodiscard]] static inline ulint rec_2_get_field_end_info(
-    const rec_t *rec, /*!< in: record */
-    ulint n);         /*!< in: field index */
-
 /** Returns nonzero if the field is stored off-page.
- @retval 0 if the field is stored in-page
- @retval REC_2BYTE_EXTERN_MASK if the field is stored externally */
-[[nodiscard]] static inline ulint rec_2_is_field_extern(
-    const rec_t *rec, /*!< in: record */
-    ulint n);         /*!< in: field index */
+@param[in] rec Record.
+@param[in] n   Field index.
+@retval 0 if the field is stored in-page
+@retval REC_2BYTE_EXTERN_MASK if the field is stored externally */
+[[nodiscard]] static inline ulint rec_2_is_field_extern(const rec_t *rec,
+                                                        ulint n);
 
 /** Determine how many of the first n columns in a compact
  physical record are stored externally.
@@ -253,12 +235,13 @@ static inline const byte *rec_get_nth_field_old_instant(
 #define rec_get_nth_field_old(rec, n, len) \
   ((rec) + rec_get_nth_field_offs_old(rec, n, len))
 /** Gets the physical size of an old-style field.
- Also an SQL null may have a field of size > 0,
- if the data type is of a fixed size.
- @return field size in bytes */
-[[nodiscard]] static inline ulint rec_get_nth_field_size(
-    const rec_t *rec, /*!< in: record */
-    ulint n);         /*!< in: index of the field */
+Also an SQL null may have a field of size > 0, if the data type is of a fixed
+size.
+@param[in] rec Physical record.
+@param[in] n   Index of the field
+@return field size in bytes */
+[[nodiscard]] static inline ulint rec_get_nth_field_size(const rec_t *rec,
+                                                         ulint n);
 
 /** The following function is used to get an offset to the nth data field in a
 record.
@@ -330,35 +313,39 @@ static inline bool rec_field_not_null_not_add_col_def(ulint len);
 [[nodiscard]] static inline ulint rec_offs_any_extern(
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
 /** Determine if the offsets are for a record containing null BLOB pointers.
- @return first field containing a null BLOB pointer, or NULL if none found */
+@param[in] rec Physical record.
+@param[in] offsets Array returned by rec_get_offsets().
+@return first field containing a null BLOB pointer, or nullptr if none found */
 [[nodiscard]] static inline const byte *rec_offs_any_null_extern(
-    const rec_t *rec,      /*!< in: record */
-    const ulint *offsets); /*!< in: rec_get_offsets(rec) */
+    const rec_t *rec, const ulint *offsets);
 /** Returns nonzero if the extern bit is set in nth field of rec.
- @return nonzero if externally stored */
-[[nodiscard]] static inline ulint rec_offs_nth_extern(
-    const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
-    ulint n);             /*!< in: nth field */
+@param[in] offsets Array returned by rec_get_offsets().
+@param[in] n       Nth field.
+@return nonzero if externally stored */
+[[nodiscard]] static inline ulint rec_offs_nth_extern(const ulint *offsets,
+                                                      ulint n);
 
 /** Mark the nth field as externally stored.
 @param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	n		nth field */
 void rec_offs_make_nth_extern(ulint *offsets, const ulint n);
 /** Returns nonzero if the SQL NULL bit is set in nth field of rec.
- @return nonzero if SQL NULL */
-[[nodiscard]] static inline ulint rec_offs_nth_sql_null(
-    const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
-    ulint n);             /*!< in: nth field */
+@param[in] offsets Array returned by rec_get_offsets().
+@param[in] n       Nth field.
+@return nonzero if SQL NULL */
+[[nodiscard]] static inline ulint rec_offs_nth_sql_null(const ulint *offsets,
+                                                        ulint n);
 
 /** Returns nonzero if the default bit is set in nth field of rec.
 @return	nonzero if default bit is set */
 static inline ulint rec_offs_nth_default(const ulint *offsets, ulint n);
 
 /** Gets the physical size of a field.
- @return length of field */
-[[nodiscard]] static inline ulint rec_offs_nth_size(
-    const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
-    ulint n);             /*!< in: nth field */
+@param[in] offsets Array returned by rec_get_offsets().
+@param[in] n       Nth field.
+@return length of field */
+[[nodiscard]] static inline ulint rec_offs_nth_size(const ulint *offsets,
+                                                    ulint n);
 
 /** Returns the number of extern bits set in a record.
  @return number of externally stored fields */
@@ -484,16 +471,18 @@ class Rec_offsets : private ut::Non_copyable {
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
 #ifdef UNIV_DEBUG
 /** Returns a pointer to the start of the record.
- @return pointer to start */
-[[nodiscard]] static inline byte *rec_get_start(
-    const rec_t *rec,      /*!< in: pointer to record */
-    const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
+@param[in] rec     Pointer to record.
+@param[in] offsets Array returned by rec_get_offsets().
+@return pointer to start */
+[[nodiscard]] static inline byte *rec_get_start(const rec_t *rec,
+                                                const ulint *offsets);
 /** Returns a pointer to the end of the record.
- @return pointer to end */
-[[nodiscard]] static inline byte *rec_get_end(
-    const rec_t *rec,      /*!< in: pointer to record */
-    const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
-#else                      /* UNIV_DEBUG */
+@param[in] rec     Pointer to record.
+@param[in] offsets Array returned by rec_get_offsets().
+@return pointer to end */
+[[nodiscard]] static inline byte *rec_get_end(const rec_t *rec,
+                                              const ulint *offsets);
+#else /* UNIV_DEBUG */
 #define rec_get_start(rec, offsets) ((rec)-rec_offs_extra_size(offsets))
 #define rec_get_end(rec, offsets) ((rec) + rec_offs_data_size(offsets))
 #endif /* UNIV_DEBUG */

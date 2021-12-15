@@ -568,6 +568,7 @@ template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table);
 
 /** Copy the engine-private parts of column definitions of a table
+@param[in]	ha_alter_info	alter info
 @param[in,out]	new_table	Copy of old table
 @param[in]	old_table	Old table */
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
@@ -577,6 +578,7 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 ADD COLUMN information. This should be done when it's not an ALTER TABLE
 with rebuild. Basically, check dd::Table::se_private_data and
 dd::Column::se_private_data.
+@param[in]	ha_alter_info	alter info
 @param[in,out]	new_table	Copy of old table definition
 @param[in]	old_table	Old table definition */
 inline void dd_copy_table(const Alter_inplace_info *ha_alter_info,
@@ -595,6 +597,7 @@ is correct if the first partition got changed
 void dd_part_adjust_table_id(dd::Table *new_table);
 
 /** Add column default values for new instantly added columns
+@param[in]	ha_alter_info	alter info
 @param[in]	old_table	MySQL table as it is before the ALTER operation
 @param[in]	altered_table	MySQL table that is being altered
 @param[in,out]	new_dd_table	New dd::Table

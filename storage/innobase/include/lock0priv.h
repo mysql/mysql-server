@@ -897,12 +897,13 @@ sleep.
 void lock_reset_wait_and_release_thread_if_suspended(lock_t *lock);
 
 /** Checks if some transaction has an implicit x-lock on a record in a clustered
- index.
- @return transaction id of the transaction which has the x-lock, or 0 */
+index.
+@param[in] rec User record.
+@param[in] index Clustered index.
+@param[in] offsets rec_get_offsets(rec, index)
+@return transaction id of the transaction which has the x-lock, or 0 */
 [[nodiscard]] static inline trx_id_t lock_clust_rec_some_has_impl(
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
+    const rec_t *rec, const dict_index_t *index, const ulint *offsets);
 
 /** Gets the first or next record lock on a page.
  @return next lock, NULL if none exists */

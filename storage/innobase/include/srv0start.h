@@ -118,16 +118,6 @@ void srv_start_threads_after_ddl_recovery();
 purge threads early to apply purge. */
 void srv_start_purge_threads();
 
-/** Copy the file path component of the physical file to parameter. It will
- copy up to and including the terminating path separator.
- @return number of bytes copied or ULINT_UNDEFINED if destination buffer
-         is smaller than the path to be copied. */
-[[nodiscard]] ulint srv_path_copy(
-    char *dest,              /*!< out: destination buffer */
-    ulint dest_len,          /*!< in: max bytes to copy */
-    const char *basedir,     /*!< in: base directory */
-    const char *table_name); /*!< in: source table name */
-
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
