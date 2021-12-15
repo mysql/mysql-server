@@ -6293,6 +6293,11 @@ prefetch_op_record_4(Uint32 *op_ptr)
 bool
 Dblqh::seize_op_rec(TcConnectionrecPtr& tcConnectptr)
 {
+  if (ERROR_INSERTED(5031))
+  {
+    jam();
+    return false;
+  }
   TcConnectionrecPtr opPtr;
   if (unlikely(!tcConnect_pool.seize(opPtr)))
   {
@@ -8348,8 +8353,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   else
   {
     jamEntry();
-    if (unlikely(ERROR_INSERTED_CLEAR(5031) ||
-                 (!seize_op_rec(tcConnectptr))))
+    if (unlikely(!seize_op_rec(tcConnectptr)))
     {
       jam();
 /* ------------------------------------------------------------------------- */
@@ -16375,7 +16379,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 senderBlockNo = refToMain(senderBlockRef);
   TcConnectionrecPtr tcConnectptr;
   if (likely(ctcNumFree > ZNUM_RESERVED_UTIL_CONNECT_RECORDS &&
-             !ERROR_INSERTED(5055)) ||
+             !ERROR_INSERTED(5055) &&
+             !ERROR_INSERTED(5031)) ||
       (ScanFragReq::getLcpScanFlag(scanFragReq->requestInfo)) ||
       (senderBlockNo == getBACKUP()) ||
       (senderBlockNo == DBUTIL &&
