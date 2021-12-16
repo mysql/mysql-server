@@ -160,11 +160,6 @@ class TestConfigGenerator : public mysqlrouter::ConfigGenerator {
   }
 };
 
-const std::string kDefaultConnectTimeout =
-    std::to_string(mysqlrouter::MySQLSession::kDefaultConnectTimeout);
-const std::string kDefaultReadTimeout =
-    std::to_string(mysqlrouter::MySQLSession::kDefaultReadTimeout);
-
 class ReplayerWithMockSSL : public MySQLSessionReplayer {
  public:
   void set_ssl_options(mysql_ssl_mode ssl_mode, const std::string &tls_version,
@@ -1602,8 +1597,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
       "[DEFAULT]",
       "name=myrouter",
       "user=mysqlrouter",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -1690,8 +1685,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
   std::vector<std::string> expected_config_lines = {
       "# File automatically generated during MySQL Router bootstrap",
       "[DEFAULT]",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -1781,8 +1776,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
   std::vector<std::string> expected_config_lines = {
       "# File automatically generated during MySQL Router bootstrap",
       "[DEFAULT]",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -1876,8 +1871,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
   std::vector<std::string> expected_config_lines = {
       "# File automatically generated during MySQL Router bootstrap",
       "[DEFAULT]",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -1964,8 +1959,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
   std::vector<std::string> expected_config_lines = {
       "# File automatically generated during MySQL Router bootstrap",
       "[DEFAULT]",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -2062,8 +2057,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
       "[DEFAULT]",
       "name=myrouter",
       "user=mysqlrouter",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),
@@ -2155,8 +2150,8 @@ TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
       "[DEFAULT]",
       "name=myrouter",
       "user=mysqlrouter",
-      "connect_timeout=" + kDefaultConnectTimeout,
-      "read_timeout=" + kDefaultReadTimeout,
+      "connect_timeout=5",
+      "read_timeout=30",
       "dynamic_state=state_file_name.json",
       "client_ssl_cert=" + tmp_path.join("router-cert.pem").str(),
       "client_ssl_key=" + tmp_path.join("router-key.pem").str(),

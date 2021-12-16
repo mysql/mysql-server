@@ -153,8 +153,8 @@ class Option<Opt, std::nullptr_t> {
 
 class ROUTER_LIB_EXPORT MySQLSession {
  public:
-  static const int kDefaultConnectTimeout = 15;
-  static const int kDefaultReadTimeout = 30;
+  static constexpr int kDefaultConnectTimeout = 5;
+  static constexpr int kDefaultReadTimeout = 30;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;
   typedef std::function<void(unsigned, MYSQL_FIELD *)> FieldValidator;

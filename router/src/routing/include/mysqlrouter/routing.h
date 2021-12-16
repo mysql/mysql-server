@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/routing_export.h"
 
 #include <chrono>
@@ -53,7 +54,8 @@ constexpr const int kDefaultMaxConnections{0};
  * Constant defining how long we wait to establish connection with the server
  * before we give up.
  */
-constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{1};
+constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{
+    mysqlrouter::MySQLSession::kDefaultConnectTimeout};
 
 /** Maximum connect or handshake errors per host.
  *

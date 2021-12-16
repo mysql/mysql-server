@@ -46,6 +46,7 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache_datatypes.h"
+#include "mysqlrouter/mysql_session.h"
 #include "tcp_address.h"
 
 namespace metadata_cache {
@@ -60,8 +61,10 @@ constexpr const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{
     2000};
 // blank cluster name means pick the 1st (and only) cluster
 constexpr const std::string_view kDefaultMetadataCluster{""};
-constexpr const unsigned int kDefaultConnectTimeout{30};
-constexpr const unsigned int kDefaultReadTimeout{30};
+constexpr const unsigned int kDefaultConnectTimeout{
+    mysqlrouter::MySQLSession::kDefaultConnectTimeout};
+constexpr const unsigned int kDefaultReadTimeout{
+    mysqlrouter::MySQLSession::kDefaultReadTimeout};
 
 constexpr const std::string_view kNodeTagHidden{"_hidden"};
 constexpr const std::string_view kNodeTagDisconnectWhenHidden{

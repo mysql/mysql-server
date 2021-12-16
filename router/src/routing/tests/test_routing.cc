@@ -75,7 +75,7 @@ TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultWaitTimeout, 0);
   ASSERT_EQ(routing::kDefaultMaxConnections, 0);
   ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout,
-            std::chrono::seconds(1));
+            std::chrono::seconds(5));
   ASSERT_EQ(routing::kDefaultBindAddress, "127.0.0.1");
   ASSERT_EQ(routing::kDefaultNetBufferLength, 16384U);
   ASSERT_EQ(routing::kDefaultMaxConnectErrors, 100ULL);
