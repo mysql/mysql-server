@@ -1562,7 +1562,7 @@ void filter_fact_column(
   std::mutex* fact_filter_mutex ) 
   { 
     
-    auto column_vals = column_query->getQualifiedInts((fact_filter->first)->fact_column.c_str());
+    auto column_vals = column_query->getQualifiedLongs((fact_filter->first)->fact_column.c_str());
     
     uint32_t rownum = 1;
     std::vector<uint64_t> matching_dim_rowids;
@@ -1618,7 +1618,8 @@ void exec_pushdown_join(
   uint32_t* running_join_threads, 
   std::mutex* parallel_join_mutex,
   uint32_t* running_dimension_merges,
-  std::mutex* dimension_merge_mutex ) {      
+  std::mutex* dimension_merge_mutex ) {
+          
   
 #ifdef WARP_USE_SIMD_INTERSECTION
   struct filter_result {
@@ -1707,8 +1708,8 @@ void exec_pushdown_join(
 
   for ( filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
     
-    auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
-
+    auto column_vals = column_query->getQualifiedLongs((filter_it->first)->fact_column.c_str());
+    
     uint32_t rownum =0;
     auto matching_dim_rowids = new std::set<uint64_t> ;
     
@@ -3192,7 +3193,7 @@ int ha_warp::bitmap_merge_join() {
     } // end of fetch loop
     
     if( matches->size() > 0 ) {
-      auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname);
+      auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname, fact_field->real_type(), dim_field->real_type());
       fact_table_filters.emplace(std::make_pair(filter_info, matches));
     } else {
       delete matches;

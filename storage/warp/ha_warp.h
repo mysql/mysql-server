@@ -205,13 +205,16 @@ public:
   std::string fact_column = "";
   std::string dim_alias = "";
   std::string dim_column = "";
-
+  enum_field_types fact_column_type;
+  enum_field_types dim_column_type;
   std::mutex mtx;
 
-  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
+  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column, enum_field_types fact_column_type, enum_field_types dim_column_type) {
     this->fact_column = fact_column;
     this->dim_alias = dim_alias;
     this->dim_column = dim_column; 
+    this->fact_column_type = fact_column_type;
+    this->dim_column_type = dim_column_type;
   }
 
   /* in order to do batch operations, the mutex can be taken manually
