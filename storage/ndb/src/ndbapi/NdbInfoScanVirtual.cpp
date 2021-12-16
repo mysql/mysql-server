@@ -26,7 +26,9 @@
 
 #include "ndbapi/NdbApi.hpp"
 #include "NdbInfo.hpp"
+#include "util/OutputStream.hpp"
 
+using DictionaryList = NdbDictionary::Dictionary::List;
 
 int NdbInfoScanVirtual::readTuples()
 {
@@ -131,10 +133,6 @@ public:
   */
   virtual int read_row(VirtualScanContext* ctx, Row& row, Uint32 row_number) const = 0;
 
-  /*
-    key: int32 primary key value
-    returns row number in table
-  */
   int seek(std::map<int, int>::const_iterator &,
            const int &key, NdbInfoScanOperation::Seek) const;
 
@@ -142,31 +140,37 @@ public:
 
 protected:
   std::map<int, int> m_index;
+  static constexpr int column_buff_size = 512;
 };
 
-int VirtualTable::seek(std::map<int, int>::const_iterator &iter,
-                       const int &key,
-                       NdbInfoScanOperation::Seek seek) const {
+/*
+  key: int32 primary key value
+  returns row number in table
+*/
+int index_seek(const std::map<int, int> &index,
+               std::map<int, int>::const_iterator &iter,
+               const int &key,
+               NdbInfoScanOperation::Seek seek) {
   switch(seek.mode) {
     case NdbInfoScanOperation::Seek::Mode::first:
-      iter = m_index.cbegin();
+      iter = index.cbegin();
       return iter->second;
     case NdbInfoScanOperation::Seek::Mode::last:
-      iter = std::prev(m_index.cend(), 1);
+      iter = std::prev(index.cend(), 1);
       return iter->second;
     case NdbInfoScanOperation::Seek::Mode::next:
-      if(iter == m_index.cend()) return -1;
-      if(++iter == m_index.cend()) return -1;
+      if(iter == index.cend()) return -1;
+      if(++iter == index.cend()) return -1;
       return iter->second;
     case NdbInfoScanOperation::Seek::Mode::previous:
-      if(iter == m_index.cbegin()) return -1;
+      if(iter == index.cbegin()) return -1;
       iter--;
       return iter->second;
     case NdbInfoScanOperation::Seek::Mode::value:
-      iter = m_index.lower_bound(key);
+      iter = index.lower_bound(key);
       break;
   }
-  if(iter == m_index.cend()) return -1;
+  if(iter == index.cend()) return -1;
 
   /* Check for exact match */
   if(! (seek.inclusive && (iter->first == key)))
@@ -177,14 +181,20 @@ int VirtualTable::seek(std::map<int, int>::const_iterator &iter,
       if(seek.high && iter->first == key) iter++;
       else if(seek.low)
       {
-        if(iter == m_index.cbegin()) return -1; // nothing lower than first rec
+        if(iter == index.cbegin()) return -1; // nothing lower than first rec
         iter--;
       }
     }
     else return -1; // exact match failed and ranges are not wanted
   }
 
-  return (iter == m_index.cend()) ? -1 : iter->second;
+  return (iter == index.cend()) ? -1 : iter->second;
+}
+
+int VirtualTable::seek(std::map<int, int>::const_iterator &iter,
+                       const int &key,
+                       NdbInfoScanOperation::Seek seek) const {
+  return index_seek(m_index, iter, key, seek);
 }
 
 VirtualTable::~VirtualTable() {}
@@ -334,6 +344,30 @@ int NdbInfoScanVirtual::nextResult()
   DBUG_RETURN(result);
 }
 
+
+class BlobSource {
+ public:
+  BlobSource() : table_id(0), col_id(0) {}
+  const NdbDictionary::Table *resolve(const char *blobTableName,
+                                      const DictionaryList &, Ndb *);
+  Uint32 table_id, col_id;
+};
+
+const NdbDictionary::Table *BlobSource::resolve(const char *blobTable,
+                                                const DictionaryList &tables,
+                                                Ndb *ndb) {
+  if (sscanf(blobTable, "NDB$BLOB_%u_%u", &table_id, &col_id) == 2) {
+    for (Uint32 i = 0 ; i < tables.count ; i++) {
+      const DictionaryList::Element &elem = tables.elements[i];
+      if (elem.id == table_id) {
+        ndb->setDatabaseName(elem.database);
+        return ndb->getDictionary()->getTableGlobal(elem.name);
+      }
+    }
+  }
+  return nullptr;
+}
+
 class VirtualScanContext {
  public:
   VirtualScanContext(Ndb_cluster_connection *connection)
@@ -350,7 +384,69 @@ class VirtualScanContext {
     if (!m_ndbtab) return false;
     return true;
   }
-  const NdbDictionary::Table *getTable() { return m_ndbtab; }
+
+  NdbDictionary::Dictionary *getDictionary() const {
+    return m_ndb->getDictionary();
+  }
+
+  void releaseTable() {
+    if(m_ndbtab) {
+      getDictionary()->removeTableGlobal(*m_ndbtab, 0);
+      m_ndbtab = nullptr;
+    }
+  }
+
+  void releaseIndex() {
+    if(m_ndbindex) {
+      getDictionary()->removeIndexGlobal(*m_ndbindex, 0);
+      m_ndbindex = nullptr;
+    }
+  }
+
+  const char * getDatabaseName() const {
+    return m_ndb->getDatabaseName();
+  }
+
+  const NdbDictionary::Table *getSourceTable(const char * table,
+                                             BlobSource &blobSource) {
+    return blobSource.resolve(table, m_list, m_ndb);
+  }
+
+  /* Fetch table for list element.
+     Release the previously held table.
+  */
+  const NdbDictionary::Table *getTable(const DictionaryList::Element *elem) {
+    releaseTable();
+    m_ndb->setDatabaseName(elem->database);
+    m_ndbtab = getDictionary()->getTableGlobal(elem->name);
+    return m_ndbtab;
+  }
+
+  /* If table is a blob table, Dictionary::getTableGlobal() has returned null.
+     Try to follow path from table name back through source to blob table.
+     For proper cache management, leave m_ndbtab pointing to source table.
+  */
+  const NdbDictionary::Table *getBlobTable(const DictionaryList::Element *el) {
+    BlobSource blob;
+    assert(m_ndbtab == nullptr);
+    m_ndbtab = getSourceTable(el->name, blob);
+    if(m_ndbtab) {
+      const NdbDictionary::Column * col = m_ndbtab->getColumn(blob.col_id);
+      if(col) return col->getBlobTable();
+    }
+    return nullptr;
+  }
+
+  const NdbDictionary::Table *getTable() const { return m_ndbtab; }
+
+  /* Fetch index for list element.
+     Release the previously held index.
+  */
+  const NdbDictionary::Index * getIndex(const DictionaryList::Element *elem) {
+    releaseIndex();
+    m_ndbindex = getDictionary()->getIndexGlobal(elem->name, *m_ndbtab);
+    return m_ndbindex;
+  }
 
   bool startTrans() {
     m_trans = m_ndb->startTransaction();
@@ -383,18 +479,85 @@ class VirtualScanContext {
 
   const NdbRecord *getRecord() { return m_record; }
 
+  void listObjects(NdbDictionary::Object::Type type) {
+    assert(m_list_cursor == 0);
+    m_ndb->getDictionary()->listObjects(m_list, type);
+  }
+
+  const DictionaryList::Element * nextInList(Uint32 row=0xFFFFFFFF) {
+    if(m_using_index) {
+      assert(row < m_list.count);
+      m_list_cursor = row;
+    }
+    if(m_list_cursor == m_list.count) return nullptr;
+    return & m_list.elements[m_list_cursor++];
+  }
+
+  const NdbDictionary::Index * nextIndex() {
+    assert(! m_using_index);
+    while(m_inner_cursor == m_inner_list.count) {
+      const NdbDictionary::Table * table;
+      do {
+        const DictionaryList::Element * elem = nextInList();
+        if(elem == nullptr) return nullptr;  // end of list
+        table = getTable(elem);  // will be null if table is a blob table
+      } while(table == nullptr);
+      m_inner_cursor = 0;
+      m_inner_list.clear();
+      if(m_ndb->getDictionary()->listIndexes(m_inner_list, *table) != 0)
+        return nullptr;  // error in listIndexes()
+    }
+    return getIndex(& m_inner_list.elements[m_inner_cursor++]);
+  }
+
+  const NdbDictionary::Column * nextColumn() {
+    assert(! m_using_index);  // columns table has no indexes
+    if((m_ndbtab == nullptr) /* first table */ ||
+       (int)m_inner_cursor == m_ndbtab->getNoOfColumns()) {
+      m_inner_cursor=0;
+      do {
+        const DictionaryList::Element * elem = nextInList();
+        if(elem == nullptr) return nullptr; // end of list
+        getTable(elem);
+        /* Fixme: also get columns from blob tables */
+      } while(m_ndbtab == nullptr);
+    }
+    return m_ndbtab->getColumn(m_inner_cursor++);
+  }
+
+  void buildIndex() {
+    if(m_list.count > 0) {
+      for(unsigned int i = 0; i < m_list.count ; i++)
+        m_list_index[m_list.elements[i].id] = i;
+      m_using_index = true;
+    }
+  }
+
+  bool usingIndex() { return m_using_index; }
+
+  int seek(std::map<int, int>::const_iterator &iter,
+           const int &key, NdbInfoScanOperation::Seek seek) const {
+    return index_seek(m_list_index, iter, key, seek);
+  }
+
   ~VirtualScanContext() {
     if (m_record) m_ndb->getDictionary()->releaseRecord(m_record);
     if (m_scan_op) m_scan_op->close();
     if (m_trans) m_ndb->closeTransaction(m_trans);
-    if (m_ndbtab) m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, 0);
+    releaseTable();
+    releaseIndex();
     delete m_ndb;
   }
 
  private:
+  std::map<int, int> m_list_index;
+  DictionaryList m_list, m_inner_list;
+  Uint32 m_list_cursor{0}, m_inner_cursor{0};
+  bool m_using_index{false};
   Ndb_cluster_connection *const m_connection;
   Ndb *m_ndb{nullptr};
   const NdbDictionary::Table *m_ndbtab{nullptr};
+  const NdbDictionary::Index *m_ndbindex{nullptr};
   NdbTransaction *m_trans{nullptr};
   NdbScanOperation *m_scan_op{nullptr};
   NdbRecord* m_record{nullptr};
@@ -407,8 +570,7 @@ int NdbInfoScanVirtual::execute()
     DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   {
-    // Allocate the row buffer big enough to hold all
-    // the reuqested columns
+    // Allocate the row buffer big enough to hold all the requested columns
     size_t buffer_size = 0;
     for (unsigned i = 0; i < m_table->columns(); i++)
     {
@@ -469,8 +631,16 @@ int NdbInfoScanVirtual::init()
   return NdbInfo::ERR_NoError;
 }
 
+void NdbInfoScanVirtual::initIndex(Uint32) {
+  m_ctx->buildIndex();
+}
+
 bool NdbInfoScanVirtual::seek(NdbInfoScanOperation::Seek mode, int key) {
-  int r = m_virt->seek(m_index_pos, key, mode);
+  int r;
+  if(m_ctx->usingIndex())
+    r = m_ctx->seek(m_index_pos, key, mode);
+  else
+    r = m_virt->seek(m_index_pos, key, mode);
   if(r == -1) return false;
   m_row_counter = r;
   return true;
@@ -1182,6 +1352,532 @@ public:
   }
 };
 
+class DictionaryTablesTable : public VirtualTable {
+
+public:
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("dictionary_tables", this,
+                                             40, false,
+                                             NdbInfo::TableName::NoPrefix);
+    if (!tab) return nullptr;
+    if (!tab->addColumn(NdbInfo::Column("database_name", 0,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("table_name", 1,
+                                         NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("table_id", 2,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("status", 3,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("attributes", 4,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("primary_key_cols", 5,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("primary_key", 6,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("storage", 7,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("logging", 8,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("dynamic", 9,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("read_backup", 10,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("fully_replicated", 11,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("checksum", 12,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("row_size", 13,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("min_rows", 14,
+                                        NdbInfo::Column::Number64)) ||
+        !tab->addColumn(NdbInfo::Column("max_rows", 15,
+                                        NdbInfo::Column::Number64)) ||
+        !tab->addColumn(NdbInfo::Column("tablespace", 16,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("fragment_type", 17,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("hash_map", 18,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("fragments", 19,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("partitions", 20,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("partition_balance", 21,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("contains_GCI", 22,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("single_user_mode", 23,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("force_var_part", 24,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("GCI_bits", 25,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("author_bits", 26,
+                                        NdbInfo::Column::Number)))
+      return nullptr;
+    return tab;
+  }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::UserTable);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32 row)
+      const override {
+
+    const DictionaryList::Element * elem;
+    const NdbDictionary::Table * t;
+
+    do {
+      elem = ctx->nextInList(static_cast<int>(row));
+      if(elem == nullptr) return 0;  // end of list
+      t = ctx->getTable(elem);
+      if(t == nullptr) t = ctx->getBlobTable(elem);
+      if(ctx->usingIndex() && (t == nullptr)) return 0;
+    } while (t == nullptr);
+
+    {
+      NdbDictionary::HashMap hashMap;
+      char pk_cols[column_buff_size];
+      size_t s = 0;
+      Uint32 tablespace_id;
+
+      // Get value for column "dynamic"
+      int is_dynamic = [t]() {
+        if(t->getForceVarPart()) return 1;
+        for(int i = 0 ; i < t->getNoOfColumns() ; i++)
+          if(t->getColumn(i)->getDynamic()) return 1;
+        return 0;
+      }();
+
+      // Get value for column "hash_map"
+      ctx->getDictionary()->getHashMap(hashMap, t);
+
+      // Get value for column "primary_key"
+      for(int i = 0 ; i < t->getNoOfPrimaryKeys() ; i++) {
+        if(i) s += snprintf(pk_cols+s, column_buff_size-s, ",");
+        s += snprintf(pk_cols+s, column_buff_size-s, "%s", t->getPrimaryKey(i));
+      }
+
+      // Get tablespace ID
+      bool has_ts = t->getTablespace(&tablespace_id);
+
+      w.write_string(elem->database);                       // database
+      w.write_string(t->getName());                         // name
+      w.write_number(t->getTableId());                      // table_id
+      w.write_number(t->getObjectStatus() + 1);             // status
+      w.write_number(t->getNoOfColumns());                  // attributes
+      w.write_number(t->getNoOfPrimaryKeys());              // primary_key_cols
+      w.write_string(pk_cols),                              // primary_key
+      w.write_number((int)(t->getStorageType()) + 1);       // storage
+      w.write_number(t->getLogging());                      // logging
+      w.write_number(is_dynamic);                           // dynamic
+      w.write_number(t->getReadBackupFlag());               // read_backup
+      w.write_number(t->getFullyReplicated());              // fully_replicated
+      w.write_number(t->getRowChecksumIndicator());         // checksum
+      w.write_number(t->getRowSizeInBytes());               // row_size
+      w.write_number64(t->getMinRows());                    // min_rows
+      w.write_number64(t->getMaxRows());                    // max_rows
+      w.write_number(has_ts ? tablespace_id : 0);           // tablespace
+      w.write_number((int) t->getFragmentType());           // fragment_type
+      w.write_string(hashMap.getName());                    // hash_map
+      w.write_number(t->getFragmentCount());                // fragments
+      w.write_number(t->getPartitionCount());               // partitions
+      w.write_string(t->getPartitionBalanceString());       // partition_balance
+      w.write_number(t->getRowGCIIndicator());              // contains_GCI
+      w.write_number(t->getSingleUserMode() + 1);           // single_user_mode
+      w.write_number(t->getForceVarPart());                 // force_var_part
+      w.write_number(t->getExtraRowGciBits());              // GCI_bits
+      w.write_number(t->getExtraRowAuthorBits());           // author_bits
+    }
+    return 1;
+  }
+};
+
+class BlobsTable : public VirtualTable {
+  public:
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("blobs", this, 10, false,
+                                             NdbInfo::TableName::NoPrefix);
+    if (!tab) return nullptr;
+    if (!tab->addColumn(NdbInfo::Column("table_id", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("database_name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("table_name", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("column_id", 3,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("column_name", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("inline_size", 5,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("part_size", 6,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("stripe_size", 7,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("blob_table_name", 8,
+                                        NdbInfo::Column::String)))
+      return nullptr;
+    return tab;
+ }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::UserTable);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32)
+      const override {
+
+    const DictionaryList::Element * elem;
+    const NdbDictionary::Table * t;
+    BlobSource blob;
+
+    do {
+      elem = ctx->nextInList();
+      if(elem == nullptr) return 0;  // end of list
+      t = ctx->getTable(elem) ? nullptr : ctx->getSourceTable(elem->name, blob);
+    } while (t == nullptr);
+
+    const NdbDictionary::Column * col = t->getColumn(blob.col_id);
+    assert(col);
+    assert(col->getBlobTable());
+
+    w.write_number(t->getTableId());                      // table_id
+    w.write_string(elem->database);                       // database_name
+    w.write_string(t->getName());                         // table_name
+    w.write_number(blob.col_id);                          // column_id
+    w.write_string(col->getName());                       // column_name
+    w.write_number(col->getInlineSize());                 // inline_size
+    w.write_number(col->getPartSize());                   // part_size
+    w.write_number(col->getStripeSize());                 // stripe_size
+    w.write_string(col->getBlobTable()->getName());       // blob_table_name
+
+    return 1;
+  }
+};
+
+class EventsTable : public VirtualTable {
+  public:
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("events", this, 40, false,
+                                             NdbInfo::TableName::NoPrefix);
+    if (!tab) return nullptr;
+    if (!tab->addColumn(NdbInfo::Column("event_id", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("table_id", 2,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("reporting", 3,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("columns", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("table_event", 5,
+                                        NdbInfo::Column::Number)))
+       return nullptr;
+     return tab;
+  }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::TableEvent);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32 row)
+      const override {
+
+    const DictionaryList::Element * elem;
+    const NdbDictionary::Event * event;
+
+    do {
+      elem = ctx->nextInList(row);
+      if (elem == nullptr) return 0;   // end of list
+      event = ctx->getDictionary()->getEvent(elem->name);
+      if( ctx->usingIndex() && (event == nullptr)) return 0;
+    } while(event == nullptr);
+
+    {
+      char event_columns[column_buff_size];
+      size_t s = 0;
+      Uint32 event_report = 0;
+      Uint32 table_event = 0;
+
+      /* columns */
+      for(int i = 0 ; i < event->getNoOfEventColumns() ; i++) {
+        if(i) s += snprintf(event_columns+s, column_buff_size-s, ",");
+        s += snprintf(event_columns+s, column_buff_size-s, "%s",
+                      event->getEventColumn(i)->getName());
+      }
+
+      /* reporting */
+      switch(event->getReport()) {
+        case NdbDictionary::Event::ER_UPDATED:
+          event_report = 1;
+          break;
+        case NdbDictionary::Event::ER_ALL:
+          event_report = 2;
+          break;
+        case NdbDictionary::Event::ER_SUBSCRIBE:
+          event_report = 3;
+          break;
+        case NdbDictionary::Event::ER_DDL:
+          event_report = 4;
+          break;
+      }
+
+      /* table_event
+         The first 13 bits are contiguous in the bitfield.
+         The three exceptional event types are *not* reported here:
+           TE_EMPTY, TE_INCONSISTENT, TE_OUT_OF_MEMORY.
+         If all 13 bits are set, rewrite the value to "ALL".
+      */
+      for(Uint32 i = 0; i < 13 ; i++)
+        if(event->getTableEvent((NdbDictionary::Event::TableEvent)(1<<i)))
+          table_event |= 1<<i;
+
+      if(table_event == 0x1FFF) table_event++; // "ALL"
+
+      w.write_number(elem->id);                             // id
+      w.write_string(elem->name);                           // name
+      w.write_number(event->getTable()->getObjectId());     // table_id
+      w.write_number(event_report + 1);                     // reporting
+      w.write_string(event_columns);                        // columns
+      w.write_number(table_event);                          // table_event
+    }
+//    delete event;
+    return 1;
+  }
+};
+
+class IndexColumnsTable : public VirtualTable {
+  public:
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("index_columns", this, 20, false,
+                                               NdbInfo::TableName::NoPrefix);
+      if (!tab) return nullptr;
+      if (!tab->addColumn(NdbInfo::Column("table_id", 0,
+                                          NdbInfo::Column::Number)) ||
+          !tab->addColumn(NdbInfo::Column("database_name", 1,
+                                          NdbInfo::Column::String)) ||
+          !tab->addColumn(NdbInfo::Column("table_name", 2,
+                                          NdbInfo::Column::String)) ||
+          !tab->addColumn(NdbInfo::Column("index_object_id", 3,
+                                          NdbInfo::Column::Number)) ||
+          !tab->addColumn(NdbInfo::Column("index_name", 4,
+                                          NdbInfo::Column::String)) ||
+          !tab->addColumn(NdbInfo::Column("index_type", 5,
+                                          NdbInfo::Column::Number)) ||
+          !tab->addColumn(NdbInfo::Column("status", 6,
+                                          NdbInfo::Column::Number)) ||
+          !tab->addColumn(NdbInfo::Column("columns", 7,
+                                          NdbInfo::Column::String)))
+         return nullptr;
+       return tab;
+  }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::UserTable);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32)
+      const override {
+
+    char index_columns[column_buff_size];
+    size_t s = 0;
+
+    const NdbDictionary::Index * index = ctx->nextIndex();
+    if(index == nullptr) return 0;   // end of list
+
+    /* columns */
+    for(unsigned int i = 0 ; i < index->getNoOfColumns() ; i++) {
+      if(i) s += snprintf(index_columns+s, column_buff_size-s, ",");
+      s += snprintf(index_columns+s, column_buff_size-s, "%s",
+                    index->getColumn(i)->getName());
+    }
+
+    w.write_number(ctx->getTable()->getTableId());          // table_id
+    w.write_string(ctx->getDatabaseName());                 // database_name
+    w.write_string(index->getTable());                      // table_name
+    w.write_number(index->getObjectId());                   // index_object_id
+    w.write_string(index->getName());                       // index_name
+    w.write_number(index->getType());                       // index_type
+    w.write_number(index->getObjectStatus() + 1);           // status
+    w.write_string(index_columns);                          // columns
+
+    return 1;
+  }
+};
+
+class ForeignKeysTable : public VirtualTable {
+public:
+
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("foreign_keys", this, 10, false,
+                                               NdbInfo::TableName::NoPrefix);
+
+    if (!tab->addColumn(NdbInfo::Column("object_id", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("parent_table", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("parent_columns", 3,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("child_table", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("child_columns", 5,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("parent_index", 6,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("child_index", 7,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("on_update_action", 8,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("on_delete_action", 9,
+                                        NdbInfo::Column::Number)))
+      return nullptr;
+    return tab;
+  }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::ForeignKey);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32 row)
+      const override {
+
+    char parent_columns[column_buff_size];
+    char child_columns[column_buff_size];
+    static constexpr const char * pk = "PK";
+    size_t s = 0;
+
+    NdbDictionary::ForeignKey fk;
+    const DictionaryList::Element * elem;
+
+    elem = ctx->nextInList(row);
+    if (elem == nullptr) return 0;   // end of list
+    int r = ctx->getDictionary()->getForeignKey(fk, elem->name);
+    if(r != 0) return 0; // error from getForeignKey()
+
+    /* parent_columns */
+    for(unsigned int i = 0 ; i < fk.getParentColumnCount() ; i++) {
+      s += snprintf(parent_columns+s, column_buff_size-s, "%s%d",
+                    i ? "," : "", fk.getParentColumnNo(i));
+    }
+
+    /* child_columns */
+    s = 0;
+    for(unsigned int i = 0 ; i < fk.getChildColumnCount() ; i++) {
+      s += snprintf(child_columns+s, column_buff_size-s, "%s%d",
+                    i ? "," : "", fk.getChildColumnNo(i));
+    }
+
+    const char * childIdx = fk.getChildIndex() ? fk.getChildIndex() : pk;
+    const char * parentIdx = fk.getParentIndex() ? fk. getParentIndex() : pk;
+
+    w.write_number(fk.getObjectId());                   // object_id
+    w.write_string(fk.getName());                       // name
+    w.write_string(fk.getParentTable());                // parent_table
+    w.write_string(parent_columns);                     // parent_columns
+    w.write_string(fk.getChildTable());                 // child_table
+    w.write_string(child_columns);                      // child_columns
+    w.write_string(childIdx);                           // parent_index
+    w.write_string(parentIdx);                          // child_index
+    w.write_number(fk.getOnUpdateAction() + 1);         // on_update
+    w.write_number(fk.getOnDeleteAction() + 1);         // on_delete
+
+    return 1;
+  }
+};
+
+class ColumnsTable : public VirtualTable {
+public:
+
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table* tab = new NdbInfo::Table("dictionary_columns",
+                                             this, 200, false, /* estimate */
+                                             NdbInfo::TableName::NoPrefix);
+
+    if (!tab->addColumn(NdbInfo::Column("table_id", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("column_id", 1,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("name", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("column_type", 3,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("default_value", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("nullable", 5,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("array_type", 6,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("storage_type", 7,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("primary_key", 8,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("partition_key", 9,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("dynamic", 10,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("auto_inc", 11,
+                                        NdbInfo::Column::Number)))
+      return nullptr;
+    return tab;
+  }
+
+  bool start_scan(VirtualScanContext *ctx) const override {
+    if (!ctx->create_ndb()) return false;
+    ctx->listObjects(NdbDictionary::Object::UserTable);
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w, Uint32)
+     const override {
+
+    NdbDictionary::NdbDataPrintFormat defaultFormat;
+    defaultFormat.hex_format = 1;  /* Display binary field defaults as hex */
+    char col_type[column_buff_size];
+    char default_value[column_buff_size];
+    StaticBuffOutputStream type_buf(col_type, column_buff_size);
+    StaticBuffOutputStream default_buf(default_value, column_buff_size);
+    NdbOut type_buf_out(type_buf);
+    NdbOut default_buf_out(default_buf);
+
+    const NdbDictionary::Column *col = ctx->nextColumn();
+    if (col == nullptr) return 0;   // end of list
+
+    const void * col_default = col->getDefaultValue();
+    NdbDictionary::printColumnTypeDescription(type_buf_out, *col);
+    if(col_default != nullptr)
+      NdbDictionary::printFormattedValue(default_buf_out, defaultFormat, col,
+                                         col_default);
+
+    w.write_number(ctx->getTable()->getTableId());     // table_id
+    w.write_number(col->getColumnNo());                // column_id
+    w.write_string(col->getName());                    // name
+    w.write_string(col_type);                          // column_type
+    w.write_string(col_default ? default_value : "");  // default_value
+    w.write_number(col->getNullable() + 1);            // nullable
+    w.write_number(col->getArrayType() + 1);           // array_type
+    w.write_number(col->getStorageType() + 1);         // storage_type
+    w.write_number(col->getPrimaryKey());              // primary_key
+    w.write_number(col->getPartitionKey());            // partition_key
+    w.write_number(col->getDynamic());                 // dynamic
+    w.write_number(col->getAutoIncrement());           // auto_inc
+    return 1;
+  }
+};
 
 /*
   Create the virtual tables and stash them in the provided list.
@@ -1215,7 +1911,13 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
     add_table(new NdbkernelStateDescTable("dblqh_tcconnect_state",
                                           g_dblqh_tcconnect_state_desc)) &&
     add_table(new BackupIdTable) &&
-    add_table(new IndexStatsTable)
+    add_table(new IndexStatsTable) &&
+    add_table(new DictionaryTablesTable) &&
+    add_table(new BlobsTable) &&
+    add_table(new EventsTable) &&
+    add_table(new IndexColumnsTable) &&
+    add_table(new ForeignKeysTable) &&
+    add_table(new ColumnsTable)
   );
 }
 

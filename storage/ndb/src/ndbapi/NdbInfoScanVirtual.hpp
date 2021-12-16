@@ -48,7 +48,7 @@ public:
                      const NdbInfo::Table *table,
                      const class VirtualTable *virt);
   int init();
-  void initIndex(Uint32) override { }
+  void initIndex(Uint32) override;
   bool seek(NdbInfoScanOperation::Seek, int) override;
 
   static bool create_virtual_tables(Vector<NdbInfo::Table*> &list);

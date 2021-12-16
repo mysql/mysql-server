@@ -316,6 +316,20 @@ static struct view {
     {"ndbinfo", "error_messages",
      "SELECT error_code, error_description, error_status, error_classification "
      "FROM `ndbinfo`.`ndb$error_messages`"},
+    {"ndbinfo", "files",
+     "SELECT id, type_name AS type, fq_name AS name, "
+     "parent_obj_id as parent, tablespace_name as parent_name, "
+     "free_extents, total_extents, extent_size, initial_size, "
+     "maximum_size, autoextend_size "
+     "FROM ndbinfo.dict_obj_info info "
+     "JOIN ndbinfo.dict_obj_types types ON info.type = types.type_id "
+     "LEFT OUTER JOIN information_schema.files f ON f.file_id = info.id "
+     "AND f.engine = 'ndbcluster' "
+     "WHERE info.type in (20,21) OR info.parent_obj_type in (20,21) "
+     "ORDER BY parent, id"},
+    {"ndbinfo", "hash_maps",
+     "SELECT id, version, state, fq_name "
+     "FROM ndbinfo.dict_obj_info WHERE type=24"},
     {"ndbinfo", "hwinfo",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$hwinfo`"},
@@ -653,63 +667,152 @@ static struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {{"ndbinfo", "ndb$backup_id",
-                "id BIGINT UNSIGNED, "
-                "fragment INT UNSIGNED, "
-                "row_id BIGINT UNSIGNED"},
-               {
-                   "ndbinfo",
-                   "ndb$blocks",
-                   "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "block_name VARCHAR(512)",
-               },
-               {"ndbinfo", "ndb$config_params",
-                "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-                "param_name VARCHAR(512), "
-                "param_description VARCHAR(512), "
-                "param_type VARCHAR(512), "
-                "param_default VARCHAR(512), "
-                "param_min VARCHAR(512), "
-                "param_max VARCHAR(512), "
-                "param_mandatory INT UNSIGNED, "
-                "param_status VARCHAR(512)"},
-               {
-                   "ndbinfo",
-                   "ndb$dblqh_tcconnect_state",
-                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dbtc_apiconnect_state",
-                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dict_obj_types",
-                   "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "type_name VARCHAR(512)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$error_messages",
-                   "error_code INT UNSIGNED, "
-                   "error_description VARCHAR(512), "
-                   "error_status VARCHAR(512), "
-                   "error_classification VARCHAR(512)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$index_stats",
-                   "index_id INT UNSIGNED, "
-                   "index_version INT UNSIGNED, "
-                   "sample_version INT UNSIGNED",
-               }};
+} lookups[] = {
+    {"ndbinfo", "blobs",
+     "table_id INT UNSIGNED NOT NULL, "
+     "database_name varchar(64) NOT NULL, "
+     "table_name varchar(64) NOT NULL, "
+     "column_id INT UNSIGNED NOT NULL, "
+     "column_name varchar(64) NOT NULL, "
+     "inline_size int unsigned NOT NULL, "
+     "part_size int unsigned NOT NULL, "
+     "stripe_size int unsigned NOT NULL, "
+     "blob_table_name varchar(128) not null"},
+    {"ndbinfo", "dictionary_columns",
+     "table_id INT UNSIGNED NOT NULL, "
+     "column_id INT UNSIGNED NOT NULL, "
+     "name VARCHAR(64) NOT NULL, "
+     "column_type VARCHAR(512) NOT NULL, "
+     "default_value VARCHAR(512) NOT NULL, "
+     "nullable enum('NOT NULL', 'NULL') NOT NULL, "
+     "array_type enum('FIXED', 'SHORT_VAR', 'MEDIUM_VAR') NOT NULL, "
+     "storage_type enum('MEMORY', 'DISK') NOT NULL, "
+     "primary_key INT UNSIGNED NOT NULL, "
+     "partition_key INT UNSIGNED NOT NULL, "
+     "dynamic INT UNSIGNED NOT NULL, "
+     "auto_inc INT UNSIGNED NOT NULL"},
+    {
+        "ndbinfo",
+        "dictionary_tables",
+        "table_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "database_name varchar(64) NOT NULL, "
+        "table_name varchar(64) NOT NULL, "
+        "status enum('New','Changed','Retrieved','Invalid','Altered') NOT "
+        "NULL, "
+        "attributes INT UNSIGNED NOT NULL, "
+        "primary_key_cols INT UNSIGNED NOT NULL, "
+        "primary_key VARCHAR(64) NOT NULL, "
+        "`storage` enum('memory','disk','default') NOT NULL, "
+        "`logging` INT UNSIGNED NOT NULL, "
+        "`dynamic` INT UNSIGNED NOT NULL, "
+        "read_backup INT UNSIGNED NOT NULL, "
+        "fully_replicated INT UNSIGNED NOT NULL, "
+        "`checksum` INT UNSIGNED NOT NULL, "
+        "`row_size` INT UNSIGNED NOT NULL, "
+        "`min_rows` BIGINT UNSIGNED, "
+        "`max_rows` BIGINT UNSIGNED, "
+        "`tablespace` INT UNSIGNED, "
+        "fragment_type enum('Single', 'AllSmall', 'AllMedium','AllLarge',"
+        "'DistrKeyHash','DistrKeyLin','UserDefined',"
+        "'unused', 'HashMapPartition') NOT NULL, "
+        "hash_map VARCHAR(512) NOT NULL, "
+        "`fragments` INT UNSIGNED NOT NULL, "
+        "`partitions` INT UNSIGNED NOT NULL, "
+        "partition_balance VARCHAR(64) NOT NULL, "
+        "contains_GCI INT UNSIGNED NOT NULL, "
+        "single_user_mode enum('locked','read_only','read_write') NOT NULL, "
+        "force_var_part INT UNSIGNED NOT NULL, "
+        "GCI_bits INT UNSIGNED NOT NULL, "
+        "author_bits INT UNSIGNED NOT NULL",
+    },
+    {"ndbinfo", "events",
+     "event_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "name varchar(192) NOT NULL, "
+     "table_id INT UNSIGNED NOT NULL, "
+     "reporting  enum('updated', 'all', 'subscribe', 'DDL') NOT NULL, "
+     "columns varchar(512) NOT NULL, "
+     "table_event SET('INSERT','DELETE','UPDATE','SCAN','DROP','ALTER',"
+     "'CREATE','GCP_COMPLETE','CLUSTER_FAILURE','STOP',"
+     "'NODE_FAILURE','SUBSCRIBE','UNSUBSCRIBE','ALL') NOT NULL"},
+    {"ndbinfo", "foreign_keys",
+     "object_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "name varchar(140) NOT NULL, "
+     "parent_table varchar(140) NOT NULL, "
+     "parent_columns varchar(512) NOT NULL, "
+     "child_table varchar(140) NOT NULL, "
+     "child_columns varchar(512) NOT NULL, "
+     "parent_index varchar(140) NOT NULL, "
+     "child_index varchar(140) NOT NULL, "
+     "on_update_action enum('No Action','Restrict','Cascade','Set Null',"
+     "'Set Default') NOT NULL,"
+     "on_delete_action enum('No Action','Restrict','Cascade','Set Null',"
+     "'Set Default') NOT NULL"},
+    {"ndbinfo", "index_columns",
+     "table_id int unsigned NOT NULL, "
+     "database_name VARCHAR(64) NOT NULL, "
+     "table_name VARCHAR(64) NOT NULL, "
+     "index_object_id int unsigned NOT NULL, "
+     "index_name VARCHAR(64) NOT NULL, "
+     "index_type INT UNSIGNED NOT NULL, "
+     "status enum('new','changed','retrieved','invalid','altered') NOT NULL, "
+     "columns VARCHAR(512) NOT NULL"},
+    {"ndbinfo", "ndb$backup_id",
+     "id BIGINT UNSIGNED, "
+     "fragment INT UNSIGNED, "
+     "row_id BIGINT UNSIGNED"},
+    {
+        "ndbinfo",
+        "ndb$blocks",
+        "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "block_name VARCHAR(512)",
+    },
+    {"ndbinfo", "ndb$config_params",
+     "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "param_name VARCHAR(512), "
+     "param_description VARCHAR(512), "
+     "param_type VARCHAR(512), "
+     "param_default VARCHAR(512), "
+     "param_min VARCHAR(512), "
+     "param_max VARCHAR(512), "
+     "param_mandatory INT UNSIGNED, "
+     "param_status VARCHAR(512)"},
+    {
+        "ndbinfo",
+        "ndb$dblqh_tcconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dbtc_apiconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dict_obj_types",
+        "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "type_name VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "ndb$error_messages",
+        "error_code INT UNSIGNED, "
+        "error_description VARCHAR(512), "
+        "error_status VARCHAR(512), "
+        "error_classification VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "ndb$index_stats",
+        "index_id INT UNSIGNED, "
+        "index_version INT UNSIGNED, "
+        "sample_version INT UNSIGNED",
+    }};
 
 static constexpr size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
 

@@ -150,7 +150,28 @@ explain format=tree select * from counters;
 ## The plan for memory_per_fragment
 explain format=tree select * from memory_per_fragment;
 
+## WL#11968 tables and views
+##
+--horizontal_results
+SELECT event_id, e.name, table_name
+  FROM events e JOIN dictionary_tables t using(table_id)
+  WHERE event_id < 6 ORDER BY event_id;
 
+## Query uses primary keys on both tables:
+EXPLAIN SELECT event_id, e.name, table_name FROM events e
+  JOIN dictionary_tables t using(table_id) WHERE event_id < 6 ORDER BY event_id;
+
+SELECT * from events where event_id = -1;
+SELECT table_name from dictionary_tables where table_id = -1;
+SELECT table_name from dictionary_tables where table_id = 9990;
+SELECT table_name from dictionary_tables where table_id = 8;
+SELECT table_name from dictionary_tables where table_id = 9;
+
+select * from blobs;
+select * from index_columns order by index_object_id;
+select * from hash_maps;
+
+--vertical_results
 ## Create an all-MyISAM version of memory_per_fragment for comparison
 ## (now with a primary key in the MyISAM version as well)
 ## and explain the same query

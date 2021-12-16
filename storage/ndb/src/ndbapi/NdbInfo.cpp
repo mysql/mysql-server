@@ -632,6 +632,11 @@ bool NdbInfo::load_virtual_tables(void)
     Table* tab = m_virtual_tables[i];
     assert(tab->m_virt);
     const BaseString hash_key = mysql_table_name(*tab);
+    if(m_tables.remove(hash_key)) {
+      fprintf(stderr, "Duplicate table name: %s\n", hash_key.c_str());
+      assert(false);
+      return false;
+    }
     tab->m_table_id = m_tables.entries(); // Set increasing table id
     if (!m_tables.insert(hash_key.c_str(), *tab))
       return false;
