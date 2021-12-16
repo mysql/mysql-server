@@ -1051,10 +1051,6 @@ void trx_lists_init_at_db_start(void) {
             [&](trx_t *a, trx_t *b) { return a->id < b->id; });
 
   for (trx_t *trx : trxs) {
-    if (trx->id > trx_sys->rw_max_trx_id.load()) {
-      trx_sys->rw_max_trx_id.store(trx->id);
-    }
-
     if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE ||
         trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED) {
       trx_sys->rw_trx_ids.push_back(trx->id);

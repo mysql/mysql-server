@@ -821,15 +821,20 @@ dberr_t lock_trx_handle_wait(trx_t *trx); /*!< in/out: trx lock state */
 
 /** Set the lock system timeout event. */
 void lock_set_timeout_event();
-#ifdef UNIV_DEBUG
-/** Checks that a transaction id is sensible, i.e., not in the future.
- @return true if ok */
-[[nodiscard]] bool lock_check_trx_id_sanity(
-    trx_id_t trx_id,           /*!< in: trx id */
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
 
+/** Checks that a transaction id is sensible, i.e., not in the future.
+Emits an error otherwise.
+@param[in]  trx_id   The trx id to check, found in user record or secondary
+                     index page header
+@param[in]  rec      The user record which contained the trx_id in its header
+                     or in header of its page
+@param[in]  index    The index which contained the rec
+@param[in]  offsets  The result of rec_get_offsets(rec, index)
+@return true iff ok */
+bool lock_check_trx_id_sanity(trx_id_t trx_id, const rec_t *rec,
+                              const dict_index_t *index, const ulint *offsets);
+
+#ifdef UNIV_DEBUG
 /** Check if the transaction holds an exclusive lock on a record.
 @param[in]  thr     query thread of the transaction
 @param[in]  table   table to check

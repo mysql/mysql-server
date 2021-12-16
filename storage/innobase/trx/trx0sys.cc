@@ -498,8 +498,6 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 
   trx_sys->serialisation_min_trx_no.store(trx_sys->next_trx_id_or_no.load());
 
-  trx_sys->rw_max_trx_id.store(trx_sys_get_next_trx_id_or_no() - 1);
-
   mtr.commit();
 
 #ifdef UNIV_DEBUG

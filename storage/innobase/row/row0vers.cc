@@ -500,10 +500,7 @@ static inline trx_t *row_vers_impl_x_locked_low(
   if (trx == nullptr) {
     /* The transaction that modified or inserted clust_rec is no
     longer active, or it is corrupt: no implicit lock on rec */
-    if (trx_sys_id_is_corrupted(trx_id)) {
-      lock_report_trx_id_insanity(trx_id, clust_rec, clust_index, clust_offsets,
-                                  trx_sys_get_next_trx_id_or_no());
-    }
+    lock_check_trx_id_sanity(trx_id, clust_rec, clust_index, clust_offsets);
     mem_heap_free(heap);
     return nullptr;
   }
