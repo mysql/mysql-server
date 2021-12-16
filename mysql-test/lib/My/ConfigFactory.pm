@@ -219,6 +219,26 @@ sub fix_log {
   return "$dir/mysqld.log";
 }
 
+sub fix_group_setting {
+  my ($self, $config, $group_name, $group, $option_name) = @_;
+  # Use value from [mysqld.X], [mysqld](if group exists) or 1
+  return $group->if_exist($option_name) ||
+         ($config->group_exists('mysqld') &&
+          $config->group('mysqld')->if_exist($option_name)) || 1;
+}
+
+sub fix_slow_query_log {
+  my ($self, $config, $group_name, $group) = @_;
+  return fix_group_setting($self, $config, $group_name,
+                           $group, 'slow_query_log');
+}
+
+sub fix_general_log {
+  my ($self, $config, $group_name, $group) = @_;
+  return fix_group_setting($self, $config, $group_name,
+                           $group, 'general_log');
+}
+
 sub fix_log_slow_queries {
   my ($self, $config, $group_name, $group) = @_;
   my $dir = dirname($group->value('datadir'));
@@ -288,7 +308,7 @@ my @mysqld_rules = (
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
   { 'admin-port'                                   => \&fix_admin_port },
-  { 'general_log'                                  => 1 },
+  { 'general_log'                                  => \&fix_general_log },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
   { 'loose-mysqlx-socket'                          => \&fix_x_socket },
@@ -298,7 +318,7 @@ my @mysqld_rules = (
   { 'loose-mysqlx-ssl-key'                         => "" },
   { 'pid-file'                                     => \&fix_pidfile },
   { 'server-id'                                    => \&fix_server_id, },
-  { 'slow_query_log'                               => 1 },
+  { 'slow_query_log'                               => \&fix_slow_query_log },
   { 'slow_query_log_file'                          => \&fix_log_slow_queries },
   { 'socket'                                       => \&fix_socket },
   { 'ssl-ca'                                       => \&fix_ssl_ca },
