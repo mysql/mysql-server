@@ -2678,8 +2678,6 @@ and  (y.a3=x.d3 and y.b3=x.b3);
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31
 47	63	2	47	47	63	2	47
-Warnings:
-Warning	1296	Prepared pushed join could not be executed, prepared with incompatible access type
 explain
 select * from t3_hash x, t3_hash y
 where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
@@ -2695,8 +2693,6 @@ and  (y.a3=x.d3 and y.b3=x.b3);
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31
 47	63	2	47	47	63	2	47
-Warnings:
-Warning	1296	Prepared pushed join could not be executed, prepared with incompatible access type
 explain
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7381,7 +7377,7 @@ order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	8
 Ndb_pushed_queries_defined	516
-Ndb_pushed_queries_dropped	7
+Ndb_pushed_queries_dropped	5
 Ndb_sorted_scan_count	31
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
