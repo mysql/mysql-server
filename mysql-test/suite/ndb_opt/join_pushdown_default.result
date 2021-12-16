@@ -7287,7 +7287,7 @@ order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	8
 Ndb_pushed_queries_defined	508
-Ndb_pushed_queries_dropped	8
+Ndb_pushed_queries_dropped	9
 Ndb_sorted_scan_count	31
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
