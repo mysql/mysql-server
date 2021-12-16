@@ -1325,6 +1325,10 @@ public:
   String *val_str(String *);
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
+  // set RAND_TABLE_BIT in the used_tables_cache
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
+  // uuid is not constant and so non-cacheable
+  bool const_item() const { return (used_tables() == 0); }
 };
 
 class Item_func_gtid_subtract: public Item_str_ascii_func
