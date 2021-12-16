@@ -5605,7 +5605,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
         AccessPath *aggregate_path =
             NewAggregateAccessPath(thd, child_path, rollup);
-        EstimateAggregateCost(aggregate_path);
+        EstimateAggregateCost(aggregate_path, query_block);
 
         receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
@@ -5656,7 +5656,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
         AccessPath *aggregate_path =
             NewAggregateAccessPath(thd, child_path, rollup);
-        EstimateAggregateCost(aggregate_path);
+        EstimateAggregateCost(aggregate_path, query_block);
 
         char description[256];
         if (trace != nullptr) {

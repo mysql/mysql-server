@@ -97,7 +97,7 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                                 double num_output_rows);
 void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
-void EstimateAggregateCost(AccessPath *path);
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
 void EstimateDeleteRowsCost(AccessPath *path);
 double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
                              const JoinPredicate *edge,

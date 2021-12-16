@@ -3882,6 +3882,24 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
   }
 }
 
+TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT SUM(t1.x) FROM t1", /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Implicitly grouped queries always return a single row.
+  EXPECT_EQ(AccessPath::AGGREGATE, root->type);
+  EXPECT_FLOAT_EQ(1.0, root->num_output_rows);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

@@ -208,12 +208,13 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   path->cost = path->cost + std::max(table_path->cost, 0.0);
 }
 
-void EstimateAggregateCost(AccessPath *path) {
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block) {
   AccessPath *child = path->aggregate().child;
 
   // TODO(sgunders): How do we estimate how many rows aggregation
-  // will be reducing the output by?
-  path->num_output_rows = child->num_output_rows;
+  // will be reducing the output by in explicitly grouped queries?
+  path->num_output_rows =
+      query_block->is_implicitly_grouped() ? 1.0 : child->num_output_rows;
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
   path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;

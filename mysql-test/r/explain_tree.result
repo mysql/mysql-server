@@ -79,7 +79,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN
--> Aggregate: sum(t1.f1)  (cost=0.85 rows=3)
+-> Aggregate: sum(t1.f1)  (cost=0.85 rows=1)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
@@ -775,7 +775,7 @@ EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.
 EXPLAIN
 -> Table scan on t1  (cost=1.25 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (cost=0.92 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=10)
+    -> Aggregate: count(0)  (cost=0.92 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=10)
         -> Filter: (inner_t1.f1 < t1.f1)  (cost=0.58 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=10)
             -> Table scan on inner_t1  (cost=0.58 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=10)
 

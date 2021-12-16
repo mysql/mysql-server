@@ -2961,7 +2961,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       if (!qep_tab->tmp_table_param->precomputed_group_by) {
         path = NewAggregateAccessPath(thd, path,
                                       rollup_state != RollupState::NONE);
-        EstimateAggregateCost(path);
+        EstimateAggregateCost(path, query_block);
       }
     }
 
@@ -3200,7 +3200,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     if (!tmp_table_param.precomputed_group_by) {
       path =
           NewAggregateAccessPath(thd, path, rollup_state != RollupState::NONE);
-      EstimateAggregateCost(path);
+      EstimateAggregateCost(path, query_block);
     }
   }
 
