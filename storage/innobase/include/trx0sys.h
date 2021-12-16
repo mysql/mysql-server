@@ -162,13 +162,6 @@ static inline void trx_write_trx_id(byte *ptr, trx_id_t id);
 static inline trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
-/** Returns the minimum trx id in rw trx list. This is the smallest id for which
-the rw trx can possibly be active. (But, you must look at the trx->state
-to find out if the minimum trx id transaction itself is active, or already
-committed.)
-@return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
-static inline trx_id_t trx_rw_min_trx_id(void);
-
 /** Checks if a rw transaction with the given id is active.
 Please note, that positive result means only that the trx was active
 at some moment during the call, but it might have already become
@@ -556,9 +549,6 @@ struct trx_sys_t {
   We should remove transactions from the list before committing in memory and
   releasing locks to ensure right order of removal and consistent snapshot. */
   trx_ids_t rw_trx_ids;
-
-  /** Max trx id of read-write transactions which exist or existed. */
-  std::atomic<trx_id_t> rw_max_trx_id;
 
   char pad7[ut::INNODB_CACHE_LINE_SIZE];
 

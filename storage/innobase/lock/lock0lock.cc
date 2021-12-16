@@ -208,18 +208,8 @@ void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
                            << next_trx_id << "! The table is corrupted.";
 }
 
-/** Checks that a transaction id is sensible, i.e., not in the future.
- @return true if ok */
-#ifndef UNIV_DEBUG
-[[nodiscard]] static
-#endif
-    bool
-    lock_check_trx_id_sanity(
-        trx_id_t trx_id,           /*!< in: trx id */
-        const rec_t *rec,          /*!< in: user record */
-        const dict_index_t *index, /*!< in: index */
-        const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-{
+bool lock_check_trx_id_sanity(trx_id_t trx_id, const rec_t *rec,
+                              const dict_index_t *index, const ulint *offsets) {
   ut_ad(rec_offs_validate(rec, index, offsets));
 
   trx_id_t next_trx_id = trx_sys_get_next_trx_id_or_no();
@@ -813,6 +803,72 @@ static const lock_t *lock_rec_other_has_conflicting(
   }));
 }
 
+/** Checks if the (-infinity,max_old_active_id] range contains an id of
+a currently active transaction which has modified a record.
+The premise is that the caller has seen a record modified by a trx with
+trx->id <= max_old_active_id, and wants to know if it might be still active.
+It may err on the safe side.
+
+@remarks
+The difficulties to keep in mind here:
+  - the caller doesn't hold trx_sys mutex, nor can prevent any transaction
+    from committing or starting before the start and after the end of execution
+    of this function. Thus the result of this function has to be interpreted
+    as if it could have a "one sided error", even if the return value is exact
+    during the execution
+  - the transactions are assigned ids from increasing sequence, but they are
+    added to various structures like lists and shards out of order. This means
+    that the answer this function gives only makes sense in the context that
+    the caller already saw an effect of the trx modifying some row, which
+    means it had to be already added to these structures. In other words,
+    calling this function twice for the same number can give false then true.
+    Still the false from the first call is "correct" for the purpose of the
+    caller (as it must mean that the trx which modified the record had to be
+    removed from the structures already, hence is not active anymore).
+    Also the true from the second call is "correct" in that indeed some smaller
+    transaction id had to be added to the structures meanwhile, even if it's
+    not the one which modified the record in question - error on the safe side.
+
+@param[in]    max_old_active_id    The end of the range inclusive. For example
+                                   found in the PAGE_MAX_TRX_ID field of a
+                                   header of a secondary index page.
+@retval   false  the caller may assume that if before the call it saw a
+                 record modified by trx_id, and trx_id < max_old_active_id,
+                 then it is no longer active
+@retval   true   the caller should double check in a synchronized way if
+                 the seen trx_id is still active or not
+*/
+static bool can_older_trx_be_still_active(trx_id_t max_old_active_id) {
+  if (mutex_enter_nowait(&trx_sys->mutex) != 0) {
+    ut_ad(!trx_sys_mutex_own());
+    /* The mutex is currently locked by somebody else. Instead of wasting time
+    on spinning and waiting to acquire it, we loop over the shards and check if
+    any of them contains a value in the range (-infinity,max_old_active_id].
+    NOTE: Do not be tempted to "cache" the minimum, until you also enforce that
+    transactions are inserted to shards in a monotone order!
+    Current implementation heavily depends on the property that even if we put
+    a trx with smaller id to any structure later, it could not have modified a
+    row the caller saw earlier. */
+    static_assert(TRX_SHARDS_N < 1000, "The loop should be short");
+    for (auto &shard : trx_sys->shards) {
+      if (shard.active_rw_trxs.peek().min_id() <= max_old_active_id) {
+        return true;
+      }
+    }
+    return false;
+  }
+  ut_ad(trx_sys_mutex_own());
+  const trx_t *trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
+  if (trx == nullptr) {
+    trx_sys_mutex_exit();
+    return false;
+  }
+  assert_trx_in_rw_list(trx);
+  const trx_id_t min_active_now_id = trx->id;
+  trx_sys_mutex_exit();
+  return min_active_now_id <= max_old_active_id;
+}
+
 /** Checks if some transaction has an implicit x-lock on a record in a secondary
  index.
  @param[in]   rec       user record
@@ -842,7 +898,7 @@ static trx_t *lock_sec_rec_some_has_impl(const rec_t *rec, dict_index_t *index,
   max trx id to the log, and therefore during recovery, this value
   for a page may be incorrect. */
 
-  if (max_trx_id < trx_rw_min_trx_id() && !recv_recovery_is_on()) {
+  if (!recv_recovery_is_on() && !can_older_trx_be_still_active(max_trx_id)) {
     trx = nullptr;
 
   } else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
@@ -5544,13 +5600,7 @@ dberr_t lock_sec_rec_read_check_and_lock(
 
   heap_no = page_rec_get_heap_no(rec);
 
-  /* Some transaction may have an implicit x-lock on the record only
-  if the max trx id for the page >= min trx id for the trx list or a
-  database recovery is running. */
-
-  if ((page_get_max_trx_id(block->frame) >= trx_rw_min_trx_id() ||
-       recv_recovery_is_on()) &&
-      !page_rec_is_supremum(rec)) {
+  if (!page_rec_is_supremum(rec)) {
     lock_rec_convert_impl_to_expl(block, rec, index, offsets);
   }
   {

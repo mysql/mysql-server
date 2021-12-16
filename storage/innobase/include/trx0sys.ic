@@ -171,38 +171,6 @@ static inline trx_id_t trx_read_trx_id(
   return (mach_read_from_6(ptr));
 }
 
-/** Returns the minimum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->state
-to find out if the minimum trx id transaction itself is active, or already
-committed). The caller must be holding the trx_sys->mutex.
-@return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
-static inline trx_id_t trx_rw_min_trx_id_low(void) {
-  trx_id_t id;
-
-  ut_ad(trx_sys_mutex_own());
-
-  const trx_t *trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
-
-  if (trx == nullptr) {
-    id = trx_sys->rw_max_trx_id.load(std::memory_order_relaxed) + 1;
-  } else {
-    assert_trx_in_rw_list(trx);
-    id = trx->id;
-  }
-
-  return (id);
-}
-
-static inline trx_id_t trx_rw_min_trx_id(void) {
-  trx_sys_mutex_enter();
-
-  trx_id_t id = trx_rw_min_trx_id_low();
-
-  trx_sys_mutex_exit();
-
-  return (id);
-}
-
 static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count) {
   /* Fast checking without Trx_shard::mutex to see if trx_id can't be in the
   Trx_shard::active_rw_trxs because it's too small. This works, because
@@ -257,10 +225,6 @@ static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count) {
       UT_LOCATION_HERE);
 }
 
-inline bool trx_sys_id_is_corrupted(trx_id_t trx_id) {
-  return trx_sys->rw_max_trx_id.load(std::memory_order_relaxed) < trx_id;
-}
-
 inline trx_id_t trx_sys_get_trx_id_write_margin() {
   DBUG_EXECUTE_IF("trx_sys_low_trx_id_write_margin", return 8;);
   return TRX_SYS_TRX_ID_WRITE_MARGIN;
@@ -292,11 +256,7 @@ inline trx_id_t trx_sys_allocate_trx_id_or_no() {
 
 inline trx_id_t trx_sys_allocate_trx_id() {
   ut_ad(trx_sys_mutex_own());
-  const trx_id_t trx_id = trx_sys_allocate_trx_id_or_no();
-  if (trx_id > trx_sys->rw_max_trx_id.load(std::memory_order_relaxed)) {
-    trx_sys->rw_max_trx_id.store(trx_id, std::memory_order_relaxed);
-  }
-  return trx_id;
+  return trx_sys_allocate_trx_id_or_no();
 }
 
 inline trx_id_t trx_sys_allocate_trx_no() {
