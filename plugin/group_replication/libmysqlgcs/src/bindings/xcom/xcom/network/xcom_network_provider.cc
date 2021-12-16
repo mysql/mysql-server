@@ -441,10 +441,10 @@ std::pair<bool, int> Xcom_network_provider::stop() {
   std::lock_guard<std::mutex> lck(m_init_lock);
   m_initialized = false;
 
+  this->reset_new_connection();
+
   if (m_network_provider_tcp_server.joinable())
     m_network_provider_tcp_server.join();
-
-  this->reset_new_connection();
 
   return std::make_pair(false, 0);
 }
