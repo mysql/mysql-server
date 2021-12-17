@@ -5229,8 +5229,8 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
 }
 
 static bool ComesFromSameMultiEquality(Item *cond1, Item_func_eq *cond2) {
-  return cond1->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(cond1)->functype() == Item_func::EQ_FUNC &&
+  return cond2->source_multiple_equality != nullptr &&
+         is_function_of_type(cond1, Item_func::EQ_FUNC) &&
          down_cast<Item_func_eq *>(cond1)->source_multiple_equality ==
              cond2->source_multiple_equality;
 }

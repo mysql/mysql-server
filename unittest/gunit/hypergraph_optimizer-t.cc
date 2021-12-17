@@ -2422,6 +2422,63 @@ TEST_F(HypergraphOptimizerTest, SubsumedSargableInDoubleCycle) {
                   });
 }
 
+/*
+  Sets up a semi-join with this join graph:
+
+    t1    t3
+    | \__/ |
+    | /  \ |
+    t2    t4
+
+  The join predicates for both t1-t2 and t3-t4 are sargable, and the preferred
+  paths apply them as sargable. The semi-join predicate should not come from the
+  same multiple equality as the sargable predicates, so it should not be made
+  redundant by them.
+ */
+TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.y = t2.x AND t1.x IN "
+      "(SELECT t3.x FROM t3, t4 WHERE t2.y = t3.y AND t3.x = t4.y)",
+      /*nullable=*/true);
+
+  // Create indexes on t1(y) and t4(y).
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[1], /*column2=*/nullptr, /*unique=*/false);
+  Fake_TABLE *t4 = m_fake_tables["t4"];
+  t4->create_index(t4->field[1], /*column2=*/nullptr, /*unique=*/false);
+
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+
+  // Adjust sizes so that NLJ(TS(t2), REF(t1)) and NLJ(TS(t3), REF(t4)) are
+  // preferred join orders for the smaller joins.
+  t1->file->stats.records = 1000;
+  t2->file->stats.records = 1;
+  t3->file->stats.records = 1;
+  t4->file->stats.records = 1000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Check that the expected plan is produced. Before bug#33619350 no plan was
+  // produced at all.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->hash_join().inner->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN,
+            root->hash_join().outer->nested_loop_join().outer->type);
+  EXPECT_EQ(AccessPath::REF,
+            root->hash_join().outer->nested_loop_join().inner->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN,
+            root->hash_join().inner->nested_loop_join().outer->type);
+  EXPECT_EQ(AccessPath::REF,
+            root->hash_join().inner->nested_loop_join().inner->type);
+}
+
 TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
   // Mark t1.y as a blob, to make sure we need rowids for our sort.
   Mock_field_long t1_x(/*is_unsigned=*/false);
