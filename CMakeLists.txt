@@ -1113,6 +1113,10 @@ OPTION(HANDLE_FATAL_SIGNALS
   "Handle fatal signals with internal signal handler"
   ${HANDLE_FATAL_SIGNALS_DEFAULT})
 
+IF(CMAKE_C_FLAGS MATCHES "-fsanitize" OR CMAKE_CXX_FLAGS MATCHES "-fsanitize")
+  SET(CMAKE_COMPILER_FLAG_WITH_SANITIZE 1)
+ENDIF()
+
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
@@ -1199,6 +1203,36 @@ IF(LINUX_STANDALONE)
     ${COMPRESS_DEBUG_SECTIONS_DEFAULT})
 ELSE()
   SET(COMPRESS_DEBUG_SECTIONS OFF)
+ENDIF()
+
+# Newer versions of gcc produce huge amounts of debug information
+# with the default debug level.
+#
+# From 'man gcc':
+# Level 1 produces minimal information, enough for making backtraces in
+# parts of the program that you don't plan to debug.  This includes
+# descriptions of functions and external variables, and line number
+# tables, but no information about local variables.
+#
+# clang documentation says: -gline-tables-only, -g1, -gmlt
+# Emit debug line number tables only
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
+  # By default, do this for STANDALONE and tarball builds.
+  # Off by default for sanitizer or valgrind builds.
+  IF((INSTALL_LAYOUT MATCHES "STANDALONE" OR INSTALL_LAYOUT MATCHES "TARGZ")
+      AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND)
+    SET(MINIMAL_RELWITHDEBINFO_DEFAULT ON)
+  ELSE()
+    SET(MINIMAL_RELWITHDEBINFO_DEFAULT OFF)
+  ENDIF()
+  OPTION(MINIMAL_RELWITHDEBINFO
+    "Reduce debug information for gcc RelWithDebInfo builds"
+    ${MINIMAL_RELWITHDEBINFO_DEFAULT})
+  # Appending here will override any earlier -g options.
+  IF(MINIMAL_RELWITHDEBINFO)
+    STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -g1")
+    STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -g1")
+  ENDIF()
 ENDIF()
 
 # For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
