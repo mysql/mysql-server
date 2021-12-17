@@ -3,6 +3,11 @@
 --echo # Create a small table, and add all kinds of new columns and verify
 --echo #
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+
 --eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=$row_format
 
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
@@ -648,7 +653,11 @@ DROP TABLE t1;
 
 # One interesting pessimistic update rollback
 
+SET SESSION innodb_strict_mode=OFF;
+--disable_warnings
 --eval CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=$row_format
+--enable_warnings
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 
 INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
 
