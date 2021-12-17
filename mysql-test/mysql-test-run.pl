@@ -121,6 +121,7 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $opt_strace_client;
 my $opt_strace_server;
+my @opt_perf_servers;
 my $opt_stress;
 my $opt_tmpdir;
 my $opt_tmpdir_pid;
@@ -1691,6 +1692,7 @@ sub command_line_setup {
     'max-test-fail=i'      => \$opt_max_test_fail,
     'strace-client'        => \$opt_strace_client,
     'strace-server'        => \$opt_strace_server,
+    'perf:s'               => \@opt_perf_servers,
 
     # Coverage, profiling etc
     'callgrind'                 => \$opt_callgrind,
@@ -2286,6 +2288,10 @@ sub command_line_setup {
   if ($opt_strace_client && ($^O ne "linux")) {
     $opt_strace_client = 0;
     mtr_warning("Strace only supported in Linux ");
+  }
+
+  if (@opt_perf_servers && $opt_shutdown_timeout == 0) {
+    mtr_error("Using perf with --shutdown-timeout=0 produces empty perf.data");
   }
 
   mtr_report("Checking supported features");
@@ -6302,6 +6308,15 @@ sub mysqld_start ($$$$) {
     valgrind_arguments($args, \$exe, $mysqld->name());
   }
 
+  # Implementation for --perf[=<mysqld_name>]
+  if (@opt_perf_servers) {
+    my $name = $mysqld->name();
+    if (grep($_ eq "" || $name =~ /^$_/, @opt_perf_servers)) {
+      mtr_print("Using perf for: ", $name);
+      perf_arguments($args, \$exe, $name);
+    }
+  }
+
   my $cpu_list = $mysqld->if_exist('#cpubind');
   if (defined $cpu_list) {
     mtr_print("Applying cpu binding '$cpu_list' for: ", $mysqld->name());
@@ -7375,6 +7390,21 @@ sub debugger_arguments {
   }
 }
 
+# Modify the exe and args so that program is run with "perf record"
+#
+sub perf_arguments {
+  my $args = shift;
+  my $exe  = shift;
+  my $type = shift;
+
+  mtr_add_arg($args, "record");
+  mtr_add_arg($args, "-o");
+  mtr_add_arg($args, "%s/log/%s.perf.data", $opt_vardir, $type);
+  mtr_add_arg($args, "-g"); # --call-graph
+  mtr_add_arg($args, $$exe);
+  $$exe = "perf";
+}
+
 # Modify the exe and args so that program is run in strace
 sub strace_server_arguments {
   my $args = shift;
@@ -7829,6 +7859,14 @@ Options for debugging the product
                         0 for no limit. Set it's default with MTR_MAX_TEST_FAIL.
   strace-client         Create strace output for mysqltest client.
   strace-server         Create strace output for mysqltest server.
+  perf[=<mysqld_name>]  Run mysqld with "perf record" saving profile data
+                        as var/log/<mysqld_name>.perf.data, The option can be
+                        specified more than once and otionally specify
+                        the name of mysqld to profile. i.e like this:
+                          --perf                           # Profile all
+                          --perf=mysqld.1 --perf=mysqld.5  # Profile only named
+                        Analyze profile data with:
+                         `perf report -i var/log/<mysqld_name>.perf.data`
 
 Options for lock_order
 
