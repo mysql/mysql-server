@@ -6941,6 +6941,7 @@ error:
 int
 NdbDictionaryImpl::listEvents(List& list)
 {
+  assert(list.count == 0);  // user must clear list before reusing it
   int error_code;
 
   BaseString currentDb(m_ndb.getDatabaseName());
@@ -7001,6 +7002,7 @@ NdbDictionaryImpl::listObjects(List& list,
   ret = m_receiver.listObjects(list1, req, fullyQualified);
   if (ret)
     return ret;
+  assert(list.count == 0);  // user must clear list before reusing it
   list.count = list1.count + list2.count;
   list.elements = new NdbDictionary::Dictionary::List::Element[list.count];
   unsigned i;
@@ -7095,6 +7097,7 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
   Uint32* tableData = (Uint32*)m_tableData.get_data();
   Uint32* tableNames = (Uint32*)m_tableNames.get_data();
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
+  assert(list.count == 0);  // user must clear list before reusing it
   list.count = m_noOfTables;
   list.elements = new NdbDictionary::Dictionary::List::Element[m_noOfTables];
 
