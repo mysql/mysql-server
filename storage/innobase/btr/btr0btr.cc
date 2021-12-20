@@ -2209,7 +2209,7 @@ static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
 
   /* Extends gap lock for the next page */
   if (!dict_table_is_locking_disabled(cursor->index->table)) {
-    lock_update_split_left(next_block, block);
+    lock_update_split_point(next_block, block);
   }
 
   rec = page_cur_tuple_insert(&next_page_cursor, tuple, cursor->index, offsets,
