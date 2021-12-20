@@ -44,6 +44,7 @@
 #include <sys/cdefs.h>
 #endif
 #include <sys/types.h>
+#include <stdint.h>
 
 #if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
 # define __attribute__(A)
@@ -109,9 +110,9 @@ ssize_t	getline(char **line, size_t *len, FILE *fp);
 typedef unsigned int	u_int32_t;
 #endif
 
-#ifndef HAVE_SIZE_MAX
-#define SIZE_MAX	((size_t)-1)
-#endif
+// #ifndef HAVE_SIZE_MAX
+// #define SIZE_MAX	((size_t)-1)
+// #endif
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
