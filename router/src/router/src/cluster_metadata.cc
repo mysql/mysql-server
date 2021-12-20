@@ -50,7 +50,7 @@ using mysql_harness::logging::LogLevel;
 static constexpr const std::string_view kClusterSet{"clusterset"};
 static constexpr const std::string_view kCreateClusterUrl{
     "https://dev.mysql.com/doc/mysql-shell/en/"
-    "deploying-new-production-cluster.html"};
+    "deploying-production-innodb-cluster.html"};
 
 namespace mysqlrouter {
 
