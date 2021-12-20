@@ -106,9 +106,12 @@ enum log_header_format_t {
   /** Expand ulint compressed form. */
   LOG_HEADER_FORMAT_8_0_19 = 4,
 
+  /** ROW VERSINGING HEADER */
+  LOG_HEADER_FORMAT_8_0_28 = 5,
+
   /** The redo log format identifier
   corresponding to the current format version. */
-  LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_19
+  LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_28
 };
 
 /** The state of a log group */

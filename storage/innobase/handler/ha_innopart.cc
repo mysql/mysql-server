@@ -2610,7 +2610,7 @@ int ha_innopart::create(const char *name, TABLE *form,
 
     info.set_remote_path_flags();
 
-    if ((error = info.create_table(&dd_part->table())) != 0) {
+    if ((error = info.create_table(&dd_part->table(), nullptr)) != 0) {
       break;
     }
 
@@ -3022,6 +3022,8 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
 
   innobase_register_trx(ht, thd, trx);
 
+  const bool is_instant = dd_table_has_instant_cols(*table_def);
+
   for (const auto dd_part : *table_def->leaf_partitions()) {
     char norm_name[FN_REFLEN];
     dict_table_t *part_table = nullptr;
@@ -3043,7 +3045,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     }
 
     innobase_truncate<dd::Partition> truncator(thd, norm_name, form, dd_part,
-                                               false);
+                                               false, true);
 
     error = truncator.open_table(part_table);
     if (error != 0) {
@@ -3072,7 +3074,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     dd_set_autoinc(table_def->se_private_data(), 0);
   }
 
-  if (dd_table_has_instant_cols(*table_def)) {
+  if (is_instant) {
     for (dd::Partition *dd_part : *table_def->leaf_partitions()) {
       if (dd_part_has_instant_cols(*dd_part)) {
         dd_clear_instant_part(*dd_part);
@@ -3109,6 +3111,8 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
   innobase_register_trx(ht, thd, trx);
 
+  const bool is_instant = dd_table_has_instant_cols(*dd_table);
+
   for (const auto dd_part : *dd_table->leaf_partitions()) {
     char norm_name[FN_REFLEN];
     dict_table_t *part_table = nullptr;
@@ -3131,7 +3135,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
     }
 
     innobase_truncate<dd::Partition> truncator(thd, norm_name, table, dd_part,
-                                               !truncate_all);
+                                               !truncate_all, truncate_all);
 
     error = truncator.open_table(part_table);
     if (error != 0) {
@@ -3159,8 +3163,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
       return error;
     }
 
-    if (dd_table_has_instant_cols(*dd_table) &&
-        dd_part_has_instant_cols(*dd_part)) {
+    if (is_instant && dd_part_has_instant_cols(*dd_part)) {
       dd_clear_instant_part(*dd_part);
     }
   }
@@ -3173,8 +3176,10 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
                    (truncate_all ? 0 : autoinc + 1));
   }
 
-  if (dd_table_has_instant_cols(*dd_table) &&
-      !dd_table_part_has_instant_cols(*dd_table)) {
+  if (is_instant && !dd_table_part_has_instant_cols(*dd_table) &&
+      !dd_table_has_row_versions(*dd_table)) {
+    /* If in INSTANT V1 and none of the partitions has INSTANT metadata, clear
+    INSTANT METADATA for table as well. */
     dd_clear_instant_table(*dd_table);
   }
 

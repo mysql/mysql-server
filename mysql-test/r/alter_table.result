@@ -3694,8 +3694,6 @@ t1	CREATE TABLE `t1` (
 #
 ALTER TABLE t1 ADD KEY(j), ALGORITHM=INSTANT;
 ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
-ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 15, DROP COLUMN j, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
 #
 # 5) For MyISAM tables we support INSTANT algorithm for metadata-only
 #    changes as well.

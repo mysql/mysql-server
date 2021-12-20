@@ -48,7 +48,7 @@ static inline ulint row_get_trx_id_offset(const dict_index_t *index,
 
   pos = index->get_sys_col_pos(DATA_TRX_ID);
 
-  offset = rec_get_nth_field_offs(offsets, pos, &len);
+  offset = rec_get_nth_field_offs(index, offsets, pos, &len);
 
   ut_ad(len == DATA_TRX_ID_LEN);
 
@@ -131,7 +131,7 @@ static inline void row_build_row_ref_fast(
     field_no = *(map + i);
 
     if (field_no != ULINT_UNDEFINED) {
-      field = rec_get_nth_field(rec, offsets, field_no, &len);
+      field = rec_get_nth_field(nullptr, rec, offsets, field_no, &len);
       dfield_set_data(dfield, field, len);
     }
   }

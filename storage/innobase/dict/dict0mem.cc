@@ -123,7 +123,8 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 
   v_col = dict_table_get_nth_v_col(table, i);
 
-  dict_mem_fill_column_struct(&v_col->m_col, pos, mtype, prtype, len, true);
+  dict_mem_fill_column_struct(&v_col->m_col, pos, mtype, prtype, len, true,
+                              UINT32_UNDEFINED, 0, 0);
   v_col->v_pos = i;
 
   if (num_base != 0) {
@@ -617,16 +618,72 @@ bool dict_index_t::is_usable(const trx_t *trx) const {
 }
 #endif /* !UNIV_HOTBACKUP */
 
+void dict_index_t::create_nullables(uint32_t current_row_version) {
+  ut_ad(is_clustered());
+  ut_ad(current_row_version <= MAX_ROW_VERSION);
+
+  memset(nullables, 0, (MAX_ROW_VERSION + 1) * sizeof(nullables[0]));
+
+  auto update_nullable = [&](size_t start_version, bool is_increment) {
+    ut_ad(start_version <= MAX_ROW_VERSION);
+    for (size_t i = start_version; i <= current_row_version; i++) {
+      ut_ad(is_increment || nullables[i] > 0);
+
+      if (is_increment) {
+        ++nullables[i];
+      } else {
+        --nullables[i];
+      }
+    }
+  };
+
+  for (uint32_t i = 0; i < n_def; i++) {
+    dict_field_t *field = get_field(i);
+
+    /* In case of redo recovery, names are not populated */
+    ut_ad(field->name != nullptr ||
+          strcmp(name, RECOVERY_INDEX_TABLE_NAME) == 0);
+
+    if (field->name != nullptr && (strcmp(field->name, "DB_ROW_ID") == 0 ||
+                                   strcmp(field->name, "DB_TRX_ID") == 0 ||
+                                   strcmp(field->name, "DB_ROLL_PTR") == 0)) {
+      continue;
+    }
+
+    if (field->col->prtype & DATA_NOT_NULL) {
+      continue;
+    }
+
+    /* For each version increment by 1 starting from field->col->v_added */
+    size_t start_from = 0;
+    if (field->col->is_instant_added()) {
+      start_from = field->col->get_version_added();
+    }
+    update_nullable(start_from, true);
+
+    /* For each version decrement by 1 starting from field->col->v_dropped */
+    if (field->col->is_instant_dropped()) {
+      update_nullable(field->col->get_version_dropped(), false);
+    }
+  }
+}
+
 bool dict_index_t::is_tuple_instant_format(
     const uint16_t n_fields_in_tuple) const {
-  ut_ad(n_fields_in_tuple <= n_fields);
-
-  if (!has_instant_cols()) {
+  if (!has_instant_cols_or_row_versions()) {
     return false;
   }
 
+  ut_ad(n_fields_in_tuple <= n_total_fields);
+
+  /* In versioned rows, always materialize INSTANT cols even in from ROLLBACK */
+  if (has_row_versions()) {
+    return true;
+  }
+
   /* For instant index, if the tuple comes from UPDATE, its fields could be less
-  than index definition */
+  than index definition. Because, we restore the table row as it was before
+  UPDATE (i.e. we get rid of INSTANT ADD columns which weren't part of row) */
   if (n_fields_in_tuple < n_fields) {
     /* If PK is not specified, DB_ROW_ID will be part of tuple */
     uint16_t sys_fields_in_tuple = 0;
@@ -703,11 +760,14 @@ ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix,
 
   return (ULINT_UNDEFINED);
 }
+
 /** Frees an index memory object. */
 void dict_mem_index_free(dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+  index->destroy_fields_array();
 
 #ifndef UNIV_HOTBACKUP
   dict_index_zip_pad_mutex_destroy(index);

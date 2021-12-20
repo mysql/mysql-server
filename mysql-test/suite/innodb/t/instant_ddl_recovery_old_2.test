@@ -1,0 +1,77 @@
+##########################################################################
+# Test script to test RECOVERY of table having INSTANT ADD columns in
+# older version.
+##########################################################################
+
+--source include/have_lowercase0.inc
+--source include/have_debug.inc
+let $is_debug=1;
+
+# ------------------------------------------------------------
+# Tables created on earlier version with following
+# ------------------------------------------------------------
+# create table t1_redundant(c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+# insert into t1_redundant values ("r1c1", "r1c2");
+# alter table t1_redundant add column c3 char(10), algorithm=instant;
+#
+# create table t1_compact(c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+# insert into t1_compact values ("r1c1", "r1c2");
+# alter table t1_compact add column c3 char(10), algorithm=instant;
+#
+# create table t1_dynamic(c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+# insert into t1_dynamic values ("r1c1", "r1c2");
+# alter table t1_dynamic add column c3 char(10), algorithm=instant;
+# ------------------------------------------------------------
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/recv_old_datadir.zip $MYSQL_TMP_DIR/recv_old_datadir.zip
+--file_exists $MYSQL_TMP_DIR/recv_old_datadir.zip
+--exec unzip -qo $MYSQL_TMP_DIR/recv_old_datadir.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo ##############################################
+--echo # Test instant ADD COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = redundant;
+--source suite/innodb/include/instant_ddl_recovery_old_2.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = dynamic;
+--source suite/innodb/include/instant_ddl_recovery_old_2.inc
+
+--echo ############################################
+--echo # Test instant ADD COLUMN for COMPACT format
+--echo ############################################
+let $row_format = compact;
+--source suite/innodb/include/instant_ddl_recovery_old_2.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/recv_old_datadir.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/recv_old_datadir.zip
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

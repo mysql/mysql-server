@@ -40,6 +40,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 struct dict_index_t;
 
+#define INDEX_LOG_VERSION 0x00
+
+#define COMPACT_FLAG 0x01
+#define VERSION_FLAG 0x02
+#define INSTANT_FLAG 0x04
+
+#define IS_INSTANT(flags) (flags & INSTANT_FLAG)
+#define IS_VERSIONED(flags) (flags & VERSION_FLAG)
+#define IS_COMPACT(flags) (flags & COMPACT_FLAG)
+
+#define SET_INSTANT(flags) (flag |= INSTANT_FLAG)
+#define SET_VERSIONED(flags) (flag |= VERSION_FLAG)
+#define SET_COMPACT(flags) (flag |= COMPACT_FLAG)
+
+/* Size of initial info on REDO log
+  1   byte  for LOG TYPE
+  3-5 bytes for SPACE ID
+  3-5 bytes for PAGE OFFSET */
+constexpr size_t REDO_LOG_INITIAL_INFO_SIZE = 11;
+
 /** Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
  record to the mini-transaction log if mtr is not NULL. */
 void mlog_write_ulint(
@@ -208,10 +228,9 @@ byte *mlog_parse_string(
     byte *page,      /*!< in: page where to apply the log record, or NULL */
     void *page_zip); /*!< in/out: compressed page, or NULL */
 
-/** Opens a buffer for mlog, writes the initial log record and,
-if needed, the field lengths of an index.  Reserves space
-for further log entries.  The log entry must be closed with
-mtr_close().
+/** Opens a buffer for mlog, writes the initial log record and, if needed, the
+field lengths of an index. Reserves space for further log entries. The log
+entry must be closed with mtr_close().
 @param[in,out]	mtr	Mini-transaction
 @param[in]	rec	Index record or page
 @param[in]	index	Record descriptor
@@ -223,14 +242,25 @@ mtr_close().
 @retval false if not opened. One case is when redo is disabled for mtr. */
 bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
                                const dict_index_t *index, mlog_id_t type,
-                               ulint size, byte *&log_ptr);
+                               size_t size, byte *&log_ptr);
 
 /** Parses a log record written by mlog_open_and_write_index.
- @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_index(byte *ptr,           /*!< in: buffer */
-                       const byte *end_ptr, /*!< in: buffer end */
-                       bool comp, /*!< in: true=compact record format */
-                       dict_index_t **index); /*!< out, own: dummy index */
+@param[in]  ptr      buffer
+@param[in]  end_ptr  buffer end
+@param[out] index    own: dummy index
+@return parsed record end, NULL if not a complete record */
+byte *mlog_parse_index(byte *ptr, const byte *end_ptr, dict_index_t **index);
+
+/** Parses a log record written by mlog_open_and_write_index in version <= 8027.
+This function should never be changed and should be removed once recovery from
+mysql-8.0.27 is not needed anymore.
+@param[in]  ptr      buffer
+@param[in]  end_ptr  buffer end
+@param[in]  comp     true=compact row format
+@param[out] index    own: dummy index
+@return parsed record end, NULL if not a complete record */
+byte *mlog_parse_index_8027(byte *ptr, const byte *end_ptr, bool comp,
+                            dict_index_t **index);
 
 /** Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */

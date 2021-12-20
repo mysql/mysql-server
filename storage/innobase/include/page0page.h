@@ -478,16 +478,6 @@ move to the next record) is at most the specified value
  @return the owner record */
 static inline rec_t *page_rec_find_owner_rec(
     rec_t *rec); /*!< in: the physical record */
-#ifndef UNIV_HOTBACKUP
-
-/** Write a 32-bit field in a data dictionary record.
-@param[in,out]	rec	Record to update
-@param[in]	i	Index of the field to update
-@param[in]	val	Value to write
-@param[in,out]	mtr	Mini-transaction */
-static inline void page_rec_write_field(rec_t *rec, ulint i, ulint val,
-                                        mtr_t *mtr);
-#endif /* !UNIV_HOTBACKUP */
 
 /** Returns the maximum combined size of records which can be inserted on top
 of record heap.

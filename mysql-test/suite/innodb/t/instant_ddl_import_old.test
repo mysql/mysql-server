@@ -1,0 +1,146 @@
+##########################################################################
+# Test script to test EXPORT/IMPORT for a table in older version having
+# INSTANT ADD columns.
+##########################################################################
+
+--source include/have_innodb_16k.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/export.inc EOF
+  FLUSH TABLE t1 FOR EXPORT;
+  --echo # Copy cfg/ibd files into temp location
+  --copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
+  --copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+  UNLOCK TABLES;
+EOF
+
+--write_file $MYSQLTEST_VARDIR/tmp/import.inc EOF
+  eval ALTER TABLE $target_table DISCARD TABLESPACE;
+  --echo # Copy cfg/ibd files from temp location
+  --copy_file $MYSQL_TMP_DIR/old_instant_comp/t1.cfg $MYSQLD_DATADIR/test/$target_table.cfg
+  --copy_file $MYSQL_TMP_DIR/old_instant_comp/t1.ibd $MYSQLD_DATADIR/test/$target_table.ibd
+  --error $error_num
+  eval ALTER TABLE $target_table IMPORT TABLESPACE;
+EOF
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--echo # ------------------------------------------------------------
+--echo # Exported table t1 (in older version) having
+--echo #     c1, c2 normal columns
+--echo #     c3 INSTANT ADD column with default def_c3.
+--echo #     c4 INSTANT ADD column with default def_c4.
+--echo #       +------+------+--------+--------+
+--echo #       | c1   | c2   | c3     | c4     |
+--echo #       +------+------+--------+--------+
+--echo #       | r1c1 | r1c2 | c3_def | c4_def |
+--echo #       | r2c1 | r2c2 | r2c3   | c4_def |
+--echo #       | r3c1 | r3c2 | r3c3   | r3c4   |
+--echo #       +------+------+--------+--------+
+--echo # ------------------------------------------------------------
+
+--echo # Copy and unzip the ibd/cfg files.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/old_instant_comp.zip $MYSQL_TMP_DIR/old_instant_comp.zip
+--file_exists $MYSQL_TMP_DIR/old_instant_comp.zip
+--exec unzip -qo $MYSQL_TMP_DIR/old_instant_comp.zip -d $MYSQL_TMP_DIR
+--echo # listing MYSQL_TMP_DIR/old_instant_comp
+--list_files $MYSQL_TMP_DIR/old_instant_comp
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 1 : No INSTANT ADD/DROP Columns in target table
+--echo # ------------------------------------------------------------
+create table t1 (c1 char(10), c2 char(10), c3 char(10), c4 char(10)) row_format=compact;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # IMPORT
+--let $target_table=t1
+--let $error_num=0
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+SELECT * FROM t1 ORDER BY c1;
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 2 : No INSTANT ADD/DROP. Column mismatch
+--echo # ------------------------------------------------------------
+create table t1 (c1 char(10), c2 char(20), c3 char(10), c4 char(10)) row_format=compact;
+
+--echo # IMPORT
+--let $target_table=t1
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 3 : INSTANT ADD/DROP Columns in target table
+--echo # ------------------------------------------------------------
+create table t1 (c1 char(10), c2 char(10)) row_format=compact;
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # IMPORT
+--let $target_table=t1
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+DROP TABLE t1;
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 4 : INSTANT ADD/DROP. Column mismatch
+--echo # ------------------------------------------------------------
+create table t1 (c1 char(10), c2 char(10)) row_format=compact;
+ALTER TABLE t1 ADD COLUMN c3 char(20) DEFAULT "c3_def", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # IMPORT
+--let $target_table=t1
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # ------------------------------------------------------------
+--echo # Scenario 5 : INSTANT ADD/DROP. Default value mismatch
+--echo # ------------------------------------------------------------
+create table t1 (c1 char(10), c2 char(10)) row_format=compact;
+ALTER TABLE t1 ADD COLUMN c3 char(10) DEFAULT "def_c3", ADD COLUMN c4 char(10) DEFAULT "c4_def";
+
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # IMPORT
+--let $target_table=t1
+--let $error_num=1808
+--source $MYSQLTEST_VARDIR/tmp/import.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+--force-rmdir $MYSQL_TMP_DIR/old_instant_comp
+--remove_file $MYSQL_TMP_DIR/old_instant_comp.zip
+--remove_file $MYSQLTEST_VARDIR/tmp/import.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/export.inc

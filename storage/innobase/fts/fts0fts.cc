@@ -1826,7 +1826,7 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr);
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2021,7 +2021,7 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN, true);
 
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr);
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -3392,7 +3392,7 @@ static void fts_fetch_doc_from_rec(
       get_doc->index_cache->charset = fts_get_charset(ifield->col->prtype);
     }
 
-    if (rec_offs_nth_extern(offsets, clust_pos)) {
+    if (rec_offs_nth_extern(index, offsets, clust_pos)) {
       doc->text.f_str = lob::btr_rec_copy_externally_stored_field(
           nullptr, clust_index, clust_rec, offsets, dict_table_page_size(table),
           clust_pos, &doc->text.f_len, nullptr, false,
@@ -3796,7 +3796,7 @@ doc_id_t fts_get_max_doc_id(dict_table_t *table) /*!< in: user table */
 
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    data = rec_get_nth_field(rec, offsets, 0, &len);
+    data = rec_get_nth_field(nullptr, rec, offsets, 0, &len);
 
     doc_id =
         static_cast<doc_id_t>(fts_read_doc_id(static_cast<const byte *>(data)));
@@ -5199,7 +5199,7 @@ doc_id_t fts_get_doc_id_from_rec(dict_table_t *table, const rec_t *rec,
 
   ut_ad(col_no != ULINT_UNDEFINED);
 
-  data = rec_get_nth_field(rec, offsets, col_no, &len);
+  data = rec_get_nth_field(nullptr, rec, offsets, col_no, &len);
 
   ut_a(len == 8);
   ut_ad(8 == sizeof(doc_id));

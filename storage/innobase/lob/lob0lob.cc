@@ -52,16 +52,13 @@ bool ReadContext::assert_read_uncommitted() const {
 }
 #endif /* UNIV_DEBUG */
 
-/** Gets the offset of the pointer to the externally stored part of a field.
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	n		index of the external field
-@return offset of the pointer to the externally stored part */
-ulint btr_rec_get_field_ref_offs(const ulint *offsets, ulint n) {
+ulint btr_rec_get_field_ref_offs(const dict_index_t *index,
+                                 const ulint *offsets, ulint n) {
   ulint field_ref_offs;
   ulint local_len;
 
-  ut_a(rec_offs_nth_extern(offsets, n));
-  field_ref_offs = rec_get_nth_field_offs(offsets, n, &local_len);
+  ut_a(rec_offs_nth_extern(index, offsets, n));
+  field_ref_offs = rec_get_nth_field_offs(index, offsets, n, &local_len);
   ut_a(rec_field_not_null_not_add_col_def(local_len));
   ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
@@ -80,7 +77,7 @@ void BtrContext::disown_inherited_fields(const upd_t *update) {
   ut_ad(m_mtr);
 
   for (ulint i = 0; i < rec_offs_n_fields(m_offsets); i++) {
-    if (rec_offs_nth_extern(m_offsets, i) &&
+    if (rec_offs_nth_extern(m_index, m_offsets, i) &&
         !upd_get_field_by_field_no(update, i, false)) {
       set_ownership_of_extern_field(i, false);
     }
@@ -305,7 +302,7 @@ struct Being_modified {
 #endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
       ulint field_no = m_big_rec_vec->fields[i].field_no;
-      byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);
+      byte *field_ref = btr_rec_get_field_ref(index, rec, m_offsets, field_no);
       ref_t blobref(field_ref);
 
       ut_ad(!blobref.is_being_modified());
@@ -324,8 +321,8 @@ struct Being_modified {
         if (!m_btr_ctx.is_bulk()) {
           buf_block_t *rec_block = m_pcur->get_block();
           page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
-          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
-                                  m_mtr);
+          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets,
+                                  index->get_field_off_pos(field_no), m_mtr);
         }
       } else {
         blobref.set_being_modified(true, m_mtr);
@@ -358,7 +355,8 @@ struct Being_modified {
 #endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
       ulint field_no = m_big_rec_vec->fields[i].field_no;
-      byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);
+      byte *field_ref =
+          btr_rec_get_field_ref(m_btr_ctx.index(), rec, m_offsets, field_no);
       ref_t blobref(field_ref);
 
       if (index->is_compressed()) {
@@ -366,8 +364,8 @@ struct Being_modified {
         if (!m_btr_ctx.is_bulk()) {
           buf_block_t *rec_block = m_pcur->get_block();
           page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
-          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
-                                  m_mtr);
+          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets,
+                                  index->get_field_off_pos(field_no), m_mtr);
         }
       } else {
         blobref.set_being_modified(false, m_mtr);
@@ -473,7 +471,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
     rec_offs_make_valid(rec, index, offsets);
     ut_ad(rec_offs_validate(rec, index, offsets));
 
-    byte *field_ref = btr_rec_get_field_ref(rec, offsets, field_no);
+    byte *field_ref = btr_rec_get_field_ref(index, rec, offsets, field_no);
 
     ref_t blobref(field_ref);
     ut_ad(blobref.validate(btr_mtr));
@@ -603,8 +601,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
     /* Ensure that the LOB references are valid now. */
     rec = pcur->get_rec();
     rec_offs_make_valid(rec, index, offsets);
-    field_ref =
-        btr_rec_get_field_ref(rec, offsets, big_rec_vec->fields[i].field_no);
+    field_ref = btr_rec_get_field_ref(index, rec, offsets, field_no);
     ref_t lobref(field_ref);
 
     ut_ad(!lobref.is_null());
@@ -633,27 +630,22 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
   }
 }
 
-/** Copies an externally stored field of a record to mem heap.
-@param[in]	trx		the current transaction.
-@param[in]	index		the clustered index
-@param[in]	rec		record in a clustered index; must be
-                                protected by a lock or a page latch
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	page_size	BLOB page size
-@param[in]	no		field number
-@param[out]	len		length of the field
-@param[out]	lob_version	version of lob that has been copied
-@param[in]	is_sdi		true for SDI Indexes
-@param[in,out]	heap		mem heap
-@return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
-    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) {
+    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap,
+    bool is_rebuilt) {
   ulint local_len;
   const byte *data;
 
-  ut_a(rec_offs_nth_extern(offsets, no));
+  const dict_index_t *check_instant_index = index;
+  if (is_rebuilt) {
+    /* nullptr if it is being called when table is being rebuilt beacuse then
+    offsets will be for new records which won't have instant columns. */
+    check_instant_index = nullptr;
+  }
+
+  ut_a(rec_offs_nth_extern(check_instant_index, offsets, no));
 
   /* An externally stored field can contain some initial
   data from the field, and in the last 20 bytes it has the
@@ -664,7 +656,7 @@ byte *btr_rec_copy_externally_stored_field_func(
   limit so that field offsets are stored in two bytes, and
   the extern bit is available in those two bytes. */
 
-  data = rec_get_nth_field(rec, offsets, no, &local_len);
+  data = rec_get_nth_field(check_instant_index, rec, offsets, no, &local_len);
   const byte *field_ref = data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
   lob::ref_t ref(const_cast<byte *>(field_ref));
@@ -960,20 +952,14 @@ byte *btr_copy_externally_stored_field_func(
   }
 }
 
-/** Frees the externally stored fields for a record, if the field
-is mentioned in the update vector.
-@param[in]	trx_id		the transaction identifier.
-@param[in]	undo_no		undo number within a transaction whose
-                                LOB is being freed.
-@param[in]	update		update vector
-@param[in]	rollback	performing rollback? */
 void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
-                                            const upd_t *update,
-                                            bool rollback) {
+                                            const upd_t *update, bool rollback,
+                                            big_rec_t *big_rec_vec) {
   ulint n_fields;
   ulint i;
   ut_ad(rollback);
 
+  ut_ad(big_rec_vec == nullptr || m_index->has_row_versions());
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
   /* Assert that the cursor position and the record are matching. */
@@ -989,9 +975,25 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
     /* No need to free the column if it is a virtual column as it does not
     consume any storage. */
     if (!ufield->is_virtual() &&
-        rec_offs_nth_extern(m_offsets, ufield->field_no)) {
+        rec_offs_nth_extern(m_index, m_offsets, ufield->field_no)) {
+      /* Skip freeing fields which are added as part of updating a record in
+      table having instant index */
+      if (big_rec_vec != nullptr) {
+        bool found = false;
+        for (size_t i = 0; i < big_rec_vec->n_fields; i++) {
+          if (ufield->field_no == big_rec_vec->fields[i].field_no) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          continue;
+        }
+      }
+
       ulint len;
-      byte *data = rec_get_nth_field(m_rec, m_offsets, ufield->field_no, &len);
+      byte *data =
+          rec_get_nth_field(m_index, m_rec, m_offsets, ufield->field_no, &len);
       ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
       byte *field_ref = data + len - BTR_EXTERN_FIELD_REF_SIZE;
@@ -1049,10 +1051,12 @@ void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
 }
 
 /** Gets the externally stored size of a record, in units of a database page.
+@param[in]	index	index
 @param[in]	rec	record
 @param[in]	offsets	array returned by rec_get_offsets()
 @return externally stored part, in units of a database page */
-ulint btr_rec_get_externally_stored_len(const rec_t *rec,
+ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
+                                        const rec_t *rec,
                                         const ulint *offsets) {
   ulint n_fields;
   ulint total_extern_len = 0;
@@ -1067,9 +1071,9 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec,
   n_fields = rec_offs_n_fields(offsets);
 
   for (i = 0; i < n_fields; i++) {
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       ulint extern_len = mach_read_from_4(
-          btr_rec_get_field_ref(rec, offsets, i) + BTR_EXTERN_LEN + 4);
+          btr_rec_get_field_ref(index, rec, offsets, i) + BTR_EXTERN_LEN + 4);
 
       total_extern_len += ut_calc_align(extern_len, UNIV_PAGE_SIZE);
     }
@@ -1100,10 +1104,11 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
   ulint n_fields = rec_offs_n_fields(m_offsets);
 
   for (ulint i = 0; i < n_fields; i++) {
-    if (rec_offs_nth_extern(m_offsets, i)) {
-      byte *field_ref = btr_rec_get_field_ref(m_rec, m_offsets, i);
+    if (rec_offs_nth_extern(m_index, m_offsets, i)) {
+      byte *field_ref = btr_rec_get_field_ref(m_index, m_rec, m_offsets, i);
 
-      DeleteContext ctx(*this, field_ref, i, rollback);
+      DeleteContext ctx(*this, field_ref, m_index->get_field_off_pos(i),
+                        rollback);
 
       upd_field_t *uf = nullptr;
       lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf, node);
@@ -1276,17 +1281,17 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
   for (ulint i = 0; i < n; i++) {
     ulint len;
 
-    if (rec_offs_nth_default(offsets, i)) {
+    if (rec_offs_nth_default(index, offsets, i)) {
       continue;
     }
 
-    byte *data = rec_get_nth_field(rec, offsets, i, &len);
+    byte *data = rec_get_nth_field(index, rec, offsets, i, &len);
 
     if (len == UNIV_SQL_NULL) {
       continue;
     }
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       ulint local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 

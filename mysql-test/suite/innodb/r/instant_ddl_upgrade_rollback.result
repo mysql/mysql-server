@@ -1,0 +1,149 @@
+#########
+# SETUP #
+#########
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=4k
+##############################################
+# Test instant ADD/DROP COLUMN for REDUNDANT format
+##############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_redundant having
+#     id, c1, c2 normal columns
+#     c3 INSTANT ADD column with default.
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `id` int NOT NULL,
+  `c1` varchar(4000) DEFAULT NULL,
+  `c2` varchar(4000) DEFAULT NULL,
+  `c3` varchar(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_redundant
+# ------------------------------------------------------------
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	7	3	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16716047	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_redundant ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+# ------------------------------------------------------------
+# Run an UPDATE and ROLLBACK. 
+# ------------------------------------------------------------
+START TRANSACTION;
+UPDATE t1_redundant SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_redundant ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+ROLLBACK;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_redundant ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+############################################
+# Test instant ADD/DROP COLUMN for DYNAMIC format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_dynamic having
+#     id, c1, c2 normal columns
+#     c3 INSTANT ADD column with default.
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `id` int NOT NULL,
+  `c1` varchar(4000) DEFAULT NULL,
+  `c2` varchar(4000) DEFAULT NULL,
+  `c3` varchar(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_dynamic
+# ------------------------------------------------------------
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	7	3	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16716047	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_dynamic ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+# ------------------------------------------------------------
+# Run an UPDATE and ROLLBACK. 
+# ------------------------------------------------------------
+START TRANSACTION;
+UPDATE t1_dynamic SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_dynamic ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+ROLLBACK;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_dynamic ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   table t1_compact having
+#     id, c1, c2 normal columns
+#     c3 INSTANT ADD column with default.
+# ------------------------------------------------------------
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `id` int NOT NULL,
+  `c1` varchar(4000) DEFAULT NULL,
+  `c2` varchar(4000) DEFAULT NULL,
+  `c3` varchar(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+# ------------------------------------------------------------
+# Read rows from upgraded table t1_compact
+# ------------------------------------------------------------
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	7	3	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16716047	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_compact ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+# ------------------------------------------------------------
+# Run an UPDATE and ROLLBACK. 
+# ------------------------------------------------------------
+START TRANSACTION;
+UPDATE t1_compact SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_compact ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+ROLLBACK;
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1_compact ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+###########
+# CLEANUP #
+###########
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart

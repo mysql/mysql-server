@@ -36,6 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <memory>
 #include <vector>
 
+#include "sql/dd/types/column_type_element.h"
+
 #include "btr0pcur.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
@@ -135,10 +137,10 @@ struct row_import {
                               m_n_cols(),
                               m_n_instant_cols(0),
                               m_n_instant_nullable(0),
-                              m_cols(),
-                              m_col_names(),
+                              m_cols(nullptr),
+                              m_col_names(nullptr),
                               m_n_indexes(),
-                              m_indexes(),
+                              m_indexes(nullptr),
                               m_missing(true),
                               m_has_sdi(false),
                               m_cfp_missing(true) {}
@@ -216,9 +218,41 @@ struct row_import {
   @return DB_SUCCESS or error code. */
   dberr_t match_schema(THD *thd, const dd::Table *dd_table) UNIV_NOTHROW;
 
+  /** Check if table being imported has INSTANT ADD/DROP columns
+  @return true if table has INSTANT ADD/DROP columns */
+  bool has_row_versions() {
+    return (m_total_column_count > m_initial_column_count ||
+            m_total_column_count > m_current_column_count);
+  }
+
  private:
   /** Set the instant ADD COLUMN information to the table */
-  dberr_t set_instant_info(THD *thd) UNIV_NOTHROW;
+  dberr_t set_instant_info(THD *thd, const dd::Table *dd_table) UNIV_NOTHROW;
+
+  /** Set the instant ADD/DROP COLUMN information to the table
+  @param[in]		thd		MySQL session
+  @param[in,out]	dd_table	target table definition
+  @return DB_SUCCESS or error code. */
+  dberr_t set_instant_info_v2(THD *thd, const dd::Table *dd_table) UNIV_NOTHROW;
+
+  /** Match INSTANT metadata of CFG file and target table when both source and
+  target table has INSTANT columns.
+  @param[in]		thd		MySQL session
+  @return DB_SUCCESS or error code. */
+  dberr_t match_instant_metadata_in_target_table(THD *thd);
+
+  /** Update INSTANT metadata into target table when only source has INSTANT
+  columns.
+  @param[in]		thd		MySQL session
+  @param[in,out]	dd_table	target table definition
+  @return DB_SUCCESS or error code. */
+  dberr_t adjust_instant_metadata_in_taregt_table(THD *thd,
+                                                  const dd::Table *dd_table);
+
+  /** Add INSTANT DROP columns to target table innodb cache.
+  @param[in] target_table	target table in InnoDB cache.
+  @return DB_SUCCESS or error code. */
+  dberr_t add_instant_dropped_columns(dict_table_t *target_table);
 
  public:
   dict_table_t *m_table; /*!< Table instance */
@@ -241,6 +275,13 @@ struct row_import {
 
   ulint m_n_cols; /*!< Number of columns in the
                   meta-data file */
+
+  /* Column counts for table */
+  uint32_t m_initial_column_count{0};
+  uint32_t m_current_column_count{0};
+  uint32_t m_total_column_count{0};
+  uint32_t m_n_instant_drop_cols{0};
+  uint32_t m_current_row_version{0};
 
   uint16_t m_n_instant_cols; /*!< Number of columns before
                              first instant ADD COLUMN in
@@ -1147,7 +1188,7 @@ dberr_t row_import::match_col_default_values(
 
   ut_ad(dd_table_is_partitioned(*dd_table) == dict_table_is_partition(m_table));
 
-  err = set_instant_info(thd);
+  err = set_instant_info(thd, dd_table);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -1219,12 +1260,47 @@ in memory table definition.
 dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
   dberr_t err = DB_SUCCESS;
   const dict_col_t *col = m_table->cols;
+  uint32_t n_sys_cols = 0;
 
+  if (m_version >= IB_EXPORT_CFG_VERSION_V7 && m_table->has_row_versions()) {
+    /* Only target table has row versions, ERROR */
+    if (!has_row_versions()) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "The .cfg file indicates no INSTANT column in the source table"
+              " whereas the metadata in data dictionary says there are instant"
+              " columns in the target table");
+
+      return (DB_ERROR);
+    }
+
+    if (m_table->current_row_version != m_current_row_version) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table has instant column but current row version didn't match.");
+      return (DB_ERROR);
+    }
+
+    if ((m_table->initial_col_count != m_initial_column_count) ||
+        (m_table->current_col_count != m_current_column_count) ||
+        (m_table->total_col_count != m_total_column_count)) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table has instant column but column counts didn't match.");
+      return (DB_ERROR);
+    }
+  }
+
+  /* Following loop makes sure all the columns present in target table are
+  accounted for */
   for (ulint i = 0; i < m_table->n_cols; ++i, ++col) {
     const char *col_name;
     ulint cfg_col_index;
 
     col_name = m_table->get_col_name(dict_col_get_no(col));
+
+    if ((strcmp(col_name, "DB_ROW_ID") == 0) ||
+        (strcmp(col_name, "DB_TRX_ID") == 0) ||
+        (strcmp(col_name, "DB_ROLL_PTR") == 0)) {
+      n_sys_cols += 1;
+    }
 
     cfg_col_index = find_col(col_name);
 
@@ -1289,6 +1365,26 @@ dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
     }
   }
 
+  /* Following check makes sure all the columns present in config file are
+  accounted for */
+  if (m_version >= IB_EXPORT_CFG_VERSION_V7 && has_row_versions()) {
+    if (!(m_table->n_cols - n_sys_cols == m_current_column_count)) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Found %u columns in destination table whereas cfg file has %u"
+              " columns.",
+              (m_table->n_cols - n_sys_cols), m_current_column_count);
+      err = DB_ERROR;
+    }
+  } else {
+    if (!(m_table->n_cols == m_n_cols)) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Found %u columns in destination table whereas cfg file has %lu"
+              " columns.",
+              (m_table->n_cols - n_sys_cols), (m_n_cols - n_sys_cols));
+      err = DB_ERROR;
+    }
+  }
+
   return (err);
 }
 
@@ -1323,12 +1419,12 @@ dberr_t row_import::match_schema(THD *thd,
               "Table flags don't match");
     }
     return (DB_ERROR);
-  } else if (m_table->n_cols != m_n_cols) {
+  } else if (m_table->n_cols != m_n_cols - m_n_instant_drop_cols) {
     ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
             "Number of columns don't match, table has %lu"
             " columns but the tablespace meta-data file has"
             " %lu columns",
-            (ulong)m_table->n_cols, (ulong)m_n_cols);
+            (ulong)m_table->n_cols, (ulong)(m_n_cols - m_n_instant_drop_cols));
 
     return (DB_ERROR);
   } else if (UT_LIST_GET_LEN(m_table->indexes) + (m_has_sdi ? 1 : 0) !=
@@ -1538,9 +1634,349 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
   return (err);
 }
 
+dberr_t row_import::match_instant_metadata_in_target_table(THD *thd) {
+  if (m_table->current_row_version != m_current_row_version) {
+    /* It must have already been checked in match_table_columns */
+    ut_ad(false);
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Target table also has instant column but current row version"
+            " didn't match with the configuration file.");
+    return (DB_ERROR);
+  }
+
+  if ((m_table->initial_col_count != m_initial_column_count) ||
+      (m_table->current_col_count != m_current_column_count) ||
+      (m_table->total_col_count != m_total_column_count)) {
+    /* It must have already been checked in match_table_columns */
+    ut_ad(false);
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Target table also has instant columns but column counts didn't"
+            " match with the configuration file.");
+    return (DB_ERROR);
+  }
+
+  for (uint32_t i = 0; i < m_n_cols; i++) {
+    dict_col_t *cfg_col = &m_cols[i];
+    ut_ad(cfg_col != nullptr);
+
+    const char *col_name = (char *)m_col_names[i];
+
+    /* Search for this column in target table */
+    dict_col_t *target_col = m_table->get_col_by_name(col_name);
+
+    if (!cfg_col->is_version_added_match(target_col) ||
+        !cfg_col->is_version_dropped_match(target_col) ||
+        (cfg_col->ind != target_col->ind) ||
+        (cfg_col->get_phy_pos() != target_col->get_phy_pos())) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Instant metadata didn't match for column %s", col_name);
+      return DB_ERROR;
+    }
+
+    if (cfg_col->instant_default == nullptr &&
+        target_col->instant_default == nullptr) {
+      /* This isn't an INSTANT ADD columns or this column has been dropped. */
+      ut_ad(!cfg_col->is_instant_added() || cfg_col->is_instant_dropped());
+      continue;
+    }
+
+    if (cfg_col->instant_default == nullptr &&
+        target_col->instant_default != nullptr) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "The metadata in the data dictionary and the .cfg file contain"
+              " different default values for column %s!",
+              col_name);
+      return DB_ERROR;
+    }
+
+    if (cfg_col->instant_default != nullptr &&
+        target_col->instant_default == nullptr) {
+      /* set the value from .cfg file. */
+      target_col->set_default(cfg_col->instant_default->value,
+                              cfg_col->instant_default->len, m_table->heap);
+    }
+
+    /* If instant_default values are different, error */
+    if (*target_col->instant_default != *cfg_col->instant_default) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "The metadata in the data dictionary and the .cfg file contain"
+              " different default values for column %s!",
+              col_name);
+      return DB_ERROR;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
+dberr_t row_import::add_instant_dropped_columns(dict_table_t *target_table) {
+  dict_index_t *index = m_table->first_index();
+  ut_ad(index->is_clustered());
+
+  /* NOTE : Generated columns can't be part of clustered index so all the
+  fields have to be pointing to cols in table->cols. */
+  uint16_t *mapping = ut::new_arr_withkey<uint16_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                    ut::Count{index->n_fields});
+  for (size_t i = 0; i < index->n_fields; i++) {
+    mapping[i] = index->get_field(i)->col->ind;
+  }
+
+  /* Get the table->heap size in saved_heap_size */
+  size_t old_heap_size =
+      mem_heap_get_size(target_table->heap) + mem_heap_get_size(index->heap);
+
+  uint32_t n_dropped_cols = m_total_column_count - m_current_column_count;
+
+  /* Allocate memory for n_cols (table->n_cols + n_dropped_cols) */
+  {
+    dict_col_t *cols = target_table->cols;
+    uint32_t total_cols = target_table->n_cols + n_dropped_cols;
+    target_table->cols = (dict_col_t *)mem_heap_alloc(
+        target_table->heap, total_cols * sizeof(dict_col_t));
+    memcpy(target_table->cols, cols, target_table->n_cols * sizeof(dict_col_t));
+  }
+
+  /* Allocate memory for n_fields (index->n_fields + n_dropped_cols) */
+  {
+    dict_field_t *fields = index->fields;
+    uint32_t total_fields = index->n_fields + n_dropped_cols;
+    index->fields = (dict_field_t *)mem_heap_alloc(
+        index->heap, 1 + (total_fields) * sizeof(dict_field_t));
+    memcpy(index->fields, fields, 1 + index->n_fields * sizeof(dict_field_t));
+
+    /* Fix field->col pointers with the mapping created. */
+    for (size_t i = 0; i < index->n_fields; i++) {
+      index->get_field(i)->col = target_table->get_col(mapping[i]);
+    }
+  }
+  ut::delete_arr(mapping);
+
+  /* Set initial/current/total_col_count for table */
+  target_table->initial_col_count = m_initial_column_count;
+  target_table->current_col_count = m_current_column_count;
+  target_table->total_col_count = m_total_column_count;
+
+  /* Take a temp heap and add columns */
+  mem_heap_t *heap = mem_heap_create(1000, UT_LOCATION_HERE);
+  for (size_t i = 0; i < m_n_cols; i++) {
+    dict_col_t *cfg_col = &m_cols[i];
+    ut_ad(cfg_col != nullptr);
+
+    if (cfg_col->is_instant_dropped()) {
+      uint8_t v_added = cfg_col->is_instant_added()
+                            ? cfg_col->get_version_added()
+                            : UINT8_UNDEFINED;
+      uint8_t v_dropped = cfg_col->get_version_dropped();
+      uint32_t phy_pos = cfg_col->get_phy_pos();
+      std::string col_name = (char *)m_col_names[i];
+
+      dict_mem_table_add_col(m_table, heap, col_name.c_str(), cfg_col->mtype,
+                             cfg_col->prtype, cfg_col->len, false, phy_pos,
+                             v_added, v_dropped);
+    }
+  }
+  mem_heap_free(heap);
+
+  for (size_t i = 0; i < m_n_cols; i++) {
+    dict_col_t *cfg_col = &m_cols[i];
+    ut_ad(cfg_col != nullptr);
+
+    if (cfg_col->is_instant_dropped()) {
+      std::string col_name = (char *)m_col_names[i];
+      /* Add this field into clustered index fields */
+      dict_col_t *col = m_table->get_col_by_name(col_name.c_str());
+      ut_ad(col->mtype != DATA_SYS);
+      /* Physical position must have already been set */
+      ut_ad(col->get_phy_pos() != UINT32_UNDEFINED);
+
+      dict_index_add_col(index, m_table, col, 0, true);
+
+      index->n_total_fields++;
+    }
+  }
+
+  /* index->fields_array doesn't take space in index->heap. It will be updated
+  in the caller. */
+
+  /* Update the size change in dict_sys */
+  size_t new_heap_size =
+      mem_heap_get_size(target_table->heap) + mem_heap_get_size(index->heap);
+  if (new_heap_size > old_heap_size) {
+    mutex_enter(&dict_sys->mutex);
+    dict_sys->size += old_heap_size - new_heap_size;
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  return DB_SUCCESS;
+}
+
+/** Set the instant ADD/DROP COLUMN information to the table.
+@return DB_SUCCESS if successful, or error code */
+dberr_t row_import::set_instant_info_v2(THD *thd, const dd::Table *dd_table)
+    UNIV_NOTHROW {
+  dberr_t err = DB_SUCCESS;
+
+  bool src_has_row_versions = has_row_versions();
+  bool dst_has_row_versions = m_table->has_row_versions();
+
+  /* None of the table has INSTANT columns. Return success. */
+  if (!src_has_row_versions && !dst_has_row_versions) {
+    return (DB_SUCCESS);
+  }
+
+  /* Only target table has INSTANT columns, ERROR */
+  /* It must have already been checked in match_table_columns */
+  ut_ad(!(!src_has_row_versions && dst_has_row_versions));
+  if (!src_has_row_versions && dst_has_row_versions) {
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "The .cfg file indicates no INSTANT column in the source table"
+            " whereas the metadata in data dictionary says there are instant"
+            " columns in the target table");
+
+    return (DB_ERROR);
+  }
+
+  /* Only source table has INSTANT columns. */
+  if (src_has_row_versions && !dst_has_row_versions) {
+    /* Update INSTANT metadata in target table. */
+    return (adjust_instant_metadata_in_taregt_table(thd, dd_table));
+  }
+
+  /* Both the tables have INSTANT columns. */
+  if (src_has_row_versions && dst_has_row_versions) {
+    /* INSTANT metadata must match. */
+    return (match_instant_metadata_in_target_table(thd));
+  }
+
+  return (err);
+}
+
+dberr_t row_import::adjust_instant_metadata_in_taregt_table(
+    THD *thd, const dd::Table *dd_table) {
+  dberr_t err = DB_SUCCESS;
+
+  /* It must have already been checked in match_table_columns */
+  ut_ad(m_table->get_n_user_cols() == m_current_column_count);
+  if (m_table->get_n_user_cols() != m_current_column_count) {
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Source table has INSTANT columns. Target table column count"
+            " didn't match with the configuration file.");
+    return (DB_ERROR);
+  }
+
+  bool has_instant_drop_cols = m_total_column_count > m_current_column_count;
+  if (has_instant_drop_cols) {
+    /* Add dropped columns to target table definition. */
+    add_instant_dropped_columns(m_table);
+  }
+
+  size_t old_size = mem_heap_get_size(m_table->heap);
+
+  for (uint32_t i = 0; i < m_n_cols; i++) {
+    dict_col_t *cfg_col = &m_cols[i];
+    ut_ad(cfg_col != nullptr);
+
+    std::string col_name = (char *)m_col_names[i];
+
+    /* Search for this column in target table */
+    dict_col_t *target_col = m_table->get_col_by_name(col_name.c_str());
+
+    /* Normal column */
+    if (!cfg_col->is_instant_added() && !cfg_col->is_instant_dropped()) {
+      ut_ad(target_col != nullptr);
+      ut_ad(!target_col->is_instant_added() &&
+            !target_col->is_instant_dropped());
+      ut_ad(cfg_col->instant_default == nullptr);
+
+      /* We need to adjust phy_pos for column here */
+      target_col->set_phy_pos(cfg_col->get_phy_pos());
+      continue;
+    }
+
+    /* INSTANT DROP column */
+    if (cfg_col->is_instant_dropped()) {
+      ut_ad(col_name.find("_dropped_v") != std::string::npos);
+
+      /* This columns must have already been added to table cache in
+      add_instant_dropped_columns() */
+      ut_ad(target_col != nullptr);
+      ut_ad(target_col->get_phy_pos() == cfg_col->get_phy_pos());
+      ut_ad(target_col->is_version_added_match(cfg_col));
+      ut_ad(target_col->is_instant_dropped());
+      ut_ad(target_col->is_version_dropped_match(cfg_col));
+
+      /* This column must have already been added to DD::Columns while
+      reading columns data from CFG file in row_import_read_columns(). */
+      ut_ad(nullptr != dd_find_column(dd_table, col_name.c_str()));
+
+      continue;
+    }
+
+    /* INSTANT ADD column */
+    if (cfg_col->is_instant_added()) {
+      ut_ad(!cfg_col->is_instant_dropped());
+      /* This must be present in target. */
+      ut_ad(target_col != nullptr);
+      if (target_col == nullptr) {
+        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+                "The column %s isn't found in target table.", col_name.c_str());
+        err = DB_ERROR;
+        break;
+      }
+
+      /* Update version_added/phy_pos for column. */
+      target_col->set_version_added(cfg_col->get_version_added());
+      target_col->set_phy_pos(cfg_col->get_phy_pos());
+
+      /* Set default value from .cfg file. */
+      ut_ad(cfg_col->instant_default != nullptr);
+      target_col->set_default(cfg_col->instant_default->value,
+                              cfg_col->instant_default->len, m_table->heap);
+    }
+
+    /* Note: these info has to be updated in DD as well in
+    dd_import_instant_add_columns(). */
+  }
+
+  size_t new_size = mem_heap_get_size(m_table->heap);
+  if (new_size > old_size) {
+    mutex_enter(&dict_sys->mutex);
+    dict_sys->size += new_size - old_size;
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  m_table->initial_col_count = m_initial_column_count;
+  m_table->current_col_count = m_current_column_count;
+  m_table->total_col_count = m_total_column_count;
+  m_table->current_row_version = m_current_row_version;
+
+  ut_ad(m_table->has_row_versions());
+  dict_index_t &first_index = *m_table->first_index();
+  first_index.row_versions = true;
+  first_index.rec_cache.offsets = nullptr;
+  first_index.rec_cache.nullable_cols = 0;
+  /* Recreate fields array for clustered index */
+  first_index.create_fields_array();
+  first_index.create_nullables(m_table->current_row_version);
+
+  /* FIXME: Force to discard the table, in case of any rollback later. */
+  //	m_table->discard_after_ddl = true;
+
+  return (err);
+}
+
 /** Set the instant ADD COLUMN information to the table.
 @return DB_SUCCESS if all instant columns are trailing columns, or error code */
-dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
+dberr_t row_import::set_instant_info(THD *thd,
+                                     const dd::Table *dd_table) UNIV_NOTHROW {
+  if (m_version >= IB_EXPORT_CFG_VERSION_V7) {
+    return set_instant_info_v2(thd, dd_table);
+  }
+
   dberr_t error = DB_SUCCESS;
   dict_col_t *col = m_table->cols;
   uint16_t instants = 0;
@@ -1563,6 +1999,20 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
     m_table->set_instant_cols(m_table->get_n_user_cols());
     ut_ad(!m_table->has_instant_cols());
     return (DB_SUCCESS);
+  }
+
+  /* Do not allow IMPORT if target table also have INSTANT columns. As after
+  the implementation of row versions in table
+  - IMPORT allowed with INSTANT columns in target table iff metadata matches
+    exactly with source table.
+  - The source table is from earlier release so metadata can't match. */
+  if (m_table->has_row_versions()) {
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Target table has INSTANT columns but the .cfg file is from earlier"
+            " release with INSTANT column in the source table. Instant metadata"
+            " can't match. Please create target table with no INSTANT column"
+            " and try IMPORT.");
+    return (DB_ERROR);
   }
 
   old_size = mem_heap_get_size(m_table->heap);
@@ -1638,11 +2088,13 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
 
   m_table->set_instant_cols(m_table->get_n_user_cols() - m_n_instant_cols);
   ut_ad(m_table->has_instant_cols());
+  m_table->set_upgraded_instant();
+
   dict_index_t &first_index = *m_table->first_index();
   first_index.instant_cols = true;
   first_index.rec_cache.offsets = nullptr;
   first_index.rec_cache.nullable_cols = 0;
-  first_index.n_instant_nullable = m_n_instant_nullable;
+  first_index.set_instant_nullable(m_n_instant_nullable);
   /* FIXME: Force to discard the table, in case of any rollback later. */
   //	m_table->discard_after_ddl = true;
 
@@ -1800,7 +2252,7 @@ dberr_t PageConverter::adjust_cluster_index_blob_column(rec_t *rec,
   ulint len;
   byte *field;
 
-  field = rec_get_nth_field(rec, offsets, i, &len);
+  field = rec_get_nth_field(m_cluster_index, rec, offsets, i, &len);
 
   DBUG_EXECUTE_IF("ib_import_trigger_corruption_2",
                   len = BTR_EXTERN_FIELD_REF_SIZE - 1;);
@@ -1846,7 +2298,7 @@ dberr_t PageConverter::adjust_cluster_index_blob_columns(
   for (ulint i = 0; i < rec_offs_n_fields(offsets); ++i) {
     /* Only if the column is stored "externally". */
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(m_cluster_index, offsets, i)) {
       dberr_t err;
 
       err = adjust_cluster_index_blob_column(rec, offsets, i);
@@ -2525,8 +2977,8 @@ static void row_import_discard_changes(
 
     offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
 
-    field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_ROW_ID),
-                              &len);
+    field = rec_get_nth_field(index, rec, offsets,
+                              index->get_sys_col_pos(DATA_ROW_ID), &len);
 
     if (len == DATA_ROW_ID_LEN) {
       row_id = mach_read_from_6(field);
@@ -2985,20 +3437,240 @@ Refer to row_quiesce_write_default_value() for the format details.
   }
 }
 
-/** Read the meta data (table columns) config file. Deserialise the contents of
- dict_col_t structure, along with the column name. */
-[[nodiscard]] static dberr_t row_import_read_columns(
-    FILE *file,      /*!< in: file to write to */
-    THD *thd,        /*!< in/out: session */
-    row_import *cfg) /*!< in/out: meta-data read */
-{
-  dict_col_t *col;
-  byte row[sizeof(uint32_t) * 8];
+/** Read dd::Column metadata for the dropped table.
+@param[in,out]	table_def	Table definition
+@param[in]	file		file to read from
+@param[in]	cfg		meta-data read
+@param[in]	thd		session
+@param[in]	col		dict_col_t
+@param[in]	col_name	name of the columns */
+static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
+                                                    FILE *file, row_import *cfg,
+                                                    THD *thd, dict_col_t *col,
+                                                    const char *col_name) {
+  ut_ad(col->is_instant_dropped());
 
+  /* Total metadata to be written
+    1 byte for is NULLABLE
+    1 byte for is_unsigned
+    4 bytes for char_length
+    4 bytes for column type
+    4 bytes for numeric scale
+    8 bytes for collation id */
+  constexpr size_t METADATA_SIZE = 22;
+
+  byte row[METADATA_SIZE];
+
+  /* Read column's v_added, v_dropped, phy_pos  */
+  if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                strerror(errno), "while reading dropped column meta-data.");
+    return (DB_IO_ERROR);
+  }
+
+  byte *ptr = row;
+
+  /* 1 byte for is NULLABLE */
+  bool is_nullable = mach_read_from_1(ptr);
+  ptr += 1;
+
+  /* 1 byte for is_unsigned */
+  bool is_unsigned = mach_read_from_1(ptr);
+  ptr += 1;
+
+  /* 4 bytes for char_length */
+  uint32_t char_length = mach_read_from_4(ptr);
+  ptr += sizeof(uint32_t);
+
+  /* 4 bytes for column type */
+  uint32_t col_type = mach_read_from_4(ptr);
+  ptr += sizeof(uint32_t);
+
+  /* 4 bytes for numeric scale */
+  uint32_t numeric_scale = mach_read_from_4(ptr);
+  ptr += sizeof(uint32_t);
+
+  /* 8 bytes for collation id */
+  uint64_t collation_id = mach_read_from_8(ptr);
+  ptr += sizeof(uint64_t);
+
+  /* Read elements for enum column type.
+  [4]     bytes : numner of elements
+  For each element
+    [4]     bytes : element name length (len+1)
+    [len+1] bytes : element name */
+  std::vector<dd::String_type> enum_names;
+  if ((dd::enum_column_types)col_type == dd::enum_column_types::ENUM ||
+      (dd::enum_column_types)col_type == dd::enum_column_types::SET) {
+    byte _row[4];
+
+    /* Read element count */
+    if (fread(_row, 1, sizeof(_row), file) != sizeof(_row)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno), "while reading dropped column meta-data.");
+      return (DB_IO_ERROR);
+    }
+    size_t n_elem = mach_read_from_4(_row);
+
+    for (size_t i = 0; i < n_elem; i++) {
+      /* Read element name length */
+      if (fread(_row, 1, sizeof(_row), file) != sizeof(_row)) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                    strerror(errno), "while reading dropped column meta-data.");
+        return (DB_IO_ERROR);
+      }
+      uint32_t len = mach_read_from_4(_row);
+
+      if (len == 0) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                    strerror(errno),
+                    "Enum element name length %lu, is invalid for column %s",
+                    (ulong)len, col_name);
+
+        return (DB_CORRUPTION);
+      }
+
+      /* Read element name */
+      byte *elem_name =
+          ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
+      dberr_t err = row_import_cfg_read_string(file, elem_name, len);
+      if (err != DB_SUCCESS) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                    strerror(errno),
+                    "Error reading Enum element name for column %s", col_name);
+
+        return (DB_CORRUPTION);
+      }
+      enum_names.push_back((const char *)elem_name);
+      ut::delete_arr(elem_name);
+    }
+  }
+
+  dd::Column *new_column =
+      const_cast<dd::Column *>(dd_find_column(table_def, col_name));
+  /* If the INSTANT DROP column already exists in target table DD, confirm it's
+  metadata is matching which the CFG. */
+  if (new_column != nullptr) {
+    ut_ad(new_column->is_se_hidden());
+
+    bool err = false;
+
+    {
+      /* Match version added */
+      if (col->is_instant_added() && dd_column_is_added(new_column)) {
+        uint32_t v = dd_column_get_version_added(new_column);
+        err = (v != (uint32_t)col->get_version_added());
+      } else if (col->is_instant_added() || dd_column_is_added(new_column)) {
+        err = true;
+      }
+
+      /* Match version dropped */
+      if (!err) {
+        if (dd_column_is_dropped(new_column)) {
+          uint32_t v = dd_column_get_version_dropped(new_column);
+          err = (v != (uint32_t)col->get_version_dropped());
+        } else {
+          err = true;
+        }
+      }
+
+      /* Match phy_pos */
+      if (!err) {
+        const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+        uint32_t v = 0;
+        new_column->se_private_data().get(s, &v);
+        err = (v != col->get_phy_pos());
+      }
+    }
+
+    auto match_enum_values = [&](dd::Column *col) {
+      if (enum_names.size() == 0) {
+        ut_ad(col->type() != dd::enum_column_types::ENUM &&
+              col->type() != dd::enum_column_types::SET);
+        return false;
+      }
+
+      size_t i = 0;
+      for (const auto &elem : col->elements()) {
+        if (enum_names[i++].compare(elem->name()) != 0) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    if (err || new_column->is_nullable() != is_nullable ||
+        new_column->is_unsigned() != is_unsigned ||
+        new_column->char_length() != char_length ||
+        new_column->numeric_scale() != numeric_scale ||
+        new_column->collation_id() != collation_id ||
+        match_enum_values(new_column)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno),
+                  "DD metadata for INSTNAT DROP column %s in"
+                  " target table doesn't match with CFG.",
+                  col_name);
+      return DB_ERROR;
+    }
+
+    return DB_SUCCESS;
+  }
+
+  /* Add this column as a SE_HIDDEN column in dest table def */
+  new_column = dd_add_hidden_column(table_def, col_name, char_length,
+                                    (dd::enum_column_types)col_type);
+  ut_ad(new_column != nullptr);
+
+  /* Set SE Private data of newly added hidden column here */
+  {
+    auto set = [&](const char *s, uint32_t v) {
+      new_column->se_private_data().set(s, v);
+    };
+
+    new_column->se_private_data().clear();
+    if (col->is_instant_added()) {
+      set(dd_column_key_strings[DD_INSTANT_VERSION_ADDED],
+          (uint32_t)col->get_version_added());
+    }
+
+    set(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED],
+        (uint32_t)col->get_version_dropped());
+    set(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS], col->get_phy_pos());
+  }
+
+  new_column->set_nullable(is_nullable);
+  new_column->set_unsigned(is_unsigned);
+  new_column->set_char_length(char_length);
+  new_column->set_numeric_scale(numeric_scale);
+  new_column->set_collation_id(collation_id);
+  new_column->set_type((dd::enum_column_types)col_type);
+  /* Elements for enum columns */
+  if ((dd::enum_column_types)col_type == dd::enum_column_types::ENUM ||
+      (dd::enum_column_types)col_type == dd::enum_column_types::SET) {
+    for (auto &name : enum_names) {
+      auto *elem_obj = new_column->add_element();
+      elem_obj->set_name(name.c_str());
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
+/** Read the meta data (table columns) config file. Deserialise the contents of
+dict_col_t structure, along with the column name.
+@param[in,out]	table_def	Table definition
+@param[in]	file		file to read from
+@param[in]	thd		session
+@param[in]	cfg		meta-data read */
+[[nodiscard]] static dberr_t row_import_read_columns(dd::Table *table_def,
+                                                     FILE *file, THD *thd,
+                                                     row_import *cfg) {
   /* FIXME: What should the upper limit be? */
   ut_a(cfg->m_n_cols > 0);
   ut_a(cfg->m_n_cols < 1024);
 
+  /* Allocate array of columns */
   cfg->m_cols = ut::new_arr_withkey<dict_col_t>(UT_NEW_THIS_FILE_PSI_KEY,
                                                 ut::Count{cfg->m_n_cols});
 
@@ -3010,8 +3682,9 @@ Refer to row_quiesce_write_default_value() for the format details.
     return (DB_OUT_OF_MEMORY);
   }
 
-  memset(cfg->m_cols, 0x0, sizeof(*cfg->m_cols) * cfg->m_n_cols);
+  // memset(cfg->m_cols, 0x0, sizeof(*cfg->m_cols) * cfg->m_n_cols);
 
+  /* Allocated array to store name of the columns */
   cfg->m_col_names = ut::new_arr_withkey<byte *>(UT_NEW_THIS_FILE_PSI_KEY,
                                                  ut::Count{cfg->m_n_cols});
 
@@ -3025,7 +3698,8 @@ Refer to row_quiesce_write_default_value() for the format details.
 
   memset(cfg->m_col_names, 0x0, sizeof(cfg->m_col_names) * cfg->m_n_cols);
 
-  col = cfg->m_cols;
+  dict_col_t *col = cfg->m_cols;
+  byte row[sizeof(uint32_t) * 8];
 
   for (ulint i = 0; i < cfg->m_n_cols; ++i, ++col) {
     byte *ptr = row;
@@ -3096,6 +3770,43 @@ Refer to row_quiesce_write_default_value() for the format details.
                   strerror(errno), "while parsing table column name.");
 
       return (err);
+    }
+
+    /* Read INSTANT metadata of column */
+    if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V7) {
+      byte row[2 + sizeof(uint32_t)];
+
+      /* Read column's v_added, v_dropped, phy_pos  */
+      if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                    strerror(errno),
+                    "while reading table column INSTANT meta-data.");
+        return (DB_IO_ERROR);
+      }
+
+      byte *ptr = row;
+      uint8_t v = mach_read_from_1(ptr);
+      col->set_version_added(v);
+      ptr++;
+
+      v = mach_read_from_1(ptr);
+      col->set_version_dropped(v);
+      ptr++;
+
+      col->set_phy_pos(mach_read_from_4(ptr));
+
+      if (col->is_instant_dropped()) {
+        const char *col_name = (const char *)cfg->m_col_names[i];
+        ut_ad(strstr(col_name, "_dropped_v") != nullptr);
+
+        /* Read dropped col dd::Column metadata and add it to dd::Table */
+        dberr_t err = row_import_read_dropped_col_metadata(table_def, file, cfg,
+                                                           thd, col, col_name);
+
+        if (err != DB_SUCCESS) {
+          return err;
+        }
+      }
     }
 
     if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V3) {
@@ -3257,6 +3968,7 @@ Refer to row_quiesce_write_default_value() for the format details.
 
   ut_a(logical_page_size == cfg->m_page_size.logical());
 
+  /* Read Total number of columns in table */
   cfg->m_n_cols = mach_read_from_4(ptr);
 
   if (!dict_tf_is_valid(cfg->m_flags)) {
@@ -3277,6 +3989,33 @@ Refer to row_quiesce_write_default_value() for the format details.
     cfg->m_n_instant_nullable = mach_read_from_4(value);
   } else {
     cfg->m_n_instant_nullable = 0;
+  }
+
+  if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V7) {
+    byte row[sizeof(uint32_t) * 5];
+
+    /* Read column's count for the table  */
+    if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno), "while reading table column counts.");
+      return (DB_IO_ERROR);
+    }
+
+    byte *ptr = row;
+    cfg->m_initial_column_count = mach_read_from_4(ptr);
+    ptr += sizeof(uint32_t);
+
+    cfg->m_current_column_count = mach_read_from_4(ptr);
+    ptr += sizeof(uint32_t);
+
+    cfg->m_total_column_count = mach_read_from_4(ptr);
+    ptr += sizeof(uint32_t);
+
+    cfg->m_n_instant_drop_cols = mach_read_from_4(ptr);
+    ptr += sizeof(uint32_t);
+
+    cfg->m_current_row_version = mach_read_from_4(ptr);
+    ptr += sizeof(uint32_t);
   }
 
   return (err);
@@ -3325,14 +4064,17 @@ file.
 }
 
 /** Read the contents of the @<tablespace@>.cfg file
-@param[in]	file	File to read from
+@param[in]	table_def Table definition
+@param[in]	file	file to read from
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
-    row_import_read_common(FILE *file, THD *thd, row_import *cfg) {
+    row_import_read_common(dd::Table *table_def, FILE *file, THD *thd,
+                           row_import *cfg) {
   dberr_t err;
-  if ((err = row_import_read_columns(file, thd, cfg)) != DB_SUCCESS) {
+  if ((err = row_import_read_columns(table_def, file, thd, cfg)) !=
+      DB_SUCCESS) {
     return (err);
 
   } else if ((err = row_import_read_indexes(file, thd, cfg)) != DB_SUCCESS) {
@@ -3345,13 +4087,16 @@ file.
 
 /**
 Read the contents of the @<tablespace@>.cfg file.
+@param[in]	table		dict table
+@param[in]	table_def	Table definition
+@param[in]	file		File to read from
+@param[in]	thd		session
+@param[out]	cfg		contents of the .cfg file
 @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_import_read_meta_data(
-    dict_table_t *table, /*!< in: table */
-    FILE *file,          /*!< in: File to read from */
-    THD *thd,            /*!< in: session */
-    row_import &cfg)     /*!< out: contents of the .cfg file */
-{
+[[nodiscard]] static dberr_t row_import_read_meta_data(dict_table_t *table,
+                                                       dd::Table *table_def,
+                                                       FILE *file, THD *thd,
+                                                       row_import &cfg) {
   byte row[sizeof(uint32_t)];
 
   /* Trigger EOF */
@@ -3373,7 +4118,7 @@ Read the contents of the @<tablespace@>.cfg file.
     case IB_EXPORT_CFG_VERSION_V1:
       err = row_import_read_v1(file, thd, &cfg);
       if (err == DB_SUCCESS) {
-        err = row_import_read_common(file, thd, &cfg);
+        err = row_import_read_common(table_def, file, thd, &cfg);
       }
       return (err);
 
@@ -3382,6 +4127,7 @@ Read the contents of the @<tablespace@>.cfg file.
     case IB_EXPORT_CFG_VERSION_V4:
     case IB_EXPORT_CFG_VERSION_V5:
     case IB_EXPORT_CFG_VERSION_V6:
+    case IB_EXPORT_CFG_VERSION_V7:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3389,7 +4135,7 @@ Read the contents of the @<tablespace@>.cfg file.
       }
 
       if (err == DB_SUCCESS) {
-        err = row_import_read_common(file, thd, &cfg);
+        err = row_import_read_common(table_def, file, thd, &cfg);
       }
       return (err);
     default:
@@ -3438,7 +4184,7 @@ Read the contents of the @<tablename@>.cfg file.
   } else {
     cfg.m_missing = false;
 
-    err = row_import_read_meta_data(table, file, thd, cfg);
+    err = row_import_read_meta_data(table, table_def, file, thd, cfg);
     fclose(file);
   }
 
@@ -3824,7 +4570,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
-  if (table->has_instant_cols()) {
+  if (table->has_instant_cols() || table->has_row_versions()) {
     dd_import_instant_add_columns(table, table_def);
   }
 

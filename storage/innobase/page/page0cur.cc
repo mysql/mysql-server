@@ -427,6 +427,7 @@ void page_cur_search_with_match(const buf_block_t *block,
     ut_ad(dict_table_is_comp(index->table));
     ut_ad(!dict_index_has_virtual(index));
     ut_ad(!index->table->has_instant_cols());
+    ut_ad(!index->table->has_row_versions());
     ut_ad(!dict_index_is_spatial(index));
     const size_t n = dtuple_get_n_fields_cmp(tuple);
     const size_t searchable = dict_index_get_n_unique_in_tree(index);
@@ -463,9 +464,9 @@ void page_cur_search_with_match(const buf_block_t *block,
           ulint len;
           ulint len2;
 
-          const auto off = rec_get_nth_field(mid_rec, offsets, i, &len);
+          const auto off = rec_get_nth_field(index, mid_rec, offsets, i, &len);
           const auto off2 =
-              rec_get_nth_field(mid_rec, cached_offsets, i, &len2);
+              rec_get_nth_field(index, mid_rec, cached_offsets, i, &len2);
           ut_a(off == off2);
           ut_a(len == len2);
         }
@@ -891,9 +892,10 @@ static void page_cur_insert_rec_write_log(
         rec_get_offsets(insert_rec, index, ins_offs_, ULINT_UNDEFINED, &heap);
 
     extra_size = rec_offs_extra_size(ins_offs);
-    cur_extra_size = rec_offs_extra_size(cur_offs);
     ut_ad(rec_size == rec_offs_size(ins_offs));
+
     cur_rec_size = rec_offs_size(cur_offs);
+    cur_extra_size = rec_offs_extra_size(cur_offs);
 
     if (heap != nullptr) {
       mem_heap_free(heap);
@@ -904,7 +906,30 @@ static void page_cur_insert_rec_write_log(
 
   i = 0;
 
-  if (cur_extra_size == extra_size) {
+  uint8_t cur_version = 0;
+  uint8_t ins_version = 0;
+  if (index->has_row_versions()) {
+    const bool is_cmp = page_rec_is_comp(insert_rec);
+
+    auto has_version = [is_cmp](rec_t *rec) {
+      return (is_cmp ? rec_new_is_versioned(rec) : rec_old_is_versioned(rec));
+    };
+
+    if (has_version(cursor_rec)) {
+      cur_version = is_cmp ? rec_get_instant_row_version_new(cursor_rec)
+                           : rec_get_instant_row_version_old(cursor_rec);
+    }
+
+    /* New records always have the version except the case when records are
+    being moved from one page to another (pessimistic, reorg) */
+    if (has_version(insert_rec)) {
+      ins_version = is_cmp ? rec_get_instant_row_version_new(insert_rec)
+                           : rec_get_instant_row_version_old(insert_rec);
+    }
+  }
+
+  /* If versions are different, then don't compare the records */
+  if (cur_version != ins_version && cur_extra_size == extra_size) {
     ulint min_rec_size = std::min(cur_rec_size, rec_size);
 
     const byte *cur_ptr = cursor_rec - cur_extra_size;
@@ -928,28 +953,22 @@ static void page_cur_insert_rec_write_log(
     } while (i < min_rec_size);
   }
 
+  /* Length needed on REDO log :
+   11 -> REDO_LOG_INITIAL_INFO_SIZE
+   2  -> cursor rec offset
+   5  -> record end segment length
+   1  -> info bits
+   5  -> record origin offset
+   5  -> mismatch index */
   byte *log_ptr = nullptr;
 
   if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
-    if (page_rec_is_comp(insert_rec)) {
-      if (!mlog_open_and_write_index(
-              mtr, insert_rec, index, MLOG_COMP_REC_INSERT,
-              2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
-        /* Logging in mtr is switched off
-        during crash recovery: in that case
-        mlog_open returns NULL */
-        return;
-      }
-    } else {
-      if (!mlog_open(mtr, 11 + 2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
-        /* Logging in mtr is switched off
-        during crash recovery: in that case
-        mlog_open returns NULL */
-        return;
-      }
-
-      log_ptr = mlog_write_initial_log_record_fast(insert_rec, MLOG_REC_INSERT,
-                                                   log_ptr, mtr);
+    if (!mlog_open_and_write_index(mtr, insert_rec, index, MLOG_REC_INSERT,
+                                   2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN,
+                                   log_ptr)) {
+      /* Logging in mtr is switched off during crash recovery: in that case
+      mlog_open returns NULL */
+      return;
     }
 
     log_end = &log_ptr[2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
@@ -977,7 +996,8 @@ static void page_cur_insert_rec_write_log(
     }
   }
 
-  if (extra_size != cur_extra_size || rec_size != cur_rec_size) {
+  if (extra_size != cur_extra_size || rec_size != cur_rec_size ||
+      cur_version != ins_version) {
   need_extra_info:
     /* Write the record end segment length
     and the extra info storage flag */
@@ -1123,13 +1143,18 @@ byte *page_cur_parse_insert_rec(
   /* Read from the log the inserted index record end segment which
   differs from the cursor record */
 
-  offsets = rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED, &heap);
+  if ((end_seg_len & 0x1UL) && mismatch_index == 0) {
+    /* This is a record has nothing common to cursor record. */
+  } else {
+    offsets =
+        rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  if (!(end_seg_len & 0x1UL)) {
-    info_and_status_bits =
-        rec_get_info_and_status_bits(cursor_rec, page_is_comp(page));
-    origin_offset = rec_offs_extra_size(offsets);
-    mismatch_index = rec_offs_size(offsets) - (end_seg_len >> 1);
+    if (!(end_seg_len & 0x1UL)) {
+      info_and_status_bits =
+          rec_get_info_and_status_bits(cursor_rec, page_is_comp(page));
+      origin_offset = rec_offs_extra_size(offsets);
+      mismatch_index = rec_offs_size(offsets) - (end_seg_len >> 1);
+    }
   }
 
   end_seg_len >>= 1;
@@ -1154,7 +1179,9 @@ byte *page_cur_parse_insert_rec(
         << ", end_seg_len " << end_seg_len << " parsed len " << (ptr - ptr2);
   }
 
-  ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
+  if (mismatch_index) {
+    ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
+  }
   ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
   if (page_is_comp(page)) {
@@ -1249,6 +1276,7 @@ rec_t *page_cur_insert_rec_low(
 
     foffsets =
         rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+
     if (rec_offs_size(foffsets) < rec_size) {
       if (UNIV_LIKELY_NULL(heap)) {
         mem_heap_free(heap);
@@ -1825,7 +1853,7 @@ rec_t *page_cur_insert_rec_zip(
       ut_ad(trx_id_col > 0);
       ut_ad(trx_id_col != ULINT_UNDEFINED);
 
-      trx_id_offs = rec_get_nth_field_offs(foffsets, trx_id_col, &len);
+      trx_id_offs = rec_get_nth_field_offs(index, foffsets, trx_id_col, &len);
       ut_ad(len == DATA_TRX_ID_LEN);
 
       if (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN + trx_id_offs +
@@ -1840,7 +1868,7 @@ rec_t *page_cur_insert_rec_zip(
       }
 
       ut_ad(free_rec + trx_id_offs + DATA_TRX_ID_LEN ==
-            rec_get_nth_field(free_rec, foffsets, trx_id_col + 1, &len));
+            rec_get_nth_field(index, free_rec, foffsets, trx_id_col + 1, &len));
       ut_ad(len == DATA_ROLL_PTR_LEN);
     }
 
@@ -1960,10 +1988,7 @@ static inline bool page_copy_rec_list_to_created_page_write_log(
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
   const bool opened = mlog_open_and_write_index(
-      mtr, page, index,
-      page_is_comp(page) ? MLOG_COMP_LIST_END_COPY_CREATED
-                         : MLOG_LIST_END_COPY_CREATED,
-      4, log_ptr);
+      mtr, page, index, MLOG_LIST_END_COPY_CREATED, 4, log_ptr);
 
   if (opened) {
     mlog_close(mtr, log_ptr + 4);
@@ -2203,10 +2228,8 @@ static inline void page_cur_delete_rec_write_log(
   byte *log_ptr = nullptr;
   ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  if (!mlog_open_and_write_index(
-          mtr, rec, index,
-          page_rec_is_comp(rec) ? MLOG_COMP_REC_DELETE : MLOG_REC_DELETE, 2,
-          log_ptr)) {
+  if (!mlog_open_and_write_index(mtr, rec, index, MLOG_REC_DELETE, 2,
+                                 log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
     in that case mlog_open returns NULL */
     return;

@@ -1,0 +1,23 @@
+##########################################################################
+# Test script to test EXPORT/IMPORT for table having INSTANT ADD/DROP
+# columns.
+##########################################################################
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_ddl_import.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_ddl_import.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_ddl_import.inc
+

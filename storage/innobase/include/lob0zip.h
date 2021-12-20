@@ -141,11 +141,12 @@ class zInserter : private BaseInserter {
     const ulint *offsets = m_ctx->get_offsets();
 
     for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
-      if (!rec_offs_nth_extern(offsets, i)) {
+      if (!rec_offs_nth_extern(m_ctx->index(), offsets, i)) {
         continue;
       }
 
-      byte *field_ref = btr_rec_get_field_ref(m_ctx->rec(), offsets, i);
+      byte *field_ref =
+          btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(), offsets, i);
 
       ref_t blobref(field_ref);
 

@@ -494,7 +494,7 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
 
 dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
                    size_t type) noexcept {
-  ut_ad(rec_offs_any_null_extern(m_rec, m_offsets) == nullptr);
+  ut_ad(rec_offs_any_null_extern(index, m_rec, m_offsets) == nullptr);
 
   /* Build a row based on the clustered index. */
 

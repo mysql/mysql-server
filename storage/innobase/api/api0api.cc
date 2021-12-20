@@ -361,7 +361,7 @@ static ib_err_t ib_read_tuple(
     data = rec_get_nth_field_instant(copy, offsets, i, index, &len);
 
     /* Fetch and copy any externally stored column. */
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       const page_size_t page_size(dict_table_page_size(index->table));
 
       /* Passing nullptr to the transaction object.  This

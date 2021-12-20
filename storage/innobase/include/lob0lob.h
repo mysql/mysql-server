@@ -592,35 +592,41 @@ the file, in case the file was somehow truncated in the crash.
 @param[out]	lob_version	version of lob that has been copied
 @param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
+@param[in]	is_rebuilt	true if rebuilt
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
-    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
+    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap,
+    bool is_rebuilt);
 
 static inline byte *btr_rec_copy_externally_stored_field(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
     size_t *ver, bool is_sdi [[maybe_unused]], mem_heap_t *heap) {
-  return btr_rec_copy_externally_stored_field_func(trx, index, rec, offsets,
-                                                   page_size, no, len, ver,
-                                                   IF_DEBUG(is_sdi, ) heap);
+  return btr_rec_copy_externally_stored_field_func(
+      trx, index, rec, offsets, page_size, no, len, ver,
+      IF_DEBUG(is_sdi, ) heap, false);
 }
 
 /** Gets the offset of the pointer to the externally stored part of a field.
+@param[in]	index		Index
 @param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	n		index of the external field
 @return offset of the pointer to the externally stored part */
-ulint btr_rec_get_field_ref_offs(const ulint *offsets, ulint n);
+ulint btr_rec_get_field_ref_offs(const dict_index_t *index,
+                                 const ulint *offsets, ulint n);
 
 /** Gets a pointer to the externally stored part of a field.
+@param[in] index index
 @param rec record
 @param offsets rec_get_offsets(rec)
 @param n index of the externally stored field
 @return pointer to the externally stored part */
-static inline const byte *btr_rec_get_field_ref(const byte *rec,
+static inline const byte *btr_rec_get_field_ref(const dict_index_t *index,
+                                                const byte *rec,
                                                 const ulint *offsets, ulint n) {
-  return rec + lob::btr_rec_get_field_ref_offs(offsets, n);
+  return rec + lob::btr_rec_get_field_ref_offs(index, offsets, n);
 }
 
 /** Gets a pointer to the externally stored part of a field.
@@ -628,9 +634,9 @@ static inline const byte *btr_rec_get_field_ref(const byte *rec,
 @param offsets rec_get_offsets(rec)
 @param n index of the externally stored field
 @return pointer to the externally stored part */
-static inline byte *btr_rec_get_field_ref(byte *rec, const ulint *offsets,
-                                          ulint n) {
-  return rec + lob::btr_rec_get_field_ref_offs(offsets, n);
+static inline byte *btr_rec_get_field_ref(const dict_index_t *index, byte *rec,
+                                          const ulint *offsets, ulint n) {
+  return rec + lob::btr_rec_get_field_ref_offs(index, offsets, n);
 }
 
 /** Deallocate a buffer block that was reserved for a BLOB part.
@@ -724,9 +730,9 @@ class BtrContext {
     byte *data;
     ulint local_len;
 
-    data =
-        const_cast<byte *>(rec_get_nth_field(m_rec, m_offsets, i, &local_len));
-    ut_ad(rec_offs_nth_extern(m_offsets, i));
+    data = const_cast<byte *>(
+        rec_get_nth_field(m_index, m_rec, m_offsets, i, &local_len));
+    ut_ad(rec_offs_nth_extern(m_index, m_offsets, i));
     ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
     local_len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -759,7 +765,7 @@ class BtrContext {
     }
 
     for (ulint i = 0; i < n; i++) {
-      if (rec_offs_nth_extern(m_offsets, i)) {
+      if (rec_offs_nth_extern(m_index, m_offsets, i)) {
         set_ownership_of_extern_field(i, true);
       }
     }
@@ -783,9 +789,11 @@ class BtrContext {
   @param[in]	undo_no		undo number within a transaction whose
                                   LOB is being freed.
   @param[in]	update		update vector
-  @param[in]	rollback	performing rollback? */
+  @param[in]	rollback	performing rollback?
+  @param[in]	big_rec_vec	big record vector */
   void free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
-                                  const upd_t *update, bool rollback);
+                                  const upd_t *update, bool rollback,
+                                  big_rec_t *big_rec_vec);
 
   /** Gets the compressed page descriptor
   @return the compressed page descriptor. */
@@ -820,7 +828,7 @@ class BtrContext {
   @param[in]	field_no	field number.
   @return LOB reference (aka external field reference).*/
   byte *get_field_ref(ulint field_no) const {
-    return (btr_rec_get_field_ref(m_rec, get_offsets(), field_no));
+    return (btr_rec_get_field_ref(m_index, m_rec, get_offsets(), field_no));
   }
 
 #ifdef UNIV_DEBUG
@@ -849,11 +857,11 @@ class BtrContext {
   @return will not return if any blob reference is invalid. */
   bool are_all_blobrefs_valid() const {
     for (ulint i = 0; i < rec_offs_n_fields(m_offsets); i++) {
-      if (!rec_offs_nth_extern(m_offsets, i)) {
+      if (!rec_offs_nth_extern(m_index, m_offsets, i)) {
         continue;
       }
 
-      byte *field_ref = btr_rec_get_field_ref(rec(), m_offsets, i);
+      byte *field_ref = btr_rec_get_field_ref(m_index, rec(), m_offsets, i);
 
       ref_t blobref(field_ref);
 
@@ -999,7 +1007,7 @@ class BtrContext {
   /** Mark the nth field as externally stored.
   @param[in]	field_no	the field number. */
   void make_nth_extern(ulint field_no) {
-    rec_offs_make_nth_extern(m_offsets, field_no);
+    rec_offs_make_nth_extern(m_index, m_offsets, field_no);
   }
 
   /** Get the log mode of the btr mtr.
@@ -1406,7 +1414,7 @@ struct DeleteContext : public BtrContext {
     rec_t *clust_rec = rec();
     if (clust_rec != nullptr) {
       const byte *v2 =
-          btr_rec_get_field_ref(clust_rec, get_offsets(), m_field_no);
+          btr_rec_get_field_ref(m_index, clust_rec, get_offsets(), m_field_no);
 
       ut_ad(m_blobref.is_equal(v2));
     }
@@ -1522,10 +1530,12 @@ static inline byte *btr_copy_externally_stored_field(
 }
 
 /** Gets the externally stored size of a record, in units of a database page.
+@param[in]	index	index
 @param[in]	rec	record
 @param[in]	offsets	array returned by rec_get_offsets()
 @return externally stored part, in units of a database page */
-ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
+ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
+                                        const rec_t *rec, const ulint *offsets);
 
 /** Purge an LOB (either of compressed or uncompressed).
 @param[in]	ctx		the delete operation context information.

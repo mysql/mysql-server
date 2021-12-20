@@ -1,0 +1,189 @@
+# INSTANT ADD/DROP Column
+# Test some Limitations/error conditions
+
+# InnoDB does not support compressed tables for page sizes=32k,64k
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Scenario 1:
+--echo # Create a small table with row_format compressed and adding/dropping instant column should fail
+--echo #
+CREATE TABLE t1 (a INT, b INT) ROW_FORMAT=COMPRESSED;
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+# Try to add instant column
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 5, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP COLUMN a, ALGORITHM=INSTANT;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Scenario 2:
+--echo # Create a small table and adding spatial types with not null should fail
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c1 POINT NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN d1 LINESTRING  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ ALTER TABLE t1 ADD COLUMN e1 POLYGON  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION  NOT NULL, ALGORITHM = INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN j1 GEOMETRY  NOT NULL, ALGORITHM = INSTANT;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Scenario 3:
+--echo # Create a temporary table and adding/dropping instant column should fail
+--echo #
+CREATE TEMPORARY TABLE tmp1(a INT, b INT);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE tmp1 ADD COLUMN c int, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE tmp1 DROP COLUMN b, ALGORITHM=INSTANT;
+
+DROP TABLE tmp1;
+
+--echo #
+--echo # Scenario 4:
+--echo # Trying to add/drop instant columns for data-dictionary tables should fail
+--echo #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.plugin ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.plugin DROP COLUMN dl, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.user ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE mysql.user DROP COLUMN Select_priv, ALGORITHM=INSTANT;
+
+--echo #
+--echo # Scenario 5:
+--echo # Trying to add/drop instant column to a table having FTS index
+--echo #
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a,b));
+INSERT INTO t1 VALUES('test1', 'test2');
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INSTANT;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 DROP COLUMN b, ALGORITHM=INSTANT;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Scenario 6:
+--echo # INSTANT ADD/DROP column with key
+--echo #
+CREATE TABLE t1 (c1 INT, c2 INT);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c3 INT KEY, ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT KEY, c2 INT);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 DROP COLUMN c1, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP COLUMN c1, ADD PRIMARY KEY (c2), ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT KEY, c2 INT);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c3 INT UNIQUE KEY, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ADD COLUMN c3 INT, ADD INDEX idx (c3), ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT KEY, c2 INT, INDEX idx(c2));
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+--echo #
+--echo # Scenario 7:
+--echo # Maximum row versions (MAX_ROW_VERSION is 64)
+--echo #
+CREATE TABLE t1 (c1 int);
+--echo # INSTANT ADD COLUMNS to table to make it reach the maximum versions
+--disable_query_log
+let $counter=2;
+while ($counter<=65)
+{ 
+  eval ALTER TABLE t1 ADD COLUMN c$counter INT, ALGORITHM=INSTANT;
+  inc $counter;
+}
+--enable_query_log
+
+--echo # Table TOTAL_ROW_VERSIONS should be 64 (MAX)
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # An INSTANT ADD COLUMN should result in error now.
+--error ER_INNODB_MAX_ROW_VERSION
+ALTER TABLE t1 ADD COLUMN c66 INT, ALGORITHM=INSTANT;
+
+--echo # ADD COLUMN shall fall back to INPLACE if ALGORITHM not given explicitly
+ALTER TABLE t1 ADD COLUMN c66 INT;
+
+--echo # Table would have been rebuilt
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 int);
+INSERT INTO t1(c1) VALUES(1);
+SELECT * FROM t1;
+
+--echo # INSTANT ADD COLUMNS to table to make it reach the maximum versions
+--disable_query_log
+let $counter=2;
+while ($counter<=65)
+{
+  eval ALTER TABLE t1 ADD COLUMN c$counter INT, ALGORITHM=INSTANT;
+  inc $counter;
+}
+--enable_query_log
+
+--echo # An INSTANT DROP COLUMN should result in error now.
+--error ER_INNODB_MAX_ROW_VERSION
+ALTER TABLE t1 DROP COLUMN c65, ALGORITHM=INSTANT;
+INSERT INTO t1(c1) VALUES(2);
+SELECT * FROM t1;
+
+--echo # DROP COLUMN shall fall back to INPLACE if ALGORITHM not given explicitly
+ALTER TABLE t1 DROP COLUMN c65;
+INSERT INTO t1(c1) VALUES(3);
+SELECT * FROM t1;
+
+--echo # Table would have been rebuilt
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+DROP TABLE t1;

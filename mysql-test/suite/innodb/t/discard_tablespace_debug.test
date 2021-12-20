@@ -16,7 +16,7 @@ let $old_tid = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME
 
 # Verify that the column metadata reflects the old table_id
 SET SESSION debug= '+d,skip_dd_table_access_check';
-SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA='table_id=", @old_tableid, ";'");
+SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA like \"%table_id=", @old_tableid, "%\"");
 PREPARE stmt FROM @query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -35,7 +35,7 @@ if ($old_tid == $new_tid)
 }
 
 # Verify that the column metadata reflects the new table_id
-SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA='table_id=", @new_tableid, ";'");
+SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA like \"%table_id=", @new_tableid, "%\"");
 PREPARE stmt FROM @query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -57,7 +57,7 @@ SELECT TABLE_ID INTO @old_tableid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NA
 let $old_tid = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%tpart%' LIMIT 1`;
 
 # Verify that the column metadata reflects the old table_id
-SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA='table_id=", @old_tableid, ";'");
+SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA like \"%table_id=", @old_tableid, "%\"");
 PREPARE stmt FROM @query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -77,7 +77,7 @@ if ($old_tid == $new_tid)
 }
 
 # Verify that the column metadata reflects the new table_id
-SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA='table_id=", @new_tableid, ";'");
+SET @query = CONCAT("SELECT COUNT(*) FROM mysql.columns WHERE SE_PRIVATE_DATA like \"%table_id=", @new_tableid, "%\"");
 PREPARE stmt FROM @query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

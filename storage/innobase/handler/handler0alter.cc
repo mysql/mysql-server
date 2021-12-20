@@ -47,8 +47,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/impl/properties_impl.h"
+#include "dd/impl/types/column_impl.h"
 #include "dd/properties.h"
 #include "dd/types/column.h"
+#include "dd/types/column_type_element.h"
 #include "dd/types/index.h"
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
@@ -61,6 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
+#include "dict0inst.h"  //Instant DDL
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
@@ -100,25 +103,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* For supporting Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 #include "partition_info.h"
-
-/** Flags indicating if current operation can be done instantly */
-enum class Instant_Type : uint16_t {
-  /** Impossible to alter instantly */
-  INSTANT_IMPOSSIBLE,
-
-  /** Can be instant without any change */
-  INSTANT_NO_CHANGE,
-
-  /** Adding or dropping virtual columns only */
-  INSTANT_VIRTUAL_ONLY,
-
-  /** ADD COLUMN which can be done instantly, including
-  adding stored column only (or along with adding virtual columns) */
-  INSTANT_ADD_COLUMN,
-
-  /** Column rename */
-  INSTANT_COLUMN_RENAME
-};
 
 /** Function to convert the Instant_Type to a comparable int */
 inline uint16_t instant_type_to_int(Instant_Type type) {
@@ -164,7 +148,9 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INSTANT_ALLOWED =
     Alter_inplace_info::ADD_VIRTUAL_COLUMN |
     Alter_inplace_info::DROP_VIRTUAL_COLUMN |
     Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
-    Alter_inplace_info::ADD_STORED_BASE_COLUMN;
+    Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+    Alter_inplace_info::ALTER_STORED_COLUMN_ORDER |
+    Alter_inplace_info::DROP_STORED_COLUMN;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS =
@@ -468,6 +454,116 @@ static bool innobase_spatial_exist(const TABLE *table) {
   return (false);
 }
 
+/** Get col in new table def of renamed column.
+@param[in]	ha_alter_info	inplace alter info
+@param[in]	old_dd_column	column in old table
+@param[in]	new_dd_tab	new table definition
+@return column if renamed, NULL otherwise */
+static dd::Column *get_renamed_col(const Alter_inplace_info *ha_alter_info,
+                                   const dd::Column *old_dd_column,
+                                   const dd::Table *new_dd_tab) {
+  List_iterator_fast<Create_field> cf_it(
+      ha_alter_info->alter_info->create_list);
+  cf_it.rewind();
+  Create_field *cf;
+  while ((cf = cf_it++) != nullptr) {
+    if (cf->field && cf->field->is_flag_set(FIELD_IS_RENAMED) &&
+        strcmp(cf->change, old_dd_column->name().c_str()) == 0) {
+      /* This column is being renamed */
+      return (const_cast<dd::Column *>(
+          dd_find_column(&new_dd_tab->table(), cf->field_name)));
+    }
+  }
+
+  return nullptr;
+}
+
+/** Copy metadata of dd::Table and dd::Columns from old table to new table.
+This is done during inplce alter table when table is not rebuilt.
+@param[in]	ha_alter_info	inplace alter info
+@param[in]	old_dd_tab	old table definition
+@param[in,out]	new_dd_tab	new table definition */
+static void dd_inplace_alter_copy_instant_metadata(
+    const Alter_inplace_info *ha_alter_info, const dd::Table *old_dd_tab,
+    dd::Table *new_dd_tab) {
+  /* If old table is upgraded table and hasn't been altered yet, it won't have
+  V2 instant metadata. Skip. This metadata will be added when it's altered. */
+  if (dd_table_is_upgraded_no_row_version(*old_dd_tab)) {
+    return;
+  }
+
+  /* Copy col phy pos from old DD table to new DD table */
+  for (auto old_dd_column : old_dd_tab->columns()) {
+    const char *s = dd_column_key_strings[DD_INSTANT_VERSION_DROPPED];
+    if (old_dd_column->se_private_data().exists(s)) {
+      uint32_t v_dropped = UINT32_UNDEFINED;
+      old_dd_column->se_private_data().get(s, &v_dropped);
+      if (v_dropped > 0) {
+        /* Dropped column will be copied after the loop. Skip for now. */
+        continue;
+      }
+    }
+
+    /* Get corresponding dd::column in new table */
+    dd::Column *new_dd_column = const_cast<dd::Column *>(
+        dd_find_column(new_dd_tab, old_dd_column->name().c_str()));
+    if (new_dd_column == nullptr) {
+      /* This column might have been renamed */
+      new_dd_column = get_renamed_col(ha_alter_info, old_dd_column, new_dd_tab);
+    }
+
+    if (new_dd_column == nullptr) {
+      /* This column must have been dropped */
+      continue;
+    }
+
+    if (new_dd_column->is_virtual()) {
+      continue;
+    }
+
+    auto fn = [&](const char *s, auto &value) {
+      if (old_dd_column->se_private_data().exists(s)) {
+        old_dd_column->se_private_data().get(s, &value);
+        new_dd_column->se_private_data().set(s, value);
+      }
+    };
+
+    /* Copy phy pos for column */
+    uint32_t phy_pos = UINT32_UNDEFINED;
+    s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+    ut_ad(old_dd_column->se_private_data().exists(s));
+    fn(s, phy_pos);
+
+    /* copy version added */
+    uint32_t v_added = UINT32_UNDEFINED;
+    s = dd_column_key_strings[DD_INSTANT_VERSION_ADDED];
+    fn(s, v_added);
+
+    /* Copy instant default values for INSTANT ADD columns */
+    s = dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL];
+    if (old_dd_column->se_private_data().exists(s)) {
+      ut_ad(v_added > 0);
+      bool value = false;
+      fn(s, value);
+    } else {
+      s = dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT];
+      if (old_dd_column->se_private_data().exists(s)) {
+        ut_ad(v_added > 0);
+        dd::String_type value;
+        fn(s, value);
+      } else {
+        /* This columns is not INSTANT ADD */
+        ut_ad(v_added == UINT32_UNDEFINED);
+      }
+    }
+  }
+
+  if (dd_table_has_instant_drop_cols(*old_dd_tab)) {
+    /* Add INSTANT dropped column from old_dd_tab to new_dd_tab */
+    copy_dropped_columns(old_dd_tab, new_dd_tab, UINT32_UNDEFINED);
+  }
+}
+
 /** Check if virtual column in old and new table are in order, excluding
 those dropped column. This is needed because when we drop a virtual column,
 ALTER_VIRTUAL_COLUMN_ORDER is also turned on, so we can't decide if this
@@ -581,7 +677,7 @@ static bool check_v_col_in_order(const TABLE *table, const TABLE *altered_table,
 after DDL
 @param[in,out]	thd	THD object
 @param[in,out]	table	InnoDB table object */
-static void innobase_discard_table(THD *thd, dict_table_t *table) {
+void innobase_discard_table(THD *thd, dict_table_t *table) {
   char errstr[ERROR_STR_LENGTH];
   if (dict_stats_drop_table(table->name.m_name, errstr, sizeof(errstr)) !=
       DB_SUCCESS) {
@@ -717,11 +813,18 @@ static inline Instant_Type innobase_support_instant(
     return (Instant_Type::INSTANT_IMPOSSIBLE);
   }
 
+  /* During upgrade, if columns are added in system tables, avoid instant */
+  if (current_thd->is_server_upgrade_thread()) {
+    return (Instant_Type::INSTANT_IMPOSSIBLE);
+  }
+
   enum class INSTANT_OPERATION {
     COLUMN_RENAME_ONLY,           /*!< Only column RENAME */
     VIRTUAL_ADD_DROP_ONLY,        /*!< Only virtual column ADD AND DROP */
     VIRTUAL_ADD_DROP_WITH_RENAME, /*!< Virtual column ADD/DROP with RENAME */
-    INSTANT_ADD, /*< INSTANT ADD possibly with virtual column ADD and
+    INSTANT_ADD,  /*< INSTANT ADD possibly with virtual column ADD and
+                     column RENAME */
+    INSTANT_DROP, /*|< INSTANT DROP possibly with virtual column ADD/DROP and
                     column RENAME */
     NONE
   };
@@ -742,6 +845,8 @@ static inline Instant_Type innobase_support_instant(
   } else if (alter_inplace_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN &&
              !(alter_inplace_flags & Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
     op = INSTANT_OPERATION::INSTANT_ADD;
+  } else if (alter_inplace_flags & Alter_inplace_info::DROP_STORED_COLUMN) {
+    op = INSTANT_OPERATION::INSTANT_DROP;
   }
 
   switch (op) {
@@ -761,13 +866,18 @@ static inline Instant_Type innobase_support_instant(
     case INSTANT_OPERATION::VIRTUAL_ADD_DROP_WITH_RENAME:
       /* Not supported yet in INPLACE. So not supporting here as well. */
       break;
+    case INSTANT_OPERATION::INSTANT_DROP:
+      if (!check_v_col_in_order(old_table, altered_table, ha_alter_info)) {
+        break;
+      }
+      [[fallthrough]];
     case INSTANT_OPERATION::INSTANT_ADD:
       /* If it's an ADD COLUMN without changing existing stored column orders
       (change trailing virtual column orders is fine, especially for supporting
       adding stored columns to a table with functional indexes), or including
       ADD VIRTUAL COLUMN */
-      if (table->support_instant_add()) {
-        return (Instant_Type::INSTANT_ADD_COLUMN);
+      if (table->support_instant_add_drop()) {
+        return (Instant_Type::INSTANT_ADD_DROP_COLUMN);
       }
       break;
     case INSTANT_OPERATION::NONE:
@@ -853,8 +963,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
-  /* We don't support change encryption attribute with
-  inplace algorithm. */
+  /* We don't support change encryption attribute with inplace algorithm. */
   char *old_encryption = this->table->s->encrypt_type.str;
   char *new_encryption = altered_table->s->encrypt_type.str;
 
@@ -884,8 +993,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
-  /* Only support online add foreign key constraint when
-  check_foreigns is turned off */
+  /* Only support online add foreign key constraint when check_foreigns is
+  turned off */
   if ((ha_alter_info->handler_flags & Alter_inplace_info::ADD_FOREIGN_KEY) &&
       m_prebuilt->trx->check_foreigns) {
     ha_alter_info->unsupported_reason =
@@ -894,8 +1003,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   }
 
   if (altered_table->file->ht != ht) {
-    /* Non-native partitioning table engine. No longer supported,
-    due to implementation of native InnoDB partitioning. */
+    /* Non-native partitioning table engine. No longer supported, due to
+    implementation of native InnoDB partitioning. */
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
@@ -909,10 +1018,33 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     switch (instant_type) {
       case Instant_Type::INSTANT_IMPOSSIBLE:
         break;
-      case Instant_Type::INSTANT_ADD_COLUMN:
+      case Instant_Type::INSTANT_ADD_DROP_COLUMN:
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
           /* Still fall back to INPLACE since the behaviour is different */
+          break;
+        } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
+          if (ha_alter_info->alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+            my_error(ER_INNODB_MAX_ROW_VERSION, MYF(0),
+                     m_prebuilt->table->name.m_name);
+            return HA_ALTER_ERROR;
+          }
+
+          /* INSTANT can't be done any more. Fall back to INPLACE. */
+          break;
+        } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_possible(
+                       ha_alter_info, table, altered_table,
+                       m_prebuilt->table)) {
+          if (ha_alter_info->alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+            /* Try to find if after adding columns, any possible row stays
+            within permissible limit. If it doesn't, return error. */
+            my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE, MYF(0));
+            return HA_ALTER_ERROR;
+          }
+
+          /* INSTANT can't be done. Fall back to INPLACE. */
           break;
         } else if (ha_alter_info->error_if_not_empty) {
           /* In this case, it can't be instant because the table
@@ -1228,25 +1360,6 @@ static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
                                         const Table *old_dd_tab,
                                         Table *new_dd_tab, bool ignore_fts);
 
-/** Update metadata in commit phase if it is instant ALTER TABLE
-@param[in]	ha_alter_info	the DDL operation
-@param[in,out]	thd		THD object
-@param[in,out]	trx		transaction
-@param[in,out]	table		new InnoDB table
-@param[in]	old_table	MySQL table as it is before the ALTER operation
-@param[in]	altered_table	MySQL table that is being altered
-@param[in]	old_dd_tab	Old dd::Table or dd::Partition
-@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
-@param[in]	autoinc		autoinc counter pointer if AUTO_INCREMENT
-                                is defined for the table, otherwise nullptr */
-template <typename Table>
-static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
-                                      THD *thd, trx_t *trx, dict_table_t *table,
-                                      const TABLE *old_table,
-                                      const TABLE *altered_table,
-                                      const Table *old_dd_tab,
-                                      Table *new_dd_tab, uint64_t *autoinc);
-
 /** Update table level instant metadata in commit phase
 @param[in]	table		InnoDB table object
 @param[in]	old_dd_tab	old dd::Table
@@ -1254,24 +1367,6 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
 static void dd_commit_inplace_update_instant_meta(const dict_table_t *table,
                                                   const dd::Table *old_dd_tab,
                                                   dd::Table *new_dd_tab);
-
-/** Update metadata in commit phase for instant ADD COLUMN.
-Basically, it should remember number of instant columns,
-and the default value of newly added columns.
-Note this function should only update the metadata
-which would not result in failure
-@param[in]	ha_alter_info	the DDL operation
-@param[in]	new_table	New InnoDB table object
-@param[in]	old_table	MySQL table as it is before the ALTER operation
-@param[in]	altered_table	MySQL table that is being altered
-@param[in]	old_dd_tab	Old dd::Table
-@param[in,out]	new_dd_tab	New dd::Table */
-static void dd_commit_instant_table(const Alter_inplace_info *ha_alter_info,
-                                    const dict_table_t *new_table,
-                                    const TABLE *old_table,
-                                    const TABLE *altered_table,
-                                    const dd::Table *old_dd_tab,
-                                    dd::Table *new_dd_tab);
 
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
@@ -1491,18 +1586,28 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
 
   if (is_instant(ha_alter_info)) {
     ut_ad(!res);
-    dd_commit_inplace_instant(ha_alter_info, m_user_thd, m_prebuilt->trx,
-                              m_prebuilt->table, table, altered_table,
-                              old_dd_tab, new_dd_tab,
-                              altered_table->found_next_number_field != nullptr
-                                  ? &m_prebuilt->table->autoinc
-                                  : nullptr);
+
+    Instant_ddl_impl<dd::Table> executor(
+        ha_alter_info, m_user_thd, m_prebuilt->trx, m_prebuilt->table, table,
+        altered_table, old_dd_tab, new_dd_tab,
+        altered_table->found_next_number_field != nullptr
+            ? &m_prebuilt->table->autoinc
+            : nullptr);
+
+    /* Execute Instant DDL */
+    executor.commit_instant_ddl();
   } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
              ctx == nullptr) {
     ut_ad(!res);
     dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
   } else {
     ut_ad(old_info_updated);
+    if (!ctx->need_rebuild() && !dict_table_has_fts_index(m_prebuilt->table)) {
+      /* Table is not rebuilt so copy instant metadata. */
+      dd_inplace_alter_copy_instant_metadata(ha_alter_info, old_dd_tab,
+                                             new_dd_tab);
+    }
+
     dd_commit_inplace_alter_table<dd::Table>(old_info, ctx->new_table,
                                              old_dd_tab, new_dd_tab);
     if (!ctx->need_rebuild()) {
@@ -2157,7 +2262,7 @@ void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
 
     ipos = index->get_col_pos(i, true, false);
 
-    if (ipos == ULINT_UNDEFINED || rec_offs_nth_extern(offsets, ipos)) {
+    if (ipos == ULINT_UNDEFINED || rec_offs_nth_extern(index, offsets, ipos)) {
     null_field:
       field->set_null();
       continue;
@@ -4048,7 +4153,7 @@ template <typename Table>
   return false;
 }
 
-/** Update table level instant metadata in commit phase
+/** Update table level instant metadata in commit phase of INPLACE ALTER
 @param[in]	table		InnoDB table object
 @param[in]	old_dd_tab	old dd::Table
 @param[in]	new_dd_tab	new dd::Table */
@@ -4059,11 +4164,17 @@ static void dd_commit_inplace_update_instant_meta(const dict_table_t *table,
     return;
   }
 
-  ut_ad(table->has_instant_cols());
+  ut_ad(table->has_instant_cols() || table->has_row_versions());
 
-  new_dd_tab->se_private_data().set(dd_table_key_strings[DD_TABLE_INSTANT_COLS],
-                                    table->get_instant_cols());
+  const char *s = dd_table_key_strings[DD_TABLE_INSTANT_COLS];
+  if (old_dd_tab->se_private_data().exists(s)) {
+    ut_ad(table->is_upgraded_instant());
+    uint32_t value = 0;
+    old_dd_tab->se_private_data().get(s, &value);
+    new_dd_tab->se_private_data().set(s, value);
+  }
 
+  /* Copy instant default values of columns if exists */
   for (uint16_t i = 0; i < table->get_n_user_cols(); ++i) {
     const dict_col_t *col = table->get_col(i);
 
@@ -4076,44 +4187,6 @@ static void dd_commit_inplace_update_instant_meta(const dict_table_t *table,
     ut_ad(dd_col != nullptr);
 
     dd_write_default_value(col, dd_col);
-  }
-}
-
-/** Update instant metadata in commit phase for partitioned table
-@param[in]	part_share	partition share object to get each
-partitioned table
-@param[in]	n_parts		number of partitions
-@param[in]	old_dd_tab	old dd::Table
-@param[in]	new_dd_tab	new dd::Table */
-static void dd_commit_inplace_update_partition_instant_meta(
-    const Ha_innopart_share *part_share, uint16_t n_parts,
-    const dd::Table *old_dd_tab, dd::Table *new_dd_tab) {
-  if (!dd_table_has_instant_cols(*old_dd_tab)) {
-    return;
-  }
-
-  const dict_table_t *table = part_share->get_table_part(0);
-
-  for (uint16_t i = 1; i < n_parts; ++i) {
-    if (part_share->get_table_part(i)->get_instant_cols() <
-        table->get_instant_cols()) {
-      table = part_share->get_table_part(i);
-    }
-  }
-
-  ut_ad(table->has_instant_cols());
-
-  dd_commit_inplace_update_instant_meta(table, old_dd_tab, new_dd_tab);
-
-  uint16_t i = 0;
-  for (auto part : *new_dd_tab->leaf_partitions()) {
-    if (part_share->get_table_part(i)->has_instant_cols()) {
-      part->se_private_data().set(
-          dd_partition_key_strings[DD_PARTITION_INSTANT_COLS],
-          part_share->get_table_part(i)->get_instant_cols());
-    }
-
-    ++i;
   }
 }
 
@@ -4137,6 +4210,7 @@ static void dd_commit_inplace_alter_table(
 
   if (old_info.m_rebuild) {
     ut_ad(!new_table->has_instant_cols());
+    ut_ad(!new_table->has_row_versions());
 
     if (dict_table_is_file_per_table(new_table)) {
       /* Get the one created in prepare phase */
@@ -4190,69 +4264,6 @@ static void dd_commit_inplace_alter_table(
   }
 }
 
-static void dd_commit_instant_table(const Alter_inplace_info *ha_alter_info,
-                                    const dict_table_t *new_table,
-                                    const TABLE *old_table,
-                                    const TABLE *altered_table,
-                                    const dd::Table *old_dd_tab,
-                                    dd::Table *new_dd_tab) {
-  ut_ad(!new_table->is_temporary());
-  ut_ad(old_dd_tab->columns().size() <= new_dd_tab->columns()->size());
-
-  if (!new_dd_tab->se_private_data().exists(
-          dd_table_key_strings[DD_TABLE_INSTANT_COLS])) {
-    uint32_t instant_cols = new_table->get_n_user_cols();
-
-    if (dd_table_has_instant_cols(*old_dd_tab)) {
-      old_dd_tab->se_private_data().get(
-          dd_table_key_strings[DD_TABLE_INSTANT_COLS], &instant_cols);
-    }
-
-    new_dd_tab->se_private_data().set(
-        dd_table_key_strings[DD_TABLE_INSTANT_COLS], instant_cols);
-  }
-
-  /* To remember old default values if exist */
-  dd_copy_table_columns(ha_alter_info, *new_dd_tab, *old_dd_tab);
-
-  /* Then add all new default values */
-  dd_add_instant_columns(IF_DEBUG(ha_alter_info, ) old_table, altered_table,
-                         new_dd_tab, new_table);
-
-  /* Keep the metadata for newly added virtual columns if exist */
-  dd_update_v_cols(new_dd_tab, new_table->id);
-
-  ut_ad(dd_table_has_instant_cols(*new_dd_tab));
-}
-
-/** Update metadata in commit phase for instant ADD COLUMN.
-Basically, it should remember the number of instant columns
-for the specified partitioned table.
-@param[in]	new_table	New InnoDB table object
-@param[in,out]	new_part	New dd::Partition */
-static void dd_commit_instant_part(const dict_table_t *new_table,
-                                   dd::Partition *new_part) {
-  if (!new_part->se_private_data().exists(
-          dd_partition_key_strings[DD_PARTITION_INSTANT_COLS])) {
-    new_part->se_private_data().set(
-        dd_partition_key_strings[DD_PARTITION_INSTANT_COLS],
-        new_table->get_n_user_cols());
-  }
-#ifdef UNIV_DEBUG
-  uint32_t part_instant;
-  uint32_t table_instant;
-  bool fail;
-  fail = new_part->se_private_data().get(
-      dd_partition_key_strings[DD_PARTITION_INSTANT_COLS], &part_instant);
-  ut_ad(!fail);
-  ut_ad(part_instant <= new_table->get_n_user_cols());
-  fail = new_part->table().se_private_data().get(
-      dd_table_key_strings[DD_TABLE_INSTANT_COLS], &table_instant);
-  ut_ad(!fail);
-  ut_ad(table_instant <= part_instant);
-#endif /* UNIV_DEBUG */
-}
-
 template <typename Table>
 static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
                                         const Table *old_dd_tab,
@@ -4266,86 +4277,6 @@ static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
   if (!dd_table_is_partitioned(new_dd_tab->table()) ||
       dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
     dd_copy_table(ha_alter_info, new_dd_tab->table(), old_dd_tab->table());
-  }
-}
-
-template <typename Table>
-static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
-                                      THD *thd, trx_t *trx, dict_table_t *table,
-                                      const TABLE *old_table,
-                                      const TABLE *altered_table,
-                                      const Table *old_dd_tab,
-                                      Table *new_dd_tab, uint64_t *autoinc) {
-  ut_ad(is_instant(ha_alter_info));
-
-  Instant_Type type =
-      static_cast<Instant_Type>(ha_alter_info->handler_trivial_ctx);
-
-  switch (type) {
-    case Instant_Type::INSTANT_NO_CHANGE:
-      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
-      break;
-    case Instant_Type::INSTANT_COLUMN_RENAME:
-      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
-
-      if (!dd_table_is_partitioned(new_dd_tab->table()) ||
-          dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-        dd_update_v_cols(&new_dd_tab->table(), table->id);
-      }
-
-      row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
-      innobase_discard_table(thd, table);
-      row_mysql_unlock_data_dictionary(trx);
-      break;
-    case Instant_Type::INSTANT_VIRTUAL_ONLY:
-      if (dd_find_column(&old_dd_tab->table(), FTS_DOC_ID_COL_NAME) &&
-          !dd_find_column(&new_dd_tab->table(), FTS_DOC_ID_COL_NAME)) {
-        dd::Column *col = dd_add_hidden_column(
-            &new_dd_tab->table(), FTS_DOC_ID_COL_NAME, FTS_DOC_ID_LEN,
-            dd::enum_column_types::LONGLONG);
-        dd_set_hidden_unique_index(new_dd_tab->table().add_index(),
-                                   FTS_DOC_ID_INDEX_NAME, col);
-      }
-      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, true);
-
-      if (!dd_table_is_partitioned(new_dd_tab->table()) ||
-          dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-        dd_update_v_cols(&new_dd_tab->table(), table->id);
-      }
-
-      row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
-      innobase_discard_table(thd, table);
-      row_mysql_unlock_data_dictionary(trx);
-      break;
-    case Instant_Type::INSTANT_ADD_COLUMN:
-      dd_copy_private(*new_dd_tab, *old_dd_tab);
-
-      if (!dd_table_is_partitioned(new_dd_tab->table()) ||
-          dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-        dd_commit_instant_table(ha_alter_info, table, old_table, altered_table,
-                                &old_dd_tab->table(), &new_dd_tab->table());
-      }
-
-      if (dd_table_is_partitioned(new_dd_tab->table())) {
-        dd_commit_instant_part(table,
-                               reinterpret_cast<dd::Partition *>(new_dd_tab));
-      }
-
-      row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
-      innobase_discard_table(thd, table);
-      row_mysql_unlock_data_dictionary(trx);
-      break;
-    case Instant_Type::INSTANT_IMPOSSIBLE:
-    default:
-      ut_ad(0);
-  }
-
-  if (autoinc != nullptr) {
-    ut_ad(altered_table->found_next_number_field != nullptr);
-    if (!dd_table_is_partitioned(new_dd_tab->table()) ||
-        dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-      dd_set_autoinc(new_dd_tab->table().se_private_data(), *autoinc);
-    }
   }
 }
 
@@ -4597,7 +4528,6 @@ template <typename Table>
     ulint n_m_v_cols = 0;
     dtuple_t *add_cols;
     space_id_t space_id = 0;
-    ulint z = 0;
 
     /* SQL-layer already has checked that we are not dropping any
     columns in foreign keys to be kept or making referencing column
@@ -4753,14 +4683,16 @@ template <typename Table>
             field->gcol_info->non_virtual_base_columns(),
             !field->is_hidden_by_system());
       } else {
-        dict_mem_table_add_col(ctx->new_table, ctx->heap, field->field_name,
-                               col_type,
-                               dtype_form_prtype(field_type, charset_no),
-                               col_len, !field->is_hidden_by_system());
+        dict_mem_table_add_col(
+            ctx->new_table, ctx->heap, field->field_name, col_type,
+            dtype_form_prtype(field_type, charset_no), col_len,
+            !field->is_hidden_by_system(), UINT32_UNDEFINED, UINT8_UNDEFINED,
+            UINT8_UNDEFINED);
       }
     }
 
     if (n_v_cols) {
+      ulint z = 0;
       for (uint i = 0; i < altered_table->s->fields; i++) {
         dict_v_col_t *v_col;
         const Field *field = altered_table->field[i];
@@ -4773,6 +4705,12 @@ template <typename Table>
         innodb_base_col_setup(ctx->new_table, field, v_col);
       }
     }
+
+    /* Populate row version and column counts for new table */
+    ctx->new_table->current_row_version = 0;
+    ctx->new_table->initial_col_count = altered_table->s->fields - n_v_cols;
+    ctx->new_table->current_col_count = ctx->new_table->initial_col_count;
+    ctx->new_table->total_col_count = ctx->new_table->initial_col_count;
 
     if (add_fts_doc_id) {
       fts_add_doc_id_column(ctx->new_table, ctx->heap);
@@ -4806,7 +4744,8 @@ template <typename Table>
     dict_sys_mutex_exit();
 
     error = row_create_table_for_mysql(ctx->new_table, compression,
-                                       ha_alter_info->create_info, ctx->trx);
+                                       ha_alter_info->create_info, ctx->trx,
+                                       nullptr);
 
     dict_sys_mutex_enter();
 
@@ -5488,16 +5427,27 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     are still disallowed to behave like before. */
     if (innobase_need_rebuild(ha_alter_info) ||
         (type == Instant_Type::INSTANT_VIRTUAL_ONLY ||
-         type == Instant_Type::INSTANT_ADD_COLUMN)) {
+         type == Instant_Type::INSTANT_ADD_DROP_COLUMN)) {
       my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
       return true;
     }
   }
-  if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
-      is_instant(ha_alter_info)) {
+
+  if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
     /* Nothing to do. Since there is no MDL protected, don't
     try to drop aborted indexes here. */
     assert(m_prebuilt->trx->dict_operation_lock_mode == 0);
+    return false;
+  }
+
+  if (is_instant(ha_alter_info)) {
+    Instant_Type type = innobase_support_instant(ha_alter_info, indexed_table,
+                                                 this->table, altered_table);
+
+    if (type == Instant_Type::INSTANT_ADD_DROP_COLUMN) {
+      ut_a(indexed_table->current_row_version < MAX_ROW_VERSION);
+    }
+
     return false;
   }
 
@@ -8318,6 +8268,7 @@ class alter_part {
                             char *name);
 
   /** Create a new partition
+  @param[in]	part_table	partition table
   @param[in]	part_name	Partition name, including db/table
   @param[in,out]	dd_part		dd::Partition
   @param[in]	table		Table format
@@ -8328,9 +8279,9 @@ class alter_part {
   @param[in]	autoinc		Next AUTOINC value to use
   @param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
   @return 0 or error number */
-  int create(const char *part_name, dd::Partition *dd_part, TABLE *table,
-             const char *tablespace, bool file_per_table, uint64_t autoinc,
-             uint64_t autoextend_size);
+  int create(const dd::Table *part_table, const char *part_name,
+             dd::Partition *dd_part, TABLE *table, const char *tablespace,
+             bool file_per_table, uint64_t autoinc, uint64_t autoextend_size);
 
  protected:
   /** InnoDB transaction, nullptr if not used */
@@ -8383,20 +8334,10 @@ bool alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
   return (true);
 }
 
-/** Create a new partition
-@param[in]	part_name	Partition name, including db/table
-@param[in,out]	dd_part		dd::Partition
-@param[in]	table		Table format
-@param[in]	tablespace	Tablespace of this partition, if length is 0,
-                                it means no tablespace specified
-@param[in]	file_per_table	Current value of innodb_file_per_table
-@param[in]	autoinc		Next AUTOINC value to use
-@param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
-@return 0 or error number */
-int alter_part::create(const char *part_name, dd::Partition *dd_part,
-                       TABLE *table, const char *tablespace,
-                       bool file_per_table, uint64_t autoinc,
-                       uint64_t autoextend_size) {
+int alter_part::create(const dd::Table *old_part_table, const char *part_name,
+                       dd::Partition *dd_part, TABLE *table,
+                       const char *tablespace, bool file_per_table,
+                       uint64_t autoinc, uint64_t autoextend_size) {
   ut_ad(m_state == PART_TO_BE_ADDED || m_state == PART_CHANGED);
 
   dd::Table &dd_table = dd_part->table();
@@ -8444,7 +8385,7 @@ int alter_part::create(const char *part_name, dd::Partition *dd_part,
 
   return (innobase_basic_ddl::create_impl<dd::Partition>(
       current_thd, part_name, table, &create_info, dd_part, file_per_table,
-      false, false, 0, 0));
+      false, false, 0, 0, old_part_table));
 }
 
 typedef std::vector<alter_part *, ut::allocator<alter_part *>> alter_part_array;
@@ -8809,10 +8750,18 @@ class alter_part_add : public alter_part {
     dd::get_implicit_tablespace_options(current_thd, &part_table,
                                         &autoextend_size);
 
-    int error = create(part_name, new_part, altered_table, m_tablespace,
-                       m_file_per_table, m_autoinc, autoextend_size);
+    int error =
+        create(dd_table_has_instant_cols(part_table) ? &part_table : nullptr,
+               part_name, new_part, altered_table, m_tablespace,
+               m_file_per_table, m_autoinc, autoextend_size);
 
     if (error == 0 && alter_parts::need_copy(m_ha_alter_info)) {
+      /* If partition belongs to table with instant columns, copy instant
+      metadata to new table DD */
+      if (dd_table_has_row_versions(old_part->table())) {
+        inherit_instant_metadata(&old_part->table(), &new_part->table());
+      }
+
       dict_sys_mutex_enter();
       m_new = dict_table_check_if_in_cache_low(part_name);
       ut_ad(m_new != nullptr);
@@ -8876,6 +8825,12 @@ class alter_part_add : public alter_part {
   should be renamed at last */
   bool need_rename() const { return (m_conflict); }
 
+  /** Inherit instant metadata of dd::Table and dd::Columns belonging to it.
+  This is used when a new partition is added as part of REORGANIZE partition.
+  @param[in]      source  Source dd table
+  @param[in,out]  dest    Destination dd table */
+  void inherit_instant_metadata(const dd::Table *source, dd::Table *dest);
+
  private:
   /** ALTER information */
   const Alter_inplace_info *m_ha_alter_info;
@@ -8892,6 +8847,90 @@ class alter_part_add : public alter_part {
   /** Tablespace of this partition */
   char m_tablespace[FN_REFLEN + 1];
 };
+
+void alter_part_add::inherit_instant_metadata(const dd::Table *source,
+                                              dd::Table *dest) {
+  auto add_dropped_column = [&](const dd::Column *column) {
+    const char *col_name = column->name().c_str();
+    /* Add this column as an SE_HIDDEN column in dest table def */
+    dd::Column *new_column = dd_add_hidden_column(
+        dest, col_name, column->char_length(), column->type());
+    ut_ad(new_column != nullptr);
+
+    /* Copy se private data */
+    ut_ad(!column->se_private_data().empty());
+    new_column->se_private_data().clear();
+    new_column->set_se_private_data(column->se_private_data());
+
+    new_column->set_nullable(column->is_nullable());
+    new_column->set_char_length(column->char_length());
+    new_column->set_numeric_scale(column->numeric_scale());
+    new_column->set_unsigned(column->is_unsigned());
+    new_column->set_collation_id(column->collation_id());
+    new_column->set_type(column->type());
+    /* Elements for enum columns */
+    if (column->type() == dd::enum_column_types::ENUM ||
+        column->type() == dd::enum_column_types::SET) {
+      for (const auto *source_elem : column->elements()) {
+        auto *elem_obj = new_column->add_element();
+        elem_obj->set_name(source_elem->name());
+      }
+    }
+  };
+
+  /* Copy dd::Column instant metadata */
+  for (auto src_col : source->columns()) {
+    dd::Column *dest_col =
+        const_cast<dd::Column *>(dd_find_column(dest, src_col->name().c_str()));
+
+    if (dest_col == nullptr) {
+      add_dropped_column(src_col);
+      ut_ad(nullptr != dd_find_column(dest, src_col->name().c_str()));
+      continue;
+    }
+
+    if (dest_col->is_virtual()) {
+      continue;
+    }
+
+    auto fn = [&](const char *s, auto &value) {
+      if (src_col->se_private_data().exists(s)) {
+        src_col->se_private_data().get(s, &value);
+        dest_col->se_private_data().set(s, value);
+      }
+    };
+
+    uint32_t v_added = UINT32_UNDEFINED;
+    const char *s = dd_column_key_strings[DD_INSTANT_VERSION_ADDED];
+    fn(s, v_added);
+
+    uint32_t v_dropped = UINT32_UNDEFINED;
+    s = dd_column_key_strings[DD_INSTANT_VERSION_DROPPED];
+    fn(s, v_dropped);
+
+    uint32_t phy_pos = UINT32_UNDEFINED;
+    s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+    ut_ad(src_col->se_private_data().exists(s));
+    fn(s, phy_pos);
+
+    s = dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL];
+    if (src_col->se_private_data().exists(s)) {
+      ut_ad(v_added > 0);
+      bool value = false;
+      fn(s, value);
+    } else {
+      s = dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT];
+      if (src_col->se_private_data().exists(s)) {
+        ut_ad(v_added > 0);
+        dd::String_type value;
+        fn(s, value);
+      } else {
+        /* This columns is not INSTANT ADD or this column is already dropped. */
+        ut_ad(v_added == UINT32_UNDEFINED || v_dropped > 0);
+      }
+    }
+  }
+}
 
 /** Class which handles the partition of states
 PART_TO_BE_DROPPED, PART_TO_BE_REORGED and PART_REORGED_DROPPED.
@@ -9125,8 +9164,10 @@ int alter_part_change::prepare(TABLE *altered_table,
   dd::get_implicit_tablespace_options(current_thd, &part_table,
                                       &autoextend_size);
 
-  int error = create(part_name, new_part, altered_table, m_tablespace,
-                     m_file_per_table, m_autoinc, autoextend_size);
+  int error =
+      create(dd_table_has_instant_cols(part_table) ? &part_table : nullptr,
+             part_name, new_part, altered_table, m_tablespace, m_file_per_table,
+             m_autoinc, autoextend_size);
 
   if (error == 0) {
     dict_sys_mutex_enter();
@@ -10121,9 +10162,30 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
   switch (instant_type) {
     case Instant_Type::INSTANT_IMPOSSIBLE:
       break;
-    case Instant_Type::INSTANT_ADD_COLUMN:
+    case Instant_Type::INSTANT_ADD_DROP_COLUMN:
       if (ha_alter_info->alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
+        break;
+      } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
+        if (ha_alter_info->alter_info->requested_algorithm ==
+            Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+          my_error(ER_INNODB_MAX_ROW_VERSION, MYF(0),
+                   m_prebuilt->table->name.m_name);
+          return HA_ALTER_ERROR;
+        }
+        /* INSTANT can't be done any more. Fall back to INPLACE. */
+        break;
+      } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_possible(
+                     ha_alter_info, table, altered_table, m_prebuilt->table)) {
+        if (ha_alter_info->alter_info->requested_algorithm ==
+            Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+          /* Try to find if after adding columns, any possible row stays
+          within permissible limit. If it doesn't, return error. */
+          my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE, MYF(0));
+          return HA_ALTER_ERROR;
+        }
+
+        /* INSTANT can't be done. Fall back to INPLACE. */
         break;
       } else if (ha_alter_info->error_if_not_empty) {
         /* In this case, it can't be instant because the table
@@ -10465,28 +10527,35 @@ end:
           static_cast<ha_innobase_inplace_ctx *>(ctx_parts->ctx_array[i]);
 
       if (is_instant(ha_alter_info)) {
-        dd_commit_inplace_instant(
+        Instant_ddl_impl<dd::Partition> executor(
             ha_alter_info, m_user_thd, m_prebuilt->trx,
             m_part_share->get_table_part(i), table, altered_table, old_part,
             new_part,
             altered_table->found_next_number_field != nullptr
                 ? reinterpret_cast<uint64_t *>(&m_part_share->next_auto_inc_val)
                 : nullptr);
+
+        /* Execute Instant DDL */
+        executor.commit_instant_ddl();
       } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
                  ctx == nullptr) {
         dd_commit_inplace_no_change(ha_alter_info, old_part, new_part, true);
       } else {
         inplace_instant = !ctx_parts->m_old_info[0].m_rebuild;
+
+        /* Table is not rebuilt so copy instant metadata.
+        NOTE : To be done only for first partition */
+        if (i == 0 && inplace_instant) {
+          dd_inplace_alter_copy_instant_metadata(
+              ha_alter_info, &old_part->table(),
+              const_cast<dd::Table *>(&new_part->table()));
+        }
+
         dd_commit_inplace_alter_table(ctx_parts->m_old_info[i], ctx->new_table,
                                       old_part, new_part);
       }
 
       ++i;
-    }
-
-    if (inplace_instant) {
-      dd_commit_inplace_update_partition_instant_meta(
-          m_part_share, m_tot_parts, old_table_def, new_table_def);
     }
 
 #ifdef UNIV_DEBUG
@@ -10718,9 +10787,10 @@ bool ha_innopart::commit_inplace_alter_partition(
 
       dd_copy_table(ha_alter_info, *new_dd_tab, *old_dd_tab);
       dd_part_adjust_table_id(new_dd_tab);
-      if (!dd_table_part_has_instant_cols(*new_dd_tab) &&
-          dd_table_has_instant_cols(*new_dd_tab)) {
-        dd_clear_instant_table(*new_dd_tab);
+
+      if (dd_table_has_instant_cols(*old_dd_tab)) {
+        dd_inplace_alter_copy_instant_metadata(ha_alter_info, old_dd_tab,
+                                               new_dd_tab);
       }
     }
 

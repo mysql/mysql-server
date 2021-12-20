@@ -261,13 +261,13 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
                                               clust_index, &clust_len);
     }
 
-    sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
+    sec_field = rec_get_nth_field(nullptr, sec_rec, sec_offs, i, &sec_len);
 
     len = clust_len;
 
     if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL &&
         sec_len != UNIV_SQL_NULL && !col->is_virtual()) {
-      if (rec_offs_nth_extern(clust_offs, clust_pos)) {
+      if (rec_offs_nth_extern(clust_index, clust_offs, clust_pos)) {
         len -= BTR_EXTERN_FIELD_REF_SIZE;
       }
 
@@ -278,7 +278,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       /* Check sec index field matches that of cluster index
       in the case of for table with ATOMIC BLOB, note
       we also need to check if sec_len is 0 */
-      if (rec_offs_nth_extern(clust_offs, clust_pos) &&
+      if (rec_offs_nth_extern(clust_index, clust_offs, clust_pos) &&
           (len < sec_len ||
            (dict_table_has_atomic_blobs(sec_index->table) && sec_len == 0))) {
         if (!row_sel_sec_rec_is_for_blob(
@@ -304,7 +304,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
 
       /* For externally stored field, we need to get full
       geo data to generate the MBR for comparing. */
-      if (rec_offs_nth_extern(clust_offs, clust_pos)) {
+      if (rec_offs_nth_extern(clust_index, clust_offs, clust_pos)) {
         dptr = lob::btr_copy_externally_stored_field(
             trx, clust_index, &clust_len, nullptr, dptr,
             dict_tf_get_page_size(sec_index->table->flags), len,
@@ -483,7 +483,7 @@ static void row_sel_fetch_columns(trx_t *trx, dict_index_t *index,
     field_no = column->field_nos[index_type];
 
     if (field_no != ULINT_UNDEFINED) {
-      if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
+      if (UNIV_UNLIKELY(rec_offs_nth_extern(index, offsets, field_no))) {
         /* Copy an externally stored field to the
         temporary heap, if possible. */
 
@@ -2475,7 +2475,7 @@ static void row_sel_store_row_id_to_prebuilt(
 
   ut_ad(rec_offs_validate(index_rec, index, offsets));
 
-  data = rec_get_nth_field(index_rec, offsets,
+  data = rec_get_nth_field(index, index_rec, offsets,
                            index->get_sys_col_pos(DATA_ROW_ID), &len);
 
   if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
@@ -2654,6 +2654,7 @@ void row_sel_field_store_in_mysql_format_func(
       from prefix virtual column in virtual index. */
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
             len * templ->mbmaxlen >= mysql_col_len ||
+            index->has_row_versions() ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
@@ -2754,7 +2755,7 @@ void row_sel_field_store_in_mysql_format_func(
     field_no = sec_field_no;
   }
 
-  if (rec_offs_nth_extern(offsets, field_no)) {
+  if (rec_offs_nth_extern(rec_index, offsets, field_no)) {
     /* Copy an externally stored field to a temporary heap */
 
     ut_a(!prebuilt->trx->has_search_latch);
@@ -4199,7 +4200,7 @@ static void row_sel_fill_vrow(const rec_t *rec, dict_index_t *index,
       const byte *data;
       ulint len;
 
-      data = rec_get_nth_field(rec, offsets, i, &len);
+      data = rec_get_nth_field(index, rec, offsets, i, &len);
 
       const dict_v_col_t *vcol = reinterpret_cast<const dict_v_col_t *>(col);
 
@@ -6175,13 +6176,13 @@ static uint64_t row_search_autoinc_read_column(
 
   offsets = rec_get_offsets(rec, index, offsets, col_no + 1, &heap);
 
-  if (rec_offs_nth_sql_null(offsets, col_no)) {
+  if (rec_offs_nth_sql_null(index, offsets, col_no)) {
     /* There is no non-NULL value in the auto-increment column. */
     value = 0;
     goto func_exit;
   }
 
-  data = rec_get_nth_field(rec, offsets, col_no, &len);
+  data = rec_get_nth_field(index, rec, offsets, col_no, &len);
 
   value = row_parse_int(data, len, mtype, unsigned_type);
 
@@ -6274,7 +6275,7 @@ static void convert_to_table_stats_record(rec_t *clust_rec,
   for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
     const byte *data;
     ulint len;
-    data = rec_get_nth_field(clust_rec, clust_offsets, i, &len);
+    data = rec_get_nth_field(clust_index, clust_rec, clust_offsets, i, &len);
 
     if (len == UNIV_SQL_NULL) {
       continue;
@@ -6418,7 +6419,8 @@ bool row_search_index_stats(const char *db_name, const char *tbl_name,
     if (n_recs == col_offset) {
       const byte *data;
       ulint len;
-      data = rec_get_nth_field(rec, offsets, cardinality_index_offset, &len);
+      data = rec_get_nth_field(clust_index, rec, offsets,
+                               cardinality_index_offset, &len);
 
       *cardinality = static_cast<ulonglong>(round(mach_read_from_8(data)));
       mtr_commit(&mtr);

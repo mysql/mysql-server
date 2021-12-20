@@ -302,7 +302,7 @@ void row_log_online_op(
   end-of-chunk marker). */
 
   size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields, nullptr,
-                                &extra_size);
+                                &extra_size, MAX_ROW_VERSION);
   ut_ad(size >= extra_size);
   ut_ad(size <= sizeof log->tail.buf);
 
@@ -571,10 +571,10 @@ void row_log_table_delete(
 
     for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
       ulint len;
-      const void *field = rec_get_nth_field(rec, offsets, i, &len);
+      const void *field = rec_get_nth_field(nullptr, rec, offsets, i, &len);
       dfield_t *dfield = dtuple_get_nth_field(tuple, i);
       ut_ad(len != UNIV_SQL_NULL);
-      ut_ad(!rec_offs_nth_extern(offsets, i));
+      ut_ad(!rec_offs_nth_extern(index, offsets, i));
       dfield_set_data(dfield, field, len);
     }
 
@@ -601,8 +601,9 @@ void row_log_table_delete(
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 2)->len);
   ut_ad(DATA_ROLL_PTR_LEN ==
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
-  old_pk_size = rec_get_serialize_size(
-      new_index, old_pk->fields, old_pk->n_fields, nullptr, &old_pk_extra_size);
+  old_pk_size =
+      rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
+                             nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
   ut_ad(old_pk_extra_size < 0x100);
 
   /* 2 = 1 (extra_size) + at least 1 byte payload */
@@ -611,8 +612,8 @@ void row_log_table_delete(
   /* Check if we need to log virtual column data */
   if (ventry->n_v_fields > 0) {
     ulint v_extra;
-    mrec_size +=
-        rec_get_serialize_size(new_index, nullptr, 0, ventry, &v_extra);
+    mrec_size += rec_get_serialize_size(new_index, nullptr, 0, ventry, &v_extra,
+                                        MAX_ROW_VERSION);
   }
 
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
@@ -640,34 +641,22 @@ func_exit:
   mem_heap_free(heap);
 }
 
-/** Logs an insert or update to a table that is being rebuilt. */
-static void row_log_table_low_redundant(
-    const rec_t *rec,         /*!< in: clustered index leaf
-                              page record in ROW_FORMAT=REDUNDANT,
-                              page X-latched */
-    const dtuple_t *ventry,   /*!< in: dtuple holding virtual
-                              column info or NULL */
-    const dtuple_t *o_ventry, /*!< in: old dtuple holding virtual
-                             column info or NULL */
-    dict_index_t *index,      /*!< in/out: clustered index, S-latched
-                              or X-latched */
-    bool insert,              /*!< in: true if insert,
-                              false if update */
-    const dtuple_t *old_pk,   /*!< in: old PRIMARY KEY value
-                              (if !insert and a PRIMARY KEY
-                              is being created) */
-    const dict_index_t *new_index)
-/*!< in: clustered index of the
-new table, not latched */
-{
-  ulint old_pk_size;
-  ulint old_pk_extra_size;
-  ulint size;
-  ulint extra_size;
-  ulint mrec_size;
-  ulint avail_size;
-  mem_heap_t *heap = nullptr;
-  dtuple_t *tuple;
+/** Logs an insert or update to a table that is being rebuilt.
+@param[in]      rec             clustered index leaf page record in
+                                ROW_FORMAT=REDUNDANT, page X-latched
+@param[in]      ventry          dtuple holding virtual column info or NULL
+@param[in]      o_ventry        old dtuple holding virtual column info or NULL
+@param[in,out]  index           clustered index, S-latched or X-latched
+@param[in]      insert          true if insert, false if update
+@param[in]      old_pk          old PRIMARY KEY value (if !insert and a PRIMARY
+                                KEY is being created)
+@param[in]	new_index	clustered index of the new table, not latched */
+static void row_log_table_low_redundant(const rec_t *rec,
+                                        const dtuple_t *ventry,
+                                        const dtuple_t *o_ventry,
+                                        dict_index_t *index, bool insert,
+                                        const dtuple_t *old_pk,
+                                        const dict_index_t *new_index) {
   ulint num_v = ventry ? dtuple_get_n_v_fields(ventry) : 0;
 
   ut_ad(!page_is_comp(page_align(rec)));
@@ -676,9 +665,23 @@ new table, not latched */
   ut_ad(!dict_table_is_comp(index->table)); /* redundant row format */
   ut_ad(new_index->is_clustered());
 
-  heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields), UT_LOCATION_HERE);
-  tuple = dtuple_create_with_vcol(heap, index->n_fields, num_v);
-  dict_index_copy_types(tuple, index, index->n_fields);
+  uint8_t rec_version = 0;
+  bool has_instant_version = false;
+  if (rec_old_is_versioned(rec)) {
+    ut_ad(index->has_row_versions());
+    has_instant_version = true;
+    rec_version = rec_get_instant_row_version_old(rec);
+  }
+
+  const auto n_total_fields = index->get_n_total_fields();
+
+  mem_heap_t *heap =
+      mem_heap_create(DTUPLE_EST_ALLOC(n_total_fields), UT_LOCATION_HERE);
+  /* Create tuple with total fields because for inplace update on record in a
+  table with INSTANT DROP columns, we keep the records on current version i.e.
+  dropped column value may still exists. */
+  dtuple_t *tuple = dtuple_create_with_vcol(heap, n_total_fields, num_v);
+  dict_index_copy_types(tuple, index, n_total_fields);
 
   if (num_v) {
     dict_table_copy_v_types(tuple, index->table);
@@ -687,7 +690,7 @@ new table, not latched */
   dtuple_set_n_fields_cmp(tuple, dict_index_get_n_unique(index));
 
   if (rec_get_1byte_offs_flag(rec)) {
-    for (uint16_t i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < n_total_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -698,7 +701,7 @@ new table, not latched */
       dfield_set_data(dfield, field, len);
     }
   } else {
-    for (uint16_t i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < n_total_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -708,29 +711,39 @@ new table, not latched */
 
       dfield_set_data(dfield, field, len);
 
-      /* Fields stored as default value is not
-      stored externally. */
-      if (i < rec_get_n_fields_old_raw(rec) && rec_2_is_field_extern(rec, i)) {
+      /* Fields stored as default value is not stored externally. */
+      if (i < rec_get_n_fields_old_raw(rec) &&
+          rec_2_is_field_extern(index, rec, i)) {
         dfield_set_ext(dfield);
       }
     }
   }
 
-  size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields, ventry,
-                                &extra_size);
+  ulint extra_size;
+  ulint size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields,
+                                      ventry, &extra_size, rec_version);
 
-  mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80);
+  /* If INSTANT, we need 2 extra bytes to store info bits and version */
+  uint32_t additional_size_for_instant =
+      index->has_row_versions() ? (has_instant_version ? 2 : 1) : 0;
+
+  extra_size += additional_size_for_instant;
+
+  ulint mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80) +
+                    additional_size_for_instant;
 
   if (num_v) {
     if (o_ventry) {
       ulint v_extra = 0;
-      mrec_size +=
-          rec_get_serialize_size(new_index, nullptr, 0, o_ventry, &v_extra);
+      mrec_size += rec_get_serialize_size(new_index, nullptr, 0, o_ventry,
+                                          &v_extra, MAX_ROW_VERSION);
     }
   } else if (index->table->n_v_cols) {
     mrec_size += 2;
   }
 
+  ulint old_pk_size;
+  ulint old_pk_extra_size;
   if (insert || index->online_log->same_pk) {
     ut_ad(!old_pk);
     old_pk_extra_size = old_pk_size = 0;
@@ -744,12 +757,14 @@ new table, not latched */
 
     old_pk_size =
         rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
-                               nullptr, &old_pk_extra_size);
+                               nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
     ut_ad(old_pk_extra_size < 0x100);
     mrec_size += 1 /*old_pk_extra_size*/ + old_pk_size;
   }
 
+  ulint avail_size;
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
+    /* Write TYPE in 1 byte */
     *b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
     if (old_pk_size) {
@@ -760,6 +775,7 @@ new table, not latched */
       b += old_pk_size;
     }
 
+    /* Write extra size in 1 or 2 bytes */
     if (extra_size < 0x80) {
       *b++ = static_cast<byte>(extra_size);
     } else {
@@ -768,8 +784,30 @@ new table, not latched */
       *b++ = static_cast<byte>(extra_size);
     }
 
+    /* Convert and write record in TEMP format */
     rec_serialize_dtuple(b + extra_size, index, tuple->fields, tuple->n_fields,
-                         ventry);
+                         ventry, rec_version);
+
+    /* Write instant metadata in 1 or 2 bytes */
+    if (index->has_row_versions()) {
+      /* Write info bit in 1 byte to indicate INSTANT */
+      byte *temp_rec = b + extra_size;
+      rec_set_info_bits_new_temp(temp_rec, rec_get_info_bits(rec, false));
+      if (has_instant_version) {
+        rec_new_temp_set_versioned(temp_rec, true);
+        /* Write the record version in 1 byte */
+        byte *temp_version = temp_rec - 2;
+        memcpy(temp_version, &rec_version, sizeof(uint8_t));
+        b += 1;
+      } else {
+        rec_new_temp_set_versioned(temp_rec, false);
+      }
+
+      /* Move 'b' to past INSTANT metadata */
+      b += 1;
+    }
+
+    /* Move 'b' to past record data */
     b += size;
 
     if (num_v) {
@@ -791,34 +829,25 @@ new table, not latched */
   mem_heap_free(heap);
 }
 
-/** Logs an insert or update to a table that is being rebuilt. */
-static void row_log_table_low(
-    const rec_t *rec,         /*!< in: clustered index leaf page record,
-                              page X-latched */
-    const dtuple_t *ventry,   /*!< in: dtuple holding virtual column info */
-    const dtuple_t *o_ventry, /*!< in: dtuple holding old virtual column
-                             info */
-    dict_index_t *index,      /*!< in/out: clustered index, S-latched
-                              or X-latched */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec,index) */
-    bool insert,              /*!< in: true if insert, false if update */
-    const dtuple_t *old_pk)   /*!< in: old PRIMARY KEY value (if !insert
-                              and a PRIMARY KEY is being created) */
-{
-  ulint omit_size;
-  ulint old_pk_size;
-  ulint old_pk_extra_size;
-  ulint extra_size;
-  ulint mrec_size;
-  ulint avail_size;
-  const dict_index_t *new_index;
-
+/** Logs an insert or update to a table that is being rebuilt.
+@param[in]	rec		clustered index leaf page record, page X-latched
+@param[in]	ventry		dtuple holding virtual column info
+@param[in]	o_ventry	dtuple holding old virtual column info
+@param[in,out]	index		clustered index, S-latched or X-latched
+@param[in]	offsets		rec_get_offsets(rec,index)
+@param[in]	insert		true if insert, false if update
+@param[in]	old_pk		old PRIMARY KEY value (if !insert and a PRIMARY
+                                KEY is being created) */
+static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
+                              const dtuple_t *o_ventry, dict_index_t *index,
+                              const ulint *offsets, bool insert,
+                              const dtuple_t *old_pk) {
   if (index->is_corrupted() || !dict_index_is_online_ddl(index) ||
       index->online_log->error != DB_SUCCESS) {
     return;
   }
 
-  new_index = index->online_log->table->first_index();
+  const dict_index_t *new_index = index->online_log->table->first_index();
 
   ut_ad(index->is_clustered());
   ut_ad(new_index->is_clustered());
@@ -849,18 +878,18 @@ static void row_log_table_low(
   ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
   /* Check the instant to decide copying info bit or not */
-  omit_size = REC_N_NEW_EXTRA_BYTES -
-              (index->has_instant_cols() ? REC_N_TMP_EXTRA_BYTES : 0);
+  ulint omit_size = REC_N_NEW_EXTRA_BYTES -
+                    (index->has_row_versions() ? REC_N_TMP_EXTRA_BYTES : 0);
 
-  extra_size = rec_offs_extra_size(offsets) - omit_size;
+  ulint extra_size = rec_offs_extra_size(offsets) - omit_size;
 
-  mrec_size = ROW_LOG_HEADER_SIZE + (extra_size >= 0x80) +
-              rec_offs_size(offsets) - omit_size;
+  ulint mrec_size = ROW_LOG_HEADER_SIZE + (extra_size >= 0x80) +
+                    rec_offs_size(offsets) - omit_size;
 
   if (ventry && ventry->n_v_fields > 0) {
     ulint v_extra = 0;
-    uint64_t rec_size =
-        rec_get_serialize_size(new_index, nullptr, 0, ventry, &v_extra);
+    uint64_t rec_size = rec_get_serialize_size(new_index, nullptr, 0, ventry,
+                                               &v_extra, MAX_ROW_VERSION);
 
     mrec_size += rec_size;
 
@@ -868,8 +897,8 @@ static void row_log_table_low(
     there must be also nothing to do with old entry. In this case,
     make it same with the case below, by only keep 2 bytes length marker */
     if (rec_size > 2 && o_ventry != nullptr) {
-      mrec_size +=
-          rec_get_serialize_size(new_index, nullptr, 0, o_ventry, &v_extra);
+      mrec_size += rec_get_serialize_size(new_index, nullptr, 0, o_ventry,
+                                          &v_extra, MAX_ROW_VERSION);
     }
   } else if (index->table->n_v_cols) {
     /* Always leave 2 bytes length marker for virtual column
@@ -878,6 +907,8 @@ static void row_log_table_low(
     mrec_size += 2;
   }
 
+  ulint old_pk_size;
+  ulint old_pk_extra_size;
   if (insert || index->online_log->same_pk) {
     ut_ad(!old_pk);
     old_pk_extra_size = old_pk_size = 0;
@@ -891,11 +922,12 @@ static void row_log_table_low(
 
     old_pk_size =
         rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
-                               nullptr, &old_pk_extra_size);
+                               nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
     ut_ad(old_pk_extra_size < 0x100);
     mrec_size += 1 /*old_pk_extra_size*/ + old_pk_size;
   }
 
+  ulint avail_size;
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
     *b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
@@ -1007,13 +1039,13 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
   const byte *field;
   ulint len;
 
-  field = rec_get_nth_field(rec, offsets, i, &len);
+  field = rec_get_nth_field(nullptr, rec, offsets, i, &len);
 
   if (len == UNIV_SQL_NULL) {
     return (DB_INVALID_NULL);
   }
 
-  if (rec_offs_nth_extern(offsets, i)) {
+  if (rec_offs_nth_extern(index, offsets, i)) {
     ulint field_len = ifield->prefix_len;
     byte *blob_field;
 
@@ -1084,7 +1116,7 @@ const dtuple_t *row_log_table_get_pk(
           offsets = rec_get_offsets(rec, index, nullptr, pos + 1, heap);
         }
 
-        trx_id_offs = rec_get_nth_field_offs(offsets, pos, &len);
+        trx_id_offs = rec_get_nth_field_offs(index, offsets, pos, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
       }
 
@@ -1335,11 +1367,15 @@ void row_log_table_blob_alloc(
       a column prefix, there should also be the full
       field in the clustered index tuple. The row
       tuple comprises full fields, not prefixes. */
-      ut_ad(!rec_offs_nth_extern(offsets, i));
+      ut_ad(!rec_offs_nth_extern(index, offsets, i));
       continue;
     }
 
     const dict_col_t *col = ind_field->col;
+    if (col->is_instant_dropped()) {
+      /* Skip instanly dropped column */
+      continue;
+    }
 
     ulint col_no = log->col_map[dict_col_get_no(col)];
 
@@ -1353,12 +1389,12 @@ void row_log_table_blob_alloc(
     ulint len;
     const byte *data;
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       ut_ad(rec_offs_any_extern(offsets));
       rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
       if (const page_no_map *blobs = log->blobs) {
-        data = rec_get_nth_field(mrec, offsets, i, &len);
+        data = rec_get_nth_field(index, mrec, offsets, i, &len);
         ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
         page_no_t page_no = mach_read_from_4(
@@ -1790,7 +1826,7 @@ flag_ok:
   for (ulint i = 0; i < index->n_uniq; i++) {
     ulint len;
     const void *field;
-    field = rec_get_nth_field(mrec, moffsets, i, &len);
+    field = rec_get_nth_field(nullptr, mrec, moffsets, i, &len);
     ut_ad(rec_field_not_null_not_add_col_def(len));
     dfield_set_data(dtuple_get_nth_field(old_pk, i), field, len);
   }
@@ -1832,7 +1868,7 @@ flag_ok:
   offsets = rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
                             &offsets_heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-  ut_a(!rec_offs_any_null_extern(pcur.get_rec(), offsets));
+  ut_a(!rec_offs_any_null_extern(index, pcur.get_rec(), offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   /* Only remove the record if DB_TRX_ID,DB_ROLL_PTR match. */
@@ -1840,17 +1876,17 @@ flag_ok:
   {
     ulint len;
     const byte *mrec_trx_id =
-        rec_get_nth_field(mrec, moffsets, trx_id_col, &len);
+        rec_get_nth_field(nullptr, mrec, moffsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     const byte *rec_trx_id =
-        rec_get_nth_field(pcur.get_rec(), offsets, trx_id_col, &len);
+        rec_get_nth_field(nullptr, pcur.get_rec(), offsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
 
-    ut_ad(rec_get_nth_field(mrec, moffsets, trx_id_col + 1, &len) ==
+    ut_ad(rec_get_nth_field(nullptr, mrec, moffsets, trx_id_col + 1, &len) ==
           mrec_trx_id + DATA_TRX_ID_LEN);
     ut_ad(len == DATA_ROLL_PTR_LEN);
-    ut_ad(rec_get_nth_field(pcur.get_rec(), offsets, trx_id_col + 1, &len) ==
-          rec_trx_id + DATA_TRX_ID_LEN);
+    ut_ad(rec_get_nth_field(nullptr, pcur.get_rec(), offsets, trx_id_col + 1,
+                            &len) == rec_trx_id + DATA_TRX_ID_LEN);
     ut_ad(len == DATA_ROLL_PTR_LEN);
 
     if (memcmp(mrec_trx_id, rec_trx_id, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
@@ -2110,8 +2146,8 @@ flag_ok:
     /* Only update the record if DB_TRX_ID,DB_ROLL_PTR match what
     was buffered. */
     ulint len;
-    const void *rec_trx_id =
-        rec_get_nth_field(pcur.get_rec(), cur_offsets, index->n_uniq, &len);
+    const void *rec_trx_id = rec_get_nth_field(
+        nullptr, pcur.get_rec(), cur_offsets, index->n_uniq, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq)->len == DATA_TRX_ID_LEN);
     ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq + 1)->len ==
@@ -2380,7 +2416,7 @@ flag_ok:
         return (nullptr);
       }
 
-      rec_offs_set_n_fields(offsets, dup->m_index->n_fields);
+      rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
       rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
       next_mrec = mrec + rec_offs_data_size(offsets);
@@ -2399,7 +2435,7 @@ flag_ok:
 
         ulint len;
         const byte *db_trx_id =
-            rec_get_nth_field(mrec, offsets, trx_id_col, &len);
+            rec_get_nth_field(nullptr, mrec, offsets, trx_id_col, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
         *error =
             row_log_table_apply_insert(thr, mrec, offsets, offsets_heap, heap,
@@ -2469,7 +2505,7 @@ flag_ok:
           return (nullptr);
         }
 
-        rec_offs_set_n_fields(offsets, dup->m_index->n_fields);
+        rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
         rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
         next_mrec = mrec + rec_offs_data_size(offsets);
@@ -2490,9 +2526,9 @@ flag_ok:
           ulint len;
           dfield_t *dfield;
 
-          ut_ad(!rec_offs_nth_extern(offsets, i));
+          ut_ad(!rec_offs_nth_extern(new_index, offsets, i));
 
-          field = rec_get_nth_field(mrec, offsets, i, &len);
+          field = rec_get_nth_field(nullptr, mrec, offsets, i, &len);
           ut_ad(rec_field_not_null_not_add_col_def(len));
 
           dfield = dtuple_get_nth_field(old_pk, i);
@@ -2531,9 +2567,9 @@ flag_ok:
           ulint len;
           dfield_t *dfield;
 
-          ut_ad(!rec_offs_nth_extern(offsets, i));
+          ut_ad(!rec_offs_nth_extern(new_index, offsets, i));
 
-          field = rec_get_nth_field(mrec, offsets, i, &len);
+          field = rec_get_nth_field(nullptr, mrec, offsets, i, &len);
           ut_ad(rec_field_not_null_not_add_col_def(len));
 
           dfield = dtuple_get_nth_field(old_pk, i);
@@ -2559,7 +2595,7 @@ flag_ok:
           return (nullptr);
         }
 
-        rec_offs_set_n_fields(offsets, dup->m_index->n_fields);
+        rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
         rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
         next_mrec = mrec + rec_offs_data_size(offsets);
@@ -2604,7 +2640,7 @@ flag_ok:
       {
         ulint len;
         const byte *db_trx_id =
-            rec_get_nth_field(mrec, offsets, trx_id_col, &len);
+            rec_get_nth_field(nullptr, mrec, offsets, trx_id_col, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
         *error = row_log_table_apply_update(thr, new_trx_id_col, mrec, offsets,
                                             offsets_heap, heap, dup,

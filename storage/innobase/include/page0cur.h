@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "page0page.h"
 #include "rem0rec.h"
+#include "rem0wrec.h"
 
 #define PAGE_CUR_ADAPT
 

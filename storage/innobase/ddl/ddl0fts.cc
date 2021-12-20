@@ -463,6 +463,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->col->prtype = idx_field->col->prtype | DATA_NOT_NULL;
   field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
   field->fixed_len = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   /* Doc ID */
   field = new_index->get_field(1);
@@ -507,6 +510,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->col->prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
 
   field->col->mbminmaxlen = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   /* The third field is on the word's position in the original doc */
   field = new_index->get_field(2);
@@ -522,6 +528,9 @@ dict_index_t *FTS::create_index(dict_index_t *index, dict_table_t *table,
   field->fixed_len = 4;
   field->col->prtype = DATA_NOT_NULL;
   field->col->mbminmaxlen = 0;
+  field->col->set_version_added(UINT8_UNDEFINED);
+  field->col->set_version_dropped(UINT8_UNDEFINED);
+  field->col->set_phy_pos(UINT32_UNDEFINED);
 
   return new_index;
 }

@@ -3136,14 +3136,12 @@ void btr_cur_update_in_place_log(ulint flags, const rec_t *rec,
                                  trx_id_t trx_id, roll_ptr_t roll_ptr,
                                  mtr_t *mtr) {
   byte *log_ptr = nullptr;
-  const page_t *page = page_align(rec);
+  ut_d(const page_t *page = page_align(rec));
   ut_ad(flags < 256);
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
   const bool opened = mlog_open_and_write_index(
-      mtr, rec, index,
-      page_is_comp(page) ? MLOG_COMP_REC_UPDATE_IN_PLACE
-                         : MLOG_REC_UPDATE_IN_PLACE,
+      mtr, rec, index, MLOG_REC_UPDATE_IN_PLACE,
       1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN, log_ptr);
 
   if (!opened) {
@@ -3456,7 +3454,6 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   buf_block_t *block;
   page_t *page;
   page_zip_des_t *page_zip;
-  rec_t *rec;
   ulint max_size;
   ulint new_rec_size;
   ulint old_rec_size;
@@ -3467,7 +3464,7 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
 
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
-  rec = btr_cur_get_rec(cursor);
+  rec_t *rec = btr_cur_get_rec(cursor);
   index = cursor->index;
   ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG) ||
         index->table->is_intrinsic());
@@ -3488,7 +3485,7 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
 
   *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-  ut_a(!rec_offs_any_null_extern(rec, *offsets) ||
+  ut_a(!rec_offs_any_null_extern(index, rec, *offsets) ||
        (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP)) ==
            (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
             BTR_KEEP_SYS_FLAG) ||
@@ -3539,13 +3536,19 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   /* We checked above that there are no externally stored fields. */
   ut_a(!new_entry->has_ext());
 
+  /* For upgraded instant table, don't materialize instant default */
+  bool materialize_instant_default =
+      !(index->has_instant_cols() && !index->has_row_versions());
+
   /* The page containing the clustered index record
   corresponding to new_entry is latched in mtr.
   Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, false,
                                                *heap);
 
-  new_entry->ignore_trailing_default(index);
+  if (!materialize_instant_default) {
+    new_entry->ignore_trailing_default(index);
+  }
 
   old_rec_size = rec_offs_size(*offsets);
   new_rec_size = rec_get_converted_size(index, new_entry);
@@ -3798,6 +3801,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
   rec = btr_cur_get_rec(cursor);
 
+  /* For upgraded instant table, don't materialize instant default */
+  bool materialize_instant_default =
+      !(index->has_instant_cols() && !index->has_row_versions());
+
   *offsets =
       rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
 
@@ -3813,7 +3820,9 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, false,
                                                entry_heap);
 
-  new_entry->ignore_trailing_default(index);
+  if (!materialize_instant_default) {
+    new_entry->ignore_trailing_default(index);
+  }
 
   /* We have to set appropriate extern storage bits in the new
   record to be inserted: we have to remember which fields were such */
@@ -3875,7 +3884,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
     updated the primary key to another value, and then
     update it back again. */
 
-    ut_ad(big_rec_vec == nullptr);
+    /* During rollback of a record in table having INSTANT fields, it is
+    possible to have an external field now which wasn't there before update */
+    ut_ad(big_rec_vec == nullptr || index->table->has_row_versions());
+
     ut_ad(index->is_clustered());
     ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
               (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
@@ -3886,7 +3898,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
     lob::BtrContext ctx(mtr, pcur, index, rec, *offsets, block);
 
-    ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
+    ctx.free_updated_extern_fields(trx_id, undo_no, update, true, big_rec_vec);
 
     /* The cursor position could have changed because of the call to
     lob::purge() above. */
@@ -4124,11 +4136,9 @@ static inline void btr_cur_del_mark_set_clust_rec_log(
 
   ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  const bool opened = mlog_open_and_write_index(
-      mtr, rec, index,
-      page_rec_is_comp(rec) ? MLOG_COMP_REC_CLUST_DELETE_MARK
-                            : MLOG_REC_CLUST_DELETE_MARK,
-      1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2, log_ptr);
+  const bool opened =
+      mlog_open_and_write_index(mtr, rec, index, MLOG_REC_CLUST_DELETE_MARK,
+                                1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2, log_ptr);
 
   if (!opened) {
     /* Logging in mtr is switched off during crash recovery */
@@ -4699,7 +4709,7 @@ bool btr_cur_pessimistic_delete(dberr_t *err, bool has_reserved_extents,
                                 ULINT_UNDEFINED, &heap);
 
       father_rec = btr_cur_get_rec(&father_cursor);
-      rtr_read_mbr(rec_get_nth_field(father_rec, offsets, 0, &len),
+      rtr_read_mbr(rec_get_nth_field(nullptr, father_rec, offsets, 0, &len),
                    &father_mbr);
 
       upd_ret = rtr_update_mbr_field(&father_cursor, offsets, nullptr, page,
@@ -5295,19 +5305,20 @@ int64_t btr_estimate_n_rows_in_range(dict_index_t *index,
 }
 
 /** Record the number of non_null key values in a given index for
- each n-column prefix of the index where 1 <= n <=
- dict_index_get_n_unique(index). The estimates are eventually stored in the
- array: index->stat_n_non_null_key_vals[], which is indexed from 0 to n-1. */
-static void btr_record_not_null_field_in_rec(
-    ulint n_unique,       /*!< in: dict_index_get_n_unique(index),
-                          number of columns uniquely determine
-                          an index entry */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec, index),
-                          its size could be for all fields or
-                          that of "n_unique" */
-    uint64_t *n_not_null) /*!< in/out: array to record number of
-                             not null rows for n-column prefix */
-{
+each n-column prefix of the index where 1 <= n <=
+dict_index_get_n_unique(index). The estimates are eventually stored in the
+array: index->stat_n_non_null_key_vals[], which is indexed from 0 to n-1.
+@param[in]      index       index
+@param[in]      n_unique    dict_index_get_n_unique(index), number of columns
+                            uniquely determine an index entry
+@param[in]      offsets     rec_get_offsets(rec, index), its size could be for
+                            all fields or that of "n_unique"
+@param[in,out]  n_not_null  array to record number of not null rows for n-column
+                            prefix */
+static void btr_record_not_null_field_in_rec(const dict_index_t *index,
+                                             ulint n_unique,
+                                             const ulint *offsets,
+                                             uint64_t *n_not_null) {
   ulint i;
 
   ut_ad(rec_offs_n_fields(offsets) >= n_unique);
@@ -5317,7 +5328,7 @@ static void btr_record_not_null_field_in_rec(
   }
 
   for (i = 0; i < n_unique; i++) {
-    if (rec_offs_nth_sql_null(offsets, i)) {
+    if (rec_offs_nth_sql_null(index, offsets, i)) {
       break;
     }
 
@@ -5442,7 +5453,8 @@ bool btr_estimate_number_of_different_key_vals(
           rec_get_offsets(rec, index, offsets_rec, ULINT_UNDEFINED, &heap);
 
       if (n_not_null != nullptr) {
-        btr_record_not_null_field_in_rec(n_cols, offsets_rec, n_not_null);
+        btr_record_not_null_field_in_rec(index, n_cols, offsets_rec,
+                                         n_not_null);
       }
     }
 
@@ -5451,7 +5463,7 @@ bool btr_estimate_number_of_different_key_vals(
       rec_t *next_rec = page_rec_get_next(rec);
       if (page_rec_is_supremum(next_rec)) {
         total_external_size +=
-            lob::btr_rec_get_externally_stored_len(rec, offsets_rec);
+            lob::btr_rec_get_externally_stored_len(index, rec, offsets_rec);
         break;
       }
 
@@ -5470,11 +5482,12 @@ bool btr_estimate_number_of_different_key_vals(
       }
 
       if (n_not_null != nullptr) {
-        btr_record_not_null_field_in_rec(n_cols, offsets_next_rec, n_not_null);
+        btr_record_not_null_field_in_rec(index, n_cols, offsets_next_rec,
+                                         n_not_null);
       }
 
       total_external_size +=
-          lob::btr_rec_get_externally_stored_len(rec, offsets_rec);
+          lob::btr_rec_get_externally_stored_len(index, rec, offsets_rec);
 
       rec = next_rec;
       /* Initialize offsets_rec for the next round

@@ -1027,11 +1027,11 @@ static page_no_t ibuf_rec_get_page_no_func(IF_DEBUG(mtr_t *mtr, )
   ut_ad(ibuf_inside(mtr));
   ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_MARKER, &len);
 
   ut_a(len == 1);
 
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_PAGE, &len);
 
   ut_a(len == 4);
 
@@ -1058,11 +1058,11 @@ static space_id_t ibuf_rec_get_space_func(IF_DEBUG(mtr_t *mtr, )
   ut_ad(ibuf_inside(mtr));
   ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_MARKER, &len);
 
   ut_a(len == 1);
 
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_SPACE, &len);
 
   ut_a(len == 4);
 
@@ -1105,7 +1105,7 @@ static void ibuf_rec_get_info_func(IF_DEBUG(mtr_t *mtr, ) const rec_t *rec,
   fields = rec_get_n_fields_old_raw(rec);
   ut_a(fields > IBUF_REC_FIELD_USER);
 
-  types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
+  types = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
 
   info_len_local = len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 
@@ -1168,7 +1168,7 @@ static ibuf_op_t ibuf_rec_get_op_type_func(IF_DEBUG(mtr_t *mtr, )
   ut_ad(ibuf_inside(mtr));
   ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
-  (void)rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
+  (void)rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_MARKER, &len);
 
   if (len > 1) {
     /* This is a < 4.1.x format record */
@@ -1201,7 +1201,8 @@ ulint ibuf_rec_get_counter(const rec_t *rec) /*!< in: ibuf record */
     return (ULINT_UNDEFINED);
   }
 
-  ptr = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
+  /* nullptr for index as it can't be clustered index */
+  ptr = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
 
   if (len >= 2) {
     return (mach_read_from_2(ptr));
@@ -1214,7 +1215,9 @@ bool ibuf_rec_has_multi_value(const rec_t *rec) {
   ulint len;
   ulint info_len;
   uint32_t n_fields = rec_get_n_fields_old_raw(rec) - IBUF_REC_FIELD_USER;
-  const byte *types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
+  /* nullptr for index as it can't be clustered index */
+  const byte *types =
+      rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
 
   ibuf_rec_get_info(nullptr, rec, nullptr, nullptr, &info_len, nullptr);
   types += info_len;
@@ -1347,7 +1350,7 @@ static dtuple_t *ibuf_build_entry_from_ibuf_rec_func(IF_DEBUG(mtr_t *mtr, )
         mtr_memo_contains_page(mtr, ibuf_rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(ibuf_inside(mtr));
 
-  data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
+  data = rec_get_nth_field_old(nullptr, ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
 
   ut_a(len == 1);
   ut_a(*data == 0);
@@ -1357,7 +1360,8 @@ static dtuple_t *ibuf_build_entry_from_ibuf_rec_func(IF_DEBUG(mtr_t *mtr, )
 
   tuple = dtuple_create(heap, n_fields);
 
-  types = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
+  types =
+      rec_get_nth_field_old(nullptr, ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
 
   ibuf_rec_get_info_func(IF_DEBUG(mtr, ) ibuf_rec, nullptr, &comp, &info_len,
                          nullptr);
@@ -1372,7 +1376,8 @@ static dtuple_t *ibuf_build_entry_from_ibuf_rec_func(IF_DEBUG(mtr_t *mtr, )
   for (i = 0; i < n_fields; i++) {
     field = dtuple_get_nth_field(tuple, i);
 
-    data = rec_get_nth_field_old(ibuf_rec, i + IBUF_REC_FIELD_USER, &len);
+    data =
+        rec_get_nth_field_old(nullptr, ibuf_rec, i + IBUF_REC_FIELD_USER, &len);
 
     dfield_set_data(field, data, len);
 
@@ -1422,7 +1427,8 @@ static inline ulint ibuf_rec_get_size(
     ulint len;
     dtype_t dtype;
 
-    rec_get_nth_field_offs_old(rec, i + field_offset, &len);
+    /* nullptr for index as it can't be clustered index */
+    rec_get_nth_field_offs_old(nullptr, rec, i + field_offset, &len);
 
     if (len != UNIV_SQL_NULL) {
       size += len;
@@ -1460,11 +1466,12 @@ static ulint ibuf_rec_get_volume_func(IF_DEBUG(mtr_t *mtr, )
   ut_ad(ibuf_inside(mtr));
   ut_ad(rec_get_n_fields_old_raw(ibuf_rec) > 2);
 
-  data = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
+  data = rec_get_nth_field_old(nullptr, ibuf_rec, IBUF_REC_FIELD_MARKER, &len);
   ut_a(len == 1);
   ut_a(*data == 0);
 
-  types = rec_get_nth_field_old(ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
+  types =
+      rec_get_nth_field_old(nullptr, ibuf_rec, IBUF_REC_FIELD_METADATA, &len);
 
   ibuf_rec_get_info_func(IF_DEBUG(mtr, ) ibuf_rec, &op, &comp, &info_len,
                          nullptr);
@@ -2521,7 +2528,8 @@ static ulint ibuf_get_volume_buffered_count_func(IF_DEBUG(mtr_t *mtr, )
   ut_ad(n_fields > IBUF_REC_FIELD_USER);
   n_fields -= IBUF_REC_FIELD_USER;
 
-  rec_get_nth_field_offs_old(rec, 1, &len);
+  /* nullptr for index as it can't be clustered index */
+  rec_get_nth_field_offs_old(nullptr, rec, 1, &len);
   /* This function is only invoked when buffering new
   operations.  All pre-4.1 records should have been merged
   when the database was started up. */
@@ -2535,7 +2543,7 @@ static ulint ibuf_get_volume_buffered_count_func(IF_DEBUG(mtr_t *mtr, )
     return (0);
   }
 
-  types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
+  types = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
 
   switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
                       IBUF_REC_INFO_SIZE)) {
@@ -2822,7 +2830,7 @@ void ibuf_update_max_tablespace_id(void) {
   } else {
     rec = pcur.get_rec();
 
-    field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
+    field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_SPACE, &len);
 
     ut_a(len == 4);
 
@@ -2859,12 +2867,12 @@ static ulint ibuf_get_entry_counter_low_func(IF_DEBUG(mtr_t *mtr, )
         mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
   ut_ad(rec_get_n_fields_old_raw(rec) > 2);
 
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_MARKER, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_MARKER, &len);
 
   ut_a(len == 1);
 
   /* Check the tablespace identifier. */
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_SPACE, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_SPACE, &len);
 
   ut_a(len == 4);
 
@@ -2873,7 +2881,7 @@ static ulint ibuf_get_entry_counter_low_func(IF_DEBUG(mtr_t *mtr, )
   }
 
   /* Check the page offset. */
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_PAGE, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_PAGE, &len);
   ut_a(len == 4);
 
   if (mach_read_from_4(field) != page_no) {
@@ -2881,7 +2889,7 @@ static ulint ibuf_get_entry_counter_low_func(IF_DEBUG(mtr_t *mtr, )
   }
 
   /* Check if the record contains a counter field. */
-  field = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
+  field = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
 
   switch (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
     default:

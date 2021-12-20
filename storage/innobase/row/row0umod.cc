@@ -130,22 +130,36 @@ introduced where a call to log_free_check() is bypassed. */
   explicit lock before applying update undo.*/
   row_convert_impl_to_expl_if_needed(btr_cur, node);
 
+  node->update->table = node->table;
+
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
-    err = btr_cur_optimistic_update(
-        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG, btr_cur,
-        offsets, offsets_heap, node->update, node->cmpl_info, thr,
-        thr_get_trx(thr)->id, mtr);
+    err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
+                                        BTR_KEEP_SYS_FLAG | BTR_KEEP_POS_FLAG,
+                                    btr_cur, offsets, offsets_heap,
+                                    node->update, node->cmpl_info, thr,
+                                    thr_get_trx(thr)->id, mtr);
   } else {
     big_rec_t *dummy_big_rec;
 
     err = btr_cur_pessimistic_update(
-        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG, btr_cur,
-        offsets, offsets_heap, heap, &dummy_big_rec, node->update,
+        BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG |
+            BTR_KEEP_POS_FLAG,
+        btr_cur, offsets, offsets_heap, heap, &dummy_big_rec, node->update,
         node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr, pcur);
 
-    ut_a(!dummy_big_rec);
+    ut_a(!dummy_big_rec || node->table->has_row_versions());
+    if (dummy_big_rec) {
+      ut_a(err == DB_SUCCESS);
+
+      DEBUG_SYNC_C("before_row_upd_extern");
+      err = lob::btr_store_big_rec_extern_fields(trx, pcur, node->update,
+                                                 *offsets, dummy_big_rec, mtr,
+                                                 lob::OPCODE_UPDATE);
+      DEBUG_SYNC_C("after_row_upd_extern");
+      mem_heap_free(dummy_big_rec->heap);
+    }
   }
 
   return err;
@@ -194,7 +208,8 @@ introduced where a call to log_free_check() is bypassed. */
     offsets = rec_get_offsets(btr_cur_get_rec(btr_cur), btr_cur->index, nullptr,
                               trx_id_col + 1, &heap);
 
-    trx_id_offset = rec_get_nth_field_offs(offsets, trx_id_col, &len);
+    /* nullptr for index as trx_id_col is physical here */
+    trx_id_offset = rec_get_nth_field_offs(nullptr, offsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     mem_heap_free(heap);
   }

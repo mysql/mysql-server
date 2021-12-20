@@ -1313,7 +1313,7 @@ dberr_t row_vers_build_for_consistent_read(
                                offset_heap);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-    ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
+    ut_a(!rec_offs_any_null_extern(index, prev_version, *offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
     trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
@@ -1392,7 +1392,7 @@ void row_vers_build_for_semi_consistent_read(
       committed transaction: return it. */
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-      ut_a(!rec_offs_any_null_extern(version, *offsets));
+      ut_a(!rec_offs_any_null_extern(index, version, *offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
       if (rec == version) {
@@ -1460,7 +1460,7 @@ void row_vers_build_for_semi_consistent_read(
     *offsets =
         rec_get_offsets(version, index, *offsets, ULINT_UNDEFINED, offset_heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-    ut_a(!rec_offs_any_null_extern(version, *offsets));
+    ut_a(!rec_offs_any_null_extern(index, version, *offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
   }    /* for (;;) */
 

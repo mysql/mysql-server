@@ -52,6 +52,8 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V4 = 4;
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V5 = 5;
 /** The v6 .cfg writes the Compression::Type of the table. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V6 = 6;
+/** The v7 .cfg has metadata of INSTANT DROP/ADD columns. */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V7 = 7;
 /** Future version used to test that the correct error message is returned. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V99 = 99;
 

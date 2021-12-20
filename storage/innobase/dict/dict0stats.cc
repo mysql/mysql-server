@@ -1163,7 +1163,7 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
 
   if (should_count_external_pages) {
     *n_external_pages +=
-        lob::btr_rec_get_externally_stored_len(rec, offsets_rec);
+        lob::btr_rec_get_externally_stored_len(index, rec, offsets_rec);
   }
 
   next_rec = get_next(rec);
@@ -1212,7 +1212,7 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
 
     if (should_count_external_pages) {
       *n_external_pages +=
-          lob::btr_rec_get_externally_stored_len(rec, offsets_rec);
+          lob::btr_rec_get_externally_stored_len(index, rec, offsets_rec);
     }
 
     next_rec = get_next(next_rec);

@@ -1076,7 +1076,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
       auto fields = key_buffer->m_dtuples[key_buffer->size()];
 
       auto size = rec_get_serialize_size(m_index, fields, ctx.m_n_fields,
-                                         nullptr, &extra);
+                                         nullptr, &extra, MAX_ROW_VERSION);
 
       ut_a(ctx.m_data_size + ctx.m_extra_size == size);
       ut_a(ctx.m_extra_size == extra);
@@ -1580,7 +1580,7 @@ void Builder::copy_blobs(trx_t *trx, const dict_index_t *index,
     } else {
       data = lob::btr_rec_copy_externally_stored_field_func(
           nullptr, index, mrec, offsets, page_size, i, &len, nullptr,
-          IF_DEBUG(is_sdi, ) heap);
+          IF_DEBUG(is_sdi, ) heap, true);
     }
 
     /* Because we have locked the table, any records

@@ -44,6 +44,7 @@ external tools. */
 #include "page/zipdecompress.h"
 #include "page0page.h"
 #include "rem0rec.h"
+#include "rem0wrec.h"
 
 /* Enable some extra debugging output.  This code can be enabled
 independently of any UNIV_ debugging conditions. */
@@ -320,23 +321,28 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
     index->type |= DICT_SPATIAL;
   }
 
-  index->n_instant_nullable = index->n_nullable;
-  index->instant_cols =
-      (index->is_clustered() && index->table->has_instant_cols());
+  index->set_instant_nullable(index->n_nullable);
+  if (index->is_clustered()) {
+    index->instant_cols = index->table->has_instant_cols();
+    index->row_versions = index->table->has_row_versions();
+  }
 
   return (index);
 }
 
 /** Apply the modification log to a record containing externally stored
- columns.  Do not copy the fields that are stored separately.
- @return pointer to modification log, or NULL on failure */
-static const byte *page_zip_apply_log_ext(
-    rec_t *rec,           /*!< in/out: record */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec) */
-    ulint trx_id_col,     /*!< in: position of of DB_TRX_ID */
-    const byte *data,     /*!< in: modification log */
-    const byte *end)      /*!< in: end of modification log */
-{
+columns.  Do not copy the fields that are stored separately.
+@param[in]  index index
+@param[in,out]  rec  record
+@param[in]  offsets  rec_get_offsets(rec)
+@param[in]  trx_id_col  position of of DB_TRX_ID
+@param[in]  data  modification log
+@param[in]  end  end of modification log
+@return pointer to modification log, or NULL on failure */
+static const byte *page_zip_apply_log_ext(const dict_index_t *index, rec_t *rec,
+                                          const ulint *offsets,
+                                          ulint trx_id_col, const byte *data,
+                                          const byte *end) {
   ulint i;
   ulint len;
   byte *next_out = rec;
@@ -350,10 +356,10 @@ static const byte *page_zip_apply_log_ext(
 
     if (UNIV_UNLIKELY(i == trx_id_col)) {
       /* Skip trx_id and roll_ptr */
-      dst = rec_get_nth_field(rec, offsets, i, &len);
+      dst = rec_get_nth_field(index, rec, offsets, i, &len);
       if (UNIV_UNLIKELY(dst - next_out >= end - data) ||
           UNIV_UNLIKELY(len < (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) ||
-          rec_offs_nth_extern(offsets, i)) {
+          rec_offs_nth_extern(index, offsets, i)) {
         page_zip_fail(
             ("page_zip_apply_log_ext:"
              " trx_id len %lu,"
@@ -366,8 +372,8 @@ static const byte *page_zip_apply_log_ext(
       memcpy(next_out, data, dst - next_out);
       data += dst - next_out;
       next_out = dst + (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-    } else if (rec_offs_nth_extern(offsets, i)) {
-      dst = rec_get_nth_field(rec, offsets, i, &len);
+    } else if (rec_offs_nth_extern(index, offsets, i)) {
+      dst = rec_get_nth_field(index, rec, offsets, i, &len);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
       len += dst - next_out - BTR_EXTERN_FIELD_REF_SIZE;
@@ -521,7 +527,7 @@ static const byte *page_zip_apply_log(
         return (nullptr);
       }
 
-      data = page_zip_apply_log_ext(rec, offsets, trx_id_col, data, end);
+      data = page_zip_apply_log_ext(index, rec, offsets, trx_id_col, data, end);
 
       if (UNIV_UNLIKELY(!data)) {
         return (nullptr);
@@ -555,7 +561,7 @@ static const byte *page_zip_apply_log(
       data += len;
     } else {
       /* Skip DB_TRX_ID and DB_ROLL_PTR. */
-      ulint l = rec_get_nth_field_offs(offsets, trx_id_col, &len);
+      ulint l = rec_get_nth_field_offs(index, offsets, trx_id_col, &len);
       byte *b;
 
       if (UNIV_UNLIKELY(data + l >= end) ||
@@ -1009,14 +1015,17 @@ static bool page_zip_set_extra_bytes(
 }
 
 /** Decompress a record of a leaf node of a clustered index that contains
- externally stored columns.
- @return true on success */
-static bool page_zip_decompress_clust_ext(
-    z_stream *d_stream,   /*!< in/out: compressed page stream */
-    rec_t *rec,           /*!< in/out: record */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec) */
-    ulint trx_id_col)     /*!< in: position of of DB_TRX_ID */
-{
+externally stored columns.
+@param[in,out]  d_stream  compressed page stream
+@param[in]  index  index
+@param[in,out]  rec  record
+@param[in]  offsets  rec_get_offsets(rec)
+@param[in]  trx_id_col  position of of DB_TRX_ID
+@return true on success */
+static bool page_zip_decompress_clust_ext(z_stream *d_stream,
+                                          const dict_index_t *index, rec_t *rec,
+                                          const ulint *offsets,
+                                          ulint trx_id_col) {
   ulint i;
 
   for (i = 0; i < rec_offs_n_fields(offsets); i++) {
@@ -1025,7 +1034,7 @@ static bool page_zip_decompress_clust_ext(
 
     if (UNIV_UNLIKELY(i == trx_id_col)) {
       /* Skip trx_id and roll_ptr */
-      dst = rec_get_nth_field(rec, offsets, i, &len);
+      dst = rec_get_nth_field(index, rec, offsets, i, &len);
       if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
         page_zip_fail(
             ("page_zip_decompress_clust_ext:"
@@ -1034,7 +1043,7 @@ static bool page_zip_decompress_clust_ext(
         return false;
       }
 
-      if (rec_offs_nth_extern(offsets, i)) {
+      if (rec_offs_nth_extern(index, offsets, i)) {
         page_zip_fail(
             ("page_zip_decompress_clust_ext:"
              " DB_TRX_ID at %lu is ext\n",
@@ -1068,8 +1077,8 @@ static bool page_zip_decompress_clust_ext(
       memset(dst, 0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
       d_stream->next_out += DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-    } else if (rec_offs_nth_extern(offsets, i)) {
-      dst = rec_get_nth_field(rec, offsets, i, &len);
+    } else if (rec_offs_nth_extern(index, offsets, i)) {
+      dst = rec_get_nth_field(index, rec, offsets, i, &len);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
       dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -1178,14 +1187,14 @@ static bool page_zip_decompress_clust(
     BTR_EXTERN_FIELD_REF separately. */
 
     if (rec_offs_any_extern(offsets)) {
-      if (UNIV_UNLIKELY(!page_zip_decompress_clust_ext(d_stream, rec, offsets,
-                                                       trx_id_col))) {
+      if (UNIV_UNLIKELY(!page_zip_decompress_clust_ext(d_stream, index, rec,
+                                                       offsets, trx_id_col))) {
         goto zlib_error;
       }
     } else {
       /* Skip trx_id and roll_ptr */
       ulint len;
-      byte *dst = rec_get_nth_field(rec, offsets, trx_id_col, &len);
+      byte *dst = rec_get_nth_field(index, rec, offsets, trx_id_col, &len);
       if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
         page_zip_fail(
             ("page_zip_decompress_clust:"
@@ -1325,7 +1334,7 @@ zlib_done:
     auto exists = !page_zip_dir_find_free(page_zip, page_offset(rec));
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    dst = rec_get_nth_field(rec, offsets, trx_id_col, &len);
+    dst = rec_get_nth_field(index, rec, offsets, trx_id_col, &len);
     ut_ad(len >= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
     storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
     memcpy(dst, storage, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -1339,10 +1348,10 @@ zlib_done:
     }
 
     for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-      if (!rec_offs_nth_extern(offsets, i)) {
+      if (!rec_offs_nth_extern(index, offsets, i)) {
         continue;
       }
-      dst = rec_get_nth_field(rec, offsets, i, &len);
+      dst = rec_get_nth_field(index, rec, offsets, i, &len);
 
       if (UNIV_UNLIKELY(len < BTR_EXTERN_FIELD_REF_SIZE)) {
         page_zip_fail(

@@ -9703,6 +9703,12 @@ ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
 ER_XA_TEMP_TABLE
   eng "XA: Temporary tables cannot be accessed inside XA transactions when xa_detach_on_prepare=ON"
 
+ER_INNODB_MAX_ROW_VERSION
+  eng "Maximum row versions reached for table %s. No more columns can be added or dropped instantly. Please use COPY/INPLACE."
+
+ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+  eng "Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

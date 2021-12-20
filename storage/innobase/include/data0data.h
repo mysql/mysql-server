@@ -728,7 +728,7 @@ struct dtuple_t {
 
   /** Ignore at most n trailing default fields if this is a tuple
   from instant index
-  @param[in]	index	clustered index object for this tuple */
+  @param[in]    index   clustered index object for this tuple */
   void ignore_trailing_default(const dict_index_t *index);
 
   /** Compare a data tuple to a physical record.

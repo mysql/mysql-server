@@ -11145,9 +11145,11 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 
 /** Create a table definition to an InnoDB database.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
+@param[in]	old_part_table	dd::Table from an old partition for partitioned
+                                table, NULL otherwise.
 @return HA_* level error */
 [[nodiscard]] inline int create_table_info_t::create_table_def(
-    const dd::Table *dd_table) {
+    const dd::Table *dd_table, const dd::Table *old_part_table) {
   dict_table_t *table;
   ulint n_cols;
   dberr_t err;
@@ -11164,10 +11166,18 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
   dd::Object_id dd_space_id = dd::INVALID_OBJECT_ID;
   ulint actual_n_cols;
 
+  uint32_t i_c = 0;
+  uint32_t c_c = 0;
+  uint32_t t_c = 0;
+  uint32_t c_r_v = 0;
+
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
 
   assert(m_trx->mysql_thd == m_thd);
+
+  bool part_table_with_instant_cols =
+      (old_part_table != nullptr && dd_table_has_row_versions(*old_part_table));
 
   /* MySQL does the name length check. But we do additional check
   on the name length here */
@@ -11240,8 +11250,12 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     actual_n_cols += 1;
   }
 
+  if (part_table_with_instant_cols) {
+    dd_table_get_column_counters(*old_part_table, i_c, c_c, t_c, c_r_v);
+  }
+
   table = dict_mem_table_create(m_table_name, space_id, actual_n_cols, num_v,
-                                num_m_v, m_flags, m_flags2);
+                                num_m_v, m_flags, m_flags2, t_c - c_c);
 
   /* Set dd tablespace id */
   table->dd_space_id = dd_space_id;
@@ -11267,7 +11281,43 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     table->tablespace = nullptr;
   }
 
-  heap = mem_heap_create(100, UT_LOCATION_HERE);
+  /* Initialize row version and column counts for new table */
+  if (!part_table_with_instant_cols) {
+    table->current_row_version = 0;
+    table->initial_col_count = n_cols - num_v;
+    table->current_col_count = table->initial_col_count;
+    table->total_col_count = table->initial_col_count;
+  } else {
+    /* This is a new partition getting created. We need to inherit INSTANT
+    instant metadata from old partition table */
+    table->initial_col_count = i_c;
+    table->current_col_count = c_c;
+    table->total_col_count = t_c;
+    table->current_row_version = c_r_v;
+    table->discard_after_ddl = true;
+
+#ifdef UNIV_DEBUG
+    /* Get and set current row version for table */
+    uint32_t v = 0;
+    for (auto col : old_part_table->columns()) {
+      if (dd_column_is_dropped(col)) {
+        uint32_t value = dd_column_get_version_dropped(col);
+        v = std::max(v, value);
+        continue;
+      }
+
+      if (dd_column_is_added(col)) {
+        uint32_t value = dd_column_get_version_added(col);
+        v = std::max(v, value);
+        continue;
+      }
+    }
+    ut_ad(dd_is_valid_row_version(v));
+    ut_ad(table->current_row_version == v);
+#endif
+  }
+
+  heap = mem_heap_create(1000, UT_LOCATION_HERE);
 
   for (i = 0; i < n_cols; i++) {
     ulint nulls_allowed;
@@ -11377,12 +11427,43 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     }
 
     if (!is_virtual) {
+      uint32_t v_added = UINT32_UNDEFINED;
+      uint32_t v_dropped = UINT32_UNDEFINED;
+      uint32_t phy_pos = UINT32_UNDEFINED;
+
+      if (part_table_with_instant_cols) {
+        const dd::Column *old_part_col =
+            dd_find_column(old_part_table, field_name);
+        ut_ad(old_part_col != nullptr);
+
+        /* Get version added */
+        v_added = dd_column_get_version_added(old_part_col);
+
+        /* This columns must be present */
+        ut_ad(!dd_column_is_dropped(old_part_col));
+
+        /* Get physical pos */
+        const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+        ut_ad(old_part_col->se_private_data().exists(s));
+        old_part_col->se_private_data().get(s, &phy_pos);
+      }
+
       dict_mem_table_add_col(
           table, heap, field_name, col_type,
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
                                 unsigned_type | binary_type | long_true_varchar,
                             charset_no),
-          col_len, !field->is_hidden_by_system());
+          col_len, !field->is_hidden_by_system(), phy_pos, v_added, v_dropped);
+
+      if (dd_is_valid_row_version(v_added)) {
+        mem_heap_t *instant_heap = mem_heap_create(1000, UT_LOCATION_HERE);
+        const dd::Column *old_part_col =
+            dd_find_column(old_part_table, field_name);
+        ut_ad(old_part_col != nullptr);
+        dict_col_t *col = table->get_col(table->n_def - 1);
+        dd_parse_default_value(old_part_col->se_private_data(), col, heap);
+        mem_heap_free(instant_heap);
+      }
     } else {
       if (is_multi_val) {
         col_len = field->key_length();
@@ -11548,13 +11629,44 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     }
 
     if (err == DB_SUCCESS) {
-      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx);
+      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx,
+                                       heap);
 
       if (err == DB_IO_NO_PUNCH_HOLE_FS) {
         ut_ad(!dict_table_in_shared_tablespace(table));
         my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
                  "Punch hole not supported by the filesystem or the tablespace "
                  "page size is not large enough.");
+      }
+
+      if (err == DB_SUCCESS && part_table_with_instant_cols) {
+        /* Set phy_pos for system cols */
+
+        auto fn = [&](uint32_t sys_col, const char *name) {
+          uint32_t phy_pos = UINT32_UNDEFINED;
+          dict_col_t *col = table->get_sys_col(sys_col);
+          const dd::Column *old_part_col = dd_find_column(old_part_table, name);
+          if (old_part_col == nullptr) {
+            /* If PK exists, DB_ROW_ID won't be part of table definition. */
+            ut_ad(strcmp(name, "DB_ROW_ID") == 0);
+            return;
+          }
+
+          const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+          ut_ad(old_part_col->se_private_data().exists(s));
+          old_part_col->se_private_data().get(s, &phy_pos);
+          col->set_phy_pos(phy_pos);
+        };
+
+        fn(DATA_ROW_ID, "DB_ROW_ID");
+        fn(DATA_TRX_ID, "DB_TRX_ID");
+        fn(DATA_ROLL_PTR, "DB_ROLL_PTR");
+
+        /* Add INSTANT DROP columns metadata */
+        IF_DEBUG(uint32_t row_version = 0;)
+        fill_dict_dropped_columns(old_part_table, table,
+                                  IF_DEBUG(row_version, ) heap);
+        ut_ad(row_version <= table->current_row_version);
       }
     }
 
@@ -13465,8 +13577,11 @@ static dberr_t innobase_check_fk_base_col(const dd::Table *dd_table,
 
 /** Create the internal innodb table.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
+@param[in]	old_part_table	dd::Table from an old partition for partitioned
+                                table, NULL otherwise.
 @return 0 or error number */
-int create_table_info_t::create_table(const dd::Table *dd_table) {
+int create_table_info_t::create_table(const dd::Table *dd_table,
+                                      const dd::Table *old_part_table) {
   int error;
   uint primary_key_no;
   uint i;
@@ -13504,7 +13619,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   the primary key is always number 0, if it exists */
   ut_a(primary_key_no == MAX_KEY || primary_key_no == 0);
 
-  error = create_table_def(dd_table);
+  error = create_table_def(dd_table, old_part_table);
   if (error) {
     return error;
   }
@@ -13817,7 +13932,8 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
                                     HA_CREATE_INFO *create_info, Table *dd_tab,
                                     bool file_per_table, bool evictable,
                                     bool skip_strict, uint32_t old_flags,
-                                    uint32_t old_flags2) {
+                                    uint32_t old_flags2,
+                                    const dd::Table *old_part_table) {
   char norm_name[FN_REFLEN] = {'\0'};   /* {database}/{tablename} */
   char remote_path[FN_REFLEN] = {'\0'}; /* Absolute path of table */
   char tablespace[NAME_LEN] = {'\0'};   /* Tablespace name identifier */
@@ -13854,7 +13970,8 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
     return (error);
   }
 
-  error = info.create_table(dd_tab != nullptr ? &dd_tab->table() : nullptr);
+  error = info.create_table(dd_tab != nullptr ? &dd_tab->table() : nullptr,
+                            old_part_table);
   if (error) {
     goto cleanup;
   }
@@ -13919,11 +14036,11 @@ cleanup:
 
 template int innobase_basic_ddl::create_impl<dd::Table>(
     THD *, const char *, TABLE *, HA_CREATE_INFO *, dd::Table *, bool, bool,
-    bool, uint32_t, uint32_t);
+    bool, uint32_t, uint32_t, const dd::Table *);
 
 template int innobase_basic_ddl::create_impl<dd::Partition>(
     THD *, const char *, TABLE *, HA_CREATE_INFO *, dd::Partition *, bool, bool,
-    bool, uint32_t, uint32_t);
+    bool, uint32_t, uint32_t, const dd::Table *);
 
 template <typename Table>
 int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
@@ -14313,9 +14430,17 @@ int innobase_truncate<Table>::truncate() {
   }
 
   m_trx->in_truncate = true;
-  error = innobase_basic_ddl::create_impl(m_thd, m_name, m_form, &m_create_info,
-                                          m_dd_table, m_file_per_table, false,
-                                          true, m_flags, m_flags2);
+  bool inherit_metadata = false;
+  if (dd_table_has_instant_cols(m_dd_table->table()) &&
+      dd_table_is_partitioned(m_dd_table->table()) && !m_table_truncate) {
+    /* For a partition table, if this is not a full table truncate, and first
+    partition is getting truncated, make sure INSTANT metadata is inherited. */
+    inherit_metadata = true;
+  }
+  error = innobase_basic_ddl::create_impl(
+      m_thd, m_name, m_form, &m_create_info, m_dd_table, m_file_per_table,
+      false, true, m_flags, m_flags2,
+      inherit_metadata ? &m_dd_table->table() : nullptr);
   m_trx->in_truncate = false;
 
   if (reset) {
@@ -14812,7 +14937,7 @@ int ha_innobase::create(const char *name, TABLE *form,
   decisions based on this. */
   return (innobase_basic_ddl::create_impl(ha_thd(), name, form, create_info,
                                           table_def, srv_file_per_table, true,
-                                          false, 0, 0));
+                                          false, 0, 0, nullptr));
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -14970,6 +15095,7 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
   dict_table_t *innodb_table = nullptr;
   bool has_autoinc = false;
   int error = 0;
+  const bool is_instant = dd_table_has_instant_cols(*table_def);
 
   if (!normalize_table_name(norm_name, name)) {
     /* purecov: begin inspected */
@@ -14978,8 +15104,8 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     /* purecov: end */
   }
 
-  innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def,
-                                         false);
+  innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def, false,
+                                         true);
 
   error = truncator.open_table(innodb_table);
 
@@ -15006,7 +15132,7 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
       dd_set_autoinc(table_def->se_private_data(), 0);
     }
 
-    if (dd_table_has_instant_cols(*table_def)) {
+    if (is_instant) {
       dd_clear_instant_table(*table_def);
     }
   }
@@ -23892,9 +24018,8 @@ static void innodb_fill_fake_column_struct(
       /* InnoDB always treats BIT as char. */
       true, fk_col_type->numeric_scale, fk_col_type->is_unsigned);
 
-  memset(col, 0, sizeof(dict_col_t));
   dict_mem_fill_column_struct(col, 0 /* fake col_pos */, mtype, fake_prtype,
-                              col_len, true);
+                              col_len, true, UINT32_UNDEFINED, 0, 0);
 }
 
 /** Check if types of child and parent columns in foreign key are compatible.

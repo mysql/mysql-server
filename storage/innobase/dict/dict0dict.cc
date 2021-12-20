@@ -1128,6 +1128,8 @@ dict_table_t *dict_table_open_on_name(
 @param[in] heap Temporary heap */
 void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap) {
   ut_ad(table);
+  /* INSTANT DROP columns are added after system columns, so no need to
+  consider drop columns count in following assert. */
   ut_ad(table->n_def == (table->n_cols - table->get_n_sys_cols()));
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
   ut_ad(!table->cached);
@@ -1140,16 +1142,22 @@ void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap) {
   Intrinsic table don't need DB_ROLL_PTR as UNDO logging is turned off
   for these tables. */
 
+  const uint32_t phy_pos = UINT32_UNDEFINED;
+  const uint8_t v_added = 0;
+  const uint8_t v_dropped = 0;
+
   dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
-                         DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN, false);
+                         DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN, false,
+                         phy_pos, v_added, v_dropped);
 
   dict_mem_table_add_col(table, heap, "DB_TRX_ID", DATA_SYS,
-                         DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN, false);
+                         DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN, false,
+                         phy_pos, v_added, v_dropped);
 
   if (!table->is_intrinsic()) {
     dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
                            DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN,
-                           false);
+                           false, phy_pos, v_added, v_dropped);
 
     /* This check reminds that if a new system column is added to
     the program, it should be dealt with here */
@@ -2096,35 +2104,10 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   return (rec_max_size);
 }
 
-/** A B-tree page should accommodate at least two records. This function finds
-out if this is violated for records of maximum possible length of this index.
-@param[in]	table		table
-@param[in]	new_index	index
-@param[in]	strict		true=report error if records could be too big to
-                                fit in an B-tree page
-@return true if the index record could become too big */
-static bool dict_index_too_big_for_tree(const dict_table_t *table,
-                                        const dict_index_t *new_index,
-                                        bool strict) {
-  ulint comp;
-  ulint i;
-  /* maximum possible storage size of a record */
-  ulint rec_max_size;
-  /* maximum allowed size of a record on a leaf page */
-  ulint page_rec_max;
-  /* maximum allowed size of a node pointer record */
-  ulint page_ptr_max;
-
-  /* FTS index consists of auxiliary tables, they shall be excluded from
-  index row size check */
-  if (new_index->type & DICT_FTS) {
-    return (false);
-  }
-
-  DBUG_EXECUTE_IF("ib_force_create_table", return false;);
-
-  comp = dict_table_is_comp(table);
-
+void get_permissible_max_size(const dict_table_t *table,
+                              const dict_index_t *index, size_t &page_rec_max,
+                              size_t &page_ptr_max) {
+  const bool comp = dict_table_is_comp(table);
   const page_size_t page_size(dict_table_page_size(table));
 
   if (page_size.is_compressed() &&
@@ -2138,16 +2121,11 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
     an empty page, minus a byte for recoding the heap
     number in the page modification log.  The maximum
     allowed node pointer size is half that. */
-    page_rec_max =
-        page_zip_empty_size(new_index->n_fields, page_size.physical());
+    page_rec_max = page_zip_empty_size(index->n_fields, page_size.physical());
     if (page_rec_max) {
       page_rec_max--;
     }
     page_ptr_max = page_rec_max / 2;
-    /* On a compressed page, there is a two-byte entry in
-    the dense page directory for every record.  But there
-    is no record header. */
-    rec_max_size = 2;
   } else {
     /* The maximum allowed record size is half a B-tree
     page(16k for 64k page size).  No additional sparse
@@ -2157,89 +2135,146 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
                        ? REC_MAX_DATA_SIZE - 1
                        : page_get_free_space_of_empty(comp) / 2;
     page_ptr_max = page_rec_max;
+  }
+}
+
+void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
+                        const dict_field_t *field, size_t &rec_max_size) {
+  const bool comp = dict_table_is_comp(table);
+  const dict_col_t *col = field->col;
+  ulint field_max_size;
+  ulint field_ext_max_size;
+
+  /* In dtuple_convert_big_rec(), variable-length columns
+  that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
+  may be chosen for external storage.
+
+  Fixed-length columns, and all columns of secondary
+  index records are always stored inline. */
+
+  /* Determine the maximum length of the index field.
+  The field_ext_max_size should be computed as the worst
+  case in rec_get_converted_size_comp() for
+  REC_STATUS_ORDINARY records. */
+
+  field_max_size = col->get_fixed_size(comp);
+  if (field_max_size && field->fixed_len != 0) {
+    /* dict_index_add_col() should guarantee this */
+    ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
+    /* Fixed lengths are not encoded in ROW_FORMAT=COMPACT. */
+    field_ext_max_size = 0;
+    rec_max_size += field_max_size;
+    return;
+  }
+
+  field_max_size = col->get_max_size();
+  field_ext_max_size = field_max_size < 256 ? 1 : 2;
+
+  if (field->prefix_len) {
+    if (field->prefix_len < field_max_size) {
+      field_max_size = field->prefix_len;
+    }
+  } else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
+             index->is_clustered()) {
+    if (dict_table_has_atomic_blobs(table)) {
+      /* In the worst case, we have a locally stored column of
+      BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes. The length can be stored in one
+      byte. If the column were stored externally, the lengths in the clustered
+      index page would be BTR_EXTERN_FIELD_REF_SIZE and 2. */
+      field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
+      field_ext_max_size = 1;
+    } else {
+      /* In this case, externally stored fields would have 768 byte prefix
+      stored in-line followed by fields reference. */
+      size_t local_stored_length =
+          BTR_EXTERN_FIELD_REF_SIZE + DICT_ANTELOPE_MAX_INDEX_COL_LEN;
+      if (field_max_size > local_stored_length) {
+        field_max_size = local_stored_length;
+        /* Prefix length will be stored in 2 bytes. */
+        field_ext_max_size = 2;
+      }
+    }
+  }
+
+  if (comp) {
+    /* Add the extra size for ROW_FORMAT=COMPACT.
+    For ROW_FORMAT=REDUNDANT, these bytes were
+    added to rec_max_size before this loop. */
+    rec_max_size += field_ext_max_size;
+  }
+
+  rec_max_size += field_max_size;
+}
+
+/** A B-tree page should accommodate at least two records. This function finds
+out if this is violated for records of maximum possible length of this index.
+@param[in]   table         table
+@param[in]   new_index     index
+@param[in]   strict        true=report error if records could be too big to fit
+                           in a B-tree page
+@return true if the index record could become too big */
+static bool dict_index_too_big_for_tree(const dict_table_t *table,
+                                        const dict_index_t *new_index,
+                                        bool strict) {
+  /* FTS index consists of auxiliary tables, they shall be excluded from index
+  row size check */
+  if (new_index->type & DICT_FTS) {
+    return (false);
+  }
+
+  DBUG_EXECUTE_IF("ib_force_create_table", return (false););
+
+  /* maximum allowed size of a record on a leaf page */
+  size_t page_rec_max;
+  /* maximum allowed size of a node pointer record */
+  size_t page_ptr_max;
+  get_permissible_max_size(table, new_index, page_rec_max, page_ptr_max);
+
+  size_t rec_max_size;
+  bool res = dict_index_validate_max_rec_size(
+      table, new_index, strict, page_rec_max, page_ptr_max, rec_max_size);
+  ut_a(res || rec_max_size < page_rec_max);
+  return (res);
+}
+
+bool dict_index_validate_max_rec_size(const dict_table_t *table,
+                                      const dict_index_t *index, bool strict,
+                                      const size_t page_rec_max,
+                                      const size_t page_ptr_max,
+                                      size_t &rec_max_size) {
+  const bool comp = dict_table_is_comp(table);
+
+  const page_size_t page_size(dict_table_page_size(table));
+  if (page_size.is_compressed() &&
+      page_size.physical() < univ_page_size.physical()) {
+    /* On a compressed page, there is a two-byte entry in the dense page
+    directory for every record. But there is no record header. */
+    rec_max_size = 2;
+  } else {
     /* Each record has a header. */
     rec_max_size = comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES;
   }
 
   if (comp) {
-    /* Include the "null" flags in the
-    maximum possible record size. */
-    rec_max_size += UT_BITS_IN_BYTES(new_index->n_nullable);
+    /* Include the "null" flags in the maximum possible record size. */
+    rec_max_size += UT_BITS_IN_BYTES(index->n_nullable);
   } else {
-    /* For each column, include a 2-byte offset and a
-    "null" flag.  The 1-byte format is only used in short
-    records that do not contain externally stored columns.
-    Such records could never exceed the page limit, even
-    when using the 2-byte format. */
-    rec_max_size += 2 * new_index->n_fields;
+    /* For each column, include a 2-byte offset and a "null" flag.  The 1-byte
+    format is only used in short records that do not contain externally stored
+    columns. Such records could never exceed the page limit, even when using
+    the 2-byte format. */
+    rec_max_size += 2 * index->n_fields;
+  }
+
+  /* Each record would have version stored in 1 byte */
+  if (index->has_row_versions()) {
+    rec_max_size += 1;
   }
 
   /* Compute the maximum possible record size. */
-  for (i = 0; i < new_index->n_fields; i++) {
-    const dict_field_t *field = new_index->get_field(i);
-    const dict_col_t *col = field->col;
-    ulint field_max_size;
-    ulint field_ext_max_size;
-
-    /* In dtuple_convert_big_rec(), variable-length columns
-    that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
-    may be chosen for external storage.
-
-    Fixed-length columns, and all columns of secondary
-    index records are always stored inline. */
-
-    /* Determine the maximum length of the index field.
-    The field_ext_max_size should be computed as the worst
-    case in rec_get_converted_size_comp() for
-    REC_STATUS_ORDINARY records. */
-
-    field_max_size = col->get_fixed_size(comp);
-    if (field_max_size && field->fixed_len != 0) {
-      /* dict_index_add_col() should guarantee this */
-      ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
-      /* Fixed lengths are not encoded
-      in ROW_FORMAT=COMPACT. */
-      field_ext_max_size = 0;
-      goto add_field_size;
-    }
-
-    field_max_size = col->get_max_size();
-    field_ext_max_size = field_max_size < 256 ? 1 : 2;
-
-    if (field->prefix_len) {
-      if (field->prefix_len < field_max_size) {
-        field_max_size = field->prefix_len;
-      }
-    } else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
-               new_index->is_clustered()) {
-      if (dict_table_has_atomic_blobs(table)) {
-        /* In the worst case, we have a locally stored column of
-        BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes. The length can be stored in one
-        byte. If the column were stored externally, the lengths in the clustered
-        index page would be BTR_EXTERN_FIELD_REF_SIZE and 2. */
-        field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
-        field_ext_max_size = 1;
-      } else {
-        /* In this case, externally stored fields would have 768 byte prefix
-        stored in-line followed by fields reference. */
-        size_t local_stored_length =
-            BTR_EXTERN_FIELD_REF_SIZE + DICT_ANTELOPE_MAX_INDEX_COL_LEN;
-        if (field_max_size > local_stored_length) {
-          field_max_size = local_stored_length;
-          /* Prefix length will be stored in 2 bytes. */
-          field_ext_max_size = 2;
-        }
-      }
-    }
-
-    if (comp) {
-      /* Add the extra size for ROW_FORMAT=COMPACT.
-      For ROW_FORMAT=REDUNDANT, these bytes were
-      added to rec_max_size before this loop. */
-      rec_max_size += field_ext_max_size;
-    }
-  add_field_size:
-    rec_max_size += field_max_size;
+  for (size_t i = 0; i < index->n_fields; i++) {
+    const dict_field_t *field = index->get_field(i);
+    get_field_max_size(table, index, field, rec_max_size);
 
     /* Check the size limit on leaf pages. */
     if (rec_max_size >= page_rec_max) {
@@ -2253,13 +2288,12 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
       return (true);
     }
 
-    /* Check the size limit on non-leaf pages.  Records
-    stored in non-leaf B-tree pages consist of the unique
-    columns of the record (the key columns of the B-tree)
-    and a node pointer field.  When we have processed the
-    unique columns, rec_max_size equals the size of the
-    node pointer record minus the node pointer column. */
-    if (i + 1 == dict_index_get_n_unique_in_tree(new_index) &&
+    /* Check the size limit on non-leaf pages. Records stored in non-leaf
+    B-tree pages consist of the unique columns of the record (the key columns
+    of the B-tree) and a node pointer field. When we have processed the unique
+    columns, rec_max_size equals the size of the node pointer record minus the
+    node pointer column. */
+    if (i + 1 == dict_index_get_n_unique_in_tree(index) &&
         rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
       return (true);
     }
@@ -2431,6 +2465,11 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   number of fields in the cache internal representation */
 
   new_index->n_fields = new_index->n_def;
+
+  if (index->is_clustered() && table->has_row_versions()) {
+    new_index->n_fields = new_index->n_def - table->get_n_instant_drop_cols();
+  }
+  new_index->n_total_fields = new_index->n_def;
   new_index->trx_id = index->trx_id;
   new_index->set_committed(index->is_committed());
   new_index->allow_duplicates = index->allow_duplicates;
@@ -2510,7 +2549,8 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   cache as long they are met. We assert before using the rec_cache that they are
   still met, and clear the rec_cache.offsets when they change. */
   if (dict_table_is_comp(table) && !dict_index_has_virtual(index) &&
-      !table->has_instant_cols() && !dict_index_is_spatial(index)) {
+      (!table->has_instant_cols() && !table->has_row_versions()) &&
+      !dict_index_is_spatial(index)) {
     dict_index_try_cache_rec_offsets(new_index);
   } else {
     /* The rules should not prevent caching for intrinsic tables */
@@ -2560,13 +2600,21 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     }
   }
 
-  if (new_index->table->has_instant_cols() && new_index->is_clustered()) {
-    new_index->instant_cols = true;
-    new_index->n_instant_nullable =
-        new_index->get_n_nullable_before(new_index->get_instant_fields());
-  } else {
-    new_index->instant_cols = false;
-    new_index->n_instant_nullable = new_index->n_nullable;
+  new_index->instant_cols = false;
+  new_index->row_versions = false;
+  new_index->set_instant_nullable(new_index->n_nullable);
+
+  if (new_index->is_clustered()) {
+    if (new_index->table->has_instant_cols()) {
+      ut_ad(new_index->table->is_upgraded_instant());
+      new_index->instant_cols = true;
+      new_index->set_instant_nullable(
+          new_index->get_n_nullable_before(new_index->get_instant_fields()));
+    }
+
+    if (new_index->table->has_row_versions()) {
+      new_index->row_versions = true;
+    }
   }
 
   dict_mem_index_free(index);
@@ -2935,12 +2983,6 @@ static dict_index_t *dict_index_build_internal_clust(
     dict_index_t *index)       /*!< in: user representation of
                                a clustered index */
 {
-  dict_index_t *new_index;
-  dict_field_t *field;
-  ulint trx_id_pos;
-  ulint i;
-  bool *indexed;
-
   ut_ad(table && index);
   ut_ad(index->is_clustered());
   ut_ad(!dict_index_is_ibuf(index));
@@ -2948,10 +2990,12 @@ static dict_index_t *dict_index_build_internal_clust(
   ut_ad(!dict_sys_mutex_own());
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
+  uint32_t total_cols_in_table = table->get_total_cols();
+
   /* Create a new index object with certainly enough fields */
-  new_index =
+  dict_index_t *new_index =
       dict_mem_index_create(table->name.m_name, index->name, table->space,
-                            index->type, index->n_fields + table->n_cols);
+                            index->type, index->n_fields + total_cols_in_table);
 
   /* Copy other relevant data from the old index struct to the new
   struct: it inherits the values */
@@ -2975,20 +3019,63 @@ static dict_index_t *dict_index_build_internal_clust(
 
   new_index->trx_id_offset = 0;
 
-  /* Add system columns, trx id first */
+  uint16_t n_fields_processed = 0;
 
-  trx_id_pos = new_index->n_def;
+  /* Add phy_pos for fields defined so far */
+  while (n_fields_processed < new_index->n_def) {
+    dict_field_t *field = new_index->get_field(n_fields_processed);
+    dict_col_t *col = field->col;
+    if (table->current_row_version == 0) {
+      if (field->prefix_len != 0) {
+        /* This column prefix is used in PK */
+        col->set_prefix_phy_pos(n_fields_processed);
+      } else {
+        col->set_phy_pos(n_fields_processed);
+      }
+    } else {
+      ut_ad(col->get_phy_pos() != UINT32_UNDEFINED);
+    }
+    n_fields_processed++;
+  }
 
+  auto set_phy_pos = [&](const dict_col_t *cmp_col) {
+    dict_col_t *col =
+        const_cast<dict_col_t *>(new_index->get_col(n_fields_processed));
+    ut_a(col == cmp_col);
+
+    if (table->current_row_version == 0) {
+      if (col->get_phy_pos() != UINT32_UNDEFINED && col->has_prefix_phy_pos()) {
+        /* This column prefix is used in PK */
+        ut_ad(new_index->get_col(col->get_prefix_phy_pos()) == col);
+        col->set_col_phy_pos(n_fields_processed);
+      } else {
+        col->set_phy_pos(n_fields_processed);
+      }
+    } else {
+      ut_ad(col->get_phy_pos() != UINT32_UNDEFINED);
+    }
+
+    n_fields_processed++;
+  };
+
+  /* Add system columns */
+
+  size_t trx_id_pos = new_index->n_def;
+
+  /* Add ROW ID */
   if (!dict_index_is_unique(index)) {
     dict_index_add_col(new_index, table, table->get_sys_col(DATA_ROW_ID), 0,
                        true);
+    set_phy_pos(table->get_sys_col(DATA_ROW_ID));
     trx_id_pos++;
   }
 
+  /* Add TRX ID */
   dict_index_add_col(new_index, table, table->get_sys_col(DATA_TRX_ID), 0,
                      true);
+  set_phy_pos(table->get_sys_col(DATA_TRX_ID));
 
-  for (i = 0; i < trx_id_pos; i++) {
+  for (size_t i = 0; i < trx_id_pos; i++) {
     ulint fixed_size =
         new_index->get_col(i)->get_fixed_size(dict_table_is_comp(table));
 
@@ -3021,21 +3108,22 @@ static dict_index_t *dict_index_build_internal_clust(
     }
   }
 
-  /* UNDO logging is turned-off for intrinsic table and so
-  DATA_ROLL_PTR system columns are not added as default system
-  columns to such tables. */
+  /* Add ROLL PTR. UNDO logging is turned-off for intrinsic table and so
+  DATA_ROLL_PTR system columns are not added as default system columns to such
+  tables. */
   if (!table->is_intrinsic()) {
     dict_index_add_col(new_index, table, table->get_sys_col(DATA_ROLL_PTR), 0,
                        true);
+    set_phy_pos(table->get_sys_col(DATA_ROLL_PTR));
   }
 
   /* Remember the table columns already contained in new_index */
-  indexed = static_cast<bool *>(ut::zalloc_withkey(
-      UT_NEW_THIS_FILE_PSI_KEY, table->n_cols * sizeof *indexed));
+  bool *indexed = static_cast<bool *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, total_cols_in_table * sizeof *indexed));
 
   /* Mark the table columns already contained in new_index */
-  for (i = 0; i < new_index->n_def; i++) {
-    field = new_index->get_field(i);
+  for (size_t i = 0; i < new_index->n_def; i++) {
+    dict_field_t *field = new_index->get_field(i);
 
     /* If there is only a prefix of the column in the index
     field, do not mark the column as contained in the index */
@@ -3045,19 +3133,41 @@ static dict_index_t *dict_index_build_internal_clust(
     }
   }
 
-  /* Add to new_index non-system columns of table not yet included
-  there */
-  ulint n_sys_cols = table->get_n_sys_cols();
-  for (i = 0; i + n_sys_cols < (ulint)table->n_cols; i++) {
+  /* Add to new_index non-system columns of table not yet included there */
+  for (size_t i = 0; i < table->get_n_user_cols(); i++) {
     dict_col_t *col = table->get_col(i);
     ut_ad(col->mtype != DATA_SYS);
 
-    if (!indexed[col->ind]) {
-      dict_index_add_col(new_index, table, col, 0, true);
+    if (indexed[col->ind]) {
+      continue;
     }
+
+    dict_index_add_col(new_index, table, col, 0, true);
+    set_phy_pos(new_index->get_col(n_fields_processed));
   }
 
+  /* Add INSTANT DROP column */
+  for (size_t i = table->n_cols; i < total_cols_in_table; i++) {
+    dict_col_t *col = table->get_col(i);
+    ut_ad(col->mtype != DATA_SYS);
+
+    ut_ad(!indexed[col->ind]);
+    dict_index_add_col(new_index, table, col, 0, true);
+    /* Physical position must have already been set */
+    ut_ad(col->get_phy_pos() != UINT32_UNDEFINED);
+    n_fields_processed++;
+  }
+
+  ut_ad(n_fields_processed == new_index->n_def);
+
   ut::free(indexed);
+
+  if (!table->is_system_table) {
+    if (table->has_row_versions()) {
+      new_index->create_fields_array();
+    }
+    new_index->create_nullables(table->current_row_version);
+  }
 
   ut_ad(UT_LIST_GET_LEN(table->indexes) == 0);
 
@@ -5178,11 +5288,11 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
   rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
   ut_ad(!rec_get_deleted_flag(rec, 1));
 
-  version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
+  version = rec_get_nth_field(nullptr, rec, offsets, VERSION_FIELD_NO, &len);
   ut_ad(len == 8);
   version_field = dtuple_get_nth_field(entry, VERSION_FIELD_NO);
 
-  metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+  metadata = rec_get_nth_field(nullptr, rec, offsets, METADATA_FIELD_NO, &len);
   metadata_dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
 
   if (dfield_data_is_binary_equal(version_field, 8, version) &&
@@ -5359,11 +5469,11 @@ std::string *DDTableBuffer::get(table_id_t id, uint64_t *version) {
     ut_ad(!rec_get_deleted_flag(rec, true));
 
     const byte *rec_version =
-        rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
+        rec_get_nth_field(nullptr, rec, offsets, VERSION_FIELD_NO, &len);
     ut_ad(len == 8);
     *version = mach_read_from_8(rec_version);
 
-    field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+    field = rec_get_nth_field(nullptr, rec, offsets, METADATA_FIELD_NO, &len);
 
     ut_ad(len != UNIV_SQL_NULL);
   } else {

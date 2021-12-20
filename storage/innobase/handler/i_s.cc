@@ -5292,6 +5292,36 @@ static ST_FIELD_INFO innodb_tables_fields_info[] = {
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
+#define INNODB_TABLES_TOTAL_ROW_VERSIONS 9
+    {STRUCT_FLD(field_name, "TOTAL_ROW_VERSIONS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#ifdef UNIV_DEBUG
+#define INNODB_TABLES_INITIAL_COLUMN_COUNTS 10
+    {STRUCT_FLD(field_name, "INITIAL_COLUMN_COUNTS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_TABLES_CURRENT_COLUMN_COUNTS 11
+    {STRUCT_FLD(field_name, "CURRENT_COLUMN_COUNTS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_TABLES_TOTAL_COLUMN_COUNTS 12
+    {STRUCT_FLD(field_name, "TOTAL_COLUMN_COUNTS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+#endif
+
     END_OF_ST_FIELD_INFO};
 
 /** Populate information_schema.innodb_tables table with information
@@ -5349,7 +5379,20 @@ static int i_s_dict_fill_innodb_tables(THD *thd, dict_table_t *table,
   OK(field_store_string(fields[INNODB_TABLES_SPACE_TYPE], space_type));
 
   OK(fields[INNODB_TABLES_INSTANT_COLS]->store(
-      table->has_instant_cols() ? table->get_instant_cols() : 0));
+      table->is_upgraded_instant() ? table->get_instant_cols() : 0));
+
+  OK(fields[INNODB_TABLES_TOTAL_ROW_VERSIONS]->store(
+      table->current_row_version));
+
+#ifdef UNIV_DEBUG
+  OK(fields[INNODB_TABLES_INITIAL_COLUMN_COUNTS]->store(
+      table->initial_col_count));
+
+  OK(fields[INNODB_TABLES_CURRENT_COLUMN_COUNTS]->store(
+      table->current_col_count));
+
+  OK(fields[INNODB_TABLES_TOTAL_COLUMN_COUNTS]->store(table->total_col_count));
+#endif
 
   OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6107,6 +6150,29 @@ static ST_FIELD_INFO innodb_columns_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
+#ifdef UNIV_DEBUG
+#define SYS_COLUMN_VERSION_ADDED 8
+    {STRUCT_FLD(field_name, "VERSION_ADDED"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define SYS_COLUMN_VERSION_DROPPED 9
+    {STRUCT_FLD(field_name, "VERSION_DROPPED"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define SYS_COLUMN_PHYSICAL_POS 10
+    {STRUCT_FLD(field_name, "PHYSICAL_POS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+#endif
+
     END_OF_ST_FIELD_INFO};
 
 /** Function to fill the BLOB value for column default value
@@ -6176,6 +6242,28 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
     fields[SYS_COLUMN_DEFAULT_VALUE]->set_null();
   }
 
+#ifdef UNIV_DEBUG
+  if (column->is_instant_added()) {
+    OK(fields[SYS_COLUMN_VERSION_ADDED]->store(column->get_version_added()));
+  } else {
+    OK(fields[SYS_COLUMN_VERSION_ADDED]->store(0));
+  }
+
+  if (column->is_instant_dropped()) {
+    OK(fields[SYS_COLUMN_VERSION_DROPPED]->store(
+        column->get_version_dropped()));
+  } else {
+    OK(fields[SYS_COLUMN_VERSION_DROPPED]->store(0));
+  }
+
+  if (column->get_phy_pos() == UINT32_UNDEFINED) {
+    OK(fields[SYS_COLUMN_PHYSICAL_POS]->store(-1));
+  } else {
+    OK(fields[SYS_COLUMN_PHYSICAL_POS]->store(column->get_phy_pos()));
+  }
+
+#endif
+
   OK(schema_table_store_record(thd, table_to_fill));
 
   return 0;
@@ -6223,13 +6311,23 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       v_name = table_rec->v_col_names;
     }
 
-    for (size_t i = 0, v_i = 0;
-         i < table_rec->n_cols || v_i < table_rec->n_v_cols;) {
-      if (i < table_rec->n_cols &&
-          (!has_virtual_cols || v_i == table_rec->n_v_cols ||
-           column->ind < v_column->m_col.ind)) {
+    uint16_t total_s_cols = table_rec->n_cols;
+    uint16_t total_v_cols = table_rec->n_v_cols;
+
+    DBUG_EXECUTE_IF("show_dropped_column",
+                    total_s_cols = table_rec->get_total_cols(););
+
+    for (size_t i = 0, v_i = 0; i < total_s_cols || v_i < total_v_cols;) {
+      if (i < total_s_cols && (!has_virtual_cols || v_i == total_v_cols ||
+                               column->ind < v_column->m_col.ind)) {
         /* Fill up normal column */
         ut_ad(!column->is_virtual());
+
+        DBUG_EXECUTE_IF(
+            "show_dropped_column", if (column->is_instant_dropped()) {
+              i_s_dict_fill_innodb_columns(thd, table_rec->id, name, column,
+                                           UINT32_UNDEFINED, tables->table);
+            });
 
         if (column->is_visible) {
           i_s_dict_fill_innodb_columns(thd, table_rec->id, name, column,
@@ -6242,7 +6340,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       } else {
         /* Fill up virtual column */
         ut_ad(v_column->m_col.is_virtual());
-        ut_ad(v_i < table_rec->n_v_cols);
+        ut_ad(v_i < total_v_cols);
 
         if (v_column->m_col.is_visible) {
           uint64_t v_pos =

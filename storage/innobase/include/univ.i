@@ -428,6 +428,12 @@ constexpr uint64_t UINT64_UNDEFINED = ~0ULL;
 /** The 'undefined' value for a  32-bit unsigned integer */
 constexpr uint32_t UINT32_UNDEFINED = ~0U;
 
+/** The 'undefined' value for a 16-bit unsigned integer */
+constexpr uint16_t UINT16_UNDEFINED = std::numeric_limits<uint16_t>::max();
+
+/** The 'undefined' value for a 8-bit unsigned integer */
+constexpr uint8_t UINT8_UNDEFINED = std::numeric_limits<uint8_t>::max();
+
 /** The bitmask of 32-bit unsigned integer */
 constexpr uint32_t UINT32_MASK = 0xFFFFFFFF;
 
@@ -464,10 +470,13 @@ constexpr auto UNIV_SQL_ADD_COL_DEFAULT = UNIV_SQL_NULL - 1;
 attribute value for the multi-value index exists in the JSON doc */
 constexpr auto UNIV_NO_INDEX_VALUE = UNIV_SQL_ADD_COL_DEFAULT - 1;
 
-/** The follwoing number as the length marker of a logical field, which
+/** The following number as the length marker of a logical field, which
 is only used for multi-value field data, means the data itself of the
 field is actually an array. */
 const uint32_t UNIV_MULTI_VALUE_ARRAY_MARKER = UNIV_NO_INDEX_VALUE - 1;
+
+/** Flag to indicate a field which was dropped instantly */
+constexpr auto UNIV_SQL_INSTANT_DROP_COL = UNIV_MULTI_VALUE_ARRAY_MARKER - 1;
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally

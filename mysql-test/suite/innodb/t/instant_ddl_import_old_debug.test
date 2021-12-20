@@ -1,0 +1,12 @@
+##########################################################################
+# Test script to test EXPORT/IMPORT for a table in older version having
+# INSTANT ADD columns.
+#
+#   This test is to be run in debug mode only and with debug flag
+##########################################################################
+
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+let $is_debug=1;
+
+--source suite/innodb/t/instant_ddl_import_old.test

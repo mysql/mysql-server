@@ -1,0 +1,2622 @@
+# Create a table with 4 columns. [c1, c2, c3, c4]
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=redundant PARTITION BY RANGE(c1 * 2) (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
+SELECT * from t1;
+c1	c2	c3	c4
+1	2	3	abcdefg
+100	200	300	qwerty
+200	300	400	asdfg
+# Add a new column at the end. [c1, c2, c3, c4, +c5]
+ALTER TABLE t1 ADD COLUMN c5 CHAR(20) default "c5_def", ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(300, 400, 500, "xxxxxx", "r4c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	2	3	abcdefg	c5_def
+100	200	300	qwerty	c5_def
+200	300	400	asdfg	c5_def
+300	400	500	xxxxxx	r4c5
+# Add a new column in between. [c1, +c6, c2, c3, c4, c5]
+ALTER TABLE t1 ADD COLUMN c6 char(20) DEFAULT NULL AFTER c1, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(400, "r5c6", 500, 600, "xxxxxx", "r5c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	NULL
+p1	256	NULL
+p2	384	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Drop a column somewhere in between. [c1, c6, -c2, c3, c4, c5]
+# ------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+INSERT INTO t1 VALUES(500, "r6c6", 700, "xxxxxx", "r6c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# ------------------------------------------------------------
+# Scenario 2.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# ------------------------------------------------------------
+# Scenario 2.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+DROP TABLE t1;
+# ------------------------------------------------------------
+# A Partitioned table having multiple INSTANT ADD/DROP columns
+# and REORGNIZED partitions.
+# ------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(50), job VARCHAR(50), dept INT, phoneno INT) ROW_FORMAT=redundant PARTITION BY RANGE( id ) (PARTITION P0 VALUES LESS THAN (10), PARTITION P1 VALUES LESS THAN (20), PARTITION P2 VALUES LESS THAN (30), PARTITION P3 VALUES LESS THAN (40), PARTITION P4 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(10,'aaa','xyz1',1,111);
+INSERT INTO t1 VALUES(20,'bbb','xyz2',2,222);
+INSERT INTO t1 VALUES(30,'ccc','xyz3',3,333);
+INSERT INTO t1 VALUES(40,'ddd','xyz4',4,444);
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 REORGANIZE PARTITION P3, P4 INTO (PARTITION P3 VALUES LESS THAN (50));
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# ------------------------------------------------------------
+# Scenario 3.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# ------------------------------------------------------------
+# Scenario 3.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `name` varchar(50) DEFAULT NULL,
+  `job` varchar(50) DEFAULT NULL,
+  `dept` int DEFAULT NULL,
+  `sal` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION P0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION P1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (30) ENGINE = InnoDB,
+ PARTITION P3 VALUES LESS THAN (50) ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+DROP TABLE t1;
+###########
+# CLEANUP #
+###########
+# Create a table with 4 columns. [c1, c2, c3, c4]
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=dynamic PARTITION BY RANGE(c1 * 2) (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
+SELECT * from t1;
+c1	c2	c3	c4
+1	2	3	abcdefg
+100	200	300	qwerty
+200	300	400	asdfg
+# Add a new column at the end. [c1, c2, c3, c4, +c5]
+ALTER TABLE t1 ADD COLUMN c5 CHAR(20) default "c5_def", ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(300, 400, 500, "xxxxxx", "r4c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	2	3	abcdefg	c5_def
+100	200	300	qwerty	c5_def
+200	300	400	asdfg	c5_def
+300	400	500	xxxxxx	r4c5
+# Add a new column in between. [c1, +c6, c2, c3, c4, c5]
+ALTER TABLE t1 ADD COLUMN c6 char(20) DEFAULT NULL AFTER c1, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(400, "r5c6", 500, 600, "xxxxxx", "r5c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	NULL
+p1	256	NULL
+p2	384	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Drop a column somewhere in between. [c1, c6, -c2, c3, c4, c5]
+# ------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+INSERT INTO t1 VALUES(500, "r6c6", 700, "xxxxxx", "r6c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# ------------------------------------------------------------
+# Scenario 2.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# ------------------------------------------------------------
+# Scenario 2.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+DROP TABLE t1;
+# ------------------------------------------------------------
+# A Partitioned table having multiple INSTANT ADD/DROP columns
+# and REORGNIZED partitions.
+# ------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(50), job VARCHAR(50), dept INT, phoneno INT) ROW_FORMAT=dynamic PARTITION BY RANGE( id ) (PARTITION P0 VALUES LESS THAN (10), PARTITION P1 VALUES LESS THAN (20), PARTITION P2 VALUES LESS THAN (30), PARTITION P3 VALUES LESS THAN (40), PARTITION P4 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(10,'aaa','xyz1',1,111);
+INSERT INTO t1 VALUES(20,'bbb','xyz2',2,222);
+INSERT INTO t1 VALUES(30,'ccc','xyz3',3,333);
+INSERT INTO t1 VALUES(40,'ddd','xyz4',4,444);
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 REORGANIZE PARTITION P3, P4 INTO (PARTITION P3 VALUES LESS THAN (50));
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# ------------------------------------------------------------
+# Scenario 3.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# ------------------------------------------------------------
+# Scenario 3.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `name` varchar(50) DEFAULT NULL,
+  `job` varchar(50) DEFAULT NULL,
+  `dept` int DEFAULT NULL,
+  `sal` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION P0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION P1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (30) ENGINE = InnoDB,
+ PARTITION P3 VALUES LESS THAN (50) ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+DROP TABLE t1;
+###########
+# CLEANUP #
+###########
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+# Create a table with 4 columns. [c1, c2, c3, c4]
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=compact PARTITION BY RANGE(c1 * 2) (PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256), PARTITION p2 VALUES LESS THAN (384), PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
+SELECT * from t1;
+c1	c2	c3	c4
+1	2	3	abcdefg
+100	200	300	qwerty
+200	300	400	asdfg
+# Add a new column at the end. [c1, c2, c3, c4, +c5]
+ALTER TABLE t1 ADD COLUMN c5 CHAR(20) default "c5_def", ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(300, 400, 500, "xxxxxx", "r4c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	2	3	abcdefg	c5_def
+100	200	300	qwerty	c5_def
+200	300	400	asdfg	c5_def
+300	400	500	xxxxxx	r4c5
+# Add a new column in between. [c1, +c6, c2, c3, c4, c5]
+ALTER TABLE t1 ADD COLUMN c6 char(20) DEFAULT NULL AFTER c1, ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES(400, "r5c6", 500, 600, "xxxxxx", "r5c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	NULL
+p1	256	NULL
+p2	384	NULL
+p3	MAXVALUE	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Scenario 1.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c2	c3	c4	c5
+1	NULL	2	3	abcdefg	c5_def
+100	NULL	200	300	qwerty	c5_def
+200	NULL	300	400	asdfg	c5_def
+300	NULL	400	500	xxxxxx	r4c5
+400	r5c6	500	600	xxxxxx	r5c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c2	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	5	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	6	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	9	0	2	4	6	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c2	2	6	1027	0	0	0
+c3	3	6	1027	0	0	0
+c4	4	5	16711932	0	0	0
+c5	5	13	16711934	1	1	0
+# ------------------------------------------------------------
+# Drop a column somewhere in between. [c1, c6, -c2, c3, c4, c5]
+# ------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+INSERT INTO t1 VALUES(500, "r6c6", 700, "xxxxxx", "r6c5") ;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# ------------------------------------------------------------
+# Scenario 2.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# ------------------------------------------------------------
+# Scenario 2.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT NULL,
+  `c6` char(20) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` char(20) DEFAULT 'c5_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE ((`c1` * 2))
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (256) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (384) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1	c6	c3	c4	c5
+1	NULL	3	abcdefg	c5_def
+100	NULL	300	qwerty	c5_def
+200	NULL	400	asdfg	c5_def
+300	NULL	500	xxxxxx	r4c5
+400	r5c6	600	xxxxxx	r5c5
+500	r6c6	700	xxxxxx	r6c5
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c6	2	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=8;table_id=TABLE_ID;version_added=2;
+c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	128	discard=0;
+p1	256	discard=0;
+p2	384	discard=0;
+p3	MAXVALUE	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	3	4	5	6
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c6	1	13	16711934	1	2	0
+c3	2	6	1027	0	0	0
+c4	3	5	16711932	0	0	0
+c5	4	13	16711934	1	1	0
+c2_dropped_v3	8	6	1027	0	0	3
+DROP TABLE t1;
+# ------------------------------------------------------------
+# A Partitioned table having multiple INSTANT ADD/DROP columns
+# and REORGNIZED partitions.
+# ------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(50), job VARCHAR(50), dept INT, phoneno INT) ROW_FORMAT=compact PARTITION BY RANGE( id ) (PARTITION P0 VALUES LESS THAN (10), PARTITION P1 VALUES LESS THAN (20), PARTITION P2 VALUES LESS THAN (30), PARTITION P3 VALUES LESS THAN (40), PARTITION P4 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(10,'aaa','xyz1',1,111);
+INSERT INTO t1 VALUES(20,'bbb','xyz2',2,222);
+INSERT INTO t1 VALUES(30,'ccc','xyz3',3,333);
+INSERT INTO t1 VALUES(40,'ddd','xyz4',4,444);
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN phoneno INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN sal, ALGORITHM=INSTANT;
+ALTER TABLE t1 REORGANIZE PARTITION P3, P4 INTO (PARTITION P3 VALUES LESS THAN (50));
+ALTER TABLE t1 ADD COLUMN sal INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN phoneno, ALGORITHM=INSTANT;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# ------------------------------------------------------------
+# Scenario 3.1 : Same table with tablespace discarded
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# ------------------------------------------------------------
+# Scenario 3.2 : New table created with like
+# ------------------------------------------------------------
+# EXPORT
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
+backup: t1#p#p3
+UNLOCK TABLES;
+CREATE TABLE t2 like t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `name` varchar(50) DEFAULT NULL,
+  `job` varchar(50) DEFAULT NULL,
+  `dept` int DEFAULT NULL,
+  `sal` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION P0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION P1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (30) ENGINE = InnoDB,
+ PARTITION P3 VALUES LESS THAN (50) ENGINE = InnoDB) */
+DROP TABLE t1;
+ALTER TABLE t2 RENAME as t1;
+# IMPORT
+ALTER TABLE t1 discard tablespace;
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY id;
+id	name	job	dept	sal
+10	aaa	xyz1	1	NULL
+20	bbb	xyz2	2	NULL
+30	ccc	xyz3	3	NULL
+40	ddd	xyz4	4	NULL
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
+name	2	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=3;table_id=TABLE_ID;
+job	3	MYSQL_TYPE_VARCHAR	0	Visible	physical_pos=4;table_id=TABLE_ID;
+dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
+sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+P0	10	discard=0;
+P1	20	discard=0;
+P2	30	discard=0;
+P3	50	discard=0;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p0	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p1	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p2	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1#p#p3	8	0	22	5	5	16
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+id	0	6	1283	0	0	0
+name	1	12	16711695	0	0	0
+job	2	12	16711695	0	0	0
+dept	3	6	1027	0	0	0
+sal	4	6	1027	1	21	0
+phoneno_dropped_v2	8	6	1027	0	0	2
+sal_dropped_v4	9	6	1027	0	1	4
+phoneno_dropped_v6	10	6	1027	0	3	6
+sal_dropped_v8	11	6	1027	0	5	8
+phoneno_dropped_v10	12	6	1027	0	7	10
+sal_dropped_v12	13	6	1027	0	9	12
+phoneno_dropped_v14	14	6	1027	0	11	14
+sal_dropped_v16	15	6	1027	0	13	16
+phoneno_dropped_v18	16	6	1027	0	15	18
+sal_dropped_v20	17	6	1027	0	17	20
+phoneno_dropped_v22	18	6	1027	0	19	22
+DROP TABLE t1;
+###########
+# CLEANUP #
+###########

@@ -481,6 +481,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
       dfield = dtuple_get_nth_field(entry, i);
       ifield = index->get_field(i);
 
+      ut_ad(dfield_get_len(dfield) != UNIV_SQL_INSTANT_DROP_COL);
+
       /* Skip fixed-length, NULL, externally stored,
       or short columns */
 

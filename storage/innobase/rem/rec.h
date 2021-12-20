@@ -48,8 +48,10 @@ constexpr uint32_t REC_OFFS_SQL_NULL = 1U << 31;
 constexpr uint32_t REC_OFFS_EXTERNAL = 1 << 30;
 /* Default value flag in offsets returned by rec_get_offsets() */
 constexpr uint32_t REC_OFFS_DEFAULT = 1 << 29;
+/* An INSTANT DROP flag in offsets returned by rec_get_offsets() */
+constexpr uint32_t REC_OFFS_DROP = 1 << 28;
 /* Mask for offsets returned by rec_get_offsets() */
-constexpr uint32_t REC_OFFS_MASK = REC_OFFS_DEFAULT - 1;
+constexpr uint32_t REC_OFFS_MASK = REC_OFFS_DROP - 1;
 
 /* The offset of heap_no in a compact record */
 constexpr uint32_t REC_NEW_HEAP_NO = 4;
@@ -116,7 +118,8 @@ constexpr uint32_t REC_INFO_MIN_REC_FLAG = 0x10UL;
 /** The deleted flag in info bits; when bit is set to 1, it means the record has
  been delete marked */
 constexpr uint32_t REC_INFO_DELETED_FLAG = 0x20UL;
-/* The 0x40UL can also be used in the future */
+/* Use this bit to indicate record has version */
+constexpr uint32_t REC_INFO_VERSION_FLAG = 0x40UL;
 /** The instant ADD COLUMN flag. When it is set to 1, it means this record
 was inserted/updated after an instant ADD COLUMN. */
 constexpr uint32_t REC_INFO_INSTANT_FLAG = 0x80UL;
@@ -127,7 +130,7 @@ constexpr uint32_t REC_N_OLD_EXTRA_BYTES = 6;
 /* Number of extra bytes in a new-style record,
 in addition to the data and the offsets */
 constexpr int32_t REC_N_NEW_EXTRA_BYTES = 5;
-/* NUmber of extra bytes in a new-style temporary record,
+/* Number of extra bytes in a new-style temporary record,
 in addition to the data and the offsets.
 This is used only after instant ADD COLUMN. */
 constexpr uint32_t REC_N_TMP_EXTRA_BYTES = 1;
@@ -264,7 +267,7 @@ static inline uint16_t rec_get_bit_field_2(
 @return true if valid */
 inline bool rec_info_bits_valid(ulint bits) {
   return (0 == (bits & ~(REC_INFO_DELETED_FLAG | REC_INFO_MIN_REC_FLAG |
-                         REC_INFO_INSTANT_FLAG)));
+                         REC_INFO_INSTANT_FLAG | REC_INFO_VERSION_FLAG)));
 }
 #endif /* UNIV_DEBUG */
 
@@ -297,16 +300,17 @@ static inline ulint rec_get_info_bits_temp(const rec_t *rec) {
 [[nodiscard]] static inline uint16_t rec_get_n_fields_old_raw(
     const rec_t *rec) /*!< in: physical record */
 {
-  uint16_t ret;
+  uint16_t n_fields;
 
   ut_ad(rec);
 
-  ret = rec_get_bit_field_2(rec, REC_OLD_N_FIELDS, REC_OLD_N_FIELDS_MASK,
-                            REC_OLD_N_FIELDS_SHIFT);
-  ut_ad(ret <= REC_MAX_N_FIELDS);
-  ut_ad(ret > 0);
+  n_fields = rec_get_bit_field_2(rec, REC_OLD_N_FIELDS, REC_OLD_N_FIELDS_MASK,
+                                 REC_OLD_N_FIELDS_SHIFT);
 
-  return (ret);
+  ut_ad(n_fields <= REC_MAX_N_FIELDS);
+  ut_ad(n_fields > 0);
+
+  return (n_fields);
 }
 
 /** The following function is used to get the number of fields
@@ -320,7 +324,15 @@ current index.
     const rec_t *rec, const dict_index_t *index) {
   uint16_t n = rec_get_n_fields_old_raw(rec);
 
-  if (index->has_instant_cols()) {
+  if (index->has_instant_cols_or_row_versions()) {
+    if (strcmp(index->name, RECOVERY_INDEX_TABLE_NAME) == 0) {
+      /* In recovery, index is not completely built. Skip validation. */
+      if (n > 1) /* For infimum/supremum, n is 1 */ {
+        n = static_cast<uint16_t>(dict_index_get_n_fields(index));
+      }
+      return n;
+    }
+
     uint16_t n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
 
     ut_ad(index->is_clustered());
@@ -336,12 +348,17 @@ current index.
     ut_ad(n == 1 || n >= n_uniq);
     ut_ad(static_cast<uint16_t>(dict_index_get_n_fields(index)) > n_uniq + 1);
     if (n > n_uniq + 1) {
+      /* This is leaf node. If table has INSTANT columns, then it is possible
+      that record might not have all the fields in index. So get it now from
+      index. */
 #ifdef UNIV_DEBUG
-      ulint rec_diff = dict_index_get_n_fields(index) - n;
-      ulint col_diff = index->table->n_cols - index->table->n_instant_cols;
-      ut_ad(rec_diff <= col_diff);
+      if (index->has_instant_cols()) {
+        ulint rec_diff = dict_index_get_n_fields(index) - n;
+        ulint col_diff = index->table->n_cols - index->table->n_instant_cols;
+        ut_ad(rec_diff <= col_diff);
+      }
       if (n != dict_index_get_n_fields(index)) {
-        ut_ad(index->has_instant_cols());
+        ut_ad(index->has_instant_cols_or_row_versions());
       }
 #endif /* UNIV_DEBUG */
       n = static_cast<uint16_t>(dict_index_get_n_fields(index));
@@ -458,7 +475,7 @@ field is a field added after an instant ADD COLUMN
 @return The offset of the specified field */
 static inline uint64_t rec_get_instant_offset(const dict_index_t *index,
                                               ulint n, uint64_t offs) {
-  ut_ad(index->has_instant_cols());
+  ut_ad(index->has_instant_cols_or_row_versions());
 
   ulint length;
   index->get_nth_default(n, &length);
@@ -485,8 +502,7 @@ static inline uint64_t rec_get_instant_offset(const dict_index_t *index,
  field i is being stored externally. */
 void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
                       const dict_index_t *index, /*!< in: record descriptor */
-                      ulint *offsets);           /*!< in/out: array of offsets;
-                                                in: n=rec_offs_n_fields(offsets) */
+                      ulint *offsets); /*!< in/out: array of offsets */
 
 #ifdef UNIV_DEBUG
 /** Validates offsets returned by rec_get_offsets().
@@ -513,6 +529,7 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
       ut_a(rec_get_n_fields_old(rec, index) >= i);
     }
   }
+
   if (index) {
     ulint max_n_fields;
     ut_ad((ulint)index == offsets[3]);
@@ -520,7 +537,7 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
     ulint n_unique_in_tree = dict_index_get_n_unique_in_tree(index) + 1;
     max_n_fields = std::max(n_fields, n_unique_in_tree);
     if (!comp && rec != nullptr && rec_get_n_fields_old_raw(rec) < i) {
-      ut_a(index->has_instant_cols());
+      ut_a(index->has_instant_cols_or_row_versions());
     }
 
     if (comp && rec) {
@@ -583,6 +600,22 @@ std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets);
 #define rec_offs_make_valid(rec, index, offsets) ((void)0)
 #endif /* UNIV_DEBUG */
 
+/** The following function tells if a new-style record is instant record.
+@param[in]	rec	new-style record
+@return true if it is instant affected */
+static inline bool rec_get_instant_flag_new(const rec_t *rec) {
+  ulint info = rec_get_info_bits(rec, true);
+  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+}
+
+/** The following function tells if a new-style temp record is instant record.
+@param[in]	rec	new-style temp record
+@return true if it is instant affected */
+static inline bool rec_get_instant_flag_new_temp(const rec_t *rec) {
+  ulint info = rec_get_info_bits_temp(rec);
+  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+}
+
 /** A simplified variant rec_init_offsets(rec, index, offsets) for the case in
 which the rec contains only fixed-length columns and non-NULL values in them,
 thus we can compute the offsets without looking at the rec. Such offsets can be
@@ -597,7 +630,8 @@ cached and reused for many recs which don't contain NULLs.
 inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
   rec_offs_make_valid(nullptr, index, offsets);
   rec_offs_base(offsets)[0] =
-      (REC_N_NEW_EXTRA_BYTES + UT_BITS_IN_BYTES(index->n_instant_nullable)) |
+      (REC_N_NEW_EXTRA_BYTES +
+       UT_BITS_IN_BYTES(index->get_instant_nullable())) |
       REC_OFFS_COMPACT;
   const auto n_fields = rec_offs_n_fields(offsets);
   auto field_end = rec_offs_base(offsets) + 1;
@@ -606,21 +640,28 @@ inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
   }
 }
 
-/** The following function tells if a new-style record is instant record or not
-@param[in]	rec	new-style record
-@return true if it's instant affected */
-static inline bool rec_get_instant_flag_new(const rec_t *rec) {
+/** The following function tells if a new-style record is versioned.
+@param[in]	rec	new-style (COMPACT/DYNAMIC) record
+@return true if it is versioned */
+static inline bool rec_new_is_versioned(const rec_t *rec) {
   ulint info = rec_get_info_bits(rec, true);
-  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+  return ((info & REC_INFO_VERSION_FLAG) != 0);
 }
 
-/** The following function tells if a new-style temporary record is instant
-record or not
+/** The following function tells if an old-style record is versioned.
+@param[in]	rec	old-style (REDUNDANT) record
+@return true if it's versioned */
+static inline bool rec_old_is_versioned(const rec_t *rec) {
+  ulint info = rec_get_info_bits(rec, false);
+  return ((info & REC_INFO_VERSION_FLAG) != 0);
+}
+
+/** The following function tells if a temporary record is versioned.
 @param[in]	rec	new-style temporary record
 @return	true if it's instant affected */
-static inline bool rec_get_instant_flag_new_temp(const rec_t *rec) {
+static inline bool rec_new_temp_is_versioned(const rec_t *rec) {
   ulint info = rec_get_info_bits_temp(rec);
-  return ((info & REC_INFO_INSTANT_FLAG) != 0);
+  return ((info & REC_INFO_VERSION_FLAG) != 0);
 }
 
 /** Get the number of fields for one new style leaf page record.
@@ -658,26 +699,62 @@ for a new-style temporary record
 @param[out]	nulls		the start of null bytes
 @param[out]	lens		the start of variable length bytes
 @param[out]	n_null		number of null fields
-@return	the number of fields which are inlined of the record */
+@return	the row version of record */
 static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
                                                   const dict_index_t *index,
                                                   const byte **nulls,
                                                   const byte **lens,
                                                   uint16_t *n_null) {
+  /* Following is the format for TEMP record.
+  +----+----+-------------------+--------------------+
+  | OP | ES |<-- Extra info --> | F1 | F2 | ...  | Fn|
+  +----+----+-------------------+--------------------+
+                  |
+                  v
+  +--------------------+-------+---------+-----------+
+  | LN | ... | L2 | L1 | nulls | version | info-bits |
+  +--------------------+-------+---------+-----------+
+   <------ LENS ------>
+
+   where
+    info-bits => present iff instant bit or version bit is set.
+    version   => version number iff version bit is set.
+  */
+
   uint16_t non_default_fields =
       static_cast<uint16_t>(dict_index_get_n_fields(index));
 
   *nulls = rec - 1;
 
-  if (index->has_instant_cols() && dict_table_is_comp(index->table)) {
-    *nulls -= REC_N_TMP_EXTRA_BYTES;
+  if (!index->has_instant_cols_or_row_versions()) {
+    *n_null = index->n_nullable;
+    *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+    return (non_default_fields);
   }
 
-  if (!index->has_instant_cols() || !dict_table_is_comp(index->table)) {
-    *n_null = index->n_nullable;
-  } else if (rec_get_instant_flag_new_temp(rec)) {
-    ut_ad(index->has_instant_cols());
+  uint8_t row_version = 0;
+  uint16_t ret = 0;
 
+  /* info bits are copied for record with versions or instant columns.
+  nulls must be before that. */
+  *nulls -= REC_N_TMP_EXTRA_BYTES;
+
+  if (rec_new_temp_is_versioned(rec)) {
+    ut_ad(index->table->has_row_versions());
+
+    /* Read the version information */
+    row_version = (uint8_t)(**nulls);
+    /* For temp records, we write 0 as well for row_verison */
+    ut_ad(row_version <= MAX_ROW_VERSION);
+
+    /* Skip the version info */
+    *nulls -= 1;
+
+    *n_null = index->get_nullable_in_version(row_version);
+    ret = (uint16_t)row_version;
+  } else if (rec_get_instant_flag_new_temp(rec)) {
+    /* Row inserted after first instant ADD COLUMN V1 */
+    ut_ad(index->table->has_instant_cols());
     uint16_t length;
     non_default_fields =
         rec_get_n_fields_instant(rec, REC_N_TMP_EXTRA_BYTES, &length);
@@ -685,14 +762,22 @@ static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
 
     *nulls -= length;
     *n_null = index->get_n_nullable_before(non_default_fields);
-  } else {
-    *n_null = index->n_instant_nullable;
+    ret = non_default_fields;
+  } else if (index->table->has_instant_cols()) {
+    /* Row inserted before first INSTANT ADD COLUMN in V1 */
+    *n_null = index->get_instant_nullable();
     non_default_fields = index->get_instant_fields();
+    ret = non_default_fields;
+  } else {
+    /* Row inserted before first INSTANT ADD/DROP in V2 */
+    ut_ad(row_version == 0);
+    *n_null = index->get_nullable_in_version(row_version);
+    ret = (uint16_t)row_version;
   }
 
   *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
 
-  return (non_default_fields);
+  return (ret);
 }
 
 /** Determines the information about null bytes and variable length bytes
@@ -702,7 +787,7 @@ for a new style record
 @param[out]	nulls		the start of null bytes
 @param[out]	lens		the start of variable length bytes
 @param[out]	n_null		number of null fields
-@return	the number of fields which are inlined of the record */
+@return	number of fields with no default or the row version of record */
 static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
                                                   const dict_index_t *index,
                                                   const byte **nulls,
@@ -711,151 +796,109 @@ static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
   uint16_t non_default_fields =
       static_cast<uint16_t>(dict_index_get_n_fields(index));
 
+  /* Position nulls */
   *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
-  if (!index->has_instant_cols()) {
+  if (!index->has_instant_cols_or_row_versions()) {
+    ut_ad(!rec_get_instant_flag_new(rec));
+    ut_ad(!rec_new_is_versioned(rec));
+
     *n_null = index->n_nullable;
+
+    /* Position lens */
+    *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+    return (non_default_fields);
+  }
+
+  /* For INSTANT ADD/DROP, we may have following 5 types of rec for table :
+  +----------------------------------------------------------------------------+
+  |              SCENARIO                         |        STATE               |
+  |----------------------------------+------------+---------+------------------|
+  |            Row property          | V < 8.0.28 | Bit set | Stored on row    |
+  +----------------------------------+------------+---------+------------------+
+  | INSERTED before 1st INSTANT ADD  |     Y      | NONE    | N/A              |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED after 1st INSTANT ADD   |     Y      | INSTANT | # of fields      |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED before INSTANT ADD/DROP |     Y      | VERSION | Version = 0      |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED before INSTANT ADD/DROP |     N      | NONE    | N/A              |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED after INSTANT ADD/DROP  |     Y/N    | VERSION | row version      |
+  +----------------------------------------------------------------------------+
+  */
+
+  /* Only one of the two bits could be set */
+  ut_ad(!rec_new_is_versioned(rec) || !rec_get_instant_flag_new(rec));
+
+  uint8_t row_version = 0;
+  uint16_t ret = 0;
+
+  if (rec_new_is_versioned(rec)) {
+    ut_ad(!rec_get_instant_flag_new(rec));
+
+    /* Read the row version from record */
+    row_version = (uint8_t)(**nulls);
+
+#ifdef UNIV_DEBUG
+    if (strcmp(index->name, RECOVERY_INDEX_TABLE_NAME) != 0) {
+      if (row_version > 0) {
+        /* Row inserted after first instant ADD/DROP COLUMN V2 */
+        ut_ad(index->table->has_row_versions());
+      } else {
+        /* Upgraded table. Row inserted before V2 INSTANT ADD/DROP */
+        ut_ad(index->table->is_upgraded_instant());
+      }
+    }
+#endif
+
+    /* Reposition nulls */
+    *nulls -= 1;
+    *n_null = index->get_nullable_in_version(row_version);
+    ret = (uint16_t)row_version;
   } else if (rec_get_instant_flag_new(rec)) {
-    /* Row inserted after first instant ADD COLUMN */
+    ut_ad(!rec_new_is_versioned(rec));
+    ut_ad(index->table->has_instant_cols());
+
+    /* Row inserted after first instant ADD COLUMN V1 */
     uint16_t length;
     non_default_fields =
         rec_get_n_fields_instant(rec, REC_N_NEW_EXTRA_BYTES, &length);
     ut_ad(length == 1 || length == 2);
 
+    /* Reposition nulls */
     *nulls -= length;
     *n_null = index->get_n_nullable_before(non_default_fields);
-  } else {
-    /* Row inserted before first instant ADD COLUMN */
-    *n_null = index->n_instant_nullable;
+    ret = non_default_fields;
+  } else if (index->table->has_instant_cols()) {
+    /* Row inserted before first INSTANT ADD COLUMN in V1 */
+    *n_null = index->get_instant_nullable();
     non_default_fields = index->get_instant_fields();
+    ret = non_default_fields;
+  } else { /* Not an INSTANT upgraded table */
+    /* Row inserted before first INSTANT ADD/DROP in V2 */
+    ut_ad(row_version == 0);
+    *n_null = index->get_nullable_in_version(row_version);
+    ret = (uint16_t)row_version;
   }
 
+  /* Position lens */
   *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
 
-  return (non_default_fields);
+  /* Return record version or non_default_field stored */
+  return (ret);
 }
 
-/** Determine the offset to each field in a leaf-page record
- in ROW_FORMAT=COMPACT.  This is a special case of
- rec_init_offsets() and rec_get_offsets_func(). */
-static inline void rec_init_offsets_comp_ordinary(
-    const rec_t *rec,          /*!< in: physical record in
-                               ROW_FORMAT=COMPACT */
-    bool temp,                 /*!< in: whether to use the
-                               format for temporary files in
-                               index creation */
-    const dict_index_t *index, /*!< in: record descriptor */
-    ulint *offsets)            /*!< in/out: array of offsets;
-                               in: n=rec_offs_n_fields(offsets) */
-{
-  uint16_t i = 0;
-  ulint offs = 0;
-  ulint any_ext = 0;
-  uint16_t n_null = 0;
-  const byte *nulls = nullptr;
-  const byte *lens = nullptr;
-  ulint null_mask = 1;
-  uint16_t non_default_fields = 0;
-
-#ifdef UNIV_DEBUG
-  /* We cannot invoke rec_offs_make_valid() here if temp=true.
-  Similarly, rec_offs_validate() will fail in that case, because
-  it invokes rec_get_status(). */
-  offsets[2] = (ulint)rec;
-  offsets[3] = (ulint)index;
-#endif /* UNIV_DEBUG */
-
-  if (temp) {
-    non_default_fields =
-        rec_init_null_and_len_temp(rec, index, &nulls, &lens, &n_null);
-  } else {
-    non_default_fields =
-        rec_init_null_and_len_comp(rec, index, &nulls, &lens, &n_null);
-  }
-
-  ut_ad(temp || dict_table_is_comp(index->table));
-
-  if (temp && dict_table_is_comp(index->table)) {
-    /* No need to do adjust fixed_len=0. We only need to
-    adjust it for ROW_FORMAT=REDUNDANT. */
-    temp = false;
-  }
-
-  /* read the lengths of fields 0..n */
-  do {
-    const dict_field_t *field = index->get_field(i);
-    const dict_col_t *col = field->col;
-    uint64_t len;
-
-    if (i >= non_default_fields) {
-      ut_ad(index->has_instant_cols());
-
-      len = rec_get_instant_offset(index, i, offs);
-
-      goto resolved;
-    }
-
-    if (!(col->prtype & DATA_NOT_NULL)) {
-      /* nullable field => read the null flag */
-      ut_ad(n_null--);
-
-      if (UNIV_UNLIKELY(!(byte)null_mask)) {
-        nulls--;
-        null_mask = 1;
-      }
-
-      if (*nulls & null_mask) {
-        null_mask <<= 1;
-        /* No length is stored for NULL fields.
-        We do not advance offs, and we set
-        the length to zero and enable the
-        SQL NULL flag in offsets[]. */
-        len = offs | REC_OFFS_SQL_NULL;
-        goto resolved;
-      }
-      null_mask <<= 1;
-    }
-
-    if (!field->fixed_len || (temp && !col->get_fixed_size(temp))) {
-      ut_ad(col->mtype != DATA_POINT);
-      /* Variable-length field: read the length */
-      len = *lens--;
-      /* If the maximum length of the field is up
-      to 255 bytes, the actual length is always
-      stored in one byte. If the maximum length is
-      more than 255 bytes, the actual length is
-      stored in one byte for 0..127.  The length
-      will be encoded in two bytes when it is 128 or
-      more, or when the field is stored externally. */
-      if (DATA_BIG_COL(col)) {
-        if (len & 0x80) {
-          /* 1exxxxxxx xxxxxxxx */
-          len <<= 8;
-          len |= *lens--;
-
-          offs += len & 0x3fff;
-          if (UNIV_UNLIKELY(len & 0x4000)) {
-            ut_ad(index->is_clustered());
-            any_ext = REC_OFFS_EXTERNAL;
-            len = offs | REC_OFFS_EXTERNAL;
-          } else {
-            len = offs;
-          }
-
-          goto resolved;
-        }
-      }
-
-      len = offs += len;
-    } else {
-      len = offs += field->fixed_len;
-    }
-  resolved:
-    rec_offs_base(offsets)[i + 1] = len;
-  } while (++i < rec_offs_n_fields(offsets));
-
-  *rec_offs_base(offsets) = (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
-}
+/** Determine the offset to each field in a leaf-page record in
+ROW_FORMAT=COMPACT.  This is a special case of rec_init_offsets() and
+rec_get_offsets_func().
+@param[in]	rec	physical record in ROW_FORMAT=COMPACT
+@param[in]	temp	whether to use the format for temporary files in index
+                        creation
+@param[in]	index	record descriptor
+@param[in,out]	offsets	array of offsets */
+void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
+                                    const dict_index_t *index, ulint *offsets);
 
 /** The following function is used to test whether the data offsets in the
  record are stored in one-byte or two-byte format.
@@ -865,35 +908,6 @@ static inline void rec_init_offsets_comp_ordinary(
 {
   return (rec_get_bit_field_1(rec, REC_OLD_SHORT, REC_OLD_SHORT_MASK,
                               REC_OLD_SHORT_SHIFT));
-}
-
-/** Returns the offset of nth field end if the record is stored in the 1-byte
-offsets form. If the field is SQL null, the flag is ORed in the returned
-value.
-@param[in] rec Record.
-@param[in] n   Field index.
-@return offset of the start of the field, SQL null flag ORed */
-[[nodiscard]] static inline ulint rec_1_get_field_end_info(const rec_t *rec,
-                                                           ulint n) {
-  ut_ad(rec_get_1byte_offs_flag(rec));
-  ut_ad(n < rec_get_n_fields_old_raw(rec));
-
-  return (mach_read_from_1(rec - (REC_N_OLD_EXTRA_BYTES + n + 1)));
-}
-
-/** Returns the offset of nth field end if the record is stored in the 2-byte
-offsets form. If the field is SQL null, the flag is ORed in the returned
-value.
-@param[in] rec Record.
-@param[in] n   Field index.
-@return offset of the start of the field, SQL null flag and extern
-storage flag ORed */
-[[nodiscard]] static inline ulint rec_2_get_field_end_info(const rec_t *rec,
-                                                           ulint n) {
-  ut_ad(!rec_get_1byte_offs_flag(rec));
-  ut_ad(n < rec_get_n_fields_old_raw(rec));
-
-  return (mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2)));
 }
 
 #endif

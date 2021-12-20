@@ -114,6 +114,33 @@ at least ENUM and SET, and unsigned integer types are 'unsigned types'
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f);
 
+#include <sql/dd/types/column.h>
+/** Converts a MySQL data-dictionary type to an InnoDB type. Also returns
+a few attributes which are useful for precise type calculation.
+
+@note This function is version of get_innobase_type_from_mysql_type() with
+added knowledge about how additional attributes calculated (e.g. in
+create_table_info_t::create_table_def()) and about behavior of Field
+class and its descendats.
+
+@note It allows to get InnoDB generic and precise types directly from MySQL
+data-dictionary info, bypassing expensive construction of Field objects.
+
+@param[out] unsigned_flag   DATA_UNSIGNED if an 'unsigned type'.
+@param[out] binary_type	    DATA_BINARY_TYPE if a 'binary type'.
+@param[out] charset_no      Collation id for string types.
+@param[in]  dd_type         MySQL data-dictionary type.
+@param[in]  field_charset   Charset.
+@param[in]  is_unsigned     MySQL data-dictionary unsigned flag.
+
+@return DATA_BINARY, DATA_VARCHAR, ... */
+ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
+                                           ulint *binary_type,
+                                           ulint *charset_no,
+                                           dd::enum_column_types dd_type,
+                                           const CHARSET_INFO *field_charset,
+                                           bool is_unsigned);
+
 /** Get the variable length bounds of the given character set.
 @param[in] cset Mysql charset-collation code
 @param[out] mbminlen Minimum length of a char (in bytes)

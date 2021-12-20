@@ -1246,8 +1246,8 @@ static ulint trx_undo_page_report_modify(
   *ptr++ = (byte)rec_get_info_bits(rec, dict_table_is_comp(table));
 
   /* Store the values of the system columns */
-  field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_TRX_ID),
-                            &flen);
+  field = rec_get_nth_field(nullptr, rec, offsets,
+                            index->get_sys_col_pos(DATA_TRX_ID), &flen);
   ut_ad(flen == DATA_TRX_ID_LEN);
 
   trx_id = trx_read_trx_id(field);
@@ -1261,8 +1261,8 @@ static ulint trx_undo_page_report_modify(
   }
   ptr += mach_u64_write_compressed(ptr, trx_id);
 
-  field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_ROLL_PTR),
-                            &flen);
+  field = rec_get_nth_field(nullptr, rec, offsets,
+                            index->get_sys_col_pos(DATA_ROLL_PTR), &flen);
   ut_ad(flen == DATA_ROLL_PTR_LEN);
 
   ptr += mach_u64_write_compressed(ptr, trx_read_roll_ptr(field));
@@ -1272,11 +1272,11 @@ static ulint trx_undo_page_report_modify(
   record which will be modified in the clustered index */
 
   for (i = 0; i < dict_index_get_n_unique(index); i++) {
-    field = rec_get_nth_field(rec, offsets, i, &flen);
+    field = rec_get_nth_field(index, rec, offsets, i, &flen);
 
     /* The ordering columns must not be stored externally. */
-    ut_ad(!rec_offs_nth_extern(offsets, i));
-    ut_ad(!rec_offs_nth_default(offsets, i));
+    ut_ad(!rec_offs_nth_extern(index, offsets, i));
+    ut_ad(!rec_offs_nth_default(index, offsets, i));
     ut_ad(index->get_col(i)->ord_part);
 
     if (trx_undo_left(undo_page, ptr) < 5) {
@@ -1384,7 +1384,7 @@ static ulint trx_undo_page_report_modify(
         return 0;
       }
 
-      if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
+      if (!is_virtual && rec_offs_nth_extern(index, offsets, pos)) {
         ut_ad(!is_multi_val);
         const dict_col_t *col = index->get_col(pos);
         ulint prefix_len = dict_max_field_len_store_undo(table, col);
@@ -1423,7 +1423,7 @@ static ulint trx_undo_page_report_modify(
         ut_memcpy(ptr, field, flen);
         ptr += flen;
 
-        if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
+        if (!is_virtual && rec_offs_nth_extern(index, offsets, pos)) {
           ptr = trx_undo_report_blob_update(undo_page, index, ptr, field, flen,
                                             update, fld, mtr);
 
@@ -1520,7 +1520,7 @@ static ulint trx_undo_page_report_modify(
         /* Save the old value of field */
         field = rec_get_nth_field_instant(rec, offsets, pos, index, &flen);
 
-        if (rec_offs_nth_extern(offsets, pos)) {
+        if (rec_offs_nth_extern(index, offsets, pos)) {
           const dict_col_t *col = index->get_col(pos);
           ulint prefix_len = dict_max_field_len_store_undo(table, col);
 
@@ -2584,7 +2584,7 @@ bool trx_undo_prev_version_build(
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(
-      *old_vers,
+      index, *old_vers,
       rec_get_offsets(*old_vers, index, nullptr, ULINT_UNDEFINED, &heap)));
 #endif  // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 

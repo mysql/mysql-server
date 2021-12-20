@@ -197,8 +197,8 @@ dberr_t Inserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   write_into_single_page(field);
 
   const ulint field_no = field.field_no;
-  byte *field_ref =
-      btr_rec_get_field_ref(m_ctx->rec(), m_ctx->get_offsets(), field_no);
+  byte *field_ref = btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(),
+                                          m_ctx->get_offsets(), field_no);
   ref_t blobref(field_ref);
 
   blobref.set_length(field.len - m_remaining, mtr);
@@ -231,8 +231,8 @@ dberr_t Inserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
   log_page_type();
   write_into_single_page(field);
   const ulint field_no = field.field_no;
-  byte *field_ref =
-      btr_rec_get_field_ref(m_ctx->rec(), m_ctx->get_offsets(), field_no);
+  byte *field_ref = btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(),
+                                          m_ctx->get_offsets(), field_no);
   ref_t blobref(field_ref);
   blobref.set_length(field.len - m_remaining, mtr);
   m_prev_page_no = m_cur_blob_page_no;

@@ -118,7 +118,8 @@ void dict_index_add_col(dict_index_t *index, const dict_table_t *table,
   change, which would be a disaster. */
   static_assert(DICT_MAX_FIXED_COL_LEN == 768, "DICT_MAX_FIXED_COL_LEN != 768");
 
-  if (!(col->prtype & DATA_NOT_NULL)) {
+  /* Skip INSTANT DROP column */
+  if (col->is_nullable() && !col->is_instant_dropped()) {
     index->n_nullable++;
   }
 }

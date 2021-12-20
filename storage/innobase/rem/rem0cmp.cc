@@ -554,7 +554,7 @@ int cmp_dtuple_rec_with_gis(const dtuple_t *dtuple, const rec_t *rec,
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(nullptr, rec, offsets, 0, &rec_f_len);
   ret = cmp_gis_field(
       mode, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       (unsigned)dtuple_f_len, rec_b_ptr, (unsigned)rec_f_len, srs);
@@ -576,7 +576,7 @@ int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(nullptr, rec, offsets, 0, &rec_f_len);
   ret = cmp_gis_field(
       PAGE_CUR_WITHIN, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       (unsigned)dtuple_f_len, rec_b_ptr, (unsigned)rec_f_len, srs);
@@ -586,7 +586,7 @@ int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
 
   dtuple_field = dtuple_get_nth_field(dtuple, 1);
   dtuple_f_len = dfield_get_len(dtuple_field);
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 1, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(nullptr, rec, offsets, 1, &rec_f_len);
 
   return (cmp_data(dtuple_field->type.mtype, dtuple_field->type.prtype, true,
                    static_cast<const byte *>(dtuple_field->data), dtuple_f_len,
@@ -644,14 +644,15 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
     stored field.  Only clustered index records can
     contain externally stored fields, and the first fields
     (primary key fields) should already differ. */
-    ut_ad(!rec_offs_nth_extern(offsets, i));
+    ut_ad(!rec_offs_nth_extern(index, offsets, i));
 
     /* So does the field with default value */
-    ut_ad(!rec_offs_nth_default(offsets, i));
+    ut_ad(!rec_offs_nth_default(index, offsets, i));
 
     ulint rec_f_len;
 
-    const auto rec_b_ptr = rec_get_nth_field(rec, offsets, i, &rec_f_len);
+    const auto rec_b_ptr =
+        rec_get_nth_field(index, rec, offsets, i, &rec_f_len);
 
     ut_ad(!dfield_is_ext(dtuple_field));
 
@@ -760,7 +761,7 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
     const byte *rec_b_ptr;
     ulint rec_f_len;
 
-    ut_ad(!rec_offs_nth_default(offsets, cur_field));
+    ut_ad(!rec_offs_nth_default(index, offsets, cur_field));
 
     /* For now, change buffering is only supported on
     indexes with ascending order on the columns. */
@@ -768,8 +769,8 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
         dict_index_is_ibuf(index) || index->fields[cur_field].is_ascending;
 
     dtuple_b_ptr = static_cast<const byte *>(dfield_get_data(dfield));
-    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, &rec_f_len);
-    ut_ad(!rec_offs_nth_extern(offsets, cur_field));
+    rec_b_ptr = rec_get_nth_field(index, rec, offsets, cur_field, &rec_f_len);
+    ut_ad(!rec_offs_nth_extern(index, offsets, cur_field));
 
     /* If we have matched yet 0 bytes, it may be that one or
     both the fields are SQL null, or the record or dtuple may be
@@ -919,8 +920,8 @@ bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
   const dict_col_t *col = index->get_col(n);
   const dict_field_t *field = index->get_field(n);
 
-  ut_ad(!rec_offs_nth_extern(offsets1, n));
-  ut_ad(!rec_offs_nth_extern(offsets2, n));
+  ut_ad(!rec_offs_nth_extern(index, offsets1, n));
+  ut_ad(!rec_offs_nth_extern(index, offsets2, n));
 
   rec1_b_ptr = rec_get_nth_field_instant(rec1, offsets1, n, index, &rec1_f_len);
   rec2_b_ptr = rec_get_nth_field_instant(rec2, offsets2, n, index, &rec2_f_len);
@@ -949,10 +950,10 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
 
     /* If the fields are internally equal, they must both
     be NULL or non-NULL. */
-    ut_ad(rec_offs_nth_sql_null(offsets1, n) ==
-          rec_offs_nth_sql_null(offsets2, n));
+    ut_ad(rec_offs_nth_sql_null(index, offsets1, n) ==
+          rec_offs_nth_sql_null(index, offsets2, n));
 
-    if (rec_offs_nth_sql_null(offsets1, n)) {
+    if (rec_offs_nth_sql_null(index, offsets1, n)) {
       ut_ad(!(index->get_col(n)->prtype & DATA_NOT_NULL));
       null_eq = true;
     }
@@ -976,8 +977,8 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
     }
 
     /* If the fields are equal, they must both be NULL or non-NULL. */
-    ut_ad(rec_offs_nth_sql_null(offsets1, n) ==
-          rec_offs_nth_sql_null(offsets2, n));
+    ut_ad(rec_offs_nth_sql_null(index, offsets1, n) ==
+          rec_offs_nth_sql_null(index, offsets2, n));
   }
 
   return 0;
@@ -1047,6 +1048,8 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       auto col = index->get_col(i);
       const auto field = index->get_field(i);
 
+      ut_ad(col == field->col);
+
       mtype = col->mtype;
       prtype = col->prtype;
       is_asc = field->is_ascending;
@@ -1064,8 +1067,8 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
     leaf page records. These fields should already differ
     in the primary key columns already, before DB_TRX_ID,
     DB_ROLL_PTR, and any externally stored columns. */
-    ut_ad(!rec_offs_nth_extern(offsets1, i));
-    ut_ad(!rec_offs_nth_extern(offsets2, i));
+    ut_ad(!rec_offs_nth_extern(index, offsets1, i));
+    ut_ad(!rec_offs_nth_extern(index, offsets2, i));
 
     ulint r1_len;
 

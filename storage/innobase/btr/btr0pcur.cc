@@ -106,7 +106,6 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   m_old_rec = dict_index_copy_rec_order_prefix(index, rec, &m_old_n_fields,
                                                &m_old_rec_buf, &m_buf_size);
-
   m_block_when_stored.store(block);
 
   m_modify_clock = block->get_modify_clock(

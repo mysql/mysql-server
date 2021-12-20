@@ -14,7 +14,7 @@
 --let $p5=/("se_private_data":) "id=[0-9]+;"/\1 "id=X"/
 
 # Remove se_private_data: table_id.
---let $p6=/("se_private_data":) "table_id=[0-9]+;"/\1 "table_id=X"/
+--let $p6=/("se_private_data": "physical_pos=[0-9]+;)table_id=[0-9]+;"/\1 "table_id=X"/
 
 # Remove se_private_id: id. This is innodb table_id
 --let $p7=/("se_private_id":) [0-9]+/\1NNN/

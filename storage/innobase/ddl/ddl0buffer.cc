@@ -155,8 +155,8 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
 
     ulint extra_size;
 
-    const auto size =
-        rec_get_serialize_size(m_index, fields, n_fields, nullptr, &extra_size);
+    const auto size = rec_get_serialize_size(m_index, fields, n_fields, nullptr,
+                                             &extra_size, MAX_ROW_VERSION);
 
     {
       const auto rec_size = size + extra_size + 2;

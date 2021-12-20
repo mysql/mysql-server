@@ -97,7 +97,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   rec = page_rec_get_next(page_get_infimum_rec(page));
   *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
 
-  source_cur = rec_get_nth_field(rec, *offsets, 0, &len);
+  source_cur = rec_get_nth_field(cursor->index, rec, *offsets, 0, &len);
 
   for (cur = task; cur < stop - 1; ++cur) {
     cur->coords = reserve_coords(buf_pos, SPDIMS);
@@ -107,7 +107,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
 
     rec = page_rec_get_next(rec);
     *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
-    source_cur = rec_get_nth_field(rec, *offsets, 0, &len);
+    source_cur = rec_get_nth_field(cursor->index, rec, *offsets, 0, &len);
   }
 
   /* Put the insert key to node list */
@@ -199,7 +199,6 @@ static void rtr_update_mbr_field_in_place(
   void *new_mbr_ptr;
   double new_mbr[SPDIMS * 2];
   byte *log_ptr = nullptr;
-  page_t *page = page_align(rec);
   ulint len = DATA_MBR_LEN;
   ulint flags = BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG;
   ulint rec_info;
@@ -207,7 +206,7 @@ static void rtr_update_mbr_field_in_place(
   rtr_write_mbr(reinterpret_cast<byte *>(&new_mbr), mbr);
   new_mbr_ptr = static_cast<void *>(new_mbr);
   /* Otherwise, set the mbr to the new_mbr. */
-  rec_set_nth_field(rec, offsets, 0, new_mbr_ptr, len);
+  rec_set_nth_field(index, rec, offsets, 0, new_mbr_ptr, len);
 
   rec_info = rec_get_info_bits(rec, rec_offs_comp(offsets));
 
@@ -215,9 +214,7 @@ static void rtr_update_mbr_field_in_place(
   /* For now, we use LOG_REC_UPDATE_IN_PLACE to log this enlarge.
   In the future, we may need to add a new log type for this. */
   const bool opened = mlog_open_and_write_index(
-      mtr, rec, index,
-      page_is_comp(page) ? MLOG_COMP_REC_UPDATE_IN_PLACE
-                         : MLOG_REC_UPDATE_IN_PLACE,
+      mtr, rec, index, MLOG_REC_UPDATE_IN_PLACE,
       1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN, log_ptr);
 
   if (!opened) {
@@ -1561,12 +1558,12 @@ bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
 
   rec = btr_cur_get_rec(cursor);
 
-  rtr_read_mbr(rec_get_nth_field(rec, offsets, 0, &len),
+  rtr_read_mbr(rec_get_nth_field(index, rec, offsets, 0, &len),
                reinterpret_cast<rtr_mbr_t *>(mbr1));
 
   rec = btr_cur_get_rec(cursor2);
 
-  rtr_read_mbr(rec_get_nth_field(rec, offsets2, 0, &len),
+  rtr_read_mbr(rec_get_nth_field(index, rec, offsets2, 0, &len),
                reinterpret_cast<rtr_mbr_t *>(mbr2));
 
   mbr = reinterpret_cast<double *>(new_mbr);
@@ -1697,7 +1694,7 @@ double rtr_rec_cal_increase(
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(nullptr, rec, offsets, 0, &rec_f_len);
   ret = rtree_area_increase(
       srs, rec_b_ptr, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       static_cast<int>(dtuple_f_len), area);
@@ -1784,7 +1781,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
     rtr_mbr_t mbr;
     double rec_area;
 
-    field = rec_get_nth_field(rec, offsets, 0, &len);
+    field = rec_get_nth_field(index, rec, offsets, 0, &len);
     ut_ad(len == DATA_MBR_LEN);
 
     rtr_read_mbr(field, &mbr);

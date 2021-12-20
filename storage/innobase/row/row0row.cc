@@ -67,6 +67,7 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
 
   if (flag == ROW_BUILD_FOR_INSERT && index->is_clustered()) {
     num_v = dict_table_get_n_v_cols(index->table);
+    entry_len = entry_len - index->table->get_n_instant_drop_cols();
     entry = dtuple_create_with_vcol(heap, entry_len, num_v);
   } else {
     entry = dtuple_create(heap, entry_len);
@@ -105,6 +106,7 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
     } else {
       ind_field = index->get_field(i);
       col = ind_field->col;
+      ut_ad(!col->is_instant_dropped());
       col_no = dict_col_get_no(col);
       dfield = dtuple_get_nth_field(entry, i);
     }
@@ -375,7 +377,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   the big_rec. Note that the mini-transaction can be committed multiple
   times, and the cursor restore can happen multiple times for single
   insert or update statement.  */
-  ut_a(!rec_offs_any_null_extern(rec, offsets) ||
+  ut_a(!rec_offs_any_null_extern(index, rec, offsets) ||
        trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
@@ -388,7 +390,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
     copy = rec;
   }
 
-  n_ext_cols = rec_offs_n_extern(offsets);
+  n_ext_cols = rec_offs_n_extern(index, offsets);
   if (n_ext_cols) {
     ext_cols = static_cast<ulint *>(
         mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols));
@@ -440,11 +442,16 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
       a column prefix, there should also be the full
       field in the clustered index tuple. The row
       tuple comprises full fields, not prefixes. */
-      ut_ad(!rec_offs_nth_extern(offsets, i));
+      ut_ad(!rec_offs_nth_extern(index, offsets, i));
       continue;
     }
 
     const dict_col_t *col = ind_field->col;
+    /* If this column has been dropped instantly, skip it. */
+    if (col->is_instant_dropped()) {
+      continue;
+    }
+
     ulint col_no = dict_col_get_no(col);
 
     if (col_map) {
@@ -464,7 +471,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
 
     dfield_set_data(dfield, field, len);
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       dfield_set_ext(dfield);
 
       col = col_table->get_col(col_no);
@@ -596,7 +603,7 @@ dtuple_t *row_rec_to_index_entry_low(
 
     dfield_set_data(dfield, field, len);
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       dfield_set_ext(dfield);
     }
   }
@@ -711,7 +718,7 @@ dtuple_t *row_build_row_ref(
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, &len);
+    field = rec_get_nth_field(index, rec, offsets, pos, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -795,7 +802,7 @@ void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, &len);
+    field = rec_get_nth_field(index, rec, offsets, pos, &len);
 
     dfield_set_data(dfield, field, len);
 

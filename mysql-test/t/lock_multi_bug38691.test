@@ -44,8 +44,8 @@ while ($i) {
          SET a = NULL WHERE t1.b <> t2.b;
 
 --connection locker
-  ALTER TABLE t2 ADD COLUMN (c INT);
-  ALTER TABLE t2 DROP COLUMN c;
+  ALTER TABLE t2 ADD COLUMN (c INT), ALGORITHM=COPY;
+  ALTER TABLE t2 DROP COLUMN c, ALGORITHM=COPY;
 
 --connection writer
 --reap
@@ -65,8 +65,8 @@ while ($i) {
 --send EXECUTE stmt
 
 --connection locker
-  ALTER TABLE t2 ADD COLUMN (c INT);
-  ALTER TABLE t2 DROP COLUMN c;
+  ALTER TABLE t2 ADD COLUMN (c INT), ALGORITHM=COPY;
+  ALTER TABLE t2 DROP COLUMN c, ALGORITHM=COPY;
 
 --connection writer
 --reap
@@ -87,7 +87,7 @@ while ($i) {
 
 --connection locker
 --error 0,ER_DUP_FIELDNAME
-  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
+  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL, ALGORITHM=COPY;
   UPDATE t2 SET a=b;
 
 --connection writer
@@ -95,7 +95,7 @@ while ($i) {
 
 --connection locker
 --error 0,ER_CANT_DROP_FIELD_OR_KEY
-  ALTER TABLE t2 DROP COLUMN a;
+  ALTER TABLE t2 DROP COLUMN a, ALGORITHM=COPY;
 
 --connection writer
 --error 0,ER_BAD_FIELD_ERROR
@@ -112,7 +112,7 @@ while ($i) {
 
 --connection locker
 --error 0,ER_DUP_FIELDNAME
-  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
+  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL, ALGORITHM=COPY;
   UPDATE t2 SET a=b;
 
 --connection writer
@@ -121,7 +121,7 @@ while ($i) {
 
 --connection locker
 --error 0,ER_CANT_DROP_FIELD_OR_KEY
-  ALTER TABLE t2 DROP COLUMN a;
+  ALTER TABLE t2 DROP COLUMN a, ALGORITHM=COPY;
 
 --connection writer
 --error 0,ER_BAD_FIELD_ERROR

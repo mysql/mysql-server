@@ -1,0 +1,24 @@
+##########################################################################
+# Test script to test ROLLBACK and RECOVERY for table having INSTANT
+# ADD/DROP columns.
+##########################################################################
+--source include/have_innodb_16k.inc
+
+--echo ##############################################
+--echo # Test instant ADD/DROP COLUMN for REDUNDANT format
+--echo ##############################################
+let $row_format = REDUNDANT;
+--source suite/innodb/include/instant_ddl_rollback.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for DYNAMIC format
+--echo ############################################
+let $row_format = DYNAMIC;
+--source suite/innodb/include/instant_ddl_rollback.inc
+
+--echo ############################################
+--echo # Test instant ADD/DROP COLUMN for COMPACT format
+--echo ############################################
+let $row_format = COMPACT;
+--source suite/innodb/include/instant_ddl_rollback.inc
+

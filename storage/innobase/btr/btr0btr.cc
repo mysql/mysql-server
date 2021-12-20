@@ -599,8 +599,8 @@ static inline void btr_node_ptr_set_child_page_no(
   ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
   /* The child address is in the last field */
-  field = const_cast<byte *>(
-      rec_get_nth_field(rec, offsets, rec_offs_n_fields(offsets) - 1, &len));
+  field = const_cast<byte *>(rec_get_nth_field(
+      nullptr, rec, offsets, rec_offs_n_fields(offsets) - 1, &len));
 
   ut_ad(len == REC_NODE_PTR_SIZE);
 
@@ -1308,8 +1308,6 @@ func_exit:
     if (page_zip) {
       ut_ad(page_is_comp(page));
       type = MLOG_ZIP_PAGE_REORGANIZE;
-    } else if (page_is_comp(page)) {
-      type = MLOG_COMP_PAGE_REORGANIZE;
     } else {
       type = MLOG_PAGE_REORGANIZE;
     }
@@ -3895,11 +3893,13 @@ bool btr_index_rec_validate(const rec_t *rec,          /*!< in: index record */
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
   for (i = 0; i < n; i++) {
-    dict_field_t *field = index->get_field(i);
+    dict_field_t *field = nullptr;
+    field = index->get_physical_field(i);
     const dict_col_t *col = field->col;
     ulint fixed_size = col->get_fixed_size(page_is_comp(page));
 
-    rec_get_nth_field_offs(offsets, i, &len);
+    /* nullptr for index as i is physical here */
+    rec_get_nth_field_offs(nullptr, offsets, i, &len);
 
     /* Note that if fixed_size != 0, it equals the
     length of a fixed-size column in the clustered index,

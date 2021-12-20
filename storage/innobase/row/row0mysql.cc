@@ -1072,6 +1072,7 @@ static dtuple_t *row_get_prebuilt_insert_row(
     }
   }
 
+  /* option 1 : HERE create the insert node as per row version now on disk */
   dtuple_t *row;
 
   row = dtuple_create_with_vcol(prebuilt->heap, table->get_n_cols(),
@@ -2720,8 +2721,7 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
 
 dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
                                    const HA_CREATE_INFO *create_info,
-                                   trx_t *trx) {
-  mem_heap_t *heap;
+                                   trx_t *trx, mem_heap_t *heap) {
   dberr_t err;
 
   ut_ad(!dict_sys_mutex_own());
@@ -2756,7 +2756,11 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   }
 
   if (err == DB_SUCCESS) {
-    heap = mem_heap_create(512, UT_LOCATION_HERE);
+    bool free_heap = false;
+    if (heap == nullptr) {
+      free_heap = true;
+      heap = mem_heap_create(512, UT_LOCATION_HERE);
+    }
 
     dict_table_add_system_columns(table, heap);
 
@@ -2771,7 +2775,9 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
       err = log_ddl->write_remove_cache_log(trx, table);
     }
 
-    mem_heap_free(heap);
+    if (free_heap) {
+      mem_heap_free(heap);
+    }
   }
 
   if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {

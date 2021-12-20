@@ -314,7 +314,8 @@ void row_upd_rec_sys_fields_in_recovery(rec_t *rec, page_zip_des_t *page_zip,
     byte *field;
     ulint len;
 
-    field = const_cast<byte *>(rec_get_nth_field(rec, offsets, pos, &len));
+    field =
+        const_cast<byte *>(rec_get_nth_field(nullptr, rec, offsets, pos, &len));
     ut_ad(len == DATA_TRX_ID_LEN);
     trx_write_trx_id(field, trx_id);
     trx_write_roll_ptr(field + DATA_TRX_ID_LEN, roll_ptr);
@@ -393,10 +394,12 @@ bool row_upd_changes_field_size_or_external(
       new_len = index->get_col(upd_field->field_no)->get_null_size(0);
     }
 
-    old_len = rec_offs_nth_size(offsets, upd_field->field_no);
+    uint32_t field_no = upd_field->field_no;
+
+    old_len = rec_offs_nth_size(index, offsets, field_no);
 
     if (rec_offs_comp(offsets)) {
-      if (rec_offs_nth_sql_null(offsets, upd_field->field_no)) {
+      if (rec_offs_nth_sql_null(index, offsets, field_no)) {
         /* Note that in the compact table format,
         for a variable length field, an SQL NULL
         will use zero bytes in the offset array
@@ -407,7 +410,7 @@ bool row_upd_changes_field_size_or_external(
         varchar to an empty string! */
 
         old_len = UNIV_SQL_NULL;
-      } else if (rec_offs_nth_default(offsets, upd_field->field_no)) {
+      } else if (rec_offs_nth_default(index, offsets, field_no)) {
         /* This will force to do pessimistic update,
         since the default value is not inlined,
         so any update to it will extend the record. */
@@ -416,13 +419,13 @@ bool row_upd_changes_field_size_or_external(
     } else {
       /* REDUNDANT row format, if it updates the field with
       not inlined default value, do it in pessimistic way */
-      if (rec_offs_nth_default(offsets, upd_field->field_no)) {
+      if (rec_offs_nth_default(index, offsets, field_no)) {
         old_len = UNIV_SQL_ADD_COL_DEFAULT;
       }
     }
 
     if (dfield_is_ext(new_val) || old_len != new_len ||
-        rec_offs_nth_extern(offsets, upd_field->field_no)) {
+        rec_offs_nth_extern(index, offsets, upd_field->field_no)) {
       return true;
     }
   }
@@ -486,14 +489,26 @@ void row_upd_rec_in_place(
 
   if (rec_offs_comp(offsets)) {
     bool is_instant = rec_get_instant_flag_new(rec);
+    bool is_versioned = rec_new_is_versioned(rec);
+
     rec_set_info_bits_new(rec, update->info_bits);
-    if (is_instant) {
+    if (is_versioned) {
+      rec_new_set_versioned(rec, true);
+    } else if (is_instant) {
+      ut_ad(index->table->has_instant_cols());
       rec_set_instant_flag_new(rec, true);
     } else {
+      rec_new_set_versioned(rec, false);
       rec_set_instant_flag_new(rec, false);
     }
   } else {
+    bool is_versioned = rec_old_is_versioned(rec);
     rec_set_info_bits_old(rec, update->info_bits);
+    if (is_versioned) {
+      rec_old_set_versioned(rec, true);
+    } else {
+      rec_old_set_versioned(rec, false);
+    }
   }
 
   n_fields = upd_get_n_fields(update);
@@ -506,16 +521,16 @@ void row_upd_rec_in_place(
       continue;
     }
 
+    uint32_t field_no = upd_field->field_no;
     new_val = &(upd_field->new_val);
     ut_ad(!dfield_is_ext(new_val) ==
-          !rec_offs_nth_extern(offsets, upd_field->field_no));
+          !rec_offs_nth_extern(index, offsets, field_no));
 
-    /* Updating default value for instantly added columns
-    must not be done in-place. See also
-    row_upd_changes_field_size_or_external() */
-    ut_ad(!rec_offs_nth_default(offsets, upd_field->field_no));
-    rec_set_nth_field(rec, offsets, upd_field->field_no,
-                      dfield_get_data(new_val), dfield_get_len(new_val));
+    /* Updating default value for instantly added columns must not be done
+    in-place. See also row_upd_changes_field_size_or_external() */
+    ut_ad(!rec_offs_nth_default(index, offsets, field_no));
+    rec_set_nth_field(index, rec, offsets, field_no, dfield_get_data(new_val),
+                      dfield_get_len(new_val));
   }
 
   if (page_zip) {
@@ -758,7 +773,7 @@ upd_t *row_upd_build_sec_rec_difference_binary(
   n_diff = 0;
 
   for (i = 0; i < dtuple_get_n_fields(entry); i++) {
-    data = rec_get_nth_field(rec, offsets, i, &len);
+    data = rec_get_nth_field(index, rec, offsets, i, &len);
 
     dfield = dtuple_get_nth_field(entry, i);
 
@@ -862,7 +877,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
       }
     }
 
-    if (!dfield_is_ext(dfield) != !rec_offs_nth_extern(offsets, i) ||
+    if (!dfield_is_ext(dfield) != !rec_offs_nth_extern(index, offsets, i) ||
         !dfield_data_is_binary_equal(dfield, len, data)) {
       upd_field = upd_get_nth_field(update, n_diff);
 
@@ -2463,8 +2478,8 @@ func_exit:
  @param[in] update update vector
  @return whether any columns were inherited */
 static bool row_upd_clust_rec_by_insert_inherit_func(
-    const rec_t *rec, IF_DEBUG(const ulint *offsets, ) dtuple_t *entry,
-    const upd_t *update) {
+    const dict_index_t *index, const rec_t *rec,
+    IF_DEBUG(const ulint *offsets, ) dtuple_t *entry, const upd_t *update) {
   bool inherit = false;
   ulint i;
 
@@ -2476,7 +2491,7 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
     ulint len;
 
     ut_ad(!offsets ||
-          !rec_offs_nth_extern(offsets, i) == !dfield_is_ext(dfield) ||
+          !rec_offs_nth_extern(index, offsets, i) == !dfield_is_ext(dfield) ||
           upd_get_field_by_field_no(update, i, false));
     if (!dfield_is_ext(dfield) || upd_get_field_by_field_no(update, i, false)) {
       continue;
@@ -2486,7 +2501,7 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
 
 #ifdef UNIV_DEBUG
     if (UNIV_LIKELY(rec != nullptr)) {
-      (void)rec_get_nth_field(rec, offsets, i, &len);
+      (void)rec_get_nth_field(index, rec, offsets, i, &len);
       ut_ad(len == dfield_get_len(dfield));
       ut_ad(len != UNIV_SQL_NULL);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
@@ -2524,13 +2539,12 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
   return (inherit);
 }
 
-static inline bool row_upd_clust_rec_by_insert_inherit(const rec_t *rec,
-                                                       const ulint *offsets
-                                                       [[maybe_unused]],
-                                                       dtuple_t *entry,
-                                                       const upd_t *update) {
+static inline bool row_upd_clust_rec_by_insert_inherit(
+    const dict_index_t *index, const rec_t *rec,
+    const ulint *offsets [[maybe_unused]], dtuple_t *entry,
+    const upd_t *update) {
   return row_upd_clust_rec_by_insert_inherit_func(
-      rec, IF_DEBUG(offsets, ) entry, update);
+      index, rec, IF_DEBUG(offsets, ) entry, update);
 }
 
 /** Marks the clustered index record deleted and inserts the updated version
@@ -2580,7 +2594,7 @@ static inline bool row_upd_clust_rec_by_insert_inherit(const rec_t *rec,
     case UPD_NODE_INSERT_CLUSTERED:
       /* A lock wait occurred in row_ins_clust_index_entry() in
       the previous invocation of this function. */
-      row_upd_clust_rec_by_insert_inherit(nullptr, nullptr, entry,
+      row_upd_clust_rec_by_insert_inherit(index, nullptr, nullptr, entry,
                                           node->update);
       break;
     case UPD_NODE_UPDATE_CLUSTERED:
@@ -2618,7 +2632,7 @@ static inline bool row_upd_clust_rec_by_insert_inherit(const rec_t *rec,
       old record and owned by the new entry. */
 
       if (rec_offs_any_extern(offsets)) {
-        if (row_upd_clust_rec_by_insert_inherit(rec, offsets, entry,
+        if (row_upd_clust_rec_by_insert_inherit(index, rec, offsets, entry,
                                                 node->update)) {
           /* The blobs are disowned here, expecting the
           insert down below to inherit them.  But if the

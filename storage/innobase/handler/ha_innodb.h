@@ -866,8 +866,10 @@ class create_table_info_t {
 
   /** Create the internal innodb table.
   @param[in]	dd_table	dd::Table or nullptr for intrinsic table
+  @param[in]	old_part_table	dd::Table from an old partition for partitioned
+                                table, NULL otherwise.
   @return 0 or error number */
-  int create_table(const dd::Table *dd_table);
+  int create_table(const dd::Table *dd_table, const dd::Table *old_part_table);
 
   /** Update the internal data dictionary. */
   int create_table_update_dict();
@@ -972,8 +974,11 @@ class create_table_info_t {
 
   /** Create a table definition to an InnoDB database.
   @param[in]	dd_table	dd::Table or nullptr for intrinsic table
+  @param[in]	old_part_table	dd::Table from an old partition for partitioned
+                                table, NULL otherwise.
   @return HA_* level error */
-  int create_table_def(const dd::Table *dd_table);
+  int create_table_def(const dd::Table *dd_table,
+                       const dd::Table *old_part_table);
 
   /** Initialize the autoinc of this table if necessary, which should
   be called before we flush logs, so autoinc counter can be persisted. */
@@ -1054,13 +1059,16 @@ class innobase_basic_ddl {
                                   option
   @param[in]	old_flags	old Table flags
   @param[in]	old_flags2	old Table flags2
+  @param[in]	old_dd_table	Table def for old table. Used in truncate or
+                                while adding a new partition
   @return	error number
   @retval	0 on success */
   template <typename Table>
   static int create_impl(THD *thd, const char *name, TABLE *form,
                          HA_CREATE_INFO *create_info, Table *dd_tab,
                          bool file_per_table, bool evictable, bool skip_strict,
-                         uint32_t old_flags, uint32_t old_flags2);
+                         uint32_t old_flags, uint32_t old_flags2,
+                         const dd::Table *old_dd_table);
 
   /** Drop an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -1103,9 +1111,10 @@ class innobase_truncate {
   @param[in]	name		normalized table name
   @param[in]	form		Table format; columns and index information
   @param[in]	dd_table	dd::Table or dd::Partition
-  @param[in]	keep_autoinc	true to remember original autoinc counter */
+  @param[in]	keep_autoinc	true to remember original autoinc counter
+  @param[in]	table_truncate	true if this is full table truncate */
   innobase_truncate(THD *thd, const char *name, TABLE *form, Table *dd_table,
-                    bool keep_autoinc)
+                    bool keep_autoinc, bool table_truncate)
       : m_thd(thd),
         m_name(name),
         m_dd_table(dd_table),
@@ -1115,6 +1124,7 @@ class innobase_truncate {
         m_create_info(),
         m_file_per_table(false),
         m_keep_autoinc(keep_autoinc),
+        m_table_truncate(table_truncate),
         m_flags(0),
         m_flags2(0) {}
 
@@ -1179,6 +1189,10 @@ class innobase_truncate {
   specified by caller, however if the table has no AUTOINC column,
   it would be reset to false internally */
   bool m_keep_autoinc;
+
+  /** For a prtition table, this is true if full table is truncated. If only
+  a partition is truncated, it is set to false. */
+  bool m_table_truncate;
 
   /** flags of the table to be truncated, which should not change */
   uint32_t m_flags;
@@ -1321,4 +1335,9 @@ void innobase_build_v_templ_callback(const TABLE *table, void *ib_table);
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE *, void *);
 
+/** Drop the statistics for a specified table, and mark it as discard
+after DDL
+@param[in,out]  thd     THD object
+@param[in,out]  table   InnoDB table object */
+void innobase_discard_table(THD *thd, dict_table_t *table);
 #endif /* ha_innodb_h */

@@ -472,7 +472,7 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
   }
 
   ut_ad(!m_trx || m_trx->isolation_level == TRX_ISO_READ_UNCOMMITTED ||
-        !rec_offs_any_null_extern(rec, offsets));
+        !rec_offs_any_null_extern(m_config.m_index, rec, offsets));
 
   return (true);
 }

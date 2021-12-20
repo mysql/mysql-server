@@ -804,9 +804,7 @@ static inline void page_delete_rec_list_write_log(
     mtr_t *mtr)          /*!< in: mtr */
 {
   byte *log_ptr = nullptr;
-  ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE ||
-        type == MLOG_COMP_LIST_END_DELETE ||
-        type == MLOG_COMP_LIST_START_DELETE);
+  ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE);
 
   if (!mlog_open_and_write_index(mtr, rec, index, type, 2, log_ptr)) {
     return;
@@ -835,9 +833,11 @@ byte *page_parse_delete_rec_list(
   page_t *page;
   ulint offset;
 
-  ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE ||
-        type == MLOG_COMP_LIST_END_DELETE ||
-        type == MLOG_COMP_LIST_START_DELETE);
+  ut_ad(type == MLOG_LIST_END_DELETE_8027 ||
+        type == MLOG_LIST_START_DELETE_8027 ||
+        type == MLOG_COMP_LIST_END_DELETE_8027 ||
+        type == MLOG_COMP_LIST_START_DELETE_8027 ||
+        type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE);
 
   /* Read the record offset as a 2-byte ulint */
 
@@ -856,7 +856,8 @@ byte *page_parse_delete_rec_list(
 
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
-  if (type == MLOG_LIST_END_DELETE || type == MLOG_COMP_LIST_END_DELETE) {
+  if (type == MLOG_LIST_END_DELETE || type == MLOG_COMP_LIST_END_DELETE_8027 ||
+      type == MLOG_LIST_END_DELETE_8027) {
     page_delete_rec_list_end(page + offset, block, index, ULINT_UNDEFINED,
                              ULINT_UNDEFINED, mtr);
   } else {
@@ -940,10 +941,7 @@ void page_delete_rec_list_end(
 
   buf_block_modify_clock_inc(block);
 
-  page_delete_rec_list_write_log(
-      rec, index,
-      page_is_comp(page) ? MLOG_COMP_LIST_END_DELETE : MLOG_LIST_END_DELETE,
-      mtr);
+  page_delete_rec_list_write_log(rec, index, MLOG_LIST_END_DELETE, mtr);
 
   if (page_zip) {
     mtr_log_t log_mode;
@@ -1103,15 +1101,7 @@ void page_delete_rec_list_start(
   }
 
 #ifndef UNIV_HOTBACKUP
-  mlog_id_t type;
-
-  if (page_rec_is_comp(rec)) {
-    type = MLOG_COMP_LIST_START_DELETE;
-  } else {
-    type = MLOG_LIST_START_DELETE;
-  }
-
-  page_delete_rec_list_write_log(rec, index, type, mtr);
+  page_delete_rec_list_write_log(rec, index, MLOG_LIST_START_DELETE, mtr);
 #endif /* !UNIV_HOTBACKUP */
 
   page_cur_set_before_first(block, &cur1);

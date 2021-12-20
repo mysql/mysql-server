@@ -1686,6 +1686,37 @@ void dict_table_change_id_sys_tables();
 uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
                                        dict_foreign_t *foreign);
 
+/** Get maximum possible size needed for a field.
+@param[in]   table        innodb table definition cache
+@param[in]   index        index
+@param[in]   field        field
+@param[out]  rec_max_size max record size needed */
+void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
+                        const dict_field_t *field, size_t &rec_max_size);
+
+/** Get the maximum size of a record permissible on an index page.
+@param[in]  table        innodb table definition cache
+@param[in]  index        index
+@param[out] page_rec_max maximum size of record on a leaf page
+@param[out] page_ptr_max maximum size of record on non-leaf page */
+void get_permissible_max_size(const dict_table_t *table,
+                              const dict_index_t *index, size_t &page_rec_max,
+                              size_t &page_ptr_max);
+
+/** validate that maximum possible size of a row is within permissible limit.
+@param[in]  table        innodb table definition cache
+@param[in]  index        index
+@param[in]  strict       true if error is to be reported
+@param[in]  page_rec_max maximum size of possible record on leaf page
+@param[in]  page_ptr_max maximum size of possible record on non-leaf page
+@param[out] rec_max_size maximum size of record on page
+@return true if max record size is within limit, false otherwise. */
+bool dict_index_validate_max_rec_size(const dict_table_t *table,
+                                      const dict_index_t *index, bool strict,
+                                      const size_t page_rec_max,
+                                      const size_t page_ptr_max,
+                                      size_t &rec_max_size);
+
 #include "dict0dict.ic"
 
 #endif

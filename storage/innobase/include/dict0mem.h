@@ -68,6 +68,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #include "sql/sql_const.h" /* MAX_KEY_LENGTH */
+#include "sql/table.h"
 
 #include <algorithm>
 #include <iterator>
@@ -78,6 +79,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Forward declaration. */
 struct ib_rbt_t;
+
+/** index/table name used while applying REDO logs during recovery */
+constexpr char RECOVERY_INDEX_TABLE_NAME[] = "LOG_DUMMY";
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -308,6 +312,11 @@ parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
 constexpr uint32_t FK_MAX_CASCADE_DEL = 15;
 
+/** Maximum number of rows version allowed when columns are added/dropped
+INSTANTly. After this limit is reached, any attempt to do ADD/DROP INSTANT
+column will result in error. */
+const uint8_t MAX_ROW_VERSION = 64;
+
 /** Adds a virtual column definition to a table.
 @param[in,out]	table		table
 @param[in]	heap		temporary memory heap, or NULL. It is
@@ -470,7 +479,7 @@ struct dict_col_t {
 
   /** Default value when this column was added instantly.
   If this is not a instantly added column then this is nullptr. */
-  dict_col_default_t *instant_default;
+  dict_col_default_t *instant_default{nullptr};
 
   unsigned prtype : 32; /*!< precise type; MySQL data
                         type, charset code, flags to
@@ -513,6 +522,108 @@ struct dict_col_t {
 
   /* True, if the column is visible */
   bool is_visible;
+
+ private:
+  /* Position of column on physical row.
+  If column prefix is part of PK, it appears twice on row. First 2 bytes are
+  for prefix position and next 2 bytes are for column position on row. */
+  uint32_t phy_pos{UINT32_UNDEFINED};
+
+  /* Row version in which this column was added INSTANTly to the table */
+  uint8_t version_added{UINT8_UNDEFINED};
+
+  /* Row version in which this column was dropped INSTANTly from the table */
+  uint8_t version_dropped{UINT8_UNDEFINED};
+
+ public:
+  /* If column prefix is there on row. */
+  bool has_prefix_phy_pos() const { return (phy_pos & 0x8000); }
+
+  /* Get the physical position of column prefix on row. */
+  uint16_t get_prefix_phy_pos() const {
+    ut_ad(has_prefix_phy_pos());
+    return ((uint16_t)(phy_pos >> 16));
+  }
+
+  /* Set the physical position of column prefix on row. */
+  void set_prefix_phy_pos(uint16_t prefix_pos) {
+    phy_pos = prefix_pos;
+    phy_pos = phy_pos << 16;
+    phy_pos |= 0x8000;
+  }
+
+  /* Get the physical position of column on row. */
+  uint16_t get_col_phy_pos() const { return ((phy_pos & ~0x8000) & 0xFFFF); }
+
+  /* Set the physical position of column on row. */
+  void set_col_phy_pos(uint16_t pos) {
+    ut_ad(has_prefix_phy_pos());
+    phy_pos |= pos;
+  }
+
+  /* Set the physical position metadata of column. */
+  uint32_t get_phy_pos() const { return phy_pos; }
+
+  /* Get the physical position metadata of column. */
+  void set_phy_pos(uint32_t pos) { phy_pos = pos; }
+
+  bool is_instant_added() const {
+    if (version_added != UINT8_UNDEFINED && version_added > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  uint8_t get_version_added() const {
+    ut_ad(is_instant_added());
+    return version_added;
+  }
+
+  void set_version_added(uint8_t version) {
+    ut_ad(version == UINT8_UNDEFINED || version <= MAX_ROW_VERSION);
+    version_added = version;
+  }
+
+  bool is_version_added_match(const dict_col_t *col) const {
+    if (is_instant_added() != col->is_instant_added()) {
+      return false;
+    }
+
+    if (is_instant_added()) {
+      return (get_version_added() == col->get_version_added());
+    }
+
+    return true;
+  }
+
+  bool is_instant_dropped() const {
+    if (version_dropped != UINT8_UNDEFINED && version_dropped > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  uint8_t get_version_dropped() const {
+    ut_ad(is_instant_dropped());
+    return version_dropped;
+  }
+
+  void set_version_dropped(uint8_t version) {
+    ut_ad(version == UINT8_UNDEFINED || version <= MAX_ROW_VERSION);
+    version_dropped = version;
+  }
+
+  bool is_version_dropped_match(const dict_col_t *col) const {
+    if (is_instant_dropped() != col->is_instant_dropped()) {
+      return false;
+    }
+
+    if (is_instant_dropped()) {
+      return (get_version_dropped() == col->get_version_dropped());
+    }
+
+    return true;
+  }
 
   /** Returns the minimum size of the column.
   @return minimum size */
@@ -607,6 +718,40 @@ struct dict_col_t {
   @param[in]	length	Default value length
   @param[in,out]	heap	Heap to allocate memory */
   void set_default(const byte *value, size_t length, mem_heap_t *heap);
+
+  /** Check if column is dropped before the given version.
+  @param[in]	version	row version
+  @return true if the column is dropped before or in the version. */
+  bool is_dropped_in_or_before(uint8_t version) const {
+    ut_ad(version <= MAX_ROW_VERSION);
+
+    if (!is_instant_dropped()) {
+      return false;
+    }
+
+    return (get_version_dropped() <= version);
+  }
+
+  /** Check if column is added after the current version.
+  @param[in]	version	row version
+  @return true if column is added after the current row version. */
+  bool is_added_after(uint8_t version) const {
+    ut_ad(version <= MAX_ROW_VERSION);
+
+    if (!is_instant_added()) {
+      return false;
+    }
+
+    return (get_version_added() > version);
+  }
+
+  /** Check if a column is visible in given version.
+  @param[in]      version         row version
+  return true if column is visible in version. */
+  bool is_visible_in_version(uint8_t version) const {
+    ut_ad(version <= MAX_ROW_VERSION);
+    return (!is_added_after(version) && !is_dropped_in_or_before(version));
+  }
 
 #ifdef UNIV_DEBUG
   /** Assert that a column and a data type match.
@@ -739,6 +884,14 @@ struct dict_field_t {
                              column if smaller than
                              DICT_ANTELOPE_MAX_INDEX_COL_LEN */
   unsigned is_ascending : 1; /*!< 0=DESC, 1=ASC */
+
+  uint16_t get_phy_pos() const {
+    if (prefix_len != 0) {
+      return col->get_prefix_phy_pos();
+    }
+
+    return col->get_col_phy_pos();
+  }
 };
 
 /** PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
@@ -866,159 +1019,212 @@ constexpr uint32_t MAX_KEY_LENGTH_BITS = 12;
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or false in dict_mem_index_create(). */
 struct dict_index_t {
-  space_index_t id;       /*!< id of the index */
-  mem_heap_t *heap;       /*!< memory heap */
-  id_name_t name;         /*!< index name */
-  const char *table_name; /*!< table name */
-  dict_table_t *table;    /*!< back pointer to table */
+  /** id of the index */
+  space_index_t id;
+
+  /** memory heap */
+  mem_heap_t *heap;
+
+  /** index name */
+  id_name_t name;
+
+  /** table name */
+  const char *table_name;
+
+  /** back pointer to table */
+  dict_table_t *table;
+
+  /** space where the index tree is placed */
   unsigned space : 32;
-  /*!< space where the index tree is placed */
-  unsigned page : 32; /*!< index tree root page number */
+
+  /** index tree root page number */
+  unsigned page : 32;
+
+  /** In the pessimistic delete, if the page data size drops below this limit
+  in percent, merging it to a neighbor is tried */
   unsigned merge_threshold : 6;
-  /*!< In the pessimistic delete, if the page
-  data size drops below this limit in percent,
-  merging it to a neighbor is tried */
+
+  /** index type (DICT_CLUSTERED, DICT_UNIQUE, DICT_IBUF, DICT_CORRUPT) */
   unsigned type : DICT_IT_BITS;
-  /*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
-  DICT_IBUF, DICT_CORRUPT) */
+
+  /** position of the trx id column in a clustered index record, if the fields
+  before it are known to be of a fixed size, 0 otherwise */
   unsigned trx_id_offset : MAX_KEY_LENGTH_BITS;
-  /*!< position of the trx id column
-  in a clustered index record, if the fields
-  before it are known to be of a fixed size,
-  0 otherwise */
+
   static_assert(1 << MAX_KEY_LENGTH_BITS >= MAX_KEY_LENGTH,
                 "1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH");
-  unsigned n_user_defined_cols : 10;
-  /*!< number of columns the user defined to
-  be in the index: in the internal
+
+  /** number of columns the user defined to be in the index: in the internal
   representation we add more columns */
-  unsigned allow_duplicates : 1;
-  /*!< if true, allow duplicate values
-  even if index is created with unique
+  unsigned n_user_defined_cols : 10;
+
+  /** if true, allow duplicate values even if index is created with unique
   constraint */
+  unsigned allow_duplicates : 1;
+
+  /** if true, SQL NULL == SQL NULL */
   unsigned nulls_equal : 1;
-  /*!< if true, SQL NULL == SQL NULL */
+
+  /** if true, then disable AHI. Currently limited to intrinsic temporary table
+  and SDI table as index id is not unique for such table which is one of the
+  validation criterion for  ahi. */
   unsigned disable_ahi : 1;
-  /*!< if true, then disable AHI. Currently
-  limited to intrinsic temporary table and SDI
-  table as index id is not unique for such table
-  which is one of the validation criterion for
-  ahi. */
-  unsigned n_uniq : 10;     /*!< number of fields from the beginning
-                          which are enough to determine an index
-                          entry uniquely */
-  unsigned n_def : 10;      /*!< number of fields defined so far */
-  unsigned n_fields : 10;   /*!< number of fields in the index */
-  unsigned n_nullable : 10; /*!< number of nullable fields */
+
+  /** number of fields from the beginning which are enough to determine an index
+  entry uniquely */
+  unsigned n_uniq : 10;
+
+  /** number of fields defined so far */
+  unsigned n_def : 10;
+
+  /** number of fields in the index */
+  unsigned n_fields : 10;
+
+  /** number of total fields in the index (including INSTANT dropped fields) */
+  unsigned n_total_fields : 10;
+
+  /** number of nullable fields */
+  unsigned n_nullable : 10;
+
+  /** number of nullable fields before first instant ADD COLUMN applied to this
+  table. This is valid only when has_instant_cols() is true */
   unsigned n_instant_nullable : 10;
-  /*!< number of nullable fields before first
-  instant ADD COLUMN applied to this table.
-  This is valid only when has_instant_cols() is true */
-  unsigned cached : 1; /*!< true if the index object is in the
-                      dictionary cache */
+
+  /** true if the index object is in the dictionary cache */
+  unsigned cached : 1;
+
+  /** true if the index is to be dropped; protected by dict_operation_lock */
   unsigned to_be_dropped : 1;
-  /*!< true if the index is to be dropped;
-  protected by dict_operation_lock */
+
+  /** enum online_index_status. Transitions from ONLINE_INDEX_COMPLETE (to
+  ONLINE_INDEX_CREATION) are protected by dict_operation_lock and
+  dict_sys->mutex. Other changes are protected by index->lock. */
   unsigned online_status : 2;
-  /*!< enum online_index_status.
-  Transitions from ONLINE_INDEX_COMPLETE (to
-  ONLINE_INDEX_CREATION) are protected
-  by dict_operation_lock and
-  dict_sys->mutex. Other changes are
-  protected by index->lock. */
+
+  /** a flag that is set for secondary indexes that have not been committed to
+  the data dictionary yet */
   unsigned uncommitted : 1;
-  /*!< a flag that is set for secondary indexes
-  that have not been committed to the
-  data dictionary yet */
+
+  /** true if the index is clustered index and it has some instant columns */
   unsigned instant_cols : 1;
-  /*!< true if the index is clustered index and it has some
-  instant columns */
-  uint32_t srid; /* spatial reference id */
+
+  /** true if the index is clustered index and table has row versions */
+  unsigned row_versions : 1;
+
+  /** spatial reference id */
+  uint32_t srid;
+
+  /** says whether SRID is valid - it cane be undefined */
   bool srid_is_valid;
-  /* says whether SRID is valid - it cane be
-  undefined */
+
+  /** Cached spatial reference system dictionary entry used by R-tree indexes.
+   */
   std::unique_ptr<dd::Spatial_reference_system> rtr_srs;
-  /*!< Cached spatial reference system dictionary
-  entry used by R-tree indexes. */
 
 #ifdef UNIV_DEBUG
   uint32_t magic_n; /*!< magic number */
 #endif
-  dict_field_t *fields; /*!< array of field descriptions */
+
+  /** array of field descriptions */
+  dict_field_t *fields;
+
+  /** Array of field pos sorted as per their physical pos in record. Only
+  needed for clustered index having INSTANT ADD/DROP columns. */
+  std::vector<uint16_t> fields_array;
+
+  /** Number of nullable columns in each version. Only needed for clustered
+  index having INSTANT ADD/DROP columns. */
+  uint32_t nullables[MAX_ROW_VERSION + 1] = {0};
+
 #ifndef UNIV_HOTBACKUP
-  st_mysql_ftparser *parser; /*!< fulltext parser plugin */
+  /** fulltext parser plugin */
+  st_mysql_ftparser *parser;
+
+  /** true if it's ngram parser */
   bool is_ngram;
-  /*!< true if it's ngram parser */
+
+  /** whether it has a newly added virtual column in ALTER */
   bool has_new_v_col;
-  /*!< whether it has a newly added virtual
-  column in ALTER */
-  bool hidden; /*!< if the index is an hidden index */
-#endif         /* !UNIV_HOTBACKUP */
-  UT_LIST_NODE_T(dict_index_t)
-  indexes; /*!< list of indexes of the table */
+
+  /** if the index is an hidden index */
+  bool hidden;
+#endif /* !UNIV_HOTBACKUP */
+
+  /** list of indexes of the table */
+  UT_LIST_NODE_T(dict_index_t) indexes;
+
+  /** info used in optimistic searches */
   btr_search_t *search_info;
-  /*!< info used in optimistic searches */
+
 #ifndef UNIV_HOTBACKUP
+  /** the log of modifications during online index creation;
+  valid when online_status is ONLINE_INDEX_CREATION */
   row_log_t *online_log;
-  /*!< the log of modifications
-  during online index creation;
-  valid when online_status is
-  ONLINE_INDEX_CREATION */
+
   /*----------------------*/
   /** Statistics for query optimization */
   /** @{ */
+  /** approximate number of different key values for this index, for each
+  n-column prefix where 1 <= n <= dict_get_n_unique(index) (the array is
+  indexed from 0 to n_uniq-1); we periodically calculate new estimates */
   uint64_t *stat_n_diff_key_vals;
-  /*!< approximate number of different
-  key values for this index, for each
-  n-column prefix where 1 <= n <=
-  dict_get_n_unique(index) (the array is
-  indexed from 0 to n_uniq-1); we
-  periodically calculate new
-  estimates */
+
+  /** number of pages that were sampled  to calculate each of
+  stat_n_diff_key_vals[], e.g. stat_n_sample_sizes[3] pages were sampled to get
+  the number stat_n_diff_key_vals[3]. */
   uint64_t *stat_n_sample_sizes;
-  /*!< number of pages that were sampled
-  to calculate each of stat_n_diff_key_vals[],
-  e.g. stat_n_sample_sizes[3] pages were sampled
-  to get the number stat_n_diff_key_vals[3]. */
+
+  /* approximate number of non-null key values for this index, for each column
+  where 1 <= n <= dict_get_n_unique(index) (the array is indexed from 0 to
+  n_uniq-1); This is used when innodb_stats_method is "nulls_ignored". */
   uint64_t *stat_n_non_null_key_vals;
-  /* approximate number of non-null key values
-  for this index, for each column where
-  1 <= n <= dict_get_n_unique(index) (the array
-  is indexed from 0 to n_uniq-1); This
-  is used when innodb_stats_method is
-  "nulls_ignored". */
+
+  /** approximate index size in database pages */
   ulint stat_index_size;
-  /*!< approximate index size in
-  database pages */
 #endif /* !UNIV_HOTBACKUP */
+  /** approximate number of leaf pages in the index tree */
   ulint stat_n_leaf_pages;
-  /*!< approximate number of leaf pages in the
-  index tree */
   /** @} */
-  last_ops_cur_t *last_ins_cur;
-  /*!< cache the last insert position.
-  Currently limited to auto-generated
+
+  /** cache the last insert position. Currently limited to auto-generated
   clustered index on intrinsic table only. */
+  last_ops_cur_t *last_ins_cur;
+
+  /** cache the last selected position. Currently limited to intrinsic table
+  only. */
   last_ops_cur_t *last_sel_cur;
-  /*!< cache the last selected position
-  Currently limited to intrinsic table only. */
-  rec_cache_t rec_cache;
-  /*!< cache the field that needs to be
-  re-computed on each insert.
-  Limited to intrinsic table as this is common
-  share and can't be used without protection
+
+  /** cache the field that needs to be re-computed on each insert. Limited to
+  intrinsic table as this is common share and can't be used without protection
   if table is accessible to multiple-threads. */
-  rtr_ssn_t rtr_ssn;           /*!< Node sequence number for RTree */
-  rtr_info_track_t *rtr_track; /*!< tracking all R-Tree search cursors */
-  trx_id_t trx_id;             /*!< id of the transaction that created this
-                               index, or 0 if the index existed
-                               when InnoDB was started up */
-  zip_pad_info_t zip_pad;      /*!< Information about state of
-                               compression failures and successes */
-  rw_lock_t lock;              /*!< read-write lock protecting the
-                               upper levels of the index tree */
-  bool fill_dd;                /*!< Flag whether need to fill dd tables
-                               when it's a fulltext index. */
+  rec_cache_t rec_cache;
+
+  /** Node sequence number for RTree */
+  rtr_ssn_t rtr_ssn;
+
+  /** tracking all R-Tree search cursors */
+  rtr_info_track_t *rtr_track;
+
+  /** id of the transaction that created this index, or 0 if the index existed
+  when InnoDB was started up */
+  trx_id_t trx_id;
+
+  /** Information about state of compression failures and successes */
+  zip_pad_info_t zip_pad;
+
+  /** read-write lock protecting the upper levels of the index tree */
+  rw_lock_t lock;
+
+  /** Flag whether need to fill dd tables when it's a fulltext index. */
+  bool fill_dd;
+
+  /** Set instant nullable
+  @param[in]  n  nullable fields before first INSTANT ADD */
+  void set_instant_nullable(uint16_t n) { n_instant_nullable = n; }
+
+  /** Get instant nullable.
+  @return number of nullable fields before first INSTANT ADD */
+  uint16_t get_instant_nullable() const { return n_instant_nullable; }
 
   /** Determine if the index has been committed to the
   data dictionary.
@@ -1093,34 +1299,115 @@ struct dict_index_t {
   @param[in] trx		transaction*/
   bool is_usable(const trx_t *trx) const;
 
-  /** Check whether index has any instantly added columns
+  /** Check whether index has any instantly added columns.
+  Possible only if table has INSTANT ADD columns and is upgraded.
   @return true if this is instant affected, otherwise false */
   bool has_instant_cols() const { return (instant_cols); }
+
+  /** Check whether index belongs to a table having row versions
+  @return true if table has row versions, otherwise false */
+  bool has_row_versions() const { return (row_versions); }
+
+  /** check if either instant or versioned.
+  @return true if table has row versions or instant cols, otherwise false */
+  bool has_instant_cols_or_row_versions() const {
+    if (!is_clustered()) {
+      ut_ad(!has_row_versions() && !has_instant_cols());
+      return false;
+    }
+
+    return (has_row_versions() || has_instant_cols());
+  }
 
   /** Check if tuple is having instant format.
   @param[in]	n_fields_in_tuple	number of fields in tuple
   @return true if yes, false otherwise. */
   bool is_tuple_instant_format(const uint16_t n_fields_in_tuple) const;
 
-  /** Returns the number of nullable fields before specified
-  nth field
+  /** Returns the number of nullable fields before specified nth field
   @param[in]	nth	nth field to check */
   uint32_t get_n_nullable_before(uint32_t nth) const {
-    uint32_t nullable = n_nullable;
+    uint32_t nullable = 0;
+    ut_ad(nth <= n_total_fields);
 
-    ut_ad(nth <= n_fields);
-
-    for (uint32_t i = nth; i < n_fields; ++i) {
+    for (size_t i = 0; i < nth; ++i) {
       if (get_field(i)->col->is_nullable()) {
-        --nullable;
+        nullable++;
       }
     }
 
     return (nullable);
   }
 
-  /** Returns the number of fields before first instant ADD COLUMN */
+  /** Returns total fields including INSTANT DROP fields. */
+  uint32_t get_n_total_fields() const {
+    ut_ad(is_clustered());
+    return n_total_fields;
+  }
+
+  /** Returns the number of fields before first instant ADD COLUMN. This is
+  needed only for V1 INSTANT ADD. */
   uint32_t get_instant_fields() const;
+
+  /** Create nullables array.
+  @param[in]	current_row_version	current row version of table */
+  void create_nullables(uint32_t current_row_version);
+
+  /** Return nullable in a specific row version */
+  uint32_t get_nullable_in_version(uint8_t version) const {
+    ut_ad(version <= MAX_ROW_VERSION);
+
+    return nullables[version];
+  }
+
+#ifdef UNIV_DEBUG
+  void print_index_fields() {
+    std::cerr << "\t[";
+    for (uint32_t i = 0; i < n_def; i++) {
+      if (i != 0) {
+        std::cerr << ", ";
+      }
+      dict_field_t *field = get_field(i);
+      ut_ad(field != nullptr);
+      std::cerr << "" << field->name;
+    }
+    std::cerr << "]" << std::endl;
+  }
+
+  void print_fields_array() {
+    std::cerr << "\t[";
+    for (uint32_t i = 0; i < n_def; i++) {
+      if (i != 0) {
+        std::cerr << ", ";
+      }
+
+      if (get_field(fields_array[i]) == nullptr) {
+        std::cerr << "EMPTY";
+        continue;
+      }
+      std::cerr << "" << get_field(fields_array[i])->name;
+    }
+    std::cerr << "]" << std::endl;
+  }
+#endif
+
+  /** Create fields array sorted by phy_pos of field in row */
+  void create_fields_array() {
+    fields_array.resize(n_def);
+    for (uint32_t i = 0; i < n_def; i++) {
+      dict_field_t *field = get_field(i);
+      ut_ad(field != nullptr && field->col != nullptr);
+
+      size_t pos = field->get_phy_pos();
+
+      fields_array[pos] = i;
+    }
+  }
+
+  void destroy_fields_array() {
+    fields_array.clear();
+    std::vector<uint16_t>().swap(fields_array);
+  }
 
   /** Adds a field definition to an index. NOTE: does not take a copy
   of the column name if the field is a column. The memory occupied
@@ -1143,6 +1430,20 @@ struct dict_index_t {
     field->is_ascending = is_ascending;
   }
 
+  /** Gets the nth physical pos field.
+  @param[in]  pos  physocal position of the field
+  @return pointer to the field object. */
+  dict_field_t *get_physical_field(size_t pos) const {
+    ut_ad(pos < n_def);
+    ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+    if (has_row_versions()) {
+      return get_field(fields_array[pos]);
+    }
+
+    return get_field(pos);
+  }
+
   /** Gets the nth field of an index.
   @param[in] pos	position of field
   @return pointer to field object */
@@ -1151,6 +1452,30 @@ struct dict_index_t {
     ut_ad(magic_n == DICT_INDEX_MAGIC_N);
 
     return (fields + pos);
+  }
+
+  /** Get the physical position of a field on a row. For table having INSTANT
+  column, it might differ from field index (pos).
+  @param[in]	pos	field index
+  @return physical position on row */
+  uint16_t get_field_off_pos(ulint pos) const {
+    return get_field(pos)->get_phy_pos();
+  }
+
+  uint16_t get_field_phy_pos(ulint pos, uint8_t version) const {
+    uint16_t phy_pos = get_field(pos)->get_phy_pos();
+    if (version == UINT8_UNDEFINED) {
+      return phy_pos;
+    }
+
+    uint16_t res = phy_pos;
+    for (size_t i = 0; i < phy_pos; i++) {
+      if (get_field(fields_array[i])->col->is_dropped_in_or_before(version)) {
+        res--;
+      }
+    }
+
+    return res;
   }
 
   /** Gets pointer to the nth column in an index.
@@ -1183,9 +1508,9 @@ struct dict_index_t {
   @param[in,out]	length	length of the default value
   @return	the default value data of nth field */
   const byte *get_nth_default(ulint nth, ulint *length) const {
-    ut_ad(nth < n_fields);
-    ut_ad(get_instant_fields() <= nth);
-    const dict_col_t *col = get_col(nth);
+    ut_ad(nth < get_n_total_fields());
+
+    const dict_col_t *col = get_physical_field(nth)->col;
     if (col->instant_default == nullptr) {
       *length = 0;
       return (nullptr);
@@ -1546,7 +1871,22 @@ struct dict_table_t {
   /** Get schema and table name in system character set.
   @param[out]	schema	schema name
   @param[out]	table	table name */
-  void get_table_name(std::string &schema, std::string &table);
+  void get_table_name(std::string &schema, std::string &table) const;
+
+  bool is_system_schema() const {
+    std::string schema_name;
+    std::string table_name;
+
+    get_table_name(schema_name, table_name);
+
+    if (0 == strcmp(schema_name.c_str(), MYSQL_SCHEMA_NAME.str) ||
+        0 == strcmp(schema_name.c_str(), "sys") ||
+        0 == strcmp(schema_name.c_str(), PERFORMANCE_SCHEMA_DB_NAME.str) ||
+        0 == strcmp(schema_name.c_str(), INFORMATION_SCHEMA_NAME.str)) {
+      return (true);
+    }
+    return (false);
+  }
 
   /** Mutex of the table for concurrency access. */
   ib_mutex_t *mutex;
@@ -1640,7 +1980,8 @@ struct dict_table_t {
   unsigned n_cols : 10;
 
   /** Number of non-virtual columns before first instant ADD COLUMN,
-  including the system columns like n_cols. */
+  including the system columns like n_cols. This is used only when table has
+  instant ADD clumns in V1. */
   unsigned n_instant_cols : 10;
 
   /** Number of total columns (inlcude virtual and non-virtual) */
@@ -1713,6 +2054,21 @@ struct dict_table_t {
 
   /** metadata version number of dd::Table::se_private_data() */
   uint64_t version;
+
+  /** Current row version in case columns are added/dropped INSTANTly */
+  uint32_t current_row_version{0};
+
+  /** Initial non-virtual column count */
+  uint32_t initial_col_count{0};
+
+  /** Current non-virtual column count */
+  uint32_t current_col_count{0};
+
+  /** Total non-virtual column count */
+  uint32_t total_col_count{0};
+
+  /** Set if table is upgraded instant table */
+  unsigned m_upgraded_instant : 1;
 
   /** table dynamic metadata status, protected by dict_persist->mutex */
   std::atomic<table_dirty_status> dirty_status;
@@ -2048,6 +2404,16 @@ detect this and will eventually quit sooner. */
         const_cast<const dict_table_t *>(this)->first_index()));
   }
 
+  /** @returns true if the table has row versions.. */
+  bool has_row_versions() const {
+    if (current_row_version > 0) {
+      ut_ad(has_instant_add_cols() || has_instant_drop_cols());
+      return (true);
+    }
+
+    return false;
+  }
+
   /** @return if there was any instantly added column.
   This will be true after one or more instant ADD COLUMN, however,
   it would become false after ALTER TABLE which rebuilds or copies
@@ -2055,17 +2421,19 @@ detect this and will eventually quit sooner. */
   If this is true, all instantly added columns should have default
   values, and records in the table may have REC_INFO_INSTANT_FLAG set. */
   bool has_instant_cols() const {
-    ut_ad(n_instant_cols <= n_cols);
+    if (is_upgraded_instant() || (n_instant_cols < n_cols)) {
+      /* Instant add col V1 */
+      return (true);
+    }
 
-    return (n_instant_cols < n_cols);
+    return false;
   }
 
   /** Set the number of columns when the first instant ADD COLUMN happens.
-  @param[in]	instant_cols	number of fields when first instant
-                                  ADD COLUMN happens, without system
-                                  columns */
-  void set_instant_cols(uint16_t instant_cols) {
-    n_instant_cols = static_cast<unsigned>(instant_cols) + get_n_sys_cols();
+  @param[in]	n_inst_cols	number of fields when first instant
+                                ADD COLUMN happens, without system columns */
+  void set_instant_cols(uint16_t n_inst_cols) {
+    n_instant_cols = static_cast<unsigned>(n_inst_cols) + get_n_sys_cols();
   }
 
   /** Get the number of user columns when the first instant ADD COLUMN
@@ -2073,6 +2441,35 @@ detect this and will eventually quit sooner. */
   @return	the number of user columns as described above */
   uint16_t get_instant_cols() const {
     return static_cast<uint16_t>(n_instant_cols - get_n_sys_cols());
+  }
+
+  /** Get number of columns added instantly */
+  uint32_t get_n_instant_add_cols() const {
+    ut_ad(total_col_count >= initial_col_count);
+    return total_col_count - initial_col_count;
+  }
+
+  /** Get number of columns dropped instantly */
+  uint32_t get_n_instant_drop_cols() const {
+    ut_ad(total_col_count >= current_col_count);
+    return total_col_count - current_col_count;
+  }
+
+  /** check if table has INSTANT ADD columns.
+  @return true if the table has INSTANT ADD columns, otherwise false */
+  bool has_instant_add_cols() const { return (get_n_instant_add_cols() > 0); }
+
+  /** check if table has INSTANT DROP columns.
+  @return true if the table has INSTANT DROP columns, otherwise false */
+  bool has_instant_drop_cols() const { return (get_n_instant_drop_cols() > 0); }
+
+  /** Set table to be upgraded table with INSTANT ADD columns in V1. */
+  void set_upgraded_instant() { m_upgraded_instant = 1; }
+
+  /** Checks if table is upgraded table with INSTANT ADD columns in V1.
+  @return	true if it is, false otherwise */
+  bool is_upgraded_instant() const {
+    return (m_upgraded_instant == 1) ? true : false;
   }
 
   /** Check whether the table is corrupted.
@@ -2109,14 +2506,33 @@ detect this and will eventually quit sooner. */
     return (s);
   }
 
-  /**Gets the nth column of a table.
+  /** Gets the nth column of a table.
   @param[in] pos	position of column
   @return pointer to column object */
-  dict_col_t *get_col(ulint pos) const {
+  dict_col_t *get_col(uint pos) const {
     ut_ad(pos < n_def);
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
     return (cols + pos);
+  }
+
+  /** Get column by name
+  @param[in]	name	column name
+  @return column name if found, null otherwise */
+  dict_col_t *get_col_by_name(const char *name) const {
+    ut_ad(name != nullptr);
+
+    dict_col_t *ret = nullptr;
+
+    const char *s = col_names;
+    for (ulint i = 0; i < n_def; i++) {
+      if (strcmp(s, name) == 0) {
+        ret = get_col(i);
+      }
+      s += strlen(s) + 1;
+    }
+
+    return ret;
   }
 
   /** Gets the number of user-defined non-virtual columns in a table
@@ -2146,6 +2562,19 @@ detect this and will eventually quit sooner. */
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
     return (n_cols);
+  }
+
+  /** Gets the number of all non-virtual columns in a table including columns
+  dropped INSTANTly.
+  @returns number of non-virtual columns of a table */
+  ulint get_total_cols() const {
+    if (!has_row_versions()) {
+      return n_cols;
+    }
+
+    ut_ad((total_col_count + get_n_sys_cols()) ==
+          (n_cols + get_n_instant_drop_cols()));
+    return n_cols + get_n_instant_drop_cols();
   }
 
   /** Gets the given system column of a table.
@@ -2199,8 +2628,8 @@ detect this and will eventually quit sooner. */
   @return true if table is DD table or SDI table, else false */
   inline bool skip_gap_locks() const;
 
-  /** Determine if the table can support instant ADD COLUMN */
-  inline bool support_instant_add() const;
+  /** Determine if the table can support instant ADD/DROP COLUMN */
+  inline bool support_instant_add_drop() const;
 };
 
 static inline void DICT_TF2_FLAG_SET(dict_table_t *table, uint32_t flag) {

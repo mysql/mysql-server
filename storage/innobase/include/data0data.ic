@@ -567,6 +567,8 @@ static inline ulint dtuple_get_data_size(
       len = dtype_get_sql_null_size(dfield_get_type(field), comp);
     }
 
+    ut_ad(len != UNIV_SQL_INSTANT_DROP_COL);
+
     sum += len;
   }
 

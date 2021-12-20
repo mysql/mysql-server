@@ -348,7 +348,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
           any inserts that could have written a record 'stub' before
           writing out off-page columns. */
           ut_ad(m_ctx.m_online ||
-                !rec_offs_any_null_extern(rec, row.m_offsets));
+                !rec_offs_any_null_extern(index(), rec, row.m_offsets));
         }
 #endif /* UNIV_DEBUG */
 

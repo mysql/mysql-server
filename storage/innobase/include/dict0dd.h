@@ -77,6 +77,21 @@ static const char innobase_hton_name[] = "InnoDB";
 /** String constant for AUTOEXTEND_SIZE option string */
 static constexpr char autoextend_size_str[] = "autoextend_size";
 
+/** Determine if give version is a valid row version */
+bool dd_is_valid_row_version(uint32_t version);
+
+/** Determine if column is INSTANT ADD */
+bool dd_column_is_added(const dd::Column *dd_col);
+
+/** Determine if column is INSTANT DROP */
+bool dd_column_is_dropped(const dd::Column *dd_col);
+
+/** Get the row version in which column is INSTANT ADD */
+uint32_t dd_column_get_version_added(const dd::Column *dd_col);
+
+/** Get the row version in which column is INSTANT DROP */
+uint32_t dd_column_get_version_dropped(const dd::Column *dd_col);
+
 /** Maximum hardcoded data dictionary tables. */
 constexpr uint32_t DICT_MAX_DD_TABLES = 1024;
 
@@ -94,7 +109,7 @@ enum dd_table_keys {
   The functions will choose right implementation for you, depending on
   whether the argument is dd::Table or dd::Partition. */
   DD_TABLE_DISCARD,
-  /** Columns before first instant ADD COLUMN */
+  /** Columns before first instant ADD COLUMN, used only for V1 */
   DD_TABLE_INSTANT_COLS,
   /** Sentinel */
   DD_TABLE__LAST
@@ -114,6 +129,12 @@ enum dd_column_keys {
   DD_INSTANT_COLUMN_DEFAULT,
   /** Default value is null or not */
   DD_INSTANT_COLUMN_DEFAULT_NULL,
+  /** Row version when this column was added instantly */
+  DD_INSTANT_VERSION_ADDED,
+  /** Row version when this column was dropped instantly */
+  DD_INSTANT_VERSION_DROPPED,
+  /** Column physical position on row when it was created */
+  DD_INSTANT_PHYSICAL_POS,
   /** Sentinel */
   DD_COLUMN__LAST
 };
@@ -213,8 +234,9 @@ const char *const dd_table_key_strings[DD_TABLE__LAST] = {
     "autoinc", "data_directory", "version", "discard", "instant_col"};
 
 /** InnoDB private key strings for dd::Column, @see dd_column_keys */
-const char *const dd_column_key_strings[DD_COLUMN__LAST] = {"default",
-                                                            "default_null"};
+const char *const dd_column_key_strings[DD_COLUMN__LAST] = {
+    "default", "default_null", "version_added", "version_dropped",
+    "physical_pos"};
 
 /** InnoDB private key strings for dd::Partition. @see dd_partition_keys */
 const char *const dd_partition_key_strings[DD_PARTITION__LAST] = {
@@ -379,18 +401,167 @@ inline bool dd_table_is_partitioned(const dd::Table &table) {
 in dd::Table
 @param[in]	dd_table	dd::Table
 @return true if consistent, otherwise false */
-bool dd_instant_columns_exist(const dd::Table &dd_table);
+bool dd_instant_columns_consistent(const dd::Table &dd_table);
 #endif /* UNIV_DEBUG */
 
-/** Determine if a dd::Table has any instant column
-@param[in]	table	dd::Table
-@return	true	If it's a table with instant columns
-@retval	false	Not a table with instant columns */
-inline bool dd_table_has_instant_cols(const dd::Table &table) {
-  bool instant = table.se_private_data().exists(
-      dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
+/** Determine if given table is upgraded from a MySQL version which
+doesn't support row versions.
+@param[in]	table	table definition
+@return true if it is upgraded from non-instant, false otherwise */
+inline bool dd_table_is_upgraded_no_row_version(const dd::Table &table) {
+  bool res = false;
+  bool found = false;
+  for (const auto column : table.columns()) {
+    if (column->is_virtual()) {
+      continue;
+    }
 
-  ut_ad(!instant || dd_instant_columns_exist(table));
+    found = true;
+    if (!column->se_private_data().exists(
+            dd_column_key_strings[DD_INSTANT_PHYSICAL_POS])) {
+      res = true;
+    }
+    break;
+  }
+
+  return (found && res);
+}
+
+/** Determine if a dd::Table has any INSTANT ADD column(s) in V1
+@param[in]	table	dd::Table
+@return	true if table has instant column(s) in V1, false otherwise */
+inline bool dd_table_is_upgraded_instant(const dd::Table &table) {
+  if (table.is_temporary()) {
+    return false;
+  }
+
+  return (table.se_private_data().exists(
+      dd_table_key_strings[DD_TABLE_INSTANT_COLS]));
+}
+
+/** Determine if dd::Table has INSTANT ADD columns.
+@param[in]     table   table definition
+@return true if table has INSTANT ADD column(s), false otherwise */
+inline bool dd_table_has_instant_add_cols(const dd::Table &table) {
+  if (table.is_temporary()) {
+    return false;
+  }
+
+  for (const auto column : table.columns()) {
+    if (dd_column_is_added(column)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Determine if dd::Table has INSTANT DROPPED columns.
+@param[in]     table   table definition
+@return true if table has INSTANT DROP column(s), false otherwise */
+inline bool dd_table_has_instant_drop_cols(const dd::Table &table) {
+  if (table.is_temporary()) {
+    return false;
+  }
+
+  for (const auto column : table.columns()) {
+    if (dd_column_is_dropped(column)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static inline bool is_system_column(const char *col_name) {
+  ut_ad(col_name != nullptr);
+  return (strncmp(col_name, "DB_ROW_ID", 9) == 0 ||
+          strncmp(col_name, "DB_TRX_ID", 9) == 0 ||
+          strncmp(col_name, "DB_ROLL_PTR", 11) == 0);
+}
+
+/** Set different column counters.
+@param[in]   table  dd::Table
+@param[out]  i_c    initial column count
+@param[out]  c_c    current column count
+@param[out]  t_c    total column count
+@param[in]   current_row_version  current row version */
+inline void dd_table_get_column_counters(const dd::Table &table, uint32_t &i_c,
+                                         uint32_t &c_c, uint32_t &t_c,
+                                         uint32_t &current_row_version) {
+  size_t n_dropped_cols = 0;
+  size_t n_added_cols = 0;
+  size_t n_added_and_dropped_cols = 0;
+  size_t n_current_cols = 0;
+
+  for (const auto column : table.columns()) {
+    if (is_system_column(column->name().c_str()) || column->is_virtual()) {
+      continue;
+    }
+
+    if (dd_column_is_dropped(column)) {
+      n_dropped_cols++;
+      if (dd_column_is_added(column)) {
+        n_added_and_dropped_cols++;
+      }
+
+      uint32_t v_dropped = dd_column_get_version_dropped(column);
+      ut_ad(dd_is_valid_row_version(v_dropped));
+      current_row_version = std::max(current_row_version, v_dropped);
+
+      continue;
+    }
+
+    if (dd_column_is_added(column)) {
+      n_added_cols++;
+
+      uint32_t v_added = dd_column_get_version_added(column);
+      ut_ad(dd_is_valid_row_version(v_added));
+      current_row_version = std::max(current_row_version, v_added);
+    }
+
+    n_current_cols++;
+  }
+
+  ut_ad(n_dropped_cols >= n_added_and_dropped_cols);
+  size_t n_orig_dropped_cols = n_dropped_cols - n_added_and_dropped_cols;
+  c_c = n_current_cols;
+  i_c = (n_current_cols - n_added_cols) + n_orig_dropped_cols;
+  t_c = n_current_cols + n_dropped_cols;
+}
+
+/** Determine if a dd::Table has row versions
+@param[in]	table	dd::Table
+@return	true if table has row versions, false otherwise */
+inline bool dd_table_has_row_versions(const dd::Table &table) {
+  if (table.is_temporary()) {
+    return false;
+  }
+
+  for (const auto column : table.columns()) {
+    if (dd_column_is_dropped(column) || dd_column_is_added(column)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Determine if a dd::Table has any INSTANTly ADDed/DROPped column
+@param[in]	table	dd::Table
+@return	true if table has instant column(s), false otherwise */
+inline bool dd_table_has_instant_cols(const dd::Table &table) {
+  if (table.is_temporary()) {
+    return false;
+  }
+
+  bool instant_v1 = dd_table_is_upgraded_instant(table);
+  bool instant_v2 = dd_table_has_row_versions(table);
+
+  bool instant = instant_v1 || instant_v2;
+
+  /* If table has instant columns, make sure they are consistent with DD */
+  ut_ad(!instant || dd_instant_columns_consistent(table));
 
   return (instant);
 }
@@ -414,15 +585,16 @@ inline bool dd_part_has_instant_cols(const dd::Partition &part) {
 inline bool dd_table_part_has_instant_cols(const dd::Table &table) {
   ut_ad(dd_table_is_partitioned(table));
 
-  if (!dd_table_has_instant_cols(table)) {
-    return (false);
-  }
-
-  for (auto part : table.leaf_partitions()) {
-    if (dd_part_has_instant_cols(*part)) {
-      return (true);
+  /* For table having INSTANT ADD cols in v1, will have partition specific
+  INSTANT Metadata. */
+  if (dd_table_is_upgraded_instant(table)) {
+    for (auto part : table.leaf_partitions()) {
+      if (dd_part_has_instant_cols(*part)) {
+        return (true);
+      }
     }
   }
+
   return (false);
 }
 
@@ -570,9 +742,11 @@ void dd_copy_private(Table &new_table, const Table &old_table);
 /** Copy the engine-private parts of column definitions of a table
 @param[in]	ha_alter_info	alter info
 @param[in,out]	new_table	Copy of old table
-@param[in]	old_table	Old table */
+@param[in]	old_table	Old table
+@param[in]	dict_table	InnoDB table cache */
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
-                           dd::Table &new_table, const dd::Table &old_table);
+                           dd::Table &new_table, const dd::Table &old_table,
+                           dict_table_t *dict_table);
 
 /** Copy the metadata of a table definition, including the INSTANT
 ADD COLUMN information. This should be done when it's not an ALTER TABLE
@@ -584,8 +758,8 @@ dd::Column::se_private_data.
 inline void dd_copy_table(const Alter_inplace_info *ha_alter_info,
                           dd::Table &new_table, const dd::Table &old_table) {
   /* Copy columns first, to make checking in dd_copy_instant_n_cols pass */
-  dd_copy_table_columns(ha_alter_info, new_table, old_table);
-  if (dd_table_has_instant_cols(old_table)) {
+  dd_copy_table_columns(ha_alter_info, new_table, old_table, nullptr);
+  if (dd_table_is_upgraded_instant(old_table)) {
     dd_copy_instant_n_cols(new_table, old_table);
   }
 }
@@ -596,16 +770,31 @@ is correct if the first partition got changed
 @param[in,out]	new_table	New dd::Table */
 void dd_part_adjust_table_id(dd::Table *new_table);
 
-/** Add column default values for new instantly added columns
-@param[in]	ha_alter_info	alter info
-@param[in]	old_table	MySQL table as it is before the ALTER operation
-@param[in]	altered_table	MySQL table that is being altered
+using Columns = std::vector<Field *>;
+
+/** Drop column instantly. It actually updates dropped columns metadata.
+@param[in]	old_dd_table	Old dd::Table
 @param[in,out]	new_dd_table	New dd::Table
-@param[in]	new_table	New InnoDB table object */
-void dd_add_instant_columns(IF_DEBUG(const Alter_inplace_info *ha_alter_info, )
-                                const TABLE *old_table,
-                            const TABLE *altered_table, dd::Table *new_dd_table,
-                            const dict_table_t *new_table);
+@param[in,out]	new_table	New InnoDB table objecta
+@param[in]	cols_to_drop	list of columns to be dropped */
+void dd_drop_instant_columns(const dd::Table *old_dd_table,
+                             dd::Table *new_dd_table, dict_table_t *new_table,
+                             const Columns &cols_to_drop
+#ifdef UNIV_DEBUG
+                             ,
+                             const Columns &cols_to_add,
+                             Alter_inplace_info *ha_alter_info
+#endif
+);
+
+/** Add column default values for new instantly added columns
+@param[in]      old_dd_table    Old dd::Table
+@param[in,out]  new_dd_table    New dd::Table
+@param[in,out]  new_table       New InnoDB table object
+@param[in]      cols_to_add     columns to be added INSTANTly */
+void dd_add_instant_columns(const dd::Table *old_dd_table,
+                            dd::Table *new_dd_table, dict_table_t *new_table,
+                            const Columns &cols_to_add);
 
 /** Clear the instant ADD COLUMN information of a table
 @param[in,out]	dd_table	dd::Table */
@@ -1328,6 +1517,14 @@ bool dd_tablespace_get_discard(const dd::Tablespace *dd_space);
 @param[in]  mdl_ticket  tablespace MDL ticket */
 void dd_release_mdl(MDL_ticket *mdl_ticket);
 
+/** Copy metadata of already dropped columns from old table def to new
+table def.
+param[in]     old_dd_table  old table definition
+param[in,out] new_dd_table  new table definition */
+void copy_dropped_columns(const dd::Table *old_dd_table,
+                          dd::Table *new_dd_table,
+                          uint32_t current_row_version);
+
 /** Set Innodb tablespace compression option from DD.
 @param[in,out]	client		dictionary client
 @param[in]	algorithm	compression algorithm
@@ -1352,6 +1549,51 @@ the dictionary.
 /* Check if the table belongs to an encrypted tablespace.
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
+
+/** Parse the default value from dd::Column::se_private to dict_col_t
+@param[in]      se_private_data dd::Column::se_private
+@param[in,out]  col             InnoDB column object
+@param[in,out]  heap            Heap to store the default value */
+void dd_parse_default_value(const dd::Properties &se_private_data,
+                            dict_col_t *col, mem_heap_t *heap);
+
+#ifndef UNIV_HOTBACKUP
+/** Add definition of INSTANT dropped column in table cache.
+@param[in]	dd_table	Table definition
+@param[in,out]	dict_table	Table cache
+@param[out]	current_row_version	row_version
+@param[in]	heap		heap */
+void fill_dict_dropped_columns(const dd::Table *dd_table,
+                               dict_table_t *dict_table
+                                   IF_DEBUG(, uint32_t &current_row_version),
+                               mem_heap_t *heap);
+
+/** Check if given column is renamed during ALTER.
+@param[in]	ha_alter_info	alter info
+@param[in]	old_name	colmn old name
+@param[out]	new_name	column new name
+@return true if column is renamed, false otherwise. */
+bool is_renamed(const Alter_inplace_info *ha_alter_info, const char *old_name,
+                std::string &new_name);
+
+/** Check if given column is dropped during ALTER.
+@param[in]	ha_alter_info	alter info
+@param[in]	column_name	Column name
+@return true if column is dropped, false otherwise. */
+bool is_dropped(const Alter_inplace_info *ha_alter_info,
+                const char *column_name);
+
+/** Get the mtype, prtype and len for a field.
+@param[in]   dd_tab  dd table definition
+@param[in]   m_table innodb table cache
+@param[in]   field   MySQL field
+@param[out]  col_len length
+@param[out]  mtype   mtype
+@param[out]  prtype  prtype */
+void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
+                     const Field *field, unsigned &col_len, ulint &mtype,
+                     ulint &prtype);
+#endif
 
 #include "dict0dd.ic"
 #endif

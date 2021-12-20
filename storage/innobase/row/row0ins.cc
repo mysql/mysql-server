@@ -2416,8 +2416,8 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
   {
     page_t *page = btr_cur_get_page(cursor);
     rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(page));
-
-    ut_ad(page_rec_is_supremum(first_rec) ||
+    /* After INSTANT ADD/DROP, # of fields might differ from other records. */
+    ut_ad(page_rec_is_supremum(first_rec) || index->has_row_versions() ||
           rec_n_fields_is_sane(index, first_rec, entry));
   }
 #endif /* UNIV_DEBUG */
@@ -3357,6 +3357,7 @@ dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
       field = dtuple_get_nth_field(entry, i);
       ind_field = index->get_field(i);
       col = ind_field->col;
+      ut_ad(!col->is_instant_dropped());
     }
 
     if (col->is_virtual()) {

@@ -36,6 +36,9 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/W4")
   # Disable C4324: structure was padded due to __declspec(align())
   ADD_COMPILE_OPTIONS("/wd4324")
+  # Disable C4589: Constructor of abstract class 'dd::Entity_object_impl'
+  # ignores initializer for virtual base class 'dd::Weak_object'
+  ADD_COMPILE_OPTIONS("/wd4589")
 ENDIF()
 
 # TODO: Fix up all non-canonical include paths and remove this.
@@ -60,6 +63,7 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
   os/os0thread.cc
   page/zipdecompress.cc
   rem/rec.cc
+  rem/rem0wrec.cc
   ut/crc32.cc
   ut/ut.cc
   ut/ut0new.cc)
@@ -97,6 +101,7 @@ SET(INNOBASE_SOURCES
   dict/dict0crea.cc
   dict/dict0dict.cc
   dict/dict0dd.cc
+  dict/dict0inst.cc
   dict/dict0load.cc
   dict/dict0mem.cc
   dict/dict0sdi.cc
@@ -192,6 +197,7 @@ SET(INNOBASE_SOURCES
   read/read0read.cc
   rem/rem0cmp.cc
   rem/rem0rec.cc
+  rem/rem0wrec.cc
   row/row0ext.cc
   row/row0import.cc
   row/row0ins.cc
