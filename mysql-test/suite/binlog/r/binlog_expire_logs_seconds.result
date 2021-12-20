@@ -111,6 +111,11 @@ RESET MASTER;
 SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
 RESET MASTER;
+RESET MASTER;
+SET GLOBAL binlog_expire_logs_seconds=2147483647;
+FLUSH LOGS;
+SET GLOBAL binlog_expire_logs_seconds=DEFAULT;
+RESET MASTER;
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
 Warnings:

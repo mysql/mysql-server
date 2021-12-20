@@ -1384,6 +1384,7 @@ uint sync_binlog_period = 0, sync_relaylog_period = 0,
      opt_mta_checkpoint_period, opt_mta_checkpoint_group;
 ulong expire_logs_days = 0;
 ulong binlog_expire_logs_seconds = 0;
+bool opt_binlog_expire_logs_auto_purge{true};
 /**
   Soft upper limit for number of sp_head objects that can be stored
   in the sp_cache for one connection.
@@ -7597,13 +7598,22 @@ int mysqld_main(int argc, char **argv)
     if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
-      time_t purge_time = time(nullptr) - binlog_expire_logs_seconds -
-                          expire_logs_days * 24 * 60 * 60;
-      DBUG_EXECUTE_IF("expire_logs_always_at_start",
-                      { purge_time = time(nullptr); });
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-    }
+    // run auto purge member function. It will evaluate auto purge controls
+    // and configuration, calculate which log files are to be purged, and
+    // if any file is to be purged, it will purge it. This is all encapsulated
+    // insiude the auto purge member function.
+    //
+    // Note on the DBUG_EVALUATE_IF usage below:
+    // - when compiling it out: the condition evaluates to true, thus
+    //   mysql_bin_log.auto_purge_at_server_startup() runs
+    // - when "expire_logs_always_at_start" is set: evaluates to false,
+    //   thus mysql_bin_log.purge_logs_before_date() runs
+    // - when "expire_logs_always_at_start" is not set: evaluates to true,
+    //   this mysql_bin_log.auto_purge_at_server_startup() runs
+    if (DBUG_EVALUATE_IF("expire_logs_always_at_start", false, true))
+      mysql_bin_log.auto_purge_at_server_startup();
+    else if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0)
+      mysql_bin_log.purge_logs_before_date(time(nullptr), true);
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }

@@ -280,7 +280,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
  public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
-  bool is_open() { return atomic_log_state != LOG_CLOSED; }
+  bool is_open() const { return atomic_log_state != LOG_CLOSED; }
 
   /* This is relay log */
   bool is_relay_log;
@@ -765,7 +765,22 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool is_active(const char *log_file_name);
   int remove_logs_from_index(LOG_INFO *linfo, bool need_update_threads);
   int rotate(bool force_rotate, bool *check_purge);
-  void purge();
+
+  /**
+    @brief This function runs automatic purge if the conditions to meet
+    automatic purge are met. Such conditions are: log is open, instance is not
+    locked for backup and automatic purge is enabled.
+
+    If all conditions are met, purge is done according to the configuration
+    of the purge window.
+   */
+  void auto_purge();
+
+  /**
+    @brief This member function is to be called at server startup. It checks if
+    purge can be done and does if it can.
+   */
+  void auto_purge_at_server_startup();
   int rotate_and_purge(THD *thd, bool force_rotate);
 
   bool flush();
@@ -967,8 +982,28 @@ bool stmt_cannot_safely_rollback(const THD *thd);
 
 int log_loaded_block(IO_CACHE *file);
 
-bool purge_master_logs(THD *thd, const char *to_log);
-bool purge_master_logs_before_date(THD *thd, time_t purge_time);
+/**
+   @brief Purges the binary log files up to the file name passed as
+          a paramenter. Purge will not delete the file passed as
+          an argument.
+
+   @param thd The session context.
+   @param to_log Up to which log file to purge.
+   @return true if there was an error.
+   @return false if there was no error.
+ */
+bool purge_source_logs_to_file(THD *thd, const char *to_log);
+
+/**
+   @brief Purges the binary log files which are older than the purge time
+   passed as a paramenter.
+
+   @param thd The session context.
+   @param to_log The low water mark for the purge window.
+   @return true if there was an error.
+   @return false if there was no error.
+ */
+bool purge_source_logs_before_date(THD *thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 bool mysql_show_binlog_events(THD *thd);
 void check_binlog_cache_size(THD *thd);

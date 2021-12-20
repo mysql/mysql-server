@@ -80,7 +80,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/binlog.h"  // purge_master_logs
+#include "sql/binlog.h"  // purge_source_logs
 #include "sql/clone_handler.h"
 #include "sql/comp_creator.h"
 #include "sql/create_field.h"
@@ -3286,7 +3286,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
       /* PURGE MASTER LOGS TO 'file' */
-      res = purge_master_logs(thd, lex->to_log);
+      res = purge_source_logs_to_file(thd, lex->to_log);
       break;
     }
     case SQLCOM_PURGE_BEFORE: {
@@ -3312,7 +3312,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       it->quick_fix_field();
       time_t purge_time = static_cast<time_t>(it->val_int());
       if (thd->is_error()) goto error;
-      res = purge_master_logs_before_date(thd, purge_time);
+      res = purge_source_logs_before_date(thd, purge_time);
       break;
     }
     case SQLCOM_CHANGE_MASTER: {
