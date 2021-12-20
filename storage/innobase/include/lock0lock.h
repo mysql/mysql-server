@@ -324,6 +324,48 @@ void lock_update_root_raise(
 void lock_update_copy_and_discard(const buf_block_t *new_block,
                                   const buf_block_t *block);
 
+/** Requests the Lock System to update record locks regarding the gap between
+the last record of the left_page and the first record of the right_page when the
+caller is about to prepended a new record as the first record on the right page,
+even though it should "naturally" be inserted as the last record of the
+left_page according to the information in the higher levels of the index.
+
+That is, we assume that the lowest common ancestor of the left_page and the
+right_page routes the key of the new record to the left_page, but a heuristic
+which tries to avoid overflowing the left_page has chosen to prepend the new
+record to the right_page instead. Said ancestor performs this routing by
+comparing the key of the record to a "split point" - the key associated with the
+right_page's subtree, such that all records larger than that split point are to
+be found in the right_page (or some even further page). Ideally this should be
+the minimum key in this whole subtree, however due to the way we optimize the
+DELETE and INSERT operations, we often do not update this information, so that
+such "split point" can actually be smaller than the real minimum. Still, even if
+not up-to-date, its value is always correct, in that it really separates the
+subtrees (keys smaller than "split point" are not in left_page and larger are
+not in right_page).
+
+The reason this is important to Lock System, is that the gap between the last
+record on the left_page and the first record on the right_page is represented as
+two gaps:
+1. The gap between the last record on the left_page and the "split point",
+represented as the gap before the supremum pseudo-record of the left_page.
+2. The gap between the "split point" and the first record of the right_page,
+represented as the gap before the first user record of the right_page.
+
+Thus, inserting the new record, and subsequently adjusting "split points" in its
+ancestors to values smaller or equal to the new records' key, will mean that gap
+will be sliced at a different place ("moved to the left"): fragment of the 1st
+gap will now become treated as 2nd. Therefore, Lock System must copy any GRANTED
+locks from 1st gap to the 2nd gap. Any WAITING locks must be of INSERT_INTENTION
+type (as no other GAP locks ever wait for anything) and can stay at 1st gap, as
+their only purpose is to notify the requester they can retry insertion, and
+there's no correctness requirement to avoid waking them up too soon.
+
+@param[in] right_block Right page
+@param[in] left_block Left page */
+void lock_update_split_point(const buf_block_t *right_block,
+                             const buf_block_t *left_block);
+
 /** Updates the lock table when a page is split to the left.
 @param[in] right_block Right page
 @param[in] left_block Left page */

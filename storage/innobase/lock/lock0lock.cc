@@ -2959,7 +2959,7 @@ void lock_rtr_move_rec_list(const buf_block_t *new_block,
 @param[in] left_block Left page */
 void lock_update_split_right(const buf_block_t *right_block,
                              const buf_block_t *left_block) {
-  ulint heap_no = lock_get_min_heap_no(right_block);
+  const auto heap_no = lock_get_min_heap_no(right_block);
 
   locksys::Shard_latches_guard guard{UT_LOCATION_HERE, *left_block,
                                      *right_block};
@@ -3042,12 +3042,25 @@ void lock_update_copy_and_discard(const buf_block_t *new_block,
   lock_rec_free_all_from_discard_page(block);
 }
 
+void lock_update_split_point(const buf_block_t *right_block,
+                             const buf_block_t *left_block) {
+  const auto heap_no = lock_get_min_heap_no(right_block);
+
+  locksys::Shard_latches_guard guard{UT_LOCATION_HERE, *left_block,
+                                     *right_block};
+
+  /* Inherit locks from the gap before supremum of the left page to the gap
+  before the successor of the infimum of the right page */
+  lock_rec_inherit_to_gap(right_block, left_block, heap_no,
+                          PAGE_HEAP_NO_SUPREMUM);
+}
+
 /** Updates the lock table when a page is split to the left.
 @param[in] right_block Right page
 @param[in] left_block Left page */
 void lock_update_split_left(const buf_block_t *right_block,
                             const buf_block_t *left_block) {
-  ulint heap_no = lock_get_min_heap_no(right_block);
+  const auto heap_no = lock_get_min_heap_no(right_block);
 
   locksys::Shard_latches_guard guard{UT_LOCATION_HERE, *left_block,
                                      *right_block};
