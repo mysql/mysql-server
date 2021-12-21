@@ -4691,6 +4691,66 @@ void EnableFullTextCoveringIndexes(const Query_block *query_block) {
   }
 }
 
+/// Does this path contain an EQ_REF path which has caching enabled?
+bool HasEqRefWithCache(AccessPath *path) {
+  bool found = false;
+  WalkAccessPaths(path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&found](const AccessPath *subpath, const JOIN *) {
+                    if (subpath->type == AccessPath::EQ_REF &&
+                        !subpath->eq_ref().ref->disable_cache) {
+                      found = true;
+                    }
+                    return found;
+                  });
+  return found;
+}
+
+/**
+  Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
+  one is needed.
+
+  If the caller has already determined that an intermediary STREAM node is
+  needed, it can pass a TABLE and Temp_table_param describing what to
+  materialize. (This is only used by full-text search, which needs a temporary
+  table of a different shape than what we get from
+  FinalizePlanForQueryBlock()/DelayedCreateTemporaryTable(). See
+  CreateTemporaryTableForFullTextFunctions().)
+
+  Otherwise, we check if "path" has any other property that makes streaming
+  necessary, and add a STREAM node if needed. The creation of the temporary
+  table does not happen here, but is left for FinalizePlanForQueryBlock().
+ */
+AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
+                                          const Query_block *query_block,
+                                          bool rollup, TABLE *table,
+                                          Temp_table_param *param) {
+  assert((table == nullptr) == (param == nullptr));
+
+  AccessPath *child_path = path;
+
+  // Create a streaming node, if one is needed. It is needed for aggregation of
+  // some full-text queries (in which case a temporary table is supplied by the
+  // caller). It is also needed if the query contains an EQ_REF path which
+  // caches the previous result, because EQRefIterator's caching assumes
+  // table->record[0] is left untouched between two calls to Read(), but
+  // AggregateIterator may change it when it switches between groups. Adding a
+  // STREAM object ensures that the EQRefIterator and the AggregateIterator work
+  // on different TABLE objects.
+  if (table != nullptr || HasEqRefWithCache(path)) {
+    child_path = NewStreamingAccessPath(thd, path, query_block->join, param,
+                                        table, /*ref_slice=*/-1);
+    CopyBasicProperties(*path, child_path);
+  }
+
+  AccessPath aggregate_path;
+  aggregate_path.type = AccessPath::AGGREGATE;
+  aggregate_path.aggregate().child = child_path;
+  aggregate_path.aggregate().rollup = rollup;
+  EstimateAggregateCost(&aggregate_path, query_block);
+  return aggregate_path;
+}
+
 // If we are planned using in2exists, and our SELECT list has a window
 // function, the HAVING condition may include parts that refer to window
 // functions. (This cannot happen in standard SQL, but we add such conditions
@@ -5865,22 +5925,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                                      group_by_ordering_idx);
 
       if (!group_needs_sort) {
-        AccessPath *child_path = root_path;
-        if (fulltext_table != nullptr) {
-          // Add a streaming path for materializing results from full-text
-          // functions before aggregation.
-          child_path =
-              NewStreamingAccessPath(thd, root_path, join, fulltext_param,
-                                     fulltext_table, /*ref_slice=*/-1);
-          CopyBasicProperties(*root_path, child_path);
-        }
-
-        // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
-        AccessPath *aggregate_path =
-            NewAggregateAccessPath(thd, child_path, rollup);
-        EstimateAggregateCost(aggregate_path, query_block);
-
-        receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+        AccessPath aggregate_path =
+            CreateStreamingAggregationPath(thd, root_path, query_block, rollup,
+                                           fulltext_table, fulltext_param);
+        receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
       }
@@ -5917,27 +5965,16 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         assert(!aggregation_is_unordered);
         sort_path->ordering_state = ordering_state;
 
-        AccessPath *child_path = sort_path;
-        if (fulltext_table != nullptr) {
-          // Add a streaming path for materializing results from full-text
-          // functions before aggregation.
-          child_path =
-              NewStreamingAccessPath(thd, sort_path, join, fulltext_param,
-                                     fulltext_table, /*ref_slice=*/-1);
-          CopyBasicProperties(*sort_path, child_path);
-        }
-
-        // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
-        AccessPath *aggregate_path =
-            NewAggregateAccessPath(thd, child_path, rollup);
-        EstimateAggregateCost(aggregate_path, query_block);
-
         char description[256];
         if (trace != nullptr) {
           snprintf(description, sizeof(description), "sort(%d)",
                    sort_ahead_ordering.ordering_idx);
         }
-        receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+
+        AccessPath aggregate_path =
+            CreateStreamingAggregationPath(thd, sort_path, query_block, rollup,
+                                           fulltext_table, fulltext_param);
+        receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);
       }
     }

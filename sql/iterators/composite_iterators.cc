@@ -313,7 +313,7 @@ int AggregateIterator::Read() {
           // LoadIntoTableBuffers() call is unneeded, since the last row read
           // would be from the last group, but there may be filters in-between
           // us and whatever put data into the row buffers, and those filters
-          // may have caused other loads to be loaded before discarding them.)
+          // may have caused other rows to be loaded before discarding them.)
           LoadIntoTableBuffers(m_tables, pointer_cast<const uchar *>(
                                              m_first_row_this_group.ptr()));
 
