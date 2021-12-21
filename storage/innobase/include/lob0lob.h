@@ -630,6 +630,7 @@ static inline const byte *btr_rec_get_field_ref(const dict_index_t *index,
 }
 
 /** Gets a pointer to the externally stored part of a field.
+@param index record descriptor
 @param rec record
 @param offsets rec_get_offsets(rec)
 @param n index of the externally stored field

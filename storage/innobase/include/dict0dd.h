@@ -776,16 +776,14 @@ using Columns = std::vector<Field *>;
 @param[in]	old_dd_table	Old dd::Table
 @param[in,out]	new_dd_table	New dd::Table
 @param[in,out]	new_table	New InnoDB table objecta
-@param[in]	cols_to_drop	list of columns to be dropped */
+@param[in]	cols_to_drop	list of columns to be dropped
+@param[in]	cols_to_add	list of columns to be added
+@param[in]	ha_alter_info	alter info */
 void dd_drop_instant_columns(const dd::Table *old_dd_table,
                              dd::Table *new_dd_table, dict_table_t *new_table,
                              const Columns &cols_to_drop
-#ifdef UNIV_DEBUG
-                             ,
-                             const Columns &cols_to_add,
-                             Alter_inplace_info *ha_alter_info
-#endif
-);
+                                 IF_DEBUG(, const Columns &cols_to_add,
+                                          Alter_inplace_info *ha_alter_info));
 
 /** Add column default values for new instantly added columns
 @param[in]      old_dd_table    Old dd::Table

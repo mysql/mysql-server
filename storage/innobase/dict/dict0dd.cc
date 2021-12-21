@@ -1930,16 +1930,11 @@ static void set_dropped_column_name(std::string &name, uint32_t version) {
   name += std::to_string(version);
 }
 
-void dd_drop_instant_columns(const dd::Table *old_dd_table,
-                             dd::Table *new_dd_table,
-                             dict_table_t *new_dict_table,
-                             const Columns &cols_to_drop
-#ifdef UNIV_DEBUG
-                             ,
-                             const Columns &cols_to_add,
-                             Alter_inplace_info *ha_alter_info
-#endif
-) {
+void dd_drop_instant_columns(
+    const dd::Table *old_dd_table, dd::Table *new_dd_table,
+    dict_table_t *new_dict_table,
+    const Columns &cols_to_drop IF_DEBUG(, const Columns &cols_to_add,
+                                         Alter_inplace_info *ha_alter_info)) {
   if (dd_table_has_instant_drop_cols(*old_dd_table)) {
     /* Copy metadata of already dropped columns */
     copy_dropped_columns(old_dd_table, new_dd_table,
