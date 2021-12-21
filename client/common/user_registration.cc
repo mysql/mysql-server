@@ -92,8 +92,6 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
   ulong *lengths;
   uchar *server_challenge = nullptr;
   uchar *server_challenge_response = nullptr;
-  MYSQL_STMT *finish_reg_stmt;
-  MYSQL_BIND rs_bind;
 
   if (!mysql) {
     sprintf(errmsg, "MySQL internal error. ");
@@ -184,7 +182,6 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
       return true;
     }
 
-    finish_reg_stmt = mysql_stmt_init(mysql);
     /* execute FINISH REGISTRATION sql */
     int n = snprintf(query, sizeof(query),
                      "ALTER USER USER() %d FACTOR FINISH REGISTRATION SET "
@@ -209,32 +206,11 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
             "ALTER USER USER() %d FACTOR FINISH REGISTRATION SET "
             "CHALLENGE_RESPONSE AS '%s'",
             f, server_challenge_response);
-    if (mysql_stmt_prepare(finish_reg_stmt, query_ptr,
-                           (ulong)strlen(query_ptr))) {
-      goto error;
-    }
-    /* Bind input buffers */
-    memset(&rs_bind, 0, sizeof(rs_bind));
-    rs_bind.buffer_type = MYSQL_TYPE_STRING;
-    rs_bind.buffer = reinterpret_cast<char *>(server_challenge_response);
-    rs_bind.buffer_length =
-        (ulong)strlen(reinterpret_cast<char *>(server_challenge_response));
-    rs_bind.is_null = nullptr;
-
-    if (mysql_stmt_bind_param(finish_reg_stmt, &rs_bind)) {
-      goto error;
-    }
-    if (mysql_stmt_execute(finish_reg_stmt)) {
-      goto error;
-    }
-    if (mysql_stmt_close(finish_reg_stmt)) {
-      goto error;
+    if (mysql_real_query(mysql, query, (ulong)strlen(query))) {
+      sprintf(errmsg, "Finish registration failed with error: %s.\n",
+              mysql_error(mysql));
+      return true;
     }
   }
   return false;
-
-error:
-  sprintf(errmsg, "Finish registration failed with error: %s.\n",
-          mysql_stmt_error(finish_reg_stmt));
-  return true;
 }
