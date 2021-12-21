@@ -4,6 +4,7 @@
 --echo #
 
 --disable_query_log
+SET @saved_binlog_format= @@GLOBAL.binlog_format;
 CREATE TABLE cases (
   id INT PRIMARY KEY AUTO_INCREMENT,
   statements TEXT NOT NULL
@@ -73,5 +74,5 @@ while ($binlog_formats)
 
 # Cleanup
 DROP TABLE cases;
-SET GLOBAL BINLOG_FORMAT=default;
+SET GLOBAL BINLOG_FORMAT=@saved_binlog_format;
 --enable_query_log
