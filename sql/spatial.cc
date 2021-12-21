@@ -4978,6 +4978,10 @@ template void Gis_wkb_vector<Gis_point>::resize(size_t);
 template void Gis_wkb_vector<Gis_polygon>::resize(size_t);
 template void Gis_wkb_vector<Gis_polygon_ring>::resize(size_t);
 
+template void Gis_wkb_vector<Gis_line_string>::shallow_push(const Geometry *);
+template void Gis_wkb_vector<Gis_point>::shallow_push(const Geometry *);
+template void Gis_wkb_vector<Gis_polygon>::shallow_push(const Geometry *);
+
 template Gis_wkb_vector<Gis_line_string>::Gis_wkb_vector(
     const void *, size_t, const Geometry::Flags_t &, gis::srid_t, bool);
 template Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(const void *, size_t,
