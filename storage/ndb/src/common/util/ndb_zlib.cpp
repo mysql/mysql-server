@@ -361,28 +361,23 @@ int main()
   ndbxfrm_input_iterator in{ibuf, ibuf, true};
   ndbxfrm_output_iterator out{obuf, obuf + 32768, false};
   require(zlib.deflate_init() == 0);
-  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
-  {
-    err = zlib.deflate(&out, &in);
-    fprintf(stderr, "zlib.deflate() = %d %zu\n", err, in.cbegin() - ibuf);
-  }
+  // Compress empty buffer should fit 32KB buffer
+  require(zlib.deflate(&out, &in) == 0);
   require(zlib.deflate_end() == 0);
   require(in.empty());
   require(out.last());
-  fprintf(stderr, "zlib.deflate() out = %zu\n", out.begin() - obuf);
+  fprintf(stderr, "zlib.deflate() empty input generate %zu bytes out\n",
+          out.begin() - obuf);
+  require(out.begin() == obuf + 2);
 
   in = ndbxfrm_input_iterator{obuf, out.begin(), out.last()};
   out = ndbxfrm_output_iterator{ibuf, ibuf + 32768, false};
   require(zlib.inflate_init() == 0);
-  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
-  {
-    err = zlib.inflate(&out, &in);
-    fprintf(stderr, "zlib.inflate() = %d %zu\n", err, in.cbegin() - obuf);
-  }
+  require(zlib.inflate(&out, &in) == 0);
   require(zlib.inflate_end() == 0);
   require(in.empty());
   require(out.last());
-  fprintf(stderr, "zlib.inflate() out = %zu\n", out.begin() - ibuf);
+  fprintf(stderr, "zlib.inflate() back to %zu bytes\n", out.begin() - ibuf);
   require(out.begin() == ibuf);
 
   in = ndbxfrm_input_iterator{ibuf, ibuf, true};
@@ -391,17 +386,26 @@ int main()
   for(int err = ndbxfrm_progress::need_more_input; err > 0;)
   {
     err = zlib.deflate(&out, &in);
-    fprintf(stderr, "zlib.deflate() = %d %zu\n", err, in.cbegin() - ibuf);
+    fprintf(stderr, "zlib.deflate() = %d total output %zu bytes last %d\n",
+            err, out.begin() - obuf, out.last());
     if (err == ndbxfrm_progress::have_more_output && out.empty())
     {
-      out = ndbxfrm_output_iterator{obuf, obuf + 1, false};
+      byte* oend = out.begin();
+      require(oend != obuf + sizeof(obuf));
+      out = ndbxfrm_output_iterator{oend, oend + 1, false};
     }
   }
   require(zlib.deflate_end() == 0);
   require(in.empty());
   require(out.last());
-  fprintf(stderr, "zlib.deflate() out = %zu\n", out.begin() - obuf);
-  fprintf(stderr, "zlib total in %llu out %llu\n", (unsigned long long)zlib.get_input_position(), (unsigned long long)zlib.get_output_position());
+  fprintf(stderr, "zlib.deflate() empty input generate %zu bytes out\n",
+          out.begin() - obuf);
+  require(out.begin() == obuf + 2);
+  fprintf(stderr, "zlib total in %jd out %jd\n",
+          std::intmax_t{zlib.get_input_position()},
+          std::intmax_t{zlib.get_output_position()});
+  require(zlib.get_input_position() == 0);
+  require(zlib.get_output_position() == 2);
   return 0;
 }
 #endif
