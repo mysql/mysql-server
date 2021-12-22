@@ -41,7 +41,8 @@ bool ndbcluster_binlog_init(struct handlerton *hton);
 
 int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
-                                  const dd::Table *table_def);
+                                  const dd::Table *table_def,
+                                  const bool skip_error_handling = false);
 
 int ndbcluster_binlog_wait_synch_drop_table(THD *thd, const NDB_SHARE *share);
 

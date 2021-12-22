@@ -4993,7 +4993,8 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
 
 int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
                                   const char *table_name,
-                                  const dd::Table *table_def) {
+                                  const dd::Table *table_def,
+                                  const bool skip_error_handling) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s', table_name: '%s'", db, table_name));
   assert(table_def);
@@ -5027,12 +5028,24 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
       !(!strcmp("test", db) && !strcmp(table_name, "check_not_readonly"))) {
     ret = -1;
   }
+
+  // Force failure of setting up binlogging of a util table
+  DBUG_EXECUTE_IF("ndb_binlog_fail_setup_util_table", {
+    ret = -1;
+    DBUG_SET("-d,ndb_binlog_fail_setup_util_table");
+  });
 #endif
 
-  /*
-   * Handle failure of setting up binlogging of a table
-   */
+  if (skip_error_handling) {
+    // Skip the potentially fatal error handling below and instead just return
+    // error to caller. This is useful when failed setup will be retried later
+    return ret;
+  }
+
   if (ret != 0) {
+    /*
+     * Handle failure of setting up binlogging of a table
+     */
     ndb_log_error("Failed to setup binlogging for table '%s.%s'", db,
                   table_name);
 
