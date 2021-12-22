@@ -127,10 +127,11 @@ static void mock_column_statistics_obj(dd::Column_statistics *c,
                                              histograms::Value_map_type::INT);
   int_values.add_values(0LL, 10);
 
-  histograms::Equi_height<longlong> *equi_height = new (mem_root)
-      histograms::Equi_height<longlong>(mem_root, "my_schema", "my_table",
-                                        "my_column",
-                                        histograms::Value_map_type::INT);
+  histograms::Equi_height<longlong> *equi_height =
+      histograms::Equi_height<longlong>::create(
+          mem_root, "my_schema", "my_table", "my_column",
+          histograms::Value_map_type::INT);
+  ASSERT_TRUE(equi_height != nullptr);
 
   EXPECT_FALSE(equi_height->build_histogram(int_values, 1024));
   c->set_histogram(equi_height);

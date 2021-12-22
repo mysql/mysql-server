@@ -281,8 +281,9 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
 
   Value_map<T> key_frequencies(charset, type, sampling_rate);
   fill_value_map<T>(&key_frequencies, number_of_keys, distribution);
-  Equi_height<T> histogram(mem_root, "db1", "tbl1", "col1", type);
-  EXPECT_FALSE(histogram.build_histogram(key_frequencies, number_of_buckets));
+  Equi_height<T> *histogram =
+      Equi_height<T>::create(mem_root, "db1", "tbl1", "col1", type);
+  EXPECT_FALSE(histogram->build_histogram(key_frequencies, number_of_buckets));
 
   ha_rows total_frequency = 0;
   for (const auto &[key, frequency] : key_frequencies)
@@ -298,14 +299,14 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
   for (const auto &[key, frequency] : key_frequencies) {
     double less_than_selectivity =
         static_cast<double>(cumulative_frequency) / total_frequency;
-    EXPECT_NEAR(less_than_selectivity, histogram.get_less_than_selectivity(key),
-                max_abs_error)
+    EXPECT_NEAR(less_than_selectivity,
+                histogram->get_less_than_selectivity(key), max_abs_error)
         << "less than " << key_to_string(key) << "\n"
         << error_info;
 
     double equal_to_selectivity =
         static_cast<double>(frequency) / total_frequency;
-    EXPECT_NEAR(equal_to_selectivity, histogram.get_equal_to_selectivity(key),
+    EXPECT_NEAR(equal_to_selectivity, histogram->get_equal_to_selectivity(key),
                 max_abs_error)
         << "equal to " << key_to_string(key) << "\n"
         << error_info;
@@ -313,7 +314,7 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
     double greater_than_selectivity =
         1.0 - (less_than_selectivity + equal_to_selectivity);
     EXPECT_NEAR(greater_than_selectivity,
-                histogram.get_greater_than_selectivity(key), max_abs_error)
+                histogram->get_greater_than_selectivity(key), max_abs_error)
         << "greater than " << key_to_string(key) << "\n"
         << error_info;
 

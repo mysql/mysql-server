@@ -132,6 +132,18 @@ enum class enum_operator {
 
 /**
   Histogram base class.
+
+  This is an abstract class containing the interface and shared code for
+  concrete histogram subclasses.
+
+  Histogram subclasses (Singleton, Equi_height) are constructed through factory
+  methods in order to catch memory allocation errors during construction.
+
+  The histogram subclasses have no public copy or move constructors. In order to
+  copy a histogram onto a given MEM_ROOT, use the public clone method. The clone
+  method ensures that members of the histogram, such String type buckets,
+  are also allocated on the given MEM_ROOT. Modifications to these methods need
+  to be careful that histogram buckets are cloned/copied correctly.
 */
 class Histogram {
  public:
@@ -180,6 +192,32 @@ class Histogram {
   static constexpr const char *numer_of_buckets_specified_str() {
     return "number-of-buckets-specified";
   }
+
+  /**
+    Constructor.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param type      the histogram type (equi-height, singleton)
+    @param data_type the type of data that this histogram contains
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name,
+            enum_histogram_type type, Value_map_type data_type, bool *error);
+
+  /**
+    Copy constructor
+
+    This will make a copy of the provided histogram onto the provided MEM_ROOT.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param other     the histogram to copy
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const Histogram &other, bool *error);
 
   /**
     Write the data type of this histogram into a JSON object.
@@ -298,27 +336,7 @@ class Histogram {
   double apply_operator(const enum_operator op, const T &value) const;
 
  public:
-  /**
-    Constructor.
-
-    @param mem_root  the mem_root where the histogram contents will be allocated
-    @param db_name   name of the database this histogram represents
-    @param tbl_name  name of the table this histogram represents
-    @param col_name  name of the column this histogram represents
-    @param type      the histogram type (equi-height, singleton)
-    @param data_type the type of data that this histogram contains
-  */
-  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name,
-            enum_histogram_type type, Value_map_type data_type);
-
-  /**
-    Copy constructor
-
-    This will make a copy of the provided histogram onto the provided MEM_ROOT.
-  */
-  Histogram(MEM_ROOT *mem_root, const Histogram &other);
-
+  Histogram() = delete;
   Histogram(const Histogram &other) = delete;
 
   /// Destructor.

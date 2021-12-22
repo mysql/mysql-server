@@ -28,7 +28,8 @@
 #include "sql/histograms/equi_height.h"
 
 #include <stdlib.h>
-#include <cmath>  // std::lround
+#include <algorithm>  // std::is_sorted
+#include <cmath>      // std::lround
 #include <iterator>
 #include <new>
 
@@ -48,39 +49,59 @@ struct MEM_ROOT;
 
 namespace histograms {
 
+// Private constructor
 template <class T>
 Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
                             const std::string &tbl_name,
                             const std::string &col_name,
-                            Value_map_type data_type)
+                            Value_map_type data_type, bool *error)
     : Histogram(mem_root, db_name, tbl_name, col_name,
-                enum_histogram_type::EQUI_HEIGHT, data_type),
-      m_buckets(Histogram_comparator(),
-                Mem_root_allocator<equi_height::Bucket<T>>(mem_root)) {}
+                enum_histogram_type::EQUI_HEIGHT, data_type, error),
+      m_buckets(mem_root) {}
+
+// Public factory method
+template <class T>
+Equi_height<T> *Equi_height<T>::create(MEM_ROOT *mem_root,
+                                       const std::string &db_name,
+                                       const std::string &tbl_name,
+                                       const std::string &col_name,
+                                       Value_map_type data_type) {
+  bool error = false;
+  Equi_height<T> *equi_height = new (mem_root)
+      Equi_height<T>(mem_root, db_name, tbl_name, col_name, data_type, &error);
+  if (error) return nullptr;
+  return equi_height;
+}
 
 template <class T>
-Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other)
-    : Histogram(mem_root, other),
-      m_buckets(Histogram_comparator(),
-                Mem_root_allocator<equi_height::Bucket<T>>(mem_root)) {
-  for (const auto &bucket : other.m_buckets) m_buckets.emplace(bucket);
+Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other,
+                            bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;
+  }
+  for (const auto &bucket : other.m_buckets) m_buckets.push_back(bucket);
 }
 
 template <>
 Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
-                                 const Equi_height<String> &other)
-    : Histogram(mem_root, other),
-      m_buckets(Histogram_comparator(),
-                Mem_root_allocator<equi_height::Bucket<String>>(mem_root)) {
+                                 const Equi_height<String> &other, bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
     are allocated on a MEM_ROOT that most likely will be freed way too early.
   */
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;
+  }
   for (const auto &pair : other.m_buckets) {
     char *lower_string_data = pair.get_lower_inclusive().dup(mem_root);
     char *upper_string_data = pair.get_upper_inclusive().dup(mem_root);
     if (lower_string_data == nullptr || upper_string_data == nullptr) {
       assert(false); /* purecov: deadcode */
+      *error = true;
       return;
     }
 
@@ -90,9 +111,10 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
     String upper_string_dup(upper_string_data,
                             pair.get_upper_inclusive().length(),
                             pair.get_upper_inclusive().charset());
-
-    m_buckets.emplace(lower_string_dup, upper_string_dup,
-                      pair.get_cumulative_frequency(), pair.get_num_distinct());
+    equi_height::Bucket<String> bucket_dup(lower_string_dup, upper_string_dup,
+                                           pair.get_cumulative_frequency(),
+                                           pair.get_num_distinct());
+    m_buckets.push_back(bucket_dup);
   }
 }
 
@@ -165,6 +187,12 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
       num_non_null_values / static_cast<double>(num_buckets);
   double current_threshold = avg_bucket_size;
 
+  /*
+    Ensure that the capacity of the vector is at least num_buckets in order to
+    avoid the overhead of additional allocations when inserting buckets.
+  */
+  if (m_buckets.reserve(num_buckets)) return true;
+
   ha_rows cumulative_sum = 0;
   ha_rows sum = 0;
   ha_rows num_distinct = 0;
@@ -235,16 +263,13 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                   cumulative_frequency, num_distinct_estimate);
 
     /*
-      Since we are using a std::vector with Mem_root_allocator, we are forced to
-      wrap the following section in a try-catch. The Mem_root_allocator will
-      throw an exception of class std::bad_alloc when it runs out of memory.
+      In case the histogram construction algorithm unintendedly inserts more
+      buckets than we have reserved space for and triggers a reallocation that
+      fails, push_back() returns true.
     */
-    try {
-      m_buckets.emplace(bucket);
-    } catch (const std::bad_alloc &) {
-      // Out of memory.
-      return true;
-    }
+    assert(m_buckets.capacity() > m_buckets.size());
+    if (m_buckets.push_back(bucket)) return true;
+
     /*
       In debug, check that the lower value actually is less than or equal to
       the upper value.
@@ -315,6 +340,7 @@ bool Equi_height<T>::json_to_histogram(const Json_object &json_object) {
   assert(buckets_dom->json_type() == enum_json_type::J_ARRAY);
 
   const Json_array *buckets = down_cast<const Json_array *>(buckets_dom);
+  if (m_buckets.reserve(buckets->size())) return true;
   for (size_t i = 0; i < buckets->size(); ++i) {
     const Json_dom *bucket_dom = (*buckets)[i];
     assert(bucket_dom->json_type() == enum_json_type::J_ARRAY);
@@ -324,6 +350,8 @@ bool Equi_height<T>::json_to_histogram(const Json_object &json_object) {
 
     if (add_bucket_from_json(bucket)) return true; /* purecov: deadcode */
   }
+  assert(std::is_sorted(m_buckets.begin(), m_buckets.end(),
+                        Histogram_comparator()));
   return false;
 }
 
@@ -352,24 +380,21 @@ bool Equi_height<T>::add_bucket_from_json(const Json_array *json_bucket) {
       extract_json_dom_value(lower_inclusive_dom, &lower_value))
     return true; /* purecov: deadcode */
 
-  try {
-    m_buckets.emplace(lower_value, upper_value, cumulative_frequency->value(),
-                      num_distinct->value());
-  } catch (const std::bad_alloc &) {
-    return true; /* purecov: deadcode */
-  }
+  equi_height::Bucket<T> bucket(lower_value, upper_value,
+                                cumulative_frequency->value(),
+                                num_distinct->value());
+  if (m_buckets.push_back(bucket)) return true;
   return false;
 }
 
 template <class T>
 Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const {
   DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
-
-  try {
-    return new (mem_root) Equi_height<T>(mem_root, *this);
-  } catch (const std::bad_alloc &) {
-    return nullptr; /* purecov: deadcode */
-  }
+  bool error = false;
+  Histogram *equi_height =
+      new (mem_root) Equi_height<T>(mem_root, *this, &error);
+  if (error) return nullptr;
+  return equi_height;
 }
 
 template <class T>
