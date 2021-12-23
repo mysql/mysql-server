@@ -1,5 +1,6 @@
 # The test needs myisam as innodb does not support system tables
 --source include/big_test.inc
+--source include/not_valgrind.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_profiling.inc

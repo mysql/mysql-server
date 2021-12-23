@@ -1,5 +1,6 @@
 --source include/have_case_sensitive_file_system.inc
 --source include/big_test.inc
+--source include/not_valgrind.inc
 
 --echo # -----------------------------------------------------------------------
 --echo # Create a base table, an SQL statement file, and a non-super user with a connection.

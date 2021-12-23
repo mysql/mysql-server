@@ -4,7 +4,7 @@
 #	Have a look at include/discarded_partition.inc for more details
 
 --source include/have_innodb_16k.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc
 
 --echo # Testing discarded partitions imported from 8.0.20

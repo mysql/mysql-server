@@ -2,7 +2,7 @@
 # user 'mysql.infoschema' that is an owner of views in inforamtion_schema.
 #
 
--- source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/mysql_upgrade_preparation.inc
 
 let $date_to_restore=`SELECT password_last_changed FROM mysql.user WHERE user='mysql.infoschema'`;

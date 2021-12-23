@@ -13,6 +13,7 @@
  #                SLAVE_MASTER_INFO AFTER UPGRADE FROM 5.7.13
  #
 --source include/big_test.inc
+--source include/not_valgrind.inc
 --source include/mysql_upgrade_preparation.inc
 
 USE test;

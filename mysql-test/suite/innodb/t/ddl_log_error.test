@@ -4,6 +4,7 @@
 #
 
 --source include/have_debug.inc
+--source include/not_valgring.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Couldn't insert entry in ddl log for ddl.");

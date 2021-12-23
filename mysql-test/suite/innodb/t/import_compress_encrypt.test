@@ -3,6 +3,7 @@
 --source include/have_lowercase0.inc
 --source include/have_innodb_16k.inc
 --source include/have_punch_hole.inc
+--source include/not_valgrind.inc
 
 --echo #
 --echo # Bug#31313533 : IMPORT FAILS FOR ENCRYPT AND COMPRESSION ENABLED TDE TABLES

@@ -1,4 +1,5 @@
 --source include/not_parallel.inc
+--source include/not_valgrind.inc
 
 SET @save_sqlf=@@global.slow_query_log_file;
 

@@ -1,6 +1,8 @@
 --echo #
 --echo # Start out by testing some simple in-memory inner hash joins.
 --echo #
+# Test case is unstable in valgrind
+--source include/not_valgrind.inc
 
 --echo # Join on two integer columns.
 CREATE TABLE t1 (col1 INTEGER);

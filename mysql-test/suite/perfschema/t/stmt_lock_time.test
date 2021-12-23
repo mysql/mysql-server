@@ -1,6 +1,7 @@
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+--source include/not_valgrind.inc
 
 #
 # BUG#33236909 Lock_time computed differently by slow log and performance_schema

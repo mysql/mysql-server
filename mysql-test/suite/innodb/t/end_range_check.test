@@ -1,4 +1,5 @@
 --source include/big_test.inc
+--source include/not_valgrind.inc
 
 --echo # Bug #23481444	OPTIMISER CALL ROW_SEARCH_MVCC() AND READ
 --echo #		THE INDEX APPLIED BY UNCOMMITTED ROWS.
