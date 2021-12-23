@@ -622,10 +622,12 @@ bool Util_table_creator::setup_table_for_binlog() const {
     return false;
   }
 
+  const bool skip_error_handling = true;
   // Setup events for this table
   if (ndbcluster_binlog_setup_table(m_thd, m_thd_ndb->ndb, db_name(),
-                                    table_name(), table_def)) {
-    ndb_log_error("Failed to setup events for '%s' table", m_name.c_str());
+                                    table_name(), table_def,
+                                    skip_error_handling)) {
+    ndb_log_info("Failed to setup events for '%s' table", m_name.c_str());
     return false;
   }
 

@@ -129,3 +129,30 @@ insert into t1 values (10);
 insert into t1 values (11);
 drop table t1;
 
+#
+# Check if binlog prints error message to mysql log
+# When it losses connection to NDB during binlog setup
+#
+
+set GLOBAL debug="+d,ndb_binlog_fail_setup_util_table";
+
+# Restart cluster nodes
+let $out_file = $MYSQLTEST_VARDIR/tmp/mgm_dump.out;
+--exec $NDB_MGM -e "all restart" >> $out_file
+# Wait for all nodes to enter "started"
+--exec $NDB_WAITER >> $out_file
+--remove_file $out_file
+
+#
+# Wait until the connection to the
+# cluster has been restored
+#
+--source include/ndb_not_readonly.inc
+
+#check if there are any error message in the server log
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_text=No error log printed when binlog setup fails
+--let $assert_select=Failed to setup binlogging for table
+--let $assert_count=0
+--source include/assert_grep.inc
+set GLOBAL debug="-d,ndb_binlog_fail_setup_util_table";
