@@ -369,12 +369,10 @@ static inline void rw_lock_s_unlock_func(IF_DEBUG(ulint pass, )
   ut_ad(rw_lock_validate(lock));
 }
 
-/** Releases an exclusive mode lock. */
-#ifdef UNIV_DEBUG
-/** @param[in] pass  pass value; != 0, if the lock may have been passed to
-another thread to unlock */
-#endif
-/** @param lock[in,out] lock rw-lock */
+/** Releases an exclusive mode lock.
+@param[in] pass  pass value; != 0, if the lock may have been passed to
+another thread to unlock
+@param[in,out] lock lock rw-lock */
 static inline void rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock) {
   ut_ad(lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR ||

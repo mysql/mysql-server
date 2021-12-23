@@ -2472,6 +2472,7 @@ func_exit:
  updated. We must mark them as inherited in entry, so that they are not
  freed in a rollback. A limited version of this function used to be
  called btr_cur_mark_dtuple_inherited_extern().
+ @param[in] index Index describing record's fields.
  @param[in] rec old record, or NULL
  @param[in] offsets rec_get_offsets(rec), or NULL
  @param[in,out] entry updated entry to be inserted into the clustered index

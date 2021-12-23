@@ -2301,7 +2301,9 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          UNIV_DEBUG \
                          UNIV_NOTHROW \
                          __cplusplus \
-                         DOXYGEN_IF_DEBUG
+                         DOXYGEN_IF_DEBUG \
+                         IF_DEBUG(...)=__VA_ARGS__ \
+                         IF_AHI_DEBUG(...)=__VA_ARGS__
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

@@ -2847,7 +2847,7 @@ void ibuf_update_max_tablespace_id(void) {
 /** Helper function for ibuf_get_entry_counter_func. Checks if rec is for
  (space, page_no), and if so, reads counter value from it and returns
  that + 1.
- @param[in[ mtr mini-transaction of rec
+ @param[in] mtr mini-transaction of rec
  @param[in] rec insert buffer record
  @param[in] space space id
  @param[in] page_no page number
