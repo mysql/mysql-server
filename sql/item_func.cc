@@ -7963,7 +7963,7 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   Return value of an system variable base[.name] as a constant item.
 
   @param pc                     Current parse context
-  @param var_scope              Global / session
+  @param scope                  Global / session
   @param prefix                 Optional prefix part of the variable name
   @param suffix                 Trivial name of suffix part of the variable name
   @param unsafe_for_replication If true and if the variable is written to a

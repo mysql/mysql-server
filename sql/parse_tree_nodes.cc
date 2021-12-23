@@ -332,7 +332,7 @@ static bool is_new_transition_variable_prefix(const Parse_context &pc,
   Recognize any of transition variable syntax: { NEW | OLD } "." ...
 
   @param pc     Parse context
-  @param name   Optional prefix or empty LEX_CSTRING
+  @param opt_prefix Optional prefix or empty LEX_CSTRING
 
   @returns true if the transition variable syntax, otherwise false
 */

@@ -685,52 +685,46 @@ class System_variable_tracker final {
 
     Simplified pseudo code of access_system_variable() implementation:
 
-    <code>
-      if system variable is @@session_track_system_variables {
-        // a special case: the system variable is static,
-        // but it references a comma-separated list of
-        // other system variables
-        if function is not no-op {
-          process @@session_track_system_variables as plugin-registered one
-        } else {
+        if system variable is @@session_track_system_variables {
+          // a special case: the system variable is static,
+          // but it references a comma-separated list of
+          // other system variables
+          if function is not no-op {
+            process @@session_track_system_variables as plugin-registered one
+          } else {
+            return false  // success
+          }
+        }
+        if system variable is static or key cache variable {
+          // no dictionary/plugin locks needed
+          call function(cached sys_var pointer)
           return false  // success
         }
-      }
-
-      if system variable is static or key cache variable {
-        // no dictionary/plugin locks needed
-        call function(cached sys_var pointer)
-        return false  // success
-      }
-
-      if system variable is plugin-registered one {
-        if need to hold LOCK_plugin {
-          acquire LOCK_plugin, unlock on exit
+        if system variable is plugin-registered one {
+          if need to hold LOCK_plugin {
+            acquire LOCK_plugin, unlock on exit
+          }
+          if need to hold LOCK_system_variables_hash {
+            acquire read-only LOCK_system_variables_hash, unlock on exit
+          }
+          find sys_var
+          if not found or plugin is not in the PLUGIN_IS_READY state {
+            return true  // error: variable not found or
+          }
+          call function(found sys_var pointer)
+          return false  // success
         }
-        if need to hold LOCK_system_variables_hash {
-          acquire read-only LOCK_system_variables_hash, unlock on exit
+        if system variable is component-registered one {
+          if need to hold LOCK_system_variables_hash(**) {
+            acquire read-only LOCK_system_variables_hash, unlock on exit
+          }
+          find sys_var
+          if not found {
+            return true
+          }
+          call function(found sys_var pointer)
+          return false  // success
         }
-        find sys_var
-        if not found or plugin is not in the PLUGIN_IS_READY state {
-          return true  // error: variable not found or
-        }
-        call function(found sys_var pointer)
-        return false  // success
-      }
-
-      if system variable is component-registered one {
-        if need to hold LOCK_system_variables_hash(**) {
-          acquire read-only LOCK_system_variables_hash, unlock on exit
-        }
-        find sys_var
-        if not found {
-          return true
-        }
-        call function(found sys_var pointer)
-        return false  // success
-      }
-    </code>
-
 
     @param thd
         A connection handler or nullptr.
@@ -772,7 +766,7 @@ class System_variable_tracker final {
         A connection handler or nullptr.
     @param function
         A function to pass a sys_var object if the latest is accessible.
-    @param ignore_errors
+    @param suppress_not_found_error
         Suppress or output ER_UNKNOWN_SYSTEM_VARIABLE if a dynamic variable is
         unavailable.
 

@@ -72,7 +72,7 @@ KEY_CACHE *create_key_cache(std::string_view name);
 /**
   Resolve a MyISAM Multiple Key Cache by name.
 
-  @param name   Cache name (case insensitive, system character set).
+  @param cache_name   Cache name (case insensitive, system character set).
 
   @returns      New key cache on success, otherwise nullptr.
 */
