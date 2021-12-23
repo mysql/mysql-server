@@ -838,7 +838,12 @@ TEST(HashJoinTest, HashJoinChunkFiles) {
   initializer.SetUp();
 
   vector<int> left_dataset;
-  for (int i = 0; i < 1000; ++i) {
+  int dataset_sz = 1000;
+  if (SIZEOF_VOIDP == 4) {
+    // 32-bit arch, modify #rows to get same numbers for chunk calculations
+    dataset_sz *= 2;
+  }
+  for (int i = 0; i < dataset_sz; ++i) {
     left_dataset.push_back(i);
   }
 
@@ -846,7 +851,7 @@ TEST(HashJoinTest, HashJoinChunkFiles) {
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
-      test_helper.left_tables(), /*estimated_build_rows=*/1000,
+      test_helper.left_tables(), /*estimated_build_rows=*/dataset_sz,
       std::move(test_helper.right_iterator), test_helper.right_tables(),
       /*store_rowids=*/false,
       /*tables_to_get_rowid_for=*/0, 1024 /* 1 KB */,
@@ -856,14 +861,15 @@ TEST(HashJoinTest, HashJoinChunkFiles) {
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
-  // We hash 1000 rows. The hash table can normally hold about 410 rows
-  // (verified experimentally). To get the required number of chunks, the
-  // number of remaining rows should be divided by the number of hash table
-  // rows. But as a safeguard, this calculation is adjusted to yield a few
-  // extra chunks rather than risk having too few chunks. So the number of
-  // remaining rows is instead divided by a reduced count of hash table rows.
+  // We hash 1000 rows (64-bit arch) or 2000 rows (32-bit arch). The hash
+  // table can normally hold about 410 rows on 64-bit machines and 820 rows on
+  // 32-bit machines (verified experimentally). To get the required number of
+  // chunks, the number of remaining rows should be divided by the number of
+  // hash table rows. But as a safeguard, this calculation is adjusted to yield
+  // a few extra chunks rather than risk having too few chunks. So the number
+  // of remaining rows is instead divided by a reduced count of hash table rows
   // The reduced count is obtained by multiplying the hash table row count by
-  // a 'reduction factor' of 0.9.
+  // a 'reduction factor' of 0.9. E.g. for 64-bit rows:
   // reduced_rows_in_hash_table = 410 * 0.9 = 369
   // remaining_rows = 1000 - 410 = 590
   // required number of chunks = remaining_rows / reduced_rows_in_hash_table
