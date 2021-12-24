@@ -1571,6 +1571,7 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
     it.set(insert_table);
 
     for (it.set(insert_table); !it.end_of_fields(); it.next()) {
+      if (it.field() != nullptr && it.field()->is_hidden_by_system()) continue;
       Item *item = it.create_item(thd);
       if (item == nullptr) return true;
       values_field_list.push_back(down_cast<Item_field *>(item->real_item()));
