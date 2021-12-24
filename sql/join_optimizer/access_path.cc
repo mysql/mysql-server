@@ -726,7 +726,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
              path->materialize().table_path->type == AccessPath::REF_OR_NULL ||
              path->materialize().table_path->type == AccessPath::EQ_REF ||
              path->materialize().table_path->type == AccessPath::ALTERNATIVE ||
-             path->materialize().table_path->type == AccessPath::CONST_TABLE);
+             path->materialize().table_path->type == AccessPath::CONST_TABLE ||
+             path->materialize().table_path->type ==
+                 AccessPath::INDEX_RANGE_SCAN);
 
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, mem_root,
