@@ -222,9 +222,8 @@ static void buf_flush_sync_datafiles() {
 }
 
 /** Thread tasked with flushing dirty pages from the buffer pools.
-As of now we'll have only one coordinator.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-static void buf_flush_page_coordinator_thread(size_t n_page_cleaners);
+As of now we'll have only one coordinator. */
+static void buf_flush_page_coordinator_thread();
 
 /** Worker thread of page_cleaner. */
 static void buf_flush_page_cleaner_thread();
@@ -1220,7 +1219,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   DBUG_EXECUTE_IF("log_first_rec_group_test", {
     recv_no_ibuf_operations = false;
-    const lsn_t end_lsn = mtr_commit_mlog_test(*log_sys);
+    const lsn_t end_lsn = mtr_commit_mlog_test();
     log_write_up_to(*log_sys, end_lsn, true);
     DBUG_SUICIDE();
   });
@@ -2826,9 +2825,7 @@ bool buf_flush_page_cleaner_is_active() {
   return (srv_thread_is_active(srv_threads.m_page_cleaner_coordinator));
 }
 
-/** Initialize page_cleaner.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
+void buf_flush_page_cleaner_init() {
   ut_ad(page_cleaner == nullptr);
 
   page_cleaner = ut::make_unique<page_cleaner_t>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -2847,9 +2844,8 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
 
   page_cleaner->is_running = true;
 
-  srv_threads.m_page_cleaner_coordinator =
-      os_thread_create(page_flush_coordinator_thread_key, 0,
-                       buf_flush_page_coordinator_thread, n_page_cleaners);
+  srv_threads.m_page_cleaner_coordinator = os_thread_create(
+      page_flush_coordinator_thread_key, 0, buf_flush_page_coordinator_thread);
 
   srv_threads.m_page_cleaner_workers[0] =
       srv_threads.m_page_cleaner_coordinator;
@@ -3119,14 +3115,7 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   mutex_exit(&page_cleaner->mutex);
 }
 
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
-                                                  void *var_ptr,
+void buf_flush_page_cleaner_disabled_debug_update(THD *, SYS_VAR *, void *,
                                                   const void *save) {
   if (page_cleaner == nullptr) {
     return;
@@ -3189,7 +3178,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 /** Thread tasked with flushing dirty pages from the buffer pools.
 As of now we'll have only one coordinator.
 @param[in]	n_page_cleaners	Number of page cleaner threads to create */
-static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
+static void buf_flush_page_coordinator_thread() {
   auto loop_start_time = std::chrono::steady_clock::now();
   ulint n_flushed = 0;
   ulint last_activity = srv_get_activity_count();
@@ -3796,7 +3785,7 @@ bool Flush_observer::check_interrupted() {
   return false;
 }
 
-void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
+void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
   m_flushed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
 
   if (m_stage != nullptr) {
@@ -3804,7 +3793,7 @@ void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
   }
 }
 
-void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
+void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {
   m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
 }
 

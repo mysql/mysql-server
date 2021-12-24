@@ -387,7 +387,7 @@ struct Loop {
 template <>
 struct Loop<0> {
   template <typename Step_executor, typename... Args>
-  static void run(Args &&... args) {}
+  static void run(Args &&...) {}
 };
 
 /** Computes x^(len*8) modulo CRC32-C polynomial, which is useful, when you need

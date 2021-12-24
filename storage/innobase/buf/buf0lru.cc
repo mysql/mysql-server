@@ -2355,17 +2355,7 @@ static void buf_LRU_block_free_hashed_page(buf_block_t *block) noexcept {
   buf_LRU_block_free_non_file_page(block);
 }
 
-/** Remove one page from LRU list and put it to free list. The caller must hold
-the LRU list and block mutexes and have page hash latched in X. The latch and
-the block mutexes will be released.
-@param[in,out]	bpage		block, must contain a file page and
-                                be in a state where it can be freed; there
-                                may or may not be a hash index to the page
-@param[in]	zip		true if should remove also the compressed page
-                                of an uncompressed page
-@param[in]	ignore_content	true if should ignore page content, since it
-                                could be not initialized */
-void buf_LRU_free_one_page(buf_page_t *bpage, bool zip, bool ignore_content) {
+void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content) {
 #ifdef UNIV_DEBUG
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
   BPageMutex *block_mutex = buf_page_get_mutex(bpage);

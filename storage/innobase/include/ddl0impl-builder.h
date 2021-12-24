@@ -270,7 +270,6 @@ struct Builder {
   dberr_t finalize() noexcept;
 
   /** Convert the field data from compact to redundant format.
-  @param[in]	trx		            Current transaction
   @param[in]	clust_index	      Clustered index being built
   @param[in]	row_field	        Field to copy from
   @param[out]	field		          Field to copy to
@@ -280,13 +279,12 @@ struct Builder {
   @param[in,out]	heap		      Memory heap where to allocate
                                 data when converting to ROW_FORMAT=REDUNDANT,
                                 or nullptr */
-  static void convert(trx_t *trx, const dict_index_t *clust_index,
+  static void convert(const dict_index_t *clust_index,
                       const dfield_t *row_field, dfield_t *field, ulint len,
                       const page_size_t &page_size,
                       IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) noexcept;
 
   /** Copy externally stored columns to the data tuple.
-  @param[in] trx                Current transaction
   @param[in] index              Index dictionary object.
   @param[in] mrec               Record containing BLOB pointers, or
                                 nullptr to use tuple instead.
@@ -295,9 +293,9 @@ struct Builder {
   @param[in,out] tuple          Data tuple.
   @param[in] is_sdi             True for SDI Indexes
   @param[in,out] heap           Memory heap */
-  static void copy_blobs(trx_t *trx, const dict_index_t *index,
-                         const mrec_t *mrec, const ulint *offsets,
-                         const page_size_t &page_size, dtuple_t *tuple,
+  static void copy_blobs(const dict_index_t *index, const mrec_t *mrec,
+                         const ulint *offsets, const page_size_t &page_size,
+                         dtuple_t *tuple,
                          IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) noexcept;
 
   /** Cache a row for batch inserts. Currently used by spatial indexes.
@@ -378,11 +376,9 @@ struct Builder {
   /** Sort the buffer in memory and insert directly in the BTree loader,
   don't write to a temporary file.
   @param[in,out]	cursor        Current scan cursor.
-  @param[in,out] row            Row to add.
   @param[in] thread_id          ID of current thread.
   @return DB_SUCCESS or error code. */
-  dberr_t insert_direct(Cursor &cursor, const Row &row,
-                        size_t thread_id) noexcept;
+  dberr_t insert_direct(Cursor &cursor, size_t thread_id) noexcept;
 
   /** Create the merge file, if needed.
   @param[in,out] file           File handle.

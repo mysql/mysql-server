@@ -590,7 +590,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
   load_x(&local_mtr);
 
   /* There is no list of fragment pages maintained.  We have to identify the
-   * list of fragment pages from the following two lists. */
+  list of fragment pages from the following two lists. */
   flst_base_node_t *frag_lst = frag_list();
   flst_base_node_t *free_frag_lst = free_frag_list();
 
@@ -610,7 +610,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       }
 
       /* Multiple entries can point to the same fragment page.  So scan through
-       * the list and remove all entries pointing to the same fragment page. */
+      the list and remove all entries pointing to the same fragment page. */
       while (!fil_addr_is_null(loc)) {
         node = addr2ptr_x(loc, &local_mtr);
         z_frag_entry_t entry2(node, &local_mtr);
@@ -702,8 +702,8 @@ bool z_first_page_t::verify_frag_page_no() {
   page_no_t page_no = get_frag_page_no();
 
   /* If the page_no is 0, then FIL_PAGE_PREV is not used to store the list of
-   * fragment pages.  So modifying it is not allowed and hence verification is
-   * not needed. */
+  fragment pages.  So modifying it is not allowed and hence verification is
+  not needed. */
   ut_ad(page_no != 0);
 
   if (page_no == FIL_NULL) {

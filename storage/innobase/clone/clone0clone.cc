@@ -2098,8 +2098,7 @@ void Clone_Handle::build_descriptor(Clone_Desc_Locator *loc_desc) {
                  m_clone_arr_index);
 }
 
-bool Clone_Handle::drop_task(THD *thd, uint task_id, int in_err,
-                             bool &is_master) {
+bool Clone_Handle::drop_task(THD *thd, uint task_id, bool &is_master) {
   /* No task is added in INIT state. The drop task is still called and
   should be ignored. */
   if (is_init()) {

@@ -445,7 +445,7 @@ buf_block_t *btr_page_alloc_priv(dict_index_t *index, page_no_t hint_page_no,
                                  mtr_t *init_mtr
 #ifdef UNIV_DEBUG
                                  ,
-                                 const ut::Location &loc
+                                 const ut::Location &loc [[maybe_unused]]
 #endif /* UNIV_DEBUG */
 ) {
   buf_block_t *new_block;
@@ -528,13 +528,8 @@ static void btr_page_free_for_ibuf(
   ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST, mtr));
 }
 
-void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
-                         mtr_t *mtr
-#ifdef UNIV_DEBUG
-                         ,
-                         const ut::Location &loc
-#endif /* UNIV_DEBUG */
-) {
+void btr_page_free_low(dict_index_t *index, buf_block_t *block, ulint level,
+                       mtr_t *mtr) {
   fseg_header_t *seg_header;
   page_t *root;
 
@@ -825,17 +820,8 @@ static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
   return (block);
 }
 
-/** Create the root node for a new index tree.
-@param[in]	type			Type of the index
-@param[in]	space			Space where created
-@param[in]	page_size		Page size
-@param[in]	index_id		Index id
-@param[in]	index			Index tree
-@param[in,out]	mtr			Mini-transaction
-@return page number of the created root
-@retval FIL_NULL if did not succeed */
-ulint btr_create(ulint type, space_id_t space, const page_size_t &page_size,
-                 space_index_t index_id, dict_index_t *index, mtr_t *mtr) {
+ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
+                 dict_index_t *index, mtr_t *mtr) {
   page_no_t page_no;
   buf_block_t *block;
   buf_frame_t *frame;
@@ -1584,8 +1570,8 @@ rec_t *btr_root_raise_and_insert(
     rtr_mbr_t new_mbr;
 
     rtr_page_cal_mbr(index, new_block, &new_mbr, *heap);
-    node_ptr = rtr_index_build_node_ptr(index, &new_mbr, rec, new_page_no,
-                                        *heap, level);
+    node_ptr =
+        rtr_index_build_node_ptr(index, &new_mbr, rec, new_page_no, *heap);
   } else {
     node_ptr = dict_index_build_node_ptr(index, rec, new_page_no, *heap, level);
   }
@@ -3166,9 +3152,8 @@ retry:
                                  ULINT_UNDEFINED, &heap);
 
       /* Check if parent entry needs to be updated */
-      mbr_changed =
-          rtr_merge_mbr_changed(&cursor2, &father_cursor, offsets2, offsets,
-                                &new_mbr, merge_block, block, index);
+      mbr_changed = rtr_merge_mbr_changed(&cursor2, &father_cursor, offsets2,
+                                          offsets, &new_mbr);
     }
 
     rec_t *orig_pred = page_copy_rec_list_start(
@@ -3207,7 +3192,7 @@ retry:
                              &new_mbr, NULL, mtr);
 #endif
       } else {
-        rtr_node_ptr_delete(index, &father_cursor, block, mtr);
+        rtr_node_ptr_delete(&father_cursor, mtr);
       }
 
       /* No GAP lock needs to be worrying about */
@@ -3336,14 +3321,14 @@ retry:
         we will keep it and delete the node ptr of
         merge page. */
         rtr_merge_and_update_mbr(&father_cursor, &cursor2, offsets, offsets2,
-                                 merge_page, merge_block, block, index, mtr);
+                                 merge_page, mtr);
       } else {
         /* Otherwise, we will keep the node ptr of
         merge page and delete the father node ptr.
         This is for keeping the rec order in upper
         level. */
         rtr_merge_and_update_mbr(&cursor2, &father_cursor, offsets2, offsets,
-                                 merge_page, merge_block, block, index, mtr);
+                                 merge_page, mtr);
       }
       locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
@@ -3629,7 +3614,7 @@ void btr_discard_page(btr_cur_t *cursor, /*!< in: cursor on the page to discard:
     node ptr, so, we need to get father node ptr first and then
     delete it. */
     rtr_page_get_father(index, block, mtr, cursor, &father_cursor);
-    rtr_node_ptr_delete(index, &father_cursor, block, mtr);
+    rtr_node_ptr_delete(&father_cursor, mtr);
   } else {
     btr_node_ptr_delete(index, block, mtr);
   }
@@ -4683,19 +4668,17 @@ error:
 
 /** Create an SDI Index
 @param[in]	space_id	Tablespace id
-@param[in]	page_size	Size of page
 @param[in,out]	mtr		Mini-transaction
 @param[in,out]	table		SDI table
 @return root page number of the SDI index created or FIL_NULL on failure */
-static page_no_t btr_sdi_create(space_id_t space_id,
-                                const page_size_t &page_size, mtr_t *mtr,
+static page_no_t btr_sdi_create(space_id_t space_id, mtr_t *mtr,
                                 dict_table_t *table) {
   dict_index_t *index = table->first_index();
   ut_ad(index != nullptr);
   ut_ad(UT_LIST_GET_LEN(table->indexes) == 1);
 
   index->page = btr_create(DICT_CLUSTERED | DICT_UNIQUE | DICT_SDI, space_id,
-                           page_size, index->id, index, mtr);
+                           index->id, index, mtr);
 
   return (index->page);
 }
@@ -4724,7 +4707,7 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
 
   /* Create B-Tree root page for SDI Indexes */
 
-  sdi_root_page_num = btr_sdi_create(space_id, page_size, &mtr, sdi_table);
+  sdi_root_page_num = btr_sdi_create(space_id, &mtr, sdi_table);
 
   if (sdi_root_page_num == FIL_NULL) {
     ib::error(ER_IB_MSG_43) << "Unable to create root index page"

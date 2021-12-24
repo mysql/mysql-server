@@ -1047,7 +1047,7 @@ static void pars_process_assign_list(upd_node_t *node) /*!< in: update node */
     col_sym = assign_node->col;
 
     upd_field_set_field_no(upd_field, clust_index->get_col_pos(col_sym->col_no),
-                           clust_index, nullptr);
+                           clust_index);
     upd_field->exp = assign_node->val;
 
     if (!clust_index->get_col(upd_field->field_no)
@@ -1589,23 +1589,13 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
   return (sym_node);
 }
 
-tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
-                              sym_node_t *compact, sym_node_t *block_size,
-                              void *not_fit_in_memory [[maybe_unused]]) {
+tab_node_t *pars_create_table(sym_node_t *, sym_node_t *, sym_node_t *,
+                              sym_node_t *, void *) {
   return (nullptr);
 }
 
-/** Parses an index creation operation.
- @return index create subgraph */
-ind_node_t *pars_create_index(
-    pars_res_word_t *unique_def,    /*!< in: not NULL if a unique index */
-    pars_res_word_t *clustered_def, /*!< in: not NULL if a clustered index */
-    sym_node_t *index_sym,          /*!< in: index name node in the symbol
-                                    table */
-    sym_node_t *table_sym,          /*!< in: table name node in the symbol
-                                    table */
-    sym_node_t *column_list)        /*!< in: list of column names */
-{
+ind_node_t *pars_create_index(pars_res_word_t *, pars_res_word_t *,
+                              sym_node_t *, sym_node_t *, sym_node_t *) {
   return (nullptr);
 }
 

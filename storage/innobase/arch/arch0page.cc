@@ -2693,7 +2693,7 @@ int Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
 }
 
 void Arch_Page_Sys::release(Arch_Group *group, bool is_durable,
-                            Arch_Page_Pos start_pos) {
+                            Arch_Page_Pos start_pos [[maybe_unused]]) {
   arch_mutex_enter();
   arch_oper_mutex_enter();
 

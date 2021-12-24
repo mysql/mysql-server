@@ -226,8 +226,7 @@ static UNIV_COLD int cmp_decimal(const byte *a, unsigned int a_length,
 
 /** Innobase uses this function to compare two geometry data fields
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-static int cmp_geometry_field(ulint mtype,           /*!< in: main type */
-                              ulint prtype,          /*!< in: precise type */
+static int cmp_geometry_field(ulint prtype,          /*!< in: precise type */
                               const byte *a,         /*!< in: data field */
                               unsigned int a_length, /*!< in: data field length,
                                                      not UNIV_SQL_NULL */
@@ -300,8 +299,7 @@ static int cmp_gis_field(
   if (mode == PAGE_CUR_MBR_EQUAL) {
     /* TODO: Since the DATA_GEOMETRY is not used in compare
     function, we could pass it instead of a specific type now */
-    return (cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR, a, a_length, b,
-                               b_length));
+    return (cmp_geometry_field(DATA_GIS_MBR, a, a_length, b, b_length));
   } else {
     return (rtree_key_cmp(mode, a, a_length, b, b_length, srs) ? 0 : 1);
   }
@@ -371,7 +369,7 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
     case DATA_POINT:
     case DATA_VAR_POINT:
     case DATA_GEOMETRY:
-      return (cmp_geometry_field(mtype, prtype, a, a_length, b, b_length));
+      return (cmp_geometry_field(prtype, a, a_length, b, b_length));
     default:
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_921)
           << "Unknown data type number " << mtype;

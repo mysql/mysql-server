@@ -119,27 +119,24 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
                              mem_heap_t *&blob_heap);
 
 /** Converts a key value stored in MySQL format to an Innobase dtuple. The last
- field of the key value may be just a prefix of a fixed length field: hence
- the parameter key_len. But currently we do not allow search keys where the
- last field is only a prefix of the full key field len and print a warning if
- such appears. */
-void row_sel_convert_mysql_key_to_innobase(
-    dtuple_t *tuple,     /*!< in/out: tuple where to build;
-                         NOTE: we assume that the type info
-                         in the tuple is already according
-                         to index! */
-    byte *buf,           /*!< in: buffer to use in field
-                         conversions; NOTE that dtuple->data
-                         may end up pointing inside buf so
-                         do not discard that buffer while
-                         the tuple is being used. See
-                         row_mysql_store_col_in_innobase_format()
-                         in the case of DATA_INT */
-    ulint buf_len,       /*!< in: buffer length */
-    dict_index_t *index, /*!< in: index of the key value */
-    const byte *key_ptr, /*!< in: MySQL key value */
-    ulint key_len,       /*!< in: MySQL key value length */
-    trx_t *trx);         /*!< in: transaction */
+field of the key value may be just a prefix of a fixed length field: hence
+the parameter key_len. But currently we do not allow search keys where the
+last field is only a prefix of the full key field len and print a warning if
+such appears.
+@param[in,out] tuple Tuple where to build; NOTE: we assume that the type info in
+the tuple is already according to index!
+@param[in] buf Buffer to use in field conversions; NOTE that dtuple->data may
+end up pointing inside buf so do not discard that buffer while the tuple is
+being used. See row_mysql_store_col_in_innobase_format() in the case of
+DATA_INT.
+@param[in] buf_len Buffer length.
+@param[in] index Index of the key value.
+@param[in] key_ptr MySQL key value
+@param[in] key_len MySQL key value length
+*/
+void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
+                                           ulint buf_len, dict_index_t *index,
+                                           const byte *key_ptr, ulint key_len);
 
 /** Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next

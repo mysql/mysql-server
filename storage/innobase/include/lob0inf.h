@@ -123,12 +123,11 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 
 /** Apply the undo log on the LOB
 @param[in]  mtr   Mini-transaction context.
-@param[in]  trx   Transaction that is being rolled back.
 @param[in]  index Clustered index to which LOB belongs.
 @param[in]  ref   LOB reference object.
 @param[in]  uf    Update vector for LOB field.
 @return DB_SUCCESS on success, error code on failure. */
-dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
+dberr_t apply_undolog(mtr_t *mtr, dict_index_t *index, ref_t ref,
                       const upd_field_t *uf);
 
 /** Get information about the given LOB.

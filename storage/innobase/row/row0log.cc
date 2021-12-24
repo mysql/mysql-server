@@ -522,7 +522,6 @@ bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no) {
 /** Logs a delete operation to a table that is being rebuilt.
  This will be merged in row_log_table_apply_delete(). */
 void row_log_table_delete(
-    trx_t *trx,             /*!< in: current transaction */
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
     const dtuple_t *ventry, /*!< in: dtuple holding virtual column info */
@@ -587,7 +586,7 @@ void row_log_table_delete(
     }
   } else {
     /* The PRIMARY KEY has changed. Translate the tuple. */
-    old_pk = row_log_table_get_pk(trx, rec, index, offsets, nullptr, &heap);
+    old_pk = row_log_table_get_pk(rec, index, offsets, nullptr, &heap);
 
     if (!old_pk) {
       ut_ad(index->online_log->error != DB_SUCCESS);
@@ -983,9 +982,7 @@ static const dict_col_t *row_log_table_get_pk_old_col(const dict_table_t *table,
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param[in]	trx		current transaction
 @param[in]	index		index being operated on
-@param[in]	col		old table column (before ALTER TABLE)
 @param[in]	ifield		clustered index field in the new table (after
 ALTER TABLE)
 @param[in,out]	dfield		clustered index tuple field in the new table
@@ -998,8 +995,7 @@ table
 @param[in]	max_len		maximum length of dfield
 @retval DB_INVALID_NULL		if a NULL value is encountered
 @retval DB_TOO_BIG_INDEX_COL	if the maximum prefix length is exceeded */
-static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
-                                        const dict_col_t *col,
+static dberr_t row_log_table_get_pk_col(dict_index_t *index,
                                         const dict_field_t *ifield,
                                         dfield_t *dfield, mem_heap_t *heap,
                                         const rec_t *rec, const ulint *offsets,
@@ -1047,7 +1043,6 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
 const dtuple_t *row_log_table_get_pk(
-    trx_t *trx,           /*!< in: current transaction */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
     dict_index_t *index,  /*!< in/out: clustered index, S-latched
@@ -1150,9 +1145,8 @@ const dtuple_t *row_log_table_get_pk(
           goto err_exit;
         }
 
-        log->error =
-            row_log_table_get_pk_col(trx, index, col, ifield, dfield, *heap,
-                                     rec, offsets, i, page_size, max_len);
+        log->error = row_log_table_get_pk_col(index, ifield, dfield, *heap, rec,
+                                              offsets, i, page_size, max_len);
 
         if (log->error != DB_SUCCESS) {
         err_exit:
@@ -1297,13 +1291,11 @@ void row_log_table_blob_alloc(
 /** Converts a log record to a table row.
  @return converted row, or NULL if the conversion fails */
 [[nodiscard]] static const dtuple_t *row_log_table_apply_convert_mrec(
-    trx_t *trx,              /*!< in: current transaction */
     const ddl::mrec_t *mrec, /*!< in: merge record */
     dict_index_t *index,     /*!< in: index of mrec */
     const ulint *offsets,    /*!< in: offsets of mrec */
     const row_log_t *log,    /*!< in: rebuild context */
     mem_heap_t *heap,        /*!< in/out: memory heap */
-    trx_id_t trx_id,         /*!< in: DB_TRX_ID of mrec */
     dberr_t *error)          /*!< out: DB_SUCCESS or
                              DB_MISSING_HISTORY or
                              reason of failure */
@@ -1570,10 +1562,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
     trx_id_t trx_id)          /*!< in: DB_TRX_ID of mrec */
 {
   const row_log_t *log = dup->m_index->online_log;
-  trx_t *trx = thr_get_trx(thr);
   dberr_t error;
   const dtuple_t *row = row_log_table_apply_convert_mrec(
-      trx, mrec, dup->m_index, offsets, log, heap, trx_id, &error);
+      mrec, dup->m_index, offsets, log, heap, &error);
 
   switch (error) {
     case DB_MISSING_HISTORY:
@@ -1688,7 +1679,6 @@ flag_ok:
 /** Deletes a record from a table that is being rebuilt.
  @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_log_table_apply_delete_low(
-    trx_t *trx,             /*!< in: current transaction*/
     btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
                             will be trashed */
     const dtuple_t *ventry, /*!< in: dtuple holding
@@ -1756,7 +1746,6 @@ flag_ok:
 /** Replays a delete operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_log_table_apply_delete(
-    que_thr_t *thr,           /*!< in: query graph */
     ulint trx_id_col,         /*!< in: position of
                               DB_TRX_ID in the new
                               clustered index */
@@ -1774,7 +1763,6 @@ flag_ok:
   btr_pcur_t pcur;
   ulint *offsets;
   ulint num_v = new_table->n_v_cols;
-  trx_t *trx = thr_get_trx(thr);
 
   ut_ad(rec_offs_n_fields(moffsets) == dict_index_get_n_unique(index) + 2);
   ut_ad(!rec_offs_any_extern(moffsets));
@@ -1874,8 +1862,7 @@ flag_ok:
                          &(log->col_map[log->n_old_col]), heap);
   }
 
-  return (
-      row_log_table_apply_delete_low(trx, &pcur, old_pk, offsets, heap, &mtr));
+  return (row_log_table_apply_delete_low(&pcur, old_pk, offsets, heap, &mtr));
 }
 
 /** Replays an update operation on the multi-value index.
@@ -1989,8 +1976,8 @@ flag_ok:
   ut_ad(dtuple_get_n_fields(old_pk) ==
         dict_index_get_n_unique(index) + (log->same_pk ? 0 : 2));
 
-  row = row_log_table_apply_convert_mrec(trx, mrec, dup->m_index, offsets, log,
-                                         heap, trx_id, &error);
+  row = row_log_table_apply_convert_mrec(mrec, dup->m_index, offsets, log, heap,
+                                         &error);
 
   switch (error) {
     case DB_MISSING_HISTORY:
@@ -2155,8 +2142,8 @@ flag_ok:
     ut_ad(log->blobs);
     /* Some BLOBs are missing, so we are interpreting
     this ROW_T_UPDATE as ROW_T_DELETE (see *1). */
-    error = row_log_table_apply_delete_low(trx, &pcur, old_pk, cur_offsets,
-                                           heap, &mtr);
+    error =
+        row_log_table_apply_delete_low(&pcur, old_pk, cur_offsets, heap, &mtr);
     goto func_exit_committed;
   }
 
@@ -2197,8 +2184,8 @@ flag_ok:
       goto func_exit;
     }
 
-    error = row_log_table_apply_delete_low(trx, &pcur, old_pk, cur_offsets,
-                                           heap, &mtr);
+    error =
+        row_log_table_apply_delete_low(&pcur, old_pk, cur_offsets, heap, &mtr);
     ut_ad(mtr.has_committed());
 
     if (error == DB_SUCCESS) {
@@ -2436,7 +2423,7 @@ flag_ok:
 
       log->head.total += next_mrec - mrec_start;
 
-      *error = row_log_table_apply_delete(thr, new_trx_id_col, mrec, offsets,
+      *error = row_log_table_apply_delete(new_trx_id_col, mrec, offsets,
                                           offsets_heap, heap, log);
       break;
 

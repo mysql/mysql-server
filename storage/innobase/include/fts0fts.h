@@ -708,10 +708,9 @@ void fts_optimize_shutdown();
 void fts_optimize_request_sync_table(dict_table_t *table);
 
 /** Take a FTS savepoint.
-@param[in] trx Transaction
 @param[in] fts_trx Fts transaction
 @param[in] name Savepoint name */
-void fts_savepoint_take(trx_t *trx, fts_trx_t *fts_trx, const char *name);
+void fts_savepoint_take(fts_trx_t *fts_trx, const char *name);
 
 /** Refresh last statement savepoint. */
 void fts_savepoint_laststmt_refresh(trx_t *trx); /*!< in: transaction */

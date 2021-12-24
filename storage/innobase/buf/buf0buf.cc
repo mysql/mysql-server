@@ -557,12 +557,11 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
         << mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
         << "; calculated checksums for field1: "
         << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) << "/"
-        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)
-        << ", " << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB)
-        << " " << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_INNODB)
-        << ", " << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE)
-        << " " << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_NONE)
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB) << " "
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_INNODB) << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE) << " "
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_NONE)
         << "; page LSN " << mach_read_from_8(read_buf + FIL_PAGE_LSN)
         << "; page number (if stored to page"
         << " already) " << mach_read_from_4(read_buf + FIL_PAGE_OFFSET)
@@ -3245,8 +3244,7 @@ ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
         << "Compressed page checksum mismatch " << block->page.id
         << "): stored: " << mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
         << ", crc32: "
-        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) << "/"
-        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)
         << " innodb: "
         << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_INNODB)
         << ", none: "
@@ -5177,7 +5175,7 @@ void buf_read_page_handle_error(buf_page_t *bpage) {
   }
 
   /* The hash lock and block mutex will be released during the "free" */
-  buf_LRU_free_one_page(bpage, true, true);
+  buf_LRU_free_one_page(bpage, true);
 
   ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X) &&
         !rw_lock_own(hash_lock, RW_LOCK_S));

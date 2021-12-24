@@ -105,7 +105,6 @@ introduced where a call to log_free_check() is bypassed. */
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
   dberr_t err;
-  trx_t *trx = thr_get_trx(thr);
 #ifdef UNIV_DEBUG
   ibool success;
 #endif /* UNIV_DEBUG */
@@ -125,7 +124,7 @@ introduced where a call to log_free_check() is bypassed. */
   if (mode != BTR_MODIFY_LEAF &&
       dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
     *rebuilt_old_pk =
-        row_log_table_get_pk(trx, btr_cur_get_rec(btr_cur),
+        row_log_table_get_pk(btr_cur_get_rec(btr_cur),
                              btr_cur_get_index(btr_cur), nullptr, sys, &heap);
   } else {
     *rebuilt_old_pk = nullptr;
@@ -319,8 +318,8 @@ introduced where a call to log_free_check() is bypassed. */
                              rebuilt_old_pk, node->undo_row, node->row);
         break;
       case TRX_UNDO_UPD_DEL_REC:
-        row_log_table_delete(node->trx, btr_pcur_get_rec(pcur), node->row,
-                             index, offsets, sys);
+        row_log_table_delete(btr_pcur_get_rec(pcur), node->row, index, offsets,
+                             sys);
         break;
       default:
         ut_ad(0);
@@ -1237,8 +1236,8 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref), node->heap);
 
   ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id, roll_ptr,
-                                       info_bits, node->trx, node->heap,
-                                       &(node->update), nullptr, type_cmpl);
+                                       info_bits, node->heap, &(node->update),
+                                       nullptr, type_cmpl);
 
   node->new_trx_id = trx_id;
   node->cmpl_info = cmpl_info;

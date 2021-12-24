@@ -277,14 +277,13 @@ buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
 /** Create the root node for a new index tree.
 @param[in]	type			Type of the index
 @param[in]	space			Space where created
-@param[in]	page_size		Page size
 @param[in]	index_id		Index id
 @param[in]	index			Index tree
 @param[in,out]	mtr			Mini-transaction
 @return page number of the created root
 @retval FIL_NULL if did not succeed */
-ulint btr_create(ulint type, space_id_t space, const page_size_t &page_size,
-                 space_index_t index_id, dict_index_t *index, mtr_t *mtr);
+ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
+                 dict_index_t *index, mtr_t *mtr);
 
 /** Free a persistent index tree if it exists.
 @param[in]	page_id		Root page id
@@ -532,27 +531,15 @@ void btr_page_create(
     ulint level,              /*!< in: the B-tree level of the page */
     mtr_t *mtr);              /*!< in: mtr */
 
-#ifdef UNIV_DEBUG
-#define btr_page_free_low(index, block, level, mtr) \
-  btr_page_free_lower(index, block, level, mtr, UT_LOCATION_HERE)
-#else /* UNIV_DEBUG */
-#define btr_page_free_low(index, block, level, mtr) \
-  btr_page_free_lower(index, block, level, mtr)
-#endif /* UNIV_DEBUG */
-
 /** Frees a file page used in an index tree. Can be used also to BLOB
  external storage pages.
 @param[in]   index   the index to which the page belongs
 @param[in]   block   block to be freed, x-latched
 @param[in]   level   page level (ULINT_UNDEFINED=BLOB)
-@param[in]   mtr     mini transaction context.
-@param[in]   loc     caller source code location */
-void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
-                         mtr_t *mtr
-#ifdef UNIV_DEBUG
-                         ,
-                         const ut::Location &loc
-#endif /* UNIV_DEBUG */
+@param[in]   mtr     mini transaction context. */
+void btr_page_free_low(dict_index_t *index, buf_block_t *block, ulint level,
+                       mtr_t *mtr
+
 );
 
 /** Gets the root node of a tree and x- or s-latches it.

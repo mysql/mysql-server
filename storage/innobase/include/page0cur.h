@@ -118,12 +118,10 @@ mtr_commit().
 @param[in]      offsets  Offsets on *rec.
 @param[in,out] heap      Pointer to memory heap, or to nullptr.
 @param[in]     mtr       Mini-transaction handle, or nullptr.
-@param[in]     use_cache If true, then use record cache to hold the tuple
-converted record.
 @return pointer to record if succeed, NULL otherwise */
 [[nodiscard]] static inline rec_t *page_cur_tuple_insert(
     page_cur_t *cursor, const dtuple_t *tuple, dict_index_t *index,
-    ulint **offsets, mem_heap_t **heap, mtr_t *mtr, bool use_cache = false);
+    ulint **offsets, mem_heap_t **heap, mtr_t *mtr);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inserts a record next to page cursor. Returns pointer to inserted record
@@ -298,15 +296,13 @@ byte *page_cur_parse_delete_rec(
     dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr);         /*!< in: mtr or NULL */
 /** Removes the record from a leaf page. This function does not log
- any changes. It is used by the IMPORT tablespace functions.
- @return true if success, i.e., the page did not become too empty */
-bool page_delete_rec(
-    const dict_index_t *index, /*!< in: The index that the record
-                               belongs to */
-    page_cur_t *pcur,          /*!< in/out: page cursor on record
-                               to delete */
-    page_zip_des_t *page_zip,  /*!< in: compressed page descriptor */
-    const ulint *offsets);     /*!< in: offsets for record */
+any changes. It is used by the IMPORT tablespace functions.
+@return true if success, i.e., the page did not become too empty
+@param[in] index The index that the record belongs to.
+@param[in,out] pcur Page cursor on record to delete.
+@param[in] offsets Offsets for record. */
+bool page_delete_rec(const dict_index_t *index, page_cur_t *pcur,
+                     const ulint *offsets);
 
 /** Index page cursor */
 

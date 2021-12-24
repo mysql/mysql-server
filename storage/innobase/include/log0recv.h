@@ -128,7 +128,6 @@ to grow to this size, at the maximum
 @param[in]	buf			buffer containing a log
 segment or garbage
 @param[in]	len			buffer length
-@param[in]	checkpoint_lsn		latest checkpoint LSN
 @param[in]	start_lsn		buffer start lsn
 @param[in]	contiguous_lsn		it is known that all log
 groups contain contiguous log data up to this lsn
@@ -137,8 +136,8 @@ groups contain contiguous log data up to this lsn
 more in this log group
 @retval	false	otherwise */
 bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
-                       lsn_t checkpoint_lsn, lsn_t start_lsn,
-                       lsn_t *contiguous_lsn, lsn_t *group_scanned_lsn);
+                       lsn_t start_lsn, lsn_t *contiguous_lsn,
+                       lsn_t *group_scanned_lsn);
 
 /** Creates an IORequest object for decrypting redo log with
 Encryption::decrypt_log() method. If the encryption_info parameter is
@@ -215,11 +214,10 @@ bool recv_page_is_brand_new(buf_block_t *block);
                                                           lsn_t flush_lsn);
 
 /** Complete the recovery from the latest checkpoint.
-@param[in,out]	log		redo log
 @param[in]	aborting	true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
 [[nodiscard]] MetadataRecover *recv_recovery_from_checkpoint_finish(
-    log_t &log, bool aborting);
+    bool aborting);
 
 /** Creates the recovery system. */
 void recv_sys_create();
@@ -227,9 +225,8 @@ void recv_sys_create();
 /** Release recovery system mutexes. */
 void recv_sys_close();
 
-/** Inits the recovery system for a recovery operation.
-@param[in]	max_mem		Available memory in bytes */
-void recv_sys_init(ulint max_mem);
+/** Inits the recovery system for a recovery operation. */
+void recv_sys_init();
 
 /** Calculates the new value for lsn when more data is added to the log.
 @param[in]	lsn		Old LSN

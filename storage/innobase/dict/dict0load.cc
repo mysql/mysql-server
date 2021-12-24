@@ -631,14 +631,13 @@ static const char *dict_load_virtual_del =
 /** Loads a virtual column "mapping" (to base columns) information
 from a SYS_VIRTUAL record
 @param[in,out]	table		table
-@param[in,out]	heap		memory heap
 @param[in,out]	column		mapped base column's dict_column_t
 @param[in,out]	table_id	table id
 @param[in,out]	pos		virtual column position
 @param[in,out]	base_pos	base column position
 @param[in]	rec		SYS_VIRTUAL record
 @return error message, or NULL on success */
-static const char *dict_load_virtual_low(dict_table_t *table, mem_heap_t *heap,
+static const char *dict_load_virtual_low(dict_table_t *table,
                                          dict_col_t **column,
                                          table_id_t *table_id, ulint *pos,
                                          ulint *base_pos, const rec_t *rec) {
@@ -771,7 +770,7 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
 
     ut_a(btr_pcur_is_on_user_rec(&pcur));
 
-    err_msg = dict_load_virtual_low(table, heap, &v_col->base_col[i - skipped],
+    err_msg = dict_load_virtual_low(table, &v_col->base_col[i - skipped],
                                     nullptr, &pos, nullptr, rec);
 
     if (err_msg) {
@@ -2112,12 +2111,7 @@ void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own) {
   }
 }
 
-/** Make sure the tablespace name is saved in dict_table_t if the table
-uses a general tablespace.
-Try to read it from the fil_system_t first, then from SYS_TABLESPACES.
-@param[in]	table		Table object
-@param[in]	dict_mutex_own 	true if dict_sys->mutex is owned already */
-void dict_get_and_save_space_name(dict_table_t *table, bool dict_mutex_own) {
+void dict_get_and_save_space_name(dict_table_t *table) {
   /* Do this only for general tablespaces. */
   if (!DICT_TF_HAS_SHARED_SPACE(table->flags)) {
     return;
@@ -2198,12 +2192,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
   return result;
 }
 
-/** Opens a tablespace for dict_load_table_one()
-@param[in,out]	table		A table that refers to the tablespace to open
-@param[in,out]	heap		A memory heap
-@param[in]	ignore_err	Whether to ignore an error. */
-void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
-                          dict_err_ignore_t ignore_err) {
+void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err) {
   ut_ad(!table->is_temporary());
 
   /* The system and temporary tablespaces are preloaded and always available. */
@@ -2282,7 +2271,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   } else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
     /* Set table->tablespace from either
     fil_system or SYS_TABLESPACES */
-    dict_get_and_save_space_name(table, true);
+    dict_get_and_save_space_name(table);
 
     /* Set the filepath from either
     fil_system or SYS_DATAFILES. */
@@ -2421,7 +2410,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   btr_pcur_close(&pcur);
   mtr_commit(&mtr);
 
-  dict_load_tablespace(table, heap, ignore_err);
+  dict_load_tablespace(table, ignore_err);
 
   dict_load_columns(table, heap);
 
@@ -2448,7 +2437,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
       table->id = table->id + DICT_MAX_DD_TABLES;
     }
     if (cached) {
-      dict_table_add_to_cache(table, TRUE, heap);
+      dict_table_add_to_cache(table, TRUE);
     }
   }
 

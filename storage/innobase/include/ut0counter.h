@@ -97,7 +97,7 @@ struct single_indexer_t {
   enum { fast = 0 };
 
   /** @return offset within m_counter */
-  static size_t offset(size_t index) UNIV_NOTHROW {
+  static size_t offset(size_t index [[maybe_unused]]) UNIV_NOTHROW {
     ut_ad(N == 1);
     return ((ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }

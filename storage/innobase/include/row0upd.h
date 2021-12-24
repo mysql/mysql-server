@@ -73,12 +73,10 @@ static inline upd_field_t *upd_get_nth_field(const upd_t *update, ulint n);
 /** Sets an index field number to be updated by an update vector field.
 @param[in]	upd_field	update vector field
 @param[in]	field_no	field number in a clustered index
-@param[in]	index		index
-@param[in]	trx		transaction */
+@param[in]	index		index */
 static inline void upd_field_set_field_no(upd_field_t *upd_field,
                                           ulint field_no,
-                                          const dict_index_t *index,
-                                          trx_t *trx);
+                                          const dict_index_t *index);
 
 /** set field number to a update vector field, marks this field is updated
 @param[in,out]	upd_field	update vector field
@@ -233,7 +231,6 @@ void row_upd_index_replace_new_col_vals(dtuple_t *entry,
                                         const upd_t *update, mem_heap_t *heap);
 
 /** Replaces the new column values stored in the update vector.
-@param[in] trx Current transaction.
 @param[in,out] row Row where replaced, indexed by col_no; the clustered index
 record must be covered by a lock or a page latch to prevent deletion (rollback
 or purge)
@@ -241,9 +238,8 @@ or purge)
 @param[in] index Clustered index
 @param[in] update An update vector built for the clustered index
 @param[in] heap Memory heap */
-void row_upd_replace(trx_t *trx, dtuple_t *row, row_ext_t **ext,
-                     const dict_index_t *index, const upd_t *update,
-                     mem_heap_t *heap);
+void row_upd_replace(dtuple_t *row, row_ext_t **ext, const dict_index_t *index,
+                     const upd_t *update, mem_heap_t *heap);
 
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
@@ -325,13 +321,11 @@ ibool row_upd_changes_some_index_ord_field_binary(
     const upd_t *update);      /*!< in: update vector for the row */
 
 /** Stores to the heap the row on which the node->pcur is positioned.
-@param[in]	trx		the transaction object
 @param[in]	node		row update node
 @param[in]	thd		mysql thread handle
 @param[in,out]	mysql_table	NULL, or mysql table object when
                                 user thread invokes dml */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table);
+void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table);
 
 /** Updates a row in a table. This is a high-level function used
  in SQL execution graphs.
@@ -655,9 +649,11 @@ struct upd_t {
 @param[in]	bdiff	binary diff to be printed.
 @param[in]	table	the table dictionary object.
 @param[in]	field	mysql field object.
+@param[in]  print_old prints old data of the updated field
 @return the output stream */
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
-                                const dict_table_t *table, const Field *field);
+                                const dict_table_t *table, const Field *field,
+                                bool print_old);
 
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff);
 
@@ -665,8 +661,7 @@ inline std::ostream &operator<<(std::ostream &out, const upd_t &obj) {
   return (obj.print(out));
 }
 
-inline std::ostream &operator<<(std::ostream &out,
-                                const Binary_diff_vector &obj) {
+inline std::ostream &operator<<(std::ostream &out, const Binary_diff_vector &) {
   return (out);
 }
 #endif /* UNIV_DEBUG */

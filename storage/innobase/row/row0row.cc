@@ -743,18 +743,8 @@ dtuple_t *row_build_row_ref(
   return (ref);
 }
 
-/** Builds from a secondary index record a row reference with which we can
-search the clustered index record.
-@param[in,out] ref Row reference built; see the note below!
-@param[in,out] rec Record in the index; note: the data fields in ref will point
-directly into this record, therefore, the buffer page of this record must be at
-least s-latched and the latch held as long as the row reference is used!
-@param[in] index Secondary index
-@param[in] offsets Rec_get_offsets(rec, index) or null
-@param[in] trx Transaction or null */
 void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
-                                const dict_index_t *index, ulint *offsets,
-                                trx_t *trx) {
+                                const dict_index_t *index, ulint *offsets) {
   const dict_index_t *clust_index;
   dfield_t *dfield;
   const byte *field;

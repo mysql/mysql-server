@@ -254,8 +254,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
                           mem_heap_t *heap_arg, dict_table_t *new_table_arg,
                           const char **col_names_arg, ulint add_autoinc_arg,
                           ulonglong autoinc_col_min_value_arg,
-                          ulonglong autoinc_col_max_value_arg,
-                          ulint num_to_drop_vcol_arg)
+                          ulonglong autoinc_col_max_value_arg)
       : inplace_alter_handler_ctx(),
         prebuilt(prebuilt_arg),
         add_index(nullptr),
@@ -1198,13 +1197,12 @@ could fail, so it's better to do it earlier, to prevent a late rollback
 @param[in]	old_table	Old InnoDB table object
 @param[in,out]	new_table	New InnoDB table object
 @param[in]	old_dd_tab	Old dd::Table or dd::Partition
-@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
 @return	false	On success
 @retval	true	On failure */
 template <typename Table>
 [[nodiscard]] static bool dd_prepare_inplace_alter_table(
     THD *thd, const dict_table_t *old_table, dict_table_t *new_table,
-    const Table *old_dd_tab, Table *new_dd_tab);
+    const Table *old_dd_tab);
 
 /** Update metadata in commit phase. Note this function should only update
 the metadata which would not result in failure
@@ -1407,25 +1405,11 @@ void ha_innobase::parallel_scan_end(void *parallel_scan_ctx) {
   ut::delete_(parallel_reader);
 }
 
-/** Alter the table structure in-place with operations
-specified using HA_ALTER_FLAGS and Alter_inplace_information.
-The level of concurrency allowed during this operation depends
-on the return value from check_if_supported_inplace_alter().
-@param[in]	altered_table	TABLE object for new version of table.
-@param[in,out]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param[in]	 old_dd_tab	dd::Table object describing old version
-of the table.
-@param[in,out]	 new_dd_tab	dd::Table object for the new version of
-the table. Can be adjusted by this call. Changes to the table definition will
-be persisted in the data-dictionary at statement commit time.
-@retval true Failure
-@retval false Success
-*/
 bool ha_innobase::inplace_alter_table(TABLE *altered_table,
                                       Alter_inplace_info *ha_alter_info,
-                                      const dd::Table *old_dd_tab,
-                                      dd::Table *new_dd_tab) {
+                                      const dd::Table *old_dd_tab
+                                      [[maybe_unused]],
+                                      dd::Table *new_dd_tab [[maybe_unused]]) {
   DBUG_TRACE;
   ut_ad(old_dd_tab != nullptr);
   ut_ad(new_dd_tab != nullptr);
@@ -1435,10 +1419,7 @@ bool ha_innobase::inplace_alter_table(TABLE *altered_table,
                         dict_sys_t::s_invalid_space_id, false);
   ut_ad(!notifier.failed());
 
-  auto ret = inplace_alter_table_impl<dd::Table>(altered_table, ha_alter_info,
-                                                 old_dd_tab, new_dd_tab);
-
-  return ret;
+  return inplace_alter_table_impl<dd::Table>(altered_table, ha_alter_info);
 }
 
 /** Commit or rollback the changes made during
@@ -1481,7 +1462,7 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   }
 
   bool res = commit_inplace_alter_table_impl<dd::Table>(
-      altered_table, ha_alter_info, commit, old_dd_tab, new_dd_tab);
+      altered_table, ha_alter_info, commit, new_dd_tab);
 
   if (res || !commit) {
     return true;
@@ -1730,8 +1711,6 @@ static bool innobase_init_foreign(
  in the same order and is not marked for deletion
  @return matching index, NULL if not found */
 [[nodiscard]] static dict_index_t *innobase_find_fk_index(
-    Alter_inplace_info *ha_alter_info,
-    /*!< in: alter table info */
     dict_table_t *table, /*!< in: table */
     const char **col_names,
     /*!< in: column names, or NULL
@@ -1881,8 +1860,8 @@ added
         i++;
       }
 
-      index = innobase_find_fk_index(ha_alter_info, table, col_names,
-                                     drop_index, n_drop_index, column_names, i);
+      index = innobase_find_fk_index(table, col_names, drop_index, n_drop_index,
+                                     column_names, i);
 
       /* MySQL would add a index in the creation
       list if no such index for foreign table,
@@ -3555,12 +3534,11 @@ confusion when we run latest server on older data. That's why we need to
 do the upgrade.
 @param[in] ha_alter_info	Data used during in-place alter
 @param[in] table		Table on which we want to add indexes
-@param[in] trx			Transaction
 @return DB_SUCCESS if update successfully or no columns need to be updated,
 otherwise DB_ERROR, which means we can't update the mtype for some
 column, and creating spatial index on it should be dangerous */
 static dberr_t innobase_check_gis_columns(Alter_inplace_info *ha_alter_info,
-                                          dict_table_t *table, trx_t *trx) {
+                                          dict_table_t *table) {
   DBUG_TRACE;
 
   for (uint key_num = 0; key_num < ha_alter_info->index_add_count; key_num++) {
@@ -3614,7 +3592,7 @@ static bool prepare_inplace_change_implicit_tablespace_option(
 
   dd::Object_id space_id = table->dd_space_id;
 
-  return dd_implicit_alter_tablespace(client, thd, space_id,
+  return dd_implicit_alter_tablespace(client, space_id,
                                       ha_alter_info->create_info);
 }
 
@@ -3753,12 +3731,10 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
 
 /** Collect virtual column info for its addition
 @param[in] ha_alter_info	Data used during in-place alter
-@param[in] altered_table	MySQL table that is being altered to
 @param[in] table		MySQL table as it is before the ALTER operation
 @retval true Failure
 @retval false Success */
 static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
-                                         const TABLE *altered_table,
                                          const TABLE *table) {
   ha_innobase_inplace_ctx *ctx;
   ulint j = 0;
@@ -3986,13 +3962,12 @@ could fail, so it's better to do it earlier, to prevent a late rollback
 @param[in]	old_table	Old InnoDB table object
 @param[in,out]	new_table	New InnoDB table object
 @param[in]	old_dd_tab	Old dd::Table or dd::Partition
-@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
 @return	false	On success
 @retval	true	On failure */
 template <typename Table>
 [[nodiscard]] static bool dd_prepare_inplace_alter_table(
     THD *thd, const dict_table_t *old_table, dict_table_t *new_table,
-    const Table *old_dd_tab, Table *new_dd_tab) {
+    const Table *old_dd_tab) {
   if (new_table->is_temporary() || old_table == new_table) {
     /* No need to fill in metadata for temporary tables,
     which would not be stored in Global DD */
@@ -4013,7 +3988,7 @@ template <typename Table>
       return true;
     }
 
-    if (dd_drop_tablespace(client, thd, old_space_id)) {
+    if (dd_drop_tablespace(client, old_space_id)) {
       return true;
     }
   }
@@ -4032,7 +4007,7 @@ template <typename Table>
 
     dd::Object_id dd_space_id;
 
-    if (dd_create_implicit_tablespace(client, thd, new_table->space,
+    if (dd_create_implicit_tablespace(client, new_table->space,
                                       old_table->name.m_name, filename,
                                       discarded, dd_space_id)) {
       my_error(ER_INTERNAL_ERROR, MYF(0),
@@ -4443,7 +4418,7 @@ template <typename Table>
   trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
 
   if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
-    if (prepare_inplace_drop_virtual(ha_alter_info, altered_table, old_table)) {
+    if (prepare_inplace_drop_virtual(ha_alter_info, old_table)) {
       return true;
     }
   }
@@ -4895,7 +4870,7 @@ template <typename Table>
     This check is only needed when we don't have to rebuild
     the table, since rebuild would update all mtypes for GIS
     columns */
-    error = innobase_check_gis_columns(ha_alter_info, ctx->new_table, ctx->trx);
+    error = innobase_check_gis_columns(ha_alter_info, ctx->new_table);
     if (error != DB_SUCCESS) {
       ut_ad(error == DB_ERROR);
       error = DB_UNSUPPORTED;
@@ -5085,7 +5060,7 @@ template <typename Table>
   dict_locked = false;
 
   if (dd_prepare_inplace_alter_table(ctx->prebuilt->trx->mysql_thd, user_table,
-                                     ctx->new_table, old_dd_tab, new_dd_tab)) {
+                                     ctx->new_table, old_dd_tab)) {
     error = DB_ERROR;
   }
 
@@ -5388,7 +5363,6 @@ static void alter_fill_stored_column(const TABLE *altered_table,
 
 template <typename Table>
 void static adjust_row_format(TABLE *old_table, TABLE *altered_table,
-                              Alter_inplace_info *ha_alter_info,
                               const Table *old_dd_tab, Table *new_dd_tab) {
   ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT ||
         old_table->s->row_type == ROW_TYPE_COMPRESSED);
@@ -5533,8 +5507,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   to keep the table using the original default row_format. */
   if (old_dd_tab->table().row_format() != new_dd_tab->table().row_format() &&
       !innobase_need_rebuild(ha_alter_info)) {
-    adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
-                      new_dd_tab);
+    adjust_row_format(this->table, altered_table, old_dd_tab, new_dd_tab);
   }
 
   /* Make a copy for existing tablespace name */
@@ -5907,7 +5880,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
                                   rename_index, n_rename_index, drop_fk,
                                   n_drop_fk, add_fk, n_add_fk,
                                   ha_alter_info->online, heap, indexed_table,
-                                  col_names, ULINT_UNDEFINED, 0, 0, 0);
+                                  col_names, ULINT_UNDEFINED, 0, 0);
     }
 
     assert(m_prebuilt->trx->dict_operation_lock_mode == 0);
@@ -5917,7 +5890,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
     if ((ha_alter_info->handler_flags &
          Alter_inplace_info::DROP_VIRTUAL_COLUMN) &&
-        prepare_inplace_drop_virtual(ha_alter_info, altered_table, table)) {
+        prepare_inplace_drop_virtual(ha_alter_info, table)) {
       return true;
     }
 
@@ -5938,8 +5911,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
               m_user_thd, ha_alter_info, ctx->old_table)) {
         return true;
       }
-      return dd_prepare_inplace_alter_table(
-          m_user_thd, ctx->old_table, ctx->new_table, old_dd_tab, new_dd_tab);
+      return dd_prepare_inplace_alter_table(m_user_thd, ctx->old_table,
+                                            ctx->new_table, old_dd_tab);
     } else {
       return false;
     }
@@ -6039,7 +6012,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
                               add_fk, n_add_fk, ha_alter_info->online, heap,
                               m_prebuilt->table, col_names, add_autoinc_col_no,
                               ha_alter_info->create_info->auto_increment_value,
-                              autoinc_col_max_value, 0);
+                              autoinc_col_max_value);
 
   return prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
@@ -6117,27 +6090,9 @@ static const char *get_error_key_name(ulint error_key_num,
   }
 }
 
-/** Implementation of inplace_alter_table()
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	altered_table	TABLE object for new version of table.
-@param[in,out]	ha_alter_info	Structure describing changes to be done
-                                by ALTER TABLE and holding data used
-                                during in-place alter.
-@param[in]	old_dd_tab	dd::Table object describing old version
-                                of the table.
-@param[in,out]	new_dd_tab	dd::Table object for the new version of the
-                                table. Can be adjusted by this call.
-                                Changes to the table definition will be
-                                persisted in the data-dictionary at statement
-                                commit time.
-@retval true Failure
-@retval false Success
-*/
 template <typename Table>
 bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
-                                           Alter_inplace_info *ha_alter_info,
-                                           const Table *old_dd_tab,
-                                           Table *new_dd_tab) {
+                                           Alter_inplace_info *ha_alter_info) {
   dict_add_v_col_t *add_v = nullptr;
   dict_vcol_templ_t *s_templ = nullptr;
   dict_vcol_templ_t *old_templ = nullptr;
@@ -7145,15 +7100,12 @@ inplace_alter_table() inside the data dictionary tables, when not rebuilding
 the table.
 @param[in]	ha_alter_info	Data used during in-place alter
 @param[in]	ctx		In-place ALTER TABLE context
-@param[in]	altered_table	MySQL table that is being altered
-@param[in]	old_table	MySQL table as it is before the ALTER operation
 @param[in]	trx		Data dictionary transaction
 @param[in]	table_name	Table name in MySQL
 @retval true Failure
 @retval false Success */
 [[nodiscard]] inline bool commit_try_norebuild(
-    Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
-    TABLE *altered_table, const TABLE *old_table, trx_t *trx,
+    Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx, trx_t *trx,
     const char *table_name) {
   DBUG_TRACE;
   assert(!ctx->need_rebuild());
@@ -7207,12 +7159,10 @@ the table.
 /** Commit the changes to the data dictionary cache
 after a successful commit_try_norebuild() call.
 @param ctx In-place ALTER TABLE context
-@param table the TABLE before the ALTER
 @param trx Data dictionary transaction object
 (will be started and committed)
 @return whether all replacements were found for dropped indexes */
 [[nodiscard]] inline bool commit_cache_norebuild(ha_innobase_inplace_ctx *ctx,
-                                                 const TABLE *table,
                                                  trx_t *trx) {
   DBUG_TRACE;
 
@@ -7306,14 +7256,12 @@ Remove statistics for dropped indexes, add statistics for created indexes
 and rename statistics for renamed indexes.
 @param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
-@param altered_table MySQL table that is being altered
 @param table_name Table name in MySQL
 @param thd MySQL connection
 */
 static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
                                   ha_innobase_inplace_ctx *ctx,
-                                  TABLE *altered_table, const char *table_name,
-                                  THD *thd) {
+                                  const char *table_name, THD *thd) {
   ulint i;
 
   DBUG_TRACE;
@@ -7429,8 +7377,6 @@ static void alter_stats_rebuild(dict_table_t *table, const char *table_name,
                                 by ALTER TABLE and holding data used
                                 during in-place alter.
 @param[in]	commit		True to commit or false to rollback.
-@param[in]	old_dd_tab      Table object describing old version
-                                of the table.
 @param[in,out]	new_dd_tab	Table object for the new version of the
                                 table. Can be adjusted by this call.
                                 Changes to the table definition
@@ -7441,7 +7387,7 @@ static void alter_stats_rebuild(dict_table_t *table, const char *table_name,
 template <typename Table>
 bool ha_innobase::commit_inplace_alter_table_impl(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit,
-    const Table *old_dd_tab, Table *new_dd_tab) {
+    Table *new_dd_tab) {
   dberr_t error;
   ha_innobase_inplace_ctx *ctx0;
   struct mtr_buf_copy_t logs;
@@ -7632,7 +7578,7 @@ bool ha_innobase::commit_inplace_alter_table_impl(
         log_ddl->write_drop_log(trx, ctx->old_table->id);
       }
     } else {
-      fail = commit_try_norebuild(ha_alter_info, ctx, altered_table, table, trx,
+      fail = commit_try_norebuild(ha_alter_info, ctx, trx,
                                   table_share->table_name.str);
     }
     DBUG_INJECT_CRASH("ib_commit_inplace_crash", crash_inject_count++);
@@ -7773,7 +7719,7 @@ rollback_trx:
                             "InnoDB: Could not add foreign"
                             " key constraints.");
       } else {
-        if (!commit_cache_norebuild(ctx, table, trx)) {
+        if (!commit_cache_norebuild(ctx, trx)) {
           ut_a(!m_prebuilt->trx->check_foreigns);
         }
 
@@ -7978,8 +7924,8 @@ rollback_trx:
           static_cast<ha_innobase_inplace_ctx *>(*pctx);
       assert(!ctx->need_rebuild());
 
-      alter_stats_norebuild(ha_alter_info, ctx, altered_table,
-                            table->s->table_name.str, m_user_thd);
+      alter_stats_norebuild(ha_alter_info, ctx, table->s->table_name.str,
+                            m_user_thd);
       DBUG_INJECT_CRASH("ib_commit_inplace_crash", crash_inject_count++);
 
       if (ctx->fts_drop_aux_vec != nullptr &&
@@ -8016,7 +7962,7 @@ rollback_trx:
 /** Helper class for in-place alter partitioned table, see handler.h */
 class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
   /* Only used locally in this file, so have everything public for
-  conveniance. */
+  convenience. */
  public:
   /** Total number of partitions. */
   uint m_tot_parts;
@@ -8027,7 +7973,7 @@ class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
   /** Array of old table information needed for writing back to DD */
   alter_table_old_info_t *m_old_info;
 
-  ha_innopart_inplace_ctx(THD *thd, uint tot_parts)
+  ha_innopart_inplace_ctx(uint tot_parts)
       : inplace_alter_handler_ctx(),
         m_tot_parts(tot_parts),
         ctx_array(),
@@ -8237,7 +8183,7 @@ class alter_part {
 
   /** Set the freed old partition to nullptr to avoid dangling pointer
   @param check_in_cache whether we need to check table in cache
-  @param part_name	Partiioned table name .*/
+  @param part_name	Partitioned table name .*/
   inline void free_old_part(bool check_in_cache, const char *part_name) {
     if (check_in_cache) {
       dict_sys_mutex_enter();
@@ -8260,8 +8206,9 @@ class alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  virtual int prepare(TABLE *altered_table, const dd::Partition *old_part,
-                      dd::Partition *new_part) {
+  virtual int prepare(TABLE *altered_table [[maybe_unused]],
+                      const dd::Partition *old_part [[maybe_unused]],
+                      dd::Partition *new_part [[maybe_unused]]) {
     return (0);
   }
 
@@ -8273,9 +8220,10 @@ class alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  virtual int try_commit(const TABLE *table, TABLE *altered_table,
-                         const dd::Partition *old_part,
-                         dd::Partition *new_part) {
+  virtual int try_commit(const TABLE *table [[maybe_unused]],
+                         TABLE *altered_table [[maybe_unused]],
+                         const dd::Partition *old_part [[maybe_unused]],
+                         dd::Partition *new_part [[maybe_unused]]) {
     return (0);
   }
 
@@ -8700,8 +8648,8 @@ class alter_part_normal : public alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  int prepare(TABLE *altered_table, const dd::Partition *old_part,
-              dd::Partition *new_part) override {
+  int prepare(TABLE *altered_table [[maybe_unused]],
+              const dd::Partition *old_part, dd::Partition *new_part) override {
     ut_ad(old_part->name() == new_part->name());
 
     dd_copy_private<dd::Partition>(*new_part, *old_part);
@@ -8717,9 +8665,10 @@ class alter_part_normal : public alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part,
-                 dd::Partition *new_part) override {
+  int try_commit(const TABLE *table [[maybe_unused]],
+                 TABLE *altered_table [[maybe_unused]],
+                 const dd::Partition *old_part [[maybe_unused]],
+                 dd::Partition *new_part [[maybe_unused]]) override {
     ut_ad(m_old != nullptr);
 
     btr_drop_ahi_for_table(*m_old);
@@ -8835,8 +8784,9 @@ class alter_part_add : public alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part,
+  int try_commit(const TABLE *table [[maybe_unused]],
+                 TABLE *altered_table [[maybe_unused]],
+                 const dd::Partition *old_part [[maybe_unused]],
                  dd::Partition *new_part) override {
     int error = 0;
 
@@ -8936,7 +8886,8 @@ class alter_part_drop : public alter_part {
   @param[in,out]	new_part	the stored new partition or nullptr
                                   if no corresponding one exists
   @return 0 or error number */
-  int try_commit(const TABLE *table, TABLE *altered_table,
+  int try_commit(const TABLE *table [[maybe_unused]],
+                 TABLE *altered_table [[maybe_unused]],
                  const dd::Partition *old_part,
                  dd::Partition *new_part) override {
     ut_ad(new_part == nullptr);
@@ -9151,7 +9102,8 @@ int alter_part_change::prepare(TABLE *altered_table,
 @param[in,out]	new_part	the stored new partition or nullptr
                                 if no corresponding one exists
 @return 0 or error number */
-int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
+int alter_part_change::try_commit(const TABLE *table [[maybe_unused]],
+                                  TABLE *altered_table [[maybe_unused]],
                                   const dd::Partition *old_part,
                                   dd::Partition *new_part) {
   ut_ad(old_part != nullptr);
@@ -9761,7 +9713,8 @@ inside the storage engine. This is protected by MDL_EXCLUSIVE.
 @param[in,out]	altered_table	Table definition after the ALTER
 @return 0 or error number, my_error() should be called by callers */
 int alter_parts::try_commit(const dd::Table &old_dd_tab, dd::Table &new_dd_tab,
-                            const TABLE *table, TABLE *altered_table) {
+                            const TABLE *table [[maybe_unused]],
+                            TABLE *altered_table) {
   int error;
   /* Commit for the old ones first, to clear data files for new ones */
   error = prepare_or_commit_for_old(old_dd_tab, altered_table, false);
@@ -10210,7 +10163,7 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
   /*
   This object will be freed by server, so always use 'new'
   and there is no need to free on failure */
-  ctx_parts = new (thd->mem_root) ha_innopart_inplace_ctx(thd, m_tot_parts);
+  ctx_parts = new (thd->mem_root) ha_innopart_inplace_ctx(m_tot_parts);
   if (ctx_parts == nullptr) {
     return HA_ALTER_ERROR;
   }
@@ -10311,29 +10264,12 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
   return res;
 }
 
-/** Alter the table structure in-place.
-Alter the table structure in-place with operations
-specified using HA_ALTER_FLAGS and Alter_inplace_information.
-The level of concurrency allowed during this operation depends
-on the return value from check_if_supported_inplace_alter().
-@param[in]	altered_table	TABLE object for new version of table.
-@param[in,out]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param[in]	old_table_def	dd::Table object describing old
-version of the table.
-@param[in,out]	new_table_def	dd::Table object for the new version
-of the table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement
-commit time.
-@retval	true	Failure.
-@retval	false	Success. */
 bool ha_innopart::inplace_alter_table(TABLE *altered_table,
                                       Alter_inplace_info *ha_alter_info,
                                       const dd::Table *old_table_def,
                                       dd::Table *new_table_def) {
   if (alter_parts::apply_to(ha_alter_info)) {
-    return (inplace_alter_partition(altered_table, ha_alter_info, old_table_def,
-                                    new_table_def));
+    return (inplace_alter_partition(ha_alter_info));
   }
 
   bool res = true;
@@ -10351,9 +10287,6 @@ bool ha_innopart::inplace_alter_table(TABLE *altered_table,
   auto newp = new_table_def->leaf_partitions()->begin();
 
   for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-    const dd::Partition *old_part = *oldp;
-    dd::Partition *new_part = *newp;
-
     m_prebuilt = ctx_parts->prebuilt_array[i];
     ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
     set_partition(i);
@@ -10361,8 +10294,7 @@ bool ha_innopart::inplace_alter_table(TABLE *altered_table,
       ha_alter_info->handler_ctx->set_shared_data(ctx_parts->ctx_array[i - 1]);
     }
 
-    res = inplace_alter_table_impl<dd::Partition>(altered_table, ha_alter_info,
-                                                  old_part, new_part);
+    res = inplace_alter_table_impl<dd::Partition>(altered_table, ha_alter_info);
     ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
     ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 
@@ -10428,7 +10360,7 @@ bool ha_innopart::commit_inplace_alter_table(TABLE *altered_table,
     set_partition(0);
 
     res = ha_innobase::commit_inplace_alter_table_impl<dd::Table>(
-        altered_table, ha_alter_info, commit, old_table_def, new_table_def);
+        altered_table, ha_alter_info, commit, new_table_def);
     ut_ad(res || !ha_alter_info->group_commit_ctx);
 
     goto end;
@@ -10440,8 +10372,7 @@ bool ha_innopart::commit_inplace_alter_table(TABLE *altered_table,
     ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
     set_partition(i);
     if (ha_innobase::commit_inplace_alter_table_impl<dd::Table>(
-            altered_table, ha_alter_info, commit, old_table_def,
-            new_table_def)) {
+            altered_table, ha_alter_info, commit, new_table_def)) {
       res = true;
     }
     ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
@@ -10627,25 +10558,7 @@ bool ha_innopart::prepare_inplace_alter_partition(
   return (error);
 }
 
-/** Alter the table structure in-place with operations
-specified using HA_ALTER_FLAGS and Alter_inplace_information.
-This is for 'ALTER TABLE ... PARTITION' and a corresponding function
-to inplace_alter_table().
-The level of concurrency allowed during this operation depends
-on the return value from check_if_supported_inplace_alter().
-
-@param[in,out]	altered_table	TABLE object for new version of table
-@param[in,out]	ha_alter_info	Structure describing changes to be done
-                                by ALTER TABLE and holding data used during
-                                in-place alter.
-@param[in]	old_dd_tab	Table definition before the ALTER
-@param[in,out]	new_dd_tab	Table definition after the ALTER
-@retval true	Failure
-@retval false	Success */
-bool ha_innopart::inplace_alter_partition(TABLE *altered_table,
-                                          Alter_inplace_info *ha_alter_info,
-                                          const dd::Table *old_dd_tab,
-                                          dd::Table *new_dd_tab) {
+bool ha_innopart::inplace_alter_partition(Alter_inplace_info *ha_alter_info) {
   if (!alter_parts::need_copy(ha_alter_info)) {
     return (false);
   }
@@ -10757,10 +10670,9 @@ dict_table_t::data_dir_path is necessary if DATA DIRECTORY is specified. For
 exaple if DATA DIRECTORY Is '/tmp', the data directory for nomral table is
 '/tmp/t1', while for partition is '/tmp'. So rename, the postfix table name 't1'
 should either be truncated or appended.
-@param[in] thd the session
 @param[in] table_p partiton table
 @param[in] table_s  swap table*/
-void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
+void exchange_partition_adjust_datadir(dict_table_t *table_p,
                                        dict_table_t *table_s) {
   ut_ad(table_s->n_ref_count == 1);
   ut_ad(table_p->n_ref_count == 1);
@@ -10910,7 +10822,7 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
       swap_table->options().exists(data_file_name_key)) {
     /* after above swaping swap is now partition table and part is now normal
     table */
-    exchange_partition_adjust_datadir(thd, swap, part);
+    exchange_partition_adjust_datadir(swap, part);
   }
 
   std::copy(dd_part->indexes()->begin(), dd_part->indexes()->end(),

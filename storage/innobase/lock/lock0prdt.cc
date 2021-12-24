@@ -517,7 +517,6 @@ dberr_t lock_prdt_insert_check_and_lock(
 
 void lock_prdt_update_parent(buf_block_t *left_block, buf_block_t *right_block,
                              lock_prdt_t *left_prdt, lock_prdt_t *right_prdt,
-                             lock_prdt_t *parent_prdt,
                              const page_id_t &page_id) {
   lock_t *lock;
 
@@ -661,9 +660,8 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                                             SELECT FOR UPDATE */
                        ulint type_mode,
                        /*!< in: LOCK_PREDICATE or LOCK_PRDT_PAGE */
-                       que_thr_t *thr, /*!< in: query thread
+                       que_thr_t *thr) /*!< in: query thread
                                        (can be NULL if BTR_NO_LOCKING_FLAG) */
-                       mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   trx_t *trx = thr_get_trx(thr);
   dberr_t err = DB_SUCCESS;
@@ -714,7 +712,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
         wait_for = lock_prdt_other_has_conflicting(prdt_mode, block, prdt, trx);
 
         if (wait_for != nullptr) {
-          RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode, prdt);
+          RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode);
 
           trx_mutex_enter(trx);
           err = rec_lock.add_to_waitq(wait_for);

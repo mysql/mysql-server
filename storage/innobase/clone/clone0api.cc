@@ -370,9 +370,8 @@ static int get_ddl_timeout(THD *thd) {
   return timeout;
 }
 
-int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
-                       uint &loc_len, uint &task_id, Ha_clone_type type,
-                       Ha_clone_mode mode) {
+int innodb_clone_begin(handlerton *, THD *thd, const byte *&loc, uint &loc_len,
+                       uint &task_id, Ha_clone_type type, Ha_clone_mode mode) {
   /* Check if reference locator is valid */
   if (loc != nullptr && !clone_validate_locator(loc, loc_len)) {
     int err = ER_CLONE_PROTOCOL;
@@ -499,7 +498,7 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
 
     /* 1. Open all tablespaces in Innodb if not done during bootstrap.
-       2. Initialize compression option for all compressed tablesapces. */
+       2. Initialize compression option for all compressed tablespaces. */
     if (err == 0 && task_id == 0) {
       err = clone_init_tablespaces(thd);
 
@@ -538,7 +537,7 @@ int innodb_clone_copy(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   }
 
   /* Start data copy. */
-  err = clone_hdl->copy(thd, task_id, cbk);
+  err = clone_hdl->copy(task_id, cbk);
   clone_hdl->save_error(err);
 
   return (err);
@@ -612,7 +611,7 @@ static Clone_Min get_donor_timeout(THD *thd) {
   return Clone_Min(timeout);
 }
 
-int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
+int innodb_clone_end(handlerton *, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err) {
   /* Acquire clone system mutex which would automatically get released
   when we return from the function [RAII]. */
@@ -631,7 +630,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 
   /* Drop current task. */
   bool is_master = false;
-  auto wait_reconnect = clone_hdl->drop_task(thd, task_id, in_err, is_master);
+  auto wait_reconnect = clone_hdl->drop_task(thd, task_id, is_master);
   auto is_copy = clone_hdl->is_copy_clone();
   auto is_init = clone_hdl->is_init();
   auto is_abort = clone_hdl->is_abort();
@@ -759,7 +758,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   return (0);
 }
 
-int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
+int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
                              uint &loc_len, uint &task_id, Ha_clone_mode mode,
                              const char *data_dir) {
   /* Check if reference locator is valid */

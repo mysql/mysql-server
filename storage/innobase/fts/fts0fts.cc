@@ -388,7 +388,6 @@ static ibool fts_read_stopword(
 /** Load user defined stopword from designated user table
  @return true if load operation is successful */
 static ibool fts_load_user_stopword(
-    fts_t *fts,                      /*!< in: FTS struct */
     const char *stopword_table_name, /*!< in: Stopword table
                                      name */
     fts_stopword_t *stopword_info)   /*!< in: Stopword info */
@@ -2500,7 +2499,7 @@ fts_trx_t *fts_trx_create(trx_t *trx) {
 
   /* Copy savepoints that already set before. */
   for (auto savep : trx->trx_savepoints) {
-    fts_savepoint_take(trx, ftt, savep->name);
+    fts_savepoint_take(ftt, savep->name);
   }
 
   return (ftt);
@@ -3357,7 +3356,6 @@ ibool fts_query_expansion_fetch_doc(void *row,      /*!< in: sel_node_t* */
 
 /** fetch and tokenize the document. */
 static void fts_fetch_doc_from_rec(
-    trx_t *trx,                /*!< in: current transaction */
     fts_get_doc_t *get_doc,    /*!< in: FTS index's get_doc struct */
     dict_index_t *clust_index, /*!< in: cluster index */
     btr_pcur_t *pcur,          /*!< in: cursor whose position
@@ -3634,8 +3632,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
       clust_ref = dtuple_create(heap, n_fields);
       dict_index_copy_types(clust_ref, clust_index, n_fields);
 
-      row_build_row_ref_in_tuple(clust_ref, rec, fts_id_index, nullptr,
-                                 nullptr);
+      row_build_row_ref_in_tuple(clust_ref, rec, fts_id_index, nullptr);
 
       btr_pcur_open_with_no_init(clust_index, clust_ref, PAGE_CUR_LE,
                                  BTR_SEARCH_LEAF, &clust_pcur, 0, &mtr);
@@ -3658,8 +3655,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
 
       fts_doc_init(&doc);
 
-      fts_fetch_doc_from_rec(ftt->fts_trx->trx, get_doc, clust_index, doc_pcur,
-                             offsets, &doc);
+      fts_fetch_doc_from_rec(get_doc, clust_index, doc_pcur, offsets, &doc);
 
       if (doc.found) {
         ibool success [[maybe_unused]];
@@ -5520,11 +5516,7 @@ static inline void fts_savepoint_copy(
   }
 }
 
-/** Take a FTS savepoint.
-@param[in] trx Transaction
-@param[in] fts_trx Fts transaction
-@param[in] name Savepoint name */
-void fts_savepoint_take(trx_t *trx, fts_trx_t *fts_trx, const char *name) {
+void fts_savepoint_take(fts_trx_t *fts_trx, const char *name) {
   mem_heap_t *heap;
   fts_savepoint_t *savepoint;
   fts_savepoint_t *last_savepoint;
@@ -5757,7 +5749,7 @@ void fts_savepoint_rollback(trx_t *trx,       /*!< in: transaction */
     ut_a(ib_vector_size(savepoints) > 0);
 
     /* Restore the savepoint. */
-    fts_savepoint_take(trx, trx->fts_trx, name);
+    fts_savepoint_take(trx->fts_trx, name);
   }
 }
 
@@ -6036,8 +6028,8 @@ ibool fts_load_stopword(
                                                : global_stopword_table;
   }
 
-  if (stopword_to_use && fts_load_user_stopword(table->fts, stopword_to_use,
-                                                &cache->stopword_info)) {
+  if (stopword_to_use &&
+      fts_load_user_stopword(stopword_to_use, &cache->stopword_info)) {
     /* Save the stopword table name to the configure
     table */
     if (!reload) {

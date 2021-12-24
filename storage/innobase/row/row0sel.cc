@@ -2255,30 +2255,9 @@ que_thr_t *fetch_step(que_thr_t *thr) /*!< in: query thread */
   return (thr);
 }
 
-/** Converts a key value stored in MySQL format to an Innobase dtuple. The last
- field of the key value may be just a prefix of a fixed length field: hence
- the parameter key_len. But currently we do not allow search keys where the
- last field is only a prefix of the full key field len and print a warning if
- such appears. A counterpart of this function is
- ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-void row_sel_convert_mysql_key_to_innobase(
-    dtuple_t *tuple,     /*!< in/out: tuple where to build;
-                         NOTE: we assume that the type info
-                         in the tuple is already according
-                         to index! */
-    byte *buf,           /*!< in: buffer to use in field
-                         conversions; NOTE that dtuple->data
-                         may end up pointing inside buf so
-                         do not discard that buffer while
-                         the tuple is being used. See
-                         row_mysql_store_col_in_innobase_format()
-                         in the case of DATA_INT */
-    ulint buf_len,       /*!< in: buffer length */
-    dict_index_t *index, /*!< in: index of the key value */
-    const byte *key_ptr, /*!< in: MySQL key value */
-    ulint key_len,       /*!< in: MySQL key value length */
-    trx_t *trx)          /*!< in: transaction */
-{
+void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
+                                           ulint buf_len, dict_index_t *index,
+                                           const byte *key_ptr, ulint key_len) {
   byte *original_buf = buf;
   const byte *original_key_ptr = key_ptr;
   dict_field_t *field;
@@ -3167,8 +3146,7 @@ non-clustered index. Does the necessary locking.
   *out_rec = nullptr;
   trx = thr_get_trx(thr);
 
-  row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets,
-                             trx);
+  row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets);
 
   clust_index = sec_index->table->first_index();
 
@@ -6300,13 +6278,11 @@ dberr_t row_search_max_autoinc(
 /** Convert the innodb_table_stats clustered index record to
 table_stats format.
 @param[in]	clust_rec	clustered index record
-@param[in]	clust_index	clustered index
 @param[in]	clust_offsets	offsets of the clustered index
                                 record
 @param[out]	tbl_stats	table_stats information
                                 to be filled. */
 static void convert_to_table_stats_record(rec_t *clust_rec,
-                                          dict_index_t *clust_index,
                                           ulint *clust_offsets,
                                           TableStatsRecord &tbl_stats) {
   for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
@@ -6373,7 +6349,7 @@ bool row_search_table_stats(const char *db_name, const char *tbl_name,
     }
 
     found_rec = true;
-    convert_to_table_stats_record(rec, clust_index, offsets, table_stats);
+    convert_to_table_stats_record(rec, offsets, table_stats);
   }
 
   mtr_commit(&mtr);

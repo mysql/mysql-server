@@ -164,7 +164,7 @@ when SDI is corrupted.
 @param[in,out]	tablespace	tablespace object
 @retval		false		success
 @retval		true		failure */
-bool dict_sdi_drop(dd::Tablespace *tablespace) {
+bool dict_sdi_drop(dd::Tablespace *) {
 #if 0  /* TODO: Enable in WL#9761 */
 	uint32	space_id;
 	if (dict_sdi_exists(tablespace, &space_id)
@@ -222,18 +222,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
   return (err != DB_SUCCESS);
 }
 
-/** Retrieve SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
-                                out: actual length of SDI
-@retval		false		success
-@retval		true		in case of failures like record not found,
-                                sdi_len is UINT64MAX_T, else sdi_len is
-                                actual length of SDI */
-bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
-                  void *sdi, uint64 *sdi_len) {
+bool dict_sdi_get(const dd::Tablespace &, const sdi_key_t *, void *, uint64 *) {
 #if 0 /* TODO: Enable in WL#9761 */
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info(ER_IB_MSG_214) << "dict_sdi_get(" << tablespace.name()
@@ -257,7 +246,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 #ifdef UNIV_DEBUG
 	if (fsp_is_undo_tablespace(space_id)
 	    || fsp_is_system_temporary(space_id)) {
-		/* There shouldn't be access for SDI on these tabelspaces as
+		/* There shouldn't be access for SDI on these tablespaces as
 		SDI doesn't exist. */
 		ut_ad(0);
 	}

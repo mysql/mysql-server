@@ -112,7 +112,7 @@ introduced where a call to log_free_check() is bypassed. */
     mem_heap_t *heap = nullptr;
     const ulint *offsets =
         rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
-    row_log_table_delete(node->trx, rec, node->row, index, offsets, nullptr);
+    row_log_table_delete(rec, node->row, index, offsets, nullptr);
     mem_heap_free(heap);
   }
 

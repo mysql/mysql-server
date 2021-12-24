@@ -105,7 +105,6 @@ bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no);
 /** Logs a delete operation to a table that is being rebuilt.
  This will be merged in row_log_table_apply_delete(). */
 void row_log_table_delete(
-    trx_t *trx,             /*!< in: current transaction. */
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
     const dtuple_t *ventry, /*!< in: dtuple holding virtual column info */
@@ -137,7 +136,6 @@ void row_log_table_update(
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
 [[nodiscard]] const dtuple_t *row_log_table_get_pk(
-    trx_t *trx,           /*!< in: the current transaction. */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
     dict_index_t *index,  /*!< in/out: clustered index, S-latched

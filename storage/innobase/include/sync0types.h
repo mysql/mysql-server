@@ -677,7 +677,8 @@ class LatchCounter {
 
   /** Deregister the count. We don't do anything
   @param[in]	count		The count instance to deregister */
-  void sum_deregister(Count *count) const UNIV_NOTHROW { /* Do nothing */
+  void sum_deregister(Count *count
+                      [[maybe_unused]]) const UNIV_NOTHROW { /* Do nothing */
   }
 
   /** Register a single instance counter */

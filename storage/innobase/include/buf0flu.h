@@ -196,9 +196,8 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
                                                   const void *save);
 #endif /* UNIV_DEBUG */
 
-/** Initialize page_cleaner.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-void buf_flush_page_cleaner_init(size_t n_page_cleaners);
+/** Initialize page_cleaner.  */
+void buf_flush_page_cleaner_init();
 
 /** Wait for any possible LRU flushes that are in progress to end. */
 void buf_flush_wait_LRU_batch_end();

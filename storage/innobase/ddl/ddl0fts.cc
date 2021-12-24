@@ -140,10 +140,9 @@ struct FTS::Parser {
   /** Data structures for building an index. */
   struct Handler {
     /** Constructor.
-    @param[in] id             Auxiliary index ID.
     @param[in,out] index      Index to create.
     @param[in] size           IO buffer size. */
-    explicit Handler(size_t id, dict_index_t *index, size_t size) noexcept;
+    explicit Handler(dict_index_t *index, size_t size) noexcept;
 
     /** Destructor. */
     ~Handler() noexcept;
@@ -334,8 +333,7 @@ struct FTS::Inserter {
   Handlers m_handlers{};
 };
 
-FTS::Parser::Handler::Handler(size_t id, dict_index_t *index,
-                              size_t size) noexcept
+FTS::Parser::Handler::Handler(dict_index_t *index, size_t size) noexcept
     : m_file(), m_key_buffer(index, size), m_aligned_buffer() {}
 
 FTS::Parser::Handler::~Handler() noexcept {}
@@ -358,7 +356,7 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
 
   for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
     m_handlers[i] = Handler_ptr(
-        ut::new_withkey<Handler>(ut::make_psi_memory_key(mem_key_ddl), i,
+        ut::new_withkey<Handler>(ut::make_psi_memory_key(mem_key_ddl),
                                  m_dup->m_index, buffer_size.first),
         [](Handler *handler) { ut::delete_(handler); });
 
@@ -879,7 +877,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
         auto &file = handler->m_file;
         handler->m_offsets.push_back(file.m_size);
 
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
           return builder->append(file, io_buffer);
         };
 
@@ -995,7 +993,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
 
       handler->m_offsets.push_back(file.m_size);
 
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
         return builder->append(file, io_buffer);
       };
 

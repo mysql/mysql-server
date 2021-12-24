@@ -208,15 +208,13 @@ struct z_index_entry_t {
 
   /** Purge one index entry.
   @param[in]	index		index to which LOB belongs.
-  @param[in]	trxid		purging data belonging to trxid.
   @param[in]	first		first page of LOB.
   @param[in,out]	lst		list from which this entry will be
                                   removed.
   @param[in,out]	free_list	list to which this entry will be
                                   added.*/
-  fil_addr_t purge_version(dict_index_t *index, trx_id_t trxid,
-                           z_first_page_t &first, flst_base_node_t *lst,
-                           flst_base_node_t *free_list);
+  fil_addr_t purge_version(dict_index_t *index, z_first_page_t &first,
+                           flst_base_node_t *lst, flst_base_node_t *free_list);
 
   /** Purge the current index entry. An index entry points to either a
   FIRST page or DATA page.  That LOB page will be freed if it is DATA
@@ -455,10 +453,9 @@ struct z_index_entry_t {
   current entry from the index list.  Move the versions list from
   current entry to older entry.
   @param[in]	index	the index in which LOB exists.
-  @param[in]	trxid	The transaction identifier.
   @param[in]	first	The first lob page containing index list and free
   list. */
-  fil_addr_t make_old_version_current(dict_index_t *index, trx_id_t trxid,
+  fil_addr_t make_old_version_current(dict_index_t *index,
                                       z_first_page_t &first);
 
   flst_node_t *get_node() { return (m_node); }

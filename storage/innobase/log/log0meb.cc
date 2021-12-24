@@ -1064,7 +1064,6 @@ static void construct_file_pathname(const Fil_path &path,
 
 /**
   Execute security checks and construct a file path name.
-  @param[in,out]  thd           current THD instance, current session
   @param[in]      label         a label from innodb_redo_log_archive_dirs
   @param[in]      subdir        a plain directory name, on Unix/Linux/Mac
                                 no slash ('/') is allowed, on Windows no
@@ -1076,7 +1075,7 @@ static void construct_file_pathname(const Fil_path &path,
     @retval       false         success
     @retval       true          failure
 */
-static bool construct_secure_file_path_name(THD *thd, const char *label,
+static bool construct_secure_file_path_name(const char *label,
                                             const char *subdir,
                                             std::string *file_pathname) {
   DBUG_TRACE;
@@ -1278,7 +1277,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     Construct a file path name.
   */
   std::string file_pathname;
-  if (construct_secure_file_path_name(thd, label, subdir, &file_pathname)) {
+  if (construct_secure_file_path_name(label, subdir, &file_pathname)) {
     mutex_exit(&redo_log_archive_admin_mutex);
     return true;
   }

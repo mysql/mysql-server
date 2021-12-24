@@ -254,11 +254,8 @@ void dict_table_set_big_rows(dict_table_t *table) MY_ATTRIBUTE((nonnull));
 
 /** Adds a table object to the dictionary cache.
 @param[in,out]	table		table
-@param[in]	can_be_evicted	true if can be evicted
-@param[in,out]	heap		temporary heap
-*/
-void dict_table_add_to_cache(dict_table_t *table, ibool can_be_evicted,
-                             mem_heap_t *heap);
+@param[in]	can_be_evicted	true if can be evicted */
+void dict_table_add_to_cache(dict_table_t *table, ibool can_be_evicted);
 
 /** Removes a table object from the dictionary cache. */
 void dict_table_remove_from_cache(dict_table_t *table); /*!< in, own: table */

@@ -146,12 +146,10 @@ class Ha_innopart_share : public Partition_share {
                                          const char *table_name);
 
   /** Initialize the share with table and indexes per partition.
-  @param[in]	table		MySQL table definition
   @param[in]	part_info	Partition info (partition names to use).
   @param[in]	table_parts	Array of InnoDB tables for partitions.
   @return	false on success else true. */
-  bool set_table_parts_and_indexes(const TABLE *table,
-                                   partition_info *part_info,
+  bool set_table_parts_and_indexes(partition_info *part_info,
                                    dict_table_t **table_parts);
 
   /** Close the table partitions.
@@ -348,18 +346,12 @@ class ha_innopart : public ha_innobase,
   The level of concurrency allowed during this operation depends
   on the return value from check_if_supported_inplace_alter().
 
-  @param[in,out]	altered_table	TABLE object for new version of table
   @param[in,out]	ha_alter_info	Structure describing changes to be done
                                   by ALTER TABLE and holding data used
                                   during in-place alter.
-  @param[in]	old_dd_tab	Table definition before the ALTER
-  @param[in,out]	new_dd_tab	Table definition after the ALTER
   @retval	true	Failure
   @retval	false	Success */
-  bool inplace_alter_partition(TABLE *altered_table,
-                               Alter_inplace_info *ha_alter_info,
-                               const dd::Table *old_dd_tab,
-                               dd::Table *new_dd_tab);
+  bool inplace_alter_partition(Alter_inplace_info *ha_alter_info);
 
   /** Prepare to commit or roll back ALTER TABLE...ALGORITHM=INPLACE.
   This is for 'ALTER TABLE ... PARTITION' and a corresponding function
@@ -378,6 +370,12 @@ class ha_innopart : public ha_innobase,
 
   // TODO: should we implement init_table_handle_for_HANDLER() ?
   // (or is sql_stat_start handled correctly anyway?)
+  /** Optimize table.
+  This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
+  the table in MySQL.
+  @param[in]	thd		Connection thread handle.
+  @param[in]	check_opt	Currently ignored.
+  @return	0 for success else error code. */
   int optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
 
   /** Set DD discard attribute for tablespace.
@@ -452,6 +450,12 @@ class ha_innopart : public ha_innobase,
   @return	0 or error code. */
   int repair(THD *thd, HA_CHECK_OPT *repair_opt) override;
 
+  /** Get the current auto_increment value.
+  @param[in]	offset			Table auto-inc offset.
+  @param[in]	increment		Table auto-inc increment.
+  @param[in]	nb_desired_values	Number of required values.
+  @param[out]	first_value		The auto increment value.
+  @param[out]	nb_reserved_values	Number of reserved values. */
   void get_auto_increment(ulonglong offset, ulonglong increment,
                           ulonglong nb_desired_values, ulonglong *first_value,
                           ulonglong *nb_reserved_values) override;
@@ -476,42 +480,50 @@ class ha_innopart : public ha_innobase,
   }
 
   /* TODO: Implement these! */
-  bool check_if_incompatible_data(HA_CREATE_INFO *info,
-                                  uint table_changes) override {
+  bool check_if_incompatible_data(HA_CREATE_INFO *info [[maybe_unused]],
+                                  uint table_changes
+                                  [[maybe_unused]]) override {
     ut_ad(0);
     return (COMPATIBLE_DATA_NO);
   }
 
   int delete_all_rows() override { return (handler::delete_all_rows()); }
 
-  int disable_indexes(uint mode) override { return (HA_ERR_WRONG_COMMAND); }
+  int disable_indexes(uint mode [[maybe_unused]]) override {
+    return (HA_ERR_WRONG_COMMAND);
+  }
 
-  int enable_indexes(uint mode) override { return (HA_ERR_WRONG_COMMAND); }
+  int enable_indexes(uint mode [[maybe_unused]]) override {
+    return (HA_ERR_WRONG_COMMAND);
+  }
 
   int ft_init() override {
     ut_ad(0);
     return (HA_ERR_WRONG_COMMAND);
   }
 
-  FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override {
+  FT_INFO *ft_init_ext(uint flags [[maybe_unused]], uint inx [[maybe_unused]],
+                       String *key [[maybe_unused]]) override {
     ut_ad(0);
     return (nullptr);
   }
 
-  FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
-                                  Ft_hints *hints) override {
+  FT_INFO *ft_init_ext_with_hints(uint inx [[maybe_unused]],
+                                  String *key [[maybe_unused]],
+                                  Ft_hints *hints [[maybe_unused]]) override {
     ut_ad(0);
     return (nullptr);
   }
 
-  int ft_read(uchar *buf) override {
+  int ft_read(uchar *buf [[maybe_unused]]) override {
     ut_ad(0);
     return (HA_ERR_WRONG_COMMAND);
   }
 
-  bool get_foreign_dup_key(char *child_table_name, uint child_table_name_len,
-                           char *child_key_name,
-                           uint child_key_name_len) override {
+  bool get_foreign_dup_key(char *child_table_name [[maybe_unused]],
+                           uint child_table_name_len [[maybe_unused]],
+                           char *child_key_name [[maybe_unused]],
+                           uint child_key_name_len [[maybe_unused]]) override {
     ut_ad(0);
     return (false);
   }
@@ -722,7 +734,7 @@ class ha_innopart : public ha_innobase,
   Therefore there's no need for a covering lock.
   @param[in]	no_lock	If locking should be skipped. Not used!
   @return	0 for success or error code. */
-  int initialize_auto_increment(bool no_lock [[maybe_unused]]) override;
+  int initialize_auto_increment(bool no_lock) override;
 
   /** Save currently highest auto increment value.
   @param[in]	nr	Auto increment value to save. */

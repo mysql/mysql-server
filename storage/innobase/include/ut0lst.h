@@ -450,7 +450,7 @@ void ut_list_remove(List &list, typename List::elem_type *elem) {
 #define UT_LIST_GET_LAST(BASE) (BASE).last_element
 
 struct NullValidate {
-  void operator()(const void *elem) {}
+  void operator()(const void *) {}
 };
 
 /** Iterate over all the elements and call the functor for each element.

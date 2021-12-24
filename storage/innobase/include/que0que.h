@@ -192,13 +192,11 @@ static inline ibool que_graph_is_select(que_t *graph); /*!< in: graph */
 /** Prints info of an SQL query graph node. */
 void que_node_print_info(que_node_t *node); /*!< in: query graph node */
 /** Evaluate the given SQL
- @return error code or DB_SUCCESS */
-dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
-                     const char *sql,   /*!< in: SQL string */
-                     ibool reserve_dict_mutex,
-                     /*!< in: if TRUE, acquire/release
-                     dict_sys->mutex around call to pars_sql. */
-                     trx_t *trx); /*!< in: trx */
+@param[in] info Info struct, or nullptr.
+@param[in] sql SQL string.
+@param[in] trx Transaction.
+@return error code or DB_SUCCESS */
+dberr_t que_eval_sql(pars_info_t *info, const char *sql, trx_t *trx);
 
 /** Round robin scheduler.
  @return a query thread of the graph moved to QUE_THR_RUNNING state, or

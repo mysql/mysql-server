@@ -125,22 +125,9 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   return split_node_array;
 }
 
-/** Builds a Rtree node pointer out of a physical record and a page number.
- Note: For Rtree, we just keep the mbr and page no field in non-leaf level
- page. It's different with Btree, Btree still keeps PK fields so far.
- @return	own: node pointer */
-dtuple_t *rtr_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rtr_mbr_t *mbr,      /*!< in: mbr of lower page */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
-{
+dtuple_t *rtr_index_build_node_ptr(const dict_index_t *index,
+                                   const rtr_mbr_t *mbr, const rec_t *rec,
+                                   page_no_t page_no, mem_heap_t *heap) {
   dtuple_t *tuple;
   dfield_t *field;
   byte *buf;
@@ -284,7 +271,6 @@ bool rtr_update_mbr_field(
   ulint up_match = 0;
   ulint low_match = 0;
   page_no_t child;
-  ulint level;
   ulint rec_info;
   page_zip_des_t *page_zip;
   bool ins_suc = true;
@@ -303,7 +289,6 @@ bool rtr_update_mbr_field(
   page_zip = buf_block_get_page_zip(block);
 
   child = btr_node_ptr_get_child_page_no(rec, offsets);
-  level = btr_page_get_level(buf_block_get_frame(block), mtr);
 
   if (new_rec) {
     child_rec = new_rec;
@@ -312,7 +297,7 @@ bool rtr_update_mbr_field(
   }
 
   dtuple_t *node_ptr =
-      rtr_index_build_node_ptr(index, mbr, child_rec, child, heap, level);
+      rtr_index_build_node_ptr(index, mbr, child_rec, child, heap);
 
   /* We need to remember the child page no of cursor2, since page could be
   reorganized or insert a new rec before it. */
@@ -578,7 +563,6 @@ static void rtr_adjust_upper_level(
     buf_block_t *new_block, /*!< in/out: the new half page */
     rtr_mbr_t *mbr,         /*!< in: MBR on the old page */
     rtr_mbr_t *new_mbr,     /*!< in: MBR on the new page */
-    ulint direction,        /*!< in: FSP_UP or FSP_DOWN */
     mtr_t *mtr)             /*!< in: mtr */
 {
   page_t *page;
@@ -600,7 +584,6 @@ static void rtr_adjust_upper_level(
   rtr_mbr_t parent_mbr;
   lock_prdt_t prdt;
   lock_prdt_t new_prdt;
-  lock_prdt_t parent_prdt;
   dberr_t err;
   big_rec_t *dummy_big_rec;
   rec_t *rec;
@@ -644,7 +627,7 @@ static void rtr_adjust_upper_level(
   /* Insert the node for the new page. */
   node_ptr_upper = rtr_index_build_node_ptr(
       index, new_mbr, page_rec_get_next(page_get_infimum_rec(new_page)),
-      new_page_no, heap, level);
+      new_page_no, heap);
 
   ulint up_match = 0;
   ulint low_match = 0;
@@ -689,11 +672,9 @@ static void rtr_adjust_upper_level(
   prdt.op = 0;
   new_prdt.data = static_cast<void *>(new_mbr);
   new_prdt.op = 0;
-  parent_prdt.data = static_cast<void *>(&parent_mbr);
-  parent_prdt.op = 0;
 
   ut_ad(dict_index_get_space(index) == page_cursor->block->page.id.space());
-  lock_prdt_update_parent(block, new_block, &prdt, &new_prdt, &parent_prdt,
+  lock_prdt_update_parent(block, new_block, &prdt, &new_prdt,
                           page_cursor->block->page.id);
 
   mem_heap_free(heap);
@@ -1167,8 +1148,7 @@ after_insert:
   lock_prdt_update_split(block, new_block, &prdt, &new_prdt);
 
   /* Adjust the upper level. */
-  rtr_adjust_upper_level(cursor, flags, block, new_block, &mbr, &new_mbr,
-                         direction, mtr);
+  rtr_adjust_upper_level(cursor, flags, block, new_block, &mbr, &new_mbr, mtr);
 
   /* Save the new ssn to the root page, since we need to reinit
   the first ssn value from it after restart server. */
@@ -1222,12 +1202,7 @@ after_insert:
   return (rec);
 }
 
-/** Following the right link to find the proper block for insert.
- @return the proper block.*/
-dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
-                            que_thr_t *thr,     /*!< in: query thread */
-                            mtr_t *mtr)         /*!< in: mtr */
-{
+dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, mtr_t *mtr) {
   dberr_t err = DB_SUCCESS;
   rtr_mbr_t new_mbr;
   buf_block_t *block;
@@ -1537,19 +1512,9 @@ void rtr_page_copy_rec_list_start_no_locks(
   *num_moved = moved;
 }
 
-/** Check two MBRs are identical or need to be merged
-@param[in] cursor Cursor
-@param[in] cursor2 The other cursor
-@param[in] offsets Rec offsets
-@param[in] offsets2 Rec offsets
-@param[out] new_mbr Mbr to update
-@param[in] merge_block Page to merge
-@param[in] block Page be merged
-@param[in] index Index */
 bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
-                           ulint *offsets, ulint *offsets2, rtr_mbr_t *new_mbr,
-                           buf_block_t *merge_block, buf_block_t *block,
-                           dict_index_t *index) {
+                           ulint *offsets, ulint *offsets2,
+                           rtr_mbr_t *new_mbr) {
   double *mbr;
   double mbr1[SPDIMS * 2];
   double mbr2[SPDIMS * 2];
@@ -1583,29 +1548,16 @@ bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
   return (changed);
 }
 
-/** Merge 2 mbrs and update the the mbr that cursor is on.
-@param[in,out] cursor Cursor
-@param[in] cursor2 The other cursor
-@param[in] offsets Rec offsets
-@param[in] offsets2 Rec offsets
-@param[in] child_page The child page.
-@param[in] merge_block Page to merge
-@param[in] block Page be merged
-@param[in] index Index
-@param[in] mtr Mini-transaction */
 dberr_t rtr_merge_and_update_mbr(btr_cur_t *cursor, btr_cur_t *cursor2,
                                  ulint *offsets, ulint *offsets2,
-                                 page_t *child_page, buf_block_t *merge_block,
-                                 buf_block_t *block, dict_index_t *index,
-                                 mtr_t *mtr) {
+                                 page_t *child_page, mtr_t *mtr) {
   dberr_t err = DB_SUCCESS;
   rtr_mbr_t new_mbr;
   bool changed = false;
 
   ut_ad(dict_index_is_spatial(cursor->index));
 
-  changed = rtr_merge_mbr_changed(cursor, cursor2, offsets, offsets2, &new_mbr,
-                                  merge_block, block, index);
+  changed = rtr_merge_mbr_changed(cursor, cursor2, offsets, offsets2, &new_mbr);
 
   /* Update the mbr field of the rec. And will delete the record
   pointed by cursor2 */
@@ -1615,21 +1567,13 @@ dberr_t rtr_merge_and_update_mbr(btr_cur_t *cursor, btr_cur_t *cursor2,
       err = DB_ERROR;
     }
   } else {
-    rtr_node_ptr_delete(cursor2->index, cursor2, block, mtr);
+    rtr_node_ptr_delete(cursor2, mtr);
   }
 
   return (err);
 }
 
-/** Deletes on the upper level the node pointer to a page.
-@param[in] index Index tree
-@param[in] sea_cur Search cursor, contains information about parent nodes in
-search
-@param[in] block Page whose node pointer is deleted
-@param[in] mtr Mini-transaction
-*/
-void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
-                         buf_block_t *block, mtr_t *mtr) {
+void rtr_node_ptr_delete(btr_cur_t *sea_cur, mtr_t *mtr) {
   ibool compressed;
   dberr_t err;
 

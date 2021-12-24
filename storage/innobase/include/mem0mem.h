@@ -414,11 +414,11 @@ class mem_heap_allocator {
   allocated by mem_heap_allocator) can be used as a hint to the
   implementation about where the new memory should be allocated in
   order to improve locality. */
-  pointer allocate(size_type n, const_pointer hint = nullptr) {
+  pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
     return (reinterpret_cast<pointer>(mem_heap_alloc(m_heap, n * sizeof(T))));
   }
 
-  void deallocate(pointer p, size_type n) {}
+  void deallocate(pointer, size_type) {}
 
   pointer address(reference r) const { return (&r); }
 

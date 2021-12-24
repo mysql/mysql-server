@@ -393,9 +393,8 @@ struct mtr_t {
 #endif /* UNIV_DEBUG */
 
   /** Start a mini-transaction.
-  @param sync		true if it is a synchronous mini-transaction
-  @param read_only	true if read only mini-transaction */
-  void start(bool sync = true, bool read_only = false);
+  @param sync		true if it is a synchronous mini-transaction */
+  void start(bool sync = true);
 
   /** @return whether this is an asynchronous mini-transaction. */
   bool is_async() const { return (!m_sync); }
@@ -688,11 +687,10 @@ struct mtr_t {
 #ifdef UNIV_DEBUG
 
 /** Reserves space in the log buffer and writes a single MLOG_TEST.
-@param[in,out]  log      redo log
 @param[in]      payload  number of extra bytes within the record,
                          not greater than 1024
 @return end_lsn pointing to the first byte after the written record */
-lsn_t mtr_commit_mlog_test(log_t &log, size_t payload = 0);
+lsn_t mtr_commit_mlog_test(size_t payload = 0);
 
 /** Reserves space in the log buffer and writes a single MLOG_TEST.
 Adjusts size of the payload in the record, in order to fill the current

@@ -322,20 +322,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   return (DB_SUCCESS);
 }
 
-/** Insert one chunk of input.  The maximum size of a chunk is Z_CHUNK_SIZE.
-@param[in]  index      Clustered index in which LOB is inserted.
-@param[in]  first      First page of the LOB.
-@param[in]  trx        Transaction doing the insertion.
-@param[in]  ref        LOB reference in the clust rec.
-@param[in]  blob       Uncompressed LOB to be inserted.
-@param[in]  len        Length of the blob.
-@param[out] out_entry  Newly inserted index entry. can be NULL.
-@param[in]  mtr        Mini-transaction
-@param[in]  bulk       true if it is bulk operation, false otherwise.
-@return DB_SUCCESS on success, error code on failure. */
 dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
-                       ref_t ref, byte *blob, ulint len,
-                       z_index_entry_t *out_entry, mtr_t *mtr, bool bulk) {
+                       byte *blob, ulint len, z_index_entry_t *out_entry,
+                       mtr_t *mtr, bool bulk) {
   ut_ad(len <= Z_CHUNK_SIZE);
   ut_ad(first.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
   dberr_t err(DB_SUCCESS);
@@ -479,7 +468,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     z_index_entry_t entry(mtr, index);
     ulint size = (remain >= chunk_size) ? chunk_size : remain;
 
-    err = z_insert_chunk(index, first, trx, ref, ptr, size, &entry, mtr,
+    err = z_insert_chunk(index, first, trx, ptr, size, &entry, mtr,
                          ctx->is_bulk());
 
     if (err != DB_SUCCESS) {
@@ -1025,7 +1014,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
       break;
     }
 
-    to_write = data_page.write(trxid, ptr, remaining);
+    to_write = data_page.write(ptr, remaining);
     total_written += to_write;
     data_page.set_trx_id(trxid);
 

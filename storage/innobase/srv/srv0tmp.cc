@@ -115,8 +115,7 @@ dberr_t Tablespace::create() {
 
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-  bool ret =
-      fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  bool ret = fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   if (!ret) {
@@ -147,7 +146,7 @@ bool Tablespace::truncate() {
 
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   return true;

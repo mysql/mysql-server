@@ -243,7 +243,7 @@ void Arch_Log_Sys::update_header(const Arch_Group *group, byte *header,
   byte *iv = redo_space->encryption_iv;
   dest = header + LOG_ENCRYPTION;
 
-  log_file_header_fill_encryption(dest, key, iv, false, false);
+  log_file_header_fill_encryption(dest, key, iv, false);
 }
 
 /** Start redo log archiving.

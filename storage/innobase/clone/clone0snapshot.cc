@@ -271,7 +271,7 @@ Clone_Snapshot::State_transit::State_transit(Clone_Snapshot *snapshot,
 
 Clone_Snapshot::State_transit::~State_transit() {
   if (m_error == 0) {
-    m_snapshot->end_transit(m_error);
+    m_snapshot->end_transit();
   }
 
   ut_ad(!m_snapshot->in_transit_state());
@@ -757,7 +757,7 @@ bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
   if (success) {
     /* Encrypt with master key and fill encryption information. */
     success = Encryption::fill_encryption_info(
-        &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+        &encryption_key[0], &encryption_iv[0], encryption_info, true);
   }
   return (success);
 }
@@ -782,7 +782,7 @@ bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
 
   /* Encrypt with master key and fill encryption information. */
   success = Encryption::fill_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false, true);
+      &encryption_key[0], &encryption_iv[0], encryption_info, true);
   if (!success) {
     return (false);
   }
@@ -804,7 +804,7 @@ void Clone_Snapshot::decrypt_key_in_header(const Clone_File_Meta *file_meta,
   /* Get tablespace encryption information. */
   Encryption::fill_encryption_info(file_meta->m_encryption_key,
                                    file_meta->m_encryption_iv, encryption_info,
-                                   false, false);
+                                   false);
 
   /* Set encryption information in page. */
   auto offset = fsp_header_get_encryption_offset(page_size);

@@ -197,21 +197,19 @@ struct index_entry_t {
   current entry from the index list.  Move the versions list from
   current entry to older entry.
   @param[in]	index		the clustered index containing the LOB.
-  @param[in]	trxid		The transaction identifier.
   @param[in]	first_page	The first lob page containing index
                                   list and free list.
   @return the location of next entry. */
-  fil_addr_t make_old_version_current(dict_index_t *index, trx_id_t trxid,
+  fil_addr_t make_old_version_current(dict_index_t *index,
                                       first_page_t &first_page);
 
   /** Purge the current entry.
   @param[in]  index  the clustered index containing the LOB.
-  @param[in]  trxid  The transaction identifier.
   @param[in]  lst    the base node of index list.
   @param[in]  free_list    the base node of free list.
   @return the location of the next entry. */
-  fil_addr_t purge_version(dict_index_t *index, trx_id_t trxid,
-                           flst_base_node_t *lst, flst_base_node_t *free_list);
+  fil_addr_t purge_version(dict_index_t *index, flst_base_node_t *lst,
+                           flst_base_node_t *free_list);
 
   void add_version(index_entry_t &entry) const {
     flst_node_t *node = entry.get_node_ptr();

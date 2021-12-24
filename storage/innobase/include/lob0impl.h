@@ -1920,7 +1920,6 @@ struct z_frag_page_t {
 @param[in]  index      Clustered index in which LOB is inserted.
 @param[in]  first      First page of the LOB.
 @param[in]  trx        Transaction doing the insertion.
-@param[in]  ref        LOB reference in the clust rec.
 @param[in]  blob       Uncompressed LOB to be inserted.
 @param[in]  len        Length of the blob.
 @param[out] out_entry  Newly inserted index entry. can be NULL.
@@ -1928,8 +1927,8 @@ struct z_frag_page_t {
 @param[in]  bulk       true if it is bulk operation, false otherwise.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
-                       ref_t ref, byte *blob, ulint len,
-                       z_index_entry_t *out_entry, mtr_t *mtr, bool bulk);
+                       byte *blob, ulint len, z_index_entry_t *out_entry,
+                       mtr_t *mtr, bool bulk);
 
 }  // namespace lob
 

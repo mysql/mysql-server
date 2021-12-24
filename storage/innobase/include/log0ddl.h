@@ -592,11 +592,9 @@ class Log_DDL {
                                   const char *new_name);
 
   /** Relay RENAME TABLE log
-  @param[in]	table_id	table id
   @param[in]	old_name	old name
   @param[in]	new_name	new name */
-  void replay_rename_table_log(table_id_t table_id, const char *old_name,
-                               const char *new_name);
+  void replay_rename_table_log(const char *old_name, const char *new_name);
 
   /** Insert a REMOVE cache log record
   @param[in]	id		log id

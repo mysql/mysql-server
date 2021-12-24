@@ -96,9 +96,8 @@ void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own);
 /** Make sure the tablespace name is saved in dict_table_t if the table
 uses a general tablespace.
 Try to read it from the fil_system_t first, then from SYS_TABLESPACES.
-@param[in]  table           Table object
-@param[in]  dict_mutex_own  true if dict_sys->mutex is owned already */
-void dict_get_and_save_space_name(dict_table_t *table, bool dict_mutex_own);
+@param[in]  table           Table object */
+void dict_get_and_save_space_name(dict_table_t *table);
 
 /** Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
@@ -169,12 +168,11 @@ const char *dict_process_sys_tablespaces(
     space_id_t *space, /*!< out: space id */
     const char **name, /*!< out: tablespace name */
     uint32_t *flags);  /*!< out: tablespace flags */
+
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
-@param[in,out]	heap		A memory heap
 @param[in]	ignore_err	Whether to ignore an error. */
-void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
-                          dict_err_ignore_t ignore_err);
+void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err);
 
 /** Using the table->heap, copy the null-terminated filepath into
 table->data_dir_path. The data directory path is derived from the

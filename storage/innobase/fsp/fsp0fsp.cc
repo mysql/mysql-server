@@ -968,9 +968,8 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
   DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure", return (false););
 
   /* Fill encryption info. */
-  if (!Encryption::fill_encryption_info(space->encryption_key,
-                                        space->encryption_iv, encrypt_info,
-                                        false, true)) {
+  if (!Encryption::fill_encryption_info(
+          space->encryption_key, space->encryption_iv, encrypt_info, true)) {
     return (false);
   }
 
@@ -1007,8 +1006,7 @@ bool fsp_header_dict_get_server_version(uint *version) {
   return (false);
 }
 
-bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
-                     bool is_boot) {
+bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
   auto space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
@@ -1088,7 +1086,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
-                                          is_boot, master_key_encrypt)) {
+                                          master_key_encrypt)) {
       space->encryption_type = Encryption::NONE;
       memset(space->encryption_key, 0, Encryption::KEY_LEN);
       memset(space->encryption_iv, 0, Encryption::KEY_LEN);
@@ -1102,18 +1100,16 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
     incorrect redo log. */
     DBUG_EXECUTE_IF("log_redo_with_invalid_master_key", {
       ut_ad(!master_key_encrypt);
-      Encryption::fill_encryption_info(space->encryption_key,
-                                       space->encryption_iv, encryption_info,
-                                       is_boot, true);
+      Encryption::fill_encryption_info(
+          space->encryption_key, space->encryption_iv, encryption_info, true);
       memcpy(page + offset, encryption_info, Encryption::INFO_SIZE);
     });
   }
   space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   if (space_id == TRX_SYS_SPACE) {
-    if (btr_create(DICT_CLUSTERED | DICT_IBUF, 0, univ_page_size,
-                   DICT_IBUF_ID_MIN + space_id, dict_ind_redundant,
-                   mtr) == FIL_NULL) {
+    if (btr_create(DICT_CLUSTERED | DICT_IBUF, 0, DICT_IBUF_ID_MIN + space_id,
+                   dict_ind_redundant, mtr) == FIL_NULL) {
       return (false);
     }
   }
@@ -4264,8 +4260,7 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
   Encryption::random_value(iv);
 
   /* Prepare encrypted encryption information to be written on page 0. */
-  if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
-                                        true)) {
+  if (!Encryption::fill_encryption_info(key, iv, encryption_info, true)) {
     ut_ad(false);
     return DB_ERROR;
   }

@@ -829,16 +829,14 @@ static void row_ins_foreign_report_add_err(
 }
 
 /** Fill virtual column information in cascade node for the child table.
-@param[in]	trx		current transaction
 @param[out]	cascade		child update node
 @param[in]	rec		clustered rec of child table
 @param[in]	index		clustered index of child table
 @param[in]	node		parent update node
 @param[in]	foreign		foreign key information.
 @param[out]	err		error code. */
-static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
-                                         const rec_t *rec, dict_index_t *index,
-                                         upd_node_t *node,
+static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
+                                         dict_index_t *index, upd_node_t *node,
                                          dict_foreign_t *foreign,
                                          dberr_t *err) {
   row_ext_t *ext;
@@ -1192,7 +1190,7 @@ func_exit:
     }
 
     if (foreign->v_cols != nullptr && foreign->v_cols->size() > 0) {
-      row_ins_foreign_fill_virtual(trx, cascade, clust_rec, clust_index, node,
+      row_ins_foreign_fill_virtual(cascade, clust_rec, clust_index, node,
                                    foreign, &err);
 
       if (err != DB_SUCCESS) {
@@ -1224,7 +1222,7 @@ func_exit:
                                                   &fts_col_affacted);
 
     if (foreign->v_cols != nullptr && foreign->v_cols->size() > 0) {
-      row_ins_foreign_fill_virtual(trx, cascade, clust_rec, clust_index, node,
+      row_ins_foreign_fill_virtual(cascade, clust_rec, clust_index, node,
                                    foreign, &err);
 
       if (err != DB_SUCCESS) {
@@ -3012,7 +3010,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
         flags, mode, &cursor, &offsets, offsets_heap, heap, entry, thr, &mtr);
 
     if (err == DB_SUCCESS && dict_index_is_spatial(index) && rtr_info.mbr_adj) {
-      err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+      err = rtr_ins_enlarge_mbr(&cursor, &mtr);
     }
   } else {
     rec_t *insert_rec;
@@ -3023,7 +3021,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
                                       entry, &insert_rec, &big_rec, thr, &mtr);
       if (err == DB_SUCCESS && dict_index_is_spatial(index) &&
           rtr_info.mbr_adj) {
-        err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+        err = rtr_ins_enlarge_mbr(&cursor, &mtr);
       }
     } else {
       ut_ad(mode == BTR_MODIFY_TREE);
@@ -3041,7 +3039,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
       }
       if (err == DB_SUCCESS && dict_index_is_spatial(index) &&
           rtr_info.mbr_adj) {
-        err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+        err = rtr_ins_enlarge_mbr(&cursor, &mtr);
       }
     }
 

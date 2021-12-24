@@ -167,13 +167,12 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
 /** Get Server Tablespace object for a InnoDB table. The tablespace is
 acquired with MDL and for modification, so the caller can update the
 dd::Tablespace object returned.
-@param[in]	thd		server thread object
 @param[in,out]	dd_client	dictionary client to retrieve tablespace
                                 object
 @param[in]	ib_table	InnoDB table
 @return dd::Tablespace object or nullptr */
 static dd::Tablespace *dd_upgrade_get_tablespace(
-    THD *thd, dd::cache::Dictionary_client *dd_client, dict_table_t *ib_table) {
+    dd::cache::Dictionary_client *dd_client, dict_table_t *ib_table) {
   std::string tablespace_name;
 
   dd::Tablespace *ts_obj = nullptr;
@@ -696,8 +695,7 @@ static bool dd_upgrade_ensure_has_dd_space_id(THD *thd,
   }
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  dd::Tablespace *dd_space =
-      dd_upgrade_get_tablespace(thd, dd_client, ib_table);
+  dd::Tablespace *dd_space = dd_upgrade_get_tablespace(dd_client, ib_table);
   if (dd_space == nullptr) {
     return false;
   }
@@ -1336,12 +1334,7 @@ bool upgrade_space_version(dd::Tablespace *tablespace) {
   return (upgrade_space_version(space_id, false));
 }
 
-/** Upgrade innodb undo logs after upgrade. Also increment the table_id
-offset by DICT_MAX_DD_TABLES. This offset increment is because the
-first 256 table_ids are reserved for dictionary.
-@param[in,out]	thd		THD
-@return MySQL error code */
-int dd_upgrade_logs(THD *thd) {
+int dd_upgrade_logs(THD *) {
   int error = 0; /* return zero for success */
   DBUG_TRACE;
 
@@ -1460,13 +1453,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
   }
 }
 
-/** If upgrade is successful, this API is used to flush innodb
-dirty pages to disk. In case of server crash, this function
-sets storage engine for rollback any changes.
-@param[in,out]  thd             THD
-@param[in]	failed_upgrade	true when upgrade failed
-@return MySQL error code*/
-int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
+int dd_upgrade_finish(THD *, bool failed_upgrade) {
   DBUG_TRACE;
 
   dd_upgrade_fts_rename_cleanup(failed_upgrade);

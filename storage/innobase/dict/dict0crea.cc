@@ -78,7 +78,7 @@ dberr_t dict_build_table_def(dict_table_t *table,
     ut_ad(strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
-    dict_table_assign_new_id(table, trx);
+    dict_table_assign_new_id(table);
   }
 
   dberr_t err = dict_build_tablespace_for_table(table, create_info, trx);
@@ -160,7 +160,7 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
   ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-  bool ret = fsp_header_init(space, size, &mtr, false);
+  bool ret = fsp_header_init(space, size, &mtr);
   mtr_commit(&mtr);
 
   DBUG_EXECUTE_IF("fil_ibd_create_log",
@@ -277,7 +277,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
 
     mtr_start(&mtr);
 
-    bool ret = fsp_header_init(table->space, size, &mtr, false);
+    bool ret = fsp_header_init(table->space, size, &mtr);
 
     if (ret) {
       fil_set_autoextend_size(
@@ -416,9 +416,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 
   dberr_t err = DB_SUCCESS;
 
-  page_no =
-      btr_create(index->type, index->space, dict_table_page_size(index->table),
-                 index->id, index, &mtr);
+  page_no = btr_create(index->type, index->space, index->id, index, &mtr);
 
   index->page = page_no;
   index->trx_id = trx->id;
@@ -632,10 +630,7 @@ bool dict_foreigns_has_this_col(const dict_table_t *table,
   return (false);
 }
 
-/** Assign a new table ID and put it into the table cache and the transaction.
-@param[in,out]	table	Table that needs an ID
-@param[in,out]	trx	Transaction */
-void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
+void dict_table_assign_new_id(dict_table_t *table) {
   if (table->is_intrinsic()) {
     /* There is no significance of this table->id (if table is
     intrinsic) so assign it default instead of something meaningful
@@ -759,7 +754,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
     dict_mem_table_free(table);
     table = exist;
   } else {
-    dict_table_add_to_cache(table, TRUE, heap);
+    dict_table_add_to_cache(table, TRUE);
   }
 
   mem_heap_free(heap);

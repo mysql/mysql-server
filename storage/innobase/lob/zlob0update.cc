@@ -127,13 +127,12 @@ dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 }
 
 /** Find the location of the given offset within LOB.
-@param[in]	trx		The current transaction.
 @param[in]	index		The index where LOB is located.
 @param[in]	node_loc	The location of first page.
 @param[in,out]	offset		The requested offset.
 @param[in]	mtr		Mini-transaction context.
 @return the file address of requested offset or fil_addr_null. */
-fil_addr_t z_find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
+fil_addr_t z_find_offset(dict_index_t *index, fil_addr_t node_loc,
                          ulint &offset, mtr_t *mtr) {
   space_id_t space = dict_index_get_space(index);
   const page_size_t page_size = dict_table_page_size(index->table);
@@ -209,7 +208,7 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   fil_addr_t node_loc = flst_get_first(base_node, mtr);
 
   ulint yet_to_skip = offset;
-  node_loc = z_find_offset(trx, index, node_loc, yet_to_skip, mtr);
+  node_loc = z_find_offset(index, node_loc, yet_to_skip, mtr);
 
   ut_ad(!node_loc.is_null());
 
@@ -272,8 +271,8 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
       ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
       /* Chunk now contains new data to be inserted. */
-      ret = z_insert_chunk(index, first_page, trx, ref, chunk, len1, &new_entry,
-                           mtr, false);
+      ret = z_insert_chunk(index, first_page, trx, chunk, len1, &new_entry, mtr,
+                           false);
 
       if (ret != DB_SUCCESS) {
         return (ret);
@@ -295,8 +294,8 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
       /* Full chunk is to be replaced. No need to read
       old data. */
-      ret = z_insert_chunk(index, first_page, trx, ref, from_ptr, size,
-                           &new_entry, mtr, false);
+      ret = z_insert_chunk(index, first_page, trx, from_ptr, size, &new_entry,
+                           mtr, false);
 
       if (ret != DB_SUCCESS) {
         return (ret);

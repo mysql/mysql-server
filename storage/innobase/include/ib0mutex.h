@@ -95,8 +95,10 @@ struct OSTrackMutex {
   @param[in]	max_delay	max delay per spin
   @param[in]	filename	from where called
   @param[in]	line		within filename */
-  void enter(uint32_t max_spins, uint32_t max_delay, const char *filename,
-             uint32_t line) UNIV_NOTHROW {
+  void enter(uint32_t max_spins [[maybe_unused]],
+             uint32_t max_delay [[maybe_unused]],
+             const char *filename [[maybe_unused]],
+             uint32_t line [[maybe_unused]]) UNIV_NOTHROW {
     ut_ad(innodb_calling_exit || !m_freed);
 
     m_mutex.enter();

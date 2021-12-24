@@ -599,9 +599,6 @@ class ha_innobase : public handler {
   @param[in,out]	ha_alter_info	Structure describing changes to be done
                                   by ALTER TABLE and holding data used
                                   during in-place alter.
-  @param[in]	old_dd_tab	dd::Table object describing old version
-                                  of the table.
-  @param[in,out]	new_dd_tab	dd::Table object for the new version of
   the table. Can be adjusted by this call. Changes to the table definition will
   be persisted in the data-dictionary at statement commit time.
   @retval true Failure
@@ -609,8 +606,7 @@ class ha_innobase : public handler {
   */
   template <typename Table>
   bool inplace_alter_table_impl(TABLE *altered_table,
-                                Alter_inplace_info *ha_alter_info,
-                                const Table *old_dd_tab, Table *new_dd_tab);
+                                Alter_inplace_info *ha_alter_info);
 
   /** Implementation of commit_inplace_alter_table()
   @tparam		Table		dd::Table or dd::Partition
@@ -619,8 +615,6 @@ class ha_innobase : public handler {
                                   by ALTER TABLE and holding data used
                                   during in-place alter.
   @param[in]	commit		True to commit or false to rollback.
-  @param[in]	old_dd_tab      Table object describing old version
-                                  of the table.
   @param[in,out]	new_dd_tab	Table object for the new version of the
                                   table. Can be adjusted by this call.
                                   Changes to the table definition
@@ -631,8 +625,7 @@ class ha_innobase : public handler {
   template <typename Table>
   bool commit_inplace_alter_table_impl(TABLE *altered_table,
                                        Alter_inplace_info *ha_alter_info,
-                                       bool commit, const Table *old_dd_tab,
-                                       Table *new_dd_tab);
+                                       bool commit, Table *new_dd_tab);
 
   /**
     Return max limits for a single set of multi-valued keys

@@ -121,8 +121,7 @@ static uint32_t crash_before_alter_encrypt_space_log_counter = 1;
 /** Crash injection counter used after writing ALTER ENCRYPT TABLESPACE log */
 static uint32_t crash_after_alter_encrypt_space_log_counter = 1;
 
-void ddl_log_crash_reset(THD *thd, SYS_VAR *var, void *var_ptr,
-                         const void *save) {
+void ddl_log_crash_reset(THD *, SYS_VAR *, void *, const void *save) {
   const bool reset = *static_cast<const bool *>(save);
 
   innodb_ddl_log_crash_reset_debug = reset;
@@ -1598,7 +1597,7 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
       break;
 
     case Log_Type::RENAME_TABLE_LOG:
-      replay_rename_table_log(record.get_table_id(), record.get_old_file_path(),
+      replay_rename_table_log(record.get_old_file_path(),
                               record.get_new_file_path());
       break;
 
@@ -1807,7 +1806,7 @@ void Log_DDL::replay_drop_log(const table_id_t table_id) {
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }
 
-void Log_DDL::replay_rename_table_log(table_id_t table_id, const char *old_name,
+void Log_DDL::replay_rename_table_log(const char *old_name,
                                       const char *new_name) {
   if (is_in_recovery()) {
     if (srv_print_ddl_logs) {

@@ -329,13 +329,7 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
 }
 
 #ifdef UNIV_DEBUG
-/** Disables dict stats thread. It's used by:
-        SET GLOBAL innodb_dict_stats_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void dict_stats_disabled_debug_update(THD *thd, SYS_VAR *var, void *var_ptr,
+void dict_stats_disabled_debug_update(THD *, SYS_VAR *, void *,
                                       const void *save) {
   /* This method is protected by mutex, as every SET GLOBAL .. */
   ut_ad(dict_stats_disabled_event != nullptr);

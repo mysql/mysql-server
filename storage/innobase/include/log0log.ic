@@ -143,7 +143,7 @@ inline uint32_t log_block_calc_checksum_crc32(const byte *log_block) {
   return (ut_crc32(log_block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
 }
 
-inline uint32_t log_block_calc_checksum_none(const byte *log_block) {
+inline uint32_t log_block_calc_checksum_none(const byte *) {
   return (LOG_NO_CHECKSUM_MAGIC);
 }
 

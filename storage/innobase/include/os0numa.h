@@ -199,7 +199,7 @@ inline void *os_numa_alloc_onnode(size_t size, int node) {
 /** Free a memory allocated by os_numa_alloc_onnode().
 @param[in]	ptr	pointer to memory to free
 @param[in]	size	size of the memory */
-inline void os_numa_free(void *ptr, size_t size) {
+inline void os_numa_free(void *ptr, size_t size [[maybe_unused]]) {
 #if defined(HAVE_LIBNUMA)
   numa_free(ptr, size);
 #elif defined(HAVE_WINNUMA)

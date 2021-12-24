@@ -494,10 +494,8 @@ insert buffer tree root if space == 0.
 @param[in]	space_id	Space id
 @param[in]	size		Current size in blocks
 @param[in,out]	mtr		Mini-transaction
-@param[in]	is_boot		If it's for bootstrap
 @return	true on success, otherwise false. */
-bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
-                     bool is_boot);
+bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr);
 
 /** Increases the space size field of a space.
 @param[in] space_id Space id

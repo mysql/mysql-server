@@ -2060,14 +2060,8 @@ static void srv_master_do_disabled_loop(void) {
   srv_main_thread_op_info = "";
 }
 
-/** Disables master thread. It's used by:
-        SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
-void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
-                                             void *var_ptr, const void *save) {
+void srv_master_thread_disabled_debug_update(THD *, SYS_VAR *, void *,
+                                             const void *save) {
   /* This method is protected by mutex, as every SET GLOBAL .. */
   ut_ad(srv_master_thread_disabled_event != nullptr);
 
@@ -2514,7 +2508,7 @@ static bool srv_master_do_shutdown_tasks(
 }
 
 /* Enable REDO tablespace encryption */
-bool srv_enable_redo_encryption(bool is_boot) {
+bool srv_enable_redo_encryption() {
   /* Start to encrypt the redo log block from now on. */
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
@@ -2537,7 +2531,7 @@ bool srv_enable_redo_encryption(bool is_boot) {
   Encryption::random_value(key);
   Encryption::random_value(iv);
 
-  if (!log_write_encryption(key, iv, is_boot)) {
+  if (!log_write_encryption(key, iv)) {
     ib::error(ER_IB_MSG_1243);
     return true;
   }
@@ -2555,8 +2549,7 @@ bool srv_enable_redo_encryption(bool is_boot) {
 }
 
 /* Set encryption for UNDO tablespace with given space id. */
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot) {
+bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
   ut_ad(fsp_is_undo_tablespace(space_id));
   fil_space_t *space = fil_space_get(space_id);
 
@@ -2572,7 +2565,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
-  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {
+  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, true)) {
     ib::error(ER_IB_MSG_1052, space->name);
     return true;
   }
@@ -2598,7 +2591,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 }
 
 /* Enable UNDO tablespace encryption */
-bool srv_enable_undo_encryption(bool is_boot) {
+bool srv_enable_undo_encryption() {
   /* Make sure undo::ddl_mutex is owned. */
   ut_ad(mutex_own(&undo::ddl_mutex));
   bool ret_val = false;
@@ -2636,7 +2629,7 @@ bool srv_enable_undo_encryption(bool is_boot) {
     mtr_start(&mtr);
     mtr_x_lock_space(space, &mtr);
 
-    if (set_undo_tablespace_encryption(undo_space->id(), &mtr, is_boot)) {
+    if (set_undo_tablespace_encryption(undo_space->id(), &mtr)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
       ret_val = true;

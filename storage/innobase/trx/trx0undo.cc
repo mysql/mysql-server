@@ -1549,7 +1549,6 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 }
 
 /** Create a new undo log in the given rollback segment.
-@param[in]   trx    transaction
 @param[in]   rseg   rollback segment memory copy
 @param[in]   type   type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE
 @param[in]   trx_id  id of the trx for which the undo log is created
@@ -1562,7 +1561,7 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 @retval DB_OUT_OF_FILE_SPACE
 @retval DB_OUT_OF_MEMORY */
 [[nodiscard]] static dberr_t trx_undo_create(
-    trx_t *trx, trx_rseg_t *rseg, ulint type, trx_id_t trx_id, const XID *xid,
+    trx_rseg_t *rseg, ulint type, trx_id_t trx_id, const XID *xid,
     trx_undo_t::Gtid_storage gtid_storage, trx_undo_t **undo, mtr_t *mtr) {
   trx_rsegf_t *rseg_header;
   page_no_t page_no;
@@ -1613,7 +1612,6 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 /*================ UNDO LOG ASSIGNMENT AND CLEANUP =====================*/
 
 /** Reuses a cached undo log.
-@param[in,out]	trx	Transaction
 @param[in,out]	rseg	Rollback segment memory object
 @param[in]	type	Type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE
 @param[in]	trx_id	Id of the trx for which the undo log is used
@@ -1621,9 +1619,8 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 @param[in]      gtid_storage GTID storage type
 @param[in,out]	mtr	Mini-transaction
 @return the undo log memory object, NULL if none cached */
-static trx_undo_t *trx_undo_reuse_cached(trx_t *trx, trx_rseg_t *rseg,
-                                         ulint type, trx_id_t trx_id,
-                                         const XID *xid,
+static trx_undo_t *trx_undo_reuse_cached(trx_rseg_t *rseg, ulint type,
+                                         trx_id_t trx_id, const XID *xid,
                                          trx_undo_t::Gtid_storage gtid_storage,
                                          mtr_t *mtr) {
   trx_undo_t *undo;
@@ -1683,7 +1680,6 @@ static trx_undo_t *trx_undo_reuse_cached(trx_t *trx, trx_rseg_t *rseg,
 /** Marks an undo log header as a header of a data dictionary operation
  transaction. */
 static void trx_undo_mark_as_dict_operation(
-    trx_t *trx,       /*!< in: dict op transaction */
     trx_undo_t *undo, /*!< in: assigned undo log */
     mtr_t *mtr)       /*!< in: mtr */
 {
@@ -1768,12 +1764,12 @@ dberr_t trx_undo_assign_undo(
           ? nullptr
           :
 #endif
-          trx_undo_reuse_cached(trx, rseg, type, trx->id, trx->xid,
-                                gtid_storage, &mtr);
+          trx_undo_reuse_cached(rseg, type, trx->id, trx->xid, gtid_storage,
+                                &mtr);
 
   if (undo == nullptr) {
-    err = trx_undo_create(trx, rseg, type, trx->id, trx->xid, gtid_storage,
-                          &undo, &mtr);
+    err = trx_undo_create(rseg, type, trx->id, trx->xid, gtid_storage, &undo,
+                          &mtr);
     if (err != DB_SUCCESS) {
       goto func_exit;
     }
@@ -1795,7 +1791,7 @@ dberr_t trx_undo_assign_undo(
   }
 
   if (trx->ddl_operation || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-    trx_undo_mark_as_dict_operation(trx, undo, &mtr);
+    trx_undo_mark_as_dict_operation(undo, &mtr);
   }
 
   /* For GTID persistence we might add undo segment to prepared transaction. If
@@ -2097,11 +2093,11 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   mtr.start();
 
-  fsp_header_init(new_space_id, n_pages, &mtr, false);
+  fsp_header_init(new_space_id, n_pages, &mtr);
 
   /* If tablespace is to be encrypted, encrypt it now */
   if (is_encrypted && srv_undo_log_encrypt) {
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr);
     /* Don't expect any error here (unless keyring plugin is uninstalled). In
     that case too, continue truncation processing of tablespace. */
     ut_ad(!ret);

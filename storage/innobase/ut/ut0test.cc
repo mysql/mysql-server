@@ -580,7 +580,7 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
 }
 
 Ret_t Tester::print_dblwr_has_encrypted_pages(
-    std::vector<std::string> &tokens) noexcept {
+    std::vector<std::string> &) noexcept {
   std::ostringstream sout;
   if (dblwr::has_encrypted_pages()) {
     std::string m1("Double write file has encrypted pages.");
@@ -699,8 +699,10 @@ int interpreter_run(const char *command) noexcept {
 
 }  // namespace ib
 
-void ib_interpreter_update(MYSQL_THD thd, SYS_VAR *var, void *var_ptr,
-                           const void *save) {
+void ib_interpreter_update(MYSQL_THD thd [[maybe_unused]],
+                           SYS_VAR *var [[maybe_unused]],
+                           void *var_ptr [[maybe_unused]],
+                           const void *save [[maybe_unused]]) {
   TLOG("ib_interpreter_update");
 
   /* Point the THD variables - innodb_interpreter and innodb_interpreter_output
@@ -708,7 +710,8 @@ void ib_interpreter_update(MYSQL_THD thd, SYS_VAR *var, void *var_ptr,
   ib::tl_interpreter.update_thd_variable();
 }
 
-int ib_interpreter_check(THD *thd, SYS_VAR *var, void *save,
+int ib_interpreter_check(THD *thd [[maybe_unused]],
+                         SYS_VAR *var [[maybe_unused]], void *save,
                          struct st_mysql_value *value) {
   TLOG("ib_interpreter_check");
   char buff[STRING_BUFFER_USUAL_SIZE];

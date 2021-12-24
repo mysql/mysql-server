@@ -1595,10 +1595,9 @@ bool fil_system_get_file_by_space_num(space_id_t space_num,
 
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
-@param[in,out]	trx		Transaction covering the close
 @param[in]	space_id	Tablespace ID
 @return DB_SUCCESS or error */
-[[nodiscard]] dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id);
+[[nodiscard]] dberr_t fil_close_tablespace(space_id_t space_id);
 
 /** Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -2198,16 +2197,17 @@ void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
-@param[in]  dd_object_id  server DD tablespace ID
 @param[in]  space_id      tablespace ID to lookup
 @param[in]  space_name    tablespace name
 @param[in]  fsp_flags     tablespace flags
 @param[in]  old_path      the path found in dd:Tablespace_files
 @param[out] new_path      the scanned path for this space_id
 @return status of the match. */
-[[nodiscard]] Fil_state fil_tablespace_path_equals(
-    dd::Object_id dd_object_id, space_id_t space_id, const char *space_name,
-    ulint fsp_flags, std::string old_path, std::string *new_path);
+[[nodiscard]] Fil_state fil_tablespace_path_equals(space_id_t space_id,
+                                                   const char *space_name,
+                                                   ulint fsp_flags,
+                                                   std::string old_path,
+                                                   std::string *new_path);
 
 /** This function should be called after recovery has completed.
 Check for tablespace files for which we did not see any MLOG_FILE_DELETE

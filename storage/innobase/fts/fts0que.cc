@@ -1594,10 +1594,10 @@ static bool fts_proximity_is_word_in_range(
  Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
  @return 0 if match, or return non-zero */
 static int fts_query_match_phrase_add_word_for_parser(
-    MYSQL_FTPARSER_PARAM *param,       /*!< in: parser param */
-    char *word,                        /*!< in: token */
-    int word_len,                      /*!< in: token length */
-    MYSQL_FTPARSER_BOOLEAN_INFO *info) /*!< in: token info */
+    MYSQL_FTPARSER_PARAM *param,                        /*!< in: parser param */
+    char *word,                                         /*!< in: token */
+    int word_len,                                       /*!< in: token length */
+    MYSQL_FTPARSER_BOOLEAN_INFO *info [[maybe_unused]]) /*!< in: token info */
 {
   fts_phrase_param_t *phrase_param;
   fts_phrase_t *phrase;

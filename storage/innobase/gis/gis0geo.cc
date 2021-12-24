@@ -39,8 +39,7 @@ class Spatial_reference_system;
 
 /** Copy mbr of dimension n_dim from src to dst. */
 inline static void copy_coords(double *dst,       /*!< in/out: destination. */
-                               const double *src, /*!< in: source. */
-                               int n_dim)         /*!< in: dimensions. */
+                               const double *src) /*!< in: source. */
 {
   memcpy(dst, src, DATA_MBR_LEN);
 }
@@ -190,9 +189,9 @@ int split_rtree_node(
   a->n_node = 1;
   b->n_node = 2;
 
-  copy_coords(g1, a->coords, n_dim);
+  copy_coords(g1, a->coords);
   size1 += key_size;
-  copy_coords(g2, b->coords, n_dim);
+  copy_coords(g2, b->coords);
   size2 += key_size;
 
   for (i = n_entries - 2; i > 0; --i) {
