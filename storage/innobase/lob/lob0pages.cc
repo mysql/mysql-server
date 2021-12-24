@@ -31,8 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void data_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                 ulint &want, mtr_t *mtr) {
+void data_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                 mtr_t *mtr) {
   byte *old_ptr = data_begin() + offset;
 
   ulint data_len = get_data_len();
@@ -166,13 +166,7 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   return (m_block);
 }
 
-/** Write data into a data page.
-@param[in]	trxid	the transaction identifier of the session writing data.
-@param[in,out]	data	the data to be written.  it will be updated to point
-to the byte not yet written.
-@param[in,out]	len	length of data to be written.
-@return amount of data actually written into the page. */
-ulint data_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
+ulint data_page_t::write(const byte *&data, ulint &len) {
   byte *ptr = data_begin();
   ulint written = (len > payload()) ? payload() : len;
 

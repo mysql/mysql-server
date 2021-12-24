@@ -123,10 +123,10 @@ dberr_t Inserter::write_one_small_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
   big_rec_field_t &field = vec->fields[blob_j];
 
-  m_err = write_first_page(blob_j, field);
+  m_err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; is_ok() && m_remaining > 0; ++nth_blob_page) {
-    m_err = write_single_blob_page(blob_j, field, nth_blob_page);
+    m_err = write_single_blob_page(field, nth_blob_page);
   }
 
   m_ctx->make_nth_extern(field.field_no);
@@ -145,7 +145,7 @@ dberr_t Inserter::write_one_blob(size_t blob_j) {
 
   m_ctx->check_redolog();
 
-  m_err = write_first_page(blob_j, field);
+  m_err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; is_ok() && m_remaining > 0; ++nth_blob_page) {
     const ulint commit_freq = 4;
@@ -154,7 +154,7 @@ dberr_t Inserter::write_one_blob(size_t blob_j) {
       m_ctx->check_redolog();
     }
 
-    m_err = write_single_blob_page(blob_j, field, nth_blob_page);
+    m_err = write_single_blob_page(field, nth_blob_page);
   }
 
   m_ctx->make_nth_extern(field.field_no);
@@ -174,11 +174,7 @@ void Inserter::set_page_next() {
                    m_cur_blob_page_no, MLOG_4BYTES, &m_blob_mtr);
 }
 
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return DB_SUCCESS on success. */
-dberr_t Inserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
+dberr_t Inserter::write_first_page(big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
@@ -211,13 +207,7 @@ dberr_t Inserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   return (m_err);
 }
 
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object in big fields vector.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return DB_SUCCESS or DB_FAIL. */
-dberr_t Inserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
+dberr_t Inserter::write_single_blob_page(big_rec_field_t &field,
                                          ulint nth_blob_page) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();

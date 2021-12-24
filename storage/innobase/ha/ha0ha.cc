@@ -145,13 +145,13 @@ bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
   /* We have to allocate a new chain node */
 
   node = static_cast<ha_node_t *>(
-      mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t)));
+      mem_heap_alloc(hash_get_heap(table), sizeof(ha_node_t)));
 
   if (node == nullptr) {
     /* It was a btr search type memory heap and at the moment
     no more memory could be allocated: return */
 
-    ut_ad(hash_get_heap(table, fold)->type & MEM_HEAP_BTR_SEARCH);
+    ut_ad(hash_get_heap(table)->type & MEM_HEAP_BTR_SEARCH);
 
     return false;
   }

@@ -102,7 +102,7 @@ static inline void buf_buddy_mem_invalid(
   UNIV_MEM_INVALID(buf, size);
 }
 #else  /* UNIV_DEBUG_VALGRIND */
-static inline void buf_buddy_mem_invalid(buf_buddy_free_t *buf, ulint i) {
+static inline void buf_buddy_mem_invalid(buf_buddy_free_t *, ulint i) {
   ut_ad(i <= BUF_BUDDY_SIZES);
 }
 #endif /* UNIV_DEBUG_VALGRIND */

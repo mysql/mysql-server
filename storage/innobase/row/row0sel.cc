@@ -2251,30 +2251,9 @@ que_thr_t *fetch_step(que_thr_t *thr) /*!< in: query thread */
   return (thr);
 }
 
-/** Converts a key value stored in MySQL format to an Innobase dtuple. The last
- field of the key value may be just a prefix of a fixed length field: hence
- the parameter key_len. But currently we do not allow search keys where the
- last field is only a prefix of the full key field len and print a warning if
- such appears. A counterpart of this function is
- ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
-void row_sel_convert_mysql_key_to_innobase(
-    dtuple_t *tuple,     /*!< in/out: tuple where to build;
-                         NOTE: we assume that the type info
-                         in the tuple is already according
-                         to index! */
-    byte *buf,           /*!< in: buffer to use in field
-                         conversions; NOTE that dtuple->data
-                         may end up pointing inside buf so
-                         do not discard that buffer while
-                         the tuple is being used. See
-                         row_mysql_store_col_in_innobase_format()
-                         in the case of DATA_INT */
-    ulint buf_len,       /*!< in: buffer length */
-    dict_index_t *index, /*!< in: index of the key value */
-    const byte *key_ptr, /*!< in: MySQL key value */
-    ulint key_len,       /*!< in: MySQL key value length */
-    trx_t *trx)          /*!< in: transaction */
-{
+void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
+                                           ulint buf_len, dict_index_t *index,
+                                           const byte *key_ptr, ulint key_len) {
   byte *original_buf = buf;
   const byte *original_key_ptr = key_ptr;
   dict_field_t *field;
@@ -3133,8 +3112,7 @@ non-clustered index. Does the necessary locking.
   *out_rec = nullptr;
   trx = thr_get_trx(thr);
 
-  row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets,
-                             trx);
+  row_build_row_ref_in_tuple(prebuilt->clust_ref, rec, sec_index, *offsets);
 
   clust_index = sec_index->table->first_index();
 

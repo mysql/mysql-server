@@ -1461,11 +1461,9 @@ static ST_FIELD_INFO i_s_cmpmem_fields_info[] = {
 innodb_cmpmem_reset.
 @param[in]	thd	thread
 @param[in,out]	tables	tables to fill
-@param[in]	item	condition (ignored)
 @param[in]	reset	true=reset cumulated counts
 @return 0 on success, 1 on failure */
-static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
-                               bool reset) {
+static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, bool reset) {
   int status = 0;
   TABLE *table = (TABLE *)tables->table;
 
@@ -1536,9 +1534,9 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
  @return 0 on success, 1 on failure */
 static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
                            TABLE_LIST *tables, /*!< in/out: tables to fill */
-                           Item *cond)         /*!< in: condition (ignored) */
+                           Item *)             /*!< in: condition (ignored) */
 {
-  return (i_s_cmpmem_fill_low(thd, tables, cond, false));
+  return (i_s_cmpmem_fill_low(thd, tables, false));
 }
 
 /** Fill the dynamic table information_schema.innodb_cmpmem_reset.
@@ -1546,9 +1544,9 @@ static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
 static int i_s_cmpmem_reset_fill(
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+    Item *)             /*!< in: condition (ignored) */
 {
-  return (i_s_cmpmem_fill_low(thd, tables, cond, true));
+  return (i_s_cmpmem_fill_low(thd, tables, true));
 }
 
 /** Bind the dynamic table information_schema.innodb_cmpmem.
@@ -5216,7 +5214,7 @@ struct st_mysql_plugin i_s_innodb_buffer_page_lru = {
 
 /** Unbind a dynamic INFORMATION_SCHEMA table.
  @return 0 on success */
-static int i_s_common_deinit(void *p) /*!< in/out: table schema object */
+static int i_s_common_deinit(void *) /*!< in/out: table schema object */
 {
   DBUG_TRACE;
 

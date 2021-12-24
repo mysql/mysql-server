@@ -47,9 +47,7 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
                                   const upd_field_t *uf) {
   DBUG_TRACE;
 
-  trx_t *trx = nullptr;
-
-  dberr_t err = apply_undolog(ctx->get_mtr(), trx, index, ctx->m_blobref, uf);
+  dberr_t err = apply_undolog(ctx->get_mtr(), index, ctx->m_blobref, uf);
   ut_a(err == DB_SUCCESS);
 }
 
@@ -116,7 +114,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     flst_node_t *node = first.addr2ptr_x(node_loc);
     index_entry_t cur_entry(node, &local_mtr, index);
     if (cur_entry.can_rollback(trxid, undo_no)) {
-      node_loc = cur_entry.make_old_version_current(index, trxid, first);
+      node_loc = cur_entry.make_old_version_current(index, first);
     } else {
       node_loc = cur_entry.get_next();
     }
@@ -226,7 +224,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     z_index_entry_t cur_entry(node, &local_mtr, index);
 
     if (cur_entry.can_rollback(trxid, undo_no)) {
-      node_loc = cur_entry.make_old_version_current(index, trxid, first);
+      node_loc = cur_entry.make_old_version_current(index, first);
     } else {
       node_loc = cur_entry.get_next();
     }
@@ -379,8 +377,7 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       z_index_entry_t vers_entry(ver_node, &lob_mtr, index);
 
       if (vers_entry.can_be_purged(trxid, undo_no)) {
-        ver_loc =
-            vers_entry.purge_version(index, trxid, first, vers, free_list);
+        ver_loc = vers_entry.purge_version(index, first, vers, free_list);
       } else {
         ver_loc = vers_entry.get_next();
       }
@@ -556,7 +553,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       index_entry_t vers_entry(ver_node, &lob_mtr, index);
 
       if (vers_entry.can_be_purged(trxid, undo_no)) {
-        ver_loc = vers_entry.purge_version(index, trxid, vers, free_list);
+        ver_loc = vers_entry.purge_version(index, vers, free_list);
       } else {
         ver_loc = vers_entry.get_next();
       }

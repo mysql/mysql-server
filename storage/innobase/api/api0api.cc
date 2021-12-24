@@ -3156,13 +3156,15 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
 transaction will be flushed to disk.
 @param[in]	space_id	tablespace id
 @return DB_SUCCESS always */
-ib_err_t ib_sdi_flush(space_id_t space_id) { return (DB_SUCCESS); }
+ib_err_t ib_sdi_flush(space_id_t space_id [[maybe_unused]]) {
+  return (DB_SUCCESS);
+}
 
 #ifdef UNIV_MEMCACHED_SDI
 /** Parse string a unsigned long number
 @param[in]	num_str		input string which has number
 @param[out]	dest_num	Number converted from input string
-@return DB_SUCCESS on successful converstion, else DB_ERROR */
+@return DB_SUCCESS on successful conversion, else DB_ERROR */
 static ib_err_t parse_string_to_number(const char *num_str,
                                        uint64_t *dest_num) {
   char *endptr;
@@ -3183,7 +3185,7 @@ static ib_err_t parse_string_to_number(const char *num_str,
 
 /** Extracts SDI key from the memcached key. For example if the key is
 "sdi_3:4", it parses as type:3, id:4
-@param[in]	key_str		Memached key
+@param[in]	key_str		Memcached key
 @param[in,out]	sk		SDI key
 @return DB_SUCCESS if SDI key extraction is successful, else error */
 static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {

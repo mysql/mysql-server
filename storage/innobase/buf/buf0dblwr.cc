@@ -456,10 +456,8 @@ class Double_write {
       uint32_t segments_per_file) noexcept;
 
   /** Create the single page flush segments.
-  @param[in] segments_per_file  Number of configured segments per file.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] static dberr_t create_single_segments(
-      uint32_t segments_per_file) noexcept;
+  [[nodiscard]] static dberr_t create_single_segments() noexcept;
 
   /** Get the instance that handles a particular page's IO. Submit the
   write request to the a double write queue that is empty.
@@ -1583,8 +1581,7 @@ dberr_t Double_write::create_batch_segments(
   return DB_SUCCESS;
 }
 
-dberr_t Double_write::create_single_segments(
-    uint32_t segments_per_file) noexcept {
+dberr_t Double_write::create_single_segments() noexcept {
   ut_a(s_single_segments == nullptr);
 
   const auto n_segments =
@@ -1909,7 +1906,7 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
   return DB_SUCCESS;
 }
 
-dberr_t dblwr::open(bool create_new_db) noexcept {
+dberr_t dblwr::open() noexcept {
   ut_a(!dblwr::dir.empty());
   ut_a(Double_write::s_files.empty());
   ut_a(Double_write::s_n_instances == 0);
@@ -1990,7 +1987,7 @@ dberr_t dblwr::open(bool create_new_db) noexcept {
 
   /* Create the segments for the single page flushes. */
   if (err == DB_SUCCESS) {
-    err = Double_write::create_single_segments(segments_per_file);
+    err = Double_write::create_single_segments();
   }
 
   if (err == DB_SUCCESS) {

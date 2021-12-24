@@ -107,30 +107,28 @@ byte *trx_undo_update_rec_get_sys_cols(
 struct type_cmpl_t;
 
 /** Builds an update vector based on a remaining part of an undo log record.
- @return remaining part of the record, NULL if an error detected, which
- means that the record is corrupted. */
-byte *trx_undo_update_rec_get_update(
-    const byte *ptr,            /*!< in: remaining part in update undo log
-                                record, after reading the row reference
-                                NOTE that this copy of the undo log record must
-                                be preserved as long as the update vector is
-                                used, as we do NOT copy the data in the
-                                record! */
-    const dict_index_t *index,  /*!< in: clustered index */
-    ulint type,                 /*!< in: TRX_UNDO_UPD_EXIST_REC,
-                                TRX_UNDO_UPD_DEL_REC, or
-                                TRX_UNDO_DEL_MARK_REC; in the last case,
-                                only trx id and roll ptr fields are added to
-                                the update vector */
-    trx_id_t trx_id,            /*!< in: transaction id from this undo record */
-    roll_ptr_t roll_ptr,        /*!< in: roll pointer from this undo record */
-    ulint info_bits,            /*!< in: info bits from this undo record */
-    trx_t *trx,                 /*!< in: transaction */
-    mem_heap_t *heap,           /*!< in: memory heap from which the memory
-                                needed is allocated */
-    upd_t **upd,                /*!< out, own: update vector */
-    lob::undo_vers_t *lob_undo, /*!< out: LOB undo information. */
-    type_cmpl_t &type_cmpl);    /*!< out: type compilation info */
+@param[in] ptr Remaining part in update undo log record, after reading the row
+reference. NOTE that this copy of the undo log record must be preserved as long
+as the update vector is used, as we do NOT copy the data in the record!
+@param[in] index Clustered index.
+@param[in] type TRX_UNDO_UPD_EXIST_REC, TRX_UNDO_UPD_DEL_REC, or
+TRX_UNDO_DEL_MARK_REC; in the last case, only trx id and roll ptr fields are
+added to the update vector.
+@param[in] trx_id Transaction id from this undo record.
+@param[in] roll_ptr Roll pointer from this undo record.
+@param[in] info_bits Info bits from this undo record.
+@param[in] heap Memory heap from which the memory needed is allocated.
+@param[out] upd Update vector.
+@param[out] lob_undo LOB undo information.
+@param[out] type_cmpl Type compilation info.
+@return remaining part of the record, NULL if an error detected, which
+means that the record is corrupted. */
+byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
+                                     ulint type, trx_id_t trx_id,
+                                     roll_ptr_t roll_ptr, ulint info_bits,
+                                     mem_heap_t *heap, upd_t **upd,
+                                     lob::undo_vers_t *lob_undo,
+                                     type_cmpl_t &type_cmpl);
 
 /** Builds a partial row from an update undo log record, for purge.
  It contains the columns which occur as ordering in any index of the table.

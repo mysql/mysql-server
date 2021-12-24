@@ -257,7 +257,7 @@ dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
   }
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-    dict_get_and_save_space_name(table, true);
+    dict_get_and_save_space_name(table);
   }
 
   new (&table->foreign_set) dict_foreign_set();

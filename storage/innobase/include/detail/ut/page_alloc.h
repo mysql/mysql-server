@@ -97,7 +97,7 @@ inline void *page_aligned_alloc(size_t n_bytes) {
     @param[in] n_bytes Size of the storage.
     @return True if releasing the page-aligned memory was successful.
  */
-inline bool page_aligned_free(void *ptr, size_t n_bytes) {
+inline bool page_aligned_free(void *ptr, size_t n_bytes [[maybe_unused]]) {
   if (unlikely(!ptr)) return false;
 #ifdef _WIN32
   auto ret = VirtualFree(ptr, 0, MEM_RELEASE);

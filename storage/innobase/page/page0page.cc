@@ -2487,18 +2487,8 @@ const rec_t *page_find_rec_with_heap_no(
   }
 }
 
-/** Removes the record from a leaf page. This function does not log
- any changes. It is used by the IMPORT tablespace functions.
- The cursor is moved to the next record after the deleted one.
- @return true if success, i.e., the page did not become too empty */
-bool page_delete_rec(
-    const dict_index_t *index, /*!< in: The index that the record
-                               belongs to */
-    page_cur_t *pcur,          /*!< in/out: page cursor on record
-                               to delete */
-    page_zip_des_t *page_zip,  /*!< in: compressed page descriptor */
-    const ulint *offsets)      /*!< in: offsets for record */
-{
+bool page_delete_rec(const dict_index_t *index, page_cur_t *pcur,
+                     const ulint *offsets) {
   bool no_compress_needed;
   buf_block_t *block = pcur->block;
   page_t *page = buf_block_get_frame(block);

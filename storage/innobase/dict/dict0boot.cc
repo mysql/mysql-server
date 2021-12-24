@@ -280,7 +280,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false, heap);
+    dict_table_add_to_cache(table, false);
     dict_sys_mutex_exit();
     dict_sys->sys_tables = table;
     mem_heap_empty(heap);
@@ -325,7 +325,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false, heap);
+    dict_table_add_to_cache(table, false);
     dict_sys_mutex_exit();
     dict_sys->sys_columns = table;
     mem_heap_empty(heap);
@@ -361,7 +361,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false, heap);
+    dict_table_add_to_cache(table, false);
     dict_sys_mutex_exit();
     dict_sys->sys_indexes = table;
     mem_heap_empty(heap);
@@ -390,7 +390,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false, heap);
+    dict_table_add_to_cache(table, false);
     dict_sys_mutex_exit();
     dict_sys->sys_fields = table;
     mem_heap_free(heap);

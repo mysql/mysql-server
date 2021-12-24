@@ -285,15 +285,16 @@ tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
                               void *not_fit_in_memory);
 
 /** Parses an index creation operation.
- @return index create subgraph */
-ind_node_t *pars_create_index(
-    pars_res_word_t *unique_def,    /*!< in: not NULL if a unique index */
-    pars_res_word_t *clustered_def, /*!< in: not NULL if a clustered index */
-    sym_node_t *index_sym,          /*!< in: index name node in the symbol
-                                    table */
-    sym_node_t *table_sym,          /*!< in: table name node in the symbol
-                                    table */
-    sym_node_t *column_list);       /*!< in: list of column names */
+@param[in] unique_def Not NULL if a unique index.
+@param[in] clustered_def Not NULL if a clustered index.
+@param[in] index_sym Index name node in the symbol table.
+@param[in] table_sym Table name node in the symbol table.
+@param[in] column_list List of column names.
+@return index create subgraph */
+ind_node_t *pars_create_index(pars_res_word_t *unique_def,
+                              pars_res_word_t *clustered_def,
+                              sym_node_t *index_sym, sym_node_t *table_sym,
+                              sym_node_t *column_list);
 /** Parses a procedure definition.
  @return query fork node */
 que_fork_t *pars_procedure_definition(

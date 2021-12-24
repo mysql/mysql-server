@@ -150,8 +150,7 @@ static bool row_upd_changes_first_fields_binary(
  we leave this function: this function is only for heuristic use!
 
  @return true if referenced */
-static bool row_upd_index_is_referenced(dict_index_t *index, /*!< in: index */
-                                        trx_t *trx) /*!< in: transaction */
+static bool row_upd_index_is_referenced(dict_index_t *index) /*!< in: index */
 {
   dict_table_t *table = index->table;
   bool is_referenced = false;
@@ -793,7 +792,7 @@ upd_t *row_upd_build_sec_rec_difference_binary(
 
       dfield_copy(&(upd_field->new_val), dfield);
 
-      upd_field_set_field_no(upd_field, i, index, nullptr);
+      upd_field_set_field_no(upd_field, i, index);
 
       n_diff++;
     }
@@ -883,7 +882,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
 
       dfield_copy(&(upd_field->new_val), dfield);
 
-      upd_field_set_field_no(upd_field, i, index, trx);
+      upd_field_set_field_no(upd_field, i, index);
 
       n_diff++;
     }
@@ -1345,18 +1344,8 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
   }
 }
 
-/** Replaces the new column values stored in the update vector.
-@param[in] trx Current transaction.
-@param[in,out] row Row where replaced, indexed by col_no; the clustered index
-record must be covered by a lock or a page latch to prevent deletion (rollback
-or purge)
-@param[in,out] ext Null, or externally stored column prefixes
-@param[in] index Clustered index
-@param[in] update An update vector built for the clustered index
-@param[in] heap Memory heap */
-void row_upd_replace(trx_t *trx, dtuple_t *row, row_ext_t **ext,
-                     const dict_index_t *index, const upd_t *update,
-                     mem_heap_t *heap) {
+void row_upd_replace(dtuple_t *row, row_ext_t **ext, const dict_index_t *index,
+                     const upd_t *update, mem_heap_t *heap) {
   ulint col_no;
   ulint i;
   ulint n_cols;
@@ -1891,14 +1880,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
   }
 }
 
-/** Stores to the heap the row on which the node->pcur is positioned.
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
-                                user thread invokes dml */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table) {
+void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table) {
   dict_index_t *clust_index;
   rec_t *rec;
   mem_heap_t *heap = nullptr;
@@ -1945,8 +1927,8 @@ void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
     node->upd_ext = nullptr;
   } else {
     node->upd_row = dtuple_copy(node->row, node->heap);
-    row_upd_replace(trx, node->upd_row, &node->upd_ext, clust_index,
-                    node->update, node->heap);
+    row_upd_replace(node->upd_row, &node->upd_ext, clust_index, node->update,
+                    node->heap);
   }
 
   if (UNIV_LIKELY_NULL(heap)) {
@@ -1974,12 +1956,10 @@ is built on multi-value field
 @param[in]	index	the multi-value index
 @param[in]	entry	the entry to handle on the index
 @param[in]	thr	query thread
-@param[in,out]	heap	memory heap
 @return DB_SUCCESS on success, otherwise error code */
 static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
                                                             dtuple_t *entry,
-                                                            que_thr_t *thr,
-                                                            mem_heap_t *heap) {
+                                                            que_thr_t *thr) {
   mtr_t mtr;
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
@@ -1992,7 +1972,7 @@ static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
 
   ut_ad(trx->id != 0);
   ut_ad(!index->table->is_intrinsic());
-  ut_ad(!row_upd_index_is_referenced(index, trx));
+  ut_ad(!row_upd_index_is_referenced(index));
   ut_ad(index->is_committed());
   ut_ad(!dict_index_is_online_ddl(index));
 
@@ -2091,7 +2071,7 @@ code or DB_LOCK_WAIT */
 
   ut_ad(!dict_index_is_spatial(index));
   ut_ad(!index->table->is_intrinsic());
-  ut_ad(!row_upd_index_is_referenced(index, trx));
+  ut_ad(!row_upd_index_is_referenced(index));
   ut_ad(index->is_committed());
   ut_ad(!dict_index_is_online_ddl(index));
 
@@ -2106,7 +2086,7 @@ code or DB_LOCK_WAIT */
         node->row, node->ext, index, heap, true, !non_mv_upd);
     for (dtuple_t *entry = mv_entry_builder.begin(node->del_multi_val_pos);
          entry != nullptr; entry = mv_entry_builder.next()) {
-      err = row_upd_del_one_multi_sec_index_entry(index, entry, thr, heap);
+      err = row_upd_del_one_multi_sec_index_entry(index, entry, thr);
       if (err != DB_SUCCESS) {
         node->del_multi_val_pos = mv_entry_builder.last_multi_value_position();
         goto func_exit;
@@ -2175,7 +2155,7 @@ code or DB_LOCK_WAIT */
     }
   });
 
-  auto referenced = row_upd_index_is_referenced(index, trx);
+  auto referenced = row_upd_index_is_referenced(index);
 
   heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
@@ -2407,7 +2387,7 @@ code or DB_LOCK_WAIT */
 
   ut_ad(trx->id != 0);
   ut_ad(!node->index->table->is_intrinsic());
-  ut_ad(!row_upd_index_is_referenced(node->index, trx));
+  ut_ad(!row_upd_index_is_referenced(node->index));
   ut_ad(node->index->is_committed());
   ut_ad(!dict_index_is_online_ddl(node->index));
 
@@ -2789,7 +2769,7 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   ut_ad(rec_offs_validate(btr_cur_get_rec(btr_cur), index, offsets));
 
   if (dict_index_is_online_ddl(index)) {
-    rebuilt_old_pk = row_log_table_get_pk(trx, btr_cur_get_rec(btr_cur), index,
+    rebuilt_old_pk = row_log_table_get_pk(btr_cur_get_rec(btr_cur), index,
                                           offsets, nullptr, &heap);
   }
 
@@ -2920,7 +2900,6 @@ func_exit:
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
   dberr_t err;
-  trx_t *trx = thr_get_trx(thr);
 
   ut_ad(node);
   ut_ad(index->is_clustered());
@@ -2932,7 +2911,7 @@ func_exit:
   /* Store row because we have to build also the secondary index
   entries */
 
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd,
+  row_upd_store_row(node, thr_get_trx(thr)->mysql_thd,
                     thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
 
   /* Mark the clustered index record deleted; we do not have to check
@@ -2974,7 +2953,7 @@ func_exit:
 
   index = node->table->first_index();
 
-  auto referenced = row_upd_index_is_referenced(index, trx);
+  auto referenced = row_upd_index_is_referenced(index);
 
   pcur = node->pcur;
 
@@ -3072,7 +3051,7 @@ func_exit:
     goto exit_func;
   }
 
-  row_upd_store_row(trx, node, trx->mysql_thd,
+  row_upd_store_row(node, trx->mysql_thd,
                     thr->prebuilt ? thr->prebuilt->m_mysql_table : nullptr);
 
   if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
@@ -3338,44 +3317,9 @@ std::ostream &upd_t::print(std::ostream &out) const {
   return (out);
 }
 
-/** Print the given binary diff into the given output stream.
-@param[in]	out	the output stream
-@param[in]	uf	the update vector of concerned field.
-@param[in]	bdiff	binary diff to be printed.
-@param[in]	table	the table dictionary object.
-@param[in]	field	mysql field object.
-@return the output stream */
-static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
-                                       const Binary_diff *bdiff,
-                                       const dict_table_t *table,
-                                       const Field *field) {
-  ulint field_no = 0;
-  if (table != nullptr) {
-    dict_col_t *col = table->get_col(field->field_index());
-    field_no = dict_col_get_clust_pos(col, table->first_index());
-  }
-
-  const char *to = bdiff->new_data(const_cast<Field *>(field));
-  size_t len = bdiff->length();
-
-  const char *from = bdiff->old_data(const_cast<Field *>(field));
-
-  out << "[Binary_diff: field_index=" << field->field_index()
-      << ", field_no=" << field_no << ", offset=" << bdiff->offset()
-      << ", length=" << len << ", new_data=" << PrintBuffer(to, len)
-      << ", old_data=" << PrintBuffer(from, len) << "]";
-
-  return (out);
-}
-
-/** Print the given binary diff into the given output stream.
-@param[in]	out	the output stream
-@param[in]	bdiff	binary diff to be printed.
-@param[in]	table	the table dictionary object.
-@param[in]	field	mysql field object.
-@return the output stream */
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
-                                const dict_table_t *table, const Field *field) {
+                                const dict_table_t *table, const Field *field,
+                                bool print_old) {
   ulint field_no = 0;
   if (table != nullptr) {
     dict_col_t *col = table->get_col(field->field_index());
@@ -3388,6 +3332,12 @@ std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
   out << "[Binary_diff: field_index=" << field->field_index()
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
       << ", length=" << len << ", new_data=" << PrintBuffer(to, len) << "]";
+
+  if (print_old) {
+    const char *from = bdiff->old_data(const_cast<Field *>(field));
+    out << ", old_data=" << PrintBuffer(from, len);
+  }
+  out << "]";
 
   return (out);
 }
@@ -3415,7 +3365,7 @@ std::ostream &upd_t::print_puvect(std::ostream &out, upd_field_t *uf) const {
   for (Binary_diff_vector::const_iterator iter = dv->begin(); iter != dv->end();
        ++iter) {
     const Binary_diff *bdiff = iter;
-    print_binary_diff(out, uf, bdiff, table, fld);
+    print_binary_diff(out, bdiff, table, fld, true);
   }
 
   return (out);

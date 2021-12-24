@@ -670,10 +670,9 @@ class RecLock {
   @param[in] index	Index on which record lock requested
   @param[in] block	Buffer page containing record
   @param[in] heap_no	Heap number within the block
-  @param[in] mode		The lock mode
-  @param[in] prdt		The predicate for the rtree lock */
+  @param[in] mode		The lock mode */
   RecLock(que_thr_t *thr, dict_index_t *index, const buf_block_t *block,
-          ulint heap_no, ulint mode, lock_prdt_t *prdt = nullptr)
+          ulint heap_no, ulint mode)
       : m_thr(thr),
         m_trx(thr_get_trx(thr)),
         m_mode(mode),

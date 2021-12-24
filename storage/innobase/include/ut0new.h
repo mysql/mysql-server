@@ -2221,7 +2221,7 @@ class allocator : public Allocator_base {
   };
 
   /** Equality of allocators instantiated with same types T. */
-  inline bool operator==(const ut::allocator<T, Allocator_base> &other) const {
+  inline bool operator==(const ut::allocator<T, Allocator_base> &) const {
     return true;
   }
   /** Non-equality of allocators instantiated with same types T. */
@@ -2250,7 +2250,7 @@ class allocator : public Allocator_base {
                               not used by this implementation
       @return pointer to the allocated memory
     */
-  pointer allocate(size_type n_elements, const_pointer hint = nullptr) {
+  pointer allocate(size_type n_elements, const_pointer = nullptr) {
     if (unlikely(n_elements > max_size())) {
       throw std::bad_array_new_length();
     }
@@ -2269,7 +2269,7 @@ class allocator : public Allocator_base {
       @param[in,out]  ptr         pointer to memory to free
       @param[in]      n_elements  number of elements allocated (unused)
    */
-  void deallocate(pointer ptr, size_type n_elements = 0) { ut::free(ptr); }
+  void deallocate(pointer ptr, size_type = 0) { ut::free(ptr); }
 };
 
 namespace detail {

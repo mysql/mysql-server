@@ -1026,24 +1026,16 @@ void srv_worker_thread();
 /** Set encryption for UNDO tablespace with given space id.
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction
-@param[in] is_boot	true if it is called during server start up.
 @return false for success, true otherwise */
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
-                                    bool is_boot);
+bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr);
 
 /** Enable UNDO tablespaces encryption.
-@param[in] is_boot	true if it is called during server start up. In this
-                        case, default master key will be used which will be
-                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
-bool srv_enable_undo_encryption(bool is_boot);
+bool srv_enable_undo_encryption();
 
 /** Enable REDO log encryption.
-@param[in] is_boot	true if it is called during server start up. In this
-                        case, default master key will be used which will be
-                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
-bool srv_enable_redo_encryption(bool is_boot);
+bool srv_enable_redo_encryption();
 
 /** Get count of tasks in the queue.
  @return number of tasks in queue */

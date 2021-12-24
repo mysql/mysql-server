@@ -1089,17 +1089,13 @@ the foreign table, if this table is referenced by the foreign table
 @param[in]	tbl_name	Table Name
 @param[in]	col_names	column names, or NULL
 @param[out]	m_table		InnoDB table handle
-@param[in]	dd_table	Global DD table
-@param[in]	thd		thread THD
 @param[in]	check_charsets	whether to check charset compatibility
 @param[in]	ignore_err	DICT_ERR_IGNORE_FK_NOKEY or DICT_ERR_IGNORE_NONE
 @param[in,out]	fk_tables	name list for tables that refer to this table
 @return DB_SUCCESS	if successfully load FK constraint */
 dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
                                  const char *tbl_name, const char **col_names,
-                                 dict_table_t *m_table,
-                                 const dd::Table *dd_table, THD *thd,
-                                 bool check_charsets,
+                                 dict_table_t *m_table, bool check_charsets,
                                  dict_err_ignore_t ignore_err,
                                  dict_names_t *fk_tables);
 
@@ -1237,7 +1233,6 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 
 /** Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD
 @param[in,out]	dd_space_name	dd tablespace name
 @param[in]	space_id	InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
@@ -1246,14 +1241,13 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 @param[in,out]	dd_space_id	dd_space_id
 @retval false on success
 @retval true on failure */
-bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
+bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client,
                           const char *dd_space_name, space_id_t space_id,
                           uint32_t flags, const char *filename, bool discarded,
                           dd::Object_id &dd_space_id);
 
 /** Create metadata for implicit tablespace
 @param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD
 @param[in]	space_id	InnoDB tablespace ID
 @param[in]	space_name	tablespace name to be set for the
                                 newly created tablespace
@@ -1263,9 +1257,9 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 @retval	false	on success
 @retval	true	on failure */
 bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
-                                   THD *thd, space_id_t space_id,
-                                   const char *space_name, const char *filename,
-                                   bool discarded, dd::Object_id &dd_space_id);
+                                   space_id_t space_id, const char *space_name,
+                                   const char *filename, bool discarded,
+                                   dd::Object_id &dd_space_id);
 
 /** Get the autoextend_size attribute for a tablespace.
 @param[in]      dd_client       Data dictionary client
@@ -1279,11 +1273,10 @@ bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
 
 /** Drop a tablespace
 @param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD object
 @param[in]	dd_space_id	dd tablespace id
 @retval	false	On success
 @retval	true	On failure */
-bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
+bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client,
                         dd::Object_id dd_space_id);
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -1477,13 +1470,12 @@ bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
 
 /** Set the autoextend_size attribute for an implicit tablespace
 @param[in,out]  dd_client       Data dictionary client
-@param[in,out]  thd             THD object
 @param[in]      dd_space_id     DD tablespace id
 @param[in]      create_info     HA_CREATE_INFO object
 @return false   On success
 @return true    On failure */
 bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
-                                  THD *thd, dd::Object_id dd_space_id,
+                                  dd::Object_id dd_space_id,
                                   HA_CREATE_INFO *create_info);
 
 /** Get the MDL for the named tablespace.  The mdl_ticket pointer can

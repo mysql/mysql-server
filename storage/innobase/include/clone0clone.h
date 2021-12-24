@@ -635,10 +635,9 @@ class Clone_Handle {
   /** Drop task from clone handle
   @param[in]	thd		server THD object
   @param[in]	task_id		current task ID
-  @param[in]	in_err		input error
   @param[out]	is_master	true, if master task
   @return true if needs to wait for re-start */
-  bool drop_task(THD *thd, uint task_id, int in_err, bool &is_master);
+  bool drop_task(THD *thd, uint task_id, bool &is_master);
 
   /** Save current error number
   @param[in]	err	error number */
@@ -725,11 +724,10 @@ class Clone_Handle {
   int restart_apply(THD *thd, const byte *&loc, uint &loc_len);
 
   /** Transfer snapshot data via callback
-  @param[in]	thd		server THD object
   @param[in]	task_id		current task ID
   @param[in]	callback	user callback interface
   @return error code */
-  int copy(THD *thd, uint task_id, Ha_clone_cbk *callback);
+  int copy(uint task_id, Ha_clone_cbk *callback);
 
   /** Apply snapshot data received via callback
   @param[in]	thd		server THD

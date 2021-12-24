@@ -307,13 +307,8 @@ dict_table_t **Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
   return (table_parts);
 }
 
-/** Initialize the share with table and indexes per partition.
-@param[in]	table		MySQL table definition
-@param[in]	part_info	Partition info (partition names to use).
-@param[in]	table_parts	Array of InnoDB tables for partitions.
-@return	false on success else true. */
 bool Ha_innopart_share::set_table_parts_and_indexes(
-    const TABLE *table, partition_info *part_info, dict_table_t **table_parts) {
+    partition_info *part_info, dict_table_t **table_parts) {
   uint ib_num_index;
   uint mysql_num_index;
   bool index_loaded = true;
@@ -617,13 +612,6 @@ ha_innopart::ha_innopart(handlerton *hton, TABLE_SHARE *table_arg)
   m_share = nullptr;
 }
 
-/** Returned supported alter table flags.
-@param[in]	flags	Flags to support.
-@return	Supported flags. */
-uint ha_innopart::alter_table_flags(uint flags) {
-  return (HA_PARTITION_FUNCTION_SUPPORTED | HA_INPLACE_CHANGE_PARTITION);
-}
-
 /** Internally called for initializing auto increment value.
 Only called from ha_innobase::discard_or_import_table_space()
 and should not do anything, since it is ha_innopart will initialize
@@ -633,13 +621,7 @@ int ha_innopart::innobase_initialize_autoinc() {
   return (0);
 }
 
-/** Set the autoinc column max value.
-This should only be called once from ha_innobase::open().
-Therefore there's no need for a covering lock.
-@param[in]	no_lock	If locking should be skipped. Not used!
-@return	0 for success or error code. */
-inline int ha_innopart::initialize_auto_increment(bool no_lock
-                                                  [[maybe_unused]]) {
+inline int ha_innopart::initialize_auto_increment(bool) {
   int error = 0;
   ulonglong auto_inc = 0;
   const Field *field = table->found_next_number_field;
@@ -855,8 +837,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     while lock was released. */
     lock_shared_ha_data();
 
-    if (m_part_share->set_table_parts_and_indexes(table, m_part_info,
-                                                  table_parts)) {
+    if (m_part_share->set_table_parts_and_indexes(m_part_info, table_parts)) {
       goto share_error;
     }
   }
@@ -1937,19 +1918,9 @@ int ha_innopart::index_read_last_map_in_part(uint part, uchar *record,
   return (error);
 }
 
-/** Start index scan and return first record from a partition.
-This routine starts an index scan using a start and end key.
-@param[in]	part		Partition to read from.
-@param[in,out]	record		First matching record in index in the partition,
-if NULL use table->record[0] as return buffer.
-@param[in]	start_key	Start key to match.
-@param[in]	end_key		End key to match.
-@param[in]	sorted		Return rows in sorted order.
-@return	error number or 0. */
 int ha_innopart::read_range_first_in_part(uint part, uchar *record,
-                                          const key_range *start_key,
-                                          const key_range *end_key,
-                                          bool sorted) {
+                                          const key_range *, const key_range *,
+                                          bool) {
   int error;
   uchar *read_record = record;
   set_partition(part);
@@ -2148,13 +2119,7 @@ int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   return err;
 }
 
-/** End random read/scan of a specific partition.
-@param[in]	part_id		Partition to end random read/scan.
-@param[in]	scan		True for scan else random access.
-@return error number or 0. */
-int ha_innopart::rnd_end_in_part(uint part_id, bool scan) {
-  return (index_end());
-}
+int ha_innopart::rnd_end_in_part(uint, bool) { return (index_end()); }
 
 /** Get next row during scan of a specific partition.
 Also used to read the FIRST row in a table scan.
@@ -2270,7 +2235,7 @@ void ha_innopart::update_part_elem(partition_element *part_elem,
   }
 
   part_elem->index_file_name = nullptr;
-  dict_get_and_save_space_name(ib_table, false);
+  dict_get_and_save_space_name(ib_table);
   if (ib_table->tablespace != nullptr) {
     ut_ad(part_elem->tablespace_name == nullptr ||
           0 == strcmp(part_elem->tablespace_name, ib_table->tablespace));
@@ -3327,7 +3292,7 @@ ha_rows ha_innopart::records_in_range(uint keynr, key_range *min_key,
   row_sel_convert_mysql_key_to_innobase(
       range_start, m_prebuilt->srch_key_val1, m_prebuilt->srch_key_val_len,
       index, (byte *)(min_key ? min_key->key : (const uchar *)nullptr),
-      (ulint)(min_key ? min_key->length : 0), m_prebuilt->trx);
+      (ulint)(min_key ? min_key->length : 0));
 
   ut_ad(min_key != nullptr ? range_start->n_fields > 0
                            : range_start->n_fields == 0);
@@ -3335,7 +3300,7 @@ ha_rows ha_innopart::records_in_range(uint keynr, key_range *min_key,
   row_sel_convert_mysql_key_to_innobase(
       range_end, m_prebuilt->srch_key_val2, m_prebuilt->srch_key_val_len, index,
       (byte *)(max_key != nullptr ? max_key->key : (const uchar *)nullptr),
-      (ulint)(max_key != nullptr ? max_key->length : 0), m_prebuilt->trx);
+      (ulint)(max_key != nullptr ? max_key->length : 0));
 
   ut_ad(max_key != nullptr ? range_end->n_fields > 0
                            : range_end->n_fields == 0);
@@ -3850,13 +3815,7 @@ func_exit:
   return error;
 }
 
-/** Optimize table.
-This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
-the table in MySQL.
-@param[in]	thd		Connection thread handle.
-@param[in]	check_opt	Currently ignored.
-@return	0 for success else error code. */
-int ha_innopart::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
+int ha_innopart::optimize(THD *, HA_CHECK_OPT *) {
   return (HA_ADMIN_TRY_ALTER);
 }
 
@@ -4107,14 +4066,7 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
   m_reuse_mysql_template = false;
   return (error);
 }
-
-/** Get the current auto_increment value.
-@param[in]	offset			Table auto-inc offset.
-@param[in]	increment		Table auto-inc increment.
-@param[in]	nb_desired_values	Number of required values.
-@param[out]	first_value		The auto increment value.
-@param[out]	nb_reserved_values	Number of reserved values. */
-void ha_innopart::get_auto_increment(ulonglong offset, ulonglong increment,
+void ha_innopart::get_auto_increment(ulonglong, ulonglong increment,
                                      ulonglong nb_desired_values,
                                      ulonglong *first_value,
                                      ulonglong *nb_reserved_values) {

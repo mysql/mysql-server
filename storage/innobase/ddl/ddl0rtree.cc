@@ -175,7 +175,7 @@ dberr_t RTree_inserter::batch_insert(trx_id_t trx_id,
 
     if (err == DB_SUCCESS) {
       if (rtr_info.mbr_adj) {
-        err = rtr_ins_enlarge_mbr(&cursor, nullptr, &mtr);
+        err = rtr_ins_enlarge_mbr(&cursor, &mtr);
       }
 
       if (err == DB_SUCCESS) {

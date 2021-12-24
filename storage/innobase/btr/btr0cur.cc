@@ -1286,8 +1286,7 @@ retry_page_get:
       rw_lock_s_lock(&block->lock, UT_LOCATION_HERE);
     }
 
-    lock_prdt_lock(block, &prdt, index, LOCK_S, LOCK_PREDICATE, cursor->thr,
-                   mtr);
+    lock_prdt_lock(block, &prdt, index, LOCK_S, LOCK_PREDICATE, cursor->thr);
 
     if (rw_latch == RW_NO_LATCH && height != 0) {
       rw_lock_s_unlock(&(block->lock));
@@ -4301,7 +4300,7 @@ dberr_t btr_cur_del_mark_set_clust_rec(
               rec_printer(rec, offsets).str().c_str()));
 
   if (dict_index_is_online_ddl(index)) {
-    row_log_table_delete(trx, rec, entry, index, offsets, nullptr);
+    row_log_table_delete(rec, entry, index, offsets, nullptr);
   }
 
   row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);

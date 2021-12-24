@@ -66,9 +66,8 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
                                         trx_t *trx);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
-@param[in,out]	table	Table that needs an ID
-@param[in,out]	trx	Transaction */
-void dict_table_assign_new_id(dict_table_t *table, trx_t *trx);
+@param[in,out]	table	Table that needs an ID */
+void dict_table_assign_new_id(dict_table_t *table);
 
 /** Builds an index definition but doesn't update sys_table. */
 void dict_build_index_def(const dict_table_t *table, /*!< in: table */

@@ -32,8 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                  ulint &want, mtr_t *mtr) {
+void first_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                  mtr_t *mtr) {
   byte *old_ptr = data_begin();
   old_ptr += offset;
 

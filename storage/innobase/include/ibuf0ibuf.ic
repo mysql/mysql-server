@@ -105,7 +105,7 @@ static inline void ibuf_set_free_bits(buf_block_t *b, ulint v, ulint max) {
   ibuf_set_free_bits_func(b, max, v);
 }
 #else  /* UNIV_IBUF_DEBUG */
-static inline void ibuf_set_free_bits(buf_block_t *b, ulint v, ulint max) {
+static inline void ibuf_set_free_bits(buf_block_t *b, ulint v, ulint) {
   ibuf_set_free_bits_func(b, v);
 }
 #endif /* UNIV_IBUF_DEBUG */

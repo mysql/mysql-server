@@ -351,7 +351,7 @@ static inline dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_READ);
   if (locker != nullptr) {
-    PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
+    PSI_FILE_CALL(start_file_wait)(locker, n, src_file, src_line);
   }
   dberr_t result = os_file_read_no_error_handling_func(
       type, file_name, OS_FILE_FROM_FD(file), buf, offset, n, o);
@@ -418,7 +418,7 @@ static inline dberr_t pfs_os_file_write_int_fd_func(
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_WRITE);
   if (locker != nullptr) {
-    PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
+    PSI_FILE_CALL(start_file_wait)(locker, n, src_file, src_line);
   }
   dberr_t result =
       os_file_write_func(type, name, OS_FILE_FROM_FD(file), buf, offset, n);

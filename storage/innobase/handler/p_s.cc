@@ -451,7 +451,6 @@ Convert these strings and store them in the performance schema container.
 @note String returned are not zero terminated.
 @param[in] container			The container to fill
 @param[in] table_path			The table path string
-@param[in] table_path_length		The table path string length
 @param[out] table_schema		The table schema
 @param[out] table_schema_length		The table schema length
 @param[out] table_name			The table name
@@ -462,10 +461,9 @@ Convert these strings and store them in the performance schema container.
 @param[out] subpartition_name_length	Sub partition name length
 */
 void parse_table_path(PSI_server_data_lock_container *container,
-                      const char *table_path, size_t table_path_length,
-                      const char **table_schema, size_t *table_schema_length,
-                      const char **table_name, size_t *table_name_length,
-                      const char **partition_name,
+                      const char *table_path, const char **table_schema,
+                      size_t *table_schema_length, const char **table_name,
+                      size_t *table_name_length, const char **partition_name,
                       size_t *partition_name_length,
                       const char **subpartition_name,
                       size_t *subpartition_name_length) {
@@ -609,8 +607,7 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
 }
 
 bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
-                                      const char *engine_lock_id,
-                                      size_t engine_lock_id_length,
+                                      const char *engine_lock_id, size_t,
                                       bool with_lock_data) {
   int record_type;
   uint64_t trx_immutable_id;
@@ -757,10 +754,10 @@ size_t Innodb_data_lock_iterator::scan_trx(
     }
 
     table_path = lock_get_table_name(lock).m_name;
-    parse_table_path(container, table_path, strlen(table_path), &table_schema,
-                     &table_schema_length, &table_name, &table_name_length,
-                     &partition_name, &partition_name_length,
-                     &subpartition_name, &subpartition_name_length);
+    parse_table_path(container, table_path, &table_schema, &table_schema_length,
+                     &table_name, &table_name_length, &partition_name,
+                     &partition_name_length, &subpartition_name,
+                     &subpartition_name_length);
 
     if (!container->accept_object(table_schema, table_schema_length, table_name,
                                   table_name_length, partition_name,
@@ -874,10 +871,8 @@ bool Innodb_data_lock_wait_iterator::scan(
 
 bool Innodb_data_lock_wait_iterator::fetch(
     PSI_server_data_lock_wait_container *container,
-    const char *requesting_engine_lock_id,
-    size_t requesting_engine_lock_id_length,
-    const char *blocking_engine_lock_id,
-    size_t blocking_engine_lock_id_length) {
+    const char *requesting_engine_lock_id, size_t,
+    const char *blocking_engine_lock_id, size_t) {
   int requesting_record_type;
   uint64_t requesting_trx_immutable_id;
   ulint requesting_heap_id;

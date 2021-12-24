@@ -587,7 +587,7 @@ static bool recv_report_corrupt_log(const byte *ptr, int type, space_id_t space,
   return (true);
 }
 
-void recv_sys_init(ulint max_mem) {
+void recv_sys_init() {
   if (recv_sys->spaces != nullptr) {
     return;
   }
@@ -3339,9 +3339,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 }
 
 /** Parse log records from a buffer and optionally store them to a
-hash table to wait merging to file pages.
-@param[in]	checkpoint_lsn	the LSN of the latest checkpoint */
-static void recv_parse_log_recs(lsn_t checkpoint_lsn) {
+hash table to wait merging to file pages. */
+static void recv_parse_log_recs() {
   ut_ad(recv_sys->parse_start_lsn != 0);
 
   for (;;) {
@@ -3461,7 +3460,6 @@ automatically when the hash table becomes full.
                                 this size, at the maximum
 @param[in]	buf		buffer containing a log segment or garbage
 @param[in]	len		buffer length
-@param[in]	checkpoint_lsn	latest checkpoint LSN
 @param[in]	start_lsn	buffer start lsn
 @param[in,out]	contiguous_lsn	it is known that log contain
                                 contiguous log data up to this lsn
@@ -3473,8 +3471,8 @@ static bool recv_scan_log_recs(log_t &log,
 bool meb_scan_log_recs(
 #endif /* !UNIV_HOTBACKUP */
                                ulint max_memory, const byte *buf, ulint len,
-                               lsn_t checkpoint_lsn, lsn_t start_lsn,
-                               lsn_t *contiguous_lsn, lsn_t *read_upto_lsn) {
+                               lsn_t start_lsn, lsn_t *contiguous_lsn,
+                               lsn_t *read_upto_lsn) {
   const byte *log_block = buf;
   lsn_t scanned_lsn = start_lsn;
   bool finished = false;
@@ -3678,7 +3676,7 @@ bool meb_scan_log_recs(
   if (more_data && !recv_sys->found_corrupt_log) {
     /* Try to parse more log records */
 
-    recv_parse_log_recs(checkpoint_lsn);
+    recv_parse_log_recs();
 
 #ifndef UNIV_HOTBACKUP
     if (recv_heap_used() > max_memory) {
@@ -3775,7 +3773,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
 @param[in]	end_lsn		read area end */
 static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
                               lsn_t end_lsn) {
-  log_background_threads_inactive_validate(log);
+  log_background_threads_inactive_validate();
 
   do {
     lsn_t source_offset;
@@ -3868,8 +3866,6 @@ static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
 
   lsn_t start_lsn = *contiguous_lsn;
 
-  lsn_t checkpoint_lsn = start_lsn;
-
   bool finished = false;
 
   while (!finished) {
@@ -3878,8 +3874,7 @@ static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
     recv_read_log_seg(log, log.buf, start_lsn, end_lsn);
 
     finished = recv_scan_log_recs(log, max_mem, log.buf, RECV_SCAN_SIZE,
-                                  checkpoint_lsn, start_lsn, contiguous_lsn,
-                                  &log.scanned_lsn);
+                                  start_lsn, contiguous_lsn, &log.scanned_lsn);
 
     start_lsn = end_lsn;
   }
@@ -4205,12 +4200,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   return (DB_SUCCESS);
 }
 
-/** Complete the recovery from the latest checkpoint.
-@param[in,out]	log		redo log
-@param[in]	aborting	true if the server has to abort due to an error
-@return recovered persistent metadata or nullptr if aborting*/
-MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
-                                                      bool aborting) {
+MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Make sure that the recv_writer thread is done. This is
   required because it grabs various mutexes and we want to
   ensure that when we enable sync_order_checks there is no

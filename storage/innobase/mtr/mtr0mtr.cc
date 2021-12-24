@@ -522,8 +522,8 @@ struct mtr_write_log_t {
 
     start_lsn = m_lsn;
 
-    end_lsn = log_buffer_write(*log_sys, m_handle, block->begin(),
-                               block->used(), start_lsn);
+    end_lsn =
+        log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
 
     ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
          OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
@@ -550,10 +550,10 @@ struct mtr_write_log_t {
         of log records in block containing m_lsn. */
         && m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
                end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-      log_buffer_set_first_record_group(*log_sys, m_handle, end_lsn);
+      log_buffer_set_first_record_group(*log_sys, end_lsn);
     }
 
-    log_buffer_write_completed(*log_sys, m_handle, start_lsn, end_lsn);
+    log_buffer_write_completed(*log_sys, start_lsn, end_lsn);
 
     m_lsn = end_lsn;
 
@@ -570,10 +570,7 @@ struct mtr_write_log_t {
 thread_local ut::unordered_set<const mtr_t *> mtr_t::s_my_thread_active_mtrs;
 #endif
 
-/** Start a mini-transaction.
-@param sync		true if it is a synchronous mini-transaction
-@param read_only	true if read only mini-transaction */
-void mtr_t::start(bool sync, bool read_only) {
+void mtr_t::start(bool sync) {
   ut_ad(m_impl.m_state == MTR_STATE_INIT ||
         m_impl.m_state == MTR_STATE_COMMITTED);
 
@@ -990,7 +987,7 @@ int mtr_t::Logging::disable(THD *) {
 }
 
 int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
-  auto wait_cond = [&](bool alert, bool &result) {
+  auto wait_cond = [&](bool, bool &result) {
     if (Counter::total(m_count_nologging_mtr) == 0) {
       result = false;
       return 0;
@@ -1103,7 +1100,7 @@ void mtr_t::print() const {
                            << get_log()->size() << " bytes";
 }
 
-lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
+lsn_t mtr_commit_mlog_test(size_t payload) {
   constexpr size_t MAX_PAYLOAD_SIZE = 1024;
   ut_a(payload <= MAX_PAYLOAD_SIZE);
 
@@ -1167,7 +1164,7 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
   is defined by the dyn_buf_t used in mtr_t (mtr_buf_t). */
 
   if (MLOG_TEST_REC_OVERHEAD + payload <= mtr_buf_t::MAX_DATA_SIZE) {
-    mtr_commit_mlog_test(*log_sys, payload);
+    mtr_commit_mlog_test(payload);
   } else {
     /* It does not fit, so we need to write as much as possible here,
     but keep in mind that next record will need to take at least
@@ -1189,7 +1186,7 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     }
 
     /* Write this MLOG_TEST record. */
-    mtr_commit_mlog_test(*log_sys, payload);
+    mtr_commit_mlog_test(payload);
 
     /* Compute upper bound for maximum level of recursion that is ever possible.
     This is to verify the guarantee that we don't go to deep.

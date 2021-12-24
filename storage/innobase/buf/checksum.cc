@@ -491,34 +491,13 @@ bool BlockReporter::is_corrupted() const {
   ut_error;
 }
 
-/** Calculate the compressed page checksum.
-@param[in]	algo			checksum algorithm to use
-@param[in]	use_legacy_big_endian	only used if algo is
-SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-if true then use big endian byteorder when converting byte strings to
-integers.
-@return page checksum */
-uint32_t BlockReporter::calc_zip_checksum(
-    srv_checksum_algorithm_t algo,
-    bool use_legacy_big_endian /* = false */) const {
-  return (calc_zip_checksum(m_read_buf, m_page_size.physical(), algo,
-                            use_legacy_big_endian));
+uint32_t BlockReporter::calc_zip_checksum(srv_checksum_algorithm_t algo) const {
+  return (calc_zip_checksum(m_read_buf, m_page_size.physical(), algo));
 }
 
-/** Calculate the compressed page checksum. This variant
-should be used when only the page_size_t is unknown and
-only physical page_size of compressed page is available.
-@param[in]	read_buf		buffer holding the page
-@param[in]	phys_page_size		physical page size
-@param[in]	algo			checksum algorithm to use
-@param[in]	use_legacy_big_endian	only used if algo is
-SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-if true then use big endian byteorder when converting byte strings to
-integers.
-@return page checksum */
-uint32_t BlockReporter::calc_zip_checksum(
-    const byte *read_buf, ulint phys_page_size, srv_checksum_algorithm_t algo,
-    bool use_legacy_big_endian /* = false */) const {
+uint32_t BlockReporter::calc_zip_checksum(const byte *read_buf,
+                                          ulint phys_page_size,
+                                          srv_checksum_algorithm_t algo) const {
   uLong adler;
   uint32_t crc32;
   const Bytef *s = read_buf;
@@ -560,11 +539,6 @@ uint32_t BlockReporter::calc_zip_checksum(
   ut_error;
 }
 
-/** Verify a compressed page's checksum.
-@retval		true		if stored checksum is valid according
-to the value of srv_checksum_algorithm
-@retval		false		if stored schecksum is not valid according
-to the value of srv_checksum_algorithm */
 bool BlockReporter::verify_zip_checksum() const {
   const uint32_t stored = static_cast<uint32_t>(
       mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_OR_CHKSUM));
@@ -629,7 +603,7 @@ bool BlockReporter::verify_zip_checksum() const {
       matching legacy big endian checksum, we try to match it first.
       Otherwise we check innodb checksum first. */
       if (legacy_big_endian_checksum) {
-        if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+        if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
           return (true);
         }
         legacy_checksum_checked = true;
@@ -646,7 +620,7 @@ bool BlockReporter::verify_zip_checksum() const {
 
       /* If legacy checksum is not checked, do it now. */
       if (!legacy_checksum_checked &&
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         /* This page's checksum has been created by the
         legacy software CRC32 implementation on big endian
         CPUs which generates a different result than the
@@ -667,8 +641,7 @@ bool BlockReporter::verify_zip_checksum() const {
         return (true);
       }
 
-      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) ||
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         if (curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
           page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_CRC32,
                                     page_id);
@@ -679,8 +652,7 @@ bool BlockReporter::verify_zip_checksum() const {
       break;
     case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 
-      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) ||
-          stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+      if (stored == calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)) {
         page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_CRC32,
                                   page_id);
         return (true);

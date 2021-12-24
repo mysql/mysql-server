@@ -1797,11 +1797,9 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	path	File name
 @param[in]	fh	File handle for the file - if opened
 @return true if the file system supports sparse files */
-[[nodiscard]] bool os_is_sparse_file_supported(const char *path,
-                                               pfs_os_file_t fh);
+[[nodiscard]] bool os_is_sparse_file_supported(pfs_os_file_t fh);
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
@@ -1864,11 +1862,9 @@ class Dir_Walker {
   template <typename F>
   static void walk(const Path &basedir, bool recursive, F &&f) {
 #ifdef _WIN32
-    walk_win32(basedir, recursive,
-               [&](const Path &path, size_t depth) { f(path); });
+    walk_win32(basedir, recursive, [&](const Path &path, size_t) { f(path); });
 #else
-    walk_posix(basedir, recursive,
-               [&](const Path &path, size_t depth) { f(path); });
+    walk_posix(basedir, recursive, [&](const Path &path, size_t) { f(path); });
 #endif /* _WIN32 */
   }
 

@@ -1692,32 +1692,12 @@ byte *trx_undo_update_rec_get_sys_cols(
   return (const_cast<byte *>(ptr));
 }
 
-/** Builds an update vector based on a remaining part of an undo log record.
- @return remaining part of the record, NULL if an error detected, which
- means that the record is corrupted */
-byte *trx_undo_update_rec_get_update(
-    const byte *ptr,            /*!< in: remaining part in update undo log
-                                record, after reading the row reference
-                                NOTE that this copy of the undo log record must
-                                be preserved as long as the update vector is
-                                used, as we do NOT copy the data in the
-                                record! */
-    const dict_index_t *index,  /*!< in: clustered index */
-    ulint type,                 /*!< in: TRX_UNDO_UPD_EXIST_REC,
-                                TRX_UNDO_UPD_DEL_REC, or
-                                TRX_UNDO_DEL_MARK_REC; in the last case,
-                                only trx id and roll ptr fields are added to
-                                the update vector */
-    trx_id_t trx_id,            /*!< in: transaction id from this undo record */
-    roll_ptr_t roll_ptr,        /*!< in: roll pointer from this undo record */
-    ulint info_bits,            /*!< in: info bits from this undo record */
-    trx_t *trx,                 /*!< in: transaction */
-    mem_heap_t *heap,           /*!< in: memory heap from which the memory
-                                needed is allocated */
-    upd_t **upd,                /*!< out, own: update vector */
-    lob::undo_vers_t *lob_undo, /*!< out: LOB undo information. */
-    type_cmpl_t &type_cmpl)     /*!< out: type compilation info */
-{
+byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
+                                     ulint type, trx_id_t trx_id,
+                                     roll_ptr_t roll_ptr, ulint info_bits,
+                                     mem_heap_t *heap, upd_t **upd,
+                                     lob::undo_vers_t *lob_undo,
+                                     type_cmpl_t &type_cmpl) {
   DBUG_TRACE;
 
   upd_field_t *upd_field;
@@ -1751,8 +1731,7 @@ byte *trx_undo_update_rec_get_update(
 
   trx_write_trx_id(buf, trx_id);
 
-  upd_field_set_field_no(upd_field, index->get_sys_col_pos(DATA_TRX_ID), index,
-                         trx);
+  upd_field_set_field_no(upd_field, index->get_sys_col_pos(DATA_TRX_ID), index);
   dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
   upd_field = upd_get_nth_field(update, n_fields + 1);
@@ -1762,7 +1741,7 @@ byte *trx_undo_update_rec_get_update(
   trx_write_roll_ptr(buf, roll_ptr);
 
   upd_field_set_field_no(upd_field, index->get_sys_col_pos(DATA_ROLL_PTR),
-                         index, trx);
+                         index);
   dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 
   /* Store then the updated ordinary columns to the update vector */
@@ -1826,7 +1805,7 @@ byte *trx_undo_update_rec_get_update(
 
       upd_field_set_v_field_no(upd_field, field_no, index);
     } else {
-      upd_field_set_field_no(upd_field, field_no, index, trx);
+      upd_field_set_field_no(upd_field, field_no, index);
     }
 
     if (vcol != nullptr && vcol->m_col.is_multi_value()) {
@@ -2512,8 +2491,8 @@ bool trx_undo_prev_version_build(
   ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
   ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id, roll_ptr,
-                                       info_bits, nullptr, heap, &update,
-                                       lob_undo, type_cmpl);
+                                       info_bits, heap, &update, lob_undo,
+                                       type_cmpl);
   ut_a(ptr);
 
   if (row_upd_changes_field_size_or_external(index, offsets, update)) {

@@ -676,7 +676,7 @@ void Clone_Handle::notify_state_change(Clone_Task *task, Ha_clone_cbk *callback,
   callback->clear_flags();
 }
 
-int Clone_Handle::ack_state_metadata(Clone_Task *task, Ha_clone_cbk *callback,
+int Clone_Handle::ack_state_metadata(Clone_Task *, Ha_clone_cbk *callback,
                                      Clone_Desc_State *state_desc) {
   ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
@@ -1057,7 +1057,7 @@ int Clone_Handle::file_create_init(const Clone_file_ctx *file_ctx,
 
       bool success = Encryption::fill_encryption_info(
           file_meta->m_encryption_key, file_meta->m_encryption_iv,
-          encryption_info, false, true);
+          encryption_info, true);
 
       if (!success) {
         db_err = DB_ERROR; /* purecov: inspected */
@@ -1523,7 +1523,7 @@ int Clone_Handle::apply_data(Clone_Task *task, Ha_clone_cbk *callback) {
   return (err);
 }
 
-int Clone_Handle::apply(THD *thd, uint task_id, Ha_clone_cbk *callback) {
+int Clone_Handle::apply(THD *, uint task_id, Ha_clone_cbk *callback) {
   int err = 0;
   uint desc_len = 0;
 
@@ -1572,7 +1572,7 @@ int Clone_Handle::apply(THD *thd, uint task_id, Ha_clone_cbk *callback) {
   return (err);
 }
 
-int Clone_Handle::restart_apply(THD *thd, const byte *&loc, uint &loc_len) {
+int Clone_Handle::restart_apply(THD *, const byte *&loc, uint &loc_len) {
   auto init_loc = m_restart_loc;
   auto init_len = m_restart_loc_len;
   auto alloc_len = m_restart_loc_len;

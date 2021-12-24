@@ -220,7 +220,7 @@ bool row_undo_search_clust_to_pcur(
 
     if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
       node->undo_row = dtuple_copy(node->row, node->heap);
-      row_upd_replace(node->trx, node->undo_row, &node->undo_ext, clust_index,
+      row_upd_replace(node->undo_row, &node->undo_ext, clust_index,
                       node->update, node->heap);
     } else {
       node->undo_row = nullptr;

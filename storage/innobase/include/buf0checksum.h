@@ -102,30 +102,35 @@ class BlockReporter {
 
   /** Print message if page is empty.
   @param[in]	empty		true if page is empty */
-  virtual inline void report_empty_page(bool empty) const {}
+  virtual inline void report_empty_page(bool empty [[maybe_unused]]) const {}
 
   /** Print crc32 checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	crc32		Calculated crc32 checksum
   @param[in]	algo		Current checksum algorithm */
-  virtual inline void print_strict_crc32(ulint checksum_field1,
-                                         ulint checksum_field2, uint32_t crc32,
-                                         srv_checksum_algorithm_t algo) const {}
+  virtual inline void print_strict_crc32(ulint checksum_field1 [[maybe_unused]],
+                                         ulint checksum_field2 [[maybe_unused]],
+                                         uint32_t crc32 [[maybe_unused]],
+                                         srv_checksum_algorithm_t algo
+                                         [[maybe_unused]]) const {}
 
   /** Print innodb checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_strict_innodb(ulint checksum_field1,
-                                          ulint checksum_field2) const {}
+  virtual inline void print_strict_innodb(ulint checksum_field1
+                                          [[maybe_unused]],
+                                          ulint checksum_field2
+                                          [[maybe_unused]]) const {}
 
   /** Print none checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	algo		Current checksum algorithm */
-  virtual inline void print_strict_none(ulint checksum_field1,
-                                        ulint checksum_field2,
-                                        srv_checksum_algorithm_t algo) const {}
+  virtual inline void print_strict_none(ulint checksum_field1 [[maybe_unused]],
+                                        ulint checksum_field2 [[maybe_unused]],
+                                        srv_checksum_algorithm_t algo
+                                        [[maybe_unused]]) const {}
 
   /** Print innodb checksum value stored in page trailer.
   @param[in]	old_checksum	checksum value according to old style
@@ -134,8 +139,10 @@ class BlockReporter {
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	algo		current checksum algorithm */
   virtual inline void print_innodb_checksum(
-      ulint old_checksum, ulint new_checksum, ulint checksum_field1,
-      ulint checksum_field2, srv_checksum_algorithm_t algo) const {}
+      ulint old_checksum [[maybe_unused]], ulint new_checksum [[maybe_unused]],
+      ulint checksum_field1 [[maybe_unused]],
+      ulint checksum_field2 [[maybe_unused]],
+      srv_checksum_algorithm_t algo [[maybe_unused]]) const {}
 
   /** Print the message that checksum mismatch happened in
   page header. */
@@ -144,8 +151,10 @@ class BlockReporter {
   /** Print both new-style, old-style & crc32 checksum values.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_crc32_checksum(ulint checksum_field1,
-                                           ulint checksum_field2) const {}
+  virtual inline void print_crc32_checksum(ulint checksum_field1
+                                           [[maybe_unused]],
+                                           ulint checksum_field2
+                                           [[maybe_unused]]) const {}
 
   /** Print a message that crc32 check failed. */
   virtual inline void print_crc32_fail() const {}
@@ -156,13 +165,14 @@ class BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  virtual inline void print_compressed_checksum(uint32_t calc,
-                                                uint32_t stored) const {}
+  virtual inline void print_compressed_checksum(uint32_t calc [[maybe_unused]],
+                                                uint32_t stored
+                                                [[maybe_unused]]) const {}
 
   /** Verify a compressed page's checksum.
   @retval		true		if stored checksum is valid
   according to the value of srv_checksum_algorithm
-  @retval		false		if stored schecksum is not valid
+  @retval		false		if stored checksum is not valid
   according to the value of srv_checksum_algorithm */
   bool verify_zip_checksum() const;
 
@@ -172,24 +182,14 @@ class BlockReporter {
   @param[in]	read_buf		buffer holding the page
   @param[in]	phys_page_size		physical page size
   @param[in]	algo			checksum algorithm to use
-  @param[in]	use_legacy_big_endian	only used if algo is
-  SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-  if true then use big endian byteorder when converting byte strings to
-  integers.
   @return page checksum */
   uint32_t calc_zip_checksum(const byte *read_buf, ulint phys_page_size,
-                             srv_checksum_algorithm_t algo,
-                             bool use_legacy_big_endian = false) const;
+                             srv_checksum_algorithm_t algo) const;
 
   /** Calculate the compressed page checksum.
   @param[in]	algo			checksum algorithm to use
-  @param[in]	use_legacy_big_endian	only used if algo is
-  SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
-  if true then use big endian byteorder when converting byte strings to
-  integers.
   @return page checksum */
-  uint32_t calc_zip_checksum(srv_checksum_algorithm_t algo,
-                             bool use_legacy_big_endian = false) const;
+  uint32_t calc_zip_checksum(srv_checksum_algorithm_t algo) const;
 
   [[nodiscard]] static bool is_lsn_valid(const byte *frame,
                                          uint32_t page_size) noexcept;

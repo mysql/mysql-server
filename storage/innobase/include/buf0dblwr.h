@@ -149,9 +149,8 @@ extern page_id_t Force_crash;
 #endif /* UNIV_DEBUG */
 
 /** Startup the background thread(s) and create the instance.
-@param[in]  create_new_db Create new database.
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t open(bool create_new_db) noexcept;
+[[nodiscard]] dberr_t open() noexcept;
 
 /** Shutdown the background thread and destroy the instance */
 void close() noexcept;

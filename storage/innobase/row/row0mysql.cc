@@ -2151,11 +2151,9 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
 }
 
 /** Does an update or delete of a row for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
-static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
-                                                  row_prebuilt_t *prebuilt) {
+static dberr_t row_del_upd_for_mysql_using_cursor(row_prebuilt_t *prebuilt) {
   dberr_t err = DB_SUCCESS;
   upd_node_t *node;
   cursors_t delete_entries;
@@ -2184,9 +2182,9 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
   ut_ad(prebuilt->table->is_intrinsic());
   ut_ad(!prebuilt->table->n_v_cols);
 
-  /* Internal table is created by optimiser. So there
+  /* Internal table is created by optimizer. So there
   should not be any virtual columns. */
-  row_upd_store_row(prebuilt->trx, node, nullptr, nullptr);
+  row_upd_store_row(node, nullptr, nullptr);
 
   if (!node->is_delete) {
     /* UPDATE operation */
@@ -2441,7 +2439,7 @@ error:
 @return error code or DB_SUCCESS */
 dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
   if (prebuilt->table->is_intrinsic()) {
-    return (row_del_upd_for_mysql_using_cursor(mysql_rec, prebuilt));
+    return (row_del_upd_for_mysql_using_cursor(prebuilt));
   } else {
     ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
     return (row_update_for_mysql_using_upd_graph(mysql_rec, prebuilt));
@@ -2477,8 +2475,7 @@ void row_delete_all_rows(dict_table_t *table) {
 
     mtr.start();
     mtr.set_log_mode(MTR_LOG_NO_REDO);
-    index->page = btr_create(index->type, index->space, page_size, index->id,
-                             index, &mtr);
+    index->page = btr_create(index->type, index->space, index->id, index, &mtr);
     ut_ad(index->page != FIL_NULL);
     mtr.commit();
   }
@@ -2765,7 +2762,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
     dict_table_add_system_columns(table, heap);
 
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false, heap);
+    dict_table_add_to_cache(table, false);
     dict_sys_mutex_exit();
 
     /* During upgrade, etc., the log_ddl may haven't been

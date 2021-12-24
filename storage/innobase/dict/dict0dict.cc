@@ -1186,13 +1186,7 @@ void dict_table_set_big_rows(dict_table_t *table) {
   table->big_rows = (row_len >= BIG_ROW_SIZE) ? true : false;
 }
 
-/** Adds a table object to the dictionary cache.
-@param[in,out]	table		table
-@param[in]	can_be_evicted	true if can be evicted
-@param[in,out]	heap		temporary heap
-*/
-void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted,
-                             mem_heap_t *heap) {
+void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
   ulint fold;
   ulint id_fold;
 
@@ -5237,7 +5231,7 @@ void DDTableBuffer::open() {
 
   dict_sys_mutex_enter();
 
-  dict_table_add_to_cache(table, true, heap);
+  dict_table_add_to_cache(table, true);
 
   table->acquire();
 
@@ -5304,11 +5298,11 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
 
   upd_field = upd_get_nth_field(update, 0);
   dfield_copy(&upd_field->new_val, version_field);
-  upd_field_set_field_no(upd_field, VERSION_FIELD_NO, m_index, nullptr);
+  upd_field_set_field_no(upd_field, VERSION_FIELD_NO, m_index);
 
   upd_field = upd_get_nth_field(update, 1);
   dfield_copy(&upd_field->new_val, metadata_dfield);
-  upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index, nullptr);
+  upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index);
 
   ut_ad(update->validate());
 

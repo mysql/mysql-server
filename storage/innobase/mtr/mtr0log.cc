@@ -655,14 +655,13 @@ static bool close_and_reopen_log(byte *&log_ptr, const byte *&log_start,
 
 template <typename F>
 /** Log index field len info.
-@param[in]  mtr           mini transaction
 @param[in]  index         index
 @param[in]  n             number of fields
 @param[in]  is_versioned  true if table has row versions
 @param[in,out]  f         vector of fields with versions
 @param[in]  log_ptr       log buffer pointer
 @param[in]  func          callback to check size reopen log buffer */
-static bool log_index_fields(mtr_t *&mtr, const dict_index_t *index, uint16_t n,
+static bool log_index_fields(const dict_index_t *index, uint16_t n,
                              bool is_versioned, std::vector<dict_field_t *> &f,
                              byte *&log_ptr, F &func) {
   /* Write metadata for each field. Log the fields in their physical order. */
@@ -700,14 +699,11 @@ static bool log_index_fields(mtr_t *&mtr, const dict_index_t *index, uint16_t n,
 
 template <typename F>
 /** Log fields with version.
-@param[in]  index         index
 @param[in]  f             vector of fields with versions
 @param[in]  log_ptr       log buffer pointer
-@param[in]  mtr           mini transaction
 @param[in]  func          callback to check size reopen log buffer */
-static bool log_index_versioned_fields(const dict_index_t *index,
-                                       const std::vector<dict_field_t *> &f,
-                                       byte *&log_ptr, mtr_t *&mtr, F &func) {
+static bool log_index_versioned_fields(const std::vector<dict_field_t *> &f,
+                                       byte *&log_ptr, F &func) {
   uint16_t n_inst = f.size();
   ut_ad(n_inst > 0);
 
@@ -725,8 +721,8 @@ static bool log_index_versioned_fields(const dict_index_t *index,
            | |           |
            | |           | 10 bits phy pos
            | |
-           | | 15th bit inidicates drop version info follows.
-           | 16th bit inidicates add vrersion info follows. */
+           | | 15th bit indicates drop version info follows.
+           | 16th bit indicates add version info follows. */
     uint16_t phy_pos = field->get_phy_pos();
 
     ut_ad(field->col->is_instant_added() || field->col->is_instant_dropped());
@@ -831,7 +827,7 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
   if (is_comp) {
     /* Write fields info. */
-    if (!log_index_fields(mtr, index, n, is_versioned, instant_fields_to_log,
+    if (!log_index_fields(index, n, is_versioned, instant_fields_to_log,
                           log_ptr, f)) {
       return false;
     }
@@ -848,8 +844,7 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   if (!instant_fields_to_log.empty()) {
     ut_ad(is_versioned);
     /* Log INSTANT ADD/DROP fields */
-    if (!log_index_versioned_fields(index, instant_fields_to_log, log_ptr, mtr,
-                                    f)) {
+    if (!log_index_versioned_fields(instant_fields_to_log, log_ptr, f)) {
       return false;
     }
   }
@@ -900,7 +895,7 @@ static byte *read_1_bytes(byte *ptr, const byte *end_ptr, uint8_t &val) {
 @param[in]   end_ptr       pointer to end of buffer
 @param[in]   is_comp       true if COMP
 @param[in]   is_versioned  true if table has row versions
-@param[in]   is_instant    ture if table has INSTANT cols
+@param[in]   is_instant    true if table has INSTANT cols
 @param[out]  n             number of index fields
 @param[out]  n_uniq        n_uniq for index
 @param[out]  inst_cols     number of column before first instant add was done.
@@ -1099,9 +1094,7 @@ static void update_instant_info(instant_fields_list_t f, dict_index_t *index) {
 @param[in,out]  index    dummy index
 @param[in,out]  table    dummy table
 @param[in]      n        number of fields
-#ifdef UNIV_DEBUG
 @param[in]     is_comp  true if COMP
-#endif
 */
 static void populate_dummy_fields(dict_index_t *index, dict_table_t *table,
                                   size_t n IF_DEBUG(, bool is_comp)) {

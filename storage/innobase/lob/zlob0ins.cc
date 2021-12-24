@@ -29,11 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return code as returned by the zlib. */
-int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
+int zInserter::write_first_page(big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
@@ -118,10 +114,10 @@ dberr_t zInserter::write_one_small_blob(size_t blob_j) {
   m_stream.next_in = (Bytef *)field.data;
   m_stream.avail_in = static_cast<uInt>(field.len);
 
-  err = write_first_page(blob_j, field);
+  err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; err == Z_OK; ++nth_blob_page) {
-    err = write_single_blob_page(blob_j, field, nth_blob_page);
+    err = write_single_blob_page(field, nth_blob_page);
   }
 
   ut_ad(err == Z_STREAM_END);
@@ -144,12 +140,12 @@ dberr_t zInserter::write_one_blob(size_t blob_j) {
 
   m_ctx->check_redolog();
 
-  err = write_first_page(blob_j, field);
+  err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; err == Z_OK; ++nth_blob_page) {
     const ulint commit_freq = 4;
 
-    err = write_single_blob_page(blob_j, field, nth_blob_page);
+    err = write_single_blob_page(field, nth_blob_page);
 
     if (nth_blob_page % commit_freq == 0) {
       m_ctx->check_redolog();
@@ -233,13 +229,7 @@ int zInserter::write_into_single_page() {
   return (err);
 }
 
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return code as returned by the zlib. */
-int zInserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
+int zInserter::write_single_blob_page(big_rec_field_t &field,
                                       ulint nth_blob_page) {
   ut_ad(nth_blob_page > 0);
 

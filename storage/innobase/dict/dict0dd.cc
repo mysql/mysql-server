@@ -2683,7 +2683,6 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 /** Create an index.
 @param[in]	dd_index	DD Index
 @param[in,out]	table		InnoDB table
-@param[in]	strict		whether to be strict about the max record size
 @param[in]	form		MySQL table structure
 @param[in]	key_num		key_info[] offset
 @return		error code
@@ -2692,7 +2691,6 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 @retval		HA_ERR_TOO_BIG_ROW if the record is too long */
 [[nodiscard]] static int dd_fill_one_dict_index(const dd::Index *dd_index,
                                                 dict_table_t *table,
-                                                bool strict,
                                                 const TABLE_SHARE *form,
                                                 uint key_num) {
   const KEY &key = form->key_info[key_num];
@@ -2962,15 +2960,10 @@ inline void dd_copy_from_table_share(THD *thd, dict_table_t *table,
 @param[in,out]	dd_table	Global DD table metadata
 @param[in]	m_form		MySQL table definition
 @param[in,out]	m_table		InnoDB table definition
-@param[in]	create_info	create table information
-@param[in]	zip_allowed	if compression is allowed
-@param[in]	strict		if report error in strict mode
 @param[in]	m_thd		THD instance
 @return 0 if successful, otherwise error number */
 inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
-                              dict_table_t *m_table,
-                              HA_CREATE_INFO *create_info, bool zip_allowed,
-                              bool strict, THD *m_thd) {
+                              dict_table_t *m_table, THD *m_thd) {
   int error = 0;
 
   ut_ad(!dict_sys_mutex_own());
@@ -2993,8 +2986,7 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
     /* In InnoDB, the clustered index must always be
     created first. */
     error = dd_fill_one_dict_index(dd_table.indexes()[m_form->s->primary_key],
-                                   m_table, strict, m_form->s,
-                                   m_form->s->primary_key);
+                                   m_table, m_form->s, m_form->s->primary_key);
     if (error != 0) {
       goto dd_error;
     }
@@ -3004,7 +2996,7 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
     ulint dd_index_num = i + ((m_form->s->primary_key == MAX_KEY) ? 1 : 0);
 
     error = dd_fill_one_dict_index(dd_table.indexes()[dd_index_num], m_table,
-                                   strict, m_form->s, i);
+                                   m_form->s, i);
     if (error != 0) {
       goto dd_error;
     }
@@ -3782,18 +3774,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   return m_table;
 }
 
-/* Create metadata for specified tablespace, acquiring exlcusive MDL first
-@param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD
-@param[in,out]	dd_space_name	dd tablespace name
-@param[in]	space		InnoDB tablespace ID
-@param[in]	flags		InnoDB tablespace flags
-@param[in]	filename	filename of this tablespace
-@param[in]	discarded	true if this tablespace was discarded
-@param[in,out]	dd_space_id	dd_space_id
-@retval false on success
-@retval true on failure */
-bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
+bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client,
                           const char *dd_space_name, space_id_t space_id,
                           uint32_t flags, const char *filename, bool discarded,
                           dd::Object_id &dd_space_id) {
@@ -3851,40 +3832,23 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
   return false;
 }
 
-/** Create metadata for implicit tablespace
-@param[in,out]  dd_client    data dictionary client
-@param[in,out]  thd          THD
-@param[in]      space_id     InnoDB tablespace ID
-@param[in]      space_name   tablespace name to be set for the
-                             newly created tablespace
-@param[in]      filename     tablespace filename
-@param[in]      discarded    true if this tablespace was discarded
-@param[in,out]  dd_space_id  dd tablespace id
-@retval false on success
-@retval true on failure */
 bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
-                                   THD *thd, space_id_t space_id,
-                                   const char *space_name, const char *filename,
-                                   bool discarded, dd::Object_id &dd_space_id) {
+                                   space_id_t space_id, const char *space_name,
+                                   const char *filename, bool discarded,
+                                   dd::Object_id &dd_space_id) {
   fil_space_t *space = fil_space_get(space_id);
   uint32_t flags = space->flags;
 
   std::string tsn(space_name);
   dict_name::convert_to_space(tsn);
 
-  bool fail = dd_create_tablespace(dd_client, thd, tsn.c_str(), space_id, flags,
+  bool fail = dd_create_tablespace(dd_client, tsn.c_str(), space_id, flags,
                                    filename, discarded, dd_space_id);
 
   return fail;
 }
 
-/** Drop a tablespace
-@param[in,out]  dd_client       data dictionary client
-@param[in,out]  thd             THD object
-@param[in]      dd_space_id     dd tablespace id
-@retval false   On success
-@retval true    On failure */
-bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
+bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client,
                         dd::Object_id dd_space_id) {
   std::unique_ptr<dd::Tablespace> dd_space;
 
@@ -3968,7 +3932,7 @@ bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
 }
 
 bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
-                                  THD *thd, dd::Object_id dd_space_id,
+                                  dd::Object_id dd_space_id,
                                   HA_CREATE_INFO *create_info) {
   ut_a(create_info->m_implicit_tablespace_autoextend_size_change);
 
@@ -4267,8 +4231,8 @@ dberr_t dd_table_load_fk(dd::cache::Dictionary_client *client,
 
   DBUG_EXECUTE_IF("enable_stack_overrun_post_alter_commit",
                   { DBUG_SET("+d,simulate_stack_overrun"); });
-  err = dd_table_check_for_child(client, tbl_name, col_names, m_table, dd_table,
-                                 thd, check_charsets, ignore_err, fk_tables);
+  err = dd_table_check_for_child(client, tbl_name, col_names, m_table,
+                                 check_charsets, ignore_err, fk_tables);
   DBUG_EXECUTE_IF("enable_stack_overrun_post_alter_commit",
                   { DBUG_SET("-d,simulate_stack_overrun"); });
 
@@ -4279,23 +4243,9 @@ dberr_t dd_table_load_fk(dd::cache::Dictionary_client *client,
   return err;
 }
 
-/** Load foreign key constraint for the table. Note, it could also open
-the foreign table, if this table is referenced by the foreign table
-@param[in,out]	client		data dictionary client
-@param[in]	tbl_name	Table Name
-@param[in]	col_names	column names, or NULL
-@param[out]	m_table		InnoDB table handle
-@param[in]	dd_table	Global DD table
-@param[in]	thd		thread THD
-@param[in]	check_charsets	whether to check charset compatibility
-@param[in]	ignore_err	DICT_ERR_IGNORE_FK_NOKEY or DICT_ERR_IGNORE_NONE
-@param[in,out]	fk_tables	name list for tables that refer to this table
-@return DB_SUCCESS	if successfully load FK constraint */
 dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
                                  const char *tbl_name, const char **col_names,
-                                 dict_table_t *m_table,
-                                 const dd::Table *dd_table, THD *thd,
-                                 bool check_charsets,
+                                 dict_table_t *m_table, bool check_charsets,
                                  dict_err_ignore_t ignore_err,
                                  dict_names_t *fk_tables) {
   dberr_t err = DB_SUCCESS;
@@ -4872,8 +4822,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   /* Create dict_index_t for the table */
   int ret;
-  ret = dd_fill_dict_index(dd_table->table(), table, m_table, nullptr,
-                           zip_allowed, strict, thd);
+  ret = dd_fill_dict_index(dd_table->table(), table, m_table, thd);
 
   if (ret != 0) {
     return nullptr;
@@ -5040,7 +4989,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
     m_table = exist;
   } else {
-    dict_table_add_to_cache(m_table, true, heap);
+    dict_table_add_to_cache(m_table, true);
 
     if (m_table->fts && dict_table_has_fts_index(m_table)) {
       fts_optimize_add_table(m_table);
@@ -6115,9 +6064,8 @@ static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
     bool ret;
     char *filename = fil_space_get_first_path(table->space);
 
-    ret = dd_create_implicit_tablespace(client, thd, table->space,
-                                        table->name.m_name, filename, false,
-                                        dd_space_id);
+    ret = dd_create_implicit_tablespace(
+        client, table->space, table->name.m_name, filename, false, dd_space_id);
 
     ut::free(filename);
     if (ret) {
@@ -6535,7 +6483,7 @@ bool dd_drop_fts_table(const char *name, bool file_per_table) {
   if (file_per_table) {
     dd::Object_id dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
     bool error;
-    error = dd_drop_tablespace(client, thd, dd_space_id);
+    error = dd_drop_tablespace(client, dd_space_id);
     ut_a(!error);
   }
 

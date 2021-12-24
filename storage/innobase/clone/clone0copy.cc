@@ -951,7 +951,7 @@ int Clone_Snapshot::add_redo_file(char *file_name, uint64_t file_size,
     const byte *iv = redo_space->encryption_iv;
     byte *dest = m_redo_header + LOG_ENCRYPTION;
 
-    log_file_header_fill_encryption(dest, key, iv, false, false);
+    log_file_header_fill_encryption(dest, key, iv, false);
   }
 
   file_meta->m_file_index = num_redo_files();
@@ -1291,7 +1291,7 @@ void Clone_Handle::display_progress(
   }
 }
 
-int Clone_Handle::copy(THD *thd, uint task_id, Ha_clone_cbk *callback) {
+int Clone_Handle::copy(uint task_id, Ha_clone_cbk *callback) {
   ut_ad(m_clone_handle_type == CLONE_HDL_COPY);
 
   /* Get task from task manager. */

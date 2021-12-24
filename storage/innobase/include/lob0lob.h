@@ -224,7 +224,8 @@ struct ref_t {
   @param[in]	page_size	the page size
   @param[in]	lob_length	the size of BLOB in bytes.
   @return true if LOB is big enough, false otherwise. */
-  static bool is_big(const page_size_t &page_size, const ulint lob_length) {
+  static bool is_big(const page_size_t &page_size [[maybe_unused]],
+                     const ulint lob_length [[maybe_unused]]) {
     /* Disable a performance optimization */
     return true;
   }
@@ -232,7 +233,7 @@ struct ref_t {
   /** Check if this LOB is big enough to do partial update.
   @param[in]	page_size	the page size
   @return true if LOB is big enough, false otherwise. */
-  bool is_big(const page_size_t &page_size) const {
+  bool is_big(const page_size_t &page_size [[maybe_unused]]) const {
     /* Disable a performance optimization */
     return true;
   }

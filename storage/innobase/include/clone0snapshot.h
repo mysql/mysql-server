@@ -730,9 +730,8 @@ class Clone_Snapshot {
     m_snapshot_state = m_snapshot_next_state;
   }
 
-  /** End state transition.
-  @param[in]	error	error code */
-  void end_transit(int error) {
+  /** End state transition. */
+  void end_transit() {
     mutex_own(&m_snapshot_mutex);
     m_num_clones_transit = 0;
     m_snapshot_next_state = CLONE_SNAPSHOT_NONE;

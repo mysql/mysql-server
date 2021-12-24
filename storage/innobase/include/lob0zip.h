@@ -121,18 +121,15 @@ class zInserter : private BaseInserter {
 
   /** Write one blob page.  This function will be repeatedly called
   with an increasing nth_blob_page to completely write a BLOB.
-  @param[in]	blob_j		the jth blob object of the record.
   @param[in]	field		the big record field.
   @param[in]	nth_blob_page	count of the BLOB page (starting from 1).
   @return code as returned by the zlib. */
-  int write_single_blob_page(size_t blob_j, big_rec_field_t &field,
-                             ulint nth_blob_page);
+  int write_single_blob_page(big_rec_field_t &field, ulint nth_blob_page);
 
   /** Write first blob page.
-  @param[in]	blob_j		the jth blob object of the record.
   @param[in]	field		the big record field.
   @return code as returned by the zlib. */
-  int write_first_page(size_t blob_j, big_rec_field_t &field);
+  int write_first_page(big_rec_field_t &field);
 
   /** Verify that all pointers to externally stored columns in the record
   is be valid.  If validation fails, this function doesn't return.

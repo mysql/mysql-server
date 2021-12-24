@@ -180,11 +180,9 @@ the block mutexes will be released.
 @param[in,out]	bpage		block, must contain a file page and
                                 be in a state where it can be freed; there
                                 may or may not be a hash index to the page
-@param[in]	zip		true if should remove also the compressed page
-                                of an uncompressed page
 @param[in]	ignore_content	true if should ignore page content, since it
                                 could be not initialized */
-void buf_LRU_free_one_page(buf_page_t *bpage, bool zip, bool ignore_content);
+void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content);
 
 /** Adjust LRU hazard pointers if needed.
 @param[in] buf_pool Buffer pool instance

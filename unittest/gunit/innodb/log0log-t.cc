@@ -274,7 +274,7 @@ static bool log_test_recovery() {
   recv_sys_create();
 
   /** DBLWR directory is the current directory. */
-  recv_sys_init(4 * 1024 * 1024);
+  recv_sys_init();
 
   const bool result = log_sys_init(srv_n_log_files, srv_log_file_size,
                                    dict_sys_t::s_log_space_first_id);
@@ -288,7 +288,7 @@ static bool log_test_recovery() {
   srv_is_being_started = false;
 
   if (err == DB_SUCCESS) {
-    auto *ret = recv_recovery_from_checkpoint_finish(log, true);
+    auto *ret = recv_recovery_from_checkpoint_finish(true);
     EXPECT_EQ(nullptr, ret);
 
   } else {
@@ -355,16 +355,16 @@ static lsn_t write_single_mlog_test(Log_test::Key key) {
   mach_write_to_8(record_end - 8, handle.end_lsn);
 
   const lsn_t end_lsn =
-      log_buffer_write(log, handle, record, rec_len, handle.start_lsn);
+      log_buffer_write(log, record, rec_len, handle.start_lsn);
 
   ut_a(end_lsn == handle.end_lsn);
 
   if (handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
       end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-    log_buffer_set_first_record_group(log, handle, end_lsn);
+    log_buffer_set_first_record_group(log, end_lsn);
   }
 
-  log_buffer_write_completed(log, handle, handle.start_lsn, end_lsn);
+  log_buffer_write_completed(log, handle.start_lsn, end_lsn);
 
   log_wait_for_space_in_log_recent_closed(log, handle.start_lsn);
 
@@ -452,7 +452,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
       ++end;
     }
 
-    end_lsn = log_buffer_write(log, handle, ptr, rec_len, start_lsn);
+    end_lsn = log_buffer_write(log, ptr, rec_len, start_lsn);
 
     left_to_write -= rec_len;
     ptr = end;
@@ -460,10 +460,10 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
 
     if (left_to_write == 0 && group_start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
                                   end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-      log_buffer_set_first_record_group(log, handle, end_lsn);
+      log_buffer_set_first_record_group(log, end_lsn);
     }
 
-    log_buffer_write_completed(log, handle, start_lsn, end_lsn);
+    log_buffer_write_completed(log, start_lsn, end_lsn);
 
     start_lsn = end_lsn;
   }

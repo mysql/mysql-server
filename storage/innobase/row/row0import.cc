@@ -344,23 +344,22 @@ class RecIterator {
 
   /** Remove the current record
   @return true on success */
-  bool remove(const dict_index_t *index, page_zip_des_t *page_zip,
-              ulint *offsets) UNIV_NOTHROW {
+  bool remove(const dict_index_t *index, ulint *offsets) UNIV_NOTHROW {
     /* We can't end up with an empty page unless it is root. */
     if (page_get_n_recs(m_cur.block->frame) <= 1) {
       return (false);
     }
 
-    return (page_delete_rec(index, &m_cur, page_zip, offsets));
+    return (page_delete_rec(index, &m_cur, offsets));
   }
 
  private:
   page_cur_t m_cur;
 };
 
-/** Class that purges delete marked reocords from indexes, both secondary
+/** Class that purges delete marked records from indexes, both secondary
 and cluster. It does a pessimistic delete. This should only be done if we
-couldn't purge the delete marked reocrds during Phase I. */
+couldn't purge the delete marked records during Phase I. */
 class IndexPurge {
  public:
   /** Constructor
@@ -373,7 +372,7 @@ class IndexPurge {
         << "Phase II - Purge records from index " << index->name;
   }
 
-  /** Descructor */
+  /** Destructor */
   ~IndexPurge() UNIV_NOTHROW = default;
 
   /** Purge delete marked records.
@@ -949,19 +948,16 @@ class PageConverter : public AbstractCallback {
 
   /** Purge delete-marked records, only if it is possible to do so without
   re-organising the B+tree.
-  @param offsets current row offsets.
   @return true if purge succeeded */
-  bool purge(const ulint *offsets) UNIV_NOTHROW;
+  bool purge() UNIV_NOTHROW;
 
   /** Adjust the BLOB references and sys fields for the current record.
   @param index the index being converted
   @param rec record to update
   @param offsets column offsets for the record
-  @param deleted true if row is delete marked
   @return DB_SUCCESS or error code. */
   dberr_t adjust_cluster_record(const dict_index_t *index, rec_t *rec,
-                                const ulint *offsets,
-                                bool deleted) UNIV_NOTHROW;
+                                const ulint *offsets) UNIV_NOTHROW;
 
   /** Find an index with the matching id.
   @return row_index_t* instance or 0 */
@@ -2332,15 +2328,11 @@ dberr_t PageConverter::adjust_cluster_index_blob_ref(
   return (DB_SUCCESS);
 }
 
-/** Purge delete-marked records, only if it is possible to do so without
-re-organising the B+tree.
-@param offsets current row offsets.
-@return true if purge succeeded */
-bool PageConverter::purge(const ulint *offsets) UNIV_NOTHROW {
+bool PageConverter::purge() UNIV_NOTHROW {
   const dict_index_t *index = m_index->m_srv_index;
 
   /* We can't have a page that is empty and not root. */
-  if (m_rec_iter.remove(index, m_page_zip_ptr, m_offsets)) {
+  if (m_rec_iter.remove(index, m_offsets)) {
     ++m_index->m_stats.m_n_purged;
 
     return (true);
@@ -2351,15 +2343,8 @@ bool PageConverter::purge(const ulint *offsets) UNIV_NOTHROW {
   return (false);
 }
 
-/** Adjust the BLOB references and sys fields for the current record.
-@param index the index being converted
-@param rec record to update
-@param offsets column offsets for the record
-@param deleted true if row is delete marked
-@return DB_SUCCESS or error code. */
-dberr_t PageConverter::adjust_cluster_record(const dict_index_t *index,
-                                             rec_t *rec, const ulint *offsets,
-                                             bool deleted) UNIV_NOTHROW {
+dberr_t PageConverter::adjust_cluster_record(
+    const dict_index_t *index, rec_t *rec, const ulint *offsets) UNIV_NOTHROW {
   dberr_t err;
 
   ut_ad(index->is_clustered());
@@ -2404,8 +2389,7 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
     }
 
     if (clust_index) {
-      dberr_t err =
-          adjust_cluster_record(m_index->m_srv_index, rec, m_offsets, deleted);
+      dberr_t err = adjust_cluster_record(m_index->m_srv_index, rec, m_offsets);
 
       if (err != DB_SUCCESS) {
         return (err);
@@ -2419,7 +2403,7 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
       /* A successful purge will move the cursor to the
       next record. */
 
-      if (!purge(m_offsets)) {
+      if (!purge()) {
         m_rec_iter.next();
       }
 
@@ -2782,7 +2766,7 @@ static void row_import_discard_changes(
 
   table->ibd_file_missing = true;
 
-  err = fil_close_tablespace(trx, table->space);
+  err = fil_close_tablespace(table->space);
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
 }
 
@@ -2843,13 +2827,11 @@ static void row_import_discard_changes(
  with the new space id. For all the table's secondary indexes.
  @return error code */
 [[nodiscard]] static dberr_t row_import_adjust_root_pages_of_secondary_indexes(
-    row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from
-                              handler */
-    trx_t *trx,               /*!< in: transaction used for
-                              the import */
-    dict_table_t *table,      /*!< in: table the indexes
-                              belong to */
-    const row_import &cfg)    /*!< Import context */
+    trx_t *trx,            /*!< in: transaction used for
+                           the import */
+    dict_table_t *table,   /*!< in: table the indexes
+                           belong to */
+    const row_import &cfg) /*!< Import context */
 {
   dict_index_t *index;
   ulint n_rows_in_table;
@@ -3440,13 +3422,12 @@ Refer to row_quiesce_write_default_value() for the format details.
 /** Read dd::Column metadata for the dropped table.
 @param[in,out]	table_def	Table definition
 @param[in]	file		file to read from
-@param[in]	cfg		meta-data read
 @param[in]	thd		session
 @param[in]	col		dict_col_t
 @param[in]	col_name	name of the columns */
 static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
-                                                    FILE *file, row_import *cfg,
-                                                    THD *thd, dict_col_t *col,
+                                                    FILE *file, THD *thd,
+                                                    dict_col_t *col,
                                                     const char *col_name) {
   ut_ad(col->is_instant_dropped());
 
@@ -3495,7 +3476,7 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
   ptr += sizeof(uint64_t);
 
   /* Read elements for enum column type.
-  [4]     bytes : numner of elements
+  [4]     bytes : number of elements
   For each element
     [4]     bytes : element name length (len+1)
     [len+1] bytes : element name */
@@ -3800,8 +3781,8 @@ dict_col_t structure, along with the column name.
         ut_ad(strstr(col_name, "_dropped_v") != nullptr);
 
         /* Read dropped col dd::Column metadata and add it to dd::Table */
-        dberr_t err = row_import_read_dropped_col_metadata(table_def, file, cfg,
-                                                           thd, col, col_name);
+        dberr_t err = row_import_read_dropped_col_metadata(table_def, file, thd,
+                                                           col, col_name);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -4717,8 +4698,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* For secondary indexes, purge any records that couldn't be purged
   during the page conversion phase. */
 
-  err = row_import_adjust_root_pages_of_secondary_indexes(prebuilt, trx, table,
-                                                          cfg);
+  err = row_import_adjust_root_pages_of_secondary_indexes(trx, table, cfg);
 
   DBUG_EXECUTE_IF("ib_import_sec_root_adjust_failure", err = DB_CORRUPTION;);
 

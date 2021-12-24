@@ -53,9 +53,8 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                                             SELECT FOR UPDATE */
                        ulint type_mode,
                        /*!< in: LOCK_PREDICATE or LOCK_PRDT_PAGE */
-                       que_thr_t *thr, /*!< in: query thread
+                       que_thr_t *thr); /*!< in: query thread
                                        (can be NULL if BTR_NO_LOCKING_FLAG) */
-                       mtr_t *mtr);    /*!< in/out: mini-transaction */
 
 /** Acquire a "Page" lock on a block
 @param[in]  page_id   id of the page to lock
@@ -109,12 +108,10 @@ after split.
 @param[in,out]  right_block   the new half page
 @param[in]      left_prdt     MBR on the old page
 @param[in]      right_prdt    MBR on the new page
-@param[in]      parent_prdt   original parent MBR
 @param[in]      page_id       the parent's page id
 */
 void lock_prdt_update_parent(buf_block_t *left_block, buf_block_t *right_block,
                              lock_prdt_t *left_prdt, lock_prdt_t *right_prdt,
-                             lock_prdt_t *parent_prdt,
                              const page_id_t &page_id);
 
 /** Checks if locks of other transactions prevent an immediate insert of

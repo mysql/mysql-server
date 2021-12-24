@@ -641,7 +641,6 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 MY_COMPILER_DIAGNOSTIC_POP()
 /**
 @param[in,out]	log		redo log
-@param[in]	handle		handle for the reservation of space
 @param[in]	str		memory to write data from
 @param[in]	str_len		number of bytes to write
 @param[in]	start_lsn	lsn to start writing at (the reserved space)
@@ -649,8 +648,8 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @return end_lsn after writing the data (in the reserved space), could be
 used to start the next write operation if there is still free space in
 the reserved space */
-lsn_t log_buffer_write(log_t &log, const Log_handle &handle, const byte *str,
-                       size_t str_len, lsn_t start_lsn);
+lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
+                       lsn_t start_lsn);
 
 /** Adds a link start_lsn -> end_lsn to the log recent written buffer.
 
@@ -670,11 +669,9 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 MY_COMPILER_DIAGNOSTIC_POP()
 /**
 @param[in,out]	log		redo log
-@param[in]	handle		handle for the reservation of space
 @param[in]	start_lsn	start_lsn of the link to add
 @param[in]	end_lsn		end_lsn of the link to add */
-void log_buffer_write_completed(log_t &log, const Log_handle &handle,
-                                lsn_t start_lsn, lsn_t end_lsn);
+void log_buffer_write_completed(log_t &log, lsn_t start_lsn, lsn_t end_lsn);
 
 /** Modifies header of log block in the log buffer, which contains
 a given lsn value, and sets offset to the first group of log records
@@ -690,11 +687,9 @@ During recovery, when recovery is started in the middle of some group
 of log records, it first looks for the beginning of the next group.
 
 @param[in,out]	log			redo log
-@param[in]	handle			handle for the reservation of space
 @param[in]	rec_group_end_lsn	lsn at which the first log record
 group starts within the block containing this lsn value */
-void log_buffer_set_first_record_group(log_t &log, const Log_handle &handle,
-                                       lsn_t rec_group_end_lsn);
+void log_buffer_set_first_record_group(log_t &log, lsn_t rec_group_end_lsn);
 
 /** Adds a link start_lsn -> end_lsn to the log recent closed buffer.
 
@@ -874,9 +869,8 @@ bool log_read_encryption();
 It just need to flush the file header block with current master key.
 @param[in]	key	encryption key
 @param[in]	iv	encryption iv
-@param[in]	is_boot	if it is for bootstrap
 @return true if success. */
-bool log_write_encryption(byte *key, byte *iv, bool is_boot);
+bool log_write_encryption(byte *key, byte *iv);
 
 /** Rotate the redo log encryption
 It will re-encrypt the redo log encryption metadata and write it to
@@ -1080,9 +1074,8 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
                lsn_t start_lsn, bool allow_checkpoints = true);
 
 /** Validates that the log writer thread is active.
-Used only to assert, that the state is correct.
-@param[in]	log	redo log */
-void log_writer_thread_active_validate(const log_t &log);
+Used only to assert, that the state is correct. */
+void log_writer_thread_active_validate();
 
 /** Validates that the log writer, flusher threads are active.
 Used only to assert, that the state is correct.
@@ -1095,9 +1088,8 @@ Used only to assert, that the state is correct.
 void log_background_threads_active_validate(const log_t &log);
 
 /** Validates that all the log background threads are inactive.
-Used only to assert, that the state is correct.
-@param[in]	log	redo log */
-void log_background_threads_inactive_validate(const log_t &log);
+Used only to assert, that the state is correct. */
+void log_background_threads_inactive_validate();
 
 /** Starts all the log background threads. This can be called only,
 when the threads are inactive. This should never be called concurrently.
@@ -1297,10 +1289,9 @@ inline bool log_checkpointer_is_active();
 @param[in,out]  buf          log file header
 @param[in]      key          encryption key
 @param[in]      iv           encryption iv
-@param[in]      is_boot      if it's for bootstrap
 @param[in]      encrypt_key  encrypt with master key */
 bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
-                                     bool is_boot, bool encrypt_key);
+                                     bool encrypt_key);
 
 /** Disable redo logging and persist the information.
 @param[in,out]	log	redo log */

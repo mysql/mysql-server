@@ -194,7 +194,7 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
     }
   }
 
-  err = que_eval_sql(pinfo, sql, false, trx); /* pinfo is freed here */
+  err = que_eval_sql(pinfo, sql, trx); /* pinfo is freed here */
 
   DBUG_EXECUTE_IF(
       "stats_index_error", if (!trx_started) {
@@ -426,8 +426,8 @@ static void dict_stats_empty_table(dict_table_t *table) /*!< in/out: table */
 }
 
 /** Check whether index's stats are initialized (assert if they are not). */
-static void dict_stats_assert_initialized_index(
-    const dict_index_t *index) /*!< in: index */
+static void dict_stats_assert_initialized_index(const dict_index_t *index [
+    [maybe_unused]]) /*!< in: index */
 {
   UNIV_MEM_ASSERT_RW_ABORT(
       index->stat_n_diff_key_vals,
@@ -2777,7 +2777,7 @@ static dberr_t dict_stats_fetch_from_ps(
                      "CLOSE index_stats_cur;\n"
 
                      "END;",
-                     true, trx);
+                     trx);
   /* pinfo is freed by que_eval_sql() */
 
   trx_commit_for_mysql(trx);
@@ -3469,7 +3469,7 @@ void dict_stats_evict_tablespaces() {
   if (space_id_index_stats != SPACE_UNKNOWN) {
     dberr_t err;
 
-    err = fil_close_tablespace(trx, space_id_index_stats);
+    err = fil_close_tablespace(space_id_index_stats);
 
     if (err != DB_SUCCESS) {
       ib::info(ER_IB_MSG_227)
@@ -3482,7 +3482,7 @@ void dict_stats_evict_tablespaces() {
   if (space_id_table_stats != SPACE_UNKNOWN) {
     dberr_t err;
 
-    err = fil_close_tablespace(trx, space_id_table_stats);
+    err = fil_close_tablespace(space_id_table_stats);
 
     if (err != DB_SUCCESS) {
       ib::info(ER_IB_MSG_228)

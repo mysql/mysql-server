@@ -292,7 +292,7 @@ inline void Link_buf<Position>::add_link_advance_tail(Position from,
     /* add link */
     slot.store(to, std::memory_order_release);
 
-    auto stop_condition = [&](Position prev_pos, Position next_pos) {
+    auto stop_condition = [&](Position prev_pos, Position) {
       return (prev_pos > from);
     };
 
@@ -387,7 +387,7 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
 
 template <typename Position>
 inline bool Link_buf<Position>::advance_tail() {
-  auto stop_condition = [](Position from, Position to) { return false; };
+  auto stop_condition = [](Position, Position) { return false; };
 
   return advance_tail_until(stop_condition);
 }
@@ -409,7 +409,7 @@ inline bool Link_buf<Position>::has_space(Position position) {
     return true;
   }
 
-  auto stop_condition = [](Position from, Position to) { return false; };
+  auto stop_condition = [](Position, Position) { return false; };
   advance_tail_until(stop_condition, 0);
 
   tail = m_tail.load(std::memory_order_acquire);

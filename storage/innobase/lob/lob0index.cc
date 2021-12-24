@@ -43,17 +43,7 @@ void index_entry_t::move_version_base_node(index_entry_t &to_entry) {
   flst_init(from_node, m_mtr);
 }
 
-/** The current index entry points to a latest LOB page.  It may or may
-not have older versions.  If older version is there, bring it back to the
-index list from the versions list.  Then remove the current entry from
-the index list.  Move the versions list from current entry to older entry.
-@param[in]  index  the clustered index containing the LOB.
-@param[in]  trxid  The transaction identifier.
-@param[in]  first_page  The first lob page containing index list and free
-                        list.
-@return the location of next entry. */
 fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
-                                                   trx_id_t trxid,
                                                    first_page_t &first_page) {
   flst_base_node_t *base = first_page.index_list();
   flst_base_node_t *free_list = first_page.free_list();
@@ -79,7 +69,7 @@ fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
     flst_insert_after(base, m_node, old_node, m_mtr);
   }
 
-  fil_addr_t loc = purge_version(index, trxid, base, free_list);
+  fil_addr_t loc = purge_version(index, base, free_list);
 
   ut_d(flst_validate(base, m_mtr));
 
@@ -117,13 +107,7 @@ void index_entry_t::purge(dict_index_t *index) {
   set_data_len(0);
 }
 
-/** Purge the current entry.
-@param[in]  index  the clustered index containing the LOB.
-@param[in]  trxid  The transaction identifier.
-@param[in]  lst    the base node of index list.
-@param[in]  free_list    the base node of free list.
-@return the location of the next entry. */
-fil_addr_t index_entry_t::purge_version(dict_index_t *index, trx_id_t trxid,
+fil_addr_t index_entry_t::purge_version(dict_index_t *index,
                                         flst_base_node_t *lst,
                                         flst_base_node_t *free_list) {
   /* Save the location of next node. */

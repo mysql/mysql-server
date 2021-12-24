@@ -60,18 +60,15 @@ static inline bool RTREE_SEARCH_MODE(page_cur_mode_t mode) {
 /* Geometry data header */
 constexpr uint32_t GEO_DATA_HEADER_SIZE = 4;
 /** Builds a Rtree node pointer out of a physical record and a page number.
- @return own: node pointer */
-dtuple_t *rtr_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rtr_mbr_t *mbr,      /*!< in: mbr of lower page */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level);              /*!< in: level of rec in tree:
-                               0 means leaf level */
+@return own: node pointer
+@param[in] index index
+@param[in] mbr mbr of lower page
+@param[in] rec record for which to build node pointer
+@param[in] page_no page number to put in node pointer
+@param[in] heap memory heap where pointer created */
+dtuple_t *rtr_index_build_node_ptr(const dict_index_t *index,
+                                   const rtr_mbr_t *mbr, const rec_t *rec,
+                                   page_no_t page_no, mem_heap_t *heap);
 
 /** Splits an R-tree index page to halves and inserts the tuple. It is assumed
  that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
@@ -143,10 +140,10 @@ double rtr_rec_cal_increase(
     const dd::Spatial_reference_system *srs); /*!< in: SRS of R-tree */
 
 /** Following the right link to find the proper block for insert.
- @return the proper block.*/
-dberr_t rtr_ins_enlarge_mbr(btr_cur_t *cursor, /*!< in: btr cursor */
-                            que_thr_t *thr,    /*!< in: query thread */
-                            mtr_t *mtr);       /*!< in: mtr */
+@return the proper block.
+@param[in] btr_cur btr cursor
+@param[in] mtr mtr */
+dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, mtr_t *mtr);
 
 /**                                                                        */
 void rtr_get_father_node(
@@ -357,39 +354,26 @@ void rtr_page_copy_rec_list_start_no_locks(
 @param[in] offsets Rec offsets
 @param[in] offsets2 Rec offsets
 @param[in] child_page The child page.
-@param[in] merge_block Page to merge
-@param[in] block Page be merged
-@param[in] index Index
 @param[in] mtr Mini-transaction */
 dberr_t rtr_merge_and_update_mbr(btr_cur_t *cursor, btr_cur_t *cursor2,
                                  ulint *offsets, ulint *offsets2,
-                                 page_t *child_page, buf_block_t *merge_block,
-                                 buf_block_t *block, dict_index_t *index,
-                                 mtr_t *mtr);
+                                 page_t *child_page, mtr_t *mtr);
 
 /** Deletes on the upper level the node pointer to a page.
-@param[in] index Index tree
 @param[in] sea_cur Search cursor, contains information about parent nodes in
 search
-@param[in] block Page whose node pointer is deleted
 @param[in] mtr Mini-transaction
 */
-void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
-                         buf_block_t *block, mtr_t *mtr);
+void rtr_node_ptr_delete(btr_cur_t *sea_cur, mtr_t *mtr);
 
 /** Check two MBRs are identical or need to be merged
 @param[in] cursor Cursor
 @param[in] cursor2 The other cursor
 @param[in] offsets Rec offsets
 @param[in] offsets2 Rec offsets
-@param[out] new_mbr Mbr to update
-@param[in] merge_block Page to merge
-@param[in] block Page be merged
-@param[in] index Index */
+@param[out] new_mbr Mbr to update */
 bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
-                           ulint *offsets, ulint *offsets2, rtr_mbr_t *new_mbr,
-                           buf_block_t *merge_block, buf_block_t *block,
-                           dict_index_t *index);
+                           ulint *offsets, ulint *offsets2, rtr_mbr_t *new_mbr);
 
 /** Update the mbr field of a spatial index row.
  @return true if successful */

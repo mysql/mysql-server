@@ -1685,7 +1685,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     if (type.is_log() && offset >= LOG_FILE_HDR_SIZE) {
       Encryption encryption(type.encryption_algorithm());
 
-      ret = encryption.decrypt_log(type, buf, src_len, scratch, len);
+      ret = encryption.decrypt_log(type, buf, src_len, scratch);
     }
 
     return (ret);
@@ -5939,18 +5939,7 @@ dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off, os_offset_t len) {
 #endif /* _WIN32 */
 }
 
-/** Check if the file system supports sparse files.
-
-Warning: On POSIX systems we try and punch a hole from offset 0 to
-the system configured page size. This should only be called on an empty
-file.
-
-Note: On Windows we use the name and on Unices we use the file handle.
-
-@param[in]	path		File name
-@param[in]	fh		File handle for the file - if opened
-@return true if the file system supports sparse files */
-bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh) {
+bool os_is_sparse_file_supported(pfs_os_file_t fh) {
   /* In this debugging mode, we act as if punch hole is supported,
   then we skip any calls to actually punch a hole.  In this way,
   Transparent Page Compression is still being tested. */

@@ -236,8 +236,8 @@ struct GenericPolicy
   @param[in]	id              Mutex ID
   @param[in]	filename	File where mutex was created
   @param[in]	line		Line in filename */
-  void init(const MutexType &mutex, latch_id_t id, const char *filename,
-            uint32_t line) UNIV_NOTHROW {
+  void init(const MutexType &mutex [[maybe_unused]], latch_id_t id,
+            const char *filename, uint32_t line) UNIV_NOTHROW {
     m_id = id;
 
     latch_meta_t &meta = sync_latch_get_meta(id);
@@ -284,8 +284,8 @@ struct GenericPolicy
   @param[in]	mutex		Mutex instance to be locked
   @param[in]	filename	Filename from where it was called
   @param[in]	line		Line number from where it was called */
-  void enter(const MutexType &mutex, const char *filename,
-             ulint line) UNIV_NOTHROW {
+  void enter(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
+             ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::enter(&mutex, filename, line));
   }
 
@@ -293,14 +293,14 @@ struct GenericPolicy
   @param[in]	mutex		Mutex instance that is locked
   @param[in]	filename	Filename from where it was called
   @param[in]	line		Line number from where it was called */
-  void locked(const MutexType &mutex, const char *filename,
-              ulint line) UNIV_NOTHROW {
+  void locked(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
+              ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::locked(&mutex, filename, line));
   }
 
   /** Called when the mutex is released
   @param[in]	mutex		Mutex instance that is released */
-  void release(const MutexType &mutex) UNIV_NOTHROW {
+  void release(const MutexType &IF_DEBUG(mutex)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::release(&mutex));
   }
 
@@ -356,8 +356,9 @@ class BlockMutexPolicy
   @param[in]	id              Mutex ID
   @param[in]	filename	File where mutex was created
   @param[in]	line		Line in filename */
-  void init(const MutexType &mutex, latch_id_t id, const char *filename,
-            uint32_t line) UNIV_NOTHROW {
+  void init(const MutexType &mutex [[maybe_unused]], latch_id_t id,
+            const char *filename [[maybe_unused]],
+            uint32_t line [[maybe_unused]]) UNIV_NOTHROW {
     /* It can be LATCH_ID_BUF_BLOCK_MUTEX or
     LATCH_ID_BUF_POOL_ZIP. Unfortunately, they
     are mapped to the same mutex type in the
@@ -407,14 +408,14 @@ class BlockMutexPolicy
   @param[in]	mutex		Mutex instance that is locked
   @param[in]	filename	Filename from where it was called
   @param[in]	line		Line number from where it was called */
-  void locked(const MutexType &mutex, const char *filename,
-              ulint line) UNIV_NOTHROW {
+  void locked(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
+              ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::locked(&mutex, filename, line));
   }
 
   /** Called when the mutex is released
   @param[in]	mutex		Mutex instance that is released */
-  void release(const MutexType &mutex) UNIV_NOTHROW {
+  void release(const MutexType &IF_DEBUG(mutex)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::release(&mutex));
   }
 
@@ -422,8 +423,8 @@ class BlockMutexPolicy
   @param[in]	mutex		Mutex instance to be locked
   @param[in]	filename	Filename from where it was called
   @param[in]	line		Line number from where it was called */
-  void enter(const MutexType &mutex, const char *filename,
-             ulint line) UNIV_NOTHROW {
+  void enter(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
+             ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::enter(&mutex, filename, line));
   }
 

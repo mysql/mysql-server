@@ -82,7 +82,7 @@ void MutexDebug<Mutex>::locked(const Mutex *mutex, const char *name,
 }
 
 template <typename Mutex>
-void MutexDebug<Mutex>::release(const Mutex *mutex) UNIV_NOTHROW {
+void MutexDebug<Mutex>::release(const Mutex *) UNIV_NOTHROW {
   ut_ad(is_owned());
 
   m_context.release();

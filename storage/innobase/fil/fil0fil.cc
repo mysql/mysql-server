@@ -1249,15 +1249,13 @@ class Fil_shard {
                                              bool sync);
 
   /** Get the file name for IO and the local offset within that file.
-  @param[in]      req_type  IO context
   @param[in,out]  space     Tablespace for IO
   @param[in,out]  page_no   The relative page number in the file
   @param[out]     file      File node if DB_SUCCESS, NULL if not
   @retval DB_SUCCESS if the file is found with the page_no
   @retval DB_ERROR if the file is not found or does not contain the page.
                    in this case file == nullptr */
-  [[nodiscard]] static dberr_t get_file_for_io(const IORequest &req_type,
-                                               fil_space_t *space,
+  [[nodiscard]] static dberr_t get_file_for_io(fil_space_t *space,
                                                page_no_t *page_no,
                                                fil_node_t *&file);
 
@@ -4472,10 +4470,9 @@ Tablespace_files::Tablespace_files(const std::string &dir)
 
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
-@param[in,out]	trx		Transaction covering the close
 @param[in]	space_id	Tablespace ID
 @return DB_SUCCESS or error */
-dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
+dberr_t fil_close_tablespace(space_id_t space_id) {
   ut_ad(!fsp_is_undo_tablespace(space_id));
   ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 
@@ -5663,7 +5660,7 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
   be lost after this call, if it succeeds. In this case the file
   should be full of NULs. */
 
-  punch_hole = os_is_sparse_file_supported(path, file);
+  punch_hole = os_is_sparse_file_supported(file);
 
   /* Should not make large punch hole as initialization of large file,
   for crash-recovery safeness around disk-full. */
@@ -7747,8 +7744,7 @@ AIO_mode Fil_shard::get_AIO_mode(const IORequest &req_type, bool sync) {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
-                                   fil_space_t *space, page_no_t *page_no,
+dberr_t Fil_shard::get_file_for_io(fil_space_t *space, page_no_t *page_no,
                                    fil_node_t *&file) {
   file = space->get_file_node(page_no);
   return (file == nullptr) ? DB_ERROR : DB_SUCCESS;
@@ -7796,7 +7792,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 
   fil_node_t *file;
   page_no_t page_no = page_id.page_no();
-  dberr_t err = get_file_for_io(req_type, space, &page_no, file);
+  dberr_t err = get_file_for_io(space, &page_no, file);
 
   ut_a(file != nullptr);
   ut_a(err == DB_SUCCESS);
@@ -7983,7 +7979,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 
   fil_node_t *file;
   auto page_no = page_id.page_no();
-  auto err = get_file_for_io(req_type, space, &page_no, file);
+  auto err = get_file_for_io(space, &page_no, file);
 
   if (file == nullptr) {
     ut_ad(err == DB_ERROR);
@@ -8880,8 +8876,9 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
   return DB_SUCCESS;
 }
 
-void fil_adjust_name_import(dict_table_t *table, const char *path,
-                            ib_file_suffix extn) {
+void fil_adjust_name_import(dict_table_t *table [[maybe_unused]],
+                            const char *path,
+                            ib_file_suffix extn [[maybe_unused]]) {
   /* Try to open with current name first. */
   if (os_file_exists(path)) {
     return;
@@ -10314,8 +10311,7 @@ bool fil_tablespace_open_for_recovery(space_id_t space_id) {
   return fil_system->open_for_recovery(space_id);
 }
 
-Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
-                                     space_id_t space_id,
+Fil_state fil_tablespace_path_equals(space_id_t space_id,
                                      const char *space_name, ulint fsp_flags,
                                      std::string old_path,
                                      std::string *new_path) {
@@ -10663,18 +10659,9 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
   return ptr;
 }
 
-/** Redo a tablespace rename.
-This function doesn't do anything, simply parses the redo log record.
-@param[in]	ptr		redo log record
-@param[in]	end		end of the redo log buffer
-@param[in]	page_id		Tablespace Id and first page in file
-@param[in]	parsed_bytes	Number of bytes parsed so far
-@param[in]	parse_only	Don't apply, parse only
-@return pointer to next redo log record
-@retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
                                  const page_id_t &page_id, ulint parsed_bytes,
-                                 bool parse_only) {
+                                 bool parse_only [[maybe_unused]]) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -11621,8 +11608,9 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
   }
 }
 
-static bool fil_get_partition_file(const std::string &old_path,
-                                   ib_file_suffix extn, std::string &new_path) {
+static bool fil_get_partition_file(const std::string &old_path [[maybe_unused]],
+                                   ib_file_suffix extn [[maybe_unused]],
+                                   std::string &new_path [[maybe_unused]]) {
   /* Safe check. Never needed on Windows. */
 #ifdef _WIN32
   return false;

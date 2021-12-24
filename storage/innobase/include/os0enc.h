@@ -234,11 +234,10 @@ class Encryption {
   @param[in]      key           encryption key
   @param[in]      iv            encryption iv
   @param[in,out]  encrypt_info  encryption information
-  @param[in]      is_boot       if it's for bootstrap
   @param[in]      encrypt_key   encrypt with master key
   @return true if success. */
   static bool fill_encryption_info(const byte *key, const byte *iv,
-                                   byte *encrypt_info, bool is_boot,
+                                   byte *encrypt_info,
                                    bool encrypt_key) noexcept;
 
   /** Get master key from encryption information
@@ -308,10 +307,9 @@ class Encryption {
                             will be copied to this page
   @param[in]      src_len   source data length
   @param[in,out]  dst       scratch area to use for decryption
-  @param[in]      dst_len   size of the scratch area in bytes
   @return DB_SUCCESS or error code */
   dberr_t decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                      byte *dst, ulint dst_len) noexcept;
+                      byte *dst) noexcept;
 
   /** Decrypt the page data contents. Page type must be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,

@@ -97,10 +97,9 @@ class Open_files_limit {
       return "innodb_set_open_files_limit";
     }
 
-    static long long innodb_set_open_files_limit(
-        UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-        unsigned char *null_value MY_ATTRIBUTE((unused)),
-        unsigned char *error MY_ATTRIBUTE((unused))) {
+    static long long innodb_set_open_files_limit(UDF_INIT *, UDF_ARGS *args,
+                                                 unsigned char *,
+                                                 unsigned char *) {
       Security_context *sctx = current_thd->security_context();
       if (!sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
                .first &&
@@ -153,9 +152,8 @@ class Open_files_limit {
     }
 
     /** Initialize dynamic procedure innodb_set_open_files_limit */
-    static bool innodb_set_open_files_limit_init(
-        UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-        char *message) {
+    static bool innodb_set_open_files_limit_init(UDF_INIT *, UDF_ARGS *args,
+                                                 char *message) {
       if (args->arg_count != 1) {
         strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
         return true;
@@ -172,10 +170,7 @@ class Open_files_limit {
     }
 
     /** Deinitialize dynamic procedure innodb_set_open_files_limit */
-    static void innodb_set_open_files_limit_deinit(
-        UDF_INIT *initid MY_ATTRIBUTE((unused))) {
-      return;
-    }
+    static void innodb_set_open_files_limit_deinit(UDF_INIT *) { return; }
   };
 
   Dynamic_procedures m_dynamic_procedures;

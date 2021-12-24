@@ -387,7 +387,6 @@ struct first_page_t : public basic_page_t {
                        mtr_t *mtr);
 
   /** Replace data in the page inline.
-  @param[in]	trx	Current transaction.
   @param[in]	offset	Location where replace operation starts.
   @param[in,out]	ptr	Buffer containing new data. after the
                           call it will point to remaining data.
@@ -395,8 +394,7 @@ struct first_page_t : public basic_page_t {
                           after the call it will contain amount of
                           data yet to be replaced.
   @param[in]	mtr	Mini-transaction context.*/
-  void replace_inline(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
-                      mtr_t *mtr);
+  void replace_inline(ulint offset, const byte *&ptr, ulint &want, mtr_t *mtr);
 
   ulint get_data_len() const {
     return (mach_read_from_4(frame() + OFFSET_DATA_LEN));

@@ -636,9 +636,8 @@ static bool sync_array_detect_deadlock_low(sync_array_t *arr, sync_cell_t *cell,
       /* The (wait) x-lock request can block infinitely only if someone (can be
       also the cell thread) is holding an s-lock */
       return sync_array_detect_rwlock_deadlock(
-          cell, arr, depth, [](auto request_type, bool is_my) {
-            return request_type == RW_LOCK_S;
-          });
+          cell, arr, depth,
+          [](auto request_type, bool) { return request_type == RW_LOCK_S; });
     case RW_LOCK_SX:
       /* The sx-lock request can block infinitely only if someone (cannot be
       the cell thread) is holding a (wait) x-lock or sx-lock, and he is blocked
@@ -652,7 +651,7 @@ static bool sync_array_detect_deadlock_low(sync_array_t *arr, sync_cell_t *cell,
       the cell thread) is holding a (wait) x-lock, and he is blocked by start
       thread */
       return sync_array_detect_rwlock_deadlock(
-          cell, arr, depth, [](auto request_type, bool is_my) {
+          cell, arr, depth, [](auto request_type, bool) {
             return request_type == RW_LOCK_X || request_type == RW_LOCK_X_WAIT;
           });
     default:

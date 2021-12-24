@@ -734,9 +734,7 @@ void log_sys_close() {
 
 /** @{ */
 
-void log_writer_thread_active_validate(const log_t &log) {
-  ut_a(log_writer_is_active());
-}
+void log_writer_thread_active_validate() { ut_a(log_writer_is_active()); }
 
 void log_background_write_threads_active_validate(const log_t &log) {
   ut_ad(!log.disable_redo_writes);
@@ -753,7 +751,7 @@ void log_background_threads_active_validate(const log_t &log) {
   ut_a(log_checkpointer_is_active());
 }
 
-void log_background_threads_inactive_validate(const log_t &log) {
+void log_background_threads_inactive_validate() {
   ut_a(!log_checkpointer_is_active());
   ut_a(!log_write_notifier_is_active());
   ut_a(!log_flush_notifier_is_active());
@@ -764,7 +762,7 @@ void log_background_threads_inactive_validate(const log_t &log) {
 void log_start_background_threads(log_t &log) {
   ib::info(ER_IB_MSG_1258) << "Log background threads are being started...";
 
-  log_background_threads_inactive_validate(log);
+  log_background_threads_inactive_validate();
 
   ut_ad(!log.disable_redo_writes);
   ut_a(!srv_read_only_mode);
@@ -846,7 +844,7 @@ void log_stop_background_threads(log_t &log) {
     std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
 
-  log_background_threads_inactive_validate(log);
+  log_background_threads_inactive_validate();
 }
 
 void log_stop_background_threads_nowait(log_t &log) {
