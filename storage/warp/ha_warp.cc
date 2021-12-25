@@ -160,7 +160,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(0);
+  ibis::util::setVerboseLevel(3);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -1148,6 +1148,7 @@ void ha_warp::cleanup_pushdown_info() {
   pushdown_mtx.unlock();
   fact_table_filters.clear();
   pushdown_table_count = 0;
+  bitmap_merge_join_executed = false;
 }  
 
 int ha_warp::repair(THD *, HA_CHECK_OPT *) {
@@ -1477,8 +1478,6 @@ int ha_warp::rnd_init(bool) {
     }
   }
   
- 
-  
   current_rowid = 0;
   /* When scanning this is used to skip evaluation of transactions
      that have already been evaluated
@@ -1561,14 +1560,12 @@ void filter_fact_column(
   uint32_t* running_filter_threads,
   std::mutex* fact_filter_mutex ) 
   { 
-    
     auto column_vals = column_query->getQualifiedLongs((fact_filter->first)->fact_column.c_str());
     
     uint32_t rownum = 1;
     std::vector<uint64_t> matching_dim_rowids;
     matching_dim_rowids.clear();
     for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
-      
       ++rownum;
       
       auto find_it = fact_filter->second->find(*column_it);
@@ -1596,8 +1593,7 @@ void merge_dimension_keys(
   std::set<uint64_t>* matching_dim_rowids, 
   uint32_t* running_dimension_merges, 
   std::mutex* dimension_merge_mutex ) {
-
-  
+ 
   filter_it->first->mtx.lock();
   for(auto insert_it = matching_dim_rowids->begin(); insert_it != matching_dim_rowids->end(); ++insert_it) {
     filter_it->first->add_matching_rownum(*insert_it);
@@ -1606,6 +1602,7 @@ void merge_dimension_keys(
   delete matching_dim_rowids;
   
   dimension_merge_mutex->lock();
+
   (*running_dimension_merges)--;
   dimension_merge_mutex->unlock();
 }
@@ -1620,99 +1617,18 @@ void exec_pushdown_join(
   uint32_t* running_dimension_merges,
   std::mutex* dimension_merge_mutex ) {
           
-  
-#ifdef WARP_USE_SIMD_INTERSECTION
-  struct filter_result {
-    std::vector<uint32_t> *fact_rids;
-    std::set<uint32_t> *dim_rids;
-  };
-
-  std::vector<filter_result> filter_results;
-  uint32_t running_filter_threads;
-
-  auto filter_it = fact_table_filters->begin();
-  for (filter_it = fact_table_filters->begin(); filter_it != fact_table_filters->end(); ++filter_it) {
-
-    // FIXME: support max concurrency limits here
-    filter_result tmp ;
-    tmp.fact_rids= new std::vector<uint32_t>;
-    tmp.dim_rids = new std::set<uint32_t>;
-    filter_results.push_back(tmp);
-    fact_filter_mutex.lock();
-    ++running_filter_threads;
-    fact_filter_mutex.unlock();
-    std::thread ( filter_fact_column,
-                  column_query, 
-                  filter_it, 
-                  tmp.fact_rids, 
-                  tmp.dim_rids,
-                  &running_filter_threads,
-                  &fact_filter_mutex ).detach();
-  }
-  while(1) {
-    fact_filter_mutex.lock();
-    if(running_filter_threads > 0) {
-      fact_filter_mutex.unlock();
-      struct timespec sleep_time;
-      struct timespec remaining_time;
-      sleep_time.tv_sec = (time_t)0;
-      sleep_time.tv_nsec = 100000000L; // sleep a millisecond
-      nanosleep(&sleep_time, &remaining_time);
-      //sleep(1);
-      continue;
-    }
-    // leave the loop
-    fact_filter_mutex.unlock();
-    break;
-  }
-
-  intersectionfunction inter =
-      IntersectionFactory::getFromName("simd_avx2"); // using SIMD intersection
-  
-  size_t intersize;
-  size_t current_filter_idx;
-  for(current_filter_idx = 0; current_filter_idx < (filter_results.size()-1); ++current_filter_idx) {
-    
-    intersize = inter(
-      filter_results[current_filter_idx+1].fact_rids->data(),
-      filter_results[current_filter_idx+1].fact_rids->size(),
-      filter_results[current_filter_idx].fact_rids->data(),
-      filter_results[current_filter_idx].fact_rids->size(),
-      filter_results[current_filter_idx+1].fact_rids->data()
-    );
-    
-    filter_results[current_filter_idx+1].fact_rids->resize(intersize);
-    filter_results[current_filter_idx+1].fact_rids->shrink_to_fit();
-    delete filter_results[current_filter_idx].fact_rids;
-    filter_results[current_filter_idx].fact_rids = NULL;
-  }
-  
-  
-  for (current_filter_idx = 0, filter_it = fact_table_filters->begin(); filter_it != fact_table_filters->end(); ++filter_it,++current_filter_idx) {
-    filter_it->first->mtx.lock();
-    for(auto insert_it = filter_results[current_filter_idx].dim_rids->begin(); insert_it != filter_results[current_filter_idx].dim_rids->end(); ++insert_it) {
-      filter_it->first->add_matching_rownum(*insert_it);
-    }
-    filter_it->first->mtx.unlock();
-    delete filter_results[current_filter_idx].dim_rids;
-    filter_results[current_filter_idx].dim_rids = NULL;
-  }
-
-#else  
   std::unordered_map<uint32_t, uint8_t> tmp_matching_rids;
   auto rid_it = tmp_matching_rids.begin();
 
   //uint32_t match_count = 0;
   uint8_t filter_exec_count = 0;
   auto filter_it = fact_table_filters->begin();
-
+  
   for ( filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
-    
     auto column_vals = column_query->getQualifiedLongs((filter_it->first)->fact_column.c_str());
-    
     uint32_t rownum =0;
     auto matching_dim_rowids = new std::set<uint64_t> ;
-    
+
     for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
       
       ++rownum;
@@ -1748,7 +1664,7 @@ void exec_pushdown_join(
     }
     // free up columnar values
     delete column_vals;
-    
+
     dimension_merge_mutex->lock();
     ++running_dimension_merges;
     dimension_merge_mutex->unlock();
@@ -1780,13 +1696,14 @@ void exec_pushdown_join(
         filtered_matching_ids->push_back(tmp_it->first);
       }
     }
+    
     if(filtered_matching_ids->size() > 0) {
       find_it->second = filtered_matching_ids;
     } else {
       find_it->second = NULL;
     }
   }
-#endif
+
 
   parallel_join_mutex->lock();
   (*running_join_threads)--;
@@ -1803,13 +1720,12 @@ int ha_warp::rnd_next(uchar *buf) {
 fetch_again:  
 
   if( partitions != NULL && bitmap_merge_join_executed == false ) {
-    
     if(1) {
       
       if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
         ++part_it;
       }
-
+    
       while( part_it != partitions->end() ) {        
         //verify that the partition is valid / not empty
         base_table = ibis::table::create((*part_it)->currentDataDir());
@@ -1817,6 +1733,7 @@ fetch_again:
         if(!base_table) {
           DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
+        
         delete base_table;
         base_table = NULL;
         filtered_table = NULL;
@@ -1829,20 +1746,19 @@ fetch_again:
         column_query->addConditions(push_where_clause.c_str());
         column_query->evaluate();
         if( column_query->getNumHits() != 0 ) {
-          
           // nothing happens if this function is called more than once during query evaluation
           // but it must be executed at least once when parallel hash join is being used
           bitmap_merge_join();
           
           // this is zero if join optimization is not being used
           if(fact_table_filters.size() == 0) {
-
+          
             if( push_where_clause == "" ) {
               push_where_clause = "1=1";
             }
             
           } else {
-            
+          
             if( matching_ridset.size() == 0 ) {
               for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
                 matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
@@ -1850,11 +1766,11 @@ fetch_again:
             }  
             
             while(1) {
-            
               parallel_join_mutex.lock();
               auto tmp = running_join_threads;
               parallel_join_mutex.unlock();
-              if(tmp >= THDVAR(table->in_use, max_degree_of_parallelism) && (part_it+1) != partitions->end() ) {
+              
+              if(tmp >= THDVAR(table->in_use, max_degree_of_parallelism) ) {
                 
                 struct timespec sleep_time;
                 struct timespec remaining_time;
@@ -1863,12 +1779,7 @@ fetch_again:
                 
                 nanosleep(&sleep_time, &remaining_time);
                 continue;
-              } else {
-                if((part_it+1) == partitions->end()) {
-                  
-                  break;
-                }
-              }
+              } 
               
               parallel_join_mutex.lock();
               ++running_join_threads;
@@ -1888,6 +1799,7 @@ fetch_again:
     } 
     
   } 
+  
 
   // wait for scheduled join to complete
   while(all_jobs_completed == false) {
@@ -1928,27 +1840,25 @@ fetch_again:
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   
   next_ridset:
-  
+
   if( matching_ridset.size() > 0 ) {
-    
     if(part_it == partitions->end()) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-
+    
     if( current_matching_ridset == NULL ) {
-      
       auto find_it = matching_ridset.find(std::string((*part_it)->currentDataDir()));
       
       if( find_it == matching_ridset.end() ) {
         ++part_it;
         goto next_ridset;
       }
-
+      
       if( find_it->second == NULL ) {
         ++part_it;
         goto next_ridset;
       } 
-
+    
       if(base_table != NULL) {
         delete cursor;
         cursor = NULL;
@@ -1957,7 +1867,7 @@ fetch_again:
         delete base_table;
         base_table = NULL;
       }
-      
+    
       current_matching_ridset = find_it->second;
       current_matching_ridset_it = find_it->second->begin();
       
@@ -2001,6 +1911,7 @@ fetch_again:
       cursor = filtered_table->createCursor();
       
     } else {  
+      
       // table scan (possibly with filters) without any joins
       if(cursor == NULL) {
         base_table = ibis::table::create(this->share->data_dir_name);
@@ -2053,7 +1964,7 @@ fetch_again:
   }
 
   if( res != 0 ) {
-
+    
     fetch_count = 0;
     if( partitions != NULL && fact_table_filters.size() > 0 ) {
 
@@ -2154,12 +2065,13 @@ int ha_warp::rnd_end() {
   filtered_table = NULL;
   cursor = NULL;
   partitions = NULL;
-  
+  // these have to be reset for consecutive execution of queries on this 
+  // THD / handle to continue working properly (ie not crash)
   matching_ridset.clear();
-  
   fact_table_filters.clear();
-  bitmap_merge_join_executed = false;
-
+  all_dimension_merges_completed = false;
+  all_jobs_completed = false;
+  current_matching_ridset = NULL;
   DBUG_RETURN(0);
 }
 
@@ -3007,6 +2919,7 @@ int ha_warp::bitmap_merge_join() {
   }
   bitmap_merge_join_executed = true;
   auto fact_pushdown_info=get_pushdown_info(table->in_use, table->alias);
+  
   if(fact_pushdown_info == NULL) {
     return 0;
   }
@@ -3056,7 +2969,7 @@ int ha_warp::bitmap_merge_join() {
     if(dim_pushdown_info->base_table == NULL) {
       continue;
     }
-        
+    
     dim_pushdown_info->filtered_table = 
     dim_pushdown_info->base_table->select(dim_pushdown_info->column_set.c_str(), dim_pushdown_clause.c_str());
     
@@ -3193,16 +3106,15 @@ int ha_warp::bitmap_merge_join() {
     } // end of fetch loop
     
     if( matches->size() > 0 ) {
-      auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname, fact_field->real_type(), dim_field->real_type());
-      fact_table_filters.emplace(std::make_pair(filter_info, matches));
+      auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname);
+      fact_table_filters.insert(std::make_pair(filter_info, matches));
     } else {
       delete matches;
     }
-
     dim_pushdown_info->fact_table_filters = &fact_table_filters;
 
   } // end of dim tables loop  
-  
+
   return 0;
 }
 
@@ -3434,7 +3346,7 @@ void warp_trx::commit() {
             sql_print_error("transaction log read failed");
             assert(false);
           }
-          //std::cerr << "Setting deleted bit in delete bitmap: " << rowid << "\n";
+          
           warp_state->delete_bitmap->set_bit(rowid);
           continue;
           break;

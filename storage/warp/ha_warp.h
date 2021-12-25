@@ -209,12 +209,10 @@ public:
   enum_field_types dim_column_type;
   std::mutex mtx;
 
-  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column, enum_field_types fact_column_type, enum_field_types dim_column_type) {
+  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
     this->fact_column = fact_column;
     this->dim_alias = dim_alias;
     this->dim_column = dim_column; 
-    this->fact_column_type = fact_column_type;
-    this->dim_column_type = dim_column_type;
   }
 
   /* in order to do batch operations, the mutex can be taken manually
@@ -650,13 +648,6 @@ class ha_warp : public handler {
   int64_t pushdown_table_count = 0;
   
   
-#ifdef WARP_USE_SIMD_INTERSECTION
-  std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
-  std::vector<uint32_t>* current_matching_ridset=NULL;
-  std::vector<uint32_t>::iterator current_matching_ridset_it;
-  std::set<uint64_t>::iterator current_matching_dim_ridset_it;
-  std::set<uint64_t>* current_matching_dim_ridset=NULL;
-#else
   std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
   std::vector<uint32_t>* current_matching_ridset=NULL;
   std::vector<uint32_t>::iterator current_matching_ridset_it;
@@ -668,7 +659,7 @@ class ha_warp : public handler {
   // release notes :)
   std::set<uint64_t>::iterator current_matching_dim_ridset_it;
   std::set<uint64_t>* current_matching_dim_ridset=NULL;
-#endif
+
   uint32_t rownum = 0;
   uint32_t running_join_threads = 0;
   
