@@ -151,110 +151,103 @@ std::string strtolower(std::string in) {
   }
   return out;
 }
-
-std::vector<std::string> custom_lex(std::string sql, bool convert_case = false) {
-  //bool keep_whitespace = false;
-  //char until_char;
-  bool in_single = false;
-  bool in_double = false;
-  bool in_backtick = false;
+std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
+  char enclosure_type = 0;
+  bool force_capture_next = false;
+  std::string token = "";
+  std::vector<std::string> tokens;
   bool in_comment = false;
   bool in_line_comment = false;
-  std::string token="";
-  std::vector<std::string> tokens;
-  for(int i=0;i<sql.length();++i) {
-    if(isspace(sql[i]) && sql.substr(i+2, 2) == "--") {
+
+  for(auto char_idx = 0; char_idx < sql.length(); ++char_idx) {
+    
+    /* this block of statements handles SQL commenting */
+    if( (sql[char_idx] == '\t' || sql[char_idx] == ' ' || sql[char_idx] == '\r' || sql[char_idx] == '\n') && sql.substr(char_idx+2, 2) == "--" ) {
       in_line_comment = true;
       continue;
     }
 
-    if((in_line_comment && ((sql[i] == '\r') || (sql[i] == '\n')))) {
+    if( (in_line_comment && ((sql[char_idx] == '\r') || (sql[char_idx] == '\n'))) ) {
       in_line_comment = false;
       continue;
     }
-    if((!in_comment) && (sql.substr(i,2) == "/*")) {
+
+    if( (!in_comment) && (sql.substr(char_idx,2) == "/*") ) {
       in_comment = true;
-      ++i;
       continue;
     }
-    if(in_comment && (sql.substr(i, 2) == "*/")) {
+    
+    if( in_comment && (sql.substr(char_idx, 2) == "*/") ) {
       in_comment = false;
-      ++i;
-      continue;
-    }
-    if(in_comment) { 
       continue;
     }
 
-    if(in_backtick && sql[i] == '`') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
+    /* do not do anything if this is in a comment */
+    if( in_comment ) { 
       continue;
     }
-    if(!in_backtick && sql[i] == '`') {
+
+    /* Last was escape character so force capture this character
+       and move on
+    */
+    if( force_capture_next == true ) {
+      token += sql[char_idx];
+      force_capture_next = false;
+      continue;
+    }
+
+    /* If this is the escape character then the next character has to be
+       attached to the current token even if it is an enclosure character.
+    */ 
+    if( sql[char_idx] == escape_char) {
+      force_capture_next = true;
+      continue;
+    }
+
+    /* If we are in an enclosure and the current character is the enclosure
+       character then the enclosure is over.
+    */
+    if( enclosure_type != 0 && sql[char_idx] == enclosure_type ) {
+      token += sql[char_idx];
+      tokens.push_back(token);
+      enclosure_type = 0;
+      token = "";
+      continue;
+    } 
+
+    /* these are the enclosure characters */
+    if( enclosure_type == 0 && (sql[char_idx] == '`' || sql[char_idx] == '\'' || sql[char_idx] == '"') ) {
+      enclosure_type = sql[char_idx];
       if(token != "") {
         tokens.push_back(token);
       }
-      token = sql[i];
+
+      token = sql[char_idx];
       continue;
-    } else {
-      if(in_backtick) {
-        token += sql[i];
+    }
+
+    switch( sql[char_idx] ) {
+      case '\n':
+      case ' ':
+      case '\t':
+      case '\r':
+      case ';':
+        if(token != "") {
+          tokens.push_back(token);
+        }
+        token = "";
         continue;
-      }
     }
 
-    if(in_double && sql[i] == '"') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
-      continue;
-    }
-    if(!in_double && sql[i] == '"') {
-      if(token != "") {
-        tokens.push_back(token);
-      }
-      token = sql[i];
-      continue;
-    } else {
-      if(in_double) {
-        token += sql[i];
-        continue;
-      }
-    }
-
-    if(in_single && sql[i] == '\'') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
-      continue;
-    }
-    if(!in_single && sql[i] == '\'') {
-      if(token != "") {
-        tokens.push_back(token);
-      }
-      token = sql[i];
-      continue;
-    } else {
-      if(in_single) {
-        token += sql[i];
-        continue;
-      }
-    }
-
-    if(sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\r' || sql[i] == '\n' || isspace(sql[i])) {
-      if(token != "") tokens.push_back(convert_case ? strtolower(token) : token);
-      token = "";
-      continue;
-    }
-    token += sql[i];
-
+    token += sql[char_idx];
   }
-  if(token != "") {
-    tokens.push_back(convert_case ? strtolower(token) : token);
+  
+  if( token != "" ) {
+    tokens.push_back(token);
   }
-  return tokens;  
+
+  return tokens;
+  
 }
 
 static int warp_rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
@@ -975,11 +968,16 @@ static int warp_rewrite_query_notify(
       static_cast<const struct mysql_event_parse *>(event);
   std::string rewrite_error = "";
   //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
-  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), false);
- 
+  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length));
+  
   if(tokens.size() == 0) {
 	 return 0;
   }
+
+  /*std::cerr << "AFTER LEX\n";
+  for(auto i = 0; i < tokens.size(); ++i) {
+    std::cerr << i << ": " << tokens[i] << "\n";
+  }*/
   
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
@@ -1003,12 +1001,22 @@ static int warp_rewrite_query_notify(
       std::string mvlog_db = "database()";
       std::string mvlog_table = "";
       const char* dot_pos = NULL;
-      if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
-        mvlog_db = "'" + tokens[5].substr(0, dot_pos - tokens[5].c_str() ) + "'";
-        mvlog_table.assign(dot_pos+1);
-        mvlog_table = "'" + mvlog_table + "'";
-      } else{
-        mvlog_table = "'" + tokens[5] + "'";
+      
+      if(tokens.size() > 5) {
+        if(tokens[6] == ".") {
+          mvlog_db = "'" + tokens[5] + "'";
+          mvlog_table = "'" + tokens[7] + "'";
+        } else {
+          return(-2);
+        }
+      } else {
+        if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
+          mvlog_db = "'" + tokens[5].substr(0, dot_pos - tokens[5].c_str() ) + "'";
+          mvlog_table.assign(dot_pos+1);
+          mvlog_table = "'" + mvlog_table + "'";
+        } else{
+          mvlog_table = "'" + tokens[5] + "'";
+        }
       }
       std::string proc_name = "create_mvlog";
       if(strtolower(tokens[0]) == "drop") {
