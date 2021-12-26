@@ -224,9 +224,19 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
 
       token = sql[char_idx];
       continue;
-    }
+    } 
 
     switch( sql[char_idx] ) {
+      /* the dot operator is the schema resolution operator and has to be handled specially */
+      case '.':
+        if(token != "") {
+          tokens.push_back(token);
+          
+        }
+        token="";
+        tokens.push_back(".");
+        continue;
+      break;
       case '\n':
       case ' ':
       case '\t':
@@ -237,6 +247,7 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
         }
         token = "";
         continue;
+      break;  
     }
 
     token += sql[char_idx];
@@ -974,11 +985,11 @@ static int warp_rewrite_query_notify(
 	 return 0;
   }
 
-  /*std::cerr << "AFTER LEX\n";
+  std::cerr << "AFTER LEX\n------------\n";
   for(auto i = 0; i < tokens.size(); ++i) {
     std::cerr << i << ": " << tokens[i] << "\n";
-  }*/
-  
+  }
+  std::cerr << "===========\n";
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
     bool is_incremental = false;
@@ -1002,12 +1013,15 @@ static int warp_rewrite_query_notify(
       std::string mvlog_table = "";
       const char* dot_pos = NULL;
       
-      if(tokens.size() > 5) {
+      // this is a malformed command
+      if( tokens.size() == 7 ) { 
+        return(-2);
+      }
+
+      if(tokens.size() == 8) {
         if(tokens[6] == ".") {
           mvlog_db = "'" + tokens[5] + "'";
           mvlog_table = "'" + tokens[7] + "'";
-        } else {
-          return(-2);
         }
       } else {
         if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
