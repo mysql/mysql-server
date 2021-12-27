@@ -980,6 +980,7 @@ static int warp_rewrite_query_notify(
   std::string rewrite_error = "";
   //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
   std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length));
+  int mv_name_at = 0;
   
   if(tokens.size() == 0) {
 	 return 0;
@@ -1072,23 +1073,31 @@ static int warp_rewrite_query_notify(
             is_create_table = true;
         }
       } else {
+        
         // handle create [incremental] materialized view
         if(strtolower(tokens[0]) == "create") {
+
           if(strtolower(tokens[1]) == "incremental") {
             is_incremental = true;
             if(strtolower(tokens[2]) != "materialized" && strtolower(tokens[3]) != "view") {
               return -1;
             }
-            mvname = tokens[4];
+            mv_name_at = 4;
           } else {
             
             if(strtolower(tokens[1]) == "materialized" && strtolower(tokens[2]) == "view") {
-              mvname = tokens[3];
+              mv_name_at = 3;
             } else {
               //not a create [incremental] materialised view statement
               return 0;
             }
           }
+          if(tokens[mv_name_at+1] == ".") {
+            mvname = tokens[mv_name_at] + "." + tokens[mv_name_at+2];
+          } else {
+            mvname = tokens[mv_name_at];
+          }
+
         }
       }
     
@@ -1106,16 +1115,13 @@ static int warp_rewrite_query_notify(
           sqlstr = prefix + strip_remote_server(tokens);
         } else {
           for(int i=0;i<tokens.size();++i) {
-            if(tokens[i] == mvname) {
-              capture_sql = true;
-              if(i+1 < tokens.size()) {
-                if(strtolower(tokens[i+1]) == "as" || strtolower(tokens[i+1]) == "select") {
-                  ++i;
-                }
-              }
-              continue;
-            }
-            if(capture_sql) sqlstr += tokens[i] + " ";
+            if( !capture_sql && strtolower(tokens[i]) != "as" && strtolower(tokens[i]) != "select" )  {
+               ++i;
+               capture_sql = false;
+               continue;
+            } 
+            capture_sql = true;            
+            sqlstr += tokens[i] + " ";
           }
           sqlstr = prefix + "*/" + sqlstr;
         }
@@ -1125,6 +1131,8 @@ static int warp_rewrite_query_notify(
       }  
 
     }
+
+    std::cerr << "HERE: " << sqlstr << "\n";
     //process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
