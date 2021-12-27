@@ -640,17 +640,27 @@ bool is_remote_query(std::vector<std::string> tokens) {
   for(int i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
-    if((lower == "from") || (lower == "join")) {
+    if( (lower == "from") || (lower == "join") ) {
       next_is_table_name = true;
       continue;
     }
-    if(next_is_table_name) {
+    if( next_is_table_name ) {
       next_is_table_name = false;
-      const char* remote = strstr(tokens[i].c_str(), "@");
-      if (remote != NULL) {
+      std::string table_name_with_remote;
+      if( tokens.size() > i + 2 ) {
+        if( tokens[i+1] == "." ) {
+          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
+          i+=2;
+        }
+      } else {
+        table_name_with_remote = tokens[i];
+      }
+
+      const char* remote = strstr(table_name_with_remote.c_str(), "@");
+      if( remote != NULL ) {
         std::string remote_host(remote);
         auto find_it = table_map.find(remote_host);
-        if(find_it == table_map.end()) {
+        if( find_it == table_map.end() ) {
           table_map.emplace(make_pair(remote_host, 1));
         }
       } 
@@ -674,7 +684,16 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
     }
     if(next_is_table_name) {
       next_is_table_name = false;
-      const char* remote = strstr(tokens[i].c_str(), "@");
+      std::string table_name_with_remote;
+      if(tokens.size() > i + 2) {
+        if(tokens[i+1] == ".") {
+          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
+          i+=2;
+        }
+      } else {
+        table_name_with_remote = tokens[i];
+      }
+      const char* remote = strstr(table_name_with_remote.c_str(), "@");
       if (remote != NULL) {
         std::string remote_host(remote);
         auto find_it = table_map.find(remote_host);
@@ -687,7 +706,7 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
       }
     }
   }
-  std::cout << "remote count:" << remote_server_count << " local count:" << local_server_count << "\n";
+  //std::cout << "remote count:" << remote_server_count << " local count:" << local_server_count << "\n";
   if((remote_server_count == 1) && (local_server_count == 0)) {
     return true;
   }
@@ -706,8 +725,16 @@ std::string get_remote_server(std::vector<std::string> tokens) {
       continue;
     }
     if(next_is_table_name) {
-      next_is_table_name = false;
-      const char* remote = strstr(tokens[i].c_str(), "@");
+      std::string table_name_with_remote;
+      if(tokens.size() > i + 2) {
+        if(tokens[i+1] == ".") {
+          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
+          i+=2;
+        }
+      } else {
+        table_name_with_remote = tokens[i];
+      }
+      const char* remote = strstr(table_name_with_remote.c_str(), "@");
       if (remote != NULL) {
         std::string remote_host(remote);
         auto find_it = table_map.find(remote_host);
@@ -765,15 +792,24 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
     }
     if(next_is_table_name) {
       next_is_table_name = false;
-      const char* remote = strstr(tokens[i].c_str(), "@");
+      std::string table_name_with_remote;
+      if(tokens.size() > i + 2) {
+        if(tokens[i+1] == ".") {
+          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
+          i+=2;
+        }
+      } else {
+        table_name_with_remote = tokens[i];
+      }
+      const char* remote = strstr(table_name_with_remote.c_str(), "@");
       if (remote != NULL) {
         std::string new_token = "";
-        for(int z=0;z<tokens[i].length();++z) {
-          if(tokens[i][z] == '@') {
+        for(int z=0;z<table_name_with_remote.length();++z) {
+          if(table_name_with_remote[z] == '@') {
             out += "/*@";
             continue;
           }
-          out+=tokens[i][z];  
+          out+=table_name_with_remote[z];  
         }    
         out += "*/ ";
       } else {
@@ -812,7 +848,7 @@ std::string get_local_root_password() {
   char password[65]="";
   fp = fopen("/usr/local/leapdb/config/.rootpw","r");
   if(fp == NULL) {
-    std::cerr << "file open error: " << errno << "\n";
+    std::cerr << "credentials file open error: " << errno << "\n";
     return "";
   }
   if(fgets(password, 64, fp)!=NULL) {
@@ -882,7 +918,8 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       
       int myerrno = mysql_errno(remote);
       if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while creating temporary table]: " + std::to_string(myerrno) + "';";
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while creating temporary table]:(" + 
+          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
         mysql_close(remote);
         mysql_close(local);
         return sqlstr;
@@ -962,7 +999,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
     } else {
       sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='A remote query may only access remote tables from a single remote server and no local tables'";
     }
-  }
+  } 
   return sqlstr;
 }
 /**
@@ -986,11 +1023,12 @@ static int warp_rewrite_query_notify(
 	 return 0;
   }
 
-  std::cerr << "AFTER LEX\n------------\n";
+  /*std::cerr << "AFTER LEX\n------------\n";
   for(auto i = 0; i < tokens.size(); ++i) {
     std::cerr << i << ": " << tokens[i] << "\n";
   }
   std::cerr << "===========\n";
+  */
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
     bool is_incremental = false;
@@ -1132,8 +1170,6 @@ static int warp_rewrite_query_notify(
 
     }
 
-    std::cerr << "HERE: " << sqlstr << "\n";
-    //process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
       my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
