@@ -2250,7 +2250,8 @@ class allocator : public Allocator_base {
                               not used by this implementation
       @return pointer to the allocated memory
     */
-  pointer allocate(size_type n_elements, const_pointer = nullptr) {
+  pointer allocate(size_type n_elements,
+                   const_pointer hint [[maybe_unused]] = nullptr) {
     if (unlikely(n_elements > max_size())) {
       throw std::bad_array_new_length();
     }
@@ -2269,7 +2270,9 @@ class allocator : public Allocator_base {
       @param[in,out]  ptr         pointer to memory to free
       @param[in]      n_elements  number of elements allocated (unused)
    */
-  void deallocate(pointer ptr, size_type = 0) { ut::free(ptr); }
+  void deallocate(pointer ptr, size_type n_elements [[maybe_unused]] = 0) {
+    ut::free(ptr);
+  }
 };
 
 namespace detail {
