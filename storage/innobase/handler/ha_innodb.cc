@@ -417,8 +417,8 @@ static rec_format_t get_row_format(ulong row_format) {
     case DEFAULT_ROW_FORMAT_DYNAMIC:
       return (REC_FORMAT_DYNAMIC);
     default:
-      ut_ad(0);
-      return (REC_FORMAT_DYNAMIC);
+      ut_d(ut_error);
+      ut_o(return (REC_FORMAT_DYNAMIC));
   }
 }
 
@@ -3782,13 +3782,13 @@ static bool update_innodb_temporary_metadata(THD *thd) {
 
     if (dc.update(tmp_tbsp)) {
       /* Unable to update the metadata. */
-      ut_ad(false);
-      return true;
+      ut_d(ut_error);
+      ut_o(return true);
     }
   } else {
     /* Unable to acquire innodb_temporary tablespace for modification. */
-    ut_ad(false);
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
   return false;
 }
@@ -3989,8 +3989,8 @@ static void innobase_post_recover() {
       /* Enable encryption for UNDO tablespaces */
       mutex_enter(&undo::ddl_mutex);
       if (srv_enable_undo_encryption()) {
-        ut_ad(false);
         srv_undo_log_encrypt = false;
+        ut_d(ut_error);
       }
       mutex_exit(&undo::ddl_mutex);
 
@@ -4012,8 +4012,8 @@ static void innobase_post_recover() {
     } else {
       /* Enable encryption for REDO log */
       if (srv_enable_redo_encryption()) {
-        ut_ad(false);
         srv_redo_log_encrypt = false;
+        ut_d(ut_error);
       }
     }
   }
@@ -4025,7 +4025,7 @@ static void innobase_post_recover() {
 
   Auto_THD thd;
   if (dd_tablespace_update_cache(thd.thd)) {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   srv_start_threads_after_ddl_recovery();
@@ -5070,7 +5070,7 @@ static int innodb_init(void *p) {
       innobase_page_track_get_num_page_ids;
   innobase_hton->page_track.get_status = innobase_page_track_get_status;
 
-  ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+  static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
   os_file_set_umask(my_umask);
 
@@ -6131,8 +6131,8 @@ enum row_type ha_innobase::get_real_row_type(
         case DEFAULT_ROW_FORMAT_DYNAMIC:
           return (ROW_TYPE_DYNAMIC);
         default:
-          ut_ad(0);
-          return (ROW_TYPE_DYNAMIC);
+          ut_d(ut_error);
+          ut_o(return (ROW_TYPE_DYNAMIC));
       }
   }
 }
@@ -6293,8 +6293,8 @@ bool create_table_info_t::normalize_table_name(char *norm_name,
 
   if (norm_len >= FN_REFLEN - 1) {
     /* purecov: begin assert */
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
     /* purecov: end */
   }
 
@@ -7003,8 +7003,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   if (!normalize_table_name(norm_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -8546,7 +8546,7 @@ dberr_t ha_innobase::innobase_lock_autoinc(void) {
       [[fallthrough]];
 
     case AUTOINC_OLD_STYLE_LOCKING:
-      DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used", ut_ad(0););
+      DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used", ut_d(ut_error););
       error = row_lock_table_autoinc_for_mysql(m_prebuilt);
 
       if (error == DB_SUCCESS) {
@@ -8657,7 +8657,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
             elt.field_type() == MYSQL_TYPE_DATETIME ||
             elt.field_type() == MYSQL_TYPE_TIMESTAMP) {
           /* Newer Mysql temporal types use DATA_FIXBINARY Innodb type */
-          ut_ad(0); /* purecov: inspected */
+          ut_d(ut_error); /* purecov: inspected */
         } else if (elt.field_type() == MYSQL_TYPE_DATE) {
           /* Temporal data has at most 8 bytes length */
           Json_datetime::from_packed_to_key(elt.get_data(), elt.field_type(),
@@ -8729,12 +8729,12 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
           }
           default:
             /* Shouldn't happen */
-            ut_ad(0); /* purecov: inspected */
+            ut_d(ut_error); /* purecov: inspected */
         }
       }
     } else {
       /* not supported */
-      ut_ad(0); /* purecov: inspected */
+      ut_d(ut_error); /* purecov: inspected */
     }
 
     value->datap[i] = dfield->data;
@@ -11672,8 +11672,8 @@ inline int create_index(
       /* We do not support special (Fulltext or Spatial)
       index on virtual columns */
       if (innobase_is_v_fld(key_part->field)) {
-        ut_ad(0);
-        return HA_ERR_UNSUPPORTED;
+        ut_d(ut_error);
+        ut_o(return HA_ERR_UNSUPPORTED);
       }
 
       index->add_field(key_part->field->field_name, 0,
@@ -12766,8 +12766,8 @@ int create_table_info_t::parse_table_name(const char *name) {
 
   if (!normalize_table_name(m_table_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -13021,7 +13021,7 @@ bool create_table_info_t::innobase_table_flags() {
       break;
     }
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   /* Don't support compressed table when page size > 16k. */
@@ -13334,8 +13334,8 @@ int create_table_info_t::prepare_create_table(const char *name) {
 
   if (!normalize_table_name(m_table_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -13910,8 +13910,8 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
   extension, in contrast to ::create */
   if (!normalize_table_name(norm_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -14016,8 +14016,8 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   if (!normalize_table_name(norm_to, to) ||
       !normalize_table_name(norm_from, from)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -14476,19 +14476,19 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 
     switch (i->algorithm()) {
       case dd::Index::IA_SE_SPECIFIC:
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       case dd::Index::IA_HASH:
         /* This is currently blocked
         by ha_innobase::is_index_algorithm_supported(). */
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       case dd::Index::IA_RTREE:
         if (i->type() == dd::Index::IT_SPATIAL) {
           continue;
         }
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       case dd::Index::IA_BTREE:
         switch (i->type()) {
           case dd::Index::IT_PRIMARY:
@@ -14506,7 +14506,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
             continue;
           case dd::Index::IT_FULLTEXT:
           case dd::Index::IT_SPATIAL:
-            ut_ad(0);
+            ut_d(ut_error);
         }
         break;
       case dd::Index::IA_FULLTEXT:
@@ -14514,8 +14514,8 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
           has_fulltext = true;
           continue;
         }
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
     }
 
     my_error(ER_UNSUPPORTED_INDEX_ALGORITHM, MYF(0), i->name().c_str());
@@ -14945,8 +14945,8 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 
   if (!normalize_table_name(norm_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -17324,8 +17324,8 @@ static bool innobase_get_table_statistics(
                        &truncated);
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
-    ut_ad(false);
-    return true;  // (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return true);  // (HA_ERR_TOO_LONG_PATH);
   }
 
   MDL_ticket *mdl = nullptr;
@@ -17395,8 +17395,8 @@ static bool innobase_get_index_column_cardinality(
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
     /* purecov: end */
   }
 
@@ -17422,9 +17422,9 @@ static bool innobase_get_index_column_cardinality(
 
   if (ib_table->is_fts_aux()) {
     /* Server should not ask for Stats for Internal Tables */
-    ut_ad(0);
     dd_table_close(ib_table, thd, &mdl, false);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
   }
 
   for (const dict_index_t *index : ib_table->indexes) {
@@ -17483,8 +17483,8 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
   } else if (fsp_is_file_per_table(id, flags)) {
     *space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
   } else {
-    ut_ad(0);
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
 
   return false;
@@ -18108,8 +18108,8 @@ int ha_innobase::end_stmt() {
   trx_t *trx = m_prebuilt->trx;
 
   if (!m_prebuilt->table->is_temporary() && trx != thd_to_trx(ha_thd())) {
-    ut_ad(false);
-    return (0);
+    ut_d(ut_error);
+    ut_o(return (0));
   }
 
   ut_ad(!m_prebuilt->replace);
@@ -20078,7 +20078,7 @@ static bool innodb_buffer_pool_size_validate(THD *thd,
 debug_set:
 #endif /* UNIV_DEBUG */
 
-  if (sizeof(ulint) == 4) {
+  if constexpr (sizeof(ulint) == 4) {
     if (buffer_pool_size > UINT_MAX32) {
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
@@ -20485,7 +20485,7 @@ static void innodb_monitor_update_wildcard(
           /* If new monitor is added with
           MONITOR_GROUP_MODULE, it needs
           to be added here. */
-          ut_ad(0);
+          ut_d(ut_error);
         }
       }
     }
@@ -20844,7 +20844,7 @@ static void innodb_buffer_pool_evict_update(THD *, SYS_VAR *, void *,
       }
 
       /* We failed to evict all uncompressed pages. */
-      ut_ad(0);
+      ut_d(ut_error);
     }
   }
 }
@@ -23314,8 +23314,7 @@ dfield_t *innobase_get_computed_value(
     bool succ = innobase_store_multi_value(
         v, value, fld, field, dict_table_is_comp(index->table), heap);
     if (!succ) {
-      ut_a(0);
-      return (nullptr);
+      ut_error;
     }
 
     field->type.prtype |= DATA_MULTI_VALUE;

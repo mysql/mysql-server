@@ -213,8 +213,8 @@ bool Clone_persist_gtid::check_gtid_prepare(THD *thd, trx_t *trx,
   }
   /* Skip GTID if External XA transaction is not in IDLE state. */
   if (!xid_state->has_state(XID_STATE::XA_IDLE)) {
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   /* Skip if SE is not set to persist GTID.*/
   if (!thd->se_persists_gtid()) {
@@ -341,8 +341,8 @@ void Clone_persist_gtid::get_gtid_info(trx_t *trx, Gtid_desc &gtid_desc) {
   auto thd = trx->mysql_thd;
 
   if (!has_gtid(trx, thd, thd_check)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   gtid_desc.m_version = GTID_VERSION;
@@ -703,8 +703,8 @@ bool Clone_persist_gtid::start() {
 
   if (!wait_thread(true, false, 0, false, false, nullptr)) {
     ib::error(ER_IB_CLONE_TIMEOUT) << "Wait for GTID thread to start timed out";
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   m_active.store(true);
   return (true);
@@ -715,7 +715,7 @@ void Clone_persist_gtid::stop() {
   if (m_thread_active.load() &&
       !wait_thread(false, false, 0, false, false, nullptr)) {
     ib::error(ER_IB_CLONE_TIMEOUT) << "Wait for GTID thread to stop timed out";
-    ut_ad(false);
+    ut_d(ut_error);
   }
 }
 
@@ -742,6 +742,6 @@ void Clone_persist_gtid::wait_flush(bool compress_gtid, bool early_timeout,
   /* No error for early timeout. */
   if (!success && !early_timeout) {
     ib::error(ER_IB_CLONE_TIMEOUT) << "Wait for GTID thread to flush timed out";
-    ut_ad(false);
+    ut_d(ut_error);
   }
 }

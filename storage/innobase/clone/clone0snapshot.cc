@@ -132,7 +132,7 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 }
 
@@ -171,7 +171,7 @@ void Clone_Snapshot::set_state_info(Clone_Desc_State *state_desc) {
     m_monitor.init_state(PSI_NOT_INSTRUMENTED, m_enable_pfs);
 
   } else {
-    ut_ad(false);
+    ut_d(ut_error);
   }
 }
 
@@ -569,11 +569,10 @@ int Clone_Snapshot::change_state(Clone_Desc_State *state_desc,
   switch (new_state) {
     case CLONE_SNAPSHOT_NONE:
     case CLONE_SNAPSHOT_INIT:
-      ut_ad(false);
-
       err = ER_INTERNAL_ERROR;
       my_error(err, MYF(0), "Innodb Clone Snapshot Invalid state");
-      break;
+      ut_d(ut_error);
+      ut_o(break);
 
     case CLONE_SNAPSHOT_FILE_COPY:
       ib::info(ER_IB_CLONE_OPERATION) << "Clone State BEGIN FILE COPY";
@@ -950,9 +949,9 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 
   if (reporter.is_corrupted() || page_lsn > cur_lsn ||
       (page_checksum != 0 && page_lsn == 0)) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "Innodb Clone Corrupt Page");
     err = ER_INTERNAL_ERROR;
+    ut_d(ut_error);
   }
 
   auto encrypted_data = page_data + data_size;
@@ -1022,7 +1021,7 @@ Clone_file_ctx *Clone_Snapshot::get_file_ctx(uint32_t chunk_num,
       file = get_redo_file_ctx(chunk_num, hint_index);
       break;
     default:
-      ut_ad(false); /* purecov: deadcode */
+      ut_d(ut_error); /* purecov: deadcode */
   }
   return file;
 }
@@ -1067,8 +1066,8 @@ Clone_file_ctx *Clone_Snapshot::get_page_file_ctx(uint32_t chunk_num,
   auto file_index = m_data_file_map[clone_page.m_space_id];
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
     /* purecov: end */
   }
   --file_index;
@@ -1117,8 +1116,8 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
       case CLONE_SNAPSHOT_NONE:
         /* purecov: begin deadcode */
         /* Clone must have started at this point. */
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
         /* purecov: end */
 
       case CLONE_SNAPSHOT_INIT:
@@ -1186,8 +1185,8 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
         break;
       default:
         /* purecov: begin deadcode */
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
         /* purecov: end */
     }
     break;
@@ -1246,7 +1245,7 @@ void Clone_Snapshot::get_wait_mesg(Wait_type wait_type, std::string &info,
       error.assign("Clone wait for DDL file operation timed out");
       break;
     default:
-      ut_ad(false); /* purecov: deadcode */
+      ut_d(ut_error); /* purecov: deadcode */
   }
 }
 
@@ -1338,7 +1337,7 @@ int Clone_Snapshot::wait(Wait_type wait_type, const Clone_file_ctx *ctx,
       default:
         /* purecov: begin deadcode */
         wait = false;
-        ut_ad(false);
+        ut_d(ut_error);
         /* purecov: end */
     }
 
@@ -1383,9 +1382,9 @@ int Clone_Snapshot::wait(Wait_type wait_type, const Clone_file_ctx *ctx,
 
   if (!err && is_timeout) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     err = ER_INTERNAL_ERROR;
     my_error(err, MYF(0), error_mesg.c_str());
+    ut_d(ut_error);
     /* purecov: end */
   }
   return err;
@@ -1518,8 +1517,8 @@ int Clone_Snapshot::begin_ddl_file(Clone_notify::Type type, space_id_t space,
 
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return 0;
+    ut_d(ut_error);
+    ut_o(return 0);
     /* purecov: end */
   }
   --file_index;
@@ -1569,8 +1568,8 @@ void Clone_Snapshot::end_ddl_file(Clone_notify::Type type, space_id_t space) {
 
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
     /* purecov: end */
   }
   --file_index;

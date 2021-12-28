@@ -145,7 +145,7 @@ class page_size_t {
         size = 64;
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
     return (size);
   }

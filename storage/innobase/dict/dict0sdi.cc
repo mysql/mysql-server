@@ -53,8 +53,8 @@ static dberr_t dict_sdi_exists(const dd::Tablespace &dd_space,
   if (dd_space.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
                                      space_id)) {
     /* error, attribute not found */
-    ut_ad(0);
-    return (DB_ERROR);
+    ut_d(ut_error);
+    ut_o(return (DB_ERROR));
   }
 
   ut_ad(check_trx_exists(current_thd) != nullptr);
@@ -130,8 +130,8 @@ bool dict_sdi_create(dd::Tablespace *tablespace) {
   uint32 space_id = 0;
   if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
-    ut_ad(0);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
   }
 
   if (fsp_is_undo_tablespace(space_id) || fsp_is_system_temporary(space_id)) {
@@ -175,8 +175,8 @@ bool dict_sdi_drop(dd::Tablespace *) {
 	dberr_t	err = ib_sdi_drop(space_id);
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */
-  ut_ad(0);
-  return (false);
+  ut_d(ut_error);
+  ut_o(return (false));
 }
 
 /** Get the SDI keys in a tablespace into the vector provided.
@@ -189,10 +189,10 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
 
   if (dd_tablespace_is_discarded(&tablespace)) {
     /* sdi_get_keys shouldn't be called on discarded tablespaces.*/
-    ut_ad(false);
     my_error(ER_SDI_GET_KEYS_INVALID_TABLESPACE, MYF(0),
              tablespace.name().c_str());
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
 
   if (dict_sdi_exists(tablespace, &space_id) != DB_SUCCESS) {
@@ -202,13 +202,13 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
   }
 
   if (fsp_is_undo_tablespace(space_id) || fsp_is_system_temporary(space_id)) {
-    /* There shouldn't be access for SDI on these tabelspaces as
+    /* There shouldn't be access for SDI on these tablespaces as
     SDI doesn't exist. */
-    ut_ad(false);
 
     my_error(ER_SDI_GET_KEYS_INVALID_TABLESPACE, MYF(0),
              tablespace.name().c_str());
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
 
   ib_sdi_vector ib_vector;
@@ -234,7 +234,7 @@ bool dict_sdi_get(const dd::Tablespace &, const sdi_key_t *, void *, uint64 *) {
 
 	if (dd_tablespace_is_discarded(&tablespace)) {
 		/* sdi_get shouldn't be called on discarded tablespaces.*/
-		ut_ad(0);
+		ut_d(ut_error);
 	}
 
 	uint32	space_id;
@@ -248,7 +248,7 @@ bool dict_sdi_get(const dd::Tablespace &, const sdi_key_t *, void *, uint64 *) {
 	    || fsp_is_system_temporary(space_id)) {
 		/* There shouldn't be access for SDI on these tablespaces as
 		SDI doesn't exist. */
-		ut_ad(0);
+		ut_d(ut_error);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -288,8 +288,8 @@ bool dict_sdi_get(const dd::Tablespace &, const sdi_key_t *, void *, uint64 *) {
 
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */
-  ut_ad(0);
-  return (false);
+  ut_d(ut_error);
+  ut_o(return (false));
 }
 
 /** Insert/Update SDI in tablespace
@@ -355,9 +355,9 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
       /* Claim Success */
       return (false);
     } else {
-      ut_ad(0);
       dict_sdi_report_error(operation, table, tablespace);
-      return (true);
+      ut_d(ut_error);
+      ut_o(return (true));
     }
   }
 
@@ -395,9 +395,9 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                         << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
-    ut_ad(0);
     dict_sdi_report_error(operation, table, tablespace);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
   } else {
     return (false);
   }
@@ -456,9 +456,9 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
       /* Claim Success */
       return (false);
     } else {
-      ut_ad(0);
       dict_sdi_report_error(operation, table, tablespace);
-      return (true);
+      ut_d(ut_error);
+      ut_o(return (true));
     }
   }
 

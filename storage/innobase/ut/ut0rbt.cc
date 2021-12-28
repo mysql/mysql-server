@@ -410,7 +410,7 @@ static void rbt_eject_node(ib_rbt_node_t *eject, /*!< in: node to eject */
   } else if (eject->parent->right == eject) {
     eject->parent->right = node;
   } else {
-    ut_a(0);
+    ut_error;
   }
   /* eject is now an orphan but otherwise its pointers
   and color are left intact. */

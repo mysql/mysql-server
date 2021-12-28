@@ -1140,17 +1140,16 @@ const dtuple_t *row_log_table_get_pk(
         ulint i = dict_col_get_clust_pos(col, index);
 
         if (i == ULINT_UNDEFINED) {
-          ut_ad(0);
           log->error = DB_CORRUPTION;
-          goto err_exit;
+          ut_d(ut_error);
+          ut_o(goto err_exit);
         }
 
         log->error = row_log_table_get_pk_col(index, ifield, dfield, *heap, rec,
                                               offsets, i, page_size, max_len);
 
         if (log->error != DB_SUCCESS) {
-        err_exit:
-          tuple = nullptr;
+          ut_o(err_exit:) tuple = nullptr;
           goto func_exit;
         }
 
@@ -1395,9 +1394,9 @@ void row_log_table_blob_alloc(
         /* field length mismatch should not happen
         when rebuilding the redundant row format
         table. */
-        ut_ad(0);
         *error = DB_CORRUPTION;
-        return (nullptr);
+        ut_d(ut_error);
+        ut_o(return (nullptr));
       }
     }
 
@@ -1580,7 +1579,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       ut_ad(row != nullptr);
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
       [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
@@ -1627,7 +1626,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
     case BTR_CUR_BINARY:
       goto flag_ok;
   }
-  ut_ad(0);
+  ut_d(ut_error);
 flag_ok:
 #endif /* UNIV_DEBUG */
 
@@ -1801,7 +1800,7 @@ flag_ok:
     case BTR_CUR_BINARY:
       goto flag_ok;
   }
-  ut_ad(0);
+  ut_d(ut_error);
 flag_ok:
 #endif /* UNIV_DEBUG */
 
@@ -1901,8 +1900,8 @@ flag_ok:
       if (row_search_index_entry(index, entry, BTR_MODIFY_TREE, &pcur, &mtr) !=
           ROW_FOUND) {
         mtr_commit(&mtr);
-        ut_ad(0);
-        return (DB_CORRUPTION);
+        ut_d(ut_error);
+        ut_o(return (DB_CORRUPTION));
       }
 
       btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
@@ -1998,7 +1997,7 @@ flag_ok:
       ut_ad(row != nullptr);
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
       [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
@@ -2015,7 +2014,7 @@ flag_ok:
     case BTR_CUR_DEL_MARK_IBUF:
     case BTR_CUR_DELETE_IBUF:
     case BTR_CUR_INSERT_TO_IBUF:
-      ut_ad(0); /* We did not request buffering. */
+      ut_d(ut_error); /* We did not request buffering. */
     case BTR_CUR_HASH:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
@@ -2179,9 +2178,9 @@ flag_ok:
       can only get a change of PRIMARY KEY columns
       in the rebuilt table if the PRIMARY KEY was
       redefined (!same_pk). */
-      ut_ad(0);
       error = DB_CORRUPTION;
-      goto func_exit;
+      ut_d(ut_error);
+      ut_o(goto func_exit);
     }
 
     error =
@@ -2265,17 +2264,17 @@ flag_ok:
 
     entry = row_build_index_entry(old_row, old_ext, index, heap);
     if (!entry) {
-      ut_ad(0);
-      return (DB_CORRUPTION);
+      ut_d(ut_error);
+      ut_o(return (DB_CORRUPTION));
     }
 
     mtr_start(&mtr);
 
     if (ROW_FOUND !=
         row_search_index_entry(index, entry, BTR_MODIFY_TREE, &pcur, &mtr)) {
-      ut_ad(0);
       error = DB_CORRUPTION;
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     }
 
     btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
@@ -2347,9 +2346,9 @@ flag_ok:
 
   switch (*mrec++) {
     default:
-      ut_ad(0);
       *error = DB_CORRUPTION;
-      return (nullptr);
+      ut_d(ut_error);
+      ut_o(return (nullptr));
     case ROW_T_INSERT:
       extra_size = *mrec++;
 
@@ -2727,7 +2726,8 @@ next_block:
 
   if (UNIV_UNLIKELY(index->online_log->head.blocks >
                     index->online_log->tail.blocks)) {
-  unexpected_eof:
+    /* Note: release-only label. */
+    ut_o(unexpected_eof:);
     ib::error(ER_IB_MSG_960)
         << "Unexpected end of temporary file for table " << index->table->name;
   corruption:
@@ -2956,8 +2956,8 @@ next_block:
       ut_ad(index->online_log->tail.blocks == 0);
       ut_ad(mrec_end ==
             index->online_log->tail.block + index->online_log->tail.bytes);
-      ut_ad(0);
-      goto unexpected_eof;
+      ut_d(ut_error);
+      ut_o(goto unexpected_eof);
     } else {
       memcpy(index->online_log->head.buf, mrec, mrec_end - mrec);
       mrec_end += index->online_log->head.buf - mrec;
@@ -3008,8 +3008,8 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
     /* This function should not be called unless
     rebuilding a table online. Build in some fault
     tolerance. */
-    ut_ad(0);
     error = DB_ERROR;
+    ut_d(ut_error);
   } else {
     ddl::Dup dup = {clust_index, table, clust_index->online_log->col_map, 0};
 
@@ -3370,9 +3370,9 @@ func_exit:
       break;
     default:
     corrupted:
-      ut_ad(0);
       *error = DB_CORRUPTION;
-      return (nullptr);
+      ut_d(ut_error);
+      ut_o(return (nullptr));
   }
 
   extra_size = *mrec++;
@@ -3480,7 +3480,8 @@ next_block:
 
   if (UNIV_UNLIKELY(index->online_log->head.blocks >
                     index->online_log->tail.blocks)) {
-  unexpected_eof:
+    /* Note: release-only label. */
+    ut_o(unexpected_eof:);
     ib::error(ER_IB_MSG_962)
         << "Unexpected end of temporary file for index " << index->name;
   corruption:
@@ -3678,8 +3679,8 @@ next_block:
       ut_ad(index->online_log->tail.blocks == 0);
       ut_ad(mrec_end ==
             index->online_log->tail.block + index->online_log->tail.bytes);
-      ut_ad(0);
-      goto unexpected_eof;
+      ut_d(ut_error);
+      ut_o(goto unexpected_eof);
     } else {
       memcpy(index->online_log->head.buf, mrec, mrec_end - mrec);
       mrec_end += index->online_log->head.buf - mrec;

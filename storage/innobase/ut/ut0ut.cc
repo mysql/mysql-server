@@ -245,8 +245,8 @@ void ut_format_byte_value(uint64_t data_bytes, std::string &data_str) {
   /* 64 BIT number should never go beyond Exabyte. */
   auto max_index = sizeof(unit) - 2;
   if (index > max_index) {
-    ut_ad(false);
-    index = max_index;
+    ut_d(ut_error);
+    ut_o(index = max_index);
   }
 
   std::stringstream data_strm;

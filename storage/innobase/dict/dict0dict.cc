@@ -549,11 +549,9 @@ void dict_table_close(dict_table_t *table, ibool dict_locked, ibool try_drop) {
   }
 
   if (!dict_locked) {
-    table_id_t table_id = table->id;
-
     if (drop_aborted) {
-      ut_ad(0);
-      dict_table_try_drop_aborted(nullptr, table_id, 0);
+      ut_d(ut_error);
+      ut_o(dict_table_try_drop_aborted(nullptr, table->id, 0));
     }
   }
 #endif /* !UNIV_HOTBACKUP */
@@ -1352,7 +1350,7 @@ ulint dict_make_room_in_cache(
       table->unlock();
       DBUG_EXECUTE_IF("crash_if_fts_table_is_evicted", {
         if (table->fts && dict_table_has_fts_index(table)) {
-          ut_ad(0);
+          ut_d(ut_error);
         }
       };);
       dict_table_remove_from_cache_low(table, TRUE);
@@ -3016,9 +3014,9 @@ static dict_index_t *dict_index_build_internal_clust(
     if (new_index->trx_id_offset != fixed_size) {
       /* Overflow. Pretend that this is a
       variable-length PRIMARY KEY. */
-      ut_ad(0);
-      new_index->trx_id_offset = 0;
-      break;
+      ut_d(ut_error);
+      ut_o(new_index->trx_id_offset = 0);
+      ut_o(break);
     }
   }
 
@@ -4177,7 +4175,7 @@ void dict_persist_to_dd_table_buffer() {
       /* We should not attempt to write to data pages while shutting down
       page cleaners. */
       if (srv_shutdown_state.load() >= SRV_SHUTDOWN_FLUSH_PHASE) {
-        ut_ad(false);
+        ut_d(ut_error);
       } else {
         dict_table_persist_to_dd_table_buffer_low(table);
         persisted = true;
@@ -4977,7 +4975,7 @@ page_no_t dict_table_extent_size(const dict_table_t *table) {
         pages_in_extent = mb_4 / 65536;
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 
@@ -5129,7 +5127,7 @@ void DDTableBuffer::open() {
 
   dberr_t err = dict_index_add_to_cache(table, m_index, root, false);
   if (err != DB_SUCCESS) {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   m_index = table->first_index();
@@ -5658,8 +5656,8 @@ Persister *Persisters::add(persistent_type_t type) {
       persister = ut::new_withkey<AutoIncPersister>(UT_NEW_THIS_FILE_PSI_KEY);
       break;
     default:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
   m_persisters.insert(std::make_pair(type, persister));
@@ -5919,8 +5917,8 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
 
   /* MDL creation failed */
   if (*sdi_mdl == nullptr) {
-    ut_ad(0);
-    return (DB_LOCK_WAIT_TIMEOUT);
+    ut_d(ut_error);
+    ut_o(return (DB_LOCK_WAIT_TIMEOUT));
   }
 
   return (DB_SUCCESS);
@@ -5944,8 +5942,8 @@ dberr_t dd_sdi_acquire_shared_mdl(THD *thd, space_id_t space_id,
 
   /* MDL creation failed */
   if (*sdi_mdl == nullptr) {
-    ut_ad(0);
-    return (DB_LOCK_WAIT_TIMEOUT);
+    ut_d(ut_error);
+    ut_o(return (DB_LOCK_WAIT_TIMEOUT));
   }
 
   return (DB_SUCCESS);

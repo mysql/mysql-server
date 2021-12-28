@@ -1169,6 +1169,6 @@ int trx_i_s_parse_lock_id(const char *lock_id, i_s_locks_row_t *row) {
              &row->lock_table_id, &row->lock_immutable_id) == 3) {
     return LOCK_TABLE;
   }
-  ut_ad(LOCK_TABLE != 0 && LOCK_REC != 0);
+  static_assert(LOCK_TABLE != 0 && LOCK_REC != 0);
   return 0;
 }

@@ -256,8 +256,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc COMPILE_FLAGS "/wd4100 /wd4701 /wd4702")
 
   # Temporary disables for warnings that are not yet fixed:
-  # C4127	conditional expression is constant
-  ADD_COMPILE_OPTIONS("/wd4127")
   # C4245: conversion from 'X'' to 'Y', signed/unsigned mismatch
   ADD_COMPILE_OPTIONS("/wd4245")
   # C4456: declaration of 'X' hides local declaration

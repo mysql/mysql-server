@@ -2175,8 +2175,7 @@ void Purge_groups_t::distribute() {
 #ifdef UNIV_DEBUG
   if (!is_grouping_uniform()) {
     print(std::cerr);
-    const bool distribution_failed = false;
-    ut_ad(distribution_failed);
+    ut_error;
   }
 #endif /* UNIV_DEBUG */
 }

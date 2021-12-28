@@ -760,7 +760,7 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   }
 
   /* The page was not found! */
-  ut_ad(0);
+  ut_d(ut_error);
 }
 
 /** Prepare to write the mini-transaction log to the redo log buffer.
@@ -768,7 +768,7 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
 ulint mtr_t::Command::prepare_write() {
   switch (m_impl->m_log_mode) {
     case MTR_LOG_SHORT_INSERTS:
-      ut_ad(0);
+      ut_d(ut_error);
       /* fall through (write no redo log) */
       [[fallthrough]];
     case MTR_LOG_NO_REDO:
@@ -778,8 +778,8 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_ALL:
       break;
     default:
-      ut_ad(false);
-      return 0;
+      ut_d(ut_error);
+      ut_o(return 0);
   }
 
   /* An ibuf merge could happen when loading page to apply log
@@ -1013,10 +1013,10 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
                              nullptr, is_timeout);
 
   if (err == 0 && is_timeout) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Innodb wait for no-log mtr timed out.");
     err = ER_INTERNAL_ERROR;
+    ut_d(ut_error);
   }
 
   return err;
@@ -1171,7 +1171,7 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     MLOG_TEST_REC_OVERHEAD bytes. Fortunately the MAX_DATA_SIZE is
     always at least twice larger than the MLOG_TEST_REC_OVERHEAD,
     so the payload has to be larger than MLOG_TEST_REC_OVERHEAD. */
-    ut_ad(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
+    static_assert(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
     ut_a(payload > MLOG_TEST_REC_OVERHEAD);
 
     /* Subtract space which we will consume by usage of next record.

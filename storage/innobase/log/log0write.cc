@@ -2869,7 +2869,8 @@ bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
     return (false);
   }
 
-  ut_a(LOG_HEADER_CREATOR_END + Encryption::INFO_SIZE < OS_FILE_LOG_BLOCK_SIZE);
+  static_assert(LOG_HEADER_CREATOR_END + Encryption::INFO_SIZE <
+                OS_FILE_LOG_BLOCK_SIZE);
 
   memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info, Encryption::INFO_SIZE);
 

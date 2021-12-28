@@ -234,7 +234,7 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
       out << "ALTER UNENCRYPT TABLESPACE";
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   out << ",";
@@ -593,7 +593,7 @@ void DDL_Log_Table::set_field(const byte *data, ulint index_offset, ulint len,
     case s_old_file_path_col_no:
     case s_new_file_path_col_no:
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 }
 
@@ -614,11 +614,11 @@ ulint DDL_Log_Table::fetch_value(const byte *data, ulint offset) {
     case s_new_file_path_col_no:
     case s_old_file_path_col_no:
     default:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
-  return (value);
+  ut_o(return (value));
 }
 
 dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
@@ -790,8 +790,8 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   if (search_result == ROW_NOT_FOUND) {
     btr_pcur_close(&pcur);
     mtr_commit(&mtr);
-    ut_ad(0);
-    return (DB_CORRUPTION);
+    ut_d(ut_error);
+    ut_o(return (DB_CORRUPTION));
   }
 
   rec = btr_cur_get_rec(btr_cur);

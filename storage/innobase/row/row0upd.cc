@@ -2039,9 +2039,9 @@ static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
       mtr_commit(&mtr);
       mtr_start(&mtr);
       ut_ad(btr_validate_index(index, nullptr, false));
-      ut_ad(0);
+      ut_d(ut_error);
 #endif /* UNIV_DEBUG */
-      break;
+      ut_o(break);
     case ROW_FOUND:
       ut_ad(err == DB_SUCCESS);
 
@@ -2325,9 +2325,9 @@ code or DB_LOCK_WAIT */
       mtr_commit(&mtr);
       mtr_start(&mtr);
       ut_ad(btr_validate_index(index, nullptr, false));
-      ut_ad(0);
+      ut_d(ut_error);
 #endif /* UNIV_DEBUG */
-      break;
+      ut_o(break);
     case ROW_FOUND:
       ut_ad(err == DB_SUCCESS);
 

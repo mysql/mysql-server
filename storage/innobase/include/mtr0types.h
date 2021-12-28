@@ -296,9 +296,9 @@ inline const char *mtr_memo_type(const ulint type) {
     case MTR_MEMO_SX_LOCK:
       return "MTR_MEMO_SX_LOCK";
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
-  return "MTR_MEMO_UNKNOWN";
+  ut_o(return "MTR_MEMO_UNKNOWN");
 }
 
 #ifdef UNIV_DEBUG

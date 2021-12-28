@@ -886,8 +886,8 @@ static inline bool dict_index_is_online_ddl(
       case ONLINE_INDEX_ABORTED_DROPPED:
         break;
     }
-    ut_ad(0);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
 #endif /* UNIV_DEBUG */
 

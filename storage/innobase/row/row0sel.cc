@@ -1159,10 +1159,10 @@ static inline dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
   } else {
     if (dict_index_is_spatial(index)) {
       if (type == LOCK_GAP || type == LOCK_ORDINARY) {
-        ut_ad(0);
         ib::error(ER_IB_MSG_1026) << "Incorrectly request GAP lock "
                                      "on RTree";
-        return (DB_SUCCESS);
+        ut_d(ut_error);
+        ut_o(return (DB_SUCCESS));
       }
       err = sel_set_rtr_rec_lock(pcur, rec, index, offsets, sel_mode, mode,
                                  type, thr, mtr);
@@ -2429,7 +2429,7 @@ void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
         ulint len = dfield_get_len(dfield);
         dfield_set_len(dfield, len - (ulint)(key_ptr - key_end));
       }
-      ut_ad(0);
+      ut_d(ut_error);
     }
 
     n_fields++;
@@ -2691,7 +2691,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
     case DATA_SYS_CHILD:
     case DATA_SYS:
       /* These column types should never be shipped to MySQL. */
-      ut_ad(0);
+      ut_d(ut_error);
       [[fallthrough]];
 
     case DATA_CHAR:
@@ -3256,7 +3256,7 @@ non-clustered index. Does the necessary locking.
           "InnoDB: Submit a detailed bug report"
           " to http://bugs.mysql.com\n",
           stderr);
-      ut_ad(0);
+      ut_d(ut_error);
     }
 
     clust_rec = nullptr;
@@ -3428,8 +3428,8 @@ static ibool sel_restore_position_for_mysql(
 
   switch (pcur->m_rel_pos) {
     case BTR_PCUR_UNSET:
-      ut_ad(0);
-      return (TRUE);
+      ut_d(ut_error);
+      ut_o(return (true));
     case BTR_PCUR_ON:
       if (!success && moves_up) {
       next:
@@ -3480,8 +3480,8 @@ static ibool sel_restore_position_for_mysql(
           break;
       }
   }
-  ut_ad(0);
-  return (TRUE);
+  ut_d(ut_error);
+  ut_o(return (true));
 }
 
 /** Copies a cached field for MySQL from the fetch cache. */
@@ -4711,7 +4711,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
           break;
 
         default:
-          ut_ad(0);
+          ut_d(ut_error);
       }
 
       mtr_commit(&mtr);
@@ -4894,8 +4894,8 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
           break;
         case DB_SKIP_LOCKED:
         case DB_LOCK_NOWAIT:
-          ut_ad(0);
-          goto next_rec;
+          ut_d(ut_error);
+          ut_o(goto next_rec);
         default:
           goto lock_wait_or_error;
       }
@@ -5001,7 +5001,7 @@ rec_loop:
           break;
         case DB_SKIP_LOCKED:
         case DB_LOCK_NOWAIT:
-          ut_ad(0);
+          ut_d(ut_error);
         default:
           goto lock_wait_or_error;
       }
@@ -5046,10 +5046,10 @@ rec_loop:
           << ". Run CHECK TABLE. You may need to"
              " restore from a backup, or dump + drop +"
              " reimport the table.";
-      ut_ad(0);
       err = DB_CORRUPTION;
 
-      goto lock_wait_or_error;
+      ut_d(ut_error);
+      ut_o(goto lock_wait_or_error);
     } else {
       /* The user may be dumping a corrupt table. Jump
       over the corruption to recover as much as possible. */
@@ -5118,7 +5118,7 @@ rec_loop:
             break;
           case DB_SKIP_LOCKED:
           case DB_LOCK_NOWAIT:
-            ut_ad(0);
+            ut_d(ut_error);
           default:
             goto lock_wait_or_error;
         }
@@ -5152,7 +5152,7 @@ rec_loop:
             break;
           case DB_SKIP_LOCKED:
           case DB_LOCK_NOWAIT:
-            ut_ad(0);
+            ut_d(ut_error);
           default:
             goto lock_wait_or_error;
         }

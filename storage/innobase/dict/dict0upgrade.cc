@@ -196,13 +196,13 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
 
   /* MDL on tablespace name */
   if (dd_tablespace_get_mdl(tablespace_name.c_str())) {
-    ut_a(false);
+    ut_error;
   }
 
   /* For file per table tablespaces and general tablespaces, we will get
   the tablespace object and then get space_id. */
   if (dd_client->acquire_for_modification(tablespace_name.c_str(), &ts_obj)) {
-    ut_a(false);
+    ut_error;
   }
 
   return (ts_obj);
@@ -671,7 +671,7 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
       dberr_t err =
           row_search_max_autoinc(index, auto_inc_col_name, read_auto_inc);
       if (err != DB_SUCCESS) {
-        ut_ad(0);
+        ut_d(ut_error);
       }
     }
   }
@@ -776,8 +776,8 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     ut_ad(!dict_table_is_discarded(part_table));
 
     if (!dd_upgrade_ensure_has_dd_space_id(thd, part_table)) {
-      ut_ad(false);
-      return true;
+      ut_d(ut_error);
+      ut_o(return true);
     }
 
     dd_set_table_options(part_obj, part_table);
@@ -845,7 +845,7 @@ static void dd_upgrade_set_row_type(dict_table_t *ib_table,
         dd_table->set_row_format(dd::Table::RF_DYNAMIC);
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 }
@@ -896,8 +896,8 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
     /* purecov: end */
   }
 
@@ -1327,8 +1327,8 @@ bool upgrade_space_version(dd::Tablespace *tablespace) {
 
   if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
-    ut_ad(0);
-    return (true);
+    ut_d(ut_error);
+    ut_o(return (true));
   }
   /* Upgrade both server and space version */
   return (upgrade_space_version(space_id, false));

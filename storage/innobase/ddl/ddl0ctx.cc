@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -273,7 +273,7 @@ dberr_t Context::handle_autoinc(const dtuple_t *dtuple) noexcept {
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return DB_SUCCESS;

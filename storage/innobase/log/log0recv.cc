@@ -170,8 +170,6 @@ bool recv_is_making_a_backup = false;
 /** true when recovering from a backed up redo log file */
 bool recv_is_from_backup = false;
 
-#define buf_pool_get_curr_size() (5 * 1024 * 1024)
-
 /** The following counter is used to decide when to print info on
 log scan */
 static ulint recv_scan_print_counter;
@@ -604,15 +602,6 @@ void recv_sys_init() {
   recv_sys->apply_file_operations = false;
 #endif /* !UNIV_HOTBACKUP */
 
-  /* Set appropriate value of recv_n_pool_free_frames. If capacity
-  is at least 10M and 25% above 512 pages then bump free frames to
-  512. */
-  if (buf_pool_get_curr_size() >= (10 * 1024 * 1024) &&
-      (buf_pool_get_curr_size() >= ((512 + 128) * UNIV_PAGE_SIZE))) {
-    /* Buffer pool of size greater than 10 MB. */
-    recv_n_pool_free_frames = 512;
-  }
-
   recv_sys->buf = static_cast<byte *>(
       ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, RECV_PARSING_BUF_SIZE));
   recv_sys->buf_len = RECV_PARSING_BUF_SIZE;
@@ -778,7 +767,7 @@ void MetadataRecover::store() {
     dberr_t error =
         table_buffer->replace(table_id, metadata->get_version(), buffer, size);
     if (error != DB_SUCCESS) {
-      ut_ad(0);
+      ut_d(ut_error);
     }
   }
 
@@ -3884,8 +3873,8 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
              reinterpret_cast<const char *>(log_hdr_buf) + LOG_HEADER_CREATOR);
 
     /* Replace the label. */
-    ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR >=
-          sizeof LOG_HEADER_CREATOR_CURRENT);
+    static_assert(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR >=
+                  sizeof LOG_HEADER_CREATOR_CURRENT);
 
     memset(log_hdr_buf + LOG_HEADER_CREATOR, 0,
            LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR);
@@ -3947,9 +3936,9 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
       ib::error(ER_IB_MSG_733, ulong{log.format},
                 ulong{LOG_HEADER_FORMAT_CURRENT});
 
-      ut_ad(0);
       recv_sys->found_corrupt_log = true;
-      return (DB_ERROR);
+      ut_d(ut_error);
+      ut_o(return (DB_ERROR));
   }
 
   /* NOTE: we always do a 'recovery' at startup, but only if

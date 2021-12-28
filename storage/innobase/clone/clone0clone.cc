@@ -485,9 +485,9 @@ bool Clone_Sys::mark_abort(bool force) {
         &m_clone_sys_mutex, is_timeout);
 
     if (is_timeout) {
-      ut_ad(false);
       ib::warn(ER_IB_CLONE_TIMEOUT) << "DDL wait for CLONE abort timed out"
                                        ", Continuing DDL.";
+      ut_d(ut_error);
     }
   }
   return (true);
@@ -573,10 +573,10 @@ int Clone_Sys::wait_for_free(THD *thd) {
   }
 
   if (is_timeout) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Clone BEGIN timeout waiting for DDL in critical section");
-    return (ER_INTERNAL_ERROR);
+    ut_d(ut_error);
+    ut_o(return (ER_INTERNAL_ERROR));
   }
 
   return (0);
@@ -627,8 +627,8 @@ void Clone_Sys::end_ddl_state(Clone_notify::Type type, space_id_t space,
 
   if (blocked_state != snapshot->get_state()) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     ib::error(ER_IB_CLONE_INTERNAL);
+    ut_d(ut_error);
     /* purecov: end */
   }
 
@@ -1071,7 +1071,8 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
       return (err);
 
     } else if (is_timeout) {
-      ut_ad(false);
+      ut_d(ut_error);
+#ifndef UNIV_DEBUG
       mutex_exit(&m_state_mutex);
 
       ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Add task timed out";
@@ -1080,6 +1081,7 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
                "Clone Add task failed: "
                "Wait too long for state transition");
       return (ER_INTERNAL_ERROR);
+#endif
     }
   }
 
@@ -1162,11 +1164,11 @@ bool Clone_Task_Manager::drop_task(THD *thd, uint task_id, bool &is_master) {
       return (false);
 
     } else if (is_timeout) {
-      ut_ad(false);
       ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master drop task timed out";
 
       mutex_exit(&m_state_mutex);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
   }
 
@@ -1435,7 +1437,7 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
       [[fallthrough]];
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   if (m_current_state == CLONE_SNAPSHOT_INIT ||
@@ -1532,13 +1534,13 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
       [[fallthrough]];
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   if (m_current_state == CLONE_SNAPSHOT_NONE) {
-    ut_ad(false);
     mutex_exit(&m_state_mutex);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   /* Reset to beginning of current state */
@@ -1568,7 +1570,7 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
       ut_ad(m_current_state == CLONE_SNAPSHOT_DONE);
 
     } else {
-      ut_ad(false);
+      ut_d(ut_error);
     }
 #endif /* UNIV_DEBUG */
 
@@ -1667,7 +1669,6 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
 
     /* Wait too long */
     if (err == 0 && is_timeout) {
-      ut_ad(false);
       ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master wait for state change ACK"
                                        " timed out";
 
@@ -1675,6 +1676,7 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
                "Innodb clone state ack wait too long");
 
       err = ER_INTERNAL_ERROR;
+      ut_d(ut_error);
     }
   }
   mutex_exit(&m_state_mutex);
@@ -1752,13 +1754,13 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
         &m_state_mutex, is_timeout);
 
     if (err == 0 && is_timeout) {
-      ut_ad(false);
       ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Apply Master wait timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone Apply Master wait timed out before sending ACK");
 
       err = ER_INTERNAL_ERROR;
+      ut_d(ut_error);
     }
   }
 
@@ -2198,14 +2200,14 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
     }
 
     if (err == 0 && is_timeout) {
-      ut_ad(false);
       ib::info(ER_IB_CLONE_TIMEOUT) << "Clone: state change: "
                                        "wait for other tasks timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone: state change wait for other tasks timed out: "
                "Wait too long for state transition");
-      return (ER_INTERNAL_ERROR);
+      ut_d(ut_error);
+      ut_o(return (ER_INTERNAL_ERROR));
     }
   }
   return (err);

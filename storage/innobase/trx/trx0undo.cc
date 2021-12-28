@@ -615,11 +615,11 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   Cannot do it earlier as GTID information is not known before. Keep the
   debug assert to know if it really happens ever. */
   if (db_err != DB_SUCCESS) {
-    ut_ad(false);
     trx->persists_gtid = false;
     ib::error(ER_IB_CLONE_GTID_PERSIST)
         << "Could not allocate undo segment"
         << " slot for persisting GTID. DB Error: " << db_err;
+    ut_d(ut_error);
   }
   return (db_err);
 }
@@ -653,10 +653,10 @@ void trx_undo_gtid_set(trx_t *trx, trx_undo_t *undo, bool is_xa_prepare) {
 
   /* Verify that we have allocated for GTID */
   if (!undo->gtid_allocated(is_xa_prepare)) {
-    ut_ad(false);
     ib::error(ER_IB_CLONE_GTID_PERSIST)
         << "Could not persist GTID as space for GTID is not allocated.";
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   undo->flag |= gtid_flag;
 }
@@ -727,8 +727,8 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
 
   /* We must have allocated for GTID but add a safe check. */
   if (!undo->gtid_allocated(is_xa_prepare)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   Gtid_desc gtid_desc;
@@ -741,7 +741,7 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
     mlog_write_ulint(undo_header + TRX_UNDO_LOG_GTID_VERSION,
                      gtid_desc.m_version, MLOG_1BYTE, mtr);
     /* Persist fixed length GTID */
-    ut_ad(TRX_UNDO_LOG_GTID_LEN == GTID_INFO_SIZE);
+    static_assert(TRX_UNDO_LOG_GTID_LEN == GTID_INFO_SIZE);
     mlog_write_string(undo_header + gtid_offset, &gtid_desc.m_info[0],
                       TRX_UNDO_LOG_GTID_LEN, mtr);
     undo->flag |= gtid_flag;
@@ -797,7 +797,7 @@ static void trx_undo_header_add_space_for_xid(
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   ulint new_free = free + (new_limit - TRX_UNDO_LOG_OLD_HDR_SIZE);
@@ -849,7 +849,7 @@ byte *trx_undo_parse_page_header(mlog_id_t type, const byte *ptr,
       default:
         break;
     }
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   return (const_cast<byte *>(ptr));

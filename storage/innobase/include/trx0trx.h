@@ -1279,8 +1279,8 @@ struct trx_t {
       case SERIALIZABLE:
         return (false);
     }
-    ut_ad(0);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
 
   bool allow_semi_consistent() const { return (skip_gap_locks()); }

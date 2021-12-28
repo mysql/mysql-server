@@ -1848,7 +1848,7 @@ loop:
 
   if (new_lsn < old_lsn) {
     ib::error(ER_IB_MSG_1046, ulonglong{old_lsn}, ulonglong{new_lsn});
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   old_lsn = new_lsn;

@@ -2461,7 +2461,7 @@ dberr_t dblwr::recv::load(recv::Pages *pages) noexcept {
   for (uint32_t i = 0; i < ids.size(); ++i) {
     if ((uint32_t)ids[i] != i) {
       ib::warn(ER_IB_MSG_DBLWR_1312) << "Gap in the double write buffer files.";
-      ut_ad(0);
+      ut_d(ut_error);
     }
   }
 

@@ -483,8 +483,8 @@ class ha_innopart : public ha_innobase,
   bool check_if_incompatible_data(HA_CREATE_INFO *info [[maybe_unused]],
                                   uint table_changes
                                   [[maybe_unused]]) override {
-    ut_ad(0);
-    return (COMPATIBLE_DATA_NO);
+    ut_d(ut_error);
+    ut_o(return (COMPATIBLE_DATA_NO));
   }
 
   int delete_all_rows() override { return (handler::delete_all_rows()); }
@@ -498,34 +498,34 @@ class ha_innopart : public ha_innobase,
   }
 
   int ft_init() override {
-    ut_ad(0);
-    return (HA_ERR_WRONG_COMMAND);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_WRONG_COMMAND));
   }
 
   FT_INFO *ft_init_ext(uint flags [[maybe_unused]], uint inx [[maybe_unused]],
                        String *key [[maybe_unused]]) override {
-    ut_ad(0);
-    return (nullptr);
+    ut_d(ut_error);
+    ut_o(return (nullptr));
   }
 
   FT_INFO *ft_init_ext_with_hints(uint inx [[maybe_unused]],
                                   String *key [[maybe_unused]],
                                   Ft_hints *hints [[maybe_unused]]) override {
-    ut_ad(0);
-    return (nullptr);
+    ut_d(ut_error);
+    ut_o(return (nullptr));
   }
 
   int ft_read(uchar *buf [[maybe_unused]]) override {
-    ut_ad(0);
-    return (HA_ERR_WRONG_COMMAND);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_WRONG_COMMAND));
   }
 
   bool get_foreign_dup_key(char *child_table_name [[maybe_unused]],
                            uint child_table_name_len [[maybe_unused]],
                            char *child_key_name [[maybe_unused]],
                            uint child_key_name_len [[maybe_unused]]) override {
-    ut_ad(0);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
 
   int read_range_next() override {

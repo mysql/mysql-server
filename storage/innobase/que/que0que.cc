@@ -825,8 +825,8 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
     case QUE_NODE_EXIT:
       return ("EXIT");
     default:
-      ut_ad(0);
-      return ("UNKNOWN NODE TYPE");
+      ut_d(ut_error);
+      ut_o(return ("UNKNOWN NODE TYPE"));
   }
 }
 #endif /* UNIV_DEBUG */

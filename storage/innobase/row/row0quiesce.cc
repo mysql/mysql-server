@@ -114,7 +114,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
   ptr = row;
 
-  ut_ad(sizeof(space_index_t) == 8);
+  static_assert(sizeof(space_index_t) == 8);
   mach_write_to_8(ptr, index->id);
   ptr += sizeof(space_index_t);
 

@@ -73,7 +73,8 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
         << "A transaction id"
         << " in a record of table " << name << " is newer than the"
         << " system-wide maximum.";
-    ut_ad(0);
+    ut_d(ut_error);
+#ifndef UNIV_DEBUG
     THD *thd = current_thd;
     if (thd != nullptr) {
       char table_name[MAX_FULL_NAME_LEN + 1];
@@ -87,6 +88,7 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
                           " maximum.",
                           table_name);
     }
+#endif
   }
 }
 

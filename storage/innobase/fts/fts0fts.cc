@@ -1369,7 +1369,7 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
     dict_sys_mutex_exit();
 
     if (!replay && !dd_rename_fts_table(table, fts_table_old_name)) {
-      ut_ad(0);
+      ut_d(ut_error);
     }
 
     dict_sys_mutex_enter();
@@ -5209,7 +5209,7 @@ doc_id_t fts_get_doc_id_from_rec(dict_table_t *table, const rec_t *rec,
   data = rec_get_nth_field(rec, offsets, col_no, &len);
 
   ut_a(len == 8);
-  ut_ad(8 == sizeof(doc_id));
+  static_assert(8 == sizeof(doc_id));
   doc_id = static_cast<doc_id_t>(mach_read_from_8(data));
 
   if (my_heap && !heap) {

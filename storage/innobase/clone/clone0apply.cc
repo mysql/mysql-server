@@ -144,10 +144,10 @@ int Clone_Snapshot::update_sys_file_name(bool replace,
 
   if (loop_index >= num_data_files()) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     int err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid File Index");
-    return err;
+    ut_d(ut_error);
+    ut_o(return err);
     /* purecov: end */
   }
 
@@ -510,10 +510,10 @@ int Clone_Handle::apply_task_metadata(Clone_Task *task,
   auto success = task_desc.deserialize(serial_desc, desc_len);
 
   if (!success) {
-    ut_ad(false);
     int err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid Task Descriptor");
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
   task->m_task_meta = task_desc.m_task_meta;
   return (0);
@@ -568,10 +568,10 @@ int Clone_Handle::apply_state_metadata(Clone_Task *task,
   auto success = state_desc.deserialize(serial_desc, desc_len);
 
   if (!success) {
-    ut_ad(false);
     err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid State Descriptor");
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
   if (m_clone_handle_type == CLONE_HDL_COPY) {
     ut_ad(state_desc.m_is_ack);
@@ -1099,10 +1099,10 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
   auto success = file_desc.deserialize(serial_desc, desc_len);
 
   if (!success) {
-    ut_ad(false);
     int err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid File Descriptor");
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
   const auto file_desc_meta = &file_desc.m_file_meta;
   auto snapshot = m_clone_task_manager.get_snapshot();
@@ -1299,10 +1299,10 @@ int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
       success = snapshot->encrypt_key_in_log_header(buffer, buf_len);
     }
     if (!success) {
-      ut_ad(false);
       int err = ER_INTERNAL_ERROR;
       my_error(err, MYF(0), "Innodb Clone Apply Failed to Encrypt Key");
-      return (err);
+      ut_d(ut_error);
+      ut_o(return (err));
     }
   }
 
@@ -1491,10 +1491,10 @@ int Clone_Handle::apply_data(Clone_Task *task, Ha_clone_cbk *callback) {
   auto success = data_desc.deserialize(serial_desc, desc_len);
 
   if (!success) {
-    ut_ad(false);
     int err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data Descriptor");
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
   /* Identify the task for the current block of data. */
   int err = 0;
@@ -1534,10 +1534,10 @@ int Clone_Handle::apply(THD *, uint task_id, Ha_clone_cbk *callback) {
   auto success = header.deserialize(clone_desc, desc_len);
 
   if (!success) {
-    ut_ad(false);
     err = ER_CLONE_PROTOCOL;
     my_error(err, MYF(0), "Wrong Clone RPC: Invalid Descriptor Header");
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
 
   /* Check the descriptor type in header and apply */
@@ -1561,8 +1561,8 @@ int Clone_Handle::apply(THD *, uint task_id, Ha_clone_cbk *callback) {
       break;
 
     default:
-      ut_ad(false);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
   if (err != 0) {
@@ -1679,10 +1679,10 @@ int Clone_Snapshot::init_apply_state(Clone_Desc_State *state_desc) {
     case CLONE_SNAPSHOT_NONE:
     case CLONE_SNAPSHOT_INIT:
     default:
-      ut_ad(false);
       err = ER_INTERNAL_ERROR;
       my_error(err, MYF(0), "Innodb Clone Snapshot Invalid state");
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
   return (err);
 }

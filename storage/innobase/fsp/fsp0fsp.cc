@@ -749,7 +749,7 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
       break;
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 }
 #endif /* UNIV_DEBUG */
 
@@ -1834,15 +1834,15 @@ static void fsp_free_page(const page_id_t &page_id,
     fputs("InnoDB: Dump of descriptor: ", stderr);
     ut_print_buf(stderr, ((byte *)descr) - 50, 200);
     putc('\n', stderr);
-    /* Crash in debug version, so that we get a core dump
-    of this corruption. */
-    ut_ad(0);
 
     if (state == XDES_FREE) {
+      /* Crash in debug version, so that we get a core dump
+      of this corruption. */
+      ut_d(ut_error);
       /* We put here some fault tolerance: if the page
       is already free, return without doing anything! */
 
-      return;
+      ut_o(return );
     }
 
     ut_error;
@@ -1857,12 +1857,12 @@ static void fsp_free_page(const page_id_t &page_id,
     putc('\n', stderr);
     /* Crash in debug version, so that we get a core dump
     of this corruption. */
-    ut_ad(0);
+    ut_d(ut_error);
 
     /* We put here some fault tolerance: if the page
     is already free, return without doing anything! */
 
-    return;
+    ut_o(return );
   }
 
   const page_no_t bit = page_id.page_no() % FSP_EXTENT_SIZE;
@@ -4261,8 +4261,8 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
 
   /* Prepare encrypted encryption information to be written on page 0. */
   if (!Encryption::fill_encryption_info(key, iv, encryption_info, true)) {
-    ut_ad(false);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
   }
 
   {
@@ -4271,7 +4271,7 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
     encrypted before the key is persisted in page-0. This is because clone needs
     to copy and re-encrypt the key with recipients master key.
 
-    There is an existinge issue here that other pages could get encrypted and
+    There is an existing issue here that other pages could get encrypted and
     flushed after this point before page-0 is flushed. It could eventually
     cause issue during recovery in case of a crash. It needs to be fixed
     separately (may be) by encrypting pages only if space flag is set. Note that
@@ -4290,8 +4290,8 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
 
     if (err != DB_SUCCESS) {
       /* purecov: begin deadcode */
-      ut_ad(false);
-      return err;
+      ut_d(ut_error);
+      ut_o(return err);
       /* purecov: end */
     }
   }
@@ -4305,8 +4305,8 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
   if (!fsp_header_write_encryption(space->id,
                                    space->flags | FSP_FLAGS_MASK_ENCRYPTION,
                                    encryption_info, true, false, &mtr)) {
-    ut_ad(false);
     err = DB_ERROR;
+    ut_d(ut_error);
   }
 
   /* Write operation type and progress (0 now) on page 0 */
@@ -4496,8 +4496,8 @@ static dberr_t decrypt_begin_persist(fil_space_t *space) {
   if (!fsp_header_write_encryption_progress(space->id, space->flags, 0,
                                             Encryption::DECRYPT_IN_PROGRESS,
                                             true, &mtr)) {
-    ut_ad(false);
     err = DB_ERROR;
+    ut_d(ut_error);
   }
 
   mtr_commit(&mtr);
@@ -4810,12 +4810,12 @@ static inline const std::string &get_encryption_op_str(
       return dec;
       break;
     default:
-      ut_ad(false);
-      return none;
+      ut_d(ut_error);
+      ut_o(return none);
   }
 }
 
-/** Resume Encrypt/Unencrypt for tablespace(s) post recovery.
+/** Resume Encrypt/Decrypt for tablespace(s) post recovery.
 If an error occurs while processing any tablespace needing encryption,
 post an error for that space and keep going.
 @param[in]	thd	background thread */
@@ -4850,7 +4850,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     MDL_ticket *mdl_ticket;
     if (dd::acquire_shared_tablespace_mdl(thd, space->name, false, &mdl_ticket,
                                           false)) {
-      ut_a(false);
+      ut_error;
     }
     shared_mdl_list.push_back(mdl_ticket);
   }
@@ -4882,8 +4882,8 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
       ib::error(ER_IB_MSG_1277)
           << "Tablespace is missing for tablespace id" << space_id
           << ". Skipping (un)encryption resume operation.";
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     ib::info(ER_IB_MSG_RESUME_OP_FOR_SPACE)

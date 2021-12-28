@@ -404,7 +404,7 @@ page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
     case FIL_PAGE_SDI:
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 #endif /* UNIV_DEBUG */
 
@@ -1381,7 +1381,7 @@ void page_dir_balance_slot(page_t *page, page_zip_des_t *page_zip,
 
   /* If the upper slot has the minimum value of n_owned, we will merge
   the two slots, therefore we assert: */
-  ut_ad(2 * PAGE_DIR_SLOT_MIN_N_OWNED - 1 <= PAGE_DIR_SLOT_MAX_N_OWNED);
+  static_assert(2 * PAGE_DIR_SLOT_MIN_N_OWNED - 1 <= PAGE_DIR_SLOT_MAX_N_OWNED);
 
   if (up_n_owned > PAGE_DIR_SLOT_MIN_N_OWNED) {
     /* In this case we can just transfer one record owned

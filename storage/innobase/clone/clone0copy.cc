@@ -236,9 +236,9 @@ int Clone_Snapshot::init_page_copy(Snapshot_State new_state, byte *page_buffer,
 
   } else if (m_snapshot_type == HA_CLONE_PAGE) {
     /* Start COW for all modified pages - Not implemented. */
-    ut_ad(false);
+    ut_d(ut_error);
   } else {
-    ut_ad(false);
+    ut_d(ut_error);
   }
 
   if (err != 0) {
@@ -461,10 +461,10 @@ int Clone_Snapshot::init_redo_copy(Snapshot_State new_state,
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
       binlog_error = ER_QUERY_INTERRUPTED;
     } else {
-      ut_ad(false);
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone wait for XA operation timed out.");
       binlog_error = ER_INTERNAL_ERROR;
+      ut_d(ut_error);
     }
   }
 
@@ -559,9 +559,9 @@ bool Clone_Snapshot::build_file_name(Clone_File_Meta *file_meta,
 
   if (new_len > FN_REFLEN_SE) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     my_error(ER_PATH_LENGTH, MYF(0), "CLONE FILE NAME");
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
     /* purecov: end */
   }
 
@@ -659,8 +659,8 @@ bool Clone_Snapshot::file_ctx_changed(const fil_node_t *node,
 
   if (file_index == 0) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
     /* purecov: end */
   }
 
@@ -676,8 +676,8 @@ bool Clone_Snapshot::file_ctx_changed(const fil_node_t *node,
 
   if (file_ctx == nullptr) {
     /* purecov: begin deadcode */
-    ut_ad(false);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
     /* purecov: end */
   }
 
@@ -1717,10 +1717,10 @@ int Clone_Handle::close_and_unpin_file(Clone_Task *task) {
 
   if (file_ctx == nullptr) {
     /* purecov: begin deadcode */
-    ut_ad(false);
     err = ER_INTERNAL_ERROR;
     my_error(ER_INTERNAL_ERROR, MYF(0), "Clone file missing before unpin");
-    return err;
+    ut_d(ut_error);
+    ut_o(return err);
     /* purecov: end */
   }
 

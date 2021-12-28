@@ -165,7 +165,7 @@ void Arch_Dblwr_Ctx::validate_and_fill_blocks(size_t num_files) {
         break;
 
       default:
-        ut_ad(false);
+        ut_d(ut_error);
     }
 
     dblwr_block.m_block = dblwr_block_offset;

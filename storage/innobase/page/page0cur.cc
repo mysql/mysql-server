@@ -1538,8 +1538,8 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
   to true failing which no flush would be done. */
   byte *log_ptr = nullptr;
   if (mlog_open(mtr, 0, log_ptr)) {
-    ut_ad(false);
-    mlog_close(mtr, log_ptr);
+    ut_d(ut_error);
+    ut_o(mlog_close(mtr, log_ptr));
   }
 
   return (insert_rec);

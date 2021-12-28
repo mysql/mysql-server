@@ -128,7 +128,7 @@ void z_index_entry_t::purge(dict_index_t *index, z_first_page_t &first) {
         }
       } break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
 
     if (type == FIL_PAGE_TYPE_ZLOB_FRAG) {

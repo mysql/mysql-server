@@ -568,8 +568,8 @@ static bool check_v_col_in_order(const TABLE *table, const TABLE *altered_table,
     if (j > altered_table->s->fields) {
       /* there should not be less column in new table
       without them being in drop list */
-      ut_ad(0);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
   }
 
@@ -2091,7 +2091,7 @@ static void innobase_col_to_mysql(
     case DATA_SYS_CHILD:
     case DATA_SYS:
       /* These column types should never be shipped to MySQL. */
-      ut_ad(0);
+      ut_d(ut_error);
       [[fallthrough]];
 
     case DATA_FLOAT:
@@ -2575,11 +2575,11 @@ static void innobase_create_index_def(const TABLE *altered_table,
 
     if (!key->key_part[0].field->stored_in_db &&
         key->key_part[0].field->gcol_info) {
+      index_def->m_fields[0].m_is_v_col = true;
       /* Currently, the spatial index cannot be created
       on virtual columns. It is blocked in server
       layer */
-      ut_ad(0);
-      index_def->m_fields[0].m_is_v_col = true;
+      ut_d(ut_error);
     } else {
       index_def->m_fields[0].m_is_v_col = false;
     }
@@ -3901,7 +3901,7 @@ static void innodb_v_adjust_idx_col(const Alter_inplace_info *ha_alter_info,
       should have been blocked when we drop virtual column
       at the same time */
       ut_ad(num_v_dropped > 0);
-      ut_a(0);
+      ut_error;
     }
 
     ut_ad(field->is_virtual_gcol());
@@ -4512,10 +4512,10 @@ template <typename Table>
   } else {
     /* This should have been blocked in
     check_if_supported_inplace_alter(). */
-    ut_ad(0);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
              thd_query_unsafe(ctx->prebuilt->trx->mysql_thd).str);
-    goto error_handled;
+    ut_d(ut_error);
+    ut_o(goto error_handled);
   }
 
   /* The primary index would be rebuilt if a FTS Doc ID
@@ -5388,7 +5388,7 @@ void static adjust_row_format(TABLE *old_table, TABLE *altered_table,
       altered_table->s->real_row_type = ROW_TYPE_DYNAMIC;
       break;
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 }
 
@@ -5984,9 +5984,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
       if (add_autoinc_col_no != ULINT_UNDEFINED) {
         /* This should have been blocked earlier. */
-        ut_ad(0);
         my_error(ER_WRONG_AUTO_KEY, MYF(0));
-        goto err_exit;
+        ut_d(ut_error);
+        ut_o(goto err_exit);
       }
 
       /* Get the col no of the old table non-virtual column array */
@@ -6619,8 +6619,8 @@ static void innobase_rename_or_enlarge_columns_cache(
                                    &max_value_table);
 
       if (err != DB_SUCCESS) {
-        ut_ad(0);
         ctx->max_autoinc = 0;
+        ut_d(ut_error);
       } else if (ctx->max_autoinc <= max_value_table) {
         ulonglong col_max_value;
         ulonglong offset;
@@ -8311,8 +8311,8 @@ bool alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
                                       char *name) {
   if (!normalize_table_name(name, m_table_name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
     /* purecov: end */
   }
 
@@ -9261,7 +9261,7 @@ alter_part *alter_part_factory::create_one_low(uint &part_id, uint old_part_id,
           m_file_per_table, m_part_share->next_auto_inc_val);
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return (alter_part);
@@ -9512,7 +9512,7 @@ bool alter_part_factory::create_for_reorg(alter_part_array &to_drop,
         break;
 
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 
@@ -9623,7 +9623,7 @@ bool alter_part_factory::create_for_non_reorg(alter_part_array &to_drop,
 
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 
@@ -10760,9 +10760,9 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
 
   if (dd_part->options().exists(index_file_name_key) ||
       swap_table->options().exists(index_file_name_key)) {
-    ut_ad(0);
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "INDEX DIRECTORY");
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
 
   /* Get the innodb table objects of part_table and swap_table */

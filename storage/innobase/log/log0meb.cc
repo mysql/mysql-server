@@ -1865,7 +1865,7 @@ static void redo_log_archive_consumer() {
       // Ensure, that the block written has a minimum size.
       // The encryption is skipped for offsets smaller than
       // `LOG_FILE_HDR_SIZE` (not only for offsets==0).
-      ut_ad(QUEUE_BLOCK_SIZE >= LOG_FILE_HDR_SIZE);
+      static_assert(QUEUE_BLOCK_SIZE >= LOG_FILE_HDR_SIZE);
     }
 
     /*

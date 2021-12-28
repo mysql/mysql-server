@@ -1472,8 +1472,8 @@ inline bool btr_lob_op_is_update(opcode op) {
       break;
   }
 
-  ut_ad(0);
-  return (FALSE);
+  ut_d(ut_error);
+  ut_o(return false);
 }
 
 #ifdef UNIV_DEBUG

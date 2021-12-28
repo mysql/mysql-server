@@ -262,8 +262,8 @@ bool rtree_key_cmp(page_cur_mode_t mode, const uchar *a, int a_len,
       return (mbr_disjoint_cmp(srs, &x, &y));
     default:
       /* if unknown comparison operator */
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
-  return (false);
+  ut_o(return (false));
 }

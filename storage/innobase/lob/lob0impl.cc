@@ -725,13 +725,13 @@ ulint z_frag_page_t::alloc_dir_entry() {
   /* The last free fragment must be adjacent to the directory.
   Then only it can give space to one slot. */
   if (frag.end_ptr() != slots_end_ptr()) {
-    ut_ad(0);
-    return (FRAG_ID_NULL);
+    ut_d(ut_error);
+    ut_o(return (FRAG_ID_NULL));
   }
 
   if (len <= SIZE_OF_PAGE_DIR_ENTRY) {
-    ut_ad(0);
-    return (FRAG_ID_NULL);
+    ut_d(ut_error);
+    ut_o(return (FRAG_ID_NULL));
   }
 
   incr_n_dir_entries();

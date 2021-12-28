@@ -1010,7 +1010,7 @@ void RecLock::prepare() const {
              " operation. index "
           << m_index->name << " of table " << m_index->table->name << ". "
           << BUG_REPORT_MSG;
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   ut_ad(m_index->table->n_ref_count > 0 || !m_index->table->can_be_evicted);
@@ -3508,7 +3508,7 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
       ib::error(ER_IB_MSG_642) << "A table lock wait happens in a dictionary"
                                   " operation. Table "
                                << table->name << ". " << BUG_REPORT_MSG;
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   if (trx->in_innodb & TRX_FORCE_ROLLBACK) {

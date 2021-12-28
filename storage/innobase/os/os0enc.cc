@@ -220,9 +220,9 @@ const char *Encryption::to_string(Type type) noexcept {
       return ("Y");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 void Encryption::random_value(byte *value) noexcept {
@@ -1065,7 +1065,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                src_len - FIL_PAGE_DATA) != 0) {
       ut_print_buf(stderr, src, src_len);
       ut_print_buf(stderr, check_buf, src_len);
-      ut_ad(0);
+      ut_d(ut_error);
     }
     ut::free(buf2);
     ut::free(check_buf);

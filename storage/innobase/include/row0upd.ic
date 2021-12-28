@@ -98,7 +98,7 @@ static inline void upd_field_set_field_no(upd_field_t *upd_field,
         << " trying to access field " << field_no << " in " << index->name
         << " of table " << index->table->name << " which contains only "
         << index->n_fields << " fields";
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   index->get_col(field_no)->copy_type(dfield_get_type(&upd_field->new_val));
@@ -119,7 +119,7 @@ static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                              << " in " << index->name << " of table "
                              << index->table->name << " which contains only "
                              << index->table->n_v_cols << " virutal columns";
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   dict_table_get_nth_v_col(index->table, field_no)

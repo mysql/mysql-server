@@ -811,8 +811,8 @@ void ibuf_set_free_bits_func(
 
   switch (space->purpose) {
     case FIL_TYPE_LOG:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     case FIL_TYPE_TABLESPACE:
       break;
     case FIL_TYPE_TEMPORARY:
@@ -1320,7 +1320,7 @@ static void ibuf_print_ops(
   static const char *op_names[] = {"insert", "delete mark", "delete"};
   ulint i;
 
-  ut_a(UT_ARR_SIZE(op_names) == IBUF_OP_COUNT);
+  static_assert(UT_ARR_SIZE(op_names) == IBUF_OP_COUNT);
 
   for (i = 0; i < IBUF_OP_COUNT; i++) {
     fprintf(file, "%s %lu%s", op_names[i], (ulong)ops[i].load(),
@@ -3008,8 +3008,8 @@ static ulint ibuf_get_entry_counter_func(
   if (page_rec_is_supremum(rec)) {
     /* This is just for safety. The record should be a
     page infimum or a user record. */
-    ut_ad(0);
-    return (ULINT_UNDEFINED);
+    ut_d(ut_error);
+    ut_o(return (ULINT_UNDEFINED));
   } else if (!page_rec_is_infimum(rec)) {
     return (ibuf_get_entry_counter_low(mtr, rec, space, page_no));
   } else if (only_leaf || fil_page_get_prev(page_align(rec)) == FIL_NULL) {
@@ -3541,8 +3541,8 @@ static rec_t *ibuf_insert_to_index_page_low(
 
   ib::error(ER_IB_MSG_610) << BUG_REPORT_MSG;
 
-  ut_ad(0);
-  return nullptr;
+  ut_d(ut_error);
+  ut_o(return nullptr);
 }
 
 /************************************************************************
@@ -3602,15 +3602,15 @@ static void ibuf_insert_to_index_page(
     rec_print(stderr, rec, index);
   dump:
     dtuple_print(stderr, entry);
-    ut_ad(0);
-
     ib::warn(ER_IB_MSG_614)
         << "The table where this index record belongs"
            " is now probably corrupt. Please run CHECK TABLE on"
            " your tables. "
         << BUG_REPORT_MSG;
 
-    return;
+    ut_d(ut_error);
+
+    ut_o(return );
   }
 
   low_match = page_cur_search(block, index, entry, &page_cur);
@@ -3765,7 +3765,7 @@ static void ibuf_set_del_mark(
         << " records, index id " << btr_page_get_index_id(page) << ").";
 
     ib::error(ER_IB_MSG_618) << BUG_REPORT_MSG;
-    ut_ad(0);
+    ut_d(ut_error);
   }
 }
 
@@ -3823,8 +3823,8 @@ static void ibuf_delete(const dtuple_t *entry, /*!< in: entry */
               (unsigned)page_get_n_recs(page),
               (ulonglong)btr_page_get_index_id(page));
 
-      ut_ad(0);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
 
     lock_update_delete(block, rec);
@@ -4141,7 +4141,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
 
       ib::error(ER_IB_MSG_625) << "Please submit a detailed bug"
                                   " report to http://bugs.mysql.com";
-      ut_ad(0);
+      ut_d(ut_error);
     }
   }
 

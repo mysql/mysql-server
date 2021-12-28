@@ -1230,7 +1230,7 @@ retry_page_get:
         cursor->rtr_info->mbr_adj = false;
         mbr_adj = true;
       } else {
-        ut_ad(0);
+        ut_d(ut_error);
       }
     }
 
@@ -2298,7 +2298,7 @@ bool btr_cur_open_at_rnd_pos_func(
     case BTR_SEARCH_TREE:
     case BTR_CONT_MODIFY_TREE:
     case BTR_CONT_SEARCH_TREE:
-      ut_ad(0);
+      ut_d(ut_error);
       [[fallthrough]];
     default:
       if (!srv_read_only_mode) {
@@ -2857,8 +2857,8 @@ dberr_t btr_cur_optimistic_insert(
 
     /* If the record did not fit, reorganize */
     if (!btr_page_reorganize(page_cursor, index, mtr)) {
-      ut_ad(0);
-      goto fail;
+      ut_d(ut_error);
+      ut_o(goto fail);
     }
 
     ut_ad(page_get_max_insert_size(page, 1) == max_size);
@@ -2996,8 +2996,8 @@ dberr_t btr_cur_pessimistic_insert(
     if (UNIV_LIKELY_NULL(big_rec_vec)) {
       /* This should never happen, but we handle
       the situation in a robust manner. */
-      ut_ad(0);
       dtuple_convert_back_big_rec(entry, big_rec_vec);
+      ut_d(ut_error);
     }
 
     big_rec_vec = dtuple_convert_big_rec(index, nullptr, entry);

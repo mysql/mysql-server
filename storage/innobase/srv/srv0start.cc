@@ -1751,7 +1751,7 @@ void srv_shutdown_exit_threads() {
 
 #ifdef UNIV_DEBUG
     os_aio_print_pending_io(stderr);
-    ut_ad(0);
+    ut_d(ut_error);
 #endif /* UNIV_DEBUG */
   } else {
     /* Reset the start state. */
@@ -1894,9 +1894,10 @@ dberr_t srv_start(bool create_new_db) {
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 #endif /* UNIV_LINUX */
 
-  if (sizeof(ulint) != sizeof(void *)) {
-    ib::error(ER_IB_MSG_1109, sizeof(ulint), sizeof(void *));
-  }
+  static_assert(sizeof(ulint) == sizeof(void *),
+                "Size of InnoDB's ulint is not the same as size of void*. The "
+                "sizes should be the same so that on a 64-bit platforms you "
+                "can allocate more than 4 GB of memory.");
 
   if (srv_is_upgrade_mode) {
     if (srv_read_only_mode) {
@@ -3292,7 +3293,7 @@ void srv_pre_dd_shutdown() {
       break;
     case PURGE_STATE_RUN:
     case PURGE_STATE_STOP:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   /* After this phase plugins are asked to be shut down, in which case they

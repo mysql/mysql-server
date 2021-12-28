@@ -707,7 +707,7 @@ const char *fts_ast_node_type_get(fts_ast_type_t type) {
     case FTS_AST_PARSER_PHRASE_LIST:
       return ("FTS_AST_PARSER_PHRASE_LIST");
   }
-  ut_ad(0);
-  return ("FTS_UNKNOWN");
+  ut_d(ut_error);
+  ut_o(return ("FTS_UNKNOWN"));
 }
 #endif /* UNIV_DEBUG */

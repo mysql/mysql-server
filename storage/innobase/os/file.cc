@@ -64,9 +64,9 @@ const char *Compression::to_string(Type type) {
       return ("LZ4");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 /**

@@ -55,7 +55,7 @@ class dyn_buf_t {
   class block_t {
    public:
     block_t() {
-      ut_ad(MAX_DATA_SIZE <= (2 << 15));
+      static_assert(MAX_DATA_SIZE <= (2 << 15));
       init();
     }
 
@@ -374,8 +374,8 @@ class dyn_buf_t {
       pos -= block->used();
     }
 
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
   }
 
   /**

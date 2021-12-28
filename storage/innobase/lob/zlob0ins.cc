@@ -59,8 +59,8 @@ int zInserter::write_first_page(big_rec_field_t &field) {
   } else if (err == Z_STREAM_END) {
     blobref.set_length(m_stream.total_in, nullptr);
   } else {
-    ut_ad(0);
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
 
   blobref.update(m_ctx->space(), m_cur_blob_page_no, FIL_PAGE_NEXT, nullptr);

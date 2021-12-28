@@ -185,7 +185,7 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
                 return (nullptr);
 
               case SPATIAL_UNKNOWN:
-                ut_ad(0);
+                ut_d(ut_error);
             }
 
             memcpy(mbr, ptr, DATA_MBR_LEN);
@@ -945,8 +945,8 @@ enum row_search_result row_search_index_entry(
 
   switch (btr_pcur_get_btr_cur(pcur)->flag) {
     case BTR_CUR_UNSET:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
 
     case BTR_CUR_DELETE_REF:
       ut_a(mode & BTR_DELETE && !dict_index_is_spatial(index));

@@ -2026,8 +2026,8 @@ bool Fil_system::space_belongs_in_LRU(const fil_space_t *space) {
       return true;
   }
 
-  ut_ad(0);
-  return false;
+  ut_d(ut_error);
+  ut_o(return false);
 }
 
 /** Constructor
@@ -3798,7 +3798,7 @@ void Fil_shard::open_system_tablespaces(size_t max_n_open, size_t *n_open) {
           /* This func is called during server's startup. If some file of log
           or system tablespace is missing, the server can't start
           successfully. So we should assert for it. */
-          ut_a(0);
+          ut_error;
         }
 
         ++*n_open;
@@ -4591,7 +4591,7 @@ static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
     case MLOG_FILE_CREATE:
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 }
 
@@ -4666,9 +4666,9 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   if (notifier.failed()) {
     /* Currently post DDL operations are never rolled back. */
     /* purecov: begin deadcode */
-    ut_ad(false);
     ut::free(path);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
     /* purecov: end */
   }
 #endif /* !UNIV_HOTBACKUP */
@@ -8038,7 +8038,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     to prevent handling errors along the way fil_io returns.
     Also, if the log files are missing, it would be hard to
     promise the server can continue running. */
-    ut_a(0);
+    ut_error;
   }
 
   /* Check that at least the start offset is within the bounds of a
@@ -8247,7 +8247,7 @@ void fil_aio_wait(ulint segment) {
       return;
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -8526,7 +8526,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
         ut_error;
     }
 
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   --space->n_pending_flushes;
@@ -11634,8 +11634,8 @@ static bool fil_get_partition_file(const std::string &old_path [[maybe_unused]],
   std::string table_name;
   /* Get Innodb dictionary name from file path. */
   if (!Fil_path::parse_file_path(old_path, extn, table_name)) {
-    ut_ad(false);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
   ut_ad(!table_name.empty());
 
@@ -11663,8 +11663,8 @@ static void fil_rename_partition_file(const std::string &old_path,
   std::string new_path;
 
   if (!fil_get_partition_file(old_path, extn, new_path)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   ut_ad(!new_path.empty());
@@ -11703,8 +11703,8 @@ static void fil_rename_partition_file(const std::string &old_path,
 
   if (!ret) {
     /* File rename failed. */
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   if (import) {
@@ -12101,8 +12101,8 @@ const char *fil_get_page_type_str(page_type_t type) noexcept {
     PAGE_TYPE(FIL_PAGE_TYPE_RSEG_ARRAY);
     PAGE_TYPE(FIL_PAGE_TYPE_LEGACY_DBLWR);
   }
-  ut_ad(0);
-  return "UNKNOWN";
+  ut_d(ut_error);
+  ut_o(return "UNKNOWN");
 }
 
 bool fil_is_page_type_valid(page_type_t type) noexcept {
@@ -12114,8 +12114,8 @@ bool fil_is_page_type_valid(page_type_t type) noexcept {
     return true;
   }
 
-  ut_ad(0);
-  return false;
+  ut_d(ut_error);
+  ut_o(return false);
 }
 
 std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {

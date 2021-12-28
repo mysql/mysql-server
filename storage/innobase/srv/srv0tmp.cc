@@ -86,7 +86,7 @@ Tablespace::~Tablespace() {
     ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
         << "Failed to delete file " << path();
     os_file_get_last_error(true);
-    ut_ad(0);
+    ut_d(ut_error);
   }
 }
 
@@ -237,7 +237,7 @@ void Tablespace_pool::free_ts(Tablespace *ts) {
   if (it != m_active->end()) {
     m_active->erase(it);
   } else {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   m_free->push_back(ts);

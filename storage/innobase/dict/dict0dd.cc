@@ -971,8 +971,8 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
 
         /* Safe check for release mode. */
         if (dd_part == nullptr) {
-          ut_ad(false);
           table = nullptr;
+          ut_d(ut_error);
         } else {
           dd_table_open_on_dd_obj(thd, client, *dd_table, dd_part, name, table,
                                   nullptr);
@@ -1098,14 +1098,14 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
                                                            &dd_space) ||
       dd_space == nullptr) {
-    ut_ad(false);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
   }
 
   MDL_ticket *src_ticket = nullptr;
   if (dd_tablespace_get_mdl(dd_space->name().c_str(), &src_ticket)) {
-    ut_ad(false);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
   }
 
   std::string tablespace_name(new_space_name);
@@ -1116,8 +1116,8 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 
   MDL_ticket *dst_ticket = nullptr;
   if (dd_tablespace_get_mdl(tablespace_name.c_str(), &dst_ticket)) {
-    ut_ad(false);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
   }
 
   dd::Tablespace *new_space = nullptr;
@@ -1125,8 +1125,8 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
   /* Acquire the new dd tablespace for modification */
   if (client->acquire_for_modification<dd::Tablespace>(dd_space_id,
                                                        &new_space)) {
-    ut_ad(false);
-    return DB_ERROR;
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
   }
 
   ut_ad(new_space->files().size() == 1);
@@ -1302,7 +1302,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         case ROW_TYPE_NOT_USED:
         case ROW_TYPE_DEFAULT:
           /* get_real_row_type() should not return these */
-          ut_ad(0);
+          ut_d(ut_error);
           [[fallthrough]];
         case ROW_TYPE_DYNAMIC:
           ut_ad(*zip_ssize == 0);
@@ -1453,7 +1453,7 @@ void dd_set_autoinc(dd::Properties &se_private_data, uint64 autoinc) {
       version++;
     } else {
       /* incomplete se_private_data */
-      ut_ad(false);
+      ut_d(ut_error);
     }
   }
 
@@ -1476,8 +1476,8 @@ void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest) {
               reinterpret_cast<uint64 *>(&autoinc)) ||
       src.get(dd_table_key_strings[DD_TABLE_VERSION],
               reinterpret_cast<uint64 *>(&version))) {
-    ut_ad(0);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   dest.set(dd_table_key_strings[DD_TABLE_VERSION], version);
@@ -2116,7 +2116,7 @@ void dd_set_table_options(Table *dd_table, const dict_table_t *table) {
       type = ROW_TYPE_DYNAMIC;
       break;
     default:
-      ut_a(0);
+      ut_error;
   }
 
   if (!dd_table_is_partitioned(*dd_table_def)) {
@@ -2400,8 +2400,8 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
   index->n_user_defined_cols = key.user_defined_key_parts;
 
   if (dict_index_add_to_cache(table, index, 0, FALSE) != DB_SUCCESS) {
-    ut_ad(0);
-    return HA_ERR_GENERIC;
+    ut_d(ut_error);
+    ut_o(return HA_ERR_GENERIC);
   }
 
   index = UT_LIST_GET_LAST(table->indexes);
@@ -2891,7 +2891,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
           real_type = ROW_TYPE_DYNAMIC;
           break;
         default:
-          ut_ad(0);
+          ut_d(ut_error);
       }
     }
   }
@@ -3437,8 +3437,8 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
 
     if (truncated || !normalize_table_name(norm_name, buf)) {
       /* purecov: begin inspected */
-      ut_ad(false);
-      return DB_TOO_LONG_PATH;
+      ut_d(ut_error);
+      ut_o(return DB_TOO_LONG_PATH);
       /* purecov: end */
     }
 
@@ -3491,7 +3491,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
         foreign->type = DICT_FOREIGN_ON_UPDATE_SET_NULL;
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
 
     switch (key->delete_rule()) {
@@ -3511,7 +3511,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
         foreign->type |= DICT_FOREIGN_ON_DELETE_SET_NULL;
         break;
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
 
     foreign->n_fields = key->elements().size();
@@ -3656,8 +3656,8 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
 
       if (truncated || !normalize_table_name(full_name, buf)) {
         /* purecov: begin inspected */
-        ut_ad(false);
-        return DB_TOO_LONG_PATH;
+        ut_d(ut_error);
+        ut_o(return DB_TOO_LONG_PATH);
         /* purecov: end */
       }
 
@@ -3742,8 +3742,8 @@ const char *dd_table_get_space_name(const Table *dd_table) {
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
                                                            &dd_space) ||
       dd_space == nullptr) {
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
   }
 
   space_name = dd_space->name().c_str();
@@ -3800,8 +3800,8 @@ char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
 
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
                                                            &dd_space)) {
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
   }
 
   if (dd_space != nullptr) {
@@ -4076,8 +4076,8 @@ char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
                                                            &dd_space) ||
       dd_space == nullptr) {
-    ut_ad(false);
-    return nullptr;
+    ut_d(ut_error);
+    ut_o(return nullptr);
   }
 
   return mem_heap_strdup(heap, dd_space->name().c_str());
@@ -5507,7 +5507,7 @@ void dd_set_fts_table_options(dd::Table *dd_table, const dict_table_t *table) {
       row_format = dd::Table::RF_DYNAMIC;
       break;
     default:
-      ut_a(0);
+      ut_error;
   }
 
   dd_table->set_row_format(row_format);
@@ -5672,15 +5672,15 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
   MDL_ticket *mdl_ticket = nullptr;
   if (dd::acquire_exclusive_table_mdl(thd, db_name.c_str(), table_name.c_str(),
                                       false, &mdl_ticket)) {
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   /* Store table to dd */
   bool fail = client->store(dd_table);
   if (fail) {
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   return true;
@@ -5802,8 +5802,8 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
   if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   table->dd_space_id = dd_space_id;
@@ -5819,8 +5819,8 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
   /* Store table to dd */
   bool fail = client->store(dd_table);
   if (fail) {
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   return true;
@@ -5926,15 +5926,15 @@ bool dd_rename_fts_table(const dict_table_t *table, const char *old_name) {
 
     if (dd_tablespace_rename(table->dd_space_id, false, table->name.m_name,
                              new_path) != DB_SUCCESS) {
-      ut_a(false);
+      ut_error;
     }
 
     ut::free(new_path);
   }
 
   if (client->update(dd_table)) {
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   return true;
@@ -5960,12 +5960,12 @@ void dd_tablespace_set_state(THD *thd, dd::Object_id dd_space_id,
   Releaser releaser{client};
 
   if (dd_tablespace_get_mdl(space_name.c_str())) {
-    ut_a(false);
+    ut_error;
   }
 
   if (client->acquire_for_modification(dd_space_id, &dd_space) ||
       dd_space == nullptr) {
-    ut_a(false);
+    ut_error;
   }
 
   ut_a(dd_space != nullptr);
@@ -5973,7 +5973,7 @@ void dd_tablespace_set_state(THD *thd, dd::Object_id dd_space_id,
   dd_tablespace_set_state(dd_space, dd_state);
 
   if (client->update(dd_space)) {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 }
 
@@ -6141,8 +6141,8 @@ bool dd_tablespace_get_mdl(const char *space_name, MDL_ticket **mdl_ticket,
   THD *thd = current_thd;
   /* Safeguard in release mode if background thread doesn't have THD. */
   if (thd == nullptr) {
-    ut_ad(false);
-    return true;
+    ut_d(ut_error);
+    ut_o(return true);
   }
   /* Explicit duration for background threads. */
   bool trx_duration = foreground;
@@ -6406,8 +6406,8 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
       return FSP_FLAGS_GET_ENCRYPTION(flags);
     }
     /* We should not reach here */
-    ut_ad(0);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 }
 
@@ -6601,7 +6601,7 @@ void get_table(const std::string &dict_name, bool convert, std::string &schema,
       part_len = tmp_begin - part_begin;
     } else if (is_tmp) {
       /* TMP extension must follow partition. */
-      ut_ad(false);
+      ut_d(ut_error);
     }
     partition.assign(table.substr(part_begin, part_len));
     table.assign(table.substr(0, part_begin));
@@ -6704,8 +6704,8 @@ static void build_partition_low(const std::string part,
   std::string conv_str;
 
   if (part.empty()) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   /* Get partition separator strings */

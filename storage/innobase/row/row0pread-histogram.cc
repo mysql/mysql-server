@@ -198,8 +198,8 @@ bool Histogram_sampler::skip() {
     } break;
 
     default:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
   return (ret);
@@ -259,7 +259,7 @@ dberr_t Histogram_sampler::sample_rec(const Parallel_reader::Ctx *reader_ctx,
     m_n_sampled.fetch_add(1, std::memory_order_relaxed);
   } else {
     err = DB_ERROR;
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   DBUG_EXECUTE_IF("simulate_sample_read_error", err = DB_ERROR;);

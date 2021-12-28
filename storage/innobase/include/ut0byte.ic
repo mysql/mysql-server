@@ -72,7 +72,7 @@ static inline void *ut_align(const void *ptr, /*!< in: pointer */
   ut_ad(((align_no - 1) & align_no) == 0);
   ut_ad(ptr);
 
-  ut_ad(sizeof(void *) == sizeof(ulint));
+  static_assert(sizeof(void *) == sizeof(ulint));
 
   return ((void *)((((ulint)ptr) + align_no - 1) & ~(align_no - 1)));
 }
@@ -88,7 +88,7 @@ static inline void *ut_align_down(
   ut_ad(((align_no - 1) & align_no) == 0);
   ut_ad(ptr);
 
-  ut_ad(sizeof(void *) == sizeof(ulint));
+  static_assert(sizeof(void *) == sizeof(ulint));
 
   return ((void *)((((ulint)ptr)) & ~(align_no - 1)));
 }
@@ -104,7 +104,7 @@ static inline ulint ut_align_offset(
   ut_ad(((align_no - 1) & align_no) == 0);
   ut_ad(ptr);
 
-  ut_ad(sizeof(void *) == sizeof(ulint));
+  static_assert(sizeof(void *) == sizeof(ulint));
 
   return (((ulint)ptr) & (align_no - 1));
 }
