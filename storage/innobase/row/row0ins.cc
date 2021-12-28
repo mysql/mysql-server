@@ -1112,10 +1112,10 @@ func_exit:
           "InnoDB: Submit a detailed bug report to"
           " http://bugs.mysql.com\n",
           stderr);
-      ut_ad(0);
       err = DB_SUCCESS;
+      ut_d(ut_error);
 
-      goto nonstandard_exit_func;
+      ut_o(goto nonstandard_exit_func);
     }
   }
 
@@ -2456,7 +2456,7 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
         case DB_SUCCESS:
           break;
         default:
-          ut_ad(0);
+          ut_d(ut_error);
           [[fallthrough]];
         case DB_SUCCESS_LOCKED_REC:
         case DB_DUPLICATE_KEY:

@@ -547,7 +547,7 @@ void trx_rsegs_init_start(purge_pq_t *purge_queue) {
 void trx_rsegs_init_end() {
 #ifdef UNIV_DEBUG
   while (active_rseg_init_threads.fetch_add(0) != 0) {
-    ut_ad(false);
+    ut_d(ut_error);
   }
 #endif  // UNIV_DEBUG
 

@@ -2529,8 +2529,8 @@ void trx_print_low(FILE *f,
       break;
     default:
       fprintf(f, ", state %lu", static_cast<ulong>(trx_state));
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
   /* prevent a race condition */

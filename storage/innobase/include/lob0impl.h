@@ -1381,8 +1381,8 @@ struct z_frag_page_t {
   @param[in]	index	Clustered index to which LOB belongs. */
   z_frag_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
       : m_block(block), m_mtr(mtr), m_index(index) {
-    ut_ad(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
-          z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
+    static_assert(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
+                  z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
   }
 
   /** Constructor.
@@ -1395,8 +1395,8 @@ struct z_frag_page_t {
   @param[in]	block	the buffer block containing the fragment page.*/
   explicit z_frag_page_t(buf_block_t *block)
       : m_block(block), m_mtr(nullptr), m_index(nullptr) {
-    ut_ad(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
-          z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
+    static_assert(frag_node_t::SIZE_OF_PAGE_DIR_ENTRY ==
+                  z_frag_page_t::SIZE_OF_PAGE_DIR_ENTRY);
   }
 
   /** Write the space identifier to the page header, without generating

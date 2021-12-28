@@ -59,7 +59,7 @@ bool arch_wake_threads() {
 void arch_remove_file(const char *file_path, const char *file_name) {
   char path[MAX_ARCH_PAGE_FILE_NAME_LEN];
 
-  ut_ad(MAX_ARCH_LOG_FILE_NAME_LEN <= MAX_ARCH_PAGE_FILE_NAME_LEN);
+  static_assert(MAX_ARCH_LOG_FILE_NAME_LEN <= MAX_ARCH_PAGE_FILE_NAME_LEN);
   ut_ad(strlen(file_path) + 1 + strlen(file_name) <
         MAX_ARCH_PAGE_FILE_NAME_LEN);
 
@@ -89,7 +89,7 @@ void arch_remove_file(const char *file_path, const char *file_name) {
 void arch_remove_dir(const char *dir_path, const char *dir_name) {
   char path[MAX_ARCH_DIR_NAME_LEN];
 
-  ut_ad(sizeof(ARCH_LOG_DIR) <= sizeof(ARCH_PAGE_DIR));
+  static_assert(sizeof(ARCH_LOG_DIR) <= sizeof(ARCH_PAGE_DIR));
   ut_ad(strlen(dir_path) + 1 + strlen(dir_name) + 1 < sizeof(path));
 
   /* Remove only LOG and PAGE archival directories. */

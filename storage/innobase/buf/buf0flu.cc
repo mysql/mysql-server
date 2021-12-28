@@ -3238,7 +3238,7 @@ static void buf_flush_page_coordinator_thread() {
         break;
 
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
 
     os_event_reset(recv_sys->flush_start);

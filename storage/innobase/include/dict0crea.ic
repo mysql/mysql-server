@@ -81,8 +81,8 @@ static inline dberr_t dict_create_add_foreign_id(
       if (innobase_check_identifier_length(strchr(id, '/') + 1)) {
         /* Server has already done this check,
         So assert here */
-        ut_ad(0);
-        return DB_IDENTIFIER_TOO_LONG;
+        ut_d(ut_error);
+        ut_o(return DB_IDENTIFIER_TOO_LONG);
       }
     }
     foreign->id = id;

@@ -1474,7 +1474,7 @@ void srv_mon_set_module_control(
   bool set_current_module = false;
 
   ut_a(module_id <= NUM_MONITOR);
-  ut_a(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
+  static_assert(UT_ARR_SIZE(innodb_counter_info) == NUM_MONITOR);
 
   /* The module_id must be an ID of MONITOR_MODULE type */
   ut_a(innodb_counter_info[module_id].monitor_type & MONITOR_MODULE);

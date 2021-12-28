@@ -614,7 +614,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   auto ret_state = m_state;
@@ -716,10 +716,10 @@ bool Arch_Log_Sys::wait_idle() {
         &m_mutex, is_timeout);
 
     if (err == 0 && is_timeout) {
-      ut_ad(false);
       err = ER_INTERNAL_ERROR;
       ib::info(ER_IB_MSG_25) << "Log Archiving start: wait for idle state "
                                 "timed out";
+      ut_d(ut_error);
     }
 
     if (err != 0) {
@@ -793,13 +793,12 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
         nullptr, is_timeout);
 
     if (err == 0 && is_timeout) {
-      ut_ad(false);
-
       ib::info(ER_IB_MSG_19) << "Clone Log archive stop: "
                                 "wait for Archiver timed out";
 
       err = ER_INTERNAL_ERROR;
       my_error(ER_INTERNAL_ERROR, MYF(0), "Clone: Log Archiver wait too long");
+      ut_d(ut_error);
     }
     return (err);
   }

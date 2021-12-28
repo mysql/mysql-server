@@ -98,13 +98,13 @@ struct single_indexer_t {
 
   /** @return offset within m_counter */
   static size_t offset(size_t index [[maybe_unused]]) UNIV_NOTHROW {
-    ut_ad(N == 1);
+    static_assert(N == 1);
     return ((ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 
   /** @return 1 */
   static size_t get_rnd_index() UNIV_NOTHROW {
-    ut_ad(N == 1);
+    static_assert(N == 1);
     return (1);
   }
 };

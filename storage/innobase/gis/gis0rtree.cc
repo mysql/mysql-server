@@ -803,8 +803,8 @@ static bool rtr_split_page_move_rec_list(
       moved++;
 
       if (moved > max_to_move) {
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       }
     }
   }
@@ -1043,8 +1043,8 @@ func_start:
         moved++;
 
         if (moved > max_to_move) {
-          ut_ad(0);
-          break;
+          ut_d(ut_error);
+          ut_o(break);
         }
       }
     }
@@ -1385,8 +1385,8 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
     moved++;
   next:
     if (moved > max_move) {
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     }
 
     page_cur_move_to_next(&cur1);
@@ -1499,8 +1499,8 @@ void rtr_page_copy_rec_list_start_no_locks(
     moved++;
   next:
     if (moved > max_move) {
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     }
 
     page_cur_move_to_next(&cur1);

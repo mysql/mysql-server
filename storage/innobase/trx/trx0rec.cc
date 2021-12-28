@@ -1606,7 +1606,7 @@ static ulint trx_undo_page_report_modify(
         } else if (row) {
           vfield = dtuple_get_nth_v_field(row, col->v_pos);
         } else {
-          ut_ad(0);
+          ut_d(ut_error);
         }
 
         if (vfield) {
@@ -1776,9 +1776,9 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
              " n_fields = "
           << n_fields << ", i = " << i << ", ptr " << ptr;
 
-      ut_ad(0);
-      *upd = nullptr;
-      return nullptr;
+      ut_d(ut_error);
+      ut_o(*upd = nullptr);
+      ut_o(return nullptr);
     }
 
     upd_field = upd_get_nth_field(update, i);
@@ -1845,7 +1845,7 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
         } else if (len < UNIV_EXTERN_STORAGE_FIELD) {
           dfield_set_data(upd_field->old_v_val, field, len);
         } else {
-          ut_ad(0);
+          ut_d(ut_error);
         }
       }
     }
@@ -2008,8 +2008,8 @@ byte *trx_undo_rec_get_partial_row(
           break;
 
         case SPATIAL_UNKNOWN:
-          ut_ad(0);
-          break;
+          ut_d(ut_error);
+          ut_o(break);
       }
 
       dfield_set_ext(dfield);

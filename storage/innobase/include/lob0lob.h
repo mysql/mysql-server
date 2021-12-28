@@ -1470,8 +1470,8 @@ inline bool btr_lob_op_is_update(opcode op) {
       break;
   }
 
-  ut_ad(0);
-  return false;
+  ut_d(ut_error);
+  ut_o(return false);
 }
 
 /** Copies the prefix of an externally stored field of a record.

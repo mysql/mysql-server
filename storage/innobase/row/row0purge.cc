@@ -381,9 +381,9 @@ index tree.  Does not try to buffer the delete.
           << ": tuple: " << *entry
           << ", record: " << rec_index_print(btr_cur_get_rec(btr_cur), index);
 
-      ut_ad(0);
+      ut_d(ut_error);
 
-      goto func_exit;
+      ut_o(goto func_exit);
     }
 
     btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, 0, node->undo_no,
@@ -510,11 +510,12 @@ if possible.
               << index->name << " of table " << index->table->name
               << ": tuple: " << *entry << ", record: "
               << rec_index_print(btr_cur_get_rec(btr_cur), index);
-          ut_ad(0);
 
           pcur.close();
 
-          goto func_exit_no_pcur;
+          ut_d(ut_error);
+
+          ut_o(goto func_exit_no_pcur);
         }
 
         if (dict_index_is_spatial(index)) {

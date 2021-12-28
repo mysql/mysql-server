@@ -555,8 +555,8 @@ struct use_unrolled_loop_poly_mul : crc32_impl {
   template <uint32_t x_to_len_8>
   struct Polynomial_mul_rev_step_executor {
     template <size_t i>
-    static void run(uint64_t &acc, const uint32_t hash_1) {
-      if (x_to_len_8 >> ((uint32_t)i) & 1) {
+    static void run(uint64_t &acc, const uint32_t hash_1 [[maybe_unused]]) {
+      if constexpr (x_to_len_8 >> ((uint32_t)i) & 1) {
         acc ^= uint64_t{hash_1} << (32 - i);
       }
     }
@@ -663,7 +663,7 @@ static inline uint32_t consume_chunk(uint32_t crc0, const unsigned char *data) {
     return crc[n-1]
   as the inputs to roll()s are independent, but now fold_64_to_32 is only needed
   conditionally, when slices_count > 1. */
-  if (1 < slices_count) {
+  if constexpr (1 < slices_count) {
     Loop<slices_count - 1>::template run<
         Combination_step_executor<algo_to_use, slice_len, slices_count>>(
         combined_crc, crc);

@@ -349,8 +349,8 @@ static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
     err_str.append(" Exception: ");
     err_str.append(e.what());
     ib::error(ER_IB_CLONE_INTERNAL) << err_str;
-    ut_ad(false);
-    return false;
+    ut_d(ut_error);
+    ut_o(return false);
   }
 
   return true;
@@ -448,10 +448,10 @@ int innodb_clone_begin(handlerton *, THD *thd, const byte *&loc, uint &loc_len,
     case HA_CLONE_MODE_VERSION:
     case HA_CLONE_MODE_MAX:
     default:
-      ut_ad(false);
       my_error(ER_INTERNAL_ERROR, MYF(0), "Innodb Clone Begin Invalid Mode");
 
-      return (ER_INTERNAL_ERROR);
+      ut_d(ut_error);
+      ut_o(return (ER_INTERNAL_ERROR));
   }
 
   if (clone_hdl == nullptr) {
@@ -792,11 +792,11 @@ int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
     case HA_CLONE_MODE_START:
 
       if (clone_hdl != nullptr) {
-        ut_ad(false);
         clone_sys->drop_clone(clone_hdl);
         ib::error(ER_IB_CLONE_INTERNAL)
             << "Clone Apply Begin Master found duplicate clone";
         clone_hdl = nullptr;
+        ut_d(ut_error);
       }
 
       /* Check if the locator is from current mysqld server. */
@@ -832,12 +832,11 @@ int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
 
     case HA_CLONE_MODE_MAX:
     default:
-      ut_ad(false);
-
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Innodb Clone Appply Begin Invalid Mode");
 
-      return (ER_INTERNAL_ERROR);
+      ut_d(ut_error);
+      ut_o(return (ER_INTERNAL_ERROR));
   }
 
   if (clone_hdl == nullptr) {
@@ -880,10 +879,10 @@ int innodb_clone_apply_begin(handlerton *, THD *thd, const byte *&loc,
       not reachable as we would get error much earlier while dropping user
       tables. */
       if (srv_read_only_mode) {
-        ut_ad(false);
         err = ER_INTERNAL_ERROR;
         my_error(err, MYF(0),
                  "Clone cannot replace data with innodb_read_only = ON");
+        ut_d(ut_error);
       } else {
         track_redo_files();
         err = clone_drop_user_data(thd, false);
@@ -1176,8 +1175,8 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
       break;
     case FILE_STATE_NORMAL: {
       if (final_state == FILE_STATE_NORMAL) {
-        ut_ad(false);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
       }
       /* Save data file */
       std::string saved_file(data_file);
@@ -1407,8 +1406,8 @@ void clone_update_gtid_status(std::string &gtids) {
   /* Return if status file is not created. */
   std::string recovery_file(CLONE_INNODB_RECOVERY_FILE);
   if (!file_exists(recovery_file)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   /* Open status file to append GTID. */
   std::ofstream status_file;
@@ -1523,8 +1522,8 @@ void clone_files_recovery(bool finished) {
     std::string replace_files(CLONE_INNODB_REPLACED_FILES);
     std::string old_files(CLONE_INNODB_OLD_FILES);
     if (!file_exists(replace_files) && file_exists(old_files)) {
-      ut_ad(false);
       remove_file(old_files);
+      ut_d(ut_error);
     }
   }
 
@@ -1889,8 +1888,8 @@ class Fixup_data {
 
     if (se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id) ||
         space_id == SPACE_UNKNOWN) {
-      ut_ad(false);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
     bool is_undo = fsp_is_undo_tablespace(space_id);
 
@@ -1918,8 +1917,8 @@ class Fixup_data {
     /* Check and skip file per table tablespace. */
     uint32_t flags = 0;
     if (se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &flags)) {
-      ut_ad(false);
-      return (false);
+      ut_d(ut_error);
+      ut_o(return (false));
     }
 
     if (fsp_is_file_per_table(space_id, flags)) {
@@ -2405,8 +2404,8 @@ static void clone_init_compression(THD *thd) {
   std::vector<dd::Object_id> dd_table_ids;
 
   if (dc->fetch_global_component_ids<dd::Table>(&dd_table_ids)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (auto dd_table_id : dd_table_ids) {
@@ -2443,8 +2442,8 @@ static void clone_init_compression(THD *thd) {
 
     if (dd_index == nullptr) {
       /* Innodb table must have index. */
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     dd_set_tablespace_compression(dc, compress_option.c_str(),
@@ -2673,12 +2672,12 @@ static int clone_init_tablespaces(THD *thd) {
   DD_Objs<dd::Tablespace> dd_spaces;
 
   if (dc->fetch_global_components(&dd_spaces)) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Innodb Clone failed to load tablespaces");
 
     release_backup_lock(thd);
-    return ER_INTERNAL_ERROR;
+    ut_d(ut_error);
+    ut_o(return ER_INTERNAL_ERROR);
   }
 
   for (auto dd_space : dd_spaces) {
@@ -2700,8 +2699,8 @@ static int clone_init_tablespaces(THD *thd) {
         se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id)) {
       ib::error(ER_IB_CLONE_INTERNAL)
           << "Clone Error getting ID from DD, space: : " << space_name;
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     /* This function has a side effect to adjust space name. The operation
@@ -2717,8 +2716,8 @@ static int clone_init_tablespaces(THD *thd) {
         se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &space_flags)) {
       ib::error(ER_IB_CLONE_INTERNAL)
           << "Clone Error getting flags from DD, space: : " << space_name;
-      ut_ad(false);
-      continue;
+      ut_d(ut_error);
+      ut_o(continue);
     }
 
     /* Get the filename. */

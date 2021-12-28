@@ -378,7 +378,7 @@ dberr_t fts_config_set_ulint(trx_t *trx,             /*!< in: transaction */
   value.f_str = static_cast<byte *>(
       ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
-  ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
+  static_assert(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
   value.f_len =
       snprintf((char *)value.f_str, FTS_MAX_INT_LEN, ULINTPF, int_value);

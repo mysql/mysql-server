@@ -4060,6 +4060,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
 #endif
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override {
+#ifndef NDEBUG
     if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0) &&
         /*
           The skip_writing_previous_gtids_log_event debug point was designed
@@ -4085,6 +4086,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
       return (Log_event::write_header(ostream, get_data_size()) ||
               Log_event::write_data_header(ostream));
     }
+#endif
 
     return (Log_event::write_header(ostream, get_data_size()) ||
             Log_event::write_data_header(ostream) || write_data_body(ostream) ||

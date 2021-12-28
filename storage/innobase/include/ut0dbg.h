@@ -54,7 +54,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
 @param EXPR assertion expression that should hold */
 #define ut_a(EXPR)                                        \
   do {                                                    \
-    if (unlikely(!(bool)(EXPR))) {                        \
+    if (unlikely(false == (bool)(EXPR))) {                \
       ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
     }                                                     \
   } while (0)

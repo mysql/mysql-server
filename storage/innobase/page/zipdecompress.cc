@@ -668,7 +668,7 @@ static bool page_zip_decompress_node_ptrs(
     }
 
     if (!page_zip_decompress_heap_no(d_stream, rec, heap_status)) {
-      ut_ad(0);
+      ut_d(ut_error);
     }
 
     /* Read the offsets. The status bits are needed here. */
@@ -846,7 +846,7 @@ static bool page_zip_decompress_sec(
     }
 
     if (!page_zip_decompress_heap_no(d_stream, rec, heap_status)) {
-      ut_ad(0);
+      ut_d(ut_error);
     }
   }
 
@@ -1174,7 +1174,7 @@ static bool page_zip_decompress_clust(
     }
 
     if (!page_zip_decompress_heap_no(d_stream, rec, heap_status)) {
-      ut_ad(0);
+      ut_d(ut_error);
     }
 
     /* Read the offsets. The status bits are needed here. */

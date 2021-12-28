@@ -254,8 +254,8 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
 
   if (!found) {
     /* Somehow, the tablespace does not exist.  Nothing to drop. */
-    ut_ad(0);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   page_no_t *page_arr = static_cast<page_no_t *>(ut::malloc_withkey(
@@ -2255,7 +2255,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
     ut_d(buf_LRU_print());
     ut_d(buf_validate());
     ut_d(buf_LRU_validate());
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   ut_ad(!bpage->in_zip_hash);

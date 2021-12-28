@@ -331,8 +331,8 @@ introduced where a call to log_free_check() is bypassed. */
         row_log_table_delete(pcur->get_rec(), node->row, index, offsets, sys);
         break;
       default:
-        ut_ad(0);
-        break;
+        ut_d(ut_error);
+        ut_o(break);
     }
   }
 

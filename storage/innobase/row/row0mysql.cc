@@ -1300,8 +1300,8 @@ static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
   to true failing which block is not scheduled for flush*/
   byte *log_ptr = nullptr;
   if (mlog_open(mtr, 0, log_ptr)) {
-    ut_ad(false);
-    mlog_close(mtr, log_ptr);
+    ut_d(ut_error);
+    ut_o(mlog_close(mtr, log_ptr));
   }
 
   if (heap != nullptr) {
@@ -2020,8 +2020,8 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
       to true failing which block is not scheduled for flush*/
       byte *log_ptr = nullptr;
       if (mlog_open(&mtr, 0, log_ptr)) {
-        ut_ad(false);
-        mlog_close(&mtr, log_ptr);
+        ut_d(ut_error);
+        ut_o(mlog_close(&mtr, log_ptr));
       }
 
       pcur.store_position(&mtr);
@@ -2054,8 +2054,8 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
         flush. */
         byte *log_ptr = nullptr;
         if (mlog_open(&mtr, 0, log_ptr)) {
-          ut_ad(false);
-          mlog_close(&mtr, log_ptr);
+          ut_d(ut_error);
+          ut_o(mlog_close(&mtr, log_ptr));
         }
       }
     }
@@ -3233,8 +3233,8 @@ static bool row_add_table_to_background_drop_list(
     const char *name) /*!< in: table name */
 {
   /* WL6049, remove after WL6049. */
-  ut_ad(0);
-
+  ut_d(ut_error);
+#ifndef UNIV_DEBUG
   mutex_enter(&row_drop_list_mutex);
 
   ut_a(row_mysql_drop_list_inited);
@@ -3262,6 +3262,7 @@ static bool row_add_table_to_background_drop_list(
   mutex_exit(&row_drop_list_mutex);
 
   return true;
+#endif
 }
 
 /** Reassigns the table identifier of a table.
@@ -3940,11 +3941,12 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     }
     ut_a(table->n_rec_locks.load() == 0);
   } else if (table->get_ref_count() > 0 || table->n_rec_locks.load() > 0) {
-    ut_ad(0);
-
+    ut_d(ut_error);
+#ifndef UNIV_DEBUG
     ut_ad(!table->is_intrinsic());
 
-    auto added = row_add_table_to_background_drop_list(table->name.m_name);
+    const auto added =
+        row_add_table_to_background_drop_list(table->name.m_name);
 
     if (added) {
       ib::info(ER_IB_MSG_994) << "MySQL is trying to drop table " << table->name
@@ -3961,6 +3963,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     }
 
     goto funct_exit;
+#endif
   }
 
   /* The "to_be_dropped" marks table that is to be dropped, but
@@ -4070,8 +4073,8 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   /* Free the dict_table_t object. */
   err = row_drop_table_from_cache(table, trx);
   if (err != DB_SUCCESS) {
-    ut_ad(0);
-    goto funct_exit;
+    ut_d(ut_error);
+    ut_o(goto funct_exit);
   }
 
   if (!is_temp) {

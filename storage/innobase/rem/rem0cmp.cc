@@ -359,7 +359,7 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
       if (prtype & DATA_BINARY_TYPE) {
         ib::error(ER_IB_MSG_920) << "Comparing a binary BLOB"
                                     " using a character set collation!";
-        ut_ad(0);
+        ut_d(ut_error);
       }
       [[fallthrough]];
     case DATA_VARMYSQL:
@@ -889,8 +889,8 @@ bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
   auto n_fields = dtuple_get_n_fields(dtuple);
 
   if (n_fields > rec_offs_n_fields(offsets)) {
-    ut_ad(0);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
 
   ulint matched_fields = 0;

@@ -1267,7 +1267,7 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
         << " new max ins size " << max_ins_size2;
 
     ib::error(ER_IB_MSG_31) << BUG_REPORT_MSG;
-    ut_ad(0);
+    ut_d(ut_error);
   } else {
     success = true;
   }
@@ -3160,7 +3160,7 @@ retry:
             << "father positioned on " << page_no << " instead of "
             << block->page.id.page_no();
 
-        ut_ad(0);
+        ut_d(ut_error);
       }
 
       if (mbr_changed) {
@@ -4677,8 +4677,8 @@ static page_no_t btr_sdi_create(space_id_t space_id, mtr_t *mtr,
 dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   fil_space_t *space = fil_space_acquire(space_id);
   if (space == nullptr) {
-    ut_ad(0);
-    return (DB_ERROR);
+    ut_d(ut_error);
+    ut_o(return (DB_ERROR));
   }
 
   dict_table_t *sdi_table;

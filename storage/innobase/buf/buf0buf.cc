@@ -4634,7 +4634,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
     ut_d(buf_LRU_print());
     ut_d(buf_validate());
     ut_d(buf_LRU_validate());
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   ut_ad(!block->page.in_zip_hash);

@@ -859,8 +859,8 @@ bool dict_foreign_set_validate(const dict_foreign_set &fk_set) {
   dict_foreign_t *foreign = *it;
   std::cerr << "Foreign key lookup failed: " << *foreign;
   std::cerr << fk_set;
-  ut_ad(0);
-  return (false);
+  ut_d(ut_error);
+  ut_o(return (false));
 }
 
 /** Validate the search order in the foreign key sets of the table

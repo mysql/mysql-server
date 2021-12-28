@@ -3213,10 +3213,10 @@ static dberr_t row_import_cfg_read_string(
 
     cfg_index->m_trx_id_offset = mach_read_from_4(ptr);
     if (cfg_index->m_trx_id_offset != mach_read_from_4(ptr)) {
-      ut_ad(0);
+      ut_d(ut_error);
       /* Overflow. Pretend that the clustered index
       has a variable-length PRIMARY KEY. */
-      cfg_index->m_trx_id_offset = 0;
+      ut_o(cfg_index->m_trx_id_offset = 0);
     }
     ptr += sizeof(uint32_t);
 

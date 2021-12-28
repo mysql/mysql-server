@@ -394,15 +394,15 @@ void Chnunk_Bitmap::deserialize(const byte *desc_chunk, uint &len_left) {
   desc_chunk += 4;
 
   if (len_left < 4) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   len_left -= 4;
 
   if (bitmap_size > m_size) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (ulint index = 0; index < bitmap_size; index++) {
@@ -411,8 +411,8 @@ void Chnunk_Bitmap::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
 
     len_left -= 4;
@@ -427,8 +427,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   desc_chunk += 4;
 
   if (len_left < 4) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   len_left -= 4;
@@ -436,10 +436,10 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   auto max_map_size = static_cast<uint32_t>(2 * CLONE_MAX_TASKS);
   /* Each task can have one incomplete chunk at most */
   if (chunk_map_size > max_map_size) {
-    ut_ad(false);
     ib::error(ER_IB_CLONE_RESTART)
         << "Clone too many incomplete chunks: " << chunk_map_size;
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   for (ulint index = 0; index < chunk_map_size; index++) {
@@ -448,8 +448,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
     len_left -= 4;
 
@@ -457,8 +457,8 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
     desc_chunk += 4;
 
     if (len_left < 4) {
-      ut_ad(false);
-      return;
+      ut_d(ut_error);
+      ut_o(return );
     }
     len_left -= 4;
 
@@ -543,14 +543,14 @@ bool clone_validate_locator(const byte *desc_loc, uint desc_len) {
   Clone_Desc_Header header;
 
   if (!header.deserialize(desc_loc, desc_len)) {
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   if (desc_len < CLONE_DESC_LOC_BASE_LEN ||
       header.m_length < CLONE_DESC_LOC_BASE_LEN || header.m_length > desc_len ||
       header.m_type != CLONE_DESC_LOCATOR) {
-    ut_ad(false);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
   return (true);
 }
@@ -563,8 +563,8 @@ void Clone_Desc_Locator::deserialize(const byte *desc_loc, uint desc_len,
 
   if (m_header.m_length < CLONE_DESC_LOC_BASE_LEN ||
       m_header.m_length > desc_len) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   m_clone_id = mach_read_from_8(desc_loc + CLONE_LOC_CID_OFFSET);

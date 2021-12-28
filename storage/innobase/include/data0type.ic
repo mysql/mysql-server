@@ -426,8 +426,8 @@ static inline ulint dtype_get_fixed_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
       [[fallthrough]];
 #endif /* UNIV_DEBUG */
@@ -500,8 +500,8 @@ static inline ulint dtype_get_min_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
 #endif /* UNIV_DEBUG */
       [[fallthrough]];

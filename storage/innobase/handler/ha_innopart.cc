@@ -355,8 +355,8 @@ bool Ha_innopart_share::set_table_parts_and_indexes(
   table in such case. */
 
   if (ib_num_index < mysql_num_index) {
-    ut_ad(0);
-    goto err;
+    ut_d(ut_error);
+    ut_o(goto err);
   }
 
   if (mysql_num_index != 0) {
@@ -492,8 +492,8 @@ void Ha_innopart_share::close_table_parts(void) {
 inline dict_index_t *Ha_innopart_share::get_index(uint part_id, uint keynr) {
   if (part_id >= m_tot_parts) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (nullptr);
+    ut_d(ut_error);
+    ut_o(return (nullptr));
     /* purecov: end */
   }
 
@@ -617,8 +617,8 @@ Only called from ha_innobase::discard_or_import_table_space()
 and should not do anything, since it is ha_innopart will initialize
 it on first usage. */
 int ha_innopart::innobase_initialize_autoinc() {
-  ut_ad(0);
-  return (0);
+  ut_d(ut_error);
+  ut_o(return (0));
 }
 
 inline int ha_innopart::initialize_auto_increment(bool) {
@@ -795,8 +795,8 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 
   if (!normalize_table_name(norm_name, name)) {
     /* purecov: begin inspected */
-    ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
+    ut_d(ut_error);
+    ut_o(return (HA_ERR_TOO_LONG_PATH));
     /* purecov: end */
   }
 
@@ -1282,8 +1282,8 @@ void ha_innopart::set_partition(uint part_id) {
   DBUG_PRINT("ha_innopart", ("partition id: %u", part_id));
 
   if (part_id >= m_tot_parts) {
-    ut_ad(0);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   if (m_pcur_parts != nullptr) {
     m_prebuilt->pcur = &m_pcur_parts[m_pcur_map[part_id]];
@@ -1321,8 +1321,8 @@ void ha_innopart::update_partition(uint part_id) {
   DBUG_PRINT("ha_innopart", ("partition id: %u", part_id));
 
   if (part_id >= m_tot_parts) {
-    ut_ad(0);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   m_ins_node_parts[part_id] = m_prebuilt->ins_node;
   m_upd_node_parts[part_id] = m_prebuilt->upd_node;
@@ -1649,8 +1649,8 @@ bool ha_innopart::is_ignorable_error(int error) {
 inline dict_index_t *ha_innopart::innobase_get_index(uint keynr) {
   uint part_id = m_last_part;
   if (part_id >= m_tot_parts) {
-    ut_ad(0);
     part_id = 0;
+    ut_d(ut_error);
   }
   return (innopart_get_index(part_id, keynr));
 }
@@ -2159,7 +2159,7 @@ int ha_innopart::rnd_pos(uchar *buf, uchar *pos) {
   int error;
   uint part_id;
   DBUG_TRACE;
-  ut_ad(PARTITION_BYTES_IN_POS == 2);
+  static_assert(PARTITION_BYTES_IN_POS == 2);
   DBUG_DUMP("pos", pos, ref_length);
 
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
@@ -2436,8 +2436,8 @@ int ha_innopart::create(const char *name, TABLE *form,
   if (create_info != nullptr &&
       (create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) {
     my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
-    ut_ad(0);  // Can we support partitioned temporary tables?
-    return HA_ERR_INTERNAL_ERROR;
+    ut_d(ut_error);  // Can we support partitioned temporary tables?
+    ut_o(return HA_ERR_INTERNAL_ERROR);
   }
 
   innobase_register_trx(ht, thd, trx);
@@ -2651,9 +2651,9 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
     dict_name::build_table("", name, partition, false, false, part_table);
 
     if (part_table.length() >= FN_REFLEN) {
-      ut_ad(false);
-      release_uncached_table(&ts, &td);
-      return HA_ERR_INTERNAL_ERROR;
+      ut_d(ut_error);
+      ut_o(release_uncached_table(&ts, &td));
+      ut_o(return HA_ERR_INTERNAL_ERROR);
     }
 
     const char *partition_name = part_table.c_str();
@@ -2741,8 +2741,8 @@ int ha_innopart::rename_table(const char *from, const char *to,
     dict_name::build_table("", to, partition, false, false, to_name);
 
     if (from_name.length() >= FN_REFLEN || to_name.length() >= FN_REFLEN) {
-      ut_ad(false);
-      return HA_ERR_INTERNAL_ERROR;
+      ut_d(ut_error);
+      ut_o(return HA_ERR_INTERNAL_ERROR);
     }
     error = innobase_basic_ddl::rename_impl(
         thd, from_name.c_str(), to_name.c_str(), from_part, *to_part, &td);
@@ -2957,7 +2957,7 @@ enum row_type ha_innopart::get_partition_row_type(
       default:
         /* purecov: begin inspected */
         real_type = ROW_TYPE_NOT_USED;
-        ut_ad(false);
+        ut_d(ut_error);
         /* purecov: end */
     }
   }
@@ -3004,8 +3004,8 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
 
     if (!normalize_table_name(norm_name, partition_name.c_str())) {
       /* purecov: begin inspected */
-      ut_ad(false);
-      return (HA_ERR_TOO_LONG_PATH);
+      ut_d(ut_error);
+      ut_o(return (HA_ERR_TOO_LONG_PATH));
       /* purecov: end */
     }
 
@@ -3094,8 +3094,8 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
     if (!normalize_table_name(norm_name, partition_name.c_str())) {
       /* purecov: begin inspected */
-      ut_ad(false);
-      return (HA_ERR_TOO_LONG_PATH);
+      ut_d(ut_error);
+      ut_o(return (HA_ERR_TOO_LONG_PATH));
       /* purecov: end */
     }
 
@@ -3481,8 +3481,8 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
       int error = set_altered_partitions();
       if (error != 0) {
         /* Already checked in mysql_admin_table! */
-        ut_ad(0);
-        return error;
+        ut_d(ut_error);
+        ut_o(return error);
       }
     }
     if (is_analyze || innobase_stats_on_metadata) {
@@ -3838,8 +3838,8 @@ int ha_innopart::check(THD *thd, HA_CHECK_OPT *check_opt) {
   Currently it only does normal InnoDB check of each partition. */
 
   if (set_altered_partitions()) {
-    ut_ad(0);  // Already checked by set_part_state()!
-    return HA_ADMIN_INVALID;
+    ut_d(ut_error);  // Already checked by set_part_state()!
+    ut_o(return HA_ADMIN_INVALID);
   }
   for (i = m_part_info->get_first_used_partition(); i < m_tot_parts;
        i = m_part_info->get_next_used_partition(i)) {
@@ -3891,8 +3891,8 @@ int ha_innopart::repair(THD *thd, HA_CHECK_OPT *repair_opt) {
     return HA_ADMIN_OK;
   }
   if (set_altered_partitions()) {
-    ut_ad(0);  // Already checked by set_part_state()!
-    return HA_ADMIN_INVALID;
+    ut_d(ut_error);  // Already checked by set_part_state()!
+    ut_o(return HA_ADMIN_INVALID);
   }
   for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
        i = m_part_info->get_next_used_partition(i)) {
@@ -4051,7 +4051,7 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
         break;
 
       default:
-        ut_ad(0);
+        ut_d(ut_error);
     }
   }
 
@@ -4073,9 +4073,9 @@ void ha_innopart::get_auto_increment(ulonglong, ulonglong increment,
   DBUG_TRACE;
   if (table_share->next_number_keypart != 0) {
     /* Only first key part allowed as autoinc for InnoDB tables! */
-    ut_ad(0);
     *first_value = ULLONG_MAX;
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   get_auto_increment_first_field(increment, nb_desired_values, first_value,
                                  nb_reserved_values);

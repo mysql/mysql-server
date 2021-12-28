@@ -273,7 +273,7 @@ dberr_t Context::handle_autoinc(const dtuple_t *dtuple) noexcept {
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return DB_SUCCESS;

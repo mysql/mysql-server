@@ -143,7 +143,7 @@ static inline void *buf_buddy_get(byte *page, /*!< in: compressed page */
 {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= BUF_BUDDY_LOW);
-  ut_ad(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN);
+  static_assert(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN);
   ut_ad(size < BUF_BUDDY_HIGH);
   ut_ad(BUF_BUDDY_HIGH == UNIV_PAGE_SIZE);
   ut_ad(!ut_align_offset(page, size));

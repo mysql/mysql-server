@@ -630,7 +630,7 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return (err);
