@@ -7686,7 +7686,6 @@ ulint innobase_mysql_fts_get_token(
     doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
   }
 
-  ulint mwc = 0;
   ulint length = 0;
 
   token->f_str = const_cast<byte *>(doc);
@@ -7704,7 +7703,7 @@ ulint innobase_mysql_fts_get_token(
     doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
   }
 
-  token->f_len = (uint)(doc - token->f_str) - mwc;
+  token->f_len = (uint)(doc - token->f_str);
   token->f_n_char = length;
 
   return (doc - start);
