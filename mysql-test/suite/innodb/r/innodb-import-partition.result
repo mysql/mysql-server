@@ -1072,6 +1072,7 @@ c1
 64
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 SELECT * FROM t1 ORDER BY c1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 DISCARD PARTITION TABLESPACE;
@@ -1219,6 +1220,10 @@ c1
 161
 164
 Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 SELECT * FROM t1 ORDER BY c1;
 ERROR HY000: Tablespace has been discarded for table 't1'
