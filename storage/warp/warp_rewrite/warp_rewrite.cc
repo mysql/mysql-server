@@ -118,10 +118,18 @@ static MYSQL_THDVAR_BOOL(reorder_outer, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_BOOL(extended_syntax, PLUGIN_VAR_RQCMDARG,
                           "Materialized view DDL enhancements",
                           nullptr, nullptr, true);
+static MYSQL_THDVAR_ULONG(remote_signal_id, PLUGIN_VAR_RQCMDARG,
+                          "Signal ID returned from last remote query execution",
+                          nullptr, nullptr, 0, 0, LONG_LONG_MAX, 0);   
+static MYSQL_THDVAR_ULONG(remote_server_id, PLUGIN_VAR_RQCMDARG,
+                          "Server id of server used in last remote query execution",
+                          nullptr, nullptr, 0, 0, LONG_LONG_MAX, 0);                         
 SYS_VAR* plugin_system_variables[] = {
   MYSQL_SYSVAR(parallel_query),
   MYSQL_SYSVAR(reorder_outer),
   MYSQL_SYSVAR(extended_syntax),
+  MYSQL_SYSVAR(remote_signal_id),
+  MYSQL_SYSVAR(remote_server_id),
   NULL
 };
 
@@ -146,7 +154,7 @@ mysql_declare_plugin(audit_log){
 
 std::string strtolower(std::string in) {
   std::string out;
-  for(int i=0;i<in.length();++i) {
+  for(auto i=0;i<in.length();++i) {
     out += tolower(in[i]);
   }
   return out;
@@ -637,7 +645,7 @@ bool is_remote_query(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(auto i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if( (lower == "from") || (lower == "join") ) {
@@ -675,7 +683,7 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
   int remote_server_count = 0;
   int local_server_count = 0;
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(auto i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -717,7 +725,7 @@ std::string get_remote_server(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(auto i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -755,25 +763,35 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   bool found_as = false;
   bool is_ddl = false;
   
-  int i=0;
+  /*int i=0;
   for(i=0;i<tokens.size();++i) {
     
     if(tokens[i] != " ") {
       break;
     }
-  }
+  }*/
   
   /*if(tokens[i] != "select") {
     tokens[0] = "select";
   }*/
+  // FIXME:
+  // for some reason when doing DDL like the CREATE TEMPORARY TABLE
+  // that leapdb.validate uses to validate a materialized view SQL
+  // the table names don't end up stripped out when using the
+  // schema resolution operator (schema.table)
+  if(tokens.size() >= 6 && tokens[4] == ".") { 
+    for(auto i=0;i<6;++i) {
+      tokens[i] = "";
+    }
+  }
   
   if((strtolower(tokens[0]) == "create") || (strtolower(tokens[0]) == "insert")){
     is_ddl=true;
   }
-  for(int i=0; i < tokens.size(); ++i) {
+  for(auto i=0; i < tokens.size(); ++i) {
+    std::cerr << "tokens[" << i << "]: " << tokens[i] << "\n";
     std::string lower = strtolower(tokens[i]);
     if(is_ddl & !found_as && strip_ddl) {
-      
       if((lower != "as") && (lower != "select")) {
         continue;
       }
@@ -785,31 +803,30 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
       found_as = true;
       continue;
     }
-    if((lower == "from") || (lower == "join")) {
+    if( (lower == "from") || (lower == "join") ) {
       next_is_table_name = true;
       out += lower + " ";
       continue;
     }
     if(next_is_table_name) {
-      next_is_table_name = false;
-      std::string table_name_with_remote;
-      if(tokens.size() > i + 2) {
+      if(tokens.size()>i+2) {
         if(tokens[i+1] == ".") {
-          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
-          i+=2;
+          tokens[i] = tokens[i] + tokens[i+1] + tokens[i+2];
+          tokens[i+1] = "";
+          tokens[i+2] = "";
         }
-      } else {
-        table_name_with_remote = tokens[i];
       }
-      const char* remote = strstr(table_name_with_remote.c_str(), "@");
+      std::cerr << tokens[i] << "\n";
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
       if (remote != NULL) {
         std::string new_token = "";
-        for(int z=0;z<table_name_with_remote.length();++z) {
-          if(table_name_with_remote[z] == '@') {
+        for(auto z=0;z<tokens[i].length();++z) {
+          if(tokens[i][z] == '@') {
             out += "/*@";
             continue;
           }
-          out+=table_name_with_remote[z];  
+          out+=tokens[i][z];  
         }    
         out += "*/ ";
       } else {
@@ -823,11 +840,19 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   return out;
 }
 
-// MODIFIES TOKENS!
+
 std::string extract_ddl(std::vector<std::string>* tokens) {
+  std::cerr<< "ZEBRA\n!";
   std::string out;
   
-  for(int i=0; i < tokens->size(); ++i) {
+  for(auto i=0; i < tokens->size(); ++i) {
+    if(tokens->size() > 1) {
+      if( (*tokens)[i+1] == "." ) {
+        out += (*tokens)[i] + (*tokens)[i+1] + (*tokens)[i+2];
+        i += 2;
+        continue;
+      }
+    }
     std::string lower = strtolower((*tokens)[i]);
     if(lower == "select") {
       break;
@@ -910,27 +935,67 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         return sqlstr;
       }
 
-      std::string remote_sql = strip_remote_server(tokens);
-      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
-      //std::cerr << "REMOTE_SQL: " << remote_sql << "\n";
-
+      std::string remote_sql = "START TRANSACTION";
+      
       mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
       
       int myerrno = mysql_errno(remote);
       if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while creating temporary table]:(" + 
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
           std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
         mysql_close(remote);
         mysql_close(local);
         return sqlstr;
       }
       
+      remote_sql = "INSERT INTO leapdb.mview_signal values (DEFAULT,NOW())";
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
+          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      // capture the insert_id of the remote insertion into a local THD var
+      THDVAR(current_thd, remote_signal_id) = mysql_insert_id(remote);
+      remote_sql = "select @@server_id";
+      mysql_real_query(remote,remote_sql.c_str(), remote_sql.size());
+      result = mysql_store_result(remote);
+      row = mysql_fetch_row(result);
+      if(row == NULL || row[0] == NULL) {
+        mysql_free_result(result);
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch remote server_id';";
+      }
+      THDVAR(current_thd, remote_server_id) = atoll(row[0]);
+      /* execute the actual remote SQL */
+      for(auto i=0;i<tokens.size();++i) {
+        std::cerr << "i: " << tokens[i] << "\n";
+      }
+      remote_sql = strip_remote_server(tokens);
+      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
+      
+      std::cerr << "Execute remote SQL:\n" << remote_sql << "\n";
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=\"Remote query error [while creating temporary table]:(" + 
+          std::to_string(myerrno) + ")" + escape_for_call(std::string(mysql_error(remote))) + "\";";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      mysql_real_query(remote, "commit", 6);
       std::string get_create_table = "show create table leapdb.remote_tmp;";
       mysql_real_query(remote, get_create_table.c_str(), get_create_table.length());
       
       myerrno = mysql_errno(remote);
       if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to get remote query metadata]: " + std::to_string(myerrno) + "';";
+        sqlstr = "SIGNAL SQLSTATE \"45000\" SET MESSAGE_TEXT=\"Remote query error [unable to get remote query metadata]: " + std::string(mysql_error(remote)) + "\";";
         mysql_close(local);
         mysql_close(remote);
         return sqlstr;
@@ -950,7 +1015,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to drop local temporary table]: " + std::to_string(myerrno) + "';";
         mysql_close(local);
         mysql_close(remote);
-        return sqlstr;
+        return " " + sqlstr;
       }
 
       std::string create_table_sql = std::string(row[1]);
@@ -973,11 +1038,13 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create fetch remote temporary table contents';";
       }
+      
+      mysql_real_query(local, "begin", 5);
       result = mysql_store_result(remote);
       int col_cnt = mysql_num_fields(result);
       while((row = mysql_fetch_row(result))) {
         std::string insert_sql = "";  
-        for(int n=0;n<col_cnt;++n) {
+        for(auto n=0;n<col_cnt;++n) {
           if(insert_sql != "") {
             insert_sql += ", ";
           }
@@ -990,7 +1057,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         insert_sql = "INSERT INTO leapdb.remote_tmp VALUES(" + insert_sql + ");";
         mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
       }
-      
+      mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
       mysql_close(local);
       mysql_close(remote);
@@ -1104,6 +1171,12 @@ static int warp_rewrite_query_notify(
         (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
         (strtolower(tokens[0])=="insert"))  
       { 
+        std::cerr << "BOOSHWAH!\n";
+        for(auto z=0;z<tokens.size();++z) {
+          std::cerr << "tokens[z=" << z << "]: " << tokens[z] << "\n";
+        }
+        std::cerr << "IS REMOTE?" << is_remote_query(tokens) << "\n";
+        std::cerr << "IS VALID REMOTE?" << is_valid_remote_query(tokens) << "\n";
         if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
             std::string ddl = extract_ddl(&tokens);
             std::string tmp = strip_remote_server(tokens);
@@ -1152,7 +1225,7 @@ static int warp_rewrite_query_notify(
           prefix += "*/";
           sqlstr = prefix + strip_remote_server(tokens);
         } else {
-          for(int i=0;i<tokens.size();++i) {
+          for(auto i=0;i<tokens.size();++i) {
             if( !capture_sql && strtolower(tokens[i]) != "as" && strtolower(tokens[i]) != "select" )  {
                ++i;
                capture_sql = false;
@@ -1165,6 +1238,7 @@ static int warp_rewrite_query_notify(
         }
         
       } else if(!is_create_table) {
+        std::cerr << "LIONEL!\n";
         sqlstr = execute_remote_query(tokens);
       }  
 
@@ -1412,7 +1486,7 @@ static int warp_rewrite_query_notify(
     /* handle GROUP BY */
     ORDER* group_pos = select_lex.group_list.first;
     expr_num = select_lex.get_fields_list()->size();
-    for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
+    for(auto i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
 
       // is this group item one of the select items?
       auto group_item = *(group_pos->item);
@@ -1453,7 +1527,7 @@ static int warp_rewrite_query_notify(
         coord_group += alias;
         // positional group by is discarded because the column is type 'GROUP'
         bool is_numeric = true;
-        for(int i=0;i<field_str.length();++i) {
+        for(auto i=0;i<field_str.length();++i) {
           if(field_str[i] < '0' || field_str[i] > '9') {
             is_numeric = false;
           }
