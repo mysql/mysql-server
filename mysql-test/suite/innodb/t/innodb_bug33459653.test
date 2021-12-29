@@ -1,0 +1,41 @@
+# Test for BUG #33459653: Coredump after add index for partion table with ibd file missing.
+
+--source include/have_innodb.inc
+
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+
+CREATE TABLE table_33459653(ID INT NOT NULL AUTO_INCREMENT, Random INT NOT
+NULL, Text VARCHAR(200) NOT NULL, PRIMARY KEY(id))
+ENGINE=InnoDB DEFAULT CHARSET=utf8 PARTITION BY RANGE (id) (
+PARTITION p1 VALUES LESS THAN (2000),
+PARTITION p2 VALUES LESS THAN (4000),
+PARTITION p3 VALUES LESS THAN (6000),
+PARTITION p4 VALUES LESS THAN MAXVALUE);
+
+--source include/shutdown_mysqld.inc
+
+# REMOVE p4's .ibd file
+remove_file $MYSQLD_DATADIR/test/table_33459653#P#p4.ibd;
+
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only: './test/table_33459653#P#p4.ibd' OS error: 71");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`\.`table_33459653` .* in the cache.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for `test/table_33459653#P#p4`.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`table_33459653` .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Missing \.ibd file for table `test`\.`table_33459653` .*");
+--enable_query_log
+
+--error S42S02
+ALTER TABLE table_33459653 ADD INDEX index1(Random);
+
+
+--error S42S02
+SELECT * FROM table_33459653 WHERE Random=1;
+
+DROP TABLE table_33459653;
