@@ -5563,7 +5563,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
      */
     bool view_ref_with_subquery = false;
     if (item->has_subquery()) {
-      WalkItem(item, enum_walk::PREFIX,
+      WalkItem(item, enum_walk::PREFIX | enum_walk::SUBQUERY,
                [&view_ref_with_subquery](Item *inner_item) {
                  if (inner_item->type() == Item::REF_ITEM &&
                      down_cast<Item_ref *>(inner_item)->ref_type() ==
