@@ -558,6 +558,8 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
@@ -569,6 +571,9 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
@@ -582,6 +587,10 @@ SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
 TABLE_ROWS
 0
 ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.

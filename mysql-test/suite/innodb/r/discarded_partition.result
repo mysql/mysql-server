@@ -224,16 +224,29 @@ ALTER TABLE partitions.t4 REBUILD PARTITION p2;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
 ALTER TABLE partitions.t5 REBUILD PARTITION p0;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t5 REBUILD PARTITION p1;
 ERROR HY000: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t5 REBUILD PARTITION p2;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t6 REBUILD PARTITION p0;
 ERROR HY000: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t6 REBUILD PARTITION p1;
 ERROR HY000: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t6 REBUILD PARTITION p2;
 Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t7 REBUILD PARTITION p0;
@@ -474,16 +487,29 @@ ALTER TABLE partitions.t4 REBUILD PARTITION p2;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
 ALTER TABLE partitions.t5 REBUILD PARTITION p0;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t5 REBUILD PARTITION p1;
 ERROR HY000: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t5 REBUILD PARTITION p2;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5'
 ALTER TABLE partitions.t6 REBUILD PARTITION p0;
 ERROR HY000: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t6 REBUILD PARTITION p1;
 ERROR HY000: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t6 REBUILD PARTITION p2;
 Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 Warning	1814	InnoDB: Tablespace has been discarded for table 't6'
 ALTER TABLE partitions.t7 REBUILD PARTITION p0;

@@ -114,8 +114,10 @@ Table_Id_Changed
 ALTER TABLE tpart RENAME COLUMN c2 TO c3, ALGORITHM=INSTANT;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
 ALTER TABLE tpart RENAME COLUMN c3 TO c2, ALGORITHM=INSTANT;
 Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
 Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
 DROP TABLE tpart;
 # Scenario 7: Try to rename a column to an internal column name
