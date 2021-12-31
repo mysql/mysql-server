@@ -43,13 +43,10 @@ IF(WIN32)
 ENDIF()
 
 IF(APPLE)
-  # OSX missing xdr_sizeof() since clang 10.0.1.10010046
-  IF(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS "10.0.1.10010046")
-
-    SET(SUNRPC_SRCS
-      ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
-      )
-  ENDIF()
+  # macOS 10.14 and later do not provide xdr_sizeof()
+  SET(SUNRPC_SRCS
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
+    )
 ENDIF()
 
 # Generate the RPC files if needed
