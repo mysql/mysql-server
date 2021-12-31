@@ -41,14 +41,20 @@
 
 static bool get_dns_srv(Dns_srv_data &data, const char *dnsname, int &error) {
   struct __res_state state {};
-  res_ninit(&state);
   unsigned char query_buffer[NS_PACKETSZ];
   bool ret = true;
 
   data.clear();
 
+#ifdef res_ninit
+  res_ninit(&state);
+
   int res = res_nsearch(&state, dnsname, ns_c_in, ns_t_srv, query_buffer,
                         sizeof(query_buffer));
+#else
+  int res = res_search(dnsname, ns_c_in, ns_t_srv, query_buffer,
+		  	sizeof(query_buffer));
+#endif
 
   if (res >= 0) {
     ns_msg msg;
@@ -84,7 +90,10 @@ static bool get_dns_srv(Dns_srv_data &data, const char *dnsname, int &error) {
     error = h_errno;
   }
 
+#ifdef res_nsearch
   res_nclose(&state);
+#endif
+
   return ret;
 }
 
