@@ -1,4 +1,3 @@
-/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -265,6 +264,16 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
   
   if( token != "" ) {
     tokens.push_back(token);
+  }
+
+  for(size_t i=0;i<tokens.size();++i) {
+    if(tokens.size() > i+2) {
+      if(tokens[i+1] == ".") {
+        tokens[i] += tokens[i+1] + tokens[i+2];
+        tokens[i+1]="";
+        tokens[i+2]="";
+      }
+    }
   }
 
   return tokens;
@@ -898,14 +907,14 @@ std::string get_local_root_password() {
 
 std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert_select = false) {
   std::string sqlstr = "";
-  if(1) { // is_remote_query(tokens)){
+  if(is_remote_query(tokens)){
     if (is_valid_remote_query(tokens)) {
       std::string remote_host;
       std::string remote_db;
       std::string remote_user;
       std::string remote_pw;
-
-      std::cerr << "VALID REMOTE QUERY DETECTED\n";
+      uint32_t remote_port;
+      
       std::string rootpw = get_local_root_password();
       std::string servername = get_remote_server(tokens);
       // get rid of the leading @
@@ -923,18 +932,23 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to local database connection'";
         return sqlstr;
       }
-      std::cerr << "servername:" << servername << "\n";
+      
       std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
       std::cerr << sql << "\n";
       mysql_real_query(local, sql.c_str(), sql.length());
       result = mysql_store_result(local);
       
-      std::cerr << "BLITZBALL\n";
       while((row = mysql_fetch_row(result))) {
         remote_host=std::string(row[1]);
         remote_db=std::string(row[2] != NULL ? row[2] : "");
         remote_user=std::string(row[3]);
         remote_pw=std::string(row[4]);
+        
+        if( row[5] != NULL && row[5] != 0 ) {
+          remote_port=atoll(row[5]);
+        } else {
+          remote_port = 3306;
+        }
 
         //std::cerr << "remote deets\n host:" << remote_host << " db:" << remote_db << " user:" << remote_user << " pw:" << remote_pw << "\n";
       }
@@ -942,7 +956,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       result = NULL;
       //mysql_close(conn);
             
-      if (mysql_real_connect(remote, remote_host.c_str(), remote_user.c_str(), remote_pw.c_str(), NULL, 3306, NULL, 0) == NULL) {
+      if (mysql_real_connect(remote, remote_host.c_str(), remote_user.c_str(), remote_pw.c_str(), NULL, remote_port, NULL, 0) == NULL) {
         sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to remote database connection'";
         return sqlstr;
       }
@@ -966,7 +980,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       myerrno = mysql_errno(remote);
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
-          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
+        std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
         mysql_close(remote);
         mysql_close(local);
         return sqlstr;
@@ -999,7 +1013,44 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       remote_sql = strip_remote_server(tokens);
       remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
       
-      std::cerr << "Execute remote SQL:\n" << remote_sql << "\n";
+      remote_sql = "INSERT INTO leapdb.mview_signal values (DEFAULT,NOW())";
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
+          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      // capture the insert_id of the remote insertion into a local THD var
+      THDVAR(current_thd, remote_signal_id) = mysql_insert_id(remote);
+      remote_sql = "select @@server_id";
+      mysql_real_query(remote,remote_sql.c_str(), remote_sql.size());
+      result = mysql_store_result(remote);
+      
+      row = mysql_fetch_row(result);
+      if(row == NULL || row[0] == NULL) {
+        mysql_free_result(result);
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch remote server_id';";
+      }
+      THDVAR(current_thd, remote_server_id) = atoll(row[0]);
+      /* execute the actual remote SQL */
+      
+      //FIXME: this should no longer be needed
+      if(tokens.size() > 5) {
+        if(tokens[4] == ".") {
+          for(auto i=0;i<6;++i) {
+            tokens[i] = "";
+          }
+        }
+      }
+      remote_sql = strip_remote_server(tokens);
+      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
+      
       mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
       myerrno = mysql_errno(remote);
       if(myerrno >0) {
@@ -1063,7 +1114,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       mysql_real_query(local, "begin", 5);
       result = mysql_store_result(remote);
       int col_cnt = mysql_num_fields(result);
-      std::cerr << "FOOTBAL\n";
+
       while((row = mysql_fetch_row(result))) {
         std::string insert_sql = "";  
         for(auto n=0;n<col_cnt;++n) {
@@ -1104,7 +1155,6 @@ static int warp_rewrite_query_notify(
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
   std::string rewrite_error = "";
-  //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
   std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length));
   int mv_name_at = 0;
   
@@ -1112,12 +1162,6 @@ static int warp_rewrite_query_notify(
 	 return 0;
   }
 
-  /*std::cerr << "AFTER LEX\n------------\n";
-  for(auto i = 0; i < tokens.size(); ++i) {
-    std::cerr << i << ": " << tokens[i] << "\n";
-  }
-  std::cerr << "===========\n";
-  */
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
     bool is_incremental = false;
@@ -1129,6 +1173,10 @@ static int warp_rewrite_query_notify(
 
     if(strtolower(tokens[0]) == "prepare") {
       return 0;
+    }
+    
+    if(strtolower(tokens[0]) == "set") {
+      goto process_sql;
     }
 
     if( (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
@@ -1268,7 +1316,7 @@ static int warp_rewrite_query_notify(
       }  
 
     }
-
+    process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
       my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
@@ -1284,10 +1332,9 @@ static int warp_rewrite_query_notify(
     // this is not a post-parse call to the plugin    
     return 0;
   }
-  //std::cerr << "POST-PARSE!\n";
-  // POST-PARSE HANDLING HERE 
-  //bool is_remote = false;
+  
   const bool is_mv_create = (strstr(event_parse->query.str, "/*~cmv:") != NULL);
+  
   // If we are building a materialized view create script, commands contains the add_table and add_expr commands
   // They will be executed by the create_from_rewriter function
   std::string commands;
@@ -1318,10 +1365,6 @@ static int warp_rewrite_query_notify(
       remote_name = pos+1;
     }
   }
-  //if(is_mv_create != NULL) {
-  //  commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
-  //}
-  //std::cerr << commands << "\n";
   
   // MV creation must proceed even if parallel query is not enabled
   if(!is_mv_create) {
@@ -1530,8 +1573,7 @@ static int warp_rewrite_query_notify(
       
       // determine if this field is in the SELECT list
       auto used_fields_it = used_fields.find(std::string(group_item->full_name()));
-      //std::cerr << "Searching for " << std::string(group_item->full_name()) << "\n";
-      //std::cerr << "Or maybe " << std::string(field_str.ptr()) << "\n";
+      
       if(used_fields_it == used_fields.end()) {
         std::string bare_field = "";
         const char* pos;
@@ -1839,10 +1881,7 @@ static int warp_rewrite_query_notify(
     }
 
     call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + escape_for_call(commands) + "\");";
-    //commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
-    //call_sql = "SELECT \"" + commands + "\";";
     
-    //std::cerr << call_sql << "\n";
   }
   
   MYSQL_LEX_STRING call_sql_str;
