@@ -43,6 +43,8 @@ ELSE()
   SET(DYNLIB_EXTENSION "so")
 ENDIF()
 
+target_link_libraries(warp_rewriter mysqlclient)
+
 
 
 #

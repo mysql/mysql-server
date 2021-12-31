@@ -118,10 +118,18 @@ static MYSQL_THDVAR_BOOL(reorder_outer, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_BOOL(extended_syntax, PLUGIN_VAR_RQCMDARG,
                           "Materialized view DDL enhancements",
                           nullptr, nullptr, true);
+static MYSQL_THDVAR_ULONG(remote_signal_id, PLUGIN_VAR_RQCMDARG,
+                          "Signal ID returned from last remote query execution",
+                          nullptr, nullptr, 0, 0, LONG_LONG_MAX, 0);   
+static MYSQL_THDVAR_ULONG(remote_server_id, PLUGIN_VAR_RQCMDARG,
+                          "Server id of server used in last remote query execution",
+                          nullptr, nullptr, 0, 0, LONG_LONG_MAX, 0);                         
 SYS_VAR* plugin_system_variables[] = {
   MYSQL_SYSVAR(parallel_query),
   MYSQL_SYSVAR(reorder_outer),
   MYSQL_SYSVAR(extended_syntax),
+  MYSQL_SYSVAR(remote_signal_id),
+  MYSQL_SYSVAR(remote_server_id),
   NULL
 };
 
@@ -152,109 +160,125 @@ std::string strtolower(std::string in) {
   return out;
 }
 
-std::vector<std::string> custom_lex(std::string sql, bool convert_case = false) {
-  //bool keep_whitespace = false;
-  //char until_char;
-  bool in_single = false;
-  bool in_double = false;
-  bool in_backtick = false;
+std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
+  char enclosure_type = 0;
+  bool force_capture_next = false;
+  std::string token = "";
+  std::vector<std::string> tokens;
   bool in_comment = false;
   bool in_line_comment = false;
-  std::string token="";
-  std::vector<std::string> tokens;
-  for(int i=0;i<sql.length();++i) {
-    if(isspace(sql[i]) && sql.substr(i+2, 2) == "--") {
+
+  for(auto char_idx = 0; char_idx < sql.length(); ++char_idx) {
+    
+    /* this block of statements handles SQL commenting */
+    if( (sql[char_idx] == '\t' || sql[char_idx] == ' ' || sql[char_idx] == '\r' || sql[char_idx] == '\n') && sql.substr(char_idx+2, 2) == "--" ) {
       in_line_comment = true;
       continue;
     }
 
-    if((in_line_comment && ((sql[i] == '\r') || (sql[i] == '\n')))) {
+    if( (in_line_comment && ((sql[char_idx] == '\r') || (sql[char_idx] == '\n'))) ) {
       in_line_comment = false;
       continue;
     }
-    if((!in_comment) && (sql.substr(i,2) == "/*")) {
+
+    if( (!in_comment) && (sql.substr(char_idx,2) == "/*") ) {
+      char_idx+=1;
       in_comment = true;
-      ++i;
       continue;
     }
-    if(in_comment && (sql.substr(i, 2) == "*/")) {
+    
+    if( in_comment && (sql.substr(char_idx, 2) == "*/") ) {
+      char_idx+=1;
       in_comment = false;
-      ++i;
-      continue;
-    }
-    if(in_comment) { 
       continue;
     }
 
-    if(in_backtick && sql[i] == '`') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
+    /* do not do anything if this is in a comment */
+    if( in_comment ) { 
       continue;
     }
-    if(!in_backtick && sql[i] == '`') {
+
+    /* Last was escape character so force capture this character
+       and move on
+    */
+    if( force_capture_next == true ) {
+      token += sql[char_idx];
+      force_capture_next = false;
+      continue;
+    }
+
+    /* If this is the escape character then the next character has to be
+       attached to the current token even if it is an enclosure character.
+    */ 
+    if( sql[char_idx] == escape_char) {
+      force_capture_next = true;
+      continue;
+    }
+
+    /* If we are in an enclosure and the current character is the enclosure
+       character then the enclosure is over.
+    */
+    if( enclosure_type != 0 && sql[char_idx] == enclosure_type ) {
+      token += sql[char_idx];
+      tokens.push_back(token);
+      enclosure_type = 0;
+      token = "";
+      continue;
+    } 
+
+    /* these are the enclosure characters */
+    if( enclosure_type == 0 && (sql[char_idx] == '`' || sql[char_idx] == '\'' || sql[char_idx] == '"') ) {
+      enclosure_type = sql[char_idx];
       if(token != "") {
         tokens.push_back(token);
       }
-      token = sql[i];
+
+      token = sql[char_idx];
       continue;
-    } else {
-      if(in_backtick) {
-        token += sql[i];
+    } 
+
+    switch( sql[char_idx] ) {
+      /* the dot operator is the schema resolution operator and has to be handled specially */
+      case '.':
+        if(token != "") {
+          tokens.push_back(token);
+          
+        }
+        token="";
+        tokens.push_back(".");
         continue;
-      }
-    }
-
-    if(in_double && sql[i] == '"') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
-      continue;
-    }
-    if(!in_double && sql[i] == '"') {
-      if(token != "") {
-        tokens.push_back(token);
-      }
-      token = sql[i];
-      continue;
-    } else {
-      if(in_double) {
-        token += sql[i];
+      break;
+      case '\n':
+      case ' ':
+      case '\t':
+      case '\r':
+      case ';':
+        if(token != "") {
+          tokens.push_back(token);
+        }
+        token = "";
         continue;
-      }
+      break;  
     }
 
-    if(in_single && sql[i] == '\'') {
-      token += sql[i];
-      tokens.push_back(tokens[i]);
-      token = "";
-      continue;
-    }
-    if(!in_single && sql[i] == '\'') {
-      if(token != "") {
-        tokens.push_back(token);
-      }
-      token = sql[i];
-      continue;
-    } else {
-      if(in_single) {
-        token += sql[i];
-        continue;
-      }
-    }
-
-    if(sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\r' || sql[i] == '\n' || isspace(sql[i])) {
-      if(token != "") tokens.push_back(convert_case ? strtolower(token) : token);
-      token = "";
-      continue;
-    }
-    token += sql[i];
-
+    token += sql[char_idx];
   }
-  if(token != "") {
-    tokens.push_back(convert_case ? strtolower(token) : token);
+  
+  if( token != "" ) {
+    tokens.push_back(token);
   }
-  return tokens;  
+
+  for(size_t i=0;i<tokens.size();++i) {
+    if(tokens.size() > i+2) {
+      if(tokens[i+1] == ".") {
+        tokens[i] += tokens[i+1] + tokens[i+2];
+        tokens[i+1]="";
+        tokens[i+2]="";
+      }
+    }
+  }
+  return tokens;
+  
 }
 
 static int warp_rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
@@ -823,14 +847,14 @@ std::string get_local_root_password() {
 
 std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert_select = false) {
   std::string sqlstr = "";
-  if(is_remote_query(tokens)) {
-    if(is_valid_remote_query(tokens)) {
+  if(is_remote_query(tokens)){
+    if (is_valid_remote_query(tokens)) {
       std::string remote_host;
       std::string remote_db;
       std::string remote_user;
       std::string remote_pw;
-
-      //std::cerr << "VALID REMOTE QUERY DETECTED\n";
+      uint32_t remote_port;
+      
       std::string rootpw = get_local_root_password();
       std::string servername = get_remote_server(tokens);
       // get rid of the leading @
@@ -848,16 +872,22 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to local database connection'";
         return sqlstr;
       }
+      
       std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
       mysql_real_query(local, sql.c_str(), sql.length());
       result = mysql_store_result(local);
-      
       
       while((row = mysql_fetch_row(result))) {
         remote_host=std::string(row[1]);
         remote_db=std::string(row[2] != NULL ? row[2] : "");
         remote_user=std::string(row[3]);
         remote_pw=std::string(row[4]);
+        
+        if( row[5] != NULL && row[5] != 0 ) {
+          remote_port=atoll(row[5]);
+        } else {
+          remote_port = 3306;
+        }
 
         //std::cerr << "remote deets\n host:" << remote_host << " db:" << remote_db << " user:" << remote_user << " pw:" << remote_pw << "\n";
       }
@@ -865,31 +895,78 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       result = NULL;
       //mysql_close(conn);
             
-      if (mysql_real_connect(remote, remote_host.c_str(), remote_user.c_str(), remote_pw.c_str(), NULL, 3306, NULL, 0) == NULL) {
+      if (mysql_real_connect(remote, remote_host.c_str(), remote_user.c_str(), remote_pw.c_str(), NULL, remote_port, NULL, 0) == NULL) {
         sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to remote database connection'";
         return sqlstr;
       }
 
-      std::string remote_sql = strip_remote_server(tokens);
-      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
-      //std::cerr << "REMOTE_SQL: " << remote_sql << "\n";
-
+      std::string remote_sql = "START TRANSACTION";
+      
       mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
       
       int myerrno = mysql_errno(remote);
       if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while creating temporary table]: " + std::to_string(myerrno) + "';";
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
+          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
         mysql_close(remote);
         mysql_close(local);
         return sqlstr;
       }
       
+      remote_sql = "INSERT INTO leapdb.mview_signal values (DEFAULT,NOW())";
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
+          std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      // capture the insert_id of the remote insertion into a local THD var
+      THDVAR(current_thd, remote_signal_id) = mysql_insert_id(remote);
+      remote_sql = "select @@server_id";
+      mysql_real_query(remote,remote_sql.c_str(), remote_sql.size());
+      result = mysql_store_result(remote);
+      
+      row = mysql_fetch_row(result);
+      if(row == NULL || row[0] == NULL) {
+        mysql_free_result(result);
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch remote server_id';";
+      }
+      THDVAR(current_thd, remote_server_id) = atoll(row[0]);
+      /* execute the actual remote SQL */
+      
+      //FIXME: this should no longer be needed
+      if(tokens.size() > 5) {
+        if(tokens[4] == ".") {
+          for(auto i=0;i<6;++i) {
+            tokens[i] = "";
+          }
+        }
+      }
+      remote_sql = strip_remote_server(tokens);
+      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
+      
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=\"Remote query error [while creating temporary table]:(" + 
+          std::to_string(myerrno) + ")" + escape_for_call(std::string(mysql_error(remote))) + "\";";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      mysql_real_query(remote, "commit", 6);
       std::string get_create_table = "show create table leapdb.remote_tmp;";
       mysql_real_query(remote, get_create_table.c_str(), get_create_table.length());
       
       myerrno = mysql_errno(remote);
       if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to get remote query metadata]: " + std::to_string(myerrno) + "';";
+        sqlstr = "SIGNAL SQLSTATE \"45000\" SET MESSAGE_TEXT=\"Remote query error [unable to get remote query metadata]: " + std::string(mysql_error(remote)) + "\";";
         mysql_close(local);
         mysql_close(remote);
         return sqlstr;
@@ -909,7 +986,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to drop local temporary table]: " + std::to_string(myerrno) + "';";
         mysql_close(local);
         mysql_close(remote);
-        return sqlstr;
+        return " " + sqlstr;
       }
 
       std::string create_table_sql = std::string(row[1]);
@@ -932,11 +1009,14 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create fetch remote temporary table contents';";
       }
+      
+      mysql_real_query(local, "begin", 5);
       result = mysql_store_result(remote);
       int col_cnt = mysql_num_fields(result);
+      
       while((row = mysql_fetch_row(result))) {
         std::string insert_sql = "";  
-        for(int n=0;n<col_cnt;++n) {
+        for(auto n=0;n<col_cnt;++n) {
           if(insert_sql != "") {
             insert_sql += ", ";
           }
@@ -949,7 +1029,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         insert_sql = "INSERT INTO leapdb.remote_tmp VALUES(" + insert_sql + ");";
         mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
       }
-      
+      mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
       mysql_close(local);
       mysql_close(remote);
@@ -958,7 +1038,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
     } else {
       sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='A remote query may only access remote tables from a single remote server and no local tables'";
     }
-  }
+  } 
   return sqlstr;
 }
 /**
@@ -974,7 +1054,6 @@ static int warp_rewrite_query_notify(
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
   std::string rewrite_error = "";
-  //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
   std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), false);
  
   if(tokens.size() == 0) {
@@ -992,6 +1071,10 @@ static int warp_rewrite_query_notify(
 
     if(strtolower(tokens[0]) == "prepare") {
       return 0;
+    }
+    
+    if(strtolower(tokens[0]) == "set") {
+      goto process_sql;
     }
 
     if( (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
@@ -1103,7 +1186,7 @@ static int warp_rewrite_query_notify(
       }  
 
     }
-    //process_sql:
+    process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
       my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
@@ -1119,10 +1202,9 @@ static int warp_rewrite_query_notify(
     // this is not a post-parse call to the plugin    
     return 0;
   }
-  //std::cerr << "POST-PARSE!\n";
-  // POST-PARSE HANDLING HERE 
-  //bool is_remote = false;
+  
   const bool is_mv_create = (strstr(event_parse->query.str, "/*~cmv:") != NULL);
+  
   // If we are building a materialized view create script, commands contains the add_table and add_expr commands
   // They will be executed by the create_from_rewriter function
   std::string commands;
@@ -1153,10 +1235,6 @@ static int warp_rewrite_query_notify(
       remote_name = pos+1;
     }
   }
-  //if(is_mv_create != NULL) {
-  //  commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
-  //}
-  //std::cerr << commands << "\n";
   
   // MV creation must proceed even if parallel query is not enabled
   if(!is_mv_create) {
@@ -1365,8 +1443,7 @@ static int warp_rewrite_query_notify(
       
       // determine if this field is in the SELECT list
       auto used_fields_it = used_fields.find(std::string(group_item->full_name()));
-      //std::cerr << "Searching for " << std::string(group_item->full_name()) << "\n";
-      //std::cerr << "Or maybe " << std::string(field_str.ptr()) << "\n";
+      
       if(used_fields_it == used_fields.end()) {
         std::string bare_field = "";
         const char* pos;
@@ -1674,10 +1751,7 @@ static int warp_rewrite_query_notify(
     }
 
     call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + escape_for_call(commands) + "\");";
-    //commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
-    //call_sql = "SELECT \"" + commands + "\";";
     
-    //std::cerr << call_sql << "\n";
   }
   
   MYSQL_LEX_STRING call_sql_str;
