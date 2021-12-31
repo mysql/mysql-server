@@ -1,3 +1,4 @@
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -153,11 +154,12 @@ mysql_declare_plugin(audit_log){
 
 std::string strtolower(std::string in) {
   std::string out;
-  for(auto i=0;i<in.length();++i) {
+  for(int i=0;i<in.length();++i) {
     out += tolower(in[i]);
   }
   return out;
 }
+
 std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
   char enclosure_type = 0;
   bool force_capture_next = false;
@@ -275,7 +277,6 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
       }
     }
   }
-
   return tokens;
   
 }
@@ -651,35 +652,25 @@ std::vector<std::pair<std::string, uint64_t>>sort_from(std::map<string, uint64_t
   
     return vec;
 }
-/*
+
 bool is_remote_query(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(auto i=0; i < tokens.size(); ++i) {
+  for(int i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
-    if( (lower == "from") || (lower == "join") ) {
+    if((lower == "from") || (lower == "join")) {
       next_is_table_name = true;
       continue;
     }
-    if( next_is_table_name ) {
+    if(next_is_table_name) {
       next_is_table_name = false;
-      std::string table_name_with_remote;
-      if( tokens.size() > i + 2 ) {
-        if( tokens[i+1] == "." ) {
-          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
-          i+=2;
-        }
-      } else {
-        table_name_with_remote = tokens[i];
-      }
-
-      const char* remote = strstr(table_name_with_remote.c_str(), "@");
-      if( remote != NULL ) {
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
         std::string remote_host(remote);
         auto find_it = table_map.find(remote_host);
-        if( find_it == table_map.end() ) {
+        if(find_it == table_map.end()) {
           table_map.emplace(make_pair(remote_host, 1));
         }
       } 
@@ -687,17 +678,6 @@ bool is_remote_query(std::vector<std::string> tokens) {
   }
   
   return table_map.size() >0;
-}*/
-
-bool is_remote_query(std::vector<std::string> tokens) {
-  for(size_t i=0;i<tokens.size();++i) {
-    
-    if ( strstr(tokens[i].c_str(), "@") != NULL) {
-      return true;
-    }
-
-  }
-  return false;
 }
 bool is_valid_remote_query(std::vector<std::string> tokens) {
   //LIXME
@@ -705,40 +685,27 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
   int remote_server_count = 0;
   int local_server_count = 0;
   bool next_is_table_name = false;
-  for(auto i=0; i < tokens.size(); ++i) {
-    
-    if(tokens.size()> i+2) {
-      if(tokens[i+1] == ".") {
-         tokens[i] = tokens[i] + tokens[i+1] + tokens[i+2];
-         tokens[i+1]="";
-         tokens[i+2]="";
-         i+=2;
-      }
-    }
-  
-  }
-  
-  for(auto i=0; i < tokens.size(); ++i) {
+  for(int i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
-    if(lower == "from" || lower == "join") {
+    
+    if((lower == "from") || (lower == "join")) {
       next_is_table_name = true;
       continue;
     }
     if(next_is_table_name) {
       next_is_table_name = false;
-      const char* found=strstr(tokens[i].c_str(), "@");
-      if(found != NULL) {
-        auto it = table_map.find(std::string(found));
-        if(it == table_map.end()) {
-          table_map.emplace(std::string(found),1);
-          ++remote_server_count;
-        } else {
-          it->second++;
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
+        std::string remote_host(remote);
+        auto find_it = table_map.find(remote_host);
+        if(find_it == table_map.end()) {
+          remote_server_count++;
+          table_map.emplace(make_pair(remote_host, 1));
         }
       } else {
-        ++local_server_count;
+        local_server_count++;
       }
-    }  
+    }
   }
   std::cout << "remote count:" << remote_server_count << " local count:" << local_server_count << "\n";
   if((remote_server_count == 1) && (local_server_count == 0)) {
@@ -751,7 +718,7 @@ std::string get_remote_server(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(auto i=0; i < tokens.size(); ++i) {
+  for(int i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -759,16 +726,8 @@ std::string get_remote_server(std::vector<std::string> tokens) {
       continue;
     }
     if(next_is_table_name) {
-      std::string table_name_with_remote;
-      if(tokens.size() > i + 2) {
-        if(tokens[i+1] == ".") {
-          table_name_with_remote = tokens[i] + tokens[i+1] + tokens[i+2];
-          i+=2;
-        }
-      } else {
-        table_name_with_remote = tokens[i];
-      }
-      const char* remote = strstr(table_name_with_remote.c_str(), "@");
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
       if (remote != NULL) {
         std::string remote_host(remote);
         auto find_it = table_map.find(remote_host);
@@ -789,33 +748,25 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   bool found_as = false;
   bool is_ddl = false;
   
-  /*int i=0;
+  int i=0;
   for(i=0;i<tokens.size();++i) {
     
     if(tokens[i] != " ") {
       break;
     }
-  }*/
+  }
   
   /*if(tokens[i] != "select") {
     tokens[0] = "select";
   }*/
+  
   if((strtolower(tokens[0]) == "create") || (strtolower(tokens[0]) == "insert")){
     is_ddl=true;
   }
-  for(size_t i=0; i < tokens.size(); ++i) {
-    if(tokens.size()>i+2) {
-      if(tokens[i+1] == ".") {
-        tokens[i] = tokens[i] + tokens[i+1] + tokens[i+2];
-        tokens[i+1] = "";
-        tokens[i+2] = "";
-      }
-    }
-  }
-  for(auto i=0; i < tokens.size(); ++i) {
-    std::cerr << "tokens[" << i << "]: " << tokens[i] << "\n";
+  for(int i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     if(is_ddl & !found_as && strip_ddl) {
+      
       if((lower != "as") && (lower != "select")) {
         continue;
       }
@@ -827,19 +778,17 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
       found_as = true;
       continue;
     }
-    if( (lower == "from") || (lower == "join") ) {
+    if((lower == "from") || (lower == "join")) {
       next_is_table_name = true;
       out += lower + " ";
       continue;
     }
-    std::string fqtn = "";
     if(next_is_table_name) {
-      std::cerr << tokens[i] << "\n";
       next_is_table_name = false;
       const char* remote = strstr(tokens[i].c_str(), "@");
       if (remote != NULL) {
         std::string new_token = "";
-        for(auto z=0;z<tokens[i].length();++z) {
+        for(int z=0;z<tokens[i].length();++z) {
           if(tokens[i][z] == '@') {
             out += "/*@";
             continue;
@@ -858,23 +807,14 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   return out;
 }
 
-
+// MODIFIES TOKENS!
 std::string extract_ddl(std::vector<std::string>* tokens) {
-  std::cerr<< "ZEBRA\n!";
   std::string out;
   
-  for(auto i=0; i < tokens->size(); ++i) {
-
+  for(int i=0; i < tokens->size(); ++i) {
     std::string lower = strtolower((*tokens)[i]);
     if(lower == "select") {
       break;
-    }
-    if(tokens->size() > 1) {
-      if( (*tokens)[i+1] == "." ) {
-        out += (*tokens)[i] + (*tokens)[i+1] + (*tokens)[i+2] + " ";
-        (*tokens)[i] = ""; (*tokens)[i+1]="";(*tokens)[i+2]="";
-        continue;
-      }
     }
     out += (*tokens)[i] + " ";
     //f((*tokens)[i] != "select") {
@@ -892,7 +832,7 @@ std::string get_local_root_password() {
   char password[65]="";
   fp = fopen("/usr/local/leapdb/config/.rootpw","r");
   if(fp == NULL) {
-    std::cerr << "credentials file open error: " << errno << "\n";
+    std::cerr << "file open error: " << errno << "\n";
     return "";
   }
   if(fgets(password, 64, fp)!=NULL) {
@@ -934,7 +874,6 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       }
       
       std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
-      std::cerr << sql << "\n";
       mysql_real_query(local, sql.c_str(), sql.length());
       result = mysql_store_result(local);
       
@@ -973,45 +912,6 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         mysql_close(local);
         return sqlstr;
       }
-      
-      remote_sql = "INSERT INTO leapdb.mview_signal values (DEFAULT,NOW())";
-      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
-      
-      myerrno = mysql_errno(remote);
-      if(myerrno >0) {
-        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
-        std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
-        mysql_close(remote);
-        mysql_close(local);
-        return sqlstr;
-      }
-      // capture the insert_id of the remote insertion into a local THD var
-      THDVAR(current_thd, remote_signal_id) = mysql_insert_id(remote);
-      remote_sql = "select @@server_id";
-      mysql_real_query(remote,remote_sql.c_str(), remote_sql.size());
-      result = mysql_store_result(remote);
-      std::cerr << "SHITZBAL\n";
-      row = mysql_fetch_row(result);
-      if(row == NULL || row[0] == NULL) {
-        mysql_free_result(result);
-        mysql_close(local);
-        mysql_close(remote);
-        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch remote server_id';";
-      }
-      THDVAR(current_thd, remote_server_id) = atoll(row[0]);
-      /* execute the actual remote SQL */
-      for(auto i=0;i<tokens.size();++i) {
-        std::cerr << "i: " << tokens[i] << "\n";
-      }
-      if(tokens.size() > 5) {
-        if(tokens[4] == ".") {
-          for(auto i=0;i<6;++i) {
-            tokens[i] = "";
-          }
-        }
-      }
-      remote_sql = strip_remote_server(tokens);
-      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
       
       remote_sql = "INSERT INTO leapdb.mview_signal values (DEFAULT,NOW())";
       mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
@@ -1073,7 +973,6 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       }
       
       result = mysql_store_result(remote);
-      std::cerr << "FOOZBALL\n";
       row = mysql_fetch_row(result);
       if(row == NULL || row[0] == NULL) {
         mysql_free_result(result);
@@ -1114,7 +1013,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       mysql_real_query(local, "begin", 5);
       result = mysql_store_result(remote);
       int col_cnt = mysql_num_fields(result);
-
+      
       while((row = mysql_fetch_row(result))) {
         std::string insert_sql = "";  
         for(auto n=0;n<col_cnt;++n) {
@@ -1155,13 +1054,12 @@ static int warp_rewrite_query_notify(
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
   std::string rewrite_error = "";
-  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length));
-  int mv_name_at = 0;
-  
+  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), false);
+ 
   if(tokens.size() == 0) {
 	 return 0;
   }
-
+  
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
     bool is_incremental = false;
@@ -1188,25 +1086,12 @@ static int warp_rewrite_query_notify(
       std::string mvlog_db = "database()";
       std::string mvlog_table = "";
       const char* dot_pos = NULL;
-      
-      // this is a malformed command
-      if( tokens.size() == 7 ) { 
-        return(-2);
-      }
-
-      if(tokens.size() == 8) {
-        if(tokens[6] == ".") {
-          mvlog_db = "'" + tokens[5] + "'";
-          mvlog_table = "'" + tokens[7] + "'";
-        }
-      } else {
-        if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
-          mvlog_db = "'" + tokens[5].substr(0, dot_pos - tokens[5].c_str() ) + "'";
-          mvlog_table.assign(dot_pos+1);
-          mvlog_table = "'" + mvlog_table + "'";
-        } else{
-          mvlog_table = "'" + tokens[5] + "'";
-        }
+      if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
+        mvlog_db = "'" + tokens[5].substr(0, dot_pos - tokens[5].c_str() ) + "'";
+        mvlog_table.assign(dot_pos+1);
+        mvlog_table = "'" + mvlog_table + "'";
+      } else{
+        mvlog_table = "'" + tokens[5] + "'";
       }
       std::string proc_name = "create_mvlog";
       if(strtolower(tokens[0]) == "drop") {
@@ -1241,45 +1126,30 @@ static int warp_rewrite_query_notify(
         (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
         (strtolower(tokens[0])=="insert"))  
       { 
-        std::cerr << "BOOSHWAH!\n";
-        for(auto z=0;z<tokens.size();++z) {
-          std::cerr << "tokens[z=" << z << "]: " << tokens[z] << "\n";
-        }
-        std::cerr << "IS REMOTE?" << is_remote_query(tokens) << "\n";
-        std::cerr << "IS VALID REMOTE?" << is_valid_remote_query(tokens) << "\n";
         if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
             std::string ddl = extract_ddl(&tokens);
             std::string tmp = strip_remote_server(tokens);
             sqlstr = ddl + " " + execute_remote_query(tokens, strtolower(tokens[0])=="insert" ? true : false);
-            std::cerr <<" HERE EXEC:" << sqlstr << "\n";
             is_create_table = true;
         }
       } else {
-        
         // handle create [incremental] materialized view
         if(strtolower(tokens[0]) == "create") {
-
           if(strtolower(tokens[1]) == "incremental") {
             is_incremental = true;
             if(strtolower(tokens[2]) != "materialized" && strtolower(tokens[3]) != "view") {
               return -1;
             }
-            mv_name_at = 4;
+            mvname = tokens[4];
           } else {
             
             if(strtolower(tokens[1]) == "materialized" && strtolower(tokens[2]) == "view") {
-              mv_name_at = 3;
+              mvname = tokens[3];
             } else {
               //not a create [incremental] materialised view statement
               return 0;
             }
           }
-          if(tokens[mv_name_at+1] == ".") {
-            mvname = tokens[mv_name_at] + "." + tokens[mv_name_at+2];
-          } else {
-            mvname = tokens[mv_name_at];
-          }
-
         }
       }
     
@@ -1296,23 +1166,23 @@ static int warp_rewrite_query_notify(
           prefix += "*/";
           sqlstr = prefix + strip_remote_server(tokens);
         } else {
-          for(auto i=0;i<tokens.size();++i) {
-            if( !capture_sql && strtolower(tokens[i]) != "as" && strtolower(tokens[i]) != "select" )  {
-               ++i;
-               capture_sql = false;
-               continue;
-            } 
-            capture_sql = true;            
-            sqlstr += tokens[i] + " ";
+          for(int i=0;i<tokens.size();++i) {
+            if(tokens[i] == mvname) {
+              capture_sql = true;
+              if(i+1 < tokens.size()) {
+                if(strtolower(tokens[i+1]) == "as" || strtolower(tokens[i+1]) == "select") {
+                  ++i;
+                }
+              }
+              continue;
+            }
+            if(capture_sql) sqlstr += tokens[i] + " ";
           }
           sqlstr = prefix + "*/" + sqlstr;
         }
         
       } else if(!is_create_table) {
-        std::cerr << "LIONEL!\n";
-        if( is_valid_remote_query(tokens) ) { 
-          sqlstr = execute_remote_query(tokens);
-        }
+        sqlstr = execute_remote_query(tokens);
       }  
 
     }
@@ -1554,7 +1424,7 @@ static int warp_rewrite_query_notify(
     /* handle GROUP BY */
     ORDER* group_pos = select_lex.group_list.first;
     expr_num = select_lex.get_fields_list()->size();
-    for(auto i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
+    for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
 
       // is this group item one of the select items?
       auto group_item = *(group_pos->item);
@@ -1594,7 +1464,7 @@ static int warp_rewrite_query_notify(
         coord_group += alias;
         // positional group by is discarded because the column is type 'GROUP'
         bool is_numeric = true;
-        for(auto i=0;i<field_str.length();++i) {
+        for(int i=0;i<field_str.length();++i) {
           if(field_str[i] < '0' || field_str[i] > '9') {
             is_numeric = false;
           }
