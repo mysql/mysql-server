@@ -847,6 +847,8 @@ std::string get_local_root_password() {
 
 std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert_select = false) {
   std::string sqlstr = "";
+  std::string remote_tmp_name = "remote_tmp" + std::to_string(std::rand());
+
   if(is_remote_query(tokens)){
     if (is_valid_remote_query(tokens)) {
       std::string remote_host;
@@ -875,7 +877,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       
       std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
       mysql_real_query(local, sql.c_str(), sql.length());
-      result = mysql_store_result(local);
+      result = mysql_use_result(local);
       
       while((row = mysql_fetch_row(result))) {
         remote_host=std::string(row[1]);
@@ -949,7 +951,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         }
       }
       remote_sql = strip_remote_server(tokens);
-      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
+      remote_sql = "CREATE TEMPORARY TABLE leapdb." + remote_tmp_name + " AS " + remote_sql;
       
       mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
       myerrno = mysql_errno(remote);
@@ -961,7 +963,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         return sqlstr;
       }
       mysql_real_query(remote, "commit", 6);
-      std::string get_create_table = "show create table leapdb.remote_tmp;";
+      std::string get_create_table = "show create table leapdb." + remote_tmp_name + ";";
       mysql_real_query(remote, get_create_table.c_str(), get_create_table.length());
       
       myerrno = mysql_errno(remote);
@@ -980,7 +982,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch temporary table metadata';";
       }
-      sql = "drop table if exists leapdb.remote_tmp;";
+      sql = "drop table if exists leapdb." + remote_tmp_name + ";";
       mysql_real_query(local, sql.c_str(), sql.length());
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to drop local temporary table]: " + std::to_string(myerrno) + "';";
@@ -1002,7 +1004,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create local temporary table for remote query contents';";
       }
       
-      sql = "select * from leapdb.remote_tmp;";
+      sql = "select * from leapdb." + remote_tmp_name + ";";
       mysql_real_query(remote, sql.c_str(), sql.length());
       if(mysql_errno(remote) > 0) {
         mysql_close(local);
@@ -1026,14 +1028,14 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
             insert_sql += '\'' + escape_for_call(std::string(row[n])) + '\'';
           }
         }
-        insert_sql = "INSERT INTO leapdb.remote_tmp VALUES(" + insert_sql + ");";
+        insert_sql = "INSERT INTO leapdb." + remote_tmp_name + " VALUES(" + insert_sql + ");";
         mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
       }
       mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
       mysql_close(local);
       mysql_close(remote);
-      return "select * from leapdb.remote_tmp;";
+      sqlstr =  "select * from leapdb." + remote_tmp_name + ";";
       return sqlstr;
     } else {
       sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='A remote query may only access remote tables from a single remote server and no local tables'";
