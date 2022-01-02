@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -539,7 +539,6 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     }
     case AccessPath::STREAM: {
       const auto &param = path->stream();
-      assert(param.join == m_join);
       if (param.join == m_join) {  // Within same Query_block?
         // A Join_scope context would possibly be sufficient?
         // To be safe we use the more restrictive Query_scope.
@@ -557,7 +556,6 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
         // later scanned, or a temporary index created for later lookups.
         // Generaly we need to handle them as completely separate queries,
         // without any relation to an upper Join_scope -> 'Query_scope'
-        assert(query_block.join == m_join);
         if (query_block.join == m_join) {  // Within Query_block?
           construct(new (m_thd->mem_root) Query_scope(nest_ctx, "materialized"),
                     query_block.subquery_path);
