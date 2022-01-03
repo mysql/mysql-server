@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -265,35 +265,45 @@ stdx::expected<void, std::error_code> delete_dir_recursive(
 }
 
 std::string get_plugin_dir(const std::string &runtime_dir) {
-  std::string cur_dir = Path(runtime_dir.c_str()).basename().str();
+  std::string cur_dir = Path(runtime_dir).basename().str();
   if (cur_dir == "runtime_output_directory") {
     // single configuration build
-    auto result = Path(runtime_dir.c_str()).dirname();
-    return result.join("plugin_output_directory").str();
+    return Path(runtime_dir).dirname().join("plugin_output_directory").str();
   } else {
     // multiple configuration build
     // in that case cur_dir has to be configuration name (Debug, Release etc.)
     // we need to go 2 levels up
-    auto result = Path(runtime_dir.c_str()).dirname().dirname();
-    return result.join("plugin_output_directory").join(cur_dir).str();
+    return Path(runtime_dir)
+        .dirname()
+        .dirname()
+        .join("plugin_output_directory")
+        .join(cur_dir)
+        .str();
   }
 }
 
-HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir) {
-  std::string cur_dir = Path(runtime_dir.c_str()).basename().str();
+  std::string cur_dir = Path(runtime_dir).basename().str();
   if (cur_dir == "runtime_output_directory") {
     // single configuration build
-    auto result = Path(runtime_dir.c_str()).dirname();
-    return result.join("router").join("tests").join("data").str();
+    return Path(runtime_dir)
+        .dirname()
+        .join("router")
+        .join("tests")
+        .join("data")
+        .str();
   } else {
     // multiple configuration build
     // in that case cur_dir has to be configuration name (Debug, Release etc.)
     // we need to go 2 levels up
-    auto result = Path(runtime_dir.c_str()).dirname().dirname();
-    return result.join("router").join("tests").join("data").join(cur_dir).str();
-
-    return result.str();
+    return Path(runtime_dir)
+        .dirname()
+        .dirname()
+        .join("router")
+        .join("tests")
+        .join("data")
+        .join(cur_dir)
+        .str();
   }
 }
 
