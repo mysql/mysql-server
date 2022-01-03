@@ -1,0 +1,64 @@
+################################################################################
+# This test validates `running_transactions_timeout` features works only when
+# all members in the group have version greater then or equal to 8.0.29.
+#
+# NOTE: Since lowest member version is primary and they do not have this
+# feature, this test can only be run from secondary.
+#
+# Test:
+# 0. The test requires two servers: M1(8.0.28) and M2(8.0.29+).
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+# 2. Begin change of primary from server2(secondary).
+#    Primary change should fail since server1 version is 8.0.28.
+#    running_transactions_timeout is compatible with version 8.0.28 or greater.
+# 3. Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group in single primary mode.
+--echo #    Server1 will be primary and server 2 secondary.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_28';
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Begin change of primary from server2(secondary).
+--echo #    Primary change should fail since server1 version is 8.0.28.
+--echo #    running_transactions_timeout is compatible with version 8.0.28 or greater.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid SERVER2_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server2_uuid", 0)
+
+--echo
+--echo # 3. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_28';
+
+--source include/group_replication_end.inc

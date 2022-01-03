@@ -1,0 +1,65 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 and server3 secondary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 2. Create table on server1.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+# 3. Start transaction on server1.
+[connection server1]
+START TRANSACTION;
+INSERT INTO t1 VALUES(1);
+
+# 4. At server3 start primary change from server1 to server2.
+[connection server3]
+SELECT group_replication_set_as_primary("MEMBER2_UUID",30);
+
+# 5. Wait for the THD_transaction_monitor thread to start.
+[connection server1]
+
+# 6. Kill and restart server3.
+[connection server_3]
+# Kill and restart:--group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+
+# 7. Wait for server3 to be expelled
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 8. Check the monitor thread exited.
+#    Wait for client disconnection on server1.
+#    Client will be disconnected post timeout.
+[connection server_1]
+[connection server1]
+
+# 9. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+include/assert.inc ['There is no value 1 in table t1']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 10. Cleanup
+[connection server2]
+DROP TABLE t1;
+[connection server3]
+ERROR HY000: Lost connection to MySQL server during query
+SET @@GLOBAL.read_only= 0;
+SET @@SESSION.sql_log_bin= 0;
+DROP TABLE t1;
+SET @@SESSION.sql_log_bin= 1;
+include/group_replication_end.inc

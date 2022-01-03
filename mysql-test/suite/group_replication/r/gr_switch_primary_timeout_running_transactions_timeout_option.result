@@ -1,0 +1,82 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Execute action of set a new primary:
+# 2.1. With extra arguments it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", 20, "arguments");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: UDF accepts maximum of 2 parameters.
+# 2.2. With invalid values for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("server2_uuid", 1a);
+ERROR 42S22: Unknown column '1a' in 'field list'
+SELECT group_replication_set_as_primary("MEMBER2_UUID", "string");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: Second parameter `running_transactions_timeout` must be type integer between 0 - 3600 (seconds).
+include/gr_assert_secondary_member.inc
+# 2.3. With invalid value range it must fail(valid range 0 - 3600).
+SELECT group_replication_set_as_primary("MEMBER2_UUID", -1);
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", 3601);;
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", 10000);
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+include/gr_assert_secondary_member.inc
+# 2.4. With NULL values for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", NULL);
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: Second parameter `running_transactions_timeout` must be type integer between 0 - 3600 (seconds).
+# 2.5. With empty string values for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT group_replication_set_as_primary();
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+include/gr_assert_secondary_member.inc
+
+# 3. Test corner values for running_transactions_timeout.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", 0);
+group_replication_set_as_primary("MEMBER2_UUID", 0)
+Primary server switched to: MEMBER2_UUID
+SELECT group_replication_set_as_primary("MEMBER1_UUID", 3600);
+group_replication_set_as_primary("MEMBER1_UUID", 3600)
+Primary server switched to: MEMBER1_UUID
+
+# 4. Create a table to test the functions with SQL outputs
+[connection server1]
+CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b INT);
+
+# 5. Test group_replication_set_as_primary output (SQL parameter).
+# 5.1. With invalid range for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", b) FROM test.t1 WHERE a=1;
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+# 5.2. With invalid range for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", b) FROM test.t1 WHERE a=2;
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+# 5.3. With NULL it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", b) FROM test.t1 WHERE a=3;
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+# 5.4. With invalid range for running_transactions_timeout it must fail.
+SELECT group_replication_set_as_primary("MEMBER2_UUID", b) FROM test.t1 WHERE a=4;
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Valid range for running_transactions_timeout is 0 to 3600.
+# 5.5. Switch to another member
+SELECT group_replication_set_as_primary("MEMBER2_UUID", b) FROM test.t1 WHERE a=5;
+group_replication_set_as_primary("MEMBER2_UUID", b)
+Primary server switched to: MEMBER2_UUID
+# 5.6. Switch to another member
+SELECT group_replication_set_as_primary("MEMBER1_UUID", b) FROM test.t1 WHERE a=6;
+group_replication_set_as_primary("MEMBER1_UUID", b)
+Primary server switched to: MEMBER1_UUID
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+# 6. Cleanup
+[connection server1]
+DROP TABLE test.t1;
+include/group_replication_end.inc

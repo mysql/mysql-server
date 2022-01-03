@@ -1,0 +1,213 @@
+###############################################################################
+#
+# This test validates that a transaction monitor thread dies when any member
+# leaves the group resulting in failure of UDF operation.
+#
+# Test:
+# 0. This test requires two servers started on single primary mode
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+# 2. Start a new transaction and do not commit.
+# 3. Start a primary change on server 1.
+# 4. Wait for the THD_transaction_monitor thread to start.
+# 5. Stop GR on server2 for a view-change and unblock the operation.
+# 6. Change of primary should fail since the selected primary left the group.
+# 7. Check the monitor thread exited.
+# 8. Rejoin server2 to the group.
+# 9. Start a primary change on server 1.
+# 10. Wait for the THD_transaction_monitor thread to start.
+# 11. Stop GR on server1 from another client and unblock the primary change.
+# 12. Reap the results.
+#     The UDF group_replication_set_as_primary() failed as the selected
+#     primary left the group.
+# 13. Check the monitor thread exited.
+# 14. Cleanup.
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group in single primary mode.
+--echo #    Server1 will be primary and server 2 secondary.
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted. No primary election was invoked under this operation.");
+set session sql_log_bin=1;
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Start a new transaction and do not commit.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+BEGIN;
+INSERT INTO test.t1 (b) VALUES (1);
+
+
+--echo
+--echo # 3. Start a primary change on server 1.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid",30)
+
+--echo
+--echo # 4. Wait for the THD_transaction_monitor thread to start.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Stop GR on server2 for a view-change and unblock the operation.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--echo
+--echo # 6. Change of primary should fail since the selected primary left the group.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+--reap
+
+--echo
+--echo # 7. Check the monitor thread exited.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 8. Rejoin server2 to the group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+COMMIT;
+
+--echo
+--echo # 9. Start a primary change on server 1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid",30)
+
+--echo
+--echo # 10. Wait for the THD_transaction_monitor thread to start.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 11. Stop GR on server1 from another client and unblock the primary change.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+# Below wait is only to allow STOP GR to proceed and has no significance otherwise.
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO='STOP GROUP_REPLICATION';
+--source include/wait_condition_or_abort.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--echo
+--echo # 12. Reap the results.
+--echo #     The UDF group_replication_set_as_primary() failed as the selected
+--echo #     primary left the group.
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+--reap
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--reap
+
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 13. Check the monitor thread exited.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 14. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.read_only= 0;
+SET @@SESSION.sql_log_bin= 0;
+DROP TABLE t1;
+SET @@SESSION.sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,10 @@ class Group_action_message : public Plugin_gcs_message {
     PIT_ACTION_PRIMARY_ELECTION_UUID = 4,
     // The GCS protocol field: 2 bytes
     PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION = 5,
+    // The running_transactions_timeout field: 4 bytes
+    PIT_ACTION_TRANSACTION_MONITOR_TIMEOUT = 6,
     // No valid type codes can appear after this one.
-    PIT_MAX = 5
+    PIT_MAX = 7
   };
 
   /** Enum for the types of message / actions */
@@ -87,8 +89,12 @@ class Group_action_message : public Plugin_gcs_message {
     Message constructor for ACTION_PRIMARY_ELECTION_MESSAGE action type
 
     @param[in] primary_uuid   the primary uuid to elect
+    @param[in] transaction_monitor_timeout_arg The number of seconds to wait
+    before setting the kill flag for the transactions that did not reach commit
+    stage
   */
-  Group_action_message(std::string &primary_uuid);
+  Group_action_message(std::string &primary_uuid,
+                       int32 &transaction_monitor_timeout_arg);
 
   /**
     Message constructor for ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE action
@@ -159,6 +165,13 @@ class Group_action_message : public Plugin_gcs_message {
    */
   Gcs_protocol_version const &get_gcs_protocol();
 
+  /**
+    Returns the running_transactions_timeout.
+
+    @return the running_transactions_timeout value
+   */
+  int32 get_transaction_monitor_timeout();
+
  protected:
   /**
     Encodes the message contents for transmission.
@@ -193,6 +206,11 @@ class Group_action_message : public Plugin_gcs_message {
 
   /** The GCS protocol version to change to */
   Gcs_protocol_version gcs_protocol;
+  /**
+    The number of seconds to wait before setting the kill flag for the
+    transactions that did not reach commit stage.
+  */
+  int32 m_transaction_monitor_timeout{-1};
 };
 
 #endif /* GROUP_ACTION_MESSAGE_INCLUDED */

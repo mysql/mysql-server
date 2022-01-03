@@ -1,0 +1,78 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1(c1 int primary key);
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Block all commits on server1 and initiate a transaction.
+#    Begin change of primary from server2(secondary).
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
+INSERT INTO t1 values(1);
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
+SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID", 0);;
+group_replication_set_as_primary("SERVER2_UUID", 0)
+Primary server switched to: SERVER2_UUID
+
+# 3. Unblock transactions on server1.
+#    Transaction should fail it was not committing so it was killed
+#    and client connection dropped.
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
+[connection server1]
+ERROR HY000: Lost connection to MySQL server during query
+SET DEBUG_SYNC= 'RESET';
+
+# 4. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is no value 1 in table t1.']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 5. Block all commits on server2 and initiate a transaction.
+#    Begin change of primary from server2(primary).
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
+INSERT INTO t1 values(1);
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
+SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
+SELECT group_replication_set_as_primary("SERVER1_UUID", 2);;
+group_replication_set_as_primary("SERVER1_UUID", 2)
+Primary server switched to: SERVER1_UUID
+
+# 6. Unblock transactions on server2.
+#    Transaction should fail it was not committing so it was killed
+#    and client connection dropped.
+SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
+[connection server2]
+ERROR HY000: Lost connection to MySQL server during query
+SET DEBUG_SYNC= 'RESET';
+
+# 7. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is no value 1 in table t1.']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 8. Cleanup.
+[connection server1]
+DROP TABLE t1;
+include/rpl_sync.inc
+include/group_replication_end.inc

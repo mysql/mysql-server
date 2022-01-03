@@ -1,0 +1,91 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted. No primary election was invoked under this operation.");
+set session sql_log_bin=1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 2. Start a new transaction and do not commit.
+[connection server1]
+BEGIN;
+INSERT INTO test.t1 (b) VALUES (1);
+
+# 3. Start a primary change on server 1.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_set_as_primary("MEMBER2_UUID",30);
+
+# 4. Wait for the THD_transaction_monitor thread to start.
+[connection server1]
+
+# 5. Stop GR on server2 for a view-change and unblock the operation.
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+# 6. Change of primary should fail since the selected primary left the group.
+[connection server_1]
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted. No primary election was invoked under this operation.
+
+# 7. Check the monitor thread exited.
+[connection server1]
+include/gr_assert_primary_member.inc
+
+# 8. Rejoin server2 to the group.
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+COMMIT;
+
+# 9. Start a primary change on server 1.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_set_as_primary("MEMBER2_UUID",30);
+
+# 10. Wait for the THD_transaction_monitor thread to start.
+[connection server_1]
+
+# 11. Stop GR on server1 from another client and unblock the primary change.
+[connection server_1]
+STOP GROUP_REPLICATION;
+[connection server_1_1]
+SET DEBUG_SYNC = "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+# 12. Reap the results.
+#     The UDF group_replication_set_as_primary() failed as the selected
+#     primary left the group.
+[connection server1]
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Member has left the group. This operation was locally aborted and for that reason terminated.
+[connection server_1]
+include/gr_wait_for_member_state.inc
+
+# 13. Check the monitor thread exited.
+[connection server1]
+
+# 14. Cleanup.
+[connection server1]
+SET @@GLOBAL.read_only= 0;
+SET @@SESSION.sql_log_bin= 0;
+DROP TABLE t1;
+SET @@SESSION.sql_log_bin= 1;
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

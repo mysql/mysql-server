@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/group_actions/group_action_coordinator.cc
   src/group_actions/multi_primary_migration_action.cc
   src/group_actions/primary_election_action.cc
+  src/group_actions/group_actions_transaction_controller.cc
   src/handlers/applier_handler.cc
   src/handlers/certification_handler.cc
   src/handlers/event_cataloger.cc

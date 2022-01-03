@@ -56,6 +56,7 @@ wait/synch/mutex/group_rpl/LOCK_session_thread_method_exec	YES	YES	singleton	0	N
 wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_stage_monitor_handler	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_transaction_monitoring	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_group_member_info_manager_update_lock	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_group_member_info_update_lock	YES	YES	singleton	0	NULL
@@ -94,6 +95,7 @@ wait/synch/cond/group_rpl/COND_group_part_handler_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_group_part_handler_abort	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_message_service_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_multi_primary_action_notification	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_transaction_monitoring_wait	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_view_modification_wait	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_pipeline_continuation	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_synchronized_queue	YES	YES	singleton	0	NULL

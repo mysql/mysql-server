@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -924,6 +924,8 @@ int configure_group_member_manager() {
                   { local_version = 0x080012; };);
   DBUG_EXECUTE_IF("group_replication_legacy_election_version2",
                   { local_version = 0x080015; };);
+  DBUG_EXECUTE_IF("group_replication_version_8_0_28",
+                  { local_version = 0x080028; };);
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");

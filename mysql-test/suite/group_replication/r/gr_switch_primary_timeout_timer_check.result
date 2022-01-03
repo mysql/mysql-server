@@ -1,0 +1,76 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+[connection server1]
+CREATE TABLE t1 (c1 int primary key);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Block a transaction on server1.
+#    Initiate primary change from server2(secondary) with running_transactions_timeout value as 30.
+#    Unblock server1 transactions.
+#    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+#    Primary change operations finishes and THD_transaction_monitor finishes.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
+INSERT INTO t1 values(1);
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID", 30);;
+[connection server_1]
+include/assert.inc [Transaction monitor thread is in block state in < 30 seconds.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+include/assert.inc [Transaction monitor thread has disconnected the client connections.]
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+include/assert.inc [The super_read_only mode should be 1 here.]
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_transaction_monitor_end";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
+[connection server1]
+[connection server2]
+group_replication_set_as_primary("SERVER2_UUID", 30)
+Primary server switched to: SERVER2_UUID
+include/assert.inc ['There is a value 1 in table t1']
+
+# 3. Block a transaction on server2.
+#    Initiate primary change from server2(primary) with running_transactions_timeout value as 30.
+#    Unblock server2 transactions.
+#    Since there is no transaction now, THD_transaction_monitor allow all transactions.
+#    Primary change operations finishes and THD_transaction_monitor finishes.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '+d,group_replication_transaction_monitor_end';
+INSERT INTO t1 values(2);
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+[connection server_2_1]
+SELECT group_replication_set_as_primary("SERVER1_UUID", 30);;
+[connection server_2]
+include/assert.inc [Transaction monitor thread is in block state in < 30 seconds.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+include/assert.inc [Transaction monitor thread has disconnected the client connections.]
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+include/assert.inc [The super_read_only mode should be 1 here.]
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_transaction_monitor_end";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG= '-d,group_replication_transaction_monitor_end';
+[connection server2]
+include/assert.inc ['There is a value 2 in table t1']
+[connection server_2_1]
+group_replication_set_as_primary("SERVER1_UUID", 30)
+Primary server switched to: SERVER1_UUID
+
+# 4. Cleanup.
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

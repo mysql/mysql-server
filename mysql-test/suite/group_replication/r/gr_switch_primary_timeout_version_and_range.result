@@ -1,0 +1,28 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_28';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+
+# 2. Begin change of primary from server2(secondary).
+#    Primary change should fail since server1 version is 8.0.28.
+#    running_transactions_timeout is compatible with version 8.0.28 or greater.
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID", 0);
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The optional timeout argument in group_replication_set_as_primary() UDF is only supported when all group members have version 8.0.29 or higher.
+
+# 3. Cleanup.
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_28';
+include/group_replication_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1102,8 +1102,11 @@ void THD::init(void) {
   m_se_gtid_flags.reset();
   owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
 
-  // This will clear the writeset session history.
-  rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
+  /*
+    This will clear the writeset session history and re-set delegate state to
+    INIT
+  */
+  rpl_thd_ctx.init();
 
   /*
     This variable is used to temporarily disable the password validation plugin
@@ -1147,6 +1150,8 @@ void THD::cleanup_connection(void) {
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
+  rpl_thd_ctx.set_tx_rpl_delegate_stage_status(
+      Rpl_thd_context::TX_RPL_STAGE_CONNECTION_CLEANED);
   running_explain_analyze = false;
   m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE;
   init();

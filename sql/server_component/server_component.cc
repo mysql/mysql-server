@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
+#include "mysql_transaction_delegate_control_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "security_context_imp.h"
@@ -315,6 +316,22 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_ongoing_transactions_query)
 mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions
 END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_new_transaction_control)
+mysql_new_transaction_control_imp::stop,
+    mysql_new_transaction_control_imp::allow END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_before_commit_transaction_control)
+mysql_before_commit_transaction_control_imp::stop,
+    mysql_before_commit_transaction_control_imp::allow
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(
+    mysql_server,
+    mysql_close_connection_of_binloggable_transaction_not_reached_commit)
+mysql_close_connection_of_binloggable_transaction_not_reached_commit_imp::close
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, host_application_signal)
 mysql_component_host_application_signal_imp::signal
 END_SERVICE_IMPLEMENTATION();
@@ -455,6 +472,11 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
                      mysql_account_database_security_context_lookup),
     PROVIDES_SERVICE(mysql_server, mysql_security_context_options),
     PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
+    PROVIDES_SERVICE(mysql_server, mysql_new_transaction_control),
+    PROVIDES_SERVICE(mysql_server, mysql_before_commit_transaction_control),
+    PROVIDES_SERVICE(
+        mysql_server,
+        mysql_close_connection_of_binloggable_transaction_not_reached_commit),
     PROVIDES_SERVICE(mysql_server, host_application_signal),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
     PROVIDES_SERVICE(mysql_server, mysql_page_track),

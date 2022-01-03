@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,9 @@
 Primary_election_action::Primary_election_action()
     : Primary_election_action(std::string(""), 0) {}
 
-Primary_election_action::Primary_election_action(std::string primary_uuid_arg,
-                                                 my_thread_id thread_id)
+Primary_election_action::Primary_election_action(
+    std::string primary_uuid_arg, my_thread_id thread_id,
+    int32 transaction_wait_timeout_arg)
     : action_execution_mode(PRIMARY_ELECTION_ACTION_END),
       current_action_phase(PRIMARY_NO_PHASE),
       single_election_action_aborted(false),
@@ -46,7 +47,8 @@ Primary_election_action::Primary_election_action(std::string primary_uuid_arg,
       is_primary_election_invoked(false),
       is_primary_elected(false),
       primary_changed(false),
-      is_transaction_queue_applied(false) {
+      is_transaction_queue_applied(false),
+      m_transaction_wait_timeout(transaction_wait_timeout_arg) {
   mysql_mutex_init(key_GR_LOCK_primary_election_action_phase, &phase_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_primary_election_action_notification,
@@ -59,11 +61,34 @@ Primary_election_action::~Primary_election_action() {
   mysql_mutex_destroy(&phase_lock);
   mysql_mutex_destroy(&notification_lock);
   mysql_cond_destroy(&notification_cond);
+  /**
+    Assert has been used since object has not been destroyed at the exit point
+    code. If this ever occurs, the scenario needs to be analyzed to understand
+    why object was not deleted on the exit points of the primary election.
+  */
+  assert(transaction_monitor_thread == nullptr);
+  /**
+    delete transaction_monitor_thread is present at exit points when a change of
+    primary is finishing. However if delete is not triggered at those exit
+    points then object should be destroyed here. This code is added for safety.
+  */
+  stop_transaction_monitor_thread();
+}
+
+bool Primary_election_action::stop_transaction_monitor_thread() {
+  bool ret = false;
+  if (transaction_monitor_thread) {
+    ret = transaction_monitor_thread->terminate();
+    delete transaction_monitor_thread;
+    transaction_monitor_thread = nullptr;
+  }
+  return ret;
 }
 
 void Primary_election_action::get_action_message(
     Group_action_message **message) {
-  *message = new Group_action_message(appointed_primary_uuid);
+  *message = new Group_action_message(appointed_primary_uuid,
+                                      m_transaction_wait_timeout);
 }
 
 int Primary_election_action::process_action_message(
@@ -120,6 +145,22 @@ int Primary_election_action::process_action_message(
   }
 
   if (local_member_info && local_member_info->in_primary_mode()) {
+    if (local_member_info->get_role() ==
+            Group_member_info::MEMBER_ROLE_PRIMARY &&
+        message.get_transaction_monitor_timeout() != -1) {
+      /*
+       Here Transaction_monitor_thread object is created but thread is not
+       started.
+       @note Transaction_monitor_thread thread start is delayed because
+       validation of running channels has not been done yet.
+       @note If we need to start the Transaction_monitor_thread thread now, we
+       will have to check if there is any running channel on this member. It is
+       not future safe, since validations may increase in future.
+       @refer validate_election for duplicate post validation conditions
+      */
+      transaction_monitor_thread = new Transaction_monitor_thread(
+          message.get_transaction_monitor_timeout());
+    }
     action_execution_mode = PRIMARY_ELECTION_ACTION_PRIMARY_SWITCH;
     Group_member_info *primary_info =
         group_member_mgr->get_primary_member_info();
@@ -136,9 +177,9 @@ int Primary_election_action::process_action_message(
   }
 
   /*
-   * If there is no old primary to invoke the election then select
-     1. The action invocation member
-     2. If not there, then the first member in the group (after sort).
+    If there is no old primary to invoke the election then select
+    1. The action invocation member
+    2. If not there, then the first member in the group (after sort).
   */
   if (invoking_member_gcs_id.empty()) {
     std::vector<Group_member_info *> *all_members_info =
@@ -192,10 +233,9 @@ Primary_election_action::execute_action(
   if (validation_handler.prepare_election()) {
     /* purecov: begin inspected */
     error = 1;
-    execution_message_area.set_execution_message(
-        Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
-        "This operation ended in error as it was not possible to share "
-        "information for the election process.");
+    error_msg =
+        " This operation ended in error as it was not possible to share "
+        "information for the election process.";
     goto end;
     /* purecov: end */
   }
@@ -210,6 +250,15 @@ Primary_election_action::execute_action(
       execution_message_area.set_execution_message(
           Group_action_diagnostics::GROUP_ACTION_LOG_ERROR, error_msg);
       single_election_action_aborted = true;
+      goto end;
+    }
+  }
+  if (transaction_monitor_thread != nullptr) {
+    if (transaction_monitor_thread->start()) {
+      error = 1;
+      error_msg =
+          " This operation ended in error as it was not possible to stop the "
+          "ongoing transactions.";
       goto end;
     }
   }
@@ -239,10 +288,9 @@ Primary_election_action::execute_action(
                   &single_election_action_aborted, invoking_thread_id)) {
         /* purecov: begin inspected */
         error = 2;
-        execution_message_area.set_execution_message(
-            Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
-            "This operation ended in error as it was not possible to wait for "
-            "the execution of server running transactions.");
+        error_msg =
+            " This operation ended in error as it was not possible to wait for "
+            "the execution of server running transactions.";
         goto end;
         /* purecov: end */
       }
@@ -334,10 +382,19 @@ end:
   }
 
   group_events_observation_manager->unregister_group_event_observer(this);
+  /**
+    Observers have been de-registered so transaction_monitor_thread should have
+    been destroyed by now in after_view_change or after_primary_election. If
+    not, then destroy the object now(during UDF failure it has been observed
+    intermittently object was not destroyed in after_view_change or
+    after_primary_election).
+  */
+  stop_transaction_monitor_thread();
 
   error += error_on_primary_election;
-  log_result_execution(
-      error, single_election_action_aborted && !action_terminated, mode_is_set);
+  log_result_execution(error,
+                       single_election_action_aborted && !action_terminated,
+                       mode_is_set, error_msg);
 
   // Don't abort if it already finished
   if ((!single_election_action_aborted && !error) || action_terminated)
@@ -354,6 +411,12 @@ end:
 
 bool Primary_election_action::stop_action_execution(bool killed) {
   mysql_mutex_lock(&notification_lock);
+  /**
+    When a UDF group_replication_set_as_primary is killed using 'KILL
+    connection_id' code reaches here.
+  */
+  stop_transaction_monitor_thread();
+
   action_killed = killed;
   single_election_action_aborted = true;
   mysql_cond_broadcast(&notification_cond);
@@ -401,6 +464,7 @@ int Primary_election_action::after_view_change(
     bool *skip_primary_election, enum_primary_election_mode *election_mode_out,
     std::string &proposed_primary) {
   if (is_leaving) {
+    stop_transaction_monitor_thread(); /* purecov: inspected */
     return 0;
   }
 
@@ -582,16 +646,17 @@ int Primary_election_action::after_view_change(
   return 0;
 }
 
-int Primary_election_action::after_primary_election(std::string elected_uuid,
-                                                    bool did_primary_change,
-                                                    enum_primary_election_mode,
-                                                    int error) {
+int Primary_election_action::after_primary_election(
+    std::string elected_uuid, bool did_primary_change,
+    enum_primary_election_mode primary_election_mode, int error) {
   // We are leaving the group but we can speed up the process
   if (error == PRIMARY_ELECTION_PROCESS_ERROR) {
     error_on_primary_election = true; /* purecov: inspected */
     stop_action_execution(false);     /* purecov: inspected */
   }
-
+  if (UNSAFE_OLD_PRIMARY == primary_election_mode) {
+    stop_transaction_monitor_thread();
+  }
   // No candidates? Just abort
   if (error == PRIMARY_ELECTION_NO_CANDIDATES_ERROR) {
     /* purecov: begin inspected */
@@ -694,7 +759,8 @@ end:
 }
 
 void Primary_election_action::log_result_execution(bool error, bool aborted,
-                                                   bool mode_changed) {
+                                                   bool mode_changed,
+                                                   std::string &error_msg) {
   if (error) {
     execution_message_area.set_execution_message(
         Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
@@ -706,6 +772,8 @@ void Primary_election_action::log_result_execution(bool error, bool aborted,
           "primary mode, but the configuration was not "
           "persisted."); /* purecov: inspected */
     }
+    if (!error_msg.empty())
+      execution_message_area.append_execution_message(error_msg);
     return; /* purecov: inspected */
   }
 

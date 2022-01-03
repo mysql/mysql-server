@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,9 @@ int group_replication_trans_before_commit(Trans_param *param) {
                   return 1;);
 
   DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait", {
-    const char act[] = "now wait_for continue_commit";
+    const char act[] =
+        "now signal signal.group_replication_before_commit_hook_wait_reached "
+        "wait_for continue_commit";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -272,6 +272,9 @@ extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 class Binlog_cache_storage;
 
 class Trans_delegate : public Delegate {
+  std::atomic<bool> m_rollback_transaction_on_begin{false};
+  std::atomic<bool> m_rollback_transaction_not_reached_before_commit{false};
+
  public:
   Trans_delegate()
       : Delegate(
@@ -291,6 +294,33 @@ class Trans_delegate : public Delegate {
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
   int trans_begin(THD *thd, int &result);
+
+  /**
+    The method sets the flag that will fail the new incoming transactions and
+    allows some management queries to run. New incoming transactions are rolled
+    back.
+  */
+  int set_transactions_at_begin_must_fail();
+
+  /**
+    The method that removes the restrictions on the transactions which were
+    earlier failing due to flag set by the set_transactions_at_begin_must_fail
+    method.
+  */
+  int set_no_restrictions_at_transaction_begin();
+
+  /**
+    Method to rollback the transactions that passed the begin state but have yet
+    not reached the begin_commit stage. Transactions are not allowed to
+    broadcast instead failure is returned from before_commit function.
+  */
+  int set_transactions_not_reached_before_commit_must_fail();
+
+  /**
+    Method that allows the transactions to commit again which were earlier
+    stopped by set_transactions_not_reached_before_commit_must_fail method.
+  */
+  int set_no_restrictions_at_transactions_before_commit();
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE

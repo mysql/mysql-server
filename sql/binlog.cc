@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9453,7 +9453,13 @@ int THD::binlog_setup_trx_data() {
   DBUG_TRACE;
   binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(this);
 
-  if (cache_mngr) return 0;  // Already set up
+  if (cache_mngr) /* Already set up */ {
+    if (Rpl_thd_context::TX_RPL_STAGE_BEGIN ==
+        rpl_thd_ctx.get_tx_rpl_delegate_stage_status())
+      rpl_thd_ctx.set_tx_rpl_delegate_stage_status(
+          Rpl_thd_context::TX_RPL_STAGE_CACHE_CREATED);
+    return 0;
+  }
 
   cache_mngr = (binlog_cache_mngr *)my_malloc(key_memory_binlog_cache_mngr,
                                               sizeof(binlog_cache_mngr),
@@ -9470,6 +9476,10 @@ int THD::binlog_setup_trx_data() {
     my_free(cache_mngr);
     return 1;
   }
+  if (Rpl_thd_context::TX_RPL_STAGE_BEGIN ==
+      rpl_thd_ctx.get_tx_rpl_delegate_stage_status())
+    rpl_thd_ctx.set_tx_rpl_delegate_stage_status(
+        Rpl_thd_context::TX_RPL_STAGE_CACHE_CREATED);
 
   DBUG_PRINT("debug", ("Set ha_data slot %d to 0x%llx", binlog_hton->slot,
                        (ulonglong)cache_mngr));

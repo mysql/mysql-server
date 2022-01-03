@@ -1,0 +1,124 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+CREATE TABLE t1(c1 int primary key);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Execute change primary from server2(secondary) and block the operation.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_set_as_primary("SERVER2_UUID", 1);;
+[connection server1]
+
+# 3. Execute transaction on server1(primary), transactions should fail.
+[connection server1]
+INSERT INTO t1 values(1);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+CREATE TABLE t2(c1 int primary key);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+CREATE TABLE t1(c1 int primary key);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+SELECT c1 FROM t1;
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+
+# 4. Execute commands which are unaffected with
+#    group_replication_set_as_primary() in execution.
+DO SLEEP(1);
+SELECT SLEEP(1);
+SLEEP(1)
+0
+SELECT COUNT(*) from performance_schema.replication_group_members;
+COUNT(*)
+2
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+COUNT(*)=0
+1
+SELECT COUNT(*)=1 FROM sys.version;
+COUNT(*)=1
+1
+
+# 5. Unblock change primary from server2 and reap the operation.
+[connection server_2]
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+[connection server2]
+group_replication_set_as_primary("SERVER2_UUID", 1)
+Primary server switched to: SERVER2_UUID
+
+# 6. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is no value 1 in table t1']
+include/assert.inc ['Check table t2 does not exist.']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 7. Execute change primary from server2(primary) and block the operation.
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER1_UUID", 1);;
+[connection server_2]
+
+# 8. Execute transaction on server2(primary), transactions should fail.
+[connection server_2]
+INSERT INTO t1 values(1);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+CREATE TABLE t2(c1 int primary key);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+CREATE TABLE t1(c1 int primary key);
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+SELECT c1 FROM t1;
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'.
+
+# 9. Execute commands which are not stopped.
+DO SLEEP(1);
+SELECT SLEEP(1);
+SLEEP(1)
+0
+SELECT COUNT(*) from performance_schema.replication_group_members;
+COUNT(*)
+2
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+COUNT(*)=0
+1
+SELECT COUNT(*)=1 FROM sys.version;
+COUNT(*)=1
+1
+
+# 10. Unblock change primary from server2 and reap the operation.
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+[connection server2]
+group_replication_set_as_primary("SERVER1_UUID", 1)
+Primary server switched to: SERVER1_UUID
+
+# 11. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is no value 1 in table t1']
+include/assert.inc ['Check table t2 does not exist.']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 12. Cleanup.
+[connection server1]
+DROP TABLE t1;
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+include/group_replication_end.inc

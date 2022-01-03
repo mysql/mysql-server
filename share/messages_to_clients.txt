@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -9708,6 +9708,9 @@ ER_INNODB_MAX_ROW_VERSION
 
 ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
   eng "Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY."
+
+ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+  eng "All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'."
 
 #
 #  End of 8.0 error messages (server-to-client).

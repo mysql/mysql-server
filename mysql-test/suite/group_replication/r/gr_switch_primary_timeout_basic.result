@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server 2 secondary.
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Run UDF group_replication_set_as_primary from server2.
+# 2.A. Promote server2 as a new primary.
+SELECT group_replication_set_as_primary("SERVER2_UUID", 600);
+group_replication_set_as_primary("SERVER2_UUID", 600)
+Primary server switched to: SERVER2_UUID
+include/assert.inc [Time elapsed must be less than the timeout]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 2.B. Promote server1 as a new primary.
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER1_UUID", 600);
+group_replication_set_as_primary("SERVER1_UUID", 600)
+Primary server switched to: SERVER1_UUID
+include/assert.inc [Time elapsed must be less than the timeout]
+include/gr_assert_secondary_member.inc
+[connection server1]
+include/gr_assert_primary_member.inc
+
+# 3. Run UDF group_replication_set_as_primary from server1.
+# 3.A. Make server2 primary from server1(present primary).
+[connection server1]
+SELECT group_replication_set_as_primary("SERVER2_UUID", 600);
+group_replication_set_as_primary("SERVER2_UUID", 600)
+Primary server switched to: SERVER2_UUID
+include/assert.inc [Time elapsed must be less than the timeout]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+# 3.B. Make server1 primary from server1(present secondary).
+[connection server1]
+SELECT group_replication_set_as_primary("SERVER1_UUID", 600);
+group_replication_set_as_primary("SERVER1_UUID", 600)
+Primary server switched to: SERVER1_UUID
+include/assert.inc [Time elapsed must be less than the timeout]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+# 4. Cleanup.
+include/group_replication_end.inc
