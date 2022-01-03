@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@ Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
     if (!DeleteFile(src))
     {
       DWORD dwError = GetLastError();
-      if (dwError != ERROR_FILE_NOT_FOUND)
-	request->error = dwError;
+      if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
+        request->error = dwError;
     }
     return;
   }
@@ -73,7 +73,7 @@ loop:
   if (INVALID_HANDLE_VALUE == hFindFile)
   {
     DWORD dwError = GetLastError();
-    if (dwError != ERROR_PATH_NOT_FOUND)
+    if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
       request->error = dwError;
     return;
   }
