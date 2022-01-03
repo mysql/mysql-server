@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1007,6 +1007,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      {
          "--filename", "@datadir@/tls_endpoint.js",      //
          "--module-prefix", "@datadir@",                 //
+         "--port", "@port@",                             //
          "--xport", "@xport@",                           //
          "--ssl-mode", "required",                       //
          "--ssl-ca", "@certdir@/crl-ca-cert.pem",        //
