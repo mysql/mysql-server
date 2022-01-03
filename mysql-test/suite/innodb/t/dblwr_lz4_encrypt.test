@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 --source include/have_innodb_16k.inc
 --source include/have_punch_hole.inc
 

@@ -7,6 +7,7 @@
 # NOTE : This behavior isn't there for tables with row versions.
 ##########################################################################
 
+--source include/not_valgrind.inc
 --source include/have_lowercase0.inc
 --source include/have_innodb_16k.inc
 

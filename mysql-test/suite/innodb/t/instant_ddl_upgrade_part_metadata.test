@@ -3,6 +3,7 @@
 # partition table (not) having INSTANT ADD columns.
 ##########################################################################
 
+--source include/not_valgrind.inc
 --source include/have_lowercase0.inc
 
 # ------------------------------------------------------------
