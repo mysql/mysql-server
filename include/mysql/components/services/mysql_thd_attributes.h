@@ -67,7 +67,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @code
   char buf[1024]; // buffer must be big enough to store the digest
 
-  mysql_string_converter->convert_to_buffer(str, buf, sizeof(buf), "utf8");
+  mysql_string_converter->convert_to_buffer(str, buf, sizeof(buf), "utf8mb3");
   @endcode
 
   After the string content has been copied into another buffer, it must be

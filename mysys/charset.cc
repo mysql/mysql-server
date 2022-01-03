@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ extern CHARSET_INFO my_charset_utf32_unicode_ci;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 
 bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2) {
+  assert(0 != strcmp(cs1->csname, "utf8"));
+  assert(0 != strcmp(cs2->csname, "utf8"));
   return ((cs1 == cs2) || !strcmp(cs1->csname, cs2->csname));
 }
 
@@ -513,7 +515,7 @@ static uint get_charset_number_internal(const char *charset_name,
 }
 
 static const char *get_charset_name_alias(const char *name) {
-  if (!my_strcasecmp(&my_charset_latin1, name, "utf8mb3")) return "utf8";
+  if (!my_strcasecmp(&my_charset_latin1, name, "utf8")) return "utf8mb3";
   return nullptr;
 }
 

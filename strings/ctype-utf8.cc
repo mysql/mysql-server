@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5784,7 +5784,7 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     0,
     0, /* number       */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
-    "utf8",              /* cs name      */
+    "utf8mb3",           /* cs name      */
     "utf8_general_ci",   /* name         */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
@@ -5819,7 +5819,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     0,
     0, /* number       */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE | MY_CS_LOWER_SORT,
-    "utf8",              /* cs name      */
+    "utf8mb3",           /* cs name      */
     "utf8_tolower_ci",   /* name         */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
@@ -5854,7 +5854,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     0,
     0,                                               /* number           */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state            */
-    "utf8",                                          /* cs name          */
+    "utf8mb3",                                       /* cs name          */
     "utf8_general_mysql500_ci",                      /* name             */
     "UTF-8 Unicode",                                 /* comment          */
     nullptr,                                         /* tailoring        */
@@ -5889,7 +5889,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     0,
     0, /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
-    "utf8",              /* cs name      */
+    "utf8mb3",           /* cs name      */
     "utf8_bin",          /* name         */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */

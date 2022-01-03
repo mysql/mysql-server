@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ static const TABLE_FIELD_TYPE
         {{STRING_WITH_LEN("dl")}, {STRING_WITH_LEN("char(128)")}, {nullptr, 0}},
         {{STRING_WITH_LEN("type")},
          {STRING_WITH_LEN("enum('function','aggregate')")},
-         {STRING_WITH_LEN("utf8")}}};
+         {STRING_WITH_LEN("utf8mb3")}}};
 static const TABLE_FIELD_DEF mysql_udf_table_def = {MYSQL_UDF_TABLE_FIELD_COUNT,
                                                     mysql_udf_table_fields};
 

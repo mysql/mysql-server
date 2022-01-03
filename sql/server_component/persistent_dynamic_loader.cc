@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
      {nullptr, 0}},
     {{STRING_WITH_LEN("component_urn")},
      {STRING_WITH_LEN("text")},
-     {STRING_WITH_LEN("utf8")}}};
+     {STRING_WITH_LEN("utf8mb3")}}};
 
 static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
                                                     component_table_fields};

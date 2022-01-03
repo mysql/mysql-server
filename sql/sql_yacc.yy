@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -475,7 +475,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 void warn_about_deprecated_national(THD *thd)
 {
-  if (native_strcasecmp(national_charset_info->csname, "utf8") == 0)
+  if (native_strcasecmp(national_charset_info->csname, "utf8") == 0 ||
+      native_strcasecmp(national_charset_info->csname, "utf8mb3") == 0)
     push_warning(thd, ER_DEPRECATED_NATIONAL);
 }
 

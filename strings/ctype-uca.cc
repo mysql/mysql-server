@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -6085,7 +6085,7 @@ CHARSET_INFO my_charset_utf8_unicode_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_unicode_ci",       /* name         */
     "UCS-2 Unicode",         /* comment      */
     "",                      /* tailoring    */
@@ -6120,7 +6120,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_icelandic_ci",     /* name         */
     "UTF-8 Unicode",         /* comment      */
     icelandic,               /* tailoring    */
@@ -6155,7 +6155,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_latvian_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     latvian,                 /* tailoring    */
@@ -6190,7 +6190,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_romanian_ci",      /* name         */
     "UTF-8 Unicode",         /* comment      */
     romanian,                /* tailoring    */
@@ -6225,7 +6225,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_slovenian_ci",     /* name         */
     "UTF-8 Unicode",         /* comment      */
     slovenian,               /* tailoring    */
@@ -6260,7 +6260,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_polish_ci",        /* name         */
     "UTF-8 Unicode",         /* comment      */
     polish,                  /* tailoring    */
@@ -6295,7 +6295,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_estonian_ci",      /* name         */
     "UTF-8 Unicode",         /* comment      */
     estonian,                /* tailoring    */
@@ -6330,7 +6330,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_spanish_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     spanish,                 /* tailoring    */
@@ -6365,7 +6365,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_swedish_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     swedish,                 /* tailoring    */
@@ -6400,7 +6400,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_turkish_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     turkish,                 /* tailoring    */
@@ -6435,7 +6435,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_czech_ci",         /* name         */
     "UTF-8 Unicode",         /* comment      */
     czech,                   /* tailoring    */
@@ -6470,7 +6470,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_danish_ci",        /* name         */
     "UTF-8 Unicode",         /* comment      */
     danish,                  /* tailoring    */
@@ -6505,7 +6505,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_lithuanian_ci",    /* name         */
     "UTF-8 Unicode",         /* comment      */
     lithuanian,              /* tailoring    */
@@ -6540,7 +6540,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_slovak_ci",        /* name         */
     "UTF-8 Unicode",         /* comment      */
     slovak,                  /* tailoring    */
@@ -6575,7 +6575,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_spanish2_ci",      /* name         */
     "UTF-8 Unicode",         /* comment      */
     spanish2,                /* tailoring    */
@@ -6610,7 +6610,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_roman_ci",         /* name         */
     "UTF-8 Unicode",         /* comment      */
     roman,                   /* tailoring    */
@@ -6645,7 +6645,7 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_persian_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     persian,                 /* tailoring    */
@@ -6680,7 +6680,7 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_esperanto_ci",     /* name         */
     "UTF-8 Unicode",         /* comment      */
     esperanto,               /* tailoring    */
@@ -6715,7 +6715,7 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name    */
+    "utf8mb3",               /* cs name    */
     "utf8_hungarian_ci",     /* name         */
     "UTF-8 Unicode",         /* comment      */
     hungarian,               /* tailoring    */
@@ -6750,7 +6750,7 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci = {
     0,
     0,                       /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS, /* flags    */
-    "utf8",                  /* cs name      */
+    "utf8mb3",               /* cs name      */
     "utf8_sinhala_ci",       /* name         */
     "UTF-8 Unicode",         /* comment      */
     sinhala,                 /* tailoring    */
@@ -6785,7 +6785,7 @@ CHARSET_INFO my_charset_utf8_german2_uca_ci = {
     0,
     0,                        /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,  /* flags    */
-    MY_UTF8MB3,               /* cs name      */
+    "utf8mb3",                /* cs name      */
     MY_UTF8MB3 "_german2_ci", /* name    */
     "UTF-8 Unicode",          /* comment      */
     german2,                  /* tailoring    */
@@ -6820,7 +6820,7 @@ CHARSET_INFO my_charset_utf8_croatian_uca_ci = {
     0,
     0,                         /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,   /* flags    */
-    MY_UTF8MB3,                /* cs name      */
+    "utf8mb3",                 /* cs name      */
     MY_UTF8MB3 "_croatian_ci", /* name    */
     "UTF-8 Unicode",           /* comment      */
     croatian,                  /* tailoring    */
@@ -6855,7 +6855,7 @@ CHARSET_INFO my_charset_utf8_unicode_520_ci = {
     0,
     0,                            /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,      /* flags     */
-    MY_UTF8MB3,                   /* csname       */
+    "utf8mb3",                    /* csname       */
     MY_UTF8MB3 "_unicode_520_ci", /* name */
     "UTF-8 Unicode",              /* comment      */
     "",                           /* tailoring    */
@@ -6890,7 +6890,7 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci = {
     0,
     0,                           /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,     /* flags     */
-    MY_UTF8MB3,                  /* cs name      */
+    "utf8mb3",                   /* cs name      */
     MY_UTF8MB3 "_vietnamese_ci", /* name  */
     "UTF-8 Unicode",             /* comment      */
     vietnamese,                  /* tailoring    */
