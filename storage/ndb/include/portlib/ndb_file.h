@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ public:
   using size_t = uint64_t;
   using off_t = int64_t;
 
-  static constexpr unsigned long OFF_T_MAX = LONG_MAX;
+  static constexpr uint64_t OFF_T_MAX = UINT64_MAX;
 
 #ifndef _WIN32
   using os_handle = int;
