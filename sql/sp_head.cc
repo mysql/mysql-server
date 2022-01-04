@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1969,7 +1969,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
 
   if (field->has_charset()) {
     result->append(STRING_WITH_LEN(" CHARSET "));
-    result->append(replace_utf8_utf8mb3(m_return_field_def.charset->csname));
+    result->append(m_return_field_def.charset->csname);
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
       result->append(m_return_field_def.charset->name);

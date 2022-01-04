@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1015,8 +1015,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
                         system_charset_info, invalid_sub_str)) {
     // Provide contextual information
     my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view", view->db,
-             view->alias, replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
+             view->alias, system_charset_info->csname, invalid_sub_str.c_str());
     return true;
   }
 

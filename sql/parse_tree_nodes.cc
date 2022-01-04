@@ -226,7 +226,7 @@ bool PT_set_names::contextualize(Parse_context *pc) {
   if (opt_collation != nullptr) {
     if (!my_charset_same(cs2, opt_collation)) {
       my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), opt_collation->name,
-               replace_utf8_utf8mb3(cs2->csname));
+               cs2->csname);
       return true;
     }
     cs3 = opt_collation;
@@ -1793,8 +1793,8 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
       create_info->default_table_charset &&
       !my_charset_same(create_info->default_table_charset, value)) {
     my_error(ER_CONFLICTING_DECLARATIONS, MYF(0), "CHARACTER SET ",
-             replace_utf8_utf8mb3(create_info->default_table_charset->csname),
-             "CHARACTER SET ", replace_utf8_utf8mb3(value->csname));
+             create_info->default_table_charset->csname, "CHARACTER SET ",
+             value->csname);
     return true;
   }
   if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) == 0)
@@ -2685,17 +2685,16 @@ bool PT_alter_table_convert_to_charset::contextualize(
 
   if (!my_charset_same(cs, collation)) {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), collation->name,
-             replace_utf8_utf8mb3(cs->csname));
+             cs->csname);
     return true;
   }
 
   if ((pc->create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
       pc->create_info->default_table_charset && collation &&
       !my_charset_same(pc->create_info->default_table_charset, collation)) {
-    my_error(
-        ER_CONFLICTING_DECLARATIONS, MYF(0), "CHARACTER SET ",
-        replace_utf8_utf8mb3(pc->create_info->default_table_charset->csname),
-        "CHARACTER SET ", replace_utf8_utf8mb3(collation->csname));
+    my_error(ER_CONFLICTING_DECLARATIONS, MYF(0), "CHARACTER SET ",
+             pc->create_info->default_table_charset->csname, "CHARACTER SET ",
+             collation->csname);
     return true;
   }
 

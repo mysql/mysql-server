@@ -4653,8 +4653,7 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
     octet2hex(
         hexbuf, string_val.str + valid_len,
         static_cast<uint>(std::min<size_t>(string_val.length - valid_len, 3)));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-             replace_utf8_utf8mb3(charset_info->csname), hexbuf);
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), charset_info->csname, hexbuf);
     return true;
   }
   return false;

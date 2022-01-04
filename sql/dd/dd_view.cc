@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -650,7 +650,7 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   CHARSET_INFO *collation =
       dd_get_mysql_charset(view_obj.client_collation_id());
   assert(collation);
-  const char *csname = replace_utf8_utf8mb3(collation->csname);
+  const char *csname = collation->csname;
   view->view_client_cs_name.length = strlen(csname);
   view->view_client_cs_name.str = strdup_root(mem_root, csname);
 

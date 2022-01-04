@@ -237,7 +237,7 @@ CHARSET_INFO *Mysql_connection_options::get_current_charset() const {
 }
 
 void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
-  m_default_charset = string(replace_utf8_utf8mb3(charset->csname));
+  m_default_charset = string(charset->csname);
 }
 
 const char *Mysql_connection_options::get_null_or_string(

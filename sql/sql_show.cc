@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1220,8 +1220,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     protocol->store_string(buffer.ptr(), buffer.length(),
                            table_list->view_creation_ctx->get_client_cs());
 
-    protocol->store(replace_utf8_utf8mb3(
-                        table_list->view_creation_ctx->get_client_cs()->csname),
+    protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
 
     protocol->store(table_list->view_creation_ctx->get_connection_cl()->name,
@@ -1329,7 +1328,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (create.default_table_charset) {
     buffer.append(STRING_WITH_LEN(" /*!40100"));
     buffer.append(STRING_WITH_LEN(" DEFAULT CHARACTER SET "));
-    buffer.append(replace_utf8_utf8mb3(create.default_table_charset->csname));
+    buffer.append(create.default_table_charset->csname);
     if (!(create.default_table_charset->state & MY_CS_PRIMARY) ||
         create.default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       buffer.append(STRING_WITH_LEN(" COLLATE "));
@@ -1981,7 +1980,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (field->charset() != share->table_charset ||
           column_has_explicit_collation) {
         packet->append(STRING_WITH_LEN(" CHARACTER SET "));
-        packet->append(replace_utf8_utf8mb3(field->charset()->csname));
+        packet->append(field->charset()->csname);
       }
       /*
         For string types dump collation name only if
@@ -2306,7 +2305,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (!create_info_arg ||
           (create_info_arg->used_fields & HA_CREATE_USED_DEFAULT_CHARSET)) {
         packet->append(STRING_WITH_LEN(" DEFAULT CHARSET="));
-        packet->append(replace_utf8_utf8mb3(share->table_charset->csname));
+        packet->append(share->table_charset->csname);
         if (!(share->table_charset->state & MY_CS_PRIMARY) ||
             share->table_charset == &my_charset_utf8mb4_0900_ai_ci) {
           packet->append(STRING_WITH_LEN(" COLLATE="));
@@ -5318,7 +5317,7 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
     char buf[3];
 
     output_str->append("_");
-    output_str->append(replace_utf8_utf8mb3(cs->csname));
+    output_str->append(cs->csname);
     output_str->append(" ");
     output_str->append("0x");
     len = input_str->length();

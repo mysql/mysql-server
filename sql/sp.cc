@@ -689,8 +689,7 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
                         invalid_sub_str)) {
     // Provide contextual information
     my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
-             sp->m_db.str, sp->m_name.str,
-             replace_utf8_utf8mb3(system_charset_info->csname),
+             sp->m_db.str, sp->m_name.str, system_charset_info->csname,
              invalid_sub_str.c_str());
     return true;
   }
@@ -705,8 +704,7 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
       my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
                (std::string(sp->m_db.str) + "." + std::string(sp->m_name.str))
                    .c_str(),
-               replace_utf8_utf8mb3(system_charset_info->csname),
-               invalid_sub_str.c_str());
+               system_charset_info->csname, invalid_sub_str.c_str());
       return true;
     }
 
@@ -1123,8 +1121,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
           ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
           (std::string(name->m_db.str) + "." + std::string(name->m_name.str))
               .c_str(),
-          replace_utf8_utf8mb3(system_charset_info->csname),
-          invalid_sub_str.c_str());
+          system_charset_info->csname, invalid_sub_str.c_str());
       return true;
     }
 
@@ -1443,7 +1440,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     protocol->store_null();
 
   // character_set_client
-  protocol->store(replace_utf8_utf8mb3(cs_info->csname), system_charset_info);
+  protocol->store(cs_info->csname, system_charset_info);
   // connection_collation
   cs_info = dd_get_mysql_charset(routine->connection_collation_id());
   protocol->store(cs_info->name, system_charset_info);
@@ -2654,7 +2651,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         buf.length(0);
 
         buf.append('_');
-        buf.append(replace_utf8_utf8mb3(result->charset()->csname));
+        buf.append(result->charset()->csname);
         if (cs->escape_with_backslash_is_dangerous) buf.append(' ');
         append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -823,8 +823,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                          system_charset_info);
   protocol->store_string(show_str.c_ptr(), show_str.length(),
                          et->m_creation_ctx->get_client_cs());
-  const char *csname =
-      replace_utf8_utf8mb3(et->m_creation_ctx->get_client_cs()->csname);
+  const char *csname = et->m_creation_ctx->get_client_cs()->csname;
   protocol->store_string(csname, strlen(csname), system_charset_info);
   protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
                          strlen(et->m_creation_ctx->get_connection_cl()->name),

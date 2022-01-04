@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ bool Character_sets::populate(THD *thd) const {
 
       // The character set is stored on the same id as its primary collation
       new_charset->set_id(cs->number);
-      new_charset->set_name(replace_utf8_utf8mb3(cs->csname));
+      new_charset->set_name(cs->csname);
       new_charset->set_default_collation_id(cs->number);
       new_charset->set_mb_max_length(cs->mbmaxlen);
       new_charset->set_comment(cs->comment ? cs->comment : "");

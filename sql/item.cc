@@ -3392,7 +3392,7 @@ void Item_string::print(const THD *, String *str,
 
   if (print_introducer) {
     str->append('_');
-    str->append(replace_utf8_utf8mb3(collation.collation->csname));
+    str->append(collation.collation->csname);
   }
 
   str->append('\'');
@@ -6170,8 +6170,7 @@ String *Item::check_well_formed_result(String *str, bool send_error,
     size_t diff = min(size_t(str_end - print_byte), size_t(3));
     octet2hex(hexbuf, print_byte, diff);
     if (send_error && length_error) {
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-               replace_utf8_utf8mb3(cs->csname), hexbuf);
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), cs->csname, hexbuf);
       return nullptr;
     }
     if (truncate && length_error) {
@@ -6182,10 +6181,9 @@ String *Item::check_well_formed_result(String *str, bool send_error,
         str->length(valid_length);
       }
     }
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_INVALID_CHARACTER_STRING,
-                        ER_THD(thd, ER_INVALID_CHARACTER_STRING),
-                        replace_utf8_utf8mb3(cs->csname), hexbuf);
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_INVALID_CHARACTER_STRING,
+        ER_THD(thd, ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
   }
   return str;
 }

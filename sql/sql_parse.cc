@@ -7138,7 +7138,7 @@ bool merge_charset_and_collation(const CHARSET_INFO *charset,
   if (charset != nullptr && collation != nullptr &&
       !my_charset_same(charset, collation)) {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), collation->name,
-             replace_utf8_utf8mb3(charset->csname));
+             charset->csname);
     return true;
   }
 

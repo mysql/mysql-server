@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1587,8 +1587,8 @@ bool READ_INFO::read_field() {
       GET_MBCHARLEN(read_charset, chr, ml);
       if (ml == 0) {
         *to = '\0';
-        my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-                 replace_utf8_utf8mb3(read_charset->csname), buffer);
+        my_error(ER_INVALID_CHARACTER_STRING, MYF(0), read_charset->csname,
+                 buffer);
         error = true;
         return true;
       }

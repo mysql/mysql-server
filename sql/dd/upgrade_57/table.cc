@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1033,8 +1033,7 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
                         system_charset_info, invalid_sub_str)) {
     // Provide contextual information
     my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view",
-             db_name.c_str(), view_name.c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
+             db_name.c_str(), view_name.c_str(), system_charset_info->csname,
              invalid_sub_str.c_str());
     return true;
   }
