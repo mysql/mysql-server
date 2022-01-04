@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -954,29 +954,7 @@ class Item_charset_conversion : public Item_str_func {
 
     @returns the maximum numbers of characters possible after the conversion
   */
-  uint32 compute_max_char_length() {
-    uint32 new_max_chars;
-    Item *from = args[0];
-    if (m_cast_cs == &my_charset_bin) {
-      // We are converting from CHAR/BINARY to BINARY, in which case we
-      // just reinterpret all the bytes of the (CHAR) source to be bytes,
-      // or no change, i.e. BINARY to BINARY
-      new_max_chars = from->max_length;
-    } else if (from->collation.collation == &my_charset_bin) {
-      // We reinterpret the bytes available, i.e. from BINARY to CHAR,
-      // so a by conservative guess it can contain one character per
-      // byte in the BINARY if the minimum character length of the
-      // target is one.  If it is larger, e.g. for UTF-16 (min 2 bytes
-      // per character), we can halve the estimate safely.
-      assert(from->max_length == from->max_char_length());
-      new_max_chars = ((from->max_length + (m_cast_cs->mbminlen - 1)) /
-                       m_cast_cs->mbminlen);
-    } else {
-      // We convert from CHAR -> CHAR, so length is the same
-      new_max_chars = from->max_char_length();
-    }
-    return new_max_chars;
-  }
+  uint32 compute_max_char_length();
 
   bool resolve_type(THD *thd) override;
 

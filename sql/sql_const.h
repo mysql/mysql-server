@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
 
 #ifndef SQL_CONST_INCLUDED
 #define SQL_CONST_INCLUDED
+
+#include <float.h>
 
 #include "my_inttypes.h"
 
@@ -258,9 +260,9 @@ constexpr const int STACK_BUFF_ALLOC{352};  ///< For stack overrun checks
 #define PRECISION_FOR_FLOAT 24
 
 /* -[digits].E+## */
-#define MAX_FLOAT_STR_LENGTH (FLT_DIG + 6)
+constexpr const int MAX_FLOAT_STR_LENGTH{FLT_DIG + 6};
 /* -[digits].E+### */
-#define MAX_DOUBLE_STR_LENGTH (DBL_DIG + 7)
+constexpr const int MAX_DOUBLE_STR_LENGTH{DBL_DIG + 7};
 
 /*
   Default time to wait before aborting a new client connection

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6210,10 +6210,6 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
                                          bool unsigned_arg) {
   entry->lock();
 
-  /*
-    If we set a variable explicitely to NULL then keep the old
-    result type of the variable
-  */
   // args[0]->null_value could be outdated
   if (args[0]->type() == Item::FIELD_ITEM)
     null_value = ((Item_field *)args[0])->field->is_null();
@@ -6225,8 +6221,11 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
     null_value = true;
   }
 
-  if (null_value && null_item)
-    res_type = entry->type();  // Don't change type of item
+  /*
+    If we set a variable explicitely to NULL then keep the old
+    result type of the variable
+  */
+  if (null_value && null_item) res_type = entry->type();
 
   if (null_value)
     entry->set_null_value(res_type);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3405,6 +3405,37 @@ String *Item_charset_conversion::val_str(String *str) {
   }
   null_value = false;
   return res;
+}
+
+uint32 Item_charset_conversion::compute_max_char_length() {
+  uint32 new_max_chars;
+  Item *from = args[0];
+  if (m_cast_cs == &my_charset_bin) {
+    // We are converting from CHAR/BINARY to BINARY, in which case we
+    // just reinterpret all the bytes of the (CHAR) source to be bytes,
+    // or no change, i.e. BINARY to BINARY
+    new_max_chars = from->max_length;
+  } else if (from->collation.collation == &my_charset_bin) {
+    // We reinterpret the bytes available, i.e. from BINARY to CHAR,
+    // so a by conservative guess it can contain one character per
+    // byte in the BINARY if the minimum character length of the
+    // target is one.  If it is larger, e.g. for UTF-16 (min 2 bytes
+    // per character), we can halve the estimate safely.
+#ifndef NDEBUG
+    // For MYSQL_TYPE_DOUBLE we have
+    // max_length        = DBL_DIG + 8 = 23  (see float_length())
+    // max_char_length() = DBL_DIG + 7 = 22
+    if (from->data_type() != MYSQL_TYPE_DOUBLE) {
+      assert(from->max_length == from->max_char_length());
+    }
+#endif
+    new_max_chars =
+        ((from->max_length + (m_cast_cs->mbminlen - 1)) / m_cast_cs->mbminlen);
+  } else {
+    // We convert from CHAR -> CHAR, so length is the same
+    new_max_chars = from->max_char_length();
+  }
+  return new_max_chars;
 }
 
 bool Item_charset_conversion::resolve_type(THD *thd) {

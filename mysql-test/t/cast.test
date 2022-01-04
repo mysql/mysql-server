@@ -1123,3 +1123,12 @@ CREATE TABLE t AS
 SHOW CREATE TABLE t;
 SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #33406728 Item_charset_conversion::compute_max_char_length:
+--echo #     Assertion `from->max_length == from->max_char_length()' failed.
+--echo #
+
+set @a:= st_aswkb(st_astext(@b:=log10(0.0)));
+set @a:= @b;
+do convert(@a using latin1);

@@ -2266,3 +2266,13 @@ SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
 HEX(beer)	CHAR_LENGTH(beer)
 D83CDF7A	1
 DROP TABLE t;
+#
+# Bug #33406728 Item_charset_conversion::compute_max_char_length:
+#     Assertion `from->max_length == from->max_char_length()' failed.
+#
+set @a:= st_aswkb(st_astext(@b:=log10(0.0)));
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	3020	Invalid argument for logarithm
+set @a:= @b;
+do convert(@a using latin1);
