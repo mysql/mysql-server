@@ -166,8 +166,8 @@ void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
   char printable_buff[32];
   convert_to_printable(printable_buff, sizeof(printable_buff), from,
                        from_length, from_cs, 6);
-  const char *from_name = replace_utf8_utf8mb3(from_cs->csname);
-  const char *to_name = replace_utf8_utf8mb3(to_cs->csname);
+  const char *from_name = from_cs->csname;
+  const char *to_name = to_cs->csname;
   my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff, from_name,
            to_name);
 }
@@ -6687,8 +6687,8 @@ String *Item_func_get_user_var::val_str(String *str) {
       char tmp[32];
       convert_to_printable(tmp, sizeof(tmp), res->ptr(), res->length(),
                            res->charset(), 6);
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-               replace_utf8_utf8mb3(collation.collation->csname), tmp);
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
+               tmp);
       return error_str();
     }
     if (str->copy(tmpstr)) return error_str();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3699,7 +3699,7 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
         str->append_parenthesized(item->max_char_length());
         if (cs != &my_charset_utf8mb4_0900_bin) {
           str->append(STRING_WITH_LEN(" character set "));
-          str->append(replace_utf8_utf8mb3(cs->csname));
+          str->append(cs->csname);
         }
       }
       return;

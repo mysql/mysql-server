@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -533,8 +533,7 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
           system_charset_info, invalid_sub_str)) {
     // Provide contextual information
     my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "tablespace",
-             m_tablespace_name.str,
-             replace_utf8_utf8mb3(system_charset_info->csname),
+             m_tablespace_name.str, system_charset_info->csname,
              invalid_sub_str.c_str());
     return true;
   }

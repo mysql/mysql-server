@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -960,14 +960,14 @@ ulong STDCALL mysql_thread_id(MYSQL *mysql) {
 }
 
 const char *STDCALL mysql_character_set_name(MYSQL *mysql) {
-  return replace_utf8_utf8mb3(mysql->charset->csname);
+  return mysql->charset->csname;
 }
 
 void STDCALL mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *csinfo) {
   csinfo->number = mysql->charset->number;
   csinfo->state = mysql->charset->state;
-  csinfo->csname = replace_utf8_utf8mb3(mysql->charset->csname);
+  csinfo->csname = mysql->charset->csname;
   csinfo->name = mysql->charset->name;
   csinfo->comment = mysql->charset->comment;
   csinfo->mbminlen = mysql->charset->mbminlen;

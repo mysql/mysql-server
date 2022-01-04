@@ -4562,8 +4562,7 @@ bool prepare_create_field(THD *thd, const char *error_schema_name,
                                        std::string(sql_field->field_name);
 
     my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "field",
-             qualified_field_name.c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
+             qualified_field_name.c_str(), system_charset_info->csname,
              invalid_sub_str.c_str());
     return true;
   }
@@ -7211,8 +7210,7 @@ static bool prepare_key(
              (std::string(error_schema_name) + "." +
               std::string(error_table_name) + "." + std::string(key->name.str))
                  .c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
+             system_charset_info->csname, invalid_sub_str.c_str());
     return true;
   }
 
@@ -7927,8 +7925,7 @@ bool mysql_prepare_create_table(
         ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "table",
         (std::string(error_schema_name) + "." + std::string(error_table_name))
             .c_str(),
-        replace_utf8_utf8mb3(system_charset_info->csname),
-        invalid_sub_str.c_str());
+        system_charset_info->csname, invalid_sub_str.c_str());
     return true;
   }
 
@@ -8749,8 +8746,7 @@ static bool create_table_impl(
                    (std::string(db) + "." + std::string(error_table_name) +
                     "." + std::string(part_elem->partition_name))
                        .c_str(),
-                   replace_utf8_utf8mb3(system_charset_info->csname),
-                   invalid_sub_str.c_str());
+                   system_charset_info->csname, invalid_sub_str.c_str());
           return true;
         }
 
@@ -8778,8 +8774,7 @@ static bool create_table_impl(
                         "." + std::string(part_elem->partition_name) + "." +
                         std::string(subpart_elem->partition_name))
                            .c_str(),
-                       replace_utf8_utf8mb3(system_charset_info->csname),
-                       invalid_sub_str.c_str());
+                       system_charset_info->csname, invalid_sub_str.c_str());
               return true;
             }
 

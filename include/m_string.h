@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -250,13 +250,6 @@ static inline int is_prefix(const char *s, const char *t) {
   while (*t)
     if (*s++ != *t++) return 0;
   return 1; /* WRONG */
-}
-
-/*
-   Replace the deprecated character set name "utf8" with "utf8mb3".
- */
-static inline const char *replace_utf8_utf8mb3(const char *csname) {
-  return (native_strcasecmp(csname, "utf8") != 0) ? csname : "utf8mb3";
 }
 
 /* Conversion routines */

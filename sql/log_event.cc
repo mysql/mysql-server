@@ -4333,8 +4333,7 @@ void Query_log_event::print_query_header(
     CHARSET_INFO *cs_info = get_charset(uint2korr(charset_p), MYF(MY_WME));
     if (cs_info) {
       /* for mysql client */
-      my_b_printf(file, "/*!\\C %s */%s\n",
-                  replace_utf8_utf8mb3(cs_info->csname),
+      my_b_printf(file, "/*!\\C %s */%s\n", cs_info->csname,
                   print_event_info->delimiter);
     }
     my_b_printf(file,
@@ -6560,8 +6559,7 @@ int User_var_log_event::pack_info(Protocol *protocol) {
           my_stpcpy(buf + val_offset, "???");
           event_len += 3;
         } else {
-          char *p = strxmov(buf + val_offset, "_",
-                            replace_utf8_utf8mb3(cs->csname), " ", NullS);
+          char *p = strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
           p = str_to_hex(p, val, val_len);
           p = strxmov(p, " COLLATE ", cs->name, NullS);
           event_len = p - buf;
@@ -6749,9 +6747,8 @@ void User_var_log_event::print(FILE *,
           */
           my_b_printf(head, ":=???%s\n", print_event_info->delimiter);
         else
-          my_b_printf(head, ":=_%s %s COLLATE `%s`%s\n",
-                      replace_utf8_utf8mb3(cs->csname), hex_str, cs->name,
-                      print_event_info->delimiter);
+          my_b_printf(head, ":=_%s %s COLLATE `%s`%s\n", cs->csname, hex_str,
+                      cs->name, print_event_info->delimiter);
         my_free(hex_str);
       } break;
       case ROW_RESULT:
@@ -7522,7 +7519,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
 
   if (sql_ex->cs != nullptr) {
     str.append(" CHARACTER SET ");
-    str.append(replace_utf8_utf8mb3(sql_ex->cs->csname));
+    str.append(sql_ex->cs->csname);
   }
 
   /* We have to create all optional fields as the default is not empty */
@@ -11702,8 +11699,7 @@ void Table_map_log_event::print_columns(
     // Print column character set, except in text columns with binary collation
     if (cs != nullptr &&
         (is_enum_or_set_type(real_type) || cs->number != my_charset_bin.number))
-      my_b_printf(file, " CHARSET %s COLLATE %s",
-                  replace_utf8_utf8mb3(cs->csname), cs->name);
+      my_b_printf(file, " CHARSET %s COLLATE %s", cs->csname, cs->name);
 
     // If column is invisible then print 'INVISIBLE'.
     if (column_visibility_it != fields.m_column_visibility.end()) {

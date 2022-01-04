@@ -2034,7 +2034,7 @@ int set_var_collation_client::check(THD *) {
   /* Currently, UCS-2 cannot be used as a client character set */
   if (!is_supported_parser_charset(character_set_client)) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
-             replace_utf8_utf8mb3(character_set_client->csname));
+             character_set_client->csname);
     return 1;
   }
   return 0;
@@ -2073,7 +2073,7 @@ bool set_var_collation_client::print(const THD *, String *str) {
     str->append("DEFAULT");
   else {
     str->append("'");
-    str->append(replace_utf8_utf8mb3(character_set_client->csname));
+    str->append(character_set_client->csname);
     str->append("'");
     if (set_cs_flags & SET_CS_COLLATE) {
       str->append(" COLLATE '");

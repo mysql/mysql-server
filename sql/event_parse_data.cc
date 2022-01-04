@@ -446,8 +446,7 @@ bool Event_parse_data::check_parse_data(THD *thd) {
              (std::string(identifier->m_db.str) + "." +
               std::string(identifier->m_name.str))
                  .c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
+             system_charset_info->csname, invalid_sub_str.c_str());
     return true;
   }
 
