@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -271,7 +271,6 @@ static ib_err_t ib_read_tuple(
   void *ptr;
   rec_t *copy;
   ulint rec_meta_data;
-  ulint n_index_fields;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   dtuple_t *dtuple = tuple->ptr;
@@ -336,8 +335,17 @@ static ib_err_t ib_read_tuple(
 
   copy = rec_copy(ptr, rec, offsets);
 
-  n_index_fields =
+  /* DB_ROW_ID is added in dict_table_t unconditionally but is used only if PK
+  isn't there. dtuple is made from the dict_table_t so it will also have it but
+  record might not if PK is there. */
+  size_t n_index_fields =
       std::min(rec_offs_n_fields(offsets), dtuple_get_n_fields(dtuple));
+
+  /* If table has INSTANT DROP columns, then offsets would have count for these
+  columns as well, where as logical record won't have them. */
+  if (index->has_row_versions()) {
+    n_index_fields = std::min(n_index_fields, (size_t)index->n_fields);
+  }
 
   for (i = 0; i < n_index_fields; ++i) {
     ulint len;

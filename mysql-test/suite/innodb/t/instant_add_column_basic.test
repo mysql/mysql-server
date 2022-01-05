@@ -1,4 +1,5 @@
 --source include/big_test.inc
+--source include/not_have_innodb_4k.inc
 
 --echo ##############################################
 --echo # Test instant ADD COLUMN for REDUNDANT format

@@ -101,6 +101,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 ALTER TABLE t3 ADD COLUMN c3 INT;
 let TABLE_NAME = t3;
 let MEMCACHED_TABLE_MAPPING = desc_t3;
+--source ../include/sdi_insert_get_row.inc
 
 ALTER TABLE t2 DROP COLUMN c100;
 ALTER TABLE t2 DROP COLUMN c101;

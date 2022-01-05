@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1799,7 +1799,7 @@ dberr_t row_import::add_instant_dropped_columns(dict_table_t *target_table) {
       mem_heap_get_size(target_table->heap) + mem_heap_get_size(index->heap);
   if (new_heap_size > old_heap_size) {
     mutex_enter(&dict_sys->mutex);
-    dict_sys->size += old_heap_size - new_heap_size;
+    dict_sys->size += new_heap_size - old_heap_size;
     mutex_exit(&dict_sys->mutex);
   }
 

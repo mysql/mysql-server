@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1359,37 +1359,6 @@ struct dict_index_t {
 
     return nullables[version];
   }
-
-#ifdef UNIV_DEBUG
-  void print_index_fields() {
-    std::cerr << "\t[";
-    for (uint32_t i = 0; i < n_def; i++) {
-      if (i != 0) {
-        std::cerr << ", ";
-      }
-      dict_field_t *field = get_field(i);
-      ut_ad(field != nullptr);
-      std::cerr << "" << field->name;
-    }
-    std::cerr << "]" << std::endl;
-  }
-
-  void print_fields_array() {
-    std::cerr << "\t[";
-    for (uint32_t i = 0; i < n_def; i++) {
-      if (i != 0) {
-        std::cerr << ", ";
-      }
-
-      if (get_field(fields_array[i]) == nullptr) {
-        std::cerr << "EMPTY";
-        continue;
-      }
-      std::cerr << "" << get_field(fields_array[i])->name;
-    }
-    std::cerr << "]" << std::endl;
-  }
-#endif
 
   /** Create fields array sorted by phy_pos of field in row */
   void create_fields_array() {
