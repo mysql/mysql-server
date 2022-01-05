@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -994,15 +994,6 @@ int log_loaded_block(IO_CACHE *file);
  */
 bool purge_source_logs_to_file(THD *thd, const char *to_log);
 
-/**
-   @brief Purges the binary log files which are older than the purge time
-   passed as a paramenter.
-
-   @param thd The session context.
-   @param to_log The low water mark for the purge window.
-   @return true if there was an error.
-   @return false if there was no error.
- */
 bool purge_source_logs_before_date(THD *thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 bool mysql_show_binlog_events(THD *thd);
