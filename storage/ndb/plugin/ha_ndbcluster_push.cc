@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1773,8 +1773,6 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     for (const Item_field &substitute_field : item_equal->get_fields()) {
       if (&substitute_field != key_item_field) {
         const uint substitute_table_no = get_table_no(&substitute_field);
-        const ndb_table_access_map sj_nest(
-            m_tables[substitute_table_no].m_sj_nest);
 
         // Substitute table need to:
         // 1) Be part of this pushed join,
@@ -1784,9 +1782,12 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
         //    in SPJ: The 'firstMatch' duplicate elimination may
         //    break out from iterating all the scan-batch combinations,
         //    such that result rows may be omitted.
-        if (m_join_scope.contain(substitute_table_no) &&  // 1)
-            (sj_nest.is_clear_all() ||                    // 2)
-             sj_nest.contain(referred_table_no) || sj_nest.contain(tab_no))) {
+        if (!m_join_scope.contain(substitute_table_no)) continue;  // 1)
+        const ndb_table_access_map sj_nest(
+            m_tables[substitute_table_no].m_sj_nest);
+
+        if (sj_nest.is_clear_all() ||  // 2)
+            sj_nest.contain(referred_table_no) || sj_nest.contain(tab_no)) {
           DBUG_PRINT("info",
                      (" join_items[%d] %s.%s can be replaced with %s.%s",
                       (int)(key_item - table->get_key_field(0)),
