@@ -1022,6 +1022,7 @@ DELIMITER ;|
 --replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
+--sorted_result
 eval $query;
 DROP FUNCTION p;
 
@@ -1126,6 +1127,8 @@ UPDATE t2 JOIN v ON t2.f2=v.f2 SET t2.f1 = t2.f1 + v.f1 WHERE v.f2 > 10;
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 #With multi-table delete 
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
+--skip_if_hypergraph  # Different plan.
 EXPLAIN format=tree DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 

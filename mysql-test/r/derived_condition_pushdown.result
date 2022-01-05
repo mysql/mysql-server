@@ -1682,17 +1682,17 @@ UNION
 SELECT f1, f2 FROM t1) as dt
 WHERE p() = 1;
 f1	SUM(f2)
-NULL	2
 0	0
+1	11
 1	22
+2	22
 2	44
+3	33
 3	66
+4	44
 4	88
 NULL	1
-1	11
-2	22
-3	33
-4	44
+NULL	2
 DROP FUNCTION p;
 CREATE PROCEDURE p()
 BEGIN
@@ -1869,16 +1869,16 @@ EXPLAIN
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 EXPLAIN format=tree DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 EXPLAIN
--> Delete from t2 (immediate)  (cost=18.45 rows=104)
-    -> Nested loop inner join  (cost=18.45 rows=104)
-        -> Filter: (t2.f2 is not null)  (cost=1.55 rows=13)
-            -> Table scan on t2  (cost=1.55 rows=13)
+-> Delete from t2 (immediate) (rows=104)
+    -> Nested loop inner join (rows=104)
+        -> Filter: (t2.f2 is not null) (rows=13)
+            -> Table scan on t2 (rows=13)
         -> Index lookup on v using <auto_key1> (f2=t2.f2)
-            -> Union materialize with deduplication  (cost=3.70..3.70 rows=8)
-                -> Filter: (t1.f2 > 10)  (cost=1.45 rows=4)
-                    -> Table scan on t1  (cost=1.45 rows=12)
-                -> Filter: (t1.f2 > 10)  (cost=1.45 rows=4)
-                    -> Table scan on t1  (cost=1.45 rows=12)
+            -> Union materialize with deduplication (rows=8)
+                -> Filter: (t1.f2 > 10) (rows=4)
+                    -> Table scan on t1 (rows=12)
+                -> Filter: (t1.f2 > 10) (rows=4)
+                    -> Table scan on t1 (rows=12)
 
 DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 DROP VIEW v;
