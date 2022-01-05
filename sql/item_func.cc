@@ -2573,7 +2573,7 @@ longlong Item_func_mod::int_op() {
   // result still unsigned
   MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   return check_integer_overflow(val0_negative ? -res : res, !val0_negative);
-  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_DIAGNOSTIC_POP()
 }
 
 double Item_func_mod::real_op() {
@@ -3483,7 +3483,12 @@ longlong Item_func_round::int_op() {
   if ((dec >= 0) || args[1]->unsigned_flag)
     return value;  // integer have not digits after point
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  // Suppress warning C4146 unary minus operator applied to unsigned type,
+  // result still unsigned
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   abs_dec = -static_cast<ulonglong>(dec);
+  MY_COMPILER_DIAGNOSTIC_POP()
   longlong tmp;
 
   if (abs_dec >= array_elements(log_10_int)) return 0;
