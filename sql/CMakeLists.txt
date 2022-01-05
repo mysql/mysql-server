@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -341,7 +341,6 @@ SET(SQL_GIS_SOURCES
 )
 
 SET(SQL_SHARED_SOURCES
-  abstract_query_plan.cc
   auth/auth_acls.cc
   auth/auth_common.cc
   auth/dynamic_privileges_impl.cc

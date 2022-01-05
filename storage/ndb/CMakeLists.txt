@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ INCLUDE(ndb_add_executable)
 # Add the ndbcluster plugin
 #
 SET(NDBCLUSTER_SOURCES
+  ../../sql/abstract_query_plan.cc
   plugin/ha_ndbcluster.cc
   plugin/ha_ndbcluster_cond.cc
   plugin/ha_ndbcluster_push.cc
