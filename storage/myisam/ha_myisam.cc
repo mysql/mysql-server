@@ -106,12 +106,32 @@ static MYSQL_SYSVAR_SET(
     "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
     nullptr, nullptr, 0, &myisam_recover_typelib);
 
+static void emit_repair_threads_warning(THD *thd, ulong val) {
+  if (val == 1) return;
+
+  if (thd)
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING,
+        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+        ER_THD_NONCONST(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+        "@@myisam_repair_threads");
+  else
+    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+           "@@myisam_repair_threads");
+}
+
+static void repair_threads_update(THD *thd, SYS_VAR *, void *tgt,
+                                  const void *save) {
+  emit_repair_threads_warning(thd, (ulong) * (long *)const_cast<void *>(save));
+  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
+}
+
 static MYSQL_THDVAR_ULONG(
     repair_threads, PLUGIN_VAR_RQCMDARG,
-    "If larger than 1, when repairing a MyISAM table all indexes will be "
-    "created in parallel, with one thread per index. The value of 1 "
+    "DEPRECATED. If larger than 1, when repairing a MyISAM table all indexes "
+    "will be created in parallel, with one thread per index. The value of 1 "
     "disables parallel repair",
-    nullptr, nullptr, 1, 1, ULONG_MAX, 1);
+    nullptr, repair_threads_update, 1, 1, ULONG_MAX, 1);
 
 static MYSQL_THDVAR_ULONGLONG(
     sort_buffer_size, PLUGIN_VAR_RQCMDARG,
@@ -2000,6 +2020,8 @@ static int myisam_init(void *p) {
 #ifdef HAVE_PSI_INTERFACE
   init_myisam_psi_keys();
 #endif
+
+  emit_repair_threads_warning(nullptr, THDVAR(nullptr, repair_threads));
 
   /* Set global variables based on startup options */
   if (myisam_recover_options)
