@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -566,8 +566,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
   // Cleanup and re-init the lex mem_root for re-parse.
   m_lex_mem_root.Clear();
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root, MEM_ROOT_BLOCK_SIZE,
-                 MEM_ROOT_PREALLOC);
+  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   /*
     Switch mem-roots. We store the new LEX and its Items in the

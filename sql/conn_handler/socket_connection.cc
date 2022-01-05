@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,9 @@ extern "C" {
 #include "connection_handler_manager.h"
 
 using std::max;
+
+// Test accept this many times
+static constexpr const uint MAX_ACCEPT_RETRY{10};
 
 /** Number of connection errors when selecting on the listening port */
 static std::atomic<ulong> connection_errors_query_block{0};

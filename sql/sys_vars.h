@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +97,15 @@ template <typename Struct_type, typename Name_getter>
 class Sys_var_struct;
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED>
 class Sys_var_integer;
+
+constexpr const unsigned long TABLE_OPEN_CACHE_DEFAULT{4000};
+constexpr const unsigned long TABLE_DEF_CACHE_DEFAULT{400};
+/**
+  Maximum number of connections default value.
+  151 is larger than Apache's default max children,
+  to avoid "too many connections" error in a common setup.
+*/
+constexpr const unsigned long MAX_CONNECTIONS_DEFAULT{151};
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable

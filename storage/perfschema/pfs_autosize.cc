@@ -32,6 +32,7 @@
 #include "my_psi_config.h"
 #include "my_thread.h" /* For pthread_t */
 #include "sql/sql_const.h"
+#include "sql/sys_vars.h"
 #include "storage/perfschema/pfs_server.h"
 
 using std::max;

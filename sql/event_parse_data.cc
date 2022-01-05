@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,9 +208,6 @@ wrong_value:
 */
 
 int Event_parse_data::init_interval(THD *thd) {
-  String value;
-  Interval interval_tmp;
-
   DBUG_TRACE;
   if (!item_expression) return 0;
 
@@ -226,11 +223,13 @@ int Event_parse_data::init_interval(THD *thd) {
       break;
   }
 
+  StringBuffer<MAX_DATETIME_FULL_WIDTH + 1> value;
+  Interval interval_tmp;
+
   if (!item_expression->fixed &&
       item_expression->fix_fields(thd, &item_expression))
     goto wrong_value;
 
-  value.alloc(MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
     goto wrong_value;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,6 +197,11 @@ using std::max;
 using std::min;
 using std::string;
 using std::to_string;
+
+/** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
+static constexpr const int KEY_DEFAULT_PACK_LENGTH{8};
+/* Max number of enumeration values */
+static constexpr const int MAX_ENUM_VALUES{65535};
 
 #define ER_THD_OR_DEFAULT(thd, X) \
   ((thd) ? ER_THD_NONCONST(thd, X) : ER_DEFAULT_NONCONST(X))

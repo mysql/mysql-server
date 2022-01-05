@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,8 @@ extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
                              PT_hint_list **ret);
 
 static int lex_one_token(Lexer_yystype *yylval, THD *thd);
+
+static constexpr const int MAX_SELECT_NESTING{sizeof(nesting_map) * 8 - 1};
 
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
@@ -588,9 +590,8 @@ Query_expression *LEX::create_query_expr_and_block(
     THD *thd, Query_block *current_query_block, Item *where, Item *having,
     enum_parsing_context ctx) {
   if (current_query_block != nullptr &&
-      current_query_block->nest_level >= (int)MAX_SELECT_NESTING) {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
-             MAX_SELECT_NESTING);
+      current_query_block->nest_level >= MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     return nullptr;
   }
 

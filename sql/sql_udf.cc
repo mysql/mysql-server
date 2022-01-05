@@ -106,6 +106,8 @@ static MEM_ROOT mem;
 static collation_unordered_map<std::string, udf_func *> *udf_hash;
 static mysql_rwlock_t THR_LOCK_udf;
 
+static constexpr const size_t UDF_ALLOC_BLOCK_SIZE{1024};
+
 static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
                          Item_udftype typ);
 static void udf_hash_delete(udf_func *udf);

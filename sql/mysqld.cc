@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -6863,7 +6863,7 @@ static void calculate_mysql_home_from_my_progname() {
       "/runtime_output_directory/"};
 #if defined(_WIN32) || defined(APPLE_XCODE)
   /* Allow Win32 users to move MySQL anywhere */
-  char prg_dev[LIBLEN];
+  char prg_dev[FN_REFLEN];
   my_path(prg_dev, my_progname, nullptr);
 
   // On windows or Xcode the basedir will always be one level up from where
@@ -8416,6 +8416,8 @@ static void adjust_open_files_limit(ulong *requested_open_files) {
     *requested_open_files =
         min<ulong>(effective_open_files, request_open_files);
 }
+
+static constexpr const ulong TABLE_OPEN_CACHE_MIN{400};
 
 static void adjust_max_connections(ulong requested_open_files) {
   ulong limit;

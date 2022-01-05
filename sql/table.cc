@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3669,7 +3669,6 @@ bool check_column_name(const char *name) {
         continue;
       }
     }
-    if (*name == NAMES_SEP_CHAR) return true;
     name++;
     name_length++;
   }

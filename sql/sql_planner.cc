@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,13 @@
 
 using std::max;
 using std::min;
+
+/**
+  Number of rows in a reference table when refereed through a not unique key.
+  This value is only used when we don't know anything about the key
+  distribution.
+*/
+static constexpr const ha_rows MATCHING_ROWS_IN_OTHER_TABLE{10};
 
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static void trace_plan_prefix(JOIN *join, uint idx, table_map excluded_tables);

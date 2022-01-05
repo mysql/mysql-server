@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -635,6 +635,9 @@ bool Item::itemize(Parse_context *pc, Item **res) {
 
 uint Item::decimal_precision() const {
   Item_result restype = result_type();
+  constexpr const uint DATE_INT_DIGITS{8};      /* YYYYMMDD       */
+  constexpr const uint TIME_INT_DIGITS{7};      /* hhhmmss        */
+  constexpr const uint DATETIME_INT_DIGITS{14}; /* YYYYMMDDhhmmss */
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT)) {
     uint prec = my_decimal_length_to_precision(max_char_length(), decimals,

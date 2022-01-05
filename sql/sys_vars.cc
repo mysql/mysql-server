@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,6 +150,65 @@
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+static constexpr const unsigned long DEFAULT_ERROR_COUNT{1024};
+static constexpr const unsigned long DEFAULT_SORT_MEMORY{256UL * 1024UL};
+static constexpr const unsigned HOST_CACHE_SIZE{128};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_DEFAULT{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_DEFAULT{256};
+
+/**
+  We must have room for at least 400 table definitions in the table
+  cache, since otherwise there is no chance prepared
+  statements that use these many tables can work.
+  Prepared statements use table definition cache ids (table_map_id)
+  as table version identifiers. If the table definition
+  cache size is less than the number of tables used in a statement,
+  the contents of the table definition cache is guaranteed to rotate
+  between a prepare and execute. This leads to stable validation
+  errors. In future we shall use more stable version identifiers,
+  for now the only solution is to ensure that the table definition
+  cache can contain at least all tables of a given statement.
+*/
+static constexpr const unsigned long TABLE_DEF_CACHE_MIN{400};
+static constexpr const unsigned long SCHEMA_DEF_CACHE_MIN{256};
+static constexpr const unsigned long STORED_PROGRAM_DEF_CACHE_MIN{256};
+static constexpr const unsigned long TABLESPACE_DEF_CACHE_MIN{256};
+/*
+  Default time to wait before aborting a new client connection
+  that does not respond to "initial server greeting" timely
+*/
+static constexpr const unsigned long CONNECT_TIMEOUT{10};
+
+/* Defaults for deprecated "insert delayed" */
+static constexpr const unsigned long DELAYED_LIMIT{100};
+static constexpr const unsigned long DELAYED_QUEUE_SIZE{1000};
+static constexpr const unsigned long DELAYED_WAIT_TIMEOUT{5 * 60};
+
+static constexpr const unsigned long QUERY_ALLOC_BLOCK_SIZE{8192};
+static constexpr const unsigned long QUERY_ALLOC_PREALLOC_SIZE{8192};
+static constexpr const unsigned long TRANS_ALLOC_PREALLOC_SIZE{4096};
+static constexpr const unsigned long RANGE_ALLOC_BLOCK_SIZE{4096};
+
+// Including the switch in this set, makes its default 'on'
+static constexpr const unsigned long long OPTIMIZER_SWITCH_DEFAULT{
+    OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |
+    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT |
+    OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |
+    OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | OPTIMIZER_SWITCH_MRR |
+    OPTIMIZER_SWITCH_MRR_COST_BASED | OPTIMIZER_SWITCH_BNL |
+    OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_SEMIJOIN |
+    OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_FIRSTMATCH |
+    OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED |
+    OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |
+    OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE |
+    OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |
+    OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX |
+    OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN};
+
+static constexpr const unsigned long MYSQLD_NET_RETRY_COUNT{10};
 
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
