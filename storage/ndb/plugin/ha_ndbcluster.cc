@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -14475,13 +14475,14 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       }
 
       /*
-        Any tables preceding this table, and in its 'query_scope', can
-        be referred as a const-table from the pushed conditions.
+        In a 'Select' any tables preceding this table, and in its 'query_scope'
+        can be referred as a const-table from the pushed conditions.
       */
-      table_map query_scope = table_access->get_tables_in_all_query_scopes();
-      table_map const_expr_tables(query_scope &
-                                  ~table->pos_in_table_list->map());
-
+      table_map const_expr_tables(0);
+      if (thd->lex->sql_command == SQLCOM_SELECT) {
+        table_map query_scope = table_access->get_tables_in_all_query_scopes();
+        const_expr_tables = (query_scope & ~table->pos_in_table_list->map());
+      }
       /* Prepare push of condition to handler, possibly leaving a remainder */
       ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));
     }
