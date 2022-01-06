@@ -40,19 +40,21 @@ let $push_expected = 1;
 --source pushed_join.inc
 
 --echo ####
---echo # Check that operation is not pushed if it prevents 'join buffer'
+--echo # Check that operation is not pushed as HASH_JOIN'ed tables are in
+--echo # different 'Query_scope' branches in the AccessPath
 let $push_query =
   select straight_join count(*)
     from t1 as x1
       join t1 as x2 on x1.d > x2.a + 1000
       join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
 let $push_expected = 0;
-let $push_message = "would prevent using join buffer for table 'x2'";
+let $push_message = "is in a hash-bucket-branch which can't be referred";
 --source pushed_join.inc
 
 --echo ####
---echo # Check that operation is not pushed if it prevents 'join buffer'
---echo # even though other operation is pushed
+--echo # Check that operation is not pushed as HASH_JOIN'ed tables are in
+--echo # different 'Query_scope' branches in the AccessPath. The other table
+--echo # operations in the query are pushed though
 let $push_query =
   select *
     from t1 as x1
@@ -60,7 +62,7 @@ let $push_query =
       join t1 as x3
       join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
 let $push_expected = 1;
-let $push_message = "would prevent using join buffer for table 'x3'";
+let $push_message = "is in a hash-bucket-branch which can't be referred";
 --source pushed_join.inc
 
 drop table t1;

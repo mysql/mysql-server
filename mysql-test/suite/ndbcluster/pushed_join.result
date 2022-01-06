@@ -20,7 +20,8 @@ select * from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 ####
-# Check that operation is not pushed if it prevents 'join buffer'
+# Check that operation is not pushed as HASH_JOIN'ed tables are in
+# different 'Query_scope' branches in the AccessPath
 select straight_join count(*)
 from t1 as x1
 join t1 as x2 on x1.d > x2.a + 1000
@@ -28,8 +29,9 @@ join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
 Expected push message found in EXPLAIN;
 
 ####
-# Check that operation is not pushed if it prevents 'join buffer'
-# even though other operation is pushed
+# Check that operation is not pushed as HASH_JOIN'ed tables are in
+# different 'Query_scope' branches in the AccessPath. The other table
+# operations in the query are pushed though
 select *
 from t1 as x1
 join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b
