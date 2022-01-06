@@ -1006,12 +1006,11 @@ void Table_access::compute_type_and_index() const {
       break;
     }
     case AccessPath::INDEX_SCAN: {
-      // Note that an INDEX_SCAN always 'use_order'
-      // Thus, it should only be either the root, or a child being duplicate
-      // eliminated.
+      // Note that an INDEX_SCAN usually 'use_order'.
+      // In such cases it should only be either the root, or a child
+      // being duplicate eliminated. (Checked in ::is_pushable_as_child())
       const auto &param = m_path->index_scan();
       m_index_no = param.idx;
-      assert(param.use_order);
       m_access_type = AT_ORDERED_INDEX_SCAN;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
