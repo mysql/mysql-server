@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -198,6 +198,8 @@ struct MYSQL_TIME_STATUS {
       m_deprecation.m_position = delim - arg;
     }
   }
+  MYSQL_TIME_STATUS() = default;
+  MYSQL_TIME_STATUS(const MYSQL_TIME_STATUS &) = default;
   /// Assignment: don't clobber an existing deprecation, first one wins
   MYSQL_TIME_STATUS &operator=(const MYSQL_TIME_STATUS &b) {
     warnings = b.warnings;

@@ -2705,8 +2705,8 @@ b
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
-Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 4 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row # is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row # is deprecated. Prefer the standard '-'.
 Warnings:
 
 # range/ref access cannot be used for any of the queries below.

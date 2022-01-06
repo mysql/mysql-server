@@ -1966,6 +1966,7 @@ ANALYZE TABLE t1, t2;
 --echo
 EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 --sorted_result
+--replace_regex /(at row )\d+/\1#/
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 
 let $query_ab=SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
