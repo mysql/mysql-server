@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -440,8 +440,8 @@ the reserved range of lsn values, it resizes the log buffer.
 It's used during reservation of lsn values, when the reserved handle.end_sn is
 greater than log.buf_limit_sn.
 
-@param[in,out]	log		redo log
-@param[in]	handle		handle for the reservation */
+@param[in,out]  log             redo log
+@param[in]      handle          handle for the reservation */
 static void log_wait_for_space_after_reserving(log_t &log,
                                                const Log_handle &handle);
 

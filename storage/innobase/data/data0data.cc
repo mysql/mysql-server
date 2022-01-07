@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -564,12 +564,12 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     }
 
 #if 0
-		/* The following would fail the Valgrind checks in
-		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
-		The BLOB pointers in the record will be initialized after
-		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(data + local_prefix_len,
-			       BTR_EXTERN_FIELD_REF_SIZE);
+                /* The following would fail the Valgrind checks in
+                page_cur_insert_rec_low() and page_cur_insert_rec_zip().
+                The BLOB pointers in the record will be initialized after
+                the record and the BLOBs have been written. */
+                UNIV_MEM_ALLOC(data + local_prefix_len,
+                               BTR_EXTERN_FIELD_REF_SIZE);
 #endif
 
     dfield_set_data(dfield, data, local_len);

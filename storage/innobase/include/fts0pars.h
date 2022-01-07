@@ -53,9 +53,9 @@ typedef union YYSTYPE
 /* Line 2068 of yacc.c  */
 #line 61 "fts0pars.y"
 
-	int			oper;
-	fts_ast_string_t*	token;
-	fts_ast_node_t*		node;
+        int                     oper;
+        fts_ast_string_t*       token;
+        fts_ast_node_t*         node;
 
 
 

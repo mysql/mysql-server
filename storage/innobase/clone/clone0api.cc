@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,7 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 THD *thd_get_current_thd();
 
 /** Check if clone status file exists.
-@param[in]	file_name	file name
+@param[in]      file_name       file name
 @return true if file exists. */
 static bool file_exists(const std::string &file_name) {
   std::ifstream file(file_name.c_str());
@@ -74,8 +74,8 @@ static bool file_exists(const std::string &file_name) {
 
 /** Rename clone status file. The operation is expected to be atomic
 when the files belong to same directory.
-@param[in]	from_file	name of current file
-@param[in]	to_file		name of new file */
+@param[in]      from_file       name of current file
+@param[in]      to_file         name of new file */
 static void rename_file(std::string &from_file, std::string &to_file) {
   auto ret = std::rename(from_file.c_str(), to_file.c_str());
 
@@ -87,7 +87,7 @@ static void rename_file(std::string &from_file, std::string &to_file) {
 }
 
 /** Create clone status file.
-@param[in]	file_name	file name */
+@param[in]      file_name       file name */
 static void create_file(std::string &file_name) {
   std::ofstream file(file_name.c_str());
 
@@ -100,7 +100,7 @@ static void create_file(std::string &file_name) {
 }
 
 /** Delete clone status file.
-@param[in]	file	name of file */
+@param[in]      file    name of file */
 static void remove_file(const std::string &file) {
   /* Allow non existent file, as the server could have crashed or returned with
   error before creating the file. This is needed during error cleanup. */
@@ -117,7 +117,7 @@ static void remove_file(const std::string &file) {
 }
 
 /** Create clone in progress file and error file.
-@param[in]	clone	clone handle */
+@param[in]      clone   clone handle */
 static void create_status_file(const Clone_Handle *clone) {
   const char *path = clone->get_datadir();
   std::string file_name;
@@ -140,7 +140,7 @@ static void create_status_file(const Clone_Handle *clone) {
 }
 
 /** Drop clone in progress file and error file.
-@param[in]	clone	clone handle */
+@param[in]      clone   clone handle */
 static void drop_status_file(const Clone_Handle *clone) {
   const char *path = clone->get_datadir();
   std::string file_name;
@@ -244,39 +244,39 @@ static void track_redo_files() {
 }
 
 /** Execute sql statement.
-@param[in,out]	thd		current THD
-@param[in]	sql_stmt	SQL statement
-@param[in]	thread_number	executing thread number
-@param[in]	skip_error	skip statement on error
+@param[in,out]  thd             current THD
+@param[in]      sql_stmt        SQL statement
+@param[in]      thread_number   executing thread number
+@param[in]      skip_error      skip statement on error
 @return false, if successful. */
 static bool clone_execute_query(THD *thd, const char *sql_stmt,
                                 size_t thread_number, bool skip_error);
 
 /** Delete all binary logs before clone.
-@param[in]	thd	current THD
+@param[in]      thd     current THD
 @return error code */
 static int clone_drop_binary_logs(THD *thd);
 
 /** Drop all user data before starting clone.
-@param[in,out]	thd		current THD
-@param[in]	allow_threads	allow multiple threads
+@param[in,out]  thd             current THD
+@param[in]      allow_threads   allow multiple threads
 @return error code */
 static int clone_drop_user_data(THD *thd, bool allow_threads);
 
 /** Initialize transparent page compression in innodb space by checking
 all innodb tables in DD. Usually this initialization is done later when
 user opens a table. Clone needs to read this from innodb space object.
-@param[in,out]	thd	session THD */
+@param[in,out]  thd     session THD */
 static void clone_init_compression(THD *thd);
 
 /** Open all Innodb tablespaces.
-@param[in,out]	thd	session THD
+@param[in,out]  thd     session THD
 @return error code. */
 static int clone_init_tablespaces(THD *thd);
 
 /** Set security context to skip privilege check.
-@param[in,out]	thd	session THD
-@param[in,out]	sctx	security context */
+@param[in,out]  thd     session THD
+@param[in,out]  sctx    security context */
 static void skip_grants(THD *thd, Security_context &sctx) {
   /* Take care of the possible side effect of skipping grant i.e.
   setting SYSTEM_USER privilege flag. */
@@ -295,7 +295,7 @@ void innodb_clone_get_capability(Ha_clone_flagset &flags) {
 }
 
 /** Check if clone can be started.
-@param[in,out]	thd	session THD
+@param[in,out]  thd     session THD
 @return error code. */
 static int clone_begin_check(THD *thd) {
   ut_ad(mutex_own(clone_sys->get_mutex()));
@@ -315,9 +315,9 @@ static int clone_begin_check(THD *thd) {
 }
 
 /** Get clone timeout configuration value.
-@param[in,out]	thd		server thread handle
-@param[in]	config_name	timeout configuration name
-@param[out]	timeout		timeout value
+@param[in,out]  thd             server thread handle
+@param[in]      config_name     timeout configuration name
+@param[out]     timeout         timeout value
 @return true iff successful. */
 static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
                                      int &timeout) {
@@ -357,7 +357,7 @@ static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
 }
 
 /** Timeout while waiting for DDL commands.
-@param[in,out]	thd	server thread handle
+@param[in,out]  thd     server thread handle
 @return donor timeout in seconds. */
 static int get_ddl_timeout(THD *thd) {
   int timeout = 0;
@@ -598,7 +598,7 @@ int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 }
 
 /** Timeout while waiting for recipient after network failure.
-@param[in,out]	thd	server thread handle
+@param[in,out]  thd     server thread handle
 @return donor timeout in minutes. */
 static Clone_Min get_donor_timeout(THD *thd) {
   int timeout = 0;
@@ -1003,7 +1003,7 @@ const int FILE_STATE_REPLACED = FILE_SAVED + FILE_DATA;
 */
 
 /** Get current state of a clone file.
-@param[in]	data_file	data file name
+@param[in]      data_file       data file name
 @return current file state. */
 static int get_file_state(std::string data_file) {
   int state = 0;
@@ -1031,8 +1031,8 @@ static int get_file_state(std::string data_file) {
 }
 
 /** Roll forward clone file state till final state.
-@param[in]	data_file	data file name
-@param[in]	final_state	data file state to forward to
+@param[in]      data_file       data file name
+@param[in]      final_state     data file state to forward to
 @return previous file state before roll forward. */
 static int file_roll_forward(std::string &data_file, int final_state) {
   auto cur_state = get_file_state(data_file);
@@ -1092,7 +1092,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
 }
 
 /** Roll back clone file state to normal state.
-@param[in]	data_file	data file name */
+@param[in]      data_file       data file name */
 static void file_rollback(std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
@@ -1158,8 +1158,8 @@ undo tablespace could be expensive as we need to wait for purge to finish.
 */
 
 /** Roll forward old data file state till final state.
-@param[in]	data_file	data file name
-@param[in]	final_state	data file state to forward to */
+@param[in]      data_file       data file name
+@param[in]      final_state     data file state to forward to */
 static void old_file_roll_forward(std::string &data_file, int final_state) {
   auto cur_state = get_file_state(data_file);
 
@@ -1213,7 +1213,7 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
 }
 
 /** Roll back old data file state to normal state.
-@param[in]	data_file	data file name */
+@param[in]      data_file       data file name */
 static void old_file_rollback(std::string &data_file) {
   auto cur_state = get_file_state(data_file);
 
@@ -1279,9 +1279,9 @@ static void clone_files_fatal_error() {
 }
 
 /** Update recovery status file at end of clone recovery.
-@param[in]	finished	true if finishing clone recovery
-@param[in]	is_error	if recovery error
-@param[in]	is_replace	true, if replacing current directory */
+@param[in]      finished        true if finishing clone recovery
+@param[in]      is_error        if recovery error
+@param[in]      is_replace      true, if replacing current directory */
 static void clone_update_recovery_status(bool finished, bool is_error,
                                          bool is_replace) {
   /* true, when we are recovering a cloned database. */
@@ -1380,7 +1380,7 @@ static void clone_update_recovery_status(bool finished, bool is_error,
 }
 
 /** Initialize recovery status for cloned recovery.
-@param[in]	replace		we are replacing current directory. */
+@param[in]      replace         we are replacing current directory. */
 static void clone_init_recovery_status(bool replace) {
   std::string file_name;
   file_name.assign(CLONE_INNODB_RECOVERY_FILE);
@@ -1437,8 +1437,8 @@ void clone_update_gtid_status(std::string &gtids) {
 using Remove_cbk = std::function<void(std::string &)>;
 
 /** Process all entries and remove status file.
-@param[in]	file_name	status file name
-@param[in]	process		callback to process entries */
+@param[in]      file_name       status file name
+@param[in]      process         callback to process entries */
 static void process_remove_file(const char *file_name, Remove_cbk &process) {
   std::ifstream files;
   std::string data_file;
@@ -1656,16 +1656,16 @@ C. Drop all user tablespaces.  */
 class Fixup_data {
  public:
   /** Constructor.
-  @param[in]	concurrent	spawn multiple threads
-  @param[in]	is_drop		the operation is drop */
+  @param[in]    concurrent      spawn multiple threads
+  @param[in]    is_drop         the operation is drop */
   Fixup_data(bool concurrent, bool is_drop)
       : m_num_tasks(), m_concurrent(concurrent), m_drop(is_drop) {
     m_num_errors.store(0);
   }
 
   /** Fix tables for which data is not cloned.
-  @param[in,out]	thd		current	THD
-  @param[in]		dd_objects	table/schema/tablespace from DD
+  @param[in,out]        thd             current THD
+  @param[in]            dd_objects      table/schema/tablespace from DD
   @return true if error */
   template <typename T>
   bool fix(THD *thd, const DD_Objs<T> &dd_objects) {
@@ -1682,7 +1682,7 @@ class Fixup_data {
 
   /** Remove data cloned from configuration tables which are not relevant
   in recipient.
-  @param[in,out]	thd	current	THD
+  @param[in,out]        thd     current THD
   @return true if error */
   bool fix_config_tables(THD *thd);
 
@@ -1694,17 +1694,17 @@ class Fixup_data {
 
  private:
   /** Check and fix specific DD object.
-  @param[in,out]	thd		current	THD
-  @param[in]		object		DD object
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            object          DD object
+  @param[in]            thread_number   current thread number. */
   template <typename T>
   bool fix_one_object(THD *thd, const T *object, size_t thread_number);
 
   /** Check and fix a rangle of DD objects
-  @param[in,out]	thd		current	THD
-  @param[in]		begin		first element in current slice
-  @param[in]		end		last element in current slice
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            begin           first element in current slice
+  @param[in]            end             last element in current slice
+  @param[in]            thread_number   current thread number. */
   template <typename T>
   void fix_objects(THD *thd, const DD_Objs_Iter<T> &begin,
                    const DD_Objs_Iter<T> &end, size_t thread_number);
@@ -1713,7 +1713,7 @@ class Fixup_data {
   size_t get_num_tasks() const { return (m_num_tasks); }
 
   /** Calculate and set number of new tasks to spawn.
-  @param[in]	num_entries	number of entries to handle */
+  @param[in]    num_entries     number of entries to handle */
   void set_num_tasks(size_t num_entries) {
     /* Check if we are allowed to spawn multiple threads. Disable
     multithreading while dropping objects for now. We need more
@@ -1756,7 +1756,7 @@ class Fixup_data {
   }
 
   /** Check if the current SE type should be skipped.
-  @param[in]	type	SE type
+  @param[in]    type    SE type
   @return true iff the SE needs to be skipped. */
   bool skip_se_tables(enum legacy_db_type type) {
     /* Don't skip any specific DB during drop operation. All existing
@@ -1773,14 +1773,14 @@ class Fixup_data {
   }
 
   /** Check if the schema is performance schema.
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff performance schema. */
   bool is_performance_schema(const char *schema_name) const {
     return (0 == strcmp(schema_name, PERFORMANCE_SCHEMA_DB_NAME.str));
   }
 
   /** Check if the current schema is system schema
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff system schema. */
   bool is_system_schema(const char *schema_name) const {
     if (0 == strcmp(schema_name, MYSQL_SCHEMA_NAME.str) ||
@@ -1793,9 +1793,9 @@ class Fixup_data {
   }
 
   /** Check if the current schema tables needs to be skipped.
-  @param[in]	table		DD table
-  @param[in]	table_name	table name
-  @param[in]	schema_name	schema name
+  @param[in]    table           DD table
+  @param[in]    table_name      table name
+  @param[in]    schema_name     schema name
   @return true iff table needs to be skipped. */
   bool skip_schema_tables(const dd::Table *table, const char *table_name,
                           const char *schema_name) {
@@ -1844,7 +1844,7 @@ class Fixup_data {
   }
 
   /** Check if the current schema needs to be skipped.
-  @param[in]	schema_name	schema name
+  @param[in]    schema_name     schema name
   @return true iff schema needs to be skipped. */
   bool skip_schema(const char *schema_name) {
     /* Don't drop system schema. */
@@ -1859,8 +1859,8 @@ class Fixup_data {
   }
 
   /** Check if the current tablespace needs to be skipped.
-  @param[in,out]	thd		current	THD
-  @param[in]		dd_space	dd tablespace
+  @param[in,out]        thd             current THD
+  @param[in]            dd_space        dd tablespace
   @return true iff tablespace needs to be skipped. */
   bool skip_tablespace(THD *thd, const dd::Tablespace *dd_space) {
     /* System tablespaces are in Innodb. Skip other engines. */
@@ -1928,11 +1928,11 @@ class Fixup_data {
   }
 
   /** Form and execute sql command.
-  @param[in,out]	thd		current	THD
-  @param[in]		schema_name	schema name
-  @param[in]		table_name	table name
-  @param[in]		tablespace_name	tablespace name
-  @param[in]		thread_number	current thread number. */
+  @param[in,out]        thd             current THD
+  @param[in]            schema_name     schema name
+  @param[in]            table_name      table name
+  @param[in]            tablespace_name tablespace name
+  @param[in]            thread_number   current thread number. */
   bool execute_sql(THD *thd, const char *schema_name, const char *table_name,
                    const char *tablespace_name, size_t thread_number);
 

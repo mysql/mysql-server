@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1016,12 +1016,12 @@ static void pars_process_assign_list(upd_node_t *node) /*!< in: update node */
     pars_resolve_exp_columns(table_sym, assign_node->val);
     pars_resolve_exp_variables_and_types(nullptr, assign_node->val);
 #if 0
-		ut_a(dtype_get_mtype(
-			     dfield_get_type(que_node_get_val(
-						     assign_node->col)))
-		     == dtype_get_mtype(
-			     dfield_get_type(que_node_get_val(
-						     assign_node->val))));
+                ut_a(dtype_get_mtype(
+                             dfield_get_type(que_node_get_val(
+                                                     assign_node->col)))
+                     == dtype_get_mtype(
+                             dfield_get_type(que_node_get_val(
+                                                     assign_node->val))));
 #endif
 
     /* Add to the update node all the columns found in assignment
@@ -1724,11 +1724,11 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 /** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
-@param[in]	node		root node for an incomplete query
+@param[in]      node            root node for an incomplete query
                                 graph, or NULL for dummy graph
-@param[in]	trx		transaction handle
-@param[in]	heap		memory heap from which allocated
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      trx             transaction handle
+@param[in]      heap            memory heap from which allocated
+@param[in]      prebuilt        row prebuilt structure
 @return query thread node to run */
 que_thr_t *pars_complete_graph_for_exec(que_node_t *node, trx_t *trx,
                                         mem_heap_t *heap,
@@ -1998,10 +1998,10 @@ void pars_info_bind_function(pars_info_t *info, const char *name,
 }
 
 /** Add bound id.
-@param[in]	info		info struct
-@param[in]	copy_name	copy name if TRUE
-@param[in]	name		name
-@param[in]	id		id */
+@param[in]      info            info struct
+@param[in]      copy_name       copy name if TRUE
+@param[in]      name            name
+@param[in]      id              id */
 void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
                        const char *id) {
   pars_bound_id_t *bid;
@@ -2028,8 +2028,8 @@ void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
 }
 
 /** Get bound identifier with the given name.
-@param[in]	info	info struct
-@param[in]	name	bound id name to find
+@param[in]      info    info struct
+@param[in]      name    bound id name to find
 @return bound id, or NULL if not found */
 pars_bound_id_t *pars_info_get_bound_id(pars_info_t *info, const char *name) {
   return (pars_info_lookup_bound_id(info, name));

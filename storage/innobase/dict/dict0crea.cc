@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,8 +87,8 @@ dberr_t dict_build_table_def(dict_table_t *table,
 }
 
 /** Builds a tablespace to store various objects.
-@param[in,out]	trx		DD transaction
-@param[in,out]	tablespace	Tablespace object describing what to build.
+@param[in,out]  trx             DD transaction
+@param[in,out]  tablespace      Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   dberr_t err = DB_SUCCESS;
@@ -382,8 +382,8 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
 }
 
 /** Creates an index tree for the index if it is not a member of a cluster.
-@param[in,out]	index	InnoDB index object
-@param[in,out]	trx	transaction
+@param[in,out]  index   InnoDB index object
+@param[in,out]  trx     transaction
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
   mtr_t mtr;
@@ -446,8 +446,8 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 }
 
 /** Drop an index tree belonging to a temporary table.
-@param[in]	index		index in a temporary table
-@param[in]	root_page_no	index root page number */
+@param[in]      index           index in a temporary table
+@param[in]      root_page_no    index root page number */
 void dict_drop_temporary_table_index(const dict_index_t *index,
                                      page_no_t root_page_no) {
   ut_ad(dict_sys_mutex_own() || index->table->is_intrinsic());
@@ -467,9 +467,9 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
 }
 
 /** Check whether a column is in an index by the column name
-@param[in]	col_name	column name for the column to be checked
-@param[in]	index		the index to be searched
-@return	true if this column is in the index, otherwise, false */
+@param[in]      col_name        column name for the column to be checked
+@param[in]      index           the index to be searched
+@return true if this column is in the index, otherwise, false */
 static bool dict_index_has_col_by_name(const char *col_name,
                                        const dict_index_t *index) {
   for (ulint i = 0; i < index->n_fields; i++) {
@@ -484,9 +484,9 @@ static bool dict_index_has_col_by_name(const char *col_name,
 
 /** Check whether the foreign constraint could be on a column that is
 part of a virtual index (index contains virtual column) in the table
-@param[in]	fk_col_name	FK column name to be checked
-@param[in]	table		the table
-@return	true if this column is indexed with other virtual columns */
+@param[in]      fk_col_name     FK column name to be checked
+@param[in]      table           the table
+@return true if this column is indexed with other virtual columns */
 bool dict_foreign_has_col_in_v_index(const char *fk_col_name,
                                      const dict_table_t *table) {
   /* virtual column can't be Primary Key, so start with secondary index */
@@ -504,9 +504,9 @@ bool dict_foreign_has_col_in_v_index(const char *fk_col_name,
 
 /** Check whether the foreign constraint could be on a column that is
 a base column of some indexed virtual columns.
-@param[in]	col_name	column name for the column to be checked
-@param[in]	table		the table
-@return	true if this column is a base column, otherwise, false */
+@param[in]      col_name        column name for the column to be checked
+@param[in]      table           the table
+@return true if this column is a base column, otherwise, false */
 bool dict_foreign_has_col_as_base_col(const char *col_name,
                                       const dict_table_t *table) {
   /* Loop through each virtual column and check if its base column has
@@ -530,8 +530,8 @@ bool dict_foreign_has_col_as_base_col(const char *col_name,
 }
 
 /** Check if a foreign constraint is on the given column name.
-@param[in]	col_name	column name to be searched for fk constraint
-@param[in]	table		table to which foreign key constraint belongs
+@param[in]      col_name        column name to be searched for fk constraint
+@param[in]      table           table to which foreign key constraint belongs
 @return true if fk constraint is present on the table, false otherwise. */
 static bool dict_foreign_base_for_stored(const char *col_name,
                                          const dict_table_t *table) {
@@ -561,9 +561,9 @@ static bool dict_foreign_base_for_stored(const char *col_name,
 /** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
 constraint on such columns
-@param[in]	local_fk_set	set of foreign key objects, to be added to
+@param[in]      local_fk_set    set of foreign key objects, to be added to
 the dictionary tables
-@param[in]	table		table to which the foreign key objects in
+@param[in]      table           table to which the foreign key objects in
 local_fk_set belong to
 @return true if yes, otherwise, false */
 bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
@@ -600,8 +600,8 @@ bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
 
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
-@param[in]	table		table
-@param[in]	col_name	name for the column to be checked
+@param[in]      table           table
+@param[in]      col_name        name for the column to be checked
 @return true if the column is in foreign constraint, otherwise, false */
 bool dict_foreigns_has_this_col(const dict_table_t *table,
                                 const char *col_name) {
@@ -642,10 +642,10 @@ void dict_table_assign_new_id(dict_table_t *table) {
 }
 
 /** Create in-memory tablespace dictionary index & table
-@param[in]	space		tablespace id
-@param[in]	space_discarded	true if space is discarded
-@param[in]	in_flags	space flags to use when space_discarded is true
-@param[in]	is_create	true when creating SDI index
+@param[in]      space           tablespace id
+@param[in]      space_discarded true if space is discarded
+@param[in]      in_flags        space flags to use when space_discarded is true
+@param[in]      is_create       true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
                                          uint32_t in_flags, bool is_create) {

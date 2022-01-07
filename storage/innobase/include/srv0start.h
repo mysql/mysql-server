@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -88,7 +88,7 @@ referenced by the TRX_SYS page.
 dberr_t srv_undo_tablespaces_upgrade();
 
 /** Start InnoDB.
-@param[in]	create_new_db		Whether to create a new database
+@param[in]      create_new_db           Whether to create a new database
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t srv_start(bool create_new_db);
 
@@ -107,7 +107,7 @@ any tables (including data dictionary tables) can be accessed. */
 void srv_dict_recover_on_restart();
 
 /** Start up the InnoDB service threads which are independent of DDL recovery
-@param[in]	bootstrap	True if this is in bootstrap */
+@param[in]      bootstrap       True if this is in bootstrap */
 void srv_start_threads(bool bootstrap);
 
 /** Start the remaining InnoDB service threads which must wait for
@@ -120,9 +120,9 @@ void srv_start_purge_threads();
 
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length */
+@param[in]      table           table object
+@param[out]     filename        filename
+@param[in]      max_len         filename max length */
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
                                       ulint max_len);
 #endif /* !UNIV_HOTBACKUP */

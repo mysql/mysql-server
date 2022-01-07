@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,15 +40,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Replace a large object (LOB) with the given new data.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clust index that contains the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clust index that contains the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
 @return DB_SUCCESS on success, error code on failure. */
 static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
@@ -58,8 +58,8 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 #ifdef UNIV_DEBUG
 /** Print an information message in the server log file, informing
 that the ZLOB partial update feature code is hit.
-@param[in]	uf	the update field information
-@param[in]	index	index where partial update happens.*/
+@param[in]      uf      the update field information
+@param[in]      index   index where partial update happens.*/
 static void z_print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
   ib::info(ER_IB_MSG_633) << "ZLOB partial update of field=("
                           << uf->mysql_field->field_name << ") on index=("
@@ -69,12 +69,12 @@ static void z_print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 #endif /* UNIV_DEBUG */
 
 /** Update a portion of the given LOB.
-@param[in]	ctx		update operation context information.
-@param[in]	trx		the transaction that is doing the modification.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	upd		update vector
-@param[in]	field_no	the LOB field number
-@param[in]	blobref		LOB reference stored in clust record.
+@param[in]      ctx             update operation context information.
+@param[in]      trx             the transaction that is doing the modification.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      upd             update vector
+@param[in]      field_no        the LOB field number
+@param[in]      blobref         LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                  const upd_t *upd, ulint field_no, ref_t blobref) {
@@ -127,10 +127,10 @@ dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 }
 
 /** Find the location of the given offset within LOB.
-@param[in]	index		The index where LOB is located.
-@param[in]	node_loc	The location of first page.
-@param[in,out]	offset		The requested offset.
-@param[in]	mtr		Mini-transaction context.
+@param[in]      index           The index where LOB is located.
+@param[in]      node_loc        The location of first page.
+@param[in,out]  offset          The requested offset.
+@param[in]      mtr             Mini-transaction context.
 @return the file address of requested offset or fil_addr_null. */
 fil_addr_t z_find_offset(dict_index_t *index, fil_addr_t node_loc,
                          ulint &offset, mtr_t *mtr) {
@@ -162,15 +162,15 @@ fil_addr_t z_find_offset(dict_index_t *index, fil_addr_t node_loc,
 }
 
 /** Replace a large object (LOB) with the given new data.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clust index that contains the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clust index that contains the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
 @return DB_SUCCESS on success, error code on failure. */
 static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,

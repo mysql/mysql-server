@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,10 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 
 /** Check whether all non-virtual columns in a index entries match
-@param[in]	index		the secondary index
-@param[in]	ientry1		first index entry to compare
-@param[in]	ientry2		second index entry to compare
-@param[in,out]	n_non_v_col		number of non-virtual columns
+@param[in]      index           the secondary index
+@param[in]      ientry1         first index entry to compare
+@param[in]      ientry2         second index entry to compare
+@param[in,out]  n_non_v_col             number of non-virtual columns
 in the index
 @return true if all matches, false otherwise */
 static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
@@ -575,9 +575,9 @@ trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
 
 /** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
- @param[in]	trx_id		Transaction id in the version
- @param[in]	name		Table name
- @param[in,out]	mtr		Mini-transaction holding the latch on the
+ @param[in]     trx_id          Transaction id in the version
+ @param[in]     name            Table name
+ @param[in,out] mtr             Mini-transaction holding the latch on the
                                  clustered index record; it will also hold
                                  the latch on purge_view
  @return true if earlier version should be preserved */
@@ -591,10 +591,10 @@ ibool row_vers_must_preserve_del_marked(trx_id_t trx_id,
 }
 
 /** Check whether all non-virtual columns in a index entries match
-@param[in]	index		the secondary index
-@param[in]	ientry1		first index entry to compare
-@param[in]	ientry2		second index entry to compare
-@param[in,out]	n_non_v_col		number of non-virtual columns
+@param[in]      index           the secondary index
+@param[in]      ientry1         first index entry to compare
+@param[in]      ientry2         second index entry to compare
+@param[in,out]  n_non_v_col             number of non-virtual columns
 in the index
 @return true if all matches, false otherwise */
 static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
@@ -634,10 +634,10 @@ static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
 }
 
 /** build virtual column value from current cluster index record data
-@param[in,out]	row		the cluster index row in dtuple form
-@param[in]	clust_index	clustered index
-@param[in]	index		the secondary index
-@param[in]	heap		heap used to build virtual dtuple */
+@param[in,out]  row             the cluster index row in dtuple form
+@param[in]      clust_index     clustered index
+@param[in]      index           the secondary index
+@param[in]      heap            heap used to build virtual dtuple */
 static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
                                        dict_index_t *index, mem_heap_t *heap) {
   mem_heap_t *local_heap = nullptr;
@@ -661,16 +661,16 @@ static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
 }
 
 /** Build latest virtual column data from undo log
-@param[in]	in_purge	whether this is the purge thread
-@param[in]	rec		clustered index record
-@param[in]	clust_index	clustered index
-@param[in,out]	clust_offsets	offsets on the clustered index record
-@param[in]	index		the secondary index
-@param[in]	roll_ptr	the rollback pointer for the purging record
-@param[in]	trx_id		trx id for the purging record
-@param[in,out]	v_heap		heap used to build vrow
-@param[out]	vrow		dtuple holding the virtual rows
-@param[in,out]	mtr		mtr holding the latch on rec */
+@param[in]      in_purge        whether this is the purge thread
+@param[in]      rec             clustered index record
+@param[in]      clust_index     clustered index
+@param[in,out]  clust_offsets   offsets on the clustered index record
+@param[in]      index           the secondary index
+@param[in]      roll_ptr        the rollback pointer for the purging record
+@param[in]      trx_id          trx id for the purging record
+@param[in,out]  v_heap          heap used to build vrow
+@param[out]     vrow            dtuple holding the virtual rows
+@param[in,out]  mtr             mtr holding the latch on rec */
 static void row_vers_build_cur_vrow_low(
     bool in_purge, const rec_t *rec, dict_index_t *clust_index,
     ulint *clust_offsets, dict_index_t *index, roll_ptr_t roll_ptr,
@@ -758,18 +758,18 @@ static void row_vers_build_cur_vrow_low(
 /** Check a virtual column value index secondary virtual index matches
 that of current cluster index record, which is recreated from information
 stored in undo log
-@param[in]	in_purge	called by purge thread
-@param[in]	rec		record in the clustered index
-@param[in]	icentry		the index entry built from a cluster row
-@param[in]	clust_index	cluster index
-@param[in]	clust_offsets	offsets on the cluster record
-@param[in]	index		the secondary index
-@param[in]	ientry		the secondary index entry
-@param[in]	roll_ptr	the rollback pointer for the purging record
-@param[in]	trx_id		trx id for the purging record
-@param[in,out]	v_heap		heap used to build virtual dtuple
-@param[in,out]	vrow		dtuple holding the virtual rows (if needed)
-@param[in]	mtr		mtr holding the latch on rec
+@param[in]      in_purge        called by purge thread
+@param[in]      rec             record in the clustered index
+@param[in]      icentry         the index entry built from a cluster row
+@param[in]      clust_index     cluster index
+@param[in]      clust_offsets   offsets on the cluster record
+@param[in]      index           the secondary index
+@param[in]      ientry          the secondary index entry
+@param[in]      roll_ptr        the rollback pointer for the purging record
+@param[in]      trx_id          trx id for the purging record
+@param[in,out]  v_heap          heap used to build virtual dtuple
+@param[in,out]  vrow            dtuple holding the virtual rows (if needed)
+@param[in]      mtr             mtr holding the latch on rec
 @return true if matches, false otherwise */
 static bool row_vers_vc_matches_cluster(
     bool in_purge, const rec_t *rec, const dtuple_t *icentry,
@@ -919,16 +919,16 @@ func_exit:
 }
 
 /** Build a dtuple contains virtual column data for current cluster index
-@param[in]	in_purge	called by purge thread
-@param[in]	rec		cluster index rec
-@param[in]	clust_index	cluster index
-@param[in]	clust_offsets	cluster rec offset
-@param[in]	index		secondary index
-@param[in]	roll_ptr	roll_ptr for the purge record
-@param[in]	trx_id		transaction ID on the purging record
-@param[in,out]	heap		heap memory
-@param[in,out]	v_heap		heap memory to keep virtual column dtuple
-@param[in]	mtr		mtr holding the latch on rec
+@param[in]      in_purge        called by purge thread
+@param[in]      rec             cluster index rec
+@param[in]      clust_index     cluster index
+@param[in]      clust_offsets   cluster rec offset
+@param[in]      index           secondary index
+@param[in]      roll_ptr        roll_ptr for the purge record
+@param[in]      trx_id          transaction ID on the purging record
+@param[in,out]  heap            heap memory
+@param[in,out]  v_heap          heap memory to keep virtual column dtuple
+@param[in]      mtr             mtr holding the latch on rec
 @return dtuple contains virtual column data */
 static const dtuple_t *row_vers_build_cur_vrow(
     bool in_purge, const rec_t *rec, dict_index_t *clust_index,

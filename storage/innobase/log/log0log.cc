@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -397,74 +397,74 @@ mysql_pfs_key_t log_write_notifier_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /** Calculates proper size for the log buffer and allocates the log buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_buffer(log_t &log);
 
 /** Deallocates the log buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_buffer(log_t &log);
 
 /** Allocates the log write-ahead buffer (aligned to system page for
 easier migrations between NUMA nodes).
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_write_ahead_buffer(log_t &log);
 
 /** Deallocates the log write-ahead buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_write_ahead_buffer(log_t &log);
 
 /** Allocates the log checkpoint buffer (used to write checkpoint headers).
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_checkpoint_buffer(log_t &log);
 
 /** Deallocates the log checkpoint buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_checkpoint_buffer(log_t &log);
 
 /** Allocates the array with flush events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_flush_events(log_t &log);
 
 /** Deallocates the array with flush events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_flush_events(log_t &log);
 
 /** Deallocates the array with write events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_write_events(log_t &log);
 
 /** Allocates the array with write events.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_write_events(log_t &log);
 
 /** Allocates the log recent written buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_recent_written(log_t &log);
 
 /** Deallocates the log recent written buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_recent_written(log_t &log);
 
 /** Allocates the log recent closed buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_recent_closed(log_t &log);
 
 /** Deallocates the log recent closed buffer.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_recent_closed(log_t &log);
 
 /** Allocates buffers for headers of the log files.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_allocate_file_header_buffers(log_t &log);
 
 /** Deallocates buffers for headers of the log files.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_deallocate_file_header_buffers(log_t &log);
 
 /** Calculates proper size of the log buffer and updates related fields.
 Calculations are based on current value of srv_log_buffer_size. Note,
 that the proper size of the log buffer should be a power of two.
-@param[out]	log		redo log */
+@param[out]     log             redo log */
 static void log_calc_buf_size(log_t &log);
 
 /** Pauses writer, flusher and notifiers and switches user threads
@@ -472,17 +472,17 @@ to write log as former version.
 NOTE: These pause/resume functions should be protected by mutex while serving.
 The caller innodb_log_writer_threads_update() is protected
 by LOCK_global_system_variables in mysqld.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_pause_writer_threads(log_t &log);
 
 /** Resumes writer, flusher and notifiers and switches user threads
 not to write log.
-@param[out]	log	redo log */
+@param[out]     log     redo log */
 static void log_resume_writer_threads(log_t &log);
 
 /**************************************************/ /**
 
- @name	Initialization and finalization of log_sys
+ @name  Initialization and finalization of log_sys
 
  *******************************************************/
 
@@ -728,7 +728,7 @@ void log_sys_close() {
 
 /**************************************************/ /**
 
- @name	Start / stop of background threads
+ @name  Start / stop of background threads
 
  *******************************************************/
 
@@ -943,7 +943,7 @@ void log_control_writer_threads(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Status printing
+ @name  Status printing
 
  *******************************************************/
 
@@ -1017,7 +1017,7 @@ void log_refresh_stats(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Resizing of buffers
+ @name  Resizing of buffers
 
  *******************************************************/
 
@@ -1126,7 +1126,7 @@ static void log_calc_buf_size(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Allocation / deallocation of buffers
+ @name  Allocation / deallocation of buffers
 
  *******************************************************/
 
@@ -1261,7 +1261,7 @@ static void log_deallocate_file_header_buffers(log_t &log) {
 
 /**************************************************/ /**
 
- @name	Log position locking (for replication)
+ @name  Log position locking (for replication)
 
  *******************************************************/
 

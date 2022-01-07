@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -207,7 +207,7 @@ temporary table */
        string, this is ORed to the precise type: \
        this only holds for tables created with   \
        >= MySQL-4.0.14 */
-/* #define	DATA_NONLATIN1	2048 This is a relic from < 4.1.2 and < 5.0.1.
+/* #define      DATA_NONLATIN1  2048 This is a relic from < 4.1.2 and < 5.0.1.
                                 In earlier versions this was set for some
                                 BLOB columns.
 */
@@ -325,16 +325,16 @@ ibool dtype_is_non_binary_string_type(ulint mtype,   /*!< in: main data type */
                                       ulint prtype); /*!< in: precise type */
 
 /** Sets a data type structure.
-@param[in]	type	type struct to init
-@param[in]	mtype	main data type
-@param[in]	prtype	precise type
-@param[in]	len	precision of type */
+@param[in]      type    type struct to init
+@param[in]      mtype   main data type
+@param[in]      prtype  precise type
+@param[in]      len     precision of type */
 static inline void dtype_set(dtype_t *type, ulint mtype, ulint prtype,
                              ulint len);
 
 /** Copies a data type structure.
-@param[in]	type1	type struct to copy to
-@param[in]	type2	type struct to copy from */
+@param[in]      type1   type struct to copy to
+@param[in]      type2   type struct to copy from */
 static inline void dtype_copy(dtype_t *type1, const dtype_t *type2);
 
 /** Gets the SQL main data type.
@@ -346,10 +346,10 @@ static inline ulint dtype_get_prtype(const dtype_t *type); /*!< in: data type */
 
 #ifndef UNIV_HOTBACKUP
 /** Compute the mbminlen and mbmaxlen members of a data type structure.
-@param[in]	mtype		main type
-@param[in]	prtype		precise type (and collation)
-@param[out]	mbminlen	minimum length of a multi-byte character
-@param[out]	mbmaxlen	maximum length of a multi-byte character */
+@param[in]      mtype           main type
+@param[in]      prtype          precise type (and collation)
+@param[out]     mbminlen        minimum length of a multi-byte character
+@param[out]     mbmaxlen        maximum length of a multi-byte character */
 static inline void dtype_get_mblen(ulint mtype, ulint prtype, ulint *mbminlen,
                                    ulint *mbmaxlen);
 #endif
@@ -388,32 +388,32 @@ static inline ulint dtype_get_mbminlen(const dtype_t *type); /*!< in: type */
 static inline ulint dtype_get_mbmaxlen(const dtype_t *type); /*!< in: type */
 
 /** Sets the minimum and maximum length of a character, in bytes.
-@param[in,out]	type		type
-@param[in]	mbminlen	minimum length of a char, in bytes, or 0 if
+@param[in,out]  type            type
+@param[in]      mbminlen        minimum length of a char, in bytes, or 0 if
                                 this is not a character type
-@param[in]	mbmaxlen	maximum length of a char, in bytes, or 0 if
+@param[in]      mbmaxlen        maximum length of a char, in bytes, or 0 if
                                 this is not a character type */
 static inline void dtype_set_mbminmaxlen(dtype_t *type, ulint mbminlen,
                                          ulint mbmaxlen);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Returns the size of a fixed size data type, 0 if not a fixed size type.
-@param[in]	mtype		main type
-@param[in]	prtype		precise type
-@param[in]	len		length
-@param[in]	mbminmaxlen	minimum and maximum length of a multibyte
+@param[in]      mtype           main type
+@param[in]      prtype          precise type
+@param[in]      len             length
+@param[in]      mbminmaxlen     minimum and maximum length of a multibyte
                                 character, in bytes
-@param[in]	comp		nonzero=ROW_FORMAT=COMPACT
+@param[in]      comp            nonzero=ROW_FORMAT=COMPACT
 @return fixed size, or 0 */
 static inline ulint dtype_get_fixed_size_low(ulint mtype, ulint prtype,
                                              ulint len, ulint mbminmaxlen,
                                              ulint comp);
 
 /** Returns the minimum size of a data type.
-@param[in]	mtype		main type
-@param[in]	prtype		precise type
-@param[in]	len		length
-@param[in]	mbminmaxlen	minimum and maximum length of a multibyte
+@param[in]      mtype           main type
+@param[in]      prtype          precise type
+@param[in]      len             length
+@param[in]      mbminmaxlen     minimum and maximum length of a multibyte
                                 character, in bytes
 @return minimum size */
 static inline ulint dtype_get_min_size_low(ulint mtype, ulint prtype, ulint len,
@@ -421,33 +421,33 @@ static inline ulint dtype_get_min_size_low(ulint mtype, ulint prtype, ulint len,
 
 /** Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information.
-@param[in]	mtype	main type
-@param[in]	len	length
+@param[in]      mtype   main type
+@param[in]      len     length
 @return maximum size */
 static inline ulint dtype_get_max_size_low(ulint mtype, ulint len);
 
 /** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0.
-@param[in]	type	type struct
-@param[in]	comp	nonzero=ROW_FORMAT=COMPACT
+@param[in]      type    type struct
+@param[in]      comp    nonzero=ROW_FORMAT=COMPACT
 @return SQL null storage size in ROW_FORMAT=REDUNDANT */
 static inline ulint dtype_get_sql_null_size(const dtype_t *type, ulint comp);
 
 #ifndef UNIV_HOTBACKUP
 /** Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value.
-@param[in]	type	type struct
-@param[in]	buf	buffer for the stored order info */
+@param[in]      type    type struct
+@param[in]      buf     buffer for the stored order info */
 static inline void dtype_read_for_order_and_null_size(dtype_t *type,
                                                       const byte *buf);
 
 /** Stores for a type the information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. This is the >= 4.1.x
 storage format.
-@param[in]	buf		buffer for DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+@param[in]      buf             buffer for DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
                                 bytes where we store the info
-@param[in]	type		type struct
-@param[in]	prefix_len	prefix length to replace type->len, or 0 */
+@param[in]      type            type struct
+@param[in]      prefix_len      prefix length to replace type->len, or 0 */
 static inline void dtype_new_store_for_order_and_null_size(byte *buf,
                                                            const dtype_t *type,
                                                            ulint prefix_len);
@@ -455,17 +455,17 @@ static inline void dtype_new_store_for_order_and_null_size(byte *buf,
 /** Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. This is the 4.1.x storage
 format.
-@param[in]	type	type struct
-@param[in]	buf	buffer for stored type order info */
+@param[in]      type    type struct
+@param[in]      buf     buffer for stored type order info */
 static inline void dtype_new_read_for_order_and_null_size(dtype_t *type,
                                                           const byte *buf);
 
 /** Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
-@param[in]	mtype	main type
-@param[in]	prtype	precise type
-@param[in]	len	length
-@param[out]	name	SQL name
-@param[in]	name_sz	size of the name buffer
+@param[in]      mtype   main type
+@param[in]      prtype  precise type
+@param[in]      len     length
+@param[out]     name    SQL name
+@param[in]      name_sz size of the name buffer
 @return the SQL type name */
 static inline char *dtype_sql_name(unsigned mtype, unsigned prtype,
                                    unsigned len, char *name, unsigned name_sz);
@@ -476,7 +476,7 @@ static inline char *dtype_sql_name(unsigned mtype, unsigned prtype,
 ibool dtype_validate(const dtype_t *type); /*!< in: type struct to validate */
 #ifdef UNIV_DEBUG
 /** Print a data type structure.
-@param[in]	type	data type */
+@param[in]      type    data type */
 void dtype_print(const dtype_t *type);
 #endif /* UNIV_DEBUG */
 

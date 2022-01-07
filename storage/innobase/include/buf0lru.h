@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,7 +71,7 @@ void buf_LRU_flush_or_remove_pages(space_id_t id, buf_remove_t buf_remove,
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Insert a compressed block into buf_pool->zip_clean in the LRU order.
-@param[in]	bpage	pointer to the block in question */
+@param[in]      bpage   pointer to the block in question */
 void buf_LRU_insert_zip_clean(buf_page_t *bpage);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
@@ -82,15 +82,15 @@ buf_page_get_mutex(). Furthermore, the page frame will no longer be
 accessible via bpage. If this function returns true, it will also release
 the LRU list mutex.
 The caller must hold the LRU list and buf_page_get_mutex() mutexes.
-@param[in]	bpage	block to be freed
-@param[in]	zip	true if should remove also the compressed page of
+@param[in]      bpage   block to be freed
+@param[in]      zip     true if should remove also the compressed page of
                         an uncompressed page
 @return true if freed, false otherwise. */
 [[nodiscard]] bool buf_LRU_free_page(buf_page_t *bpage, bool zip);
 
 /** Try to free a replaceable block.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in]	scan_all	scan whole LRU list if ture, otherwise scan
+@param[in,out]  buf_pool        buffer pool instance
+@param[in]      scan_all        scan whole LRU list if ture, otherwise scan
                                 only BUF_LRU_SEARCH_SCAN_THRESHOLD blocks
 @return true if found and freed */
 [[nodiscard]] bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool,
@@ -98,7 +98,7 @@ The caller must hold the LRU list and buf_page_get_mutex() mutexes.
 
 /** Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
-@param[in]	buf_pool	buffer pool instance
+@param[in]      buf_pool        buffer pool instance
 @return a free control block, or NULL if the buf_block->free list is empty */
 buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool);
 
@@ -124,18 +124,18 @@ we put it to free list to be used.
     * scan LRU list even if buf_pool->try_LRU_scan is not set
 * iteration > 1:
   * same as iteration 1 but sleep 10ms
-@param[in,out]	buf_pool	buffer pool instance
+@param[in,out]  buf_pool        buffer pool instance
 @return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 [[nodiscard]] buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool);
 
 /** Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
-@param[in,out]	buf_pool	buffer pool instance
+@param[in,out]  buf_pool        buffer pool instance
 @return true if should use unzip_LRU */
 ibool buf_LRU_evict_from_unzip_LRU(buf_pool_t *buf_pool);
 
 /** Puts a block back to the free list.
-@param[in]	block	block must not contain a file page */
+@param[in]      block   block must not contain a file page */
 void buf_LRU_block_free_non_file_page(buf_block_t *block);
 
 /** Adds a block to the LRU list. Please make sure that the page_size is
@@ -148,17 +148,17 @@ void buf_LRU_add_block(buf_page_t *bpage, /*!< in: control block */
                                    to the start regardless of this parameter */
 
 /** Adds a block to the LRU list of decompressed zip pages.
-@param[in]	block	control block
-@param[in]	old	TRUE if should be put to the end of the list,
+@param[in]      block   control block
+@param[in]      old     TRUE if should be put to the end of the list,
                         else put to the start */
 void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
 
 /** Moves a block to the start of the LRU list.
-@param[in]	bpage	control block */
+@param[in]      bpage   control block */
 void buf_LRU_make_block_young(buf_page_t *bpage);
 
 /** Moves a block to the end of the LRU list.
-@param[in]	bpage	control block */
+@param[in]      bpage   control block */
 void buf_LRU_make_block_old(buf_page_t *bpage);
 
 /** Updates buf_pool->LRU_old_ratio.
@@ -176,10 +176,10 @@ void buf_LRU_stat_update(void);
 /** Remove one page from LRU list and put it to free list. The caller must hold
 the LRU list and block mutexes and have page hash latched in X. The latch and
 the block mutexes will be released.
-@param[in,out]	bpage		block, must contain a file page and
+@param[in,out]  bpage           block, must contain a file page and
                                 be in a state where it can be freed; there
                                 may or may not be a hash index to the page
-@param[in]	ignore_content	true if should ignore page content, since it
+@param[in]      ignore_content  true if should ignore page content, since it
                                 could be not initialized */
 void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content);
 
@@ -194,7 +194,7 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 ibool buf_LRU_validate(void);
 
 /** Validates the LRU list for one buffer pool instance.
-@param[in]	buf_pool	buffer pool instance */
+@param[in]      buf_pool        buffer pool instance */
 void buf_LRU_validate_instance(buf_pool_t *buf_pool);
 
 using Space_References = std::map<struct fil_space_t *, size_t>;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,9 +37,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 const uint ARCH_LOG_CHUNK_SIZE = 1024 * 1024;
 
 /** Get redo file, header and trailer size
-@param[out]	file_sz		redo file size
-@param[out]	header_sz	redo header size
-@param[out]	trailer_sz	redo trailer size */
+@param[out]     file_sz         redo file size
+@param[out]     header_sz       redo header size
+@param[out]     trailer_sz      redo trailer size */
 void Log_Arch_Client_Ctx::get_header_size(ib_uint64_t &file_sz, uint &header_sz,
                                           uint &trailer_sz) {
   file_sz = srv_log_file_size;
@@ -48,8 +48,8 @@ void Log_Arch_Client_Ctx::get_header_size(ib_uint64_t &file_sz, uint &header_sz,
 }
 
 /** Start redo log archiving
-@param[out]	header	redo header. Caller must allocate buffer.
-@param[in]	len	buffer length
+@param[out]     header  redo header. Caller must allocate buffer.
+@param[in]      len     buffer length
 @return error code */
 int Log_Arch_Client_Ctx::start(byte *header, uint len) {
   ut_ad(len >= LOG_FILE_HDR_SIZE);
@@ -70,9 +70,9 @@ int Log_Arch_Client_Ctx::start(byte *header, uint len) {
 
 /** Stop redo log archiving. Exact trailer length is returned as out
 parameter which could be less than the redo block size.
-@param[out]	trailer	redo trailer. Caller must allocate buffer.
-@param[in,out]	len	trailer length
-@param[out]	offset	trailer block offset
+@param[out]     trailer redo trailer. Caller must allocate buffer.
+@param[in,out]  len     trailer length
+@param[out]     offset  trailer block offset
 @return error code */
 int Log_Arch_Client_Ctx::stop(byte *trailer, uint32_t &len, uint64_t &offset) {
   lsn_t start_lsn;
@@ -104,8 +104,8 @@ int Log_Arch_Client_Ctx::stop(byte *trailer, uint32_t &len, uint64_t &offset) {
 }
 
 /** Get archived data file details
-@param[in]	cbk_func	callback called for each file
-@param[in]	ctx		callback function context
+@param[in]      cbk_func        callback called for each file
+@param[in]      ctx             callback function context
 @return error code */
 int Log_Arch_Client_Ctx::get_files(Log_Arch_Cbk *cbk_func, void *ctx) {
   ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
@@ -249,10 +249,10 @@ void Arch_Log_Sys::update_header(const Arch_Group *group, byte *header,
 /** Start redo log archiving.
 If archiving is already in progress, the client
 is attached to current group.
-@param[out]	group		log archive group
-@param[out]	start_lsn	start lsn for client
-@param[out]	header		redo log header
-@param[in]	is_durable	if client needs durable archiving
+@param[out]     group           log archive group
+@param[out]     start_lsn       start lsn for client
+@param[out]     header          redo log header
+@param[in]      is_durable      if client needs durable archiving
 @return error code */
 int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
                         bool is_durable) {
@@ -427,10 +427,10 @@ void Arch_Group::adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len) {
 /** Stop redo log archiving.
 If other clients are there, the client is detached from
 the current group.
-@param[out]	group		log archive group
-@param[out]	stop_lsn	stop lsn for client
-@param[out]	log_blk		redo log trailer block
-@param[in,out]	blk_len		length in bytes
+@param[out]     group           log archive group
+@param[out]     stop_lsn        stop lsn for client
+@param[out]     log_blk         redo log trailer block
+@param[in,out]  blk_len         length in bytes
 @return error code */
 int Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
                        uint32_t &blk_len) {
@@ -493,8 +493,8 @@ void Arch_Log_Sys::force_abort() {
 }
 
 /** Release the current group from client.
-@param[in]	group		group the client is attached to
-@param[in]	is_durable	if client needs durable archiving */
+@param[in]      group           group the client is attached to
+@param[in]      is_durable      if client needs durable archiving */
 void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
   arch_mutex_enter();
 
@@ -519,9 +519,9 @@ void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
 
 /** Check and set log archive system state and output the
 amount of redo log available for archiving.
-@param[in]	is_abort	need to abort
-@param[in,out]	archived_lsn	LSN up to which redo log is archived
-@param[out]	to_archive	amount of redo log to be archived */
+@param[in]      is_abort        need to abort
+@param[in,out]  archived_lsn    LSN up to which redo log is archived
+@param[out]     to_archive      amount of redo log to be archived */
 Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
                                          uint *to_archive) {
   auto is_shutdown = (srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE ||
@@ -624,8 +624,8 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
 }
 
 /** Copy redo log from file context to archiver files.
-@param[in]	file_ctx	file context for system redo logs
-@param[in]	length		data to copy in bytes
+@param[in]      file_ctx        file context for system redo logs
+@param[in]      length          data to copy in bytes
 @return error code */
 dberr_t Arch_Log_Sys::copy_log(Arch_File_Ctx *file_ctx, uint length) {
   dberr_t err = DB_SUCCESS;
@@ -731,7 +731,7 @@ bool Arch_Log_Sys::wait_idle() {
 
 /** Wait for redo log archive up to the target LSN.
 We need to wait till current log sys LSN during archive stop.
-@param[in]	target_lsn	target archive LSN to wait for
+@param[in]      target_lsn      target archive LSN to wait for
 @return error code */
 int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
   target_lsn = ut_uint64_align_down(target_lsn, OS_FILE_LOG_BLOCK_SIZE);
@@ -808,11 +808,11 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 /** Archive accumulated redo log in current group.
 This interface is for archiver background task to archive redo log
 data by calling it repeatedly over time.
-@param[in, out]	init		true when called the first time; it will then
+@param[in, out] init            true when called the first time; it will then
                                 be set to false
-@param[in]	curr_ctx	system redo logs to copy data from
-@param[out]	arch_lsn	LSN up to which archiving is completed
-@param[out]	wait		true, if no more redo to archive
+@param[in]      curr_ctx        system redo logs to copy data from
+@param[out]     arch_lsn        LSN up to which archiving is completed
+@param[out]     wait            true, if no more redo to archive
 @return true, if archiving is aborted */
 bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
                            bool *wait) {

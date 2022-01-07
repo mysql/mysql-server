@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -305,20 +305,20 @@ extern const fts_index_selector_t fts_index_selector[];
 extern const fts_index_selector_t fts_index_selector_5_7[];
 
 /** Compare two fts_trx_row_t instances doc_ids.
-@param[in]	p1	id1
-@param[in]	p2	id2
+@param[in]      p1      id1
+@param[in]      p2      id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 static inline int fts_trx_row_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_ranking_t instances doc_ids.
-@param[in]	p1	id1
-@param[in]	p2	id2
+@param[in]      p1      id1
+@param[in]      p2      id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 static inline int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_update_t instances doc_ids.
-@param[in]	p1	id1
-@param[in]	p2	id2
+@param[in]      p1      id1
+@param[in]      p2      id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
 static inline int fts_update_doc_id_cmp(const void *p1, const void *p2);
 
@@ -329,9 +329,9 @@ static inline ulint fts_decode_vlc(
                  incremented by the number of bytes decoded */
 
 /** Duplicate a string.
-@param[in]	dst	dup to here
-@param[in]	src	src string
-@param[in]	heap	heap to use
+@param[in]      dst     dup to here
+@param[in]      src     src string
+@param[in]      heap    heap to use
 */
 static inline void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
                                   mem_heap_t *heap);
@@ -343,8 +343,8 @@ static inline ulint fts_get_encoded_len(
     ulint val); /*!< in: value to encode */
 
 /** Encode an integer using our VLC scheme and return the length in bytes.
-@param[in]	val	value to encode
-@param[in]	buf	buffer, must have enough space
+@param[in]      val     value to encode
+@param[in]      buf     buffer, must have enough space
 @return length of value encoded, in bytes */
 static inline ulint fts_encode_int(ulint val, byte *buf);
 
@@ -353,14 +353,14 @@ static inline const char *fts_get_suffix(
     ulint selected); /*!< in: selected index */
 
 /** Return the selected FTS aux index suffix in 5.7 compatible format
-@param[in]	selected	selected index
+@param[in]      selected        selected index
 @return the suffix name */
 static inline const char *fts_get_suffix_5_7(ulint selected);
 
 /** Select the FTS auxiliary index for the given character.
-@param[in]	cs	charset
-@param[in]	str	string
-@param[in]	len	string length in bytes
+@param[in]      cs      charset
+@param[in]      str     string
+@param[in]      len     string length in bytes
 @return the index to use for the string */
 static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
                                      ulint len);

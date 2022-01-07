@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,7 +67,7 @@ ulong spin_wait_pause_multiplier = 50;
 #ifdef UNIV_HOTBACKUP
 /** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'.
-@param[in]	buf	buffer where to sprintf */
+@param[in]      buf     buffer where to sprintf */
 void meb_sprintf_timestamp_without_extra_chars(
     char *buf) /*!< in: buffer where to sprintf */
 {
@@ -139,9 +139,9 @@ ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	name		table name.
- @retval	String quoted as an SQL identifier.
+ @param         [in]    trx             transaction (NULL=no quotes).
+ @param         [in]    name            table name.
+ @retval        String quoted as an SQL identifier.
 */
 std::string ut_get_name(const trx_t *trx, const char *name) {
   /* 2 * NAME_LEN for database and table name,
@@ -181,9 +181,9 @@ If the name contains a slash '/', the result will contain two
 identifiers separated by a period (.), as in SQL
 database_name.table_name.
 @see table_name_t
-@param[in]	name		table or index name
-@param[out]	formatted	formatted result, will be NUL-terminated
-@param[in]	formatted_size	size of the buffer in bytes
+@param[in]      name            table or index name
+@param[out]     formatted       formatted result, will be NUL-terminated
+@param[in]      formatted_size  size of the buffer in bytes
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   switch (formatted_size) {
@@ -284,7 +284,7 @@ void ut_vsnprintf(char *str,       /*!< out: string */
 
 /** Convert an error number to a human readable text message.
 The returned string is static and should not be freed or modified.
-@param[in]	num	InnoDB internal error number
+@param[in]      num     InnoDB internal error number
 @return string, describing the error */
 const char *ut_strerr(dberr_t num) {
   switch (num) {

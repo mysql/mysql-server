@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -134,14 +134,14 @@ committed mini-transaction, because in crash recovery, the free bits could
 momentarily be set too high.  It is only safe to use this function for
 decrementing the free bits.  Should more free space become available, we must
 not update the free bits here, because that would break crash recovery.
-@param[in]	block		index page to which we have added new records;
+@param[in]      block           index page to which we have added new records;
                                 the free bits are updated if the index is
                                 non-clustered and non-unique and the page level
                                 is 0, and the page becomes fuller
-@param[in]	max_ins_size	value of maximum insert size with reorganize
+@param[in]      max_ins_size    value of maximum insert size with reorganize
                                 before the latest operation performed to the
                                 page
-@param[in]	increase	upper limit for the additional space used in
+@param[in]      increase        upper limit for the additional space used in
                                 the latest operation, if known, or
                                 ULINT_UNDEFINED */
 static inline void ibuf_update_free_bits_if_full(buf_block_t *block,
@@ -184,8 +184,8 @@ void ibuf_update_free_bits_for_two_pages_low(
 
 /** A basic partial test if an insert to the insert buffer could be possible
 and recommended.
-@param[in]	index			index where to insert
-@param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
+@param[in]      index                   index where to insert
+@param[in]      ignore_sec_unique       if != 0, we should ignore UNIQUE
                                         constraint on a secondary index when
                                         we decide*/
 static inline ibool ibuf_should_try(dict_index_t *index,
@@ -201,25 +201,25 @@ static inline ibool ibuf_should_try(dict_index_t *index,
     const mtr_t *mtr); /*!< in: mini-transaction */
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]      page_id         page id
+@param[in]      page_size       page size
 @return true if a bitmap page */
 static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
                                      const page_size_t &page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		page id
-@param[in]	page_size	page size */
+@param[in]      page_id         page id
+@param[in]      page_size       page size */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	x_latch		FALSE if relaxed check (avoid latching the
+@param[in]      x_latch         FALSE if relaxed check (avoid latching the
 bitmap page) */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mtr which will contain an x-latch to the
+@param[in]      file            file name
+@param[in]      line            line where called
+@param[in,out]  mtr             mtr which will contain an x-latch to the
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
 @return true if level 2 or level 3 page */
@@ -234,9 +234,9 @@ in which case a new transaction is created.
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		Tablespace/page identifier
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction or NULL
+@param[in]      page_id         Tablespace/page identifier
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction or NULL
 @return true if level 2 or level 3 page */
 #define ibuf_page(page_id, page_size, mtr) \
   ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
@@ -245,9 +245,9 @@ Must not be called when recv_no_ibuf_operations==true.
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		Tablespace/page identifier
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction or NULL
+@param[in]      page_id         Tablespace/page identifier
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction or NULL
 @return true if level 2 or level 3 page */
 #define ibuf_page(page_id, page_size, mtr) \
   ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
@@ -261,12 +261,12 @@ void ibuf_free_excess_pages(void);
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@param[in]	op		operation type
-@param[in]	entry		index entry to insert
-@param[in,out]	index		index where to insert
-@param[in]	page_id		page id where to insert
-@param[in]	page_size	page size
-@param[in,out]	thr		query thread
+@param[in]      op              operation type
+@param[in]      entry           index entry to insert
+@param[in,out]  index           index where to insert
+@param[in]      page_id         page id where to insert
+@param[in]      page_size       page size
+@param[in,out]  thr             query thread
 @return true if success */
 ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
                   const page_id_t &page_id, const page_size_t &page_size,
@@ -278,13 +278,13 @@ insert buffer. If the page is not read, but created in the buffer pool, this
 function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
-@param[in,out]	block			if page has been read from disk,
+@param[in,out]  block                   if page has been read from disk,
 pointer to the page x-latched, else NULL
-@param[in]	page_id			page id of the index page
-@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
+@param[in]      page_id                 page id of the index page
+@param[in]      update_ibuf_bitmap      normally this is set to TRUE, but
 if we have deleted or are deleting the tablespace, then we naturally do not
 want to update a non-existent bitmap page
-@param[in]	page_size		page size */
+@param[in]      page_size               page size */
 void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                    const page_size_t *page_size,
                                    ibool update_ibuf_bitmap);
@@ -295,7 +295,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
  become CORRUPT when you call this function! */
 void ibuf_delete_for_discarded_space(space_id_t space); /*!< in: space id */
 /** Contract the change buffer by reading pages to the buffer pool.
-@param[in]	full		If true, do a full contraction based
+@param[in]      full            If true, do a full contraction based
 on PCT_IO(100). If false, the size of contract batch is determined
 based on the current size of the change buffer.
 @return a lower limit for the combined size in bytes of entries which
@@ -321,7 +321,7 @@ byte *ibuf_parse_bitmap_init(byte *ptr, byte *end_ptr, buf_block_t *block,
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
 /** Gets the ibuf count for a given page.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return number of entries in the insert buffer currently buffered for
 this page */
 ulint ibuf_count_get(const page_id_t &page_id);
@@ -342,7 +342,7 @@ ulint ibuf_rec_get_counter(const rec_t *rec); /*!< in: ibuf record */
 
 /** Determine if there is any multi-value field data on the change buffer
 record
-@param[in]	rec	ibuf record
+@param[in]      rec     ibuf record
 @return true if there is any multi-value field in the record */
 bool ibuf_rec_has_multi_value(const rec_t *rec);
 

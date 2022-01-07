@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,8 +67,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
-@param	m	page size of the tablespace.
-@param	n	page size of the tablespace.
+@param  m       page size of the tablespace.
+@param  n       page size of the tablespace.
 @retval number of pages */
 #define IO_BUFFER_SIZE(m, n) ((m) / (n))
 
@@ -189,16 +189,16 @@ struct row_import {
 
   /** Check if the column default values of table schema that was
   read from the .cfg file matches the in memory column definition.
-  @param[in]	thd		MySQL session variable
-  @param[in]	dd_table	dd::Table
-  @return	DB_SUCCESS or error code. */
+  @param[in]    thd             MySQL session variable
+  @param[in]    dd_table        dd::Table
+  @return       DB_SUCCESS or error code. */
   dberr_t match_col_default_values(THD *thd,
                                    const dd::Table *dd_table) UNIV_NOTHROW;
 
   /** Check if the table schema that was read from the .cfg file matches the
   in memory table definition.
-  @param[in]	thd		MySQL session variable
-  @param[in]	dd_table	dd::Table
+  @param[in]    thd             MySQL session variable
+  @param[in]    dd_table        dd::Table
   @return DB_SUCCESS or error code. */
   dberr_t match_compression_type_option(THD *thd,
                                         const dd::Table *dd_table) UNIV_NOTHROW;
@@ -211,8 +211,8 @@ struct row_import {
 
   /** Check if the table (and index) schema that was read from the
   .cfg file matches the in memory table definition.
-  @param[in]	thd		MySQL session variable
-  @param[in]	dd_table	dd::Table
+  @param[in]    thd             MySQL session variable
+  @param[in]    dd_table        dd::Table
   @return DB_SUCCESS or error code. */
   dberr_t match_schema(THD *thd, const dd::Table *dd_table) UNIV_NOTHROW;
 
@@ -871,8 +871,8 @@ class PageConverter : public AbstractCallback {
   dberr_t update_records(buf_block_t *block) UNIV_NOTHROW;
 
   /** Validate the page, check for corruption.
-  @param	offset	physical offset within file.
-  @param	block	page read from file.
+  @param        offset  physical offset within file.
+  @param        block   page read from file.
   @return 0 on success, 1 if all zero, 2 if corrupted */
   import_page_status_t validate(os_offset_t offset,
                                 buf_block_t *block) UNIV_NOTHROW;
@@ -1135,8 +1135,8 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
 /** Check if the column default values of table schema that was
 read from the .cfg file matches the in memory column definition.
-@param[in]	thd		MySQL session variable
-@param[in]	dd_table	dd::Table
+@param[in]      thd             MySQL session variable
+@param[in]      dd_table        dd::Table
 @return DB_SUCCESS or error code. */
 dberr_t row_import::match_col_default_values(
     THD *thd, const dd::Table *dd_table) UNIV_NOTHROW {
@@ -1185,8 +1185,8 @@ dberr_t row_import::match_col_default_values(
 
 /** Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
-@param[in]	thd		MySQL session variable
-@param[in]	dd_table	dd::Table
+@param[in]      thd             MySQL session variable
+@param[in]      dd_table        dd::Table
 @return DB_SUCCESS or error code. */
 dberr_t row_import::match_compression_type_option(
     THD *thd, const dd::Table *dd_table) UNIV_NOTHROW {
@@ -1291,8 +1291,8 @@ dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
 
 /** Check if the table (and index) schema that was read from the .cfg file
 matches the in memory table definition.
-@param[in]	thd		MySQL session variable
-@param[in]	dd_table	dd::Table
+@param[in]      thd             MySQL session variable
+@param[in]      dd_table        dd::Table
 @return DB_SUCCESS or error code. */
 dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
@@ -1641,7 +1641,7 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
   first_index.rec_cache.nullable_cols = 0;
   first_index.n_instant_nullable = m_n_instant_nullable;
   /* FIXME: Force to discard the table, in case of any rollback later. */
-  //	m_table->discard_after_ddl = true;
+  //    m_table->discard_after_ddl = true;
 
   return (DB_SUCCESS);
 }
@@ -2178,8 +2178,8 @@ dberr_t PageConverter::update_page(buf_block_t *block,
 }
 
 /** Validate the page, check for corruption.
-@param	offset	physical offset within file.
-@param	block	page read from file.
+@param  offset  physical offset within file.
+@param  block   page read from file.
 @return 0 on success, 1 if all zero, 2 if corrupted */
 PageConverter::import_page_status_t PageConverter::validate(
     os_offset_t offset, buf_block_t *block) UNIV_NOTHROW {
@@ -2870,9 +2870,9 @@ static dberr_t row_import_read_indexes(
 }
 
 /** Read specified bytes from the meta data file.
-@param[in]	file	file to read from
-@param[in]	length	length of bytes to read
-@return	the bytes stream, caller has to free the memory if not nullptr */
+@param[in]      file    file to read from
+@param[in]      length  length of bytes to read
+@return the bytes stream, caller has to free the memory if not nullptr */
 [[nodiscard]] static byte *row_import_read_bytes(FILE *file, size_t length) {
   size_t read = 0;
   byte *r =
@@ -2905,10 +2905,10 @@ static dberr_t row_import_read_indexes(
 /** Read the metadata config file. Deserialise the contents of
 dict_col_t::instant_default if exists.
 Refer to row_quiesce_write_default_value() for the format details.
-@param[in]	file	file to read from
-@param[in,out]	col	column whose default value to read
+@param[in]      file    file to read from
+@param[in,out]  col     column whose default value to read
 @param[in,out]  heap    memory heap to store default value
-@param[in,out]	read	true if default value read */
+@param[in,out]  read    true if default value read */
 [[nodiscard]] static dberr_t row_import_read_default_values(FILE *file,
                                                             dict_col_t *col,
                                                             mem_heap_t **heap,
@@ -3268,9 +3268,9 @@ Refer to row_quiesce_write_default_value() for the format details.
 
 /** Read tablespace flags and compression type info from @<tablespace@>.cfg
 file.
-@param[in]	file	File to read from
-@param[in]	thd	session
-@param[in,out]	cfg	meta data
+@param[in]      file    File to read from
+@param[in]      thd     session
+@param[in,out]  cfg     meta data
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_import_read_v2(FILE *file, THD *thd, row_import *cfg) {
@@ -3309,9 +3309,9 @@ file.
 }
 
 /** Read the contents of the @<tablespace@>.cfg file
-@param[in]	file	File to read from
-@param[in]	thd	session
-@param[in,out]	cfg	meta data
+@param[in]      file    File to read from
+@param[in]      thd     session
+@param[in,out]  cfg     meta data
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_import_read_common(FILE *file, THD *thd, row_import *cfg) {
@@ -3386,10 +3386,10 @@ Read the contents of the @<tablespace@>.cfg file.
 
 /**
 Read the contents of the @<tablename@>.cfg file.
-@param[in]	table		table
-@param[in]	table_def	dd table
-@param[in]	thd		session
-@param[in,out]	cfg		contents of the .cfg file
+@param[in]      table           table
+@param[in]      table_def       dd table
+@param[in]      thd             session
+@param[in,out]  cfg             contents of the .cfg file
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static dberr_t row_import_read_cfg(dict_table_t *table,
                                                  dd::Table *table_def, THD *thd,
@@ -3430,9 +3430,9 @@ Read the contents of the @<tablename@>.cfg file.
 }
 
 /** Read the contents of the .cfp file.
-@param[in]	table		table
-@param[in]	file		file to read from
-@param[in]	thd		session
+@param[in]      table           table
+@param[in]      file            file to read from
+@param[in]      thd             session
 @return DB_SUCCESS or error code. */
 static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
                                                THD *thd) {
@@ -3523,9 +3523,9 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
 }
 
 /** Read the contents of the .cfp file.
-@param[in]	table		table
-@param[in]	thd		session
-@param[in,out]	import		meta data
+@param[in]      table           table
+@param[in]      thd             session
+@param[in,out]  import          meta data
 @return DB_SUCCESS or error code. */
 static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
                                    row_import &import) {
@@ -3558,9 +3558,9 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 /** Check the correctness of clustered index of imported table.
 Once there is corruption found, the IMPORT would be refused. This can
 help to detect the missing .cfg file for a table with instant added columns.
-@param[in,out]	table		InnoDB table object
-@param[in,out]	thd		MySQL session variable
-@param[in]	missing		true if .cfg file is missing
+@param[in,out]  table           InnoDB table object
+@param[in,out]  thd             MySQL session variable
+@param[in]      missing         true if .cfg file is missing
 @return DB_SUCCESS or error code. */
 dberr_t row_import_check_corruption(dict_table_t *table, THD *thd,
                                     bool missing) {
@@ -3585,9 +3585,9 @@ dberr_t row_import_check_corruption(dict_table_t *table, THD *thd,
 
 /** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
-@param[in]	table		table
-@param[in]	table_def	dd table
-@param[in]	prebuilt	prebuilt struct in MySQL
+@param[in]      table           table
+@param[in]      table_def       dd table
+@param[in]      prebuilt        prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                              row_prebuilt_t *prebuilt) {

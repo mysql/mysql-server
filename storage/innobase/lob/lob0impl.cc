@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -120,7 +120,7 @@ void z_frag_entry_t::purge(flst_base_node_t *used_lst,
 
 /** Update the current fragment entry with information about
 the given fragment page.
-@param[in]	frag_page	the fragment page whose information
+@param[in]      frag_page       the fragment page whose information
                                 will be stored in current fragment entry. */
 void z_frag_entry_t::update(const z_frag_page_t &frag_page) {
   ut_ad(m_mtr != nullptr);
@@ -144,16 +144,16 @@ void z_frag_entry_t::free_frag_page(mtr_t *mtr, dict_index_t *index) {
 }
 
 /** Insert a single zlib stream.
-@param[in]	index	the index to which the LOB belongs.
-@param[in]	first	the first page of the compressed LOB.
-@param[in]	trxid	the id of the current transaction.
-@param[in]	blob	in memory copy of the LOB.
-@param[in]	len	the length of the LOB.
-@param[in]	mtr	the mini-transaction context.
-@param[in]	bulk	true if bulk operation, false otherwise.
-@param[out]	start_page_no	the first page into which zlib stream
+@param[in]      index   the index to which the LOB belongs.
+@param[in]      first   the first page of the compressed LOB.
+@param[in]      trxid   the id of the current transaction.
+@param[in]      blob    in memory copy of the LOB.
+@param[in]      len     the length of the LOB.
+@param[in]      mtr     the mini-transaction context.
+@param[in]      bulk    true if bulk operation, false otherwise.
+@param[out]     start_page_no   the first page into which zlib stream
                                 was written.
-@param[out]	frag_id	the fragment id that contains last part of the
+@param[out]     frag_id the fragment id that contains last part of the
                         zlib stream.
 @return DB_SUCCESS on success, error code on error. */
 dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
@@ -394,11 +394,11 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
 }
 
 /** Insert a compressed large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                  big_rec_field_t *field, ulint field_j) {
@@ -918,11 +918,11 @@ void z_frag_page_t::dealloc_frag_id() {
 }
 
 /** Insert a large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                big_rec_field_t *field, ulint field_j) {
@@ -1267,8 +1267,8 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
 }
 
 /** Allocate one data page.
-@param[in]	hint	hint page number for allocation.
-@param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
+@param[in]      hint    hint page number for allocation.
+@param[in]      bulk    true if bulk operation (OPCODE_INSERT_BULK)
                         false otherwise.
 @return the allocated buffer block. */
 buf_block_t *z_data_page_t::alloc(page_no_t hint, bool bulk) {

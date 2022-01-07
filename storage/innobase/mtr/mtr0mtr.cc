@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -120,8 +120,8 @@ struct Find {
 /** Find a page frame */
 struct Find_page {
   /** Constructor
-  @param[in]	ptr	pointer to within a page frame
-  @param[in]	flags	MTR_MEMO flags to look for */
+  @param[in]    ptr     pointer to within a page frame
+  @param[in]    flags   MTR_MEMO flags to look for */
   Find_page(const void *ptr, ulint flags)
       : m_ptr(ptr), m_flags(flags), m_slot(nullptr) {
     /* We can only look for page-related flags. */
@@ -131,9 +131,9 @@ struct Find_page {
   }
 
   /** Visit a memo entry.
-  @param[in]	slot	memo entry to visit
-  @retval	false	if a page was found
-  @retval	true	if the iteration should continue */
+  @param[in]    slot    memo entry to visit
+  @retval       false   if a page was found
+  @retval       true    if the iteration should continue */
   bool operator()(mtr_memo_slot_t *slot) {
     ut_ad(m_slot == nullptr);
 
@@ -231,7 +231,7 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
 #endif /* !UNIV_HOTBACKUP */
 
 /** Release latches and decrement the buffer fix count.
-@param[in]	slot	memo slot */
+@param[in]      slot    memo slot */
 static void memo_slot_release(mtr_memo_slot_t *slot) {
   switch (slot->type) {
 #ifndef UNIV_HOTBACKUP
@@ -314,11 +314,11 @@ struct Debug_check_no_latching {
 /** Add blocks modified by the mini-transaction to the flush list. */
 struct Add_dirty_blocks_to_flush_list {
   /** Constructor.
-  @param[in]	start_lsn	LSN of the first entry that was
+  @param[in]    start_lsn       LSN of the first entry that was
                                   added to REDO by the MTR
-  @param[in]	end_lsn		LSN after the last entry was
+  @param[in]    end_lsn         LSN after the last entry was
                                   added to REDO by the MTR
-  @param[in,out]	observer	flush observer */
+  @param[in,out]        observer        flush observer */
   Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
                                  Flush_observer *observer);
 
@@ -367,11 +367,11 @@ struct Add_dirty_blocks_to_flush_list {
 };
 
 /** Constructor.
-@param[in]	start_lsn	LSN of the first entry that was added
+@param[in]      start_lsn       LSN of the first entry that was added
                                 to REDO by the MTR
-@param[in]	end_lsn		LSN after the last entry was added
+@param[in]      end_lsn         LSN after the last entry was added
                                 to REDO by the MTR
-@param[in,out]	observer	flush observer */
+@param[in,out]  observer        flush observer */
 Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
     lsn_t start_lsn, lsn_t end_lsn, Flush_observer *observer)
     : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
@@ -382,7 +382,7 @@ class mtr_t::Command {
  public:
   /** Constructor.
   Takes ownership of the mtr->m_impl, is responsible for deleting it.
-  @param[in,out]	mtr	Mini-transaction */
+  @param[in,out]        mtr     Mini-transaction */
   explicit Command(mtr_t *mtr) : m_locks_released() { init(mtr); }
 
   void init(mtr_t *mtr) {
@@ -713,9 +713,9 @@ void mtr_t::check_is_not_latching() const {
 
 /** Acquire a tablespace X-latch.
 NOTE: use mtr_x_lock_space().
-@param[in]	space		tablespace instance
-@param[in]	file		file name from where called
-@param[in]	line		line number in file */
+@param[in]      space           tablespace instance
+@param[in]      file            file name from where called
+@param[in]      line            line number in file */
 void mtr_t::x_lock_space(fil_space_t *space, const char *file, ulint line) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
@@ -741,8 +741,8 @@ void mtr_t::memo_release(const void *object, ulint type) {
 }
 
 /** Release a page latch.
-@param[in]	ptr	pointer to within a page frame
-@param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
+@param[in]      ptr     pointer to within a page frame
+@param[in]      type    object type: MTR_MEMO_PAGE_X_FIX, ... */
 void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
@@ -1024,7 +1024,7 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
 
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
-@return	true if contains */
+@return true if contains */
 bool mtr_t::memo_contains(const mtr_buf_t *memo, const void *object,
                           ulint type) {
   Find find(object, type);
@@ -1052,8 +1052,8 @@ struct FlaggedCheck {
 };
 
 /** Check if memo contains the given item.
-@param ptr		object to search
-@param flags		specify types of object (can be ORred) of
+@param ptr              object to search
+@param flags            specify types of object (can be ORred) of
                         MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */
 bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
@@ -1067,11 +1067,11 @@ bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
 }
 
 /** Check if memo contains the given page.
-@param[in]	ptr	pointer to within buffer frame
-@param[in]	flags	specify types of object with OR of
+@param[in]      ptr     pointer to within buffer frame
+@param[in]      flags   specify types of object with OR of
                         MTR_MEMO_PAGE_S_FIX... values
-@return	the block
-@retval	NULL	if not found */
+@return the block
+@retval NULL    if not found */
 buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
                                                ulint flags) const {
   Find_page check(ptr, flags);
@@ -1082,7 +1082,7 @@ buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
 }
 
 /** Mark the given latched page as modified.
-@param[in]	ptr	pointer to within buffer frame */
+@param[in]      ptr     pointer to within buffer frame */
 void mtr_t::memo_modify_page(const byte *ptr) {
   buf_block_t *block = memo_contains_page_flagged(
       ptr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);

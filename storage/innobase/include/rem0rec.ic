@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,26 +39,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Offsets of the bit-fields in an old-style record. NOTE! In the table the
 most significant bytes and bits are written below less significant.
 
-        (1) byte offset		(2) bit usage within byte
+        (1) byte offset         (2) bit usage within byte
         downward from
-        origin ->	1	8 bits pointer to next record
-                        2	8 bits pointer to next record
-                        3	1 bit short flag
+        origin ->       1       8 bits pointer to next record
+                        2       8 bits pointer to next record
+                        3       1 bit short flag
                                 7 bits number of fields
-                        4	3 bits number of fields
+                        4       3 bits number of fields
                                 5 bits heap number
-                        5	8 bits heap number
-                        6	4 bits n_owned
+                        5       8 bits heap number
+                        6       4 bits n_owned
                                 4 bits info bits
 */
 
 /* Offsets of the bit-fields in a new-style record. NOTE! In the table the
 most significant bytes and bits are written below less significant.
 
-        (1) byte offset		(2) bit usage within byte
+        (1) byte offset         (2) bit usage within byte
         downward from
-        origin ->	1	8 bits relative offset of next record
-                        2	8 bits relative offset of next record
+        origin ->       1       8 bits relative offset of next record
+                        2       8 bits relative offset of next record
                                   the relative offset is an unsigned 16-bit
                                   integer:
                                   (offset_of_next_record
@@ -69,15 +69,15 @@ most significant bytes and bits are written below less significant.
                                   record with the formula:
                                   relative_offset + offset_of_this_record
                                   mod UNIV_PAGE_SIZE
-                        3	3 bits status:
+                        3       3 bits status:
                                         000=conventional record
                                         001=node pointer record (inside B-tree)
                                         010=infimum record
                                         011=supremum record
                                         1xx=reserved
                                 5 bits heap number
-                        4	8 bits heap number
-                        5	4 bits n_owned
+                        4       8 bits heap number
+                        5       4 bits n_owned
                                 4 bits info bits
 */
 
@@ -409,8 +409,8 @@ static inline void rec_set_deleted_flag_new(
 }
 
 /** The following function is used to set the instant bit.
-@param[in,out]	rec	new-style physical record
-@param[in]	flag	set the bit to this flag */
+@param[in,out]  rec     new-style physical record
+@param[in]      flag    set the bit to this flag */
 static inline void rec_set_instant_flag_new(rec_t *rec, bool flag) {
   ulint val;
 
@@ -529,7 +529,7 @@ static inline ulint rec_get_nth_field_offs(
 
 /** Determine if the field is not NULL and not having default value
 after instant ADD COLUMN
-@param[in]	len	length of a field
+@param[in]      len     length of a field
 @return true if not NULL and not having default value */
 static inline bool rec_field_not_null_not_add_col_def(ulint len) {
   return (len != UNIV_SQL_NULL && len != UNIV_SQL_ADD_COL_DEFAULT);
@@ -861,9 +861,9 @@ static inline byte *rec_get_start(const rec_t *rec, const ulint *offsets) {
 #endif /* UNIV_DEBUG */
 
 /** Copy a physical record to a buffer.
-@param[in]	buf	buffer
-@param[in]	rec	physical record
-@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]      buf     buffer
+@param[in]      rec     physical record
+@param[in]      offsets array returned by rec_get_offsets()
 @return pointer to the origin of the copy */
 static inline rec_t *rec_copy(void *buf, const rec_t *rec,
                               const ulint *offsets) {
@@ -896,8 +896,8 @@ static inline ulint rec_get_converted_extra_size(ulint data_size,
 
 /** The following function returns the size of a data tuple when converted to
  a physical record.
- @param[in] index	record descriptor
- @param[in] dtuple	data tuple
+ @param[in] index       record descriptor
+ @param[in] dtuple      data tuple
  @return size */
 static inline ulint rec_get_converted_size(const dict_index_t *index,
                                            const dtuple_t *dtuple) {
@@ -937,38 +937,38 @@ static inline ulint rec_get_converted_size(const dict_index_t *index,
       data_size, dtuple_get_n_fields(dtuple), dtuple->has_ext());
 
 #if 0
-	/* This code is inactive since it may be the wrong place to add
-	in the size of node pointers used in parent pages AND it is not
-	currently needed since ha_innobase::max_supported_key_length()
-	ensures that the key size limit for each page size is well below
-	the actual limit ((free space on page / 4) - record overhead).
-	But those limits will need to be raised when InnoDB can
-	support multiple page sizes.  At that time, we will need
-	to consider the node pointer on these universal btrees. */
+        /* This code is inactive since it may be the wrong place to add
+        in the size of node pointers used in parent pages AND it is not
+        currently needed since ha_innobase::max_supported_key_length()
+        ensures that the key size limit for each page size is well below
+        the actual limit ((free space on page / 4) - record overhead).
+        But those limits will need to be raised when InnoDB can
+        support multiple page sizes.  At that time, we will need
+        to consider the node pointer on these universal btrees. */
 
-	if (dict_index_is_ibuf(index)) {
-		/* This is for the insert buffer B-tree.
-		All fields in the leaf tuple ascend to the
-		parent node plus the child page pointer. */
+        if (dict_index_is_ibuf(index)) {
+                /* This is for the insert buffer B-tree.
+                All fields in the leaf tuple ascend to the
+                parent node plus the child page pointer. */
 
-		/* ibuf cannot contain externally stored fields */
-		ut_ad(n_ext == 0);
+                /* ibuf cannot contain externally stored fields */
+                ut_ad(n_ext == 0);
 
-		/* Add the data pointer and recompute extra_size
-		based on one more field. */
-		data_size += REC_NODE_PTR_SIZE;
-		extra_size = rec_get_converted_extra_size(
-			data_size,
-			dtuple_get_n_fields(dtuple) + 1,
-			0);
+                /* Add the data pointer and recompute extra_size
+                based on one more field. */
+                data_size += REC_NODE_PTR_SIZE;
+                extra_size = rec_get_converted_extra_size(
+                        data_size,
+                        dtuple_get_n_fields(dtuple) + 1,
+                        0);
 
-		/* Be sure dtuple->n_fields has this node ptr
-		accounted for.  This function should correspond to
-		what rec_convert_dtuple_to_rec() needs in storage.
-		In optimistic insert or update-not-in-place, we will
-		have to ensure that if the record is converted to a
-		node pointer, it will not become too large.*/
-	}
+                /* Be sure dtuple->n_fields has this node ptr
+                accounted for.  This function should correspond to
+                what rec_convert_dtuple_to_rec() needs in storage.
+                In optimistic insert or update-not-in-place, we will
+                have to ensure that if the record is converted to a
+                node pointer, it will not become too large.*/
+        }
 #endif
 
   return (data_size + extra_size);
@@ -976,12 +976,12 @@ static inline ulint rec_get_converted_size(const dict_index_t *index,
 
 #ifndef UNIV_HOTBACKUP
 /** Compute a hash value of a prefix of a leaf page record.
-@param[in]	rec		leaf page record
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	n_fields	number of complete fields to fold
-@param[in]	n_bytes		number of bytes to fold in the last field
-@param[in]	fold		fold value of the index identifier
-@param[in]	index		index where the record resides
+@param[in]      rec             leaf page record
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      n_fields        number of complete fields to fold
+@param[in]      n_bytes         number of bytes to fold in the last field
+@param[in]      fold            fold value of the index identifier
+@param[in]      index           index where the record resides
 @return the folded value */
 static inline ulint rec_fold(const rec_t *rec, const ulint *offsets,
                              ulint n_fields, ulint n_bytes, ulint fold,
@@ -1032,17 +1032,17 @@ static inline ulint rec_fold(const rec_t *rec, const ulint *offsets,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Get the length of the number of fields for any new style record.
-@param[in]	n_fields	number of fields in the record
-@return	length of specified number of fields */
+@param[in]      n_fields        number of fields in the record
+@return length of specified number of fields */
 static inline uint8_t rec_get_n_fields_length(ulint n_fields) {
   return (n_fields > REC_N_FIELDS_ONE_BYTE_MAX ? 2 : 1);
 }
 
 /** Set the number of fields for one new style leaf page record.
 This is only needed for table after instant ADD COLUMN.
-@param[in,out]	rec		leaf page record
-@param[in]	n_fields	number of fields in the record
-@return	the length of the n_fields occupies */
+@param[in,out]  rec             leaf page record
+@param[in]      n_fields        number of fields in the record
+@return the length of the n_fields occupies */
 static inline uint8_t rec_set_n_fields(rec_t *rec, ulint n_fields) {
   byte *ptr = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
@@ -1065,10 +1065,10 @@ static inline uint8_t rec_set_n_fields(rec_t *rec, ulint n_fields) {
 /** Gets the value of the specified field in the record in old style.
 This is only used for record from instant index, which is clustered
 index and has some instantly added columns.
-@param[in]	rec	physical record
-@param[in]	n	index of the field
-@param[in]	index   clustered index where the record resides
-@param[out]	len	length of the field, UNIV_SQL if SQL null
+@param[in]      rec     physical record
+@param[in]      n       index of the field
+@param[in]      index   clustered index where the record resides
+@param[out]     len     length of the field, UNIV_SQL if SQL null
 @return value of the field, could be either pointer to rec or default value */
 static inline const byte *rec_get_nth_field_old_instant(
     const rec_t *rec, uint16_t n, const dict_index_t *index, ulint *len) {
@@ -1089,12 +1089,12 @@ static inline const byte *rec_get_nth_field_old_instant(
 /** Gets the value of the specified field in the record.
 This is only used when there is possibility that the record comes from the
 clustered index, which has some instantly add columns
-@param[in]	rec	record
-@param[in]	offsets	array returned by rec_get_offsets()
-@param[in]	n	index of the field
-@param[in]	index	clustered index where the record resides
-@param[in,out]	len	length of the field, UNIV_SQL_NULL if SQL null
-@return	value of the field, could be either pointer to rec or default value */
+@param[in]      rec     record
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       index of the field
+@param[in]      index   clustered index where the record resides
+@param[in,out]  len     length of the field, UNIV_SQL_NULL if SQL null
+@return value of the field, could be either pointer to rec or default value */
 static inline const byte *rec_get_nth_field_instant(const rec_t *rec,
                                                     const ulint *offsets,
                                                     ulint n,

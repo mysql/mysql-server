@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -96,16 +96,16 @@ struct mtr_t;
 class fseg_header {
  public:
   /** Constructor of fseg_header.
-  @param[in]	header	Underlying file segment header object
-  @param[in]	mtr	Mini-transaction.  No redo logs are
+  @param[in]    header  Underlying file segment header object
+  @param[in]    mtr     Mini-transaction.  No redo logs are
                           generated, only latches are checked within
                           mini-transaction */
   fseg_header(const fseg_header_t *header, mtr_t *mtr)
       : m_header(header), m_mtr(mtr) {}
 
   /** Print the file segment header to the given output stream.
-  @param[in]	out	the output stream into which the object is printed.
-  @retval	the output stream into which the object was printed. */
+  @param[in]    out     the output stream into which the object is printed.
+  @retval       the output stream into which the object was printed. */
   std::ostream &to_stream(std::ostream &out) const;
 
  private:
@@ -118,8 +118,8 @@ class fseg_header {
 };
 
 /* Overloading the global output operator to print a file segment header
-@param[in,out]	out	the output stream into which object will be printed
-@param[in]	header	the file segment header to be printed
+@param[in,out]  out     the output stream into which object will be printed
+@param[in]      header  the file segment header to be printed
 @retval the output stream */
 inline std::ostream &operator<<(std::ostream &out, const fseg_header &header) {
   return (header.to_stream(out));
@@ -137,7 +137,7 @@ enum fsp_reserve_t {
 /* Number of pages described in a single descriptor page: currently each page
 description takes less than 1 byte; a descriptor page is repeated every
 this many file pages */
-/* #define XDES_DESCRIBED_PER_PAGE		UNIV_PAGE_SIZE */
+/* #define XDES_DESCRIBED_PER_PAGE              UNIV_PAGE_SIZE */
 /* This has been replaced with either UNIV_PAGE_SIZE or page_zip->size. */
 
 /** @name The space low address page map
@@ -192,12 +192,12 @@ These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
 The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
-@param[in]	flags	Tablespace flags
+@param[in]      flags   Tablespace flags
 @return true if valid, false if not */
 [[nodiscard]] bool fsp_flags_is_valid(uint32_t flags);
 
 /** Check if tablespace is system temporary.
-@param[in]	space_id	tablespace ID
+@param[in]      space_id        tablespace ID
 @return true if tablespace is system temporary. */
 bool fsp_is_system_temporary(space_id_t space_id);
 
@@ -207,12 +207,12 @@ bool fsp_is_system_temporary(space_id_t space_id);
 bool fsp_is_session_temporary(space_id_t space_id);
 
 /** Check if tablespace is global temporary.
-@param[in]	space_id	tablespace ID
+@param[in]      space_id        tablespace ID
 @return true if tablespace is global temporary. */
 bool fsp_is_global_temporary(space_id_t space_id);
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	tablespace ID
+@param[in]      space_id        tablespace ID
 @return true if checksum is disabled for given space. */
 bool fsp_is_checksum_disabled(space_id_t space_id);
 

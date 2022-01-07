@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -175,7 +175,7 @@ static dberr_t trx_rollback_for_mysql_low(
 }
 
 /** Rollback a transaction used in MySQL
-@param[in, out]	trx	transaction
+@param[in, out] trx     transaction
 @return error code or DB_SUCCESS */
 static dberr_t trx_rollback_low(trx_t *trx) {
   /* We are reading trx->state without mutex protection here,
@@ -819,10 +819,10 @@ static void trx_roll_try_truncate(
 
 /** Pops the topmost undo log record in a single undo log and updates the info
 about the topmost record in the undo log memory struct.
-@param[in]	trx		transaction
-@param[in]	undo		undo log
-@param[in]	mtr		mtr
-@param[out]	undo_offset	offset of undo record in the page
+@param[in]      trx             transaction
+@param[in]      undo            undo log
+@param[in]      mtr             mtr
+@param[out]     undo_offset     offset of undo record in the page
 @return Undo page where undo log record resides, the page s-latched */
 static const page_t *trx_roll_pop_top_rec(trx_t *trx, trx_undo_t *undo,
                                           mtr_t *mtr, uint32_t *undo_offset) {
@@ -983,9 +983,9 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
  performed by executing this query graph like a query subprocedure call.
  The reply about the completion of the rollback will be sent by this
  graph.
-@param[in,out]	trx			transaction
-@param[in]	partial_rollback	true if partial rollback
-@return	the query graph */
+@param[in,out]  trx                     transaction
+@param[in]      partial_rollback        true if partial rollback
+@return the query graph */
 static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
   mem_heap_t *heap;
   que_fork_t *fork;
@@ -1006,11 +1006,11 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
 
 /** Starts a rollback operation, creates the UNDO graph that will do the
  actual undo operation.
-@param[in]	trx	transaction
-@param[in]	roll_limit	 rollback to undo no (for
+@param[in]      trx     transaction
+@param[in]      roll_limit       rollback to undo no (for
                                  partial undo), 0 if we are rolling back
                                  the entire transaction
-@param[in]	partial_rollback true if partial rollback
+@param[in]      partial_rollback true if partial rollback
 @return query graph thread that will perform the UNDO operations. */
 static que_thr_t *trx_rollback_start(trx_t *trx, ib_id_t roll_limit,
                                      bool partial_rollback) {

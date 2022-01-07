@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,8 +93,8 @@ int fts_get_table_id(
 }
 
 /** Construct the prefix name of an FTS table.
-@param[in]	fts_table	Auxiliary FTS table
-@param[in]	is_5_7		true if we need 5.7 compatible name
+@param[in]      fts_table       Auxiliary FTS table
+@param[in]      is_5_7          true if we need 5.7 compatible name
 @return own: table name, must be freed with ut::free() */
 static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
                                            bool is_5_7) {
@@ -138,7 +138,7 @@ char *fts_get_table_name_prefix(
 }
 
 /** Construct the prefix name of an FTS table in 5.7 compatible name
-@param[in]	fts_table	Auxiliary FTS table
+@param[in]      fts_table       Auxiliary FTS table
 @return own: table name, must be freed with ut::free() */
 char *fts_get_table_name_prefix_5_7(const fts_table_t *fts_table) {
   return (fts_get_table_name_prefix_low(fts_table, true));
@@ -147,9 +147,9 @@ char *fts_get_table_name_prefix_5_7(const fts_table_t *fts_table) {
 /** Construct the name of an ancillary FTS table for the given table.
 Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
 for param 'table_name'
-@param[in]	fts_table	FTS Aux table
-@param[in,out]	table_name	aux table name
-@param[in]	is_5_7		true if we need 5.7 compatible name */
+@param[in]      fts_table       FTS Aux table
+@param[in,out]  table_name      aux table name
+@param[in]      is_5_7          true if we need 5.7 compatible name */
 static void fts_get_table_name_low(const fts_table_t *fts_table,
                                    char *table_name, bool is_5_7) {
   int len;
@@ -181,8 +181,8 @@ void fts_get_table_name(const fts_table_t *fts_table,
 /** Construct the name of an ancillary FTS table for the given table in
 5.7 compatible format. Caller must allocate enough memory(usually size
 of MAX_FULL_NAME_LEN) for param 'table_name'
-@param[in]	fts_table	Auxiliary table object
-@param[in,out]	table_name	aux table name */
+@param[in]      fts_table       Auxiliary table object
+@param[in,out]  table_name      aux table name */
 void fts_get_table_name_5_7(const fts_table_t *fts_table, char *table_name) {
   fts_get_table_name_low(fts_table, table_name, true);
 }

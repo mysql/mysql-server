@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -117,24 +117,24 @@ contains two areas of no mans lands before and after the buffer requested. */
 
 #ifdef UNIV_DEBUG
 /** Macro for memory heap creation.
-@param[in]	size		Desired start block size. */
+@param[in]      size            Desired start block size. */
 #define mem_heap_create(size) \
   mem_heap_create_func((size), __FILE__, __LINE__, MEM_HEAP_DYNAMIC)
 
 /** Macro for memory heap creation.
-@param[in]	size		Desired start block size.
-@param[in]	type		Heap type */
+@param[in]      size            Desired start block size.
+@param[in]      type            Heap type */
 #define mem_heap_create_typed(size, type) \
   mem_heap_create_func((size), __FILE__, __LINE__, (type))
 
 #else /* UNIV_DEBUG */
 /** Macro for memory heap creation.
-@param[in]	size		Desired start block size. */
+@param[in]      size            Desired start block size. */
 #define mem_heap_create(size) mem_heap_create_func((size), MEM_HEAP_DYNAMIC)
 
 /** Macro for memory heap creation.
-@param[in]	size		Desired start block size.
-@param[in]	type		Heap type */
+@param[in]      size            Desired start block size.
+@param[in]      type            Heap type */
 #define mem_heap_create_typed(size, type) mem_heap_create_func((size), (type))
 
 #endif /* UNIV_DEBUG */
@@ -143,14 +143,14 @@ contains two areas of no mans lands before and after the buffer requested. */
 NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
-@param[in]	size		Desired start block size. */
+@param[in]      size            Desired start block size. */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	file_name	File name where created
-@param[in]	line		Line where created */
+@param[in]      file_name       File name where created
+@param[in]      line            Line where created */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	type		Heap type
+@param[in]      type            Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline mem_heap_t *mem_heap_create_func(ulint size,
@@ -162,54 +162,54 @@ static inline mem_heap_t *mem_heap_create_func(ulint size,
 
 /** Frees the space occupied by a memory heap.
 NOTE: Use the corresponding macro instead of this function.
-@param[in]	heap	Heap to be freed */
+@param[in]      heap    Heap to be freed */
 static inline void mem_heap_free(mem_heap_t *heap);
 
 /** Allocates and zero-fills n bytes of memory from a memory heap.
-@param[in]	heap	memory heap
-@param[in]	n	number of bytes; if the heap is allowed to grow into
+@param[in]      heap    memory heap
+@param[in]      n       number of bytes; if the heap is allowed to grow into
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated, zero-filled storage */
 static inline void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
 
 /** Allocates n bytes of memory from a memory heap.
-@param[in]	heap	memory heap
-@param[in]	n	number of bytes; if the heap is allowed to grow into
+@param[in]      heap    memory heap
+@param[in]      n       number of bytes; if the heap is allowed to grow into
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline void *mem_heap_alloc(mem_heap_t *heap, ulint n);
 
 /** Returns a pointer to the heap top.
-@param[in]	heap		memory heap
+@param[in]      heap            memory heap
 @return pointer to the heap top */
 static inline byte *mem_heap_get_heap_top(mem_heap_t *heap);
 
 /** Frees the space in a memory heap exceeding the pointer given.
 The pointer must have been acquired from mem_heap_get_heap_top.
 The first memory block of the heap is not freed.
-@param[in]	heap		heap from which to free
-@param[in]	old_top		pointer to old top of heap */
+@param[in]      heap            heap from which to free
+@param[in]      old_top         pointer to old top of heap */
 static inline void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top);
 
 /** Empties a memory heap.
 The first memory block of the heap is not freed.
-@param[in]	heap		heap to empty */
+@param[in]      heap            heap to empty */
 static inline void mem_heap_empty(mem_heap_t *heap);
 
 /** Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
-@param[in]	heap	memory heap
-@param[in]	n	size of the topmost element
+@param[in]      heap    memory heap
+@param[in]      n       size of the topmost element
 @return pointer to the topmost element */
 static inline void *mem_heap_get_top(mem_heap_t *heap, ulint n);
 
 /** Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
 that element from the heap.
-@param[in]	heap	memory heap
-@param[in]	buf	presumed topmost element
-@param[in]	buf_sz	size of buf in bytes
+@param[in]      heap    memory heap
+@param[in]      buf     presumed topmost element
+@param[in]      buf_sz  size of buf in bytes
 @return true if topmost */
 [[nodiscard]] static inline bool mem_heap_is_top(mem_heap_t *heap,
                                                  const void *buf, ulint buf_sz);
@@ -218,10 +218,10 @@ that element from the heap.
 topmost element. If the memory chunk specified with (top, top_sz) is the
 topmost element, then it will be discarded, otherwise it will be left untouched
 and this function will be equivallent to mem_heap_alloc().
-@param[in,out]	heap	memory heap
-@param[in]	top	chunk to discard if possible
-@param[in]	top_sz	size of top in bytes
-@param[in]	new_sz	desired size of the new chunk
+@param[in,out]  heap    memory heap
+@param[in]      top     chunk to discard if possible
+@param[in]      top_sz  size of top in bytes
+@param[in]      new_sz  desired size of the new chunk
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline void *mem_heap_replace(mem_heap_t *heap, const void *top,
@@ -232,11 +232,11 @@ topmost element and then copy the specified data to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
 otherwise it will be left untouched and this function will be equivalent to
 mem_heap_dup().
-@param[in,out]	heap	memory heap
-@param[in]	top	chunk to discard if possible
-@param[in]	top_sz	size of top in bytes
-@param[in]	data	new data to duplicate
-@param[in]	data_sz	size of data in bytes
+@param[in,out]  heap    memory heap
+@param[in]      top     chunk to discard if possible
+@param[in]      top_sz  size of top in bytes
+@param[in]      data    new data to duplicate
+@param[in]      data_sz size of data in bytes
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline void *mem_heap_dup_replace(mem_heap_t *heap, const void *top,
@@ -248,18 +248,18 @@ topmost element and then copy the specified string to it. If the memory chunk
 specified with (top, top_sz) is the topmost element, then it will be discarded,
 otherwise it will be left untouched and this function will be equivalent to
 mem_heap_strdup().
-@param[in,out]	heap	memory heap
-@param[in]	top	chunk to discard if possible
-@param[in]	top_sz	size of top in bytes
-@param[in]	str	new data to duplicate
+@param[in,out]  heap    memory heap
+@param[in]      top     chunk to discard if possible
+@param[in]      top_sz  size of top in bytes
+@param[in]      str     new data to duplicate
 @return allocated string, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline char *mem_heap_strdup_replace(mem_heap_t *heap, const void *top,
                                             ulint top_sz, const char *str);
 
 /** Frees the topmost element in a memory heap.
-@param[in]	heap	memory heap
-@param[in]	n	size of the topmost element
+@param[in]      heap    memory heap
+@param[in]      n       size of the topmost element
 The size of the element must be given. */
 static inline void mem_heap_free_top(mem_heap_t *heap, ulint n);
 
@@ -267,27 +267,27 @@ static inline void mem_heap_free_top(mem_heap_t *heap, ulint n);
 static inline ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
-@param[in]	str	string to be copied
+@param[in]      str     string to be copied
 @return own: a copy of the string, must be deallocated with ut_free */
 static inline char *mem_strdup(const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string.
-@param[in]	str	string to be copied
-@param[in]	len	length of str, in bytes
+@param[in]      str     string to be copied
+@param[in]      len     length of str, in bytes
 @return own: a copy of the string, must be deallocated with ut_free */
 static inline char *mem_strdupl(const char *str, ulint len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
-@param[in]	heap	memory heap where string is allocated
-@param[in]	str	string to be copied
+@param[in]      heap    memory heap where string is allocated
+@param[in]      str     string to be copied
 @return own: a copy of the string */
 char *mem_heap_strdup(mem_heap_t *heap, const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string, allocated from a
 memory heap.
-@param[in]	heap	memory heap where string is allocated
-@param[in]	str	string to be copied
-@param[in]	len	length of str, in bytes
+@param[in]      heap    memory heap where string is allocated
+@param[in]      str     string to be copied
+@param[in]      len     length of str, in bytes
 @return own: a copy of the string */
 static inline char *mem_heap_strdupl(mem_heap_t *heap, const char *str,
                                      ulint len);
@@ -316,14 +316,14 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
                       ...) MY_ATTRIBUTE((format(printf, 2, 3)));
 
 /** Checks that an object is a memory heap (or a block of it)
-@param[in]	block Memory block to check */
+@param[in]      block Memory block to check */
 static inline void mem_block_validate(const mem_block_t *block);
 #ifdef UNIV_DEBUG
 
 /** Validates the contents of a memory heap.
 Checks a memory heap for consistency, prints the contents if any error
 is detected. A fatal error is logged if an error is detected.
-@param[in]	heap	Memory heap to validate. */
+@param[in]      heap    Memory heap to validate. */
 void mem_heap_validate(const mem_heap_t *heap);
 
 #endif /* UNIV_DEBUG */

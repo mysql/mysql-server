@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -150,9 +150,9 @@ que_fork_t *que_fork_create(
 }
 
 /** Creates a query graph thread node.
-@param[in]	parent		parent node, i.e., a fork node
-@param[in]	heap		memory heap where created
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      parent          parent node, i.e., a fork node
+@param[in]      heap            memory heap where created
+@param[in]      prebuilt        row prebuilt structure
 @return own: query thread node */
 que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
                           row_prebuilt_t *prebuilt) {

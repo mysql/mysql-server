@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -200,7 +200,7 @@ ibool ha_insert_for_fold_func(
 
 #ifdef UNIV_DEBUG
 /** Verify if latch corresponding to the hash table is x-latched
-@param[in]	table		hash table */
+@param[in]      table           hash table */
 static void ha_btr_search_latch_x_locked(const hash_table_t *table) {
   ulint i;
   for (i = 0; i < btr_ahi_parts; ++i) {

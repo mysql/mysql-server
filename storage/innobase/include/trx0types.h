@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -316,7 +316,7 @@ class Rsegs {
   void clear();
 
   /** Add rollback segment.
-  @param[in]	rseg	rollback segment to add. */
+  @param[in]    rseg    rollback segment to add. */
   void push_back(trx_rseg_t *rseg) { m_rsegs.push_back(rseg); }
 
   /** Number of registered rsegs.
@@ -332,12 +332,12 @@ class Rsegs {
   Rseg_Iterator end() { return (m_rsegs.end()); }
 
   /** Find the rseg at the given slot in this vector.
-  @param[in]	slot	a slot within the vector.
+  @param[in]    slot    a slot within the vector.
   @return an iterator to the end */
   trx_rseg_t *at(ulint slot) { return (m_rsegs.at(slot)); }
 
   /** Find an rseg in the std::vector that uses the rseg_id given.
-  @param[in]	rseg_id		A slot in a durable array such as
+  @param[in]    rseg_id         A slot in a durable array such as
                                   the TRX_SYS page or RSEG_ARRAY page.
   @return a pointer to an trx_rseg_t that uses the rseg_id. */
   trx_rseg_t *find(ulint rseg_id);

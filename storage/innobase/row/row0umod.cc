@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -159,7 +159,7 @@ introduced where a call to log_free_check() is bypassed. */
  This is attempted when the record was inserted by updating a
  delete-marked record and there no longer exist transactions
  that would see the delete-marked record.
- @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
+ @return        DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
  */
 [[nodiscard]] static dberr_t row_undo_mod_remove_clust_low(
     undo_node_t *node, /*!< in: row undo node */
@@ -780,10 +780,10 @@ static void row_undo_mod_sec_flag_corrupted(
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node	row undo node
-@param[in,out]	thr	query thread
-@param[in]	index	the multi-value index
-@param[in,out]	heap	memory heap
+@param[in,out]  node    row undo node
+@param[in,out]  thr     query thread
+@param[in]      index   the multi-value index
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_mod_upd_del_multi_sec(undo_node_t *node,
                                                             que_thr_t *thr,
@@ -880,10 +880,10 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node	row undo node
-@param[in,out]	thr	query thread
-@param[in]	index	the multi-value index
-@param[in,out]	heap	memory heap
+@param[in,out]  node    row undo node
+@param[in,out]  thr     query thread
+@param[in]      index   the multi-value index
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_mod_del_mark_multi_sec(
     undo_node_t *node, que_thr_t *thr, dict_index_t *index, mem_heap_t *heap) {
@@ -995,12 +995,12 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
 This is the specific function to handle the modify on multi-value indexes.
-@param[in,out]	node		row undo node
-@param[in,out]	thr		query thread
-@param[in]	index		the multi-value index
-@param[in]	non_mv_upd	true if any non-multi-value field on the index
+@param[in,out]  node            row undo node
+@param[in,out]  thr             query thread
+@param[in]      index           the multi-value index
+@param[in]      non_mv_upd      true if any non-multi-value field on the index
                                 gets updated too
-@param[in,out]	heap		memory heap
+@param[in,out]  heap            memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
                                                 que_thr_t *thr,
@@ -1185,9 +1185,9 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
 }
 
 /** Parses the row reference and other info in a modify undo log record.
-@param[in]	node	row undo node
+@param[in]      node    row undo node
 @param[in]      thd     THD associated with the node
-@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
+@param[in,out]  mdl     MDL ticket or nullptr if unnecessary */
 static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
                                         MDL_ticket **mdl) {
   dict_index_t *clust_index;

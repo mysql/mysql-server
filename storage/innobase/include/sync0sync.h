@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -215,7 +215,7 @@ extern mysql_pfs_key_t PFS_NOT_INSTRUMENTED;
 #endif /* HAVE_PFS_INTERFACE */
 
 /** Prints info of the sync system.
-@param[in]	file	where to print */
+@param[in]      file    where to print */
 void sync_print(FILE *file);
 
 #endif /* !sync0sync_h */

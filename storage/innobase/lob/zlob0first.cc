@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -462,7 +462,7 @@ uint32_t z_first_page_t::incr_lob_version() {
 
 /** When the bit is set, the LOB is not partially updatable anymore.
 Enable the bit.
-@param[in]	trx	the current transaction.*/
+@param[in]      trx     the current transaction.*/
 void z_first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
   const trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
   const undo_no_t undo_no = (trx == nullptr) ? 0 : (trx->undo_no - 1);

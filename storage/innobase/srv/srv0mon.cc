@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2019,7 +2019,7 @@ void srv_mon_process_existing_counter(
         /* If MONITOR_DISPLAY_CURRENT bit is on, we
         only record the current value, rather than
         incremental value over a period. Most of
-`			this type of counters are resource related
+`                       this type of counters are resource related
         counters such as number of buffer pages etc. */
         if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
           MONITOR_SET(monitor_id, value);

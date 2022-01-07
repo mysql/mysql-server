@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -331,12 +331,12 @@ static void *table_cache_create_empty_row(
     cache->mem_allocd += got_bytes;
 
 #if 0
-		printf("allocating chunk %d req bytes=%lu, got bytes=%lu,"
-		       " row size=%lu,"
-		       " req rows=%lu, got rows=%lu\n",
-		       i, req_bytes, got_bytes,
-		       table_cache->row_size,
-		       req_rows, got_rows);
+                printf("allocating chunk %d req bytes=%lu, got bytes=%lu,"
+                       " row size=%lu,"
+                       " req rows=%lu, got rows=%lu\n",
+                       i, req_bytes, got_bytes,
+                       table_cache->row_size,
+                       req_rows, got_rows);
 #endif
 
     chunk->rows_allocd = got_rows;
@@ -617,10 +617,10 @@ static ulint put_nth_field(
 /** Fill performance schema lock data.
 Create a string that represents the LOCK_DATA
 column, for a given lock record.
-@param[out]	lock_data	Lock data string
-@param[in]	lock		Lock to inspect
-@param[in]	heap_no		Lock heap number
-@param[in]	container	Data container to fill
+@param[out]     lock_data       Lock data string
+@param[in]      lock            Lock to inspect
+@param[in]      heap_no         Lock heap number
+@param[in]      container       Data container to fill
 */
 void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
                         ulint heap_no,

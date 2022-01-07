@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -183,8 +183,8 @@ static const char *get_buf_dump_dir() {
 }
 
 /** Generate the path to the buffer pool dump/load file.
-@param[out]	path		generated path
-@param[in]	path_size	size of 'path', used as in snprintf(3). */
+@param[out]     path            generated path
+@param[in]      path_size       size of 'path', used as in snprintf(3). */
 void buf_dump_generate_path(char *path, size_t path_size) {
   char buf[FN_REFLEN];
 
@@ -221,7 +221,7 @@ innodb_buffer_pool_filename. If any errors occur then the value of
 innodb_buffer_pool_dump_status will be set accordingly, see buf_dump_status().
 The dump filename can be specified by (relative to srv_data_home):
 SET GLOBAL innodb_buffer_pool_filename='filename';
-@param[in]	obey_shutdown	quit if we are in a shutting down state */
+@param[in]      obey_shutdown   quit if we are in a shutting down state */
 static void buf_dump(ibool obey_shutdown) {
 #define SHOULD_QUIT() (SHUTTING_DOWN() && obey_shutdown)
 
@@ -359,12 +359,12 @@ static void buf_dump(ibool obey_shutdown) {
 /** Artificially delay the buffer pool loading if necessary. The idea of this
 function is to prevent hogging the server with IO and slowing down too much
 normal client queries.
-@param[in,out]	last_check_time		milliseconds since epoch of the last
+@param[in,out]  last_check_time         milliseconds since epoch of the last
                                         time we did check if throttling is
                                         needed, we do the check every
                                         srv_io_capacity IO ops.
-@param[in]	last_activity_count	activity count
-@param[in]	n_io			number of IO ops done since buffer
+@param[in]      last_activity_count     activity count
+@param[in]      n_io                    number of IO ops done since buffer
                                         pool load has started */
 static inline void buf_load_throttle_if_needed(
     std::chrono::steady_clock::time_point *last_check_time,
@@ -693,6 +693,6 @@ void buf_dump_thread() {
 
   if (srv_buffer_pool_dump_at_shutdown && srv_fast_shutdown != 2) {
     buf_dump(FALSE /* ignore shutdown down flag,
-		keep going even if we are in a shutdown state */);
+                keep going even if we are in a shutdown state */);
   }
 }

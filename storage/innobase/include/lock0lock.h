@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -254,7 +254,7 @@ void lock_sys_create(
     ulint n_cells); /*!< in: number of slots in lock hash table */
 
 /** Resize the lock hash tables.
-@param[in]	n_cells	number of slots in lock hash table */
+@param[in]      n_cells number of slots in lock hash table */
 void lock_sys_resize(ulint n_cells);
 
 /** Closes the lock system at database shutdown. */
@@ -507,23 +507,23 @@ enum class lock_duration_t {
 
 /** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+@param[in]      duration        If equal to AT_LEAST_STATEMENT, then makes sure
                                 that the lock will be kept around and inherited
                                 for at least the duration of current statement.
                                 If equal to REGULAR the life-cycle of the lock
                                 will depend on isolation level rules.
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record or page supremum record which should
+@param[in]      block           buffer block of rec
+@param[in]      rec             user record or page supremum record which should
                                 be read or passed over by a read cursor
-@param[in]	index		secondary index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      index           secondary index
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		mode of the lock which the read cursor should
+@param[in]      mode            mode of the lock which the read cursor should
                                 set on records: LOCK_S or LOCK_X; the latter is
                                 possible in SELECT FOR UPDATE
-@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
-@param[in,out]	thr		query thread
+@param[in]      gap_mode        LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]  thr             query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_sec_rec_read_check_and_lock(lock_duration_t duration,
@@ -539,23 +539,23 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+@param[in]      duration        If equal to AT_LEAST_STATEMENT, then makes sure
                                 that the lock will be kept around and inherited
                                 for at least the duration of current statement.
                                 If equal to REGULAR the life-cycle of the lock
                                 will depend on isolation level rules.
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record or page supremum record which should
+@param[in]      block           buffer block of rec
+@param[in]      rec             user record or page supremum record which should
                                 be read or passed over by a read cursor
-@param[in]	index		secondary index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      index           secondary index
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		mode of the lock which the read cursor should
+@param[in]      mode            mode of the lock which the read cursor should
                                 set on records: LOCK_S or LOCK_X; the latter is
                                 possible in SELECT FOR UPDATE
-@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
-@param[in,out]	thr		query thread
+@param[in]      gap_mode        LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]  thr             query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_clust_rec_read_check_and_lock(
@@ -628,9 +628,9 @@ bool lock_clust_rec_cons_read_sees(
 void lock_table_ix_resurrect(dict_table_t *table, trx_t *trx);
 
 /** Sets a lock on a table based on the given mode.
-@param[in]	table	table to lock
-@param[in,out]	trx	transaction
-@param[in]	mode	LOCK_X or LOCK_S
+@param[in]      table   table to lock
+@param[in,out]  trx     transaction
+@param[in]      mode    LOCK_X or LOCK_S
 @return error code or DB_SUCCESS. */
 [[nodiscard]] dberr_t lock_table_for_trx(dict_table_t *table, trx_t *trx,
                                          enum lock_mode mode)
@@ -652,8 +652,8 @@ void lock_trx_release_locks(trx_t *trx); /*!< in/out: transaction */
 
 /** Release read locks of a transaction. It is called during XA
 prepare to release locks early.
-@param[in,out]	trx		transaction
-@param[in]	only_gap	release only GAP locks */
+@param[in,out]  trx             transaction
+@param[in]      only_gap        release only GAP locks */
 void lock_trx_release_read_locks(trx_t *trx, bool only_gap);
 
 /** Iterate over the granted locks which conflict with trx->lock.wait_lock and
@@ -703,8 +703,8 @@ ulint lock_rec_find_set_bit(const lock_t *lock); /*!< in: record lock with at
                                                  least one bit set */
 
 /** Looks for the next set bit in the record lock bitmap.
-@param[in] lock		record lock with at least one bit set
-@param[in] heap_no	current set bit
+@param[in] lock         record lock with at least one bit set
+@param[in] heap_no      current set bit
 @return The next bit index  == heap number following heap_no, or ULINT_UNDEFINED
 if none found */
 ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no);
@@ -732,8 +732,8 @@ void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
 void lock_print_info_summary(FILE *file);
 
 /** Prints transaction lock wait and MVCC state.
-@param[in,out]	file	file where to print
-@param[in]	trx	transaction */
+@param[in,out]  file    file where to print
+@param[in]      trx     transaction */
 void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx);
 
 /** Prints info of locks for each transaction. This function assumes that the
@@ -777,21 +777,21 @@ uint64_t lock_get_immutable_id(const lock_t *lock);
 
 /** Get the performance schema event (thread_id, event_id)
 that created the lock.
-@param[in]	lock		Lock
-@param[out]	thread_id	Thread ID that created the lock
-@param[out]	event_id	Event ID that created the lock
+@param[in]      lock            Lock
+@param[out]     thread_id       Thread ID that created the lock
+@param[out]     event_id        Event ID that created the lock
 */
 void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
                         ulonglong *event_id);
 
 /** Get the first lock of a trx lock list.
-@param[in]	trx_lock	the trx lock
+@param[in]      trx_lock        the trx lock
 @return The first lock
 */
 const lock_t *lock_get_first_trx_locks(const trx_lock_t *trx_lock);
 
 /** Get the next lock of a trx lock list.
-@param[in]	lock	the current lock
+@param[in]      lock    the current lock
 @return The next lock
 */
 const lock_t *lock_get_next_trx_locks(const lock_t *lock);
@@ -811,7 +811,7 @@ const char *lock_get_type_str(const lock_t *lock); /*!< in: lock */
 table_id_t lock_get_table_id(const lock_t *lock); /*!< in: lock */
 
 /** Determine which table a lock is associated with.
-@param[in]	lock	the lock
+@param[in]      lock    the lock
 @return name of the table */
 const table_name_t &lock_get_table_name(const lock_t *lock);
 
@@ -895,7 +895,7 @@ bool lock_validate();
 
 /**
 Allocate cached locks for the transaction.
-@param trx		allocate cached record locks for this transaction */
+@param trx              allocate cached record locks for this transaction */
 void lock_trx_alloc_locks(trx_t *trx);
 
 /** Lock modes and types */
@@ -1022,12 +1022,12 @@ struct lock_sys_t {
 This function is kind of wrapper to lock_rec_convert_impl_to_expl_for_trx()
 function with functionailty added to facilitate lock conversion from implicit
 to explicit for partial rollback cases
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record on page
-@param[in]	index		index of record
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in,out]	trx		active transaction
-@param[in]	heap_no		rec heap number to lock */
+@param[in]      block           buffer block of rec
+@param[in]      rec             user record on page
+@param[in]      index           index of record
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in,out]  trx             active transaction
+@param[in]      heap_no         rec heap number to lock */
 void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
                                           const rec_t *rec, dict_index_t *index,
                                           const ulint *offsets, trx_t *trx,
@@ -1055,9 +1055,9 @@ void lock_rec_free_all_from_discard_page(
     const buf_block_t *block); /*!< in: page to be discarded */
 
 /** Reset the nth bit of a record lock.
-@param[in,out]	lock record lock
-@param[in] i	index of the bit that will be reset
-@param[in] type	whether the lock is in wait mode */
+@param[in,out]  lock record lock
+@param[in] i    index of the bit that will be reset
+@param[in] type whether the lock is in wait mode */
 void lock_rec_trx_wait(lock_t *lock, ulint i, ulint type);
 
 /** The lock system */

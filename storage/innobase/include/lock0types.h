@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,7 +61,7 @@ enum lock_mode {
 };
 
 /** Convert the given enum value into string.
-@param[in]	mode	the lock mode
+@param[in]      mode    the lock mode
 @return human readable string of the given enum value */
 inline const char *lock_mode_string(enum lock_mode mode) {
   switch (mode) {

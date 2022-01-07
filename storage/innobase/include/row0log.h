@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -97,8 +97,8 @@ void row_log_online_op(
 
 /** Check whether a virtual column is indexed in the new table being
 created during alter table
-@param[in]	index	cluster index
-@param[in]	v_no	virtual column number
+@param[in]      index   cluster index
+@param[in]      v_no    virtual column number
 @return true if it is indexed, else false */
 bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no);
 
@@ -169,10 +169,10 @@ void row_log_table_blob_alloc(
     UNIV_COLD;
 
 /** Apply the row_log_table log to a table upon completing rebuild.
-@param[in]	thr		query graph
-@param[in]	old_table	old table
-@param[in,out]	table		MySQL table (for reporting duplicates)
-@param[in,out]	stage		performance schema accounting object, used by
+@param[in]      thr             query graph
+@param[in]      old_table       old table
+@param[in,out]  table           MySQL table (for reporting duplicates)
+@param[in,out]  stage           performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -188,11 +188,11 @@ stage->inc() will be called for each block of log that is applied.
     dict_index_t *index); /*!< in: index, must be locked */
 
 /** Apply the row log to the index upon completing index creation.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	secondary index
-@param[in,out]	table	MySQL table (for reporting duplicates)
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   secondary index
+@param[in,out]  table   MySQL table (for reporting duplicates)
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -202,7 +202,7 @@ stage->inc() will be called for each block of log that is applied.
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate how much work is to be done by the log apply phase
 of an ALTER TABLE for this index.
-@param[in]	index	index whose log to assess
+@param[in]      index   index whose log to assess
 @return work to be done by log-apply in abstract units
 */
 ulint row_log_estimate_work(const dict_index_t *index);

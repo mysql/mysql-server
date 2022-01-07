@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -62,7 +62,7 @@ extern ulong srv_thread_concurrency;
 struct row_prebuilt_t;
 /** Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
- @param[in,out]	prebuilt	row prebuilt handler
+ @param[in,out] prebuilt        row prebuilt handler
  @return Innodb error code. */
 dberr_t srv_conc_enter_innodb(row_prebuilt_t *prebuilt);
 

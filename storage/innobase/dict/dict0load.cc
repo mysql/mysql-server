@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -73,7 +73,7 @@ const char *SYSTEM_TABLE_NAME[] = {
 
 /** This variant is based on name comparision and is used because
 system table id array is not built yet.
-@param[in]	name	InnoDB table name
+@param[in]      name    InnoDB table name
 @return true if table name is InnoDB SYSTEM table */
 static bool dict_load_is_system_table(const char *name) {
   ut_ad(name != nullptr);
@@ -105,11 +105,11 @@ referenced table is pushed into the output stack (fk_tables), if it is not
 NULL.  These tables must be subsequently loaded so that all the foreign
 key constraints are loaded into memory.
 
-@param[in]	name		Table name in the db/tablename format
-@param[in]	cached		true=add to cache, false=do not
-@param[in]	ignore_err	Error to be ignored when loading table
+@param[in]      name            Table name in the db/tablename format
+@param[in]      cached          true=add to cache, false=do not
+@param[in]      ignore_err      Error to be ignored when loading table
                                 and its index definition
-@param[out]	fk_tables	Related table names that must also be
+@param[out]     fk_tables       Related table names that must also be
                                 loaded to ensure that all foreign key
                                 constraints are loaded.
 @param[in]      prev_table      previous table name. The current table load
@@ -126,9 +126,9 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
 
 /** Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
-@param[in]	name	Table name
-@param[in]	rec	SYS_TABLES record
-@param[out]	table	Table, or NULL
+@param[in]      name    Table name
+@param[in]      rec     SYS_TABLES record
+@param[out]     table   Table, or NULL
 @return error message, or NULL on success */
 static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
                                        dict_table_t **table);
@@ -630,12 +630,12 @@ static const char *dict_load_virtual_del =
 
 /** Loads a virtual column "mapping" (to base columns) information
 from a SYS_VIRTUAL record
-@param[in,out]	table		table
-@param[in,out]	column		mapped base column's dict_column_t
-@param[in,out]	table_id	table id
-@param[in,out]	pos		virtual column position
-@param[in,out]	base_pos	base column position
-@param[in]	rec		SYS_VIRTUAL record
+@param[in,out]  table           table
+@param[in,out]  column          mapped base column's dict_column_t
+@param[in,out]  table_id        table id
+@param[in,out]  pos             virtual column position
+@param[in,out]  base_pos        base column position
+@param[in]      rec             SYS_VIRTUAL record
 @return error message, or NULL on success */
 static const char *dict_load_virtual_low(dict_table_t *table,
                                          dict_col_t **column,
@@ -703,10 +703,10 @@ static const char *dict_load_virtual_low(dict_table_t *table,
 }
 
 /** Loads SYS_VIRTUAL info for one virtual column
-@param[in,out]	table		table
-@param[in]	nth_v_col	virtual column sequence num
-@param[in,out]	v_col		virtual column
-@param[in,out]	heap		memory heap
+@param[in,out]  table           table
+@param[in]      nth_v_col       virtual column sequence num
+@param[in,out]  v_col           virtual column
+@param[in,out]  heap            memory heap
 */
 static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
                                       dict_v_col_t *v_col, mem_heap_t *heap) {
@@ -791,8 +791,8 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
 }
 
 /** Loads info from SYS_VIRTUAL for virtual columns.
-@param[in,out]	table	table
-@param[in]	heap	memory heap
+@param[in,out]  table   table
+@param[in]      heap    memory heap
 */
 static void dict_load_virtual(dict_table_t *table, mem_heap_t *heap) {
   for (ulint i = 0; i < table->n_v_cols; i++) {
@@ -979,7 +979,7 @@ const char *dict_process_sys_tablespaces(
 }
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
-@param[in]	space_id	Tablespace ID
+@param[in]      space_id        Tablespace ID
 @return First filepath (caller must invoke ut::free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id) {
@@ -1054,8 +1054,8 @@ char *dict_get_first_path(ulint space_id) {
 }
 
 /** Gets the space name from SYS_TABLESPACES for a given space ID.
-@param[in]	space_id	Tablespace ID
-@param[in]	callers_heap	A heap to allocate from, may be NULL
+@param[in]      space_id        Tablespace ID
+@param[in]      callers_heap    A heap to allocate from, may be NULL
 @return Tablespace name (caller is responsible to free it)
 @retval NULL if no dictionary entry was found. */
 static char *dict_space_get_name(space_id_t space_id,
@@ -1140,7 +1140,7 @@ static char *dict_space_get_name(space_id_t space_id,
 /** Check the validity of a SYS_TABLES record
 Make sure the fields are the right length and that they
 do not contain invalid contents.
-@param[in]	rec	SYS_TABLES record
+@param[in]      rec     SYS_TABLES record
 @return error message, or NULL on success */
 static const char *dict_sys_tables_rec_check(const rec_t *rec) {
   const byte *field;
@@ -1209,10 +1209,10 @@ static const char *dict_sys_tables_rec_check(const rec_t *rec) {
 }
 
 /** Read and return the contents of a SYS_TABLESPACES record.
-@param[in]	rec	A record of SYS_TABLESPACES
-@param[out]	id	Pointer to the space_id for this table
-@param[in,out]	name	Buffer for Tablespace Name of length NAME_LEN
-@param[out]	flags	Pointer to tablespace flags
+@param[in]      rec     A record of SYS_TABLESPACES
+@param[out]     id      Pointer to the space_id for this table
+@param[in,out]  name    Buffer for Tablespace Name of length NAME_LEN
+@param[out]     flags   Pointer to tablespace flags
 @return true if the record was read correctly, false if not. */
 static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
                                           char *name, uint32_t *flags) {
@@ -1250,7 +1250,7 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 /** Load and check each general tablespace mentioned in the SYS_TABLESPACES.
 Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
-@param[in]	validate	true when the previous shutdown was not clean
+@param[in]      validate        true when the previous shutdown was not clean
 @return the highest space ID found. */
 static inline space_id_t dict_check_sys_tablespaces(bool validate) {
   space_id_t max_space_id = 0;
@@ -1324,13 +1324,13 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
 }
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
-@param[in]	rec		A record of SYS_TABLES
-@param[in]	table_name	Table Name, the same as SYS_TABLES.NAME
-@param[out]	table_id	Pointer to the table_id for this table
-@param[out]	space_id	Pointer to the space_id for this table
-@param[out]	n_cols		Pointer to number of columns for this table.
-@param[out]	flags		Pointer to table flags
-@param[out]	flags2		Pointer to table flags2
+@param[in]      rec             A record of SYS_TABLES
+@param[in]      table_name      Table Name, the same as SYS_TABLES.NAME
+@param[out]     table_id        Pointer to the table_id for this table
+@param[out]     space_id        Pointer to the space_id for this table
+@param[out]     n_cols          Pointer to number of columns for this table.
+@param[out]     flags           Pointer to table flags
+@param[out]     flags2          Pointer to table flags2
 @return true if the record was read correctly, false if not. */
 static bool dict_sys_tables_rec_read(const rec_t *rec,
                                      const table_name_t &table_name,
@@ -1400,7 +1400,7 @@ Search SYS_TABLES and check each tablespace mentioned that has not
 already been added to the fil_system.  If it is valid, add it to the
 file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
-@param[in]	validate	Whether to do validation on the table.
+@param[in]      validate        Whether to do validation on the table.
 @return the highest space ID found. */
 static inline space_id_t dict_check_sys_tables(bool validate) {
   space_id_t max_space_id = 0;
@@ -1997,9 +1997,9 @@ func_exit:
 
 /** Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
-@param[in]	name	Table name
-@param[in]	rec	SYS_TABLES record
-@param[out]	table	Table, or NULL
+@param[in]      name    Table name
+@param[in]      rec     SYS_TABLES record
+@param[out]     table   Table, or NULL
 @return error message, or NULL on success */
 static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
                                        dict_table_t **table) {
@@ -2045,8 +2045,8 @@ table->data_dir_path. The data directory path is derived from the
 filepath by stripping the the table->name.m_name component suffix.
 If the filepath is not of the correct form (".../db/table.ibd"),
 then table->data_dir_path will remain nullptr.
-@param[in,out]	table		table instance
-@param[in]	filepath	filepath of tablespace */
+@param[in,out]  table           table instance
+@param[in]      filepath        filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
   ut_ad(dict_sys_mutex_own());
   ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
@@ -2081,8 +2081,8 @@ void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
-@param[in]	table		Table object
-@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+@param[in]      table           Table object
+@param[in]      dict_mutex_own  true if dict_sys->mutex is owned already */
 void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own) {
   if (!(DICT_TF_HAS_DATA_DIR(table->flags) &&
         table->data_dir_path == nullptr)) {

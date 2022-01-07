@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -228,13 +228,13 @@ class Arch_Page_Sys::Recovery {
  private:
   /** Read all the group directories and store information related to them
   required for parsing.
-  @param[in]	file_path	file path information */
+  @param[in]    file_path       file path information */
   void read_group_dirs(const std::string file_path);
 
   /** Read all the archived files belonging to a group and store information
   related to them required for parsing.
-  @param[in]	dir_path	dir path information
-  @param[in]	file_path	file path information */
+  @param[in]    dir_path        dir path information
+  @param[in]    file_path       file path information */
   void read_group_files(const std::string dir_path,
                         const std::string file_path);
 
@@ -268,7 +268,7 @@ class Arch_Group::Recovery {
 
   /** Check and replace blocks in archived files belonging to a group
   from the doublewrite buffer if required.
-  @param[in]      dblwr_ctx	Doublewrite context which has the doublewrite
+  @param[in]      dblwr_ctx     Doublewrite context which has the doublewrite
   buffer blocks
   @return error code */
   dberr_t replace_pages_from_dblwr(Arch_Dblwr_Ctx *dblwr_ctx);
@@ -310,7 +310,7 @@ class Arch_File_Ctx::Recovery {
 
 #ifdef UNIV_DEBUG
   /** Print recovery related data.
-  @param[in]	file_start_index	file index from where to begin */
+  @param[in]    file_start_index        file index from where to begin */
   void reset_print(uint file_start_index);
 #endif
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,7 +41,7 @@ enum tbsp_purpose {
                   in a replication setup */
 };
 /** Create the session temporary tablespaces on startup
-@param[in] create_new_db	true if bootstrapping
+@param[in] create_new_db        true if bootstrapping
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t open_or_create(bool create_new_db);
 
@@ -194,14 +194,14 @@ class Tablespace_pool {
   void release() { mutex_exit(&m_mutex); }
 
   /** Expand the pool to the requested size
-  @param[in] size	Number of tablespaces to be created
+  @param[in] size       Number of tablespaces to be created
   @return DB_SUCCESS on success, else DB_ERROR on error */
   dberr_t expand(size_t size);
 
   /** Delete old session temporary tablespaces found
   on startup. This can happen if server is killed and
   started again
-  @param[in]	create_new_db	true if we are bootstrapping */
+  @param[in]    create_new_db   true if we are bootstrapping */
   void delete_old_pool(bool create_new_db);
 
  private:

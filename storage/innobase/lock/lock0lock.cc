@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -327,14 +327,14 @@ void lock_sys_create(
 }
 
 /** Calculates the fold value of a lock: used in migrating the hash table.
-@param[in]	lock	record lock object
-@return	folded value */
+@param[in]      lock    record lock object
+@return folded value */
 static ulint lock_rec_lock_fold(const lock_t *lock) {
   return (lock_rec_fold(lock->rec_lock.page_id));
 }
 
 /** Resize the lock hash tables.
-@param[in]	n_cells	number of slots in lock hash table */
+@param[in]      n_cells number of slots in lock hash table */
 void lock_sys_resize(ulint n_cells) {
   hash_table_t *old_hash;
 
@@ -581,8 +581,8 @@ ulint lock_rec_find_set_bit(
 }
 
 /** Looks for the next set bit in the record lock bitmap.
-@param[in] lock		record lock with at least one bit set
-@param[in] heap_no	current set bit
+@param[in] lock         record lock with at least one bit set
+@param[in] heap_no      current set bit
 @return The next bit index  == heap number following heap_no, or ULINT_UNDEFINED
 if none found */
 ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no) {
@@ -619,9 +619,9 @@ static inline byte lock_rec_reset_nth_bit(lock_t *lock, ulint i) {
 }
 
 /** Reset the nth bit of a record lock.
-@param[in,out]	lock record lock
-@param[in] i	index of the bit that will be reset
-@param[in] type	whether the lock is in wait mode */
+@param[in,out]  lock record lock
+@param[in] i    index of the bit that will be reset
+@param[in] type whether the lock is in wait mode */
 void lock_rec_trx_wait(lock_t *lock, ulint i, ulint type) {
   lock_rec_reset_nth_bit(lock, i);
 
@@ -1018,11 +1018,11 @@ void RecLock::prepare() const {
 
 /**
 Create the lock instance
-@param[in, out] trx	The transaction requesting the lock
-@param[in, out] index	Index on which record lock is required
-@param[in] mode		The lock mode desired
-@param[in] rec_id	The record id
-@param[in] size		Size of the lock + bitmap requested
+@param[in, out] trx     The transaction requesting the lock
+@param[in, out] index   Index on which record lock is required
+@param[in] mode         The lock mode desired
+@param[in] rec_id       The record id
+@param[in] size         Size of the lock + bitmap requested
 @return a record lock instance */
 lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
                             const RecID &rec_id, ulint size) {
@@ -1084,9 +1084,9 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
 }
 
 /** Insert lock record to the tail of the queue where the WAITING locks reside.
-@param[in,out]	lock_hash	Hash table containing the locks
-@param[in,out]	lock		Record lock instance to insert
-@param[in]	rec_id	        Record being locked */
+@param[in,out]  lock_hash       Hash table containing the locks
+@param[in,out]  lock            Record lock instance to insert
+@param[in]      rec_id          Record being locked */
 static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
                                        const RecID &rec_id) {
   ut_ad(lock->is_waiting());
@@ -1099,9 +1099,9 @@ static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
 }
 
 /** Insert lock record to the head of the queue where the GRANTED locks reside.
-@param[in,out]	lock_hash	Hash table containing the locks
-@param[in,out]	lock		Record lock instance to insert
-@param[in]	rec_id	        Record being locked */
+@param[in,out]  lock_hash       Hash table containing the locks
+@param[in,out]  lock            Record lock instance to insert
+@param[in]      rec_id          Record being locked */
 static void lock_rec_insert_to_granted(hash_table_t *lock_hash, lock_t *lock,
                                        const RecID &rec_id) {
   ut_ad(rec_id.matches(lock));
@@ -1189,8 +1189,8 @@ void RecLock::lock_add(lock_t *lock) {
 
 /**
 Create a lock for a transaction and initialise it.
-@param[in, out] trx		Transaction requesting the new lock
-@param[in] prdt			Predicate lock (optional)
+@param[in, out] trx             Transaction requesting the new lock
+@param[in] prdt                 Predicate lock (optional)
 @return new lock instance */
 lock_t *RecLock::create(trx_t *trx, const lock_prdt_t *prdt) {
   ut_ad(locksys::owns_page_shard(m_rec_id.get_page_id()));
@@ -1239,7 +1239,7 @@ Collect the transactions that will need to be rolled back asynchronously
 @param[in, out] hit_list    The list of transactions to be rolled back, to which
                             the trx should be appended.
 @param[in]      hp_trx_id   The id of the blocked High Priority Transaction
-@param[in, out] trx	    The blocking transaction to be rolled back */
+@param[in, out] trx         The blocking transaction to be rolled back */
 static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
                                        trx_t *trx) {
   trx->abort = true;
@@ -1333,7 +1333,7 @@ static void lock_create_wait_for_edge(const lock_t *waiting_lock,
 
 /**
 Setup the requesting transaction state for lock grant
-@param[in,out] lock		Lock for which to change state */
+@param[in,out] lock             Lock for which to change state */
 void RecLock::set_wait_state(lock_t *lock) {
   ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(m_trx == lock->trx);
@@ -1387,8 +1387,8 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 /** Moves a granted lock to the front of the queue for a given record by
 removing it adding it to the front. As a single lock can correspond to multiple
 rows (and thus: queues) this function moves it to the front of whole bucket.
-@param	[in]	lock	a granted lock to be moved
-@param	[in]	rec_id	record id which specifies particular queue and bucket */
+@param  [in]    lock    a granted lock to be moved
+@param  [in]    rec_id  record id which specifies particular queue and bucket */
 static void lock_rec_move_granted_to_front(lock_t *lock, const RecID &rec_id) {
   ut_ad(!lock->is_waiting());
   ut_ad(rec_id.matches(lock));
@@ -1624,10 +1624,10 @@ lock if it already covers the gap, or by ensuring a separate GAP Lock, which in
 combination with Record Lock satisfies the request.
 @param[in]      held_lock   a lock granted to `trx` which is at least as strong
                             as mode|LOCK_REC_NOT_GAP
-@param[in]      mode	    requested lock mode: LOCK_X or LOCK_S
-@param[in]      block	    buffer block containing the record to be locked
-@param[in]      heap_no	    heap number of the record to be locked
-@param[in]      index	    index of record to be locked
+@param[in]      mode        requested lock mode: LOCK_X or LOCK_S
+@param[in]      block       buffer block containing the record to be locked
+@param[in]      heap_no     heap number of the record to be locked
+@param[in]      index       index of record to be locked
 @param[in]      trx         the transaction requesting the Next Key Lock */
 static void lock_reuse_for_next_key_lock(const lock_t *held_lock, ulint mode,
                                          const buf_block_t *block,
@@ -1656,17 +1656,17 @@ static void lock_reuse_for_next_key_lock(const lock_t *held_lock, ulint mode,
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
 lock, or in the case of a page supremum record, a gap type lock.
-@param[in]	impl		if true, no lock is set	if no wait is
+@param[in]      impl            if true, no lock is set if no wait is
                                 necessary: we assume that the caller will
                                 set an implicit lock
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOCKED, or SELECT_NO_WAIT
-@param[in]	mode		lock mode: LOCK_X or LOCK_S possibly ORed to
+@param[in]      mode            lock mode: LOCK_X or LOCK_S possibly ORed to
                                 either LOCK_GAP or LOCK_REC_NOT_GAP
-@param[in]	block		buffer block containing	the record
-@param[in]	heap_no		heap number of record
-@param[in]	index		index of record
-@param[in,out]	thr		query thread
+@param[in]      block           buffer block containing the record
+@param[in]      heap_no         heap number of record
+@param[in]      index           index of record
+@param[in,out]  thr             query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
@@ -1770,17 +1770,17 @@ possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case
 of a page supremum record, a gap type lock.
-@param[in]	impl		if true, no lock is set	if no wait is
+@param[in]      impl            if true, no lock is set if no wait is
                                 necessary: we assume that the caller will
                                 set an implicit lock
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOCKED, or SELECT_NO_WAIT
-@param[in]	mode		lock mode: LOCK_X or LOCK_S possibly ORed to
+@param[in]      mode            lock mode: LOCK_X or LOCK_S possibly ORed to
                                 either LOCK_GAP or LOCK_REC_NOT_GAP
-@param[in]	block		buffer block containing	the record
-@param[in]	heap_no		heap number of record
-@param[in]	index		index of record
-@param[in,out]	thr		query thread
+@param[in]      block           buffer block containing the record
+@param[in]      heap_no         heap number of record
+@param[in]      index           index of record
+@param[in,out]  thr             query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
@@ -2030,9 +2030,9 @@ static void lock_update_wait_for_edge(const lock_t *waiting_lock,
 }
 
 /** Checks if a waiting record lock request still has to wait for granted locks.
-@param[in]	wait_lock		Waiting record lock
-@param[in]	granted			Granted record locks
-@param[in]	new_granted_index	Start of new granted locks
+@param[in]      wait_lock               Waiting record lock
+@param[in]      granted                 Granted record locks
+@param[in]      new_granted_index       Start of new granted locks
 @return The conflicting lock which is the reason wait_lock has to wait
 or nullptr if it can be granted now */
 template <typename Container>
@@ -2246,7 +2246,7 @@ from the hash bucket (a.k.a. waiting queue) or still reside in it. However the
 content of bitmap should not be changed prior to calling this function, as the
 bitmap will be inspected to see which heap_no at all were blocked by this
 in_lock, and only locks waiting for those heap_no's will be checked.
-@param[in,out]	in_lock		record lock object: grant all non-conflicting
+@param[in,out]  in_lock         record lock object: grant all non-conflicting
                           locks waiting behind this lock object */
 static void lock_rec_grant(lock_t *in_lock) {
   const auto page_id = in_lock->rec_lock.page_id;
@@ -2287,7 +2287,7 @@ static void lock_rec_grant(lock_t *in_lock) {
 /** Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed.
-@param[in,out]	in_lock		record lock object: all record locks which
+@param[in,out]  in_lock         record lock object: all record locks which
                                 are contained in this lock object are removed;
                                 transactions waiting behind will get their
                                 lock requests granted, if they are now
@@ -2298,7 +2298,7 @@ static void lock_rec_dequeue_from_page(lock_t *in_lock) {
 }
 
 /** Removes a record lock request, waiting or granted, from the queue.
-@param[in]	in_lock		record lock object: all record locks
+@param[in]      in_lock         record lock object: all record locks
                                 which are contained in this lock object
                                 are removed */
 void lock_rec_discard(lock_t *in_lock) {
@@ -2555,7 +2555,7 @@ static void lock_rec_move_low(
 
 /** Move all the granted locks to the front of the given lock list.
 All the waiting locks will be at the end of the list.
-@param[in,out]	lock_list	the given lock list.  */
+@param[in,out]  lock_list       the given lock list.  */
 static void lock_move_granted_locks_to_front(trx_lock_list_t &lock_list) {
   bool seen_waiting_lock = false;
   /* Note: We need iterator to removable container, as the ut_list_move_to_front
@@ -3807,9 +3807,9 @@ static void lock_table_dequeue(
 }
 
 /** Sets a lock on a table based on the given mode.
-@param[in]	table	table to lock
-@param[in,out]	trx	transaction
-@param[in]	mode	LOCK_X or LOCK_S
+@param[in]      table   table to lock
+@param[in,out]  trx     transaction
+@param[in]      mode    LOCK_X or LOCK_S
 @return error code or DB_SUCCESS. */
 dberr_t lock_table_for_trx(dict_table_t *table, trx_t *trx,
                            enum lock_mode mode) {
@@ -3860,8 +3860,8 @@ run_again:
 /*=========================== LOCK RELEASE ==============================*/
 
 /** Grant a lock to waiting transactions.
-@param[in]	lock		Lock that was unlocked
-@param[in]	heap_no		Heap no within the page for the lock. */
+@param[in]      lock            Lock that was unlocked
+@param[in]      heap_no         Heap no within the page for the lock. */
 static void lock_rec_release(lock_t *lock, ulint heap_no) {
   ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(!lock_get_wait(lock));
@@ -3943,7 +3943,7 @@ void lock_rec_unlock(
 }
 
 /** Unlock the GAP Lock part of a Next Key Lock and grant it to waiters (if any)
-@param[in,out]	lock	lock object */
+@param[in,out]  lock    lock object */
 static void lock_release_gap_lock(lock_t *lock) {
   /* 1. Remove GAP lock for all records */
   lock->unlock_gap_lock();
@@ -4089,8 +4089,8 @@ lock sys. This may fail, if there are many concurrent threads editing the
 list of locks of this transaction (for example due to B-tree pages being
 merged or split, or due to implicit-to-explicit conversion).
 It is called during XA prepare to release locks early.
-@param[in,out]	trx		transaction
-@param[in]	only_gap	release only GAP locks
+@param[in,out]  trx             transaction
+@param[in]      only_gap        release only GAP locks
 @return true if and only if it succeeded to do the job*/
 [[nodiscard]] static bool try_release_read_locks_in_s_mode(trx_t *trx,
                                                            bool only_gap) {
@@ -4149,8 +4149,8 @@ It is called during XA prepare to release locks early.
 /** Release read locks of a transaction latching the whole lock-sys in
 exclusive mode, which is a bit too expensive to do by default.
 It is called during XA prepare to release locks early.
-@param[in,out]	trx		transaction
-@param[in]	only_gap	release only GAP locks
+@param[in,out]  trx             transaction
+@param[in]      only_gap        release only GAP locks
 @return true if and only if it succeeded to do the job*/
 [[nodiscard]] static bool try_release_read_locks_in_x_mode(trx_t *trx,
                                                            bool only_gap) {
@@ -4730,8 +4730,8 @@ class TrxListIterator {
 };
 
 /** Prints transaction lock wait and MVCC state.
-@param[in,out]	file	file where to print
-@param[in]	trx	transaction */
+@param[in,out]  file    file where to print
+@param[in]      trx     transaction */
 void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx) {
   /* We require exclusive lock_sys access so that trx->lock.wait_lock is
   not being modified, and to access trx->lock.wait_started without trx->mutex.*/
@@ -5420,10 +5420,10 @@ static void lock_rec_convert_impl_to_expl_for_trx(
 
 /** If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it.
-@param[in]	block		buffer block of rec
-@param[in]	rec		user record on page
-@param[in]	index		index of record
-@param[in]	offsets		rec_get_offsets(rec, index) */
+@param[in]      block           buffer block of rec
+@param[in]      rec             user record on page
+@param[in]      index           index of record
+@param[in]      offsets         rec_get_offsets(rec, index) */
 static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
                                           const rec_t *rec, dict_index_t *index,
                                           const ulint *offsets) {
@@ -5817,9 +5817,9 @@ uint64_t lock_get_immutable_id(const lock_t *lock) {
 
 /** Get the performance schema event (thread_id, event_id)
 that created the lock.
-@param[in]	lock		Lock
-@param[out]	thread_id	Thread ID that created the lock
-@param[out]	event_id	Event ID that created the lock
+@param[in]      lock            Lock
+@param[out]     thread_id       Thread ID that created the lock
+@param[out]     event_id        Event ID that created the lock
 */
 void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
                         ulonglong *event_id) {
@@ -5833,7 +5833,7 @@ void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
 }
 
 /** Get the first lock of a trx lock list.
-@param[in]	trx_lock	the trx lock
+@param[in]      trx_lock        the trx lock
 @return The first lock
 */
 const lock_t *lock_get_first_trx_locks(const trx_lock_t *trx_lock) {
@@ -5846,7 +5846,7 @@ const lock_t *lock_get_first_trx_locks(const trx_lock_t *trx_lock) {
 }
 
 /** Get the next lock of a trx lock list.
-@param[in]	lock	the current lock
+@param[in]      lock    the current lock
 @return The next lock
 */
 const lock_t *lock_get_next_trx_locks(const lock_t *lock) {
@@ -5968,7 +5968,7 @@ table_id_t lock_get_table_id(const lock_t *lock) /*!< in: lock */
 }
 
 /** Determine which table a lock is associated with.
-@param[in]	lock	the lock
+@param[in]      lock    the lock
 @return name of the table */
 const table_name_t &lock_get_table_name(const lock_t *lock) {
   return (lock_get_table(lock)->name);
@@ -6002,7 +6002,7 @@ page_id_t lock_rec_get_page_id(const lock_t *lock) {
 
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
-@param[in,out]	lock		Waiting lock request */
+@param[in,out]  lock            Waiting lock request */
 void lock_cancel_waiting_and_release(lock_t *lock) {
   /* Requiring exclusive global latch serves several purposes here.
 
@@ -6452,7 +6452,7 @@ bool Deadlock_notifier::is_allowed_to_be_on_cycle(const lock_t *lock) {
 
 /**
 Allocate cached locks for the transaction.
-@param trx		allocate cached record locks for this transaction */
+@param trx              allocate cached record locks for this transaction */
 void lock_trx_alloc_locks(trx_t *trx) {
   /* We will create trx->lock.table_pool and rec_pool which are protected by
   trx->mutex. In theory nobody else should use the trx object while it is being

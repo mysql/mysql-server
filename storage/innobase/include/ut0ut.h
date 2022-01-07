@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,27 +122,27 @@ performance. */
 #ifndef UNIV_HOTBACKUP
 
 /** Calculate the minimum of two pairs.
-@param[out]	min_hi	MSB of the minimum pair
-@param[out]	min_lo	LSB of the minimum pair
-@param[in]	a_hi	MSB of the first pair
-@param[in]	a_lo	LSB of the first pair
-@param[in]	b_hi	MSB of the second pair
-@param[in]	b_lo	LSB of the second pair */
+@param[out]     min_hi  MSB of the minimum pair
+@param[out]     min_lo  LSB of the minimum pair
+@param[in]      a_hi    MSB of the first pair
+@param[in]      a_lo    LSB of the first pair
+@param[in]      b_hi    MSB of the second pair
+@param[in]      b_lo    LSB of the second pair */
 static inline void ut_pair_min(ulint *min_hi, ulint *min_lo, ulint a_hi,
                                ulint a_lo, ulint b_hi, ulint b_lo);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Compares two ulints.
-@param[in]	a	ulint
-@param[in]	b	ulint
+@param[in]      a       ulint
+@param[in]      b       ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 static inline int ut_ulint_cmp(ulint a, ulint b);
 
 /** Compare two pairs of integers.
-@param[in]	a_h	more significant part of first pair
-@param[in]	a_l	less significant part of first pair
-@param[in]	b_h	more significant part of second pair
-@param[in]	b_l	less significant part of second pair
+@param[in]      a_h     more significant part of first pair
+@param[in]      a_l     less significant part of first pair
+@param[in]      b_h     more significant part of second pair
+@param[in]      b_l     less significant part of second pair
 @return comparison result of (a_h,a_l) and (b_h,b_l)
 @retval -1 if (a_h,a_l) is less than (b_h,b_l)
 @retval 0 if (a_h,a_l) is equal to (b_h,b_l)
@@ -178,7 +178,7 @@ static inline int ut_ulint_cmp(ulint a, ulint b);
 static inline ulint ut_2_log(ulint n); /*!< in: number */
 
 /** Calculates 2 to power n.
-@param[in]	n	power of 2
+@param[in]      n       power of 2
 @return 2 to power n */
 static inline uint32_t ut_2_exp(uint32_t n);
 
@@ -194,7 +194,7 @@ store the given number of bits.
 #define UT_BITS_IN_BYTES(b) (((b) + 7UL) / 8UL)
 
 /** Determines if a number is zero or a power of two.
-@param[in]	n	number
+@param[in]      n       number
 @return nonzero if n is zero or a power of two; zero otherwise */
 #define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n)-1)))
 
@@ -233,9 +233,9 @@ struct trx_t;
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
- @param		[in]	trx		transaction (NULL=no quotes).
- @param		[in]	name		table name.
- @retval	String quoted as an SQL identifier.
+ @param         [in]    trx             transaction (NULL=no quotes).
+ @param         [in]    name            table name.
+ @retval        String quoted as an SQL identifier.
 */
 std::string ut_get_name(const trx_t *trx, const char *name);
 
@@ -252,9 +252,9 @@ If the name contains a slash '/', the result will contain two
 identifiers separated by a period (.), as in SQL
 database_name.table_name.
 @see table_name_t
-@param[in]	name		table or index name
-@param[out]	formatted	formatted result, will be NUL-terminated
-@param[in]	formatted_size	size of the buffer in bytes
+@param[in]      name            table or index name
+@param[out]     formatted       formatted result, will be NUL-terminated
+@param[in]      formatted_size  size of the buffer in bytes
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 
@@ -336,7 +336,7 @@ class Timer {
 #ifdef UNIV_HOTBACKUP
 /** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'.
-@param[in]	buf	buffer where to sprintf */
+@param[in]      buf     buffer where to sprintf */
 void meb_sprintf_timestamp_without_extra_chars(char *buf);
 #endif /* UNIV_HOTBACKUP */
 

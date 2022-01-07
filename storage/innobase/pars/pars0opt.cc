@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -970,7 +970,7 @@ static void opt_clust_access(sel_node_t *sel_node, /*!< in: select node */
 
 #ifdef UNIV_SQL_DEBUG
 /** Print info of a query plan.
-@param[in,out]	sel_node	select node */
+@param[in,out]  sel_node        select node */
 static void opt_print_query_plan(sel_node_t *sel_node);
 #endif
 
@@ -1044,7 +1044,7 @@ void opt_search_plan(sel_node_t *sel_node) /*!< in: parsed select node */
 
 #ifdef UNIV_SQL_DEBUG
 /** Print info of a query plan.
-@param[in,out]	sel_node	select node */
+@param[in,out]  sel_node        select node */
 static void opt_print_query_plan(sel_node_t *sel_node) {
   plan_t *plan;
   ulint n_fields;

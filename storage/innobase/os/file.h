@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -86,7 +86,7 @@ struct Compression {
   Compression() : m_type(NONE) {}
 
   /** Specific constructor
-  @param[in]	type		Algorithm type */
+  @param[in]    type            Algorithm type */
   explicit Compression(Type type) : m_type(type) {
 #ifdef UNIV_DEBUG
     switch (m_type) {
@@ -128,17 +128,17 @@ struct Compression {
   static constexpr uint8_t FIL_PAGE_VERSION_2 = 2;
 
   /** Check the page header type field.
-  @param[in]	page		Page contents
+  @param[in]    page            Page contents
   @return true if it is a compressed page */
   [[nodiscard]] static bool is_compressed_page(const byte *page);
 
   /** Check the page header type field.
-  @param[in]	page		Page contents
+  @param[in]    page            Page contents
   @return true if it is a compressed and encrypted page */
   [[nodiscard]] static bool is_compressed_encrypted_page(const byte *page);
 
   /** Check if the version on page is valid.
-  @param[in]	version		version
+  @param[in]    version         version
   @return true if version is valid */
   static bool is_valid_page_version(uint8_t version);
 
@@ -165,13 +165,13 @@ struct Compression {
   [[nodiscard]] static const char *to_string(Type type);
 
   /** Convert the meta data to a std::string.
-  @param[in]      meta		Page Meta data
+  @param[in]      meta          Page Meta data
   @return the string representation */
   [[nodiscard]] static std::string to_string(const meta_t &meta);
 
   /** Deserizlise the page header compression meta-data
-  @param[in]	page		Pointer to the page header
-  @param[out]	control		Deserialised data */
+  @param[in]    page            Pointer to the page header
+  @param[out]   control         Deserialised data */
   static void deserialize_header(const byte *page, meta_t *control);
 
   /** Check if the string is "empty" or "none".
@@ -181,12 +181,12 @@ struct Compression {
 
   /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED,
   if not then the source contents are left unchanged and DB_SUCCESS is returned.
-  @param[in]	dblwr_read	true if double write recovery in progress
-  @param[in,out]	src		Data read from disk, decompressed data
+  @param[in]    dblwr_read      true if double write recovery in progress
+  @param[in,out]        src             Data read from disk, decompressed data
   will be copied to this page
-  @param[in,out]	dst		Scratch area to use for decompression or
+  @param[in,out]        dst             Scratch area to use for decompression or
                                   nullptr.
-  @param[in]	dst_len		If dst is valid, size of the scratch area in
+  @param[in]    dst_len         If dst is valid, size of the scratch area in
                                   bytes.
   @return DB_SUCCESS or error code */
   [[nodiscard]] static dberr_t deserialize(bool dblwr_read, byte *src,

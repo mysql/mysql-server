@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -417,7 +417,7 @@ void fts_ast_state_free(fts_ast_state_t *state) /*!< in: ast state to free */
 }
 
 /** Print the ast string
-@param[in]	ast_str	string to print */
+@param[in]      ast_str string to print */
 static void fts_ast_string_print(const fts_ast_string_t *ast_str) {
   for (ulint i = 0; i < ast_str->len; ++i) {
     printf("%c", ast_str->str[i]);
@@ -487,7 +487,7 @@ void fts_ast_node_print(fts_ast_node_t *node) /*!< in: ast node to print */
 }
 
 /** Check only union operation involved in the node
-@param[in]	node	ast node to check
+@param[in]      node    ast node to check
 @return true if the node contains only union else false. */
 bool fts_ast_node_check_union(fts_ast_node_t *node) {
   if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST) {
@@ -649,8 +649,8 @@ dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: current operator */
 /**
 Create an ast string object, with NUL-terminator, so the string
 has one more byte than len
-@param[in] str		pointer to string
-@param[in] len		length of the string
+@param[in] str          pointer to string
+@param[in] len          length of the string
 @return ast string with NUL-terminator */
 fts_ast_string_t *fts_ast_string_create(const byte *str, ulint len) {
   fts_ast_string_t *ast_str;
@@ -672,7 +672,7 @@ fts_ast_string_t *fts_ast_string_create(const byte *str, ulint len) {
 
 /**
 Free an ast string instance
-@param[in,out] ast_str		string to free */
+@param[in,out] ast_str          string to free */
 void fts_ast_string_free(fts_ast_string_t *ast_str) {
   if (ast_str != nullptr) {
     ut::free(ast_str->str);
@@ -682,8 +682,8 @@ void fts_ast_string_free(fts_ast_string_t *ast_str) {
 
 /**
 Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
-@param[in]	ast_str	string to translate
-@param[in]	base	the base
+@param[in]      ast_str string to translate
+@param[in]      base    the base
 @return translated number */
 ulint fts_ast_string_to_ul(const fts_ast_string_t *ast_str, int base) {
   return (strtoul(reinterpret_cast<const char *>(ast_str->str), nullptr, base));

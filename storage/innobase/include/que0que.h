@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,14 +64,14 @@ static inline que_node_t *que_fork_get_child(
     que_fork_t *fork); /*!< in: query fork */
 
 /** Sets the parent of a graph node.
-@param[in]	node	graph node
-@param[in]	parent	parent */
+@param[in]      node    graph node
+@param[in]      parent  parent */
 static inline void que_node_set_parent(que_node_t *node, que_node_t *parent);
 
 /** Creates a query graph thread node.
-@param[in]	parent		parent node, i.e., a fork node
-@param[in]	heap		memory heap where created
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      parent          parent node, i.e., a fork node
+@param[in]      heap            memory heap where created
+@param[in]      prebuilt        row prebuilt structure
 @return own: query thread node */
 que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
                           row_prebuilt_t *prebuilt);
@@ -147,8 +147,8 @@ static inline ulint que_node_get_val_buf_size(
     que_node_t *node); /*!< in: graph node */
 
 /** Sets the value buffer size of a graph node.
-@param[in]	node	graph node
-@param[in]	size	size */
+@param[in]      node    graph node
+@param[in]      size    size */
 static inline void que_node_set_val_buf_size(que_node_t *node, ulint size);
 
 /** Gets the next list node in a list of query graph nodes. */
@@ -165,8 +165,8 @@ que_node_t *que_node_get_containing_loop_node(
     que_node_t *node); /*!< in: node */
 
 /** Catenates a query graph node to a list of them, possible empty list.
-@param[in]	node_list	node list, or NULL
-@param[in]	node		node
+@param[in]      node_list       node list, or NULL
+@param[in]      node            node
 @return one-way list of nodes */
 static inline que_node_t *que_node_list_add_last(que_node_t *node_list,
                                                  que_node_t *node);

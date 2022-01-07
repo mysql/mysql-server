@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,7 +71,7 @@ buf_block_t *BaseInserter::alloc_blob_page() {
 /** Get the previous BLOB page block.  This will return a BLOB block.
 It should not be called for the first BLOB page, because it will not
 have a previous BLOB page.
-@return	the previous BLOB block. */
+@return the previous BLOB block. */
 buf_block_t *BaseInserter::get_previous_blob_block() {
   DBUG_TRACE;
 
@@ -93,7 +93,7 @@ buf_block_t *BaseInserter::get_previous_blob_block() {
 /** Get the previous BLOB page frame.  This will return a BLOB page.
 It should not be called for the first BLOB page, because it will not
 have a previous BLOB page.
-@return	the previous BLOB page frame. */
+@return the previous BLOB page frame. */
 page_t *BaseInserter::get_previous_blob_page() {
   buf_block_t *prev_block = get_previous_blob_block();
   return (buf_block_get_frame(prev_block));
@@ -117,7 +117,7 @@ dberr_t Inserter::write() {
 }
 
 /** Write one small blob field data.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t Inserter::write_one_small_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
@@ -137,7 +137,7 @@ dberr_t Inserter::write_one_small_blob(size_t blob_j) {
 }
 
 /** Write one blob field data.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t Inserter::write_one_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
@@ -230,7 +230,7 @@ dberr_t Inserter::write_single_blob_page(big_rec_field_t &field,
 }
 
 /** Write contents into a single BLOB page.
-@param[in]	field		the big record field. */
+@param[in]      field           the big record field. */
 void Inserter::write_into_single_page(big_rec_field_t &field) {
   const ulint payload_size = payload();
   const ulint store_len =

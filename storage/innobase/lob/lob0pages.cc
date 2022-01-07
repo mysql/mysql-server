@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -108,9 +108,9 @@ buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 /** Append given data in data page.
-@param[in]	trxid	transaction doing append.
-@param[in,out]	data	data to be appended.
-@param[in,out]	len	length of data.
+@param[in]      trxid   transaction doing append.
+@param[in,out]  data    data to be appended.
+@param[in,out]  len     length of data.
 @return number of bytes appended. */
 ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   DBUG_TRACE;
@@ -193,9 +193,9 @@ buf_block_t *data_page_t::load_x(page_no_t page_no) {
 }
 
 /** Read data from the data page.
-@param[in]	offset	read begins at this offset.
-@param[out]	ptr	the output buffer.
-@param[in]	want	bytes to read
+@param[in]      offset  read begins at this offset.
+@param[out]     ptr     the output buffer.
+@param[in]      want    bytes to read
 @return bytes actually read. */
 ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_TRACE;

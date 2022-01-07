@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -136,8 +136,8 @@ static inline ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
 }
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]      page_id         page id
+@param[in]      page_size       page size
 @return true if a bitmap page */
 static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
                                      const page_size_t &page_size) {
@@ -146,8 +146,8 @@ static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
 }
 
 /** Translates the free space on a page to a value in the ibuf bitmap.
-@param[in]	page_size	page size in bytes
-@param[in]	max_ins_size	maximum insert size after reorganize for
+@param[in]      page_size       page size in bytes
+@param[in]      max_ins_size    maximum insert size after reorganize for
 the page
 @return value for ibuf bitmap bits */
 static inline ulint ibuf_index_page_calc_free_bits(ulint page_size,
@@ -170,8 +170,8 @@ static inline ulint ibuf_index_page_calc_free_bits(ulint page_size,
 }
 
 /** Translates the ibuf free bits to the free space on a page in bytes.
-@param[in]	page_size	page_size
-@param[in]	bits		value for ibuf bitmap bits
+@param[in]      page_size       page_size
+@param[in]      bits            value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
 static inline ulint ibuf_index_page_calc_free_from_bits(
     const page_size_t &page_size, ulint bits) {

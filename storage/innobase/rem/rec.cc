@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,9 +42,9 @@ external tools. */
 #include "rem0rec.h"
 
 /** The following function determines the offsets to each field in the
- record.	 The offsets are written to a previously allocated array of
+ record.         The offsets are written to a previously allocated array of
  ulint, where rec_offs_n_fields(offsets) has been initialized to the
- number of fields in the record.	 The rest of the array will be
+ number of fields in the record.         The rest of the array will be
  initialized by this function.  rec_offs_base(offsets)[0] will be set
  to the extra size (if REC_OFFS_COMPACT is set, the record is in the
  new format; if REC_OFFS_EXTERNAL is set, the record contains externally
@@ -222,7 +222,7 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
 }
 
 /** The following function determines the offsets to each field
- in the record.	It can reuse a previously returned array.
+ in the record. It can reuse a previously returned array.
  Note that after instant ADD COLUMN, if this is a record
  from clustered index, fields in the record may be less than
  the fields defined in the clustered index. So the offsets

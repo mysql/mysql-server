@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,7 +101,7 @@ static inline void flst_init(
 }
 
 /** Get the length of a list.
-@param[in]	base	base node
+@param[in]      base    base node
 @return length */
 static inline ulint flst_get_len(const flst_base_node_t *base) {
   return (mach_read_from_4(base + FLST_LEN));

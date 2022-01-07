@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -295,7 +295,7 @@ inline void log_buffer_flush_to_disk(bool sync) {
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
 /** Print a log file header.
-@param[in]	block	pointer to the log buffer */
+@param[in]      block   pointer to the log buffer */
 static inline void meb_log_print_file_hdr(byte *block) {
   ib::info(ER_IB_MSG_626) << "Log file header:"
                           << " format "

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,15 +62,15 @@ ulint innobase_raw_format(const char *data,   /*!< in: raw data */
                                               in bytes */
 
 /** Quote a standard SQL identifier like tablespace, index or column name.
-@param[in]	file	output stream
-@param[in]	trx	InnoDB transaction, or NULL
-@param[in]	id	identifier to quote */
+@param[in]      file    output stream
+@param[in]      trx     InnoDB transaction, or NULL
+@param[in]      id      identifier to quote */
 void innobase_quote_identifier(FILE *file, trx_t *trx, const char *id);
 
 /** Quote an standard SQL identifier like tablespace, index or column name.
 Return the string as an std:string object.
-@param[in]	trx	InnoDB transaction, or NULL
-@param[in]	id	identifier to quote
+@param[in]      trx     InnoDB transaction, or NULL
+@param[in]      id      identifier to quote
 @return a std::string with id properly quoted. */
 std::string innobase_quote_identifier(trx_t *trx, const char *id);
 
@@ -108,9 +108,9 @@ void innobase_mysql_print_thd(FILE *f, THD *thd, uint max_query_len);
 /** Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
-@param[out]	unsigned_flag		DATA_UNSIGNED if an 'unsigned type';
+@param[out]     unsigned_flag           DATA_UNSIGNED if an 'unsigned type';
 at least ENUM and SET, and unsigned integer types are 'unsigned types'
-@param[in]	f			MySQL Field
+@param[in]      f                       MySQL Field
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f);
 
@@ -126,7 +126,7 @@ int innobase_strcasecmp(const char *a,  /*!< in: first string to compare */
                         const char *b); /*!< in: second string to compare */
 
 /** Strip dir name from a full path name and return only the file name
-@param[in]	path_name	full path name
+@param[in]      path_name       full path name
 @return file name or "null" if no file name */
 const char *innobase_basename(const char *path_name);
 
@@ -147,18 +147,18 @@ const CHARSET_INFO *innobase_get_charset(
 
 /** Determines the current SQL statement.
 Thread unsafe, can only be called from the thread owning the THD.
-@param[in]	thd	MySQL thread handle
-@param[out]	length	Length of the SQL statement
-@return			SQL statement string */
+@param[in]      thd     MySQL thread handle
+@param[out]     length  Length of the SQL statement
+@return                 SQL statement string */
 const char *innobase_get_stmt_unsafe(THD *thd, size_t *length);
 
 /** Determines the current SQL statement.
 Thread safe, can be called from any thread as the string is copied
 into the provided buffer.
-@param[in]	thd	MySQL thread handle
-@param[out]	buf	Buffer containing SQL statement
-@param[in]	buflen	Length of provided buffer
-@return			Length of the SQL statement */
+@param[in]      thd     MySQL thread handle
+@param[out]     buf     Buffer containing SQL statement
+@param[in]      buflen  Length of provided buffer
+@return                 Length of the SQL statement */
 size_t innobase_get_stmt_safe(THD *thd, char *buf, size_t buflen);
 
 /** This function is used to find the storage length in bytes of the first n
@@ -198,20 +198,20 @@ void thd_set_lock_wait_time(THD *thd,
                             std::chrono::steady_clock::duration value);
 
 /** Get the value of innodb_tmpdir.
-@param[in] thd	thread handle, or nullptr to query the global innodb_tmpdir.
+@param[in] thd  thread handle, or nullptr to query the global innodb_tmpdir.
 @return nullptr if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd);
 
 #ifdef UNIV_DEBUG
 /** Obtain the value of the latest output from InnoDB Interpreter/Tester
 module (ib::Tester).
-@param[in]	thd	thread handle
+@param[in]      thd     thread handle
 @return pointer to the output string. */
 char **thd_innodb_interpreter_output(THD *thd);
 
 /** Obtain the latest command executed by InnoDB Interpreter/Tester
 module (ib::Tester).
-@param[in]	thd	thread handle
+@param[in]      thd     thread handle
 @return pointer to the output string. */
 char **thd_innodb_interpreter(THD *thd);
 #endif /* UNIV_DEBUG */
@@ -243,14 +243,14 @@ bool thd_trx_is_read_only(THD *thd); /*!< in/out: thread handle */
 
 /**
 Check if the transaction can be rolled back
-@param[in] requestor	Session requesting the lock
-@param[in] holder	Session that holds the lock
+@param[in] requestor    Session requesting the lock
+@param[in] holder       Session that holds the lock
 @return the session that will be rolled back, null don't care */
 
 THD *thd_trx_arbitrate(THD *requestor, THD *holder);
 
 /**
-@param[in] thd		Session to check
+@param[in] thd          Session to check
 @return the priority */
 
 int thd_trx_priority(THD *thd);
@@ -399,18 +399,18 @@ void ib_warn_row_too_big(const dict_table_t *table);
 
 /** Update the system variable with the given value of the InnoDB
 buffer pool size.
-@param[in]	buf_pool_size	given value of buffer pool size.*/
+@param[in]      buf_pool_size   given value of buffer pool size.*/
 void innodb_set_buf_pool_size(long long buf_pool_size);
 
 /** Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one.
-@param[in]	thd	MySQL thd (connection) object
+@param[in]      thd     MySQL thd (connection) object
 @return InnoDB transaction handle */
 trx_t *check_trx_exists(THD *thd);
 
 /** Commits a transaction in an InnoDB database.
-@param[in]	trx	Transaction handle. */
+@param[in]      trx     Transaction handle. */
 void innobase_commit_low(trx_t *trx);
 
 /** Return the number of read threads for this session.

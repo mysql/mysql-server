@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -75,17 +75,17 @@ compression algorithm changes in zlib. */
 extern bool page_zip_log_pages;
 
 /** Set the size of a compressed page in bytes.
-@param[in,out]	page_zip	compressed page
-@param[in]	size		size in bytes */
+@param[in,out]  page_zip        compressed page
+@param[in]      size            size in bytes */
 static inline void page_zip_set_size(page_zip_des_t *page_zip, ulint size);
 
 #ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
-@param[in]	rec_size	length of the record in bytes
-@param[in]	comp		nonzero=compact format
-@param[in]	n_fields	number of fields in the record; ignored if
+@param[in]      rec_size        length of the record in bytes
+@param[in]      comp            nonzero=compact format
+@param[in]      n_fields        number of fields in the record; ignored if
 tablespace is not compressed
-@param[in]	page_size	page size
+@param[in]      page_size       page size
 @return false if the entire record can be stored locally on the page */
 [[nodiscard]] static inline ibool page_zip_rec_needs_ext(
     ulint rec_size, ulint comp, ulint n_fields, const page_size_t &page_size);
@@ -99,9 +99,9 @@ ulint page_zip_empty_size(ulint n_fields, ulint zip_size);
 
 #ifndef UNIV_HOTBACKUP
 /** Check whether a tuple is too big for compressed table
-@param[in]	index	dict index object
-@param[in]	entry	entry for the index
-@return	true if it's too big, otherwise false */
+@param[in]      index   dict index object
+@param[in]      entry   entry for the index
+@return true if it's too big, otherwise false */
 bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry);
 #endif /* !UNIV_HOTBACKUP */
 
@@ -280,11 +280,11 @@ void page_zip_dir_insert(page_zip_des_t *page_zip, const byte *prev_rec,
 
 /** Shift the dense page directory and the array of BLOB pointers when a record
 is deleted.
-@param[in,out]	page_zip	compressed page
-@param[in]	rec		deleted record
-@param[in]	index		index of rec
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	free		previous start of the free list */
+@param[in,out]  page_zip        compressed page
+@param[in]      rec             deleted record
+@param[in]      index           index of rec
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      free            previous start of the free list */
 void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          const dict_index_t *index, const ulint *offsets,
                          const byte *free);
@@ -345,21 +345,21 @@ byte *page_zip_parse_compress(
 
 /** Write a log record of compressing an index page without the data on the
 page.
-@param[in]	level	compression level
-@param[in]	page	page that is compressed
-@param[in]	index	index
-@param[in]	mtr	mtr */
+@param[in]      level   compression level
+@param[in]      page    page that is compressed
+@param[in]      index   index
+@param[in]      mtr     mtr */
 static inline void page_zip_compress_write_log_no_data(ulint level,
                                                        const page_t *page,
                                                        dict_index_t *index,
                                                        mtr_t *mtr);
 
 /** Parses a log record of compressing an index page without the data.
-@param[in]	ptr		buffer
-@param[in]	end_ptr		buffer end
-@param[in]	page		uncompressed page
-@param[out]	page_zip	compressed page
-@param[in]	index		index
+@param[in]      ptr             buffer
+@param[in]      end_ptr         buffer end
+@param[in]      page            uncompressed page
+@param[out]     page_zip        compressed page
+@param[in]      index           index
 @return end of log record or NULL */
 static inline byte *page_zip_parse_compress_no_data(byte *ptr, byte *end_ptr,
                                                     page_t *page,

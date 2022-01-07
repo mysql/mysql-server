@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -194,9 +194,9 @@ static table_id_t dict_sys_table_id[SYS_NUM_SYSTEM_TABLES];
 
 /** Tries to find column names for the index and sets the col field of the
 index.
-@param[in]	table	table
-@param[in,out]	index	index
-@param[in]	add_v	new virtual columns added along with an add index call
+@param[in]      table   table
+@param[in,out]  index   index
+@param[in]      add_v   new virtual columns added along with an add index call
 @return true if the column names were found */
 static ibool dict_index_find_and_set_cols(const dict_table_t *table,
                                           dict_index_t *index,
@@ -310,7 +310,7 @@ void dict_mutex_exit_for_mysql(void) { dict_sys_mutex_exit(); }
 
 /** Allocate and init a dict_table_t's stats latch.
 This function must not be called concurrently on the same table object.
-@param[in,out]	table_void	table whose stats latch to create */
+@param[in,out]  table_void      table whose stats latch to create */
 static void dict_table_stats_latch_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
@@ -326,7 +326,7 @@ static void dict_table_stats_latch_alloc(void *table_void) {
 
 /** Deinit and free a dict_table_t's stats latch.
 This function must not be called concurrently on the same table object.
-@param[in,out]	table	table whose stats latch to free */
+@param[in,out]  table   table whose stats latch to free */
 static void dict_table_stats_latch_free(dict_table_t *table) {
   rw_lock_free(table->stats_latch);
   ut::free(table->stats_latch);
@@ -335,8 +335,8 @@ static void dict_table_stats_latch_free(dict_table_t *table) {
 /** Create a dict_table_t's stats latch or delay for lazy creation.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose stats latch to create
-@param[in]	enabled	if false then the latch is disabled
+@param[in,out]  table   table whose stats latch to create
+@param[in]      enabled if false then the latch is disabled
 and dict_table_stats_lock()/unlock() become noop on this table. */
 void dict_table_stats_latch_create(dict_table_t *table, bool enabled) {
   if (!enabled) {
@@ -353,7 +353,7 @@ void dict_table_stats_latch_create(dict_table_t *table, bool enabled) {
 /** Destroy a dict_table_t's stats latch.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose stats latch to destroy */
+@param[in,out]  table   table whose stats latch to destroy */
 void dict_table_stats_latch_destroy(dict_table_t *table) {
   if (table->stats_latch_created == os_once::DONE &&
       table->stats_latch != nullptr) {
@@ -362,8 +362,8 @@ void dict_table_stats_latch_destroy(dict_table_t *table) {
 }
 
 /** Lock the appropriate latch to protect a given table's statistics.
-@param[in]	table		table whose stats to lock
-@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
+@param[in]      table           table whose stats to lock
+@param[in]      latch_mode      RW_S_LATCH or RW_X_LATCH */
 void dict_table_stats_lock(dict_table_t *table, ulint latch_mode) {
   ut_ad(table != nullptr);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -393,8 +393,8 @@ void dict_table_stats_lock(dict_table_t *table, ulint latch_mode) {
 }
 
 /** Unlock the latch that has been locked by dict_table_stats_lock().
-@param[in]	table		table whose stats to unlock
-@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
+@param[in]      table           table whose stats to unlock
+@param[in]      latch_mode      RW_S_LATCH or RW_X_LATCH */
 void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode) {
   ut_ad(table != nullptr);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -588,9 +588,9 @@ void dict_table_close_and_drop(
 }
 
 /** Check if the table has a given (non_virtual) column.
-@param[in]	table		table object
-@param[in]	col_name	column name
-@param[in]	col_nr		column number guessed, 0 as default
+@param[in]      table           table object
+@param[in]      col_name        column name
+@param[in]      col_nr          column number guessed, 0 as default
 @return column number if the table has the specified column,
 otherwise table->n_def */
 ulint dict_table_has_column(const dict_table_t *table, const char *col_name,
@@ -618,8 +618,8 @@ ulint dict_table_has_column(const dict_table_t *table, const char *col_name,
 }
 
 /** Returns a virtual column's name.
-@param[in]	table	target table
-@param[in]	col_nr	virtual column number (nth virtual column)
+@param[in]      table   target table
+@param[in]      col_nr  virtual column number (nth virtual column)
 @return column name or NULL if column number out of range. */
 const char *dict_table_get_v_col_name(const dict_table_t *table, ulint col_nr) {
   const char *s;
@@ -645,8 +645,8 @@ const char *dict_table_get_v_col_name(const dict_table_t *table, ulint col_nr) {
 
 /** Search virtual column's position in InnoDB according to its position
 in original table's position
-@param[in]	table	target table
-@param[in]	col_nr	column number (nth column in the MySQL table)
+@param[in]      table   target table
+@param[in]      col_nr  column number (nth column in the MySQL table)
 @return virtual column's position in InnoDB, ULINT_UNDEFINED if not find */
 static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
                                                 ulint col_nr) {
@@ -672,8 +672,8 @@ static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
 
 /** Returns a virtual column's name according to its original
 MySQL table position.
-@param[in]	table	target table
-@param[in]	col_nr	column number (nth column in the table)
+@param[in]      table   target table
+@param[in]      col_nr  column number (nth column in the table)
 @return column name. */
 const char *dict_table_get_v_col_name_mysql(const dict_table_t *table,
                                             ulint col_nr) {
@@ -687,8 +687,8 @@ const char *dict_table_get_v_col_name_mysql(const dict_table_t *table,
 }
 
 /** Get nth virtual column according to its original MySQL table position
-@param[in]	table	target table
-@param[in]	col_nr	column number in MySQL Table definition
+@param[in]      table   target table
+@param[in]      col_nr  column number in MySQL Table definition
 @return dict_v_col_t ptr */
 dict_v_col_t *dict_table_get_nth_v_col_mysql(const dict_table_t *table,
                                              ulint col_nr) {
@@ -703,7 +703,7 @@ dict_v_col_t *dict_table_get_nth_v_col_mysql(const dict_table_t *table,
 
 /** Allocate and init the autoinc latch of a given table.
 This function must not be called concurrently on the same table object.
-@param[in,out]	table_void	table whose autoinc latch to create */
+@param[in,out]  table_void      table whose autoinc latch to create */
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
@@ -719,7 +719,7 @@ static void dict_table_autoinc_alloc(void *table_void) {
 
 /** Allocate and init the zip_pad_mutex of a given index.
 This function must not be called concurrently on the same index object.
-@param[in,out]	index_void	index whose zip_pad_mutex to create */
+@param[in,out]  index_void      index whose zip_pad_mutex to create */
 static void dict_index_zip_pad_alloc(void *index_void) {
   dict_index_t *index = static_cast<dict_index_t *>(index_void);
   index->zip_pad.mutex = ut::new_withkey<SysMutex>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -737,7 +737,7 @@ void dict_table_autoinc_lock(dict_table_t *table) /*!< in/out: table */
 }
 
 /** Acquire the zip_pad_mutex latch.
-@param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+@param[in,out]  index   the index whose zip_pad_mutex to acquire.*/
 static void dict_index_zip_pad_lock(dict_index_t *index) {
   os_once::do_or_wait_for_done(&index->zip_pad.mutex_created,
                                dict_index_zip_pad_alloc, index);
@@ -806,8 +806,8 @@ bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
 }
 
 /** Get all the FTS indexes on a table.
-@param[in]	table	table
-@param[out]	indexes	all FTS indexes on this table
+@param[in]      table   table
+@param[out]     indexes all FTS indexes on this table
 @return number of FTS indexes */
 ulint dict_table_get_all_fts_indexes(dict_table_t *table,
                                      ib_vector_t *indexes) {
@@ -945,8 +945,8 @@ ulint dict_table_get_nth_col_pos(const dict_table_t *table, /*!< in: table */
 
 /** Get the innodb column position for a non-virtual column according to
 its original MySQL table position n
-@param[in]	table	table
-@param[in]	n	MySQL column position
+@param[in]      table   table
+@param[in]      n       MySQL column position
 @return column position in InnoDB */
 ulint dict_table_mysql_pos_to_innodb(const dict_table_t *table, ulint n) {
   ut_ad(n < table->n_t_cols);
@@ -1160,7 +1160,7 @@ void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap) {
 
 #ifndef UNIV_HOTBACKUP
 /** Mark if table has big rows.
-@param[in,out]	table	table handler */
+@param[in,out]  table   table handler */
 void dict_table_set_big_rows(dict_table_t *table) {
   ulint row_len = 0;
   for (ulint i = 0; i < table->n_def; i++) {
@@ -1384,7 +1384,7 @@ void dict_table_move_from_lru_to_non_lru(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Move a table to the LRU end from the non LRU list.
-@param[in]	table	InnoDB table object */
+@param[in]      table   InnoDB table object */
 void dict_table_move_from_non_lru_to_lru(dict_table_t *table) {
   ut_ad(dict_sys_mutex_own());
   ut_ad(dict_non_lru_find_table(table));
@@ -1399,8 +1399,8 @@ void dict_table_move_from_non_lru_to_lru(dict_table_t *table) {
 }
 
 /** Look up an index in a table.
-@param[in]	table	table
-@param[in]	id	index identifier
+@param[in]      table   table
+@param[in]      id      index identifier
 @return index
 @retval NULL if not found */
 static const dict_index_t *dict_table_find_index_on_id(
@@ -1950,7 +1950,7 @@ void dict_table_remove_from_cache(dict_table_t *table) /*!< in, own: table */
 
 /** Try to invalidate an entry from the dict cache, for a partitioned table,
 if any table found.
-@param[in]	name	Table name */
+@param[in]      name    Table name */
 void dict_partitioned_table_remove_from_cache(const char *name) {
   ut_ad(dict_sys_mutex_own());
 
@@ -1983,8 +1983,8 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
 
 #ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
-@param[in,out]	table		table object
-@param[in]	lru_evict	true if table being evicted to make room
+@param[in,out]  table           table object
+@param[in]      lru_evict       true if table being evicted to make room
                                 in the table LRU list */
 void dict_table_remove_from_cache_debug(dict_table_t *table, bool lru_evict) {
   dict_table_remove_from_cache_low(table, lru_evict);
@@ -2096,9 +2096,9 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
 
 /** A B-tree page should accommodate at least two records. This function finds
 out if this is violated for records of maximum possible length of this index.
-@param[in]	table		table
-@param[in]	new_index	index
-@param[in]	strict		TRUE=report error if records could be too big to
+@param[in]      table           table
+@param[in]      new_index       index
+@param[in]      strict          TRUE=report error if records could be too big to
                                 fit in an B-tree page
 @return true if the index record could become too big */
 static bool dict_index_too_big_for_tree(const dict_table_t *table,
@@ -2267,11 +2267,11 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
 }
 
 /** Adds an index to the dictionary cache.
-@param[in,out]	table	table on which the index is
-@param[in,out]	index	index; NOTE! The index memory
+@param[in,out]  table   table on which the index is
+@param[in,out]  index   index; NOTE! The index memory
                         object is freed in this function!
-@param[in]	page_no	root page number of the index
-@param[in]	strict	TRUE=refuse to create the index
+@param[in]      page_no root page number of the index
+@param[in]      strict  TRUE=refuse to create the index
                         if records could be too big to fit in
                         an B-tree page
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -2382,13 +2382,13 @@ static void dict_index_try_cache_rec_offsets(dict_index_t *index) {
 
 /** Adds an index to the dictionary cache, with possible indexing newly
 added column.
-@param[in,out]	table	table on which the index is
-@param[in,out]	index	index; NOTE! The index memory
+@param[in,out]  table   table on which the index is
+@param[in,out]  index   index; NOTE! The index memory
                         object is freed in this function!
-@param[in]	add_v	new virtual column that being added along with
+@param[in]      add_v   new virtual column that being added along with
                         an add index call
-@param[in]	page_no	root page number of the index
-@param[in]	strict	TRUE=refuse to create the index
+@param[in]      page_no root page number of the index
+@param[in]      strict  TRUE=refuse to create the index
                         if records could be too big to fit in
                         an B-tree page
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -2703,8 +2703,8 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
 }
 
 /** Duplicate a virtual column information
-@param[in]	v_col	virtual column information to duplicate
-@param[in,out]	heap	memory heap
+@param[in]      v_col   virtual column information to duplicate
+@param[in,out]  heap    memory heap
 @return the duplicated virtual column */
 static dict_v_col_t *dict_duplicate_v_col(const dict_v_col_t *v_col,
                                           mem_heap_t *heap) {
@@ -2722,9 +2722,9 @@ static dict_v_col_t *dict_duplicate_v_col(const dict_v_col_t *v_col,
 
 /** Tries to find column names for the index and sets the col field of the
 index.
-@param[in]	table	table
-@param[in,out]	index	index
-@param[in]	add_v	new virtual columns added along with an add index call
+@param[in]      table   table
+@param[in,out]  index   index
+@param[in]      add_v   new virtual columns added along with an add index call
 @return true if the column names were found */
 static ibool dict_index_find_and_set_cols(const dict_table_t *table,
                                           dict_index_t *index,
@@ -2874,8 +2874,8 @@ void dict_index_copy_types(dtuple_t *tuple, const dict_index_t *index,
 /** Copies types of virtual columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
 be called right after dtuple_create().
-@param[in,out]	tuple	data tuple
-@param[in]	table	table
+@param[in,out]  tuple   data tuple
+@param[in]      table   table
 */
 void dict_table_copy_v_types(dtuple_t *tuple, const dict_table_t *table) {
   /* tuple could have more virtual columns than existing table,
@@ -3849,8 +3849,8 @@ void dict_persist_close(void) {
 
 #ifndef UNIV_HOTBACKUP
 /** Initialize the dynamic metadata according to the table object
-@param[in]	table		table object
-@param[in,out]	metadata	metadata to be initialized */
+@param[in]      table           table object
+@param[in,out]  metadata        metadata to be initialized */
 static void dict_init_dynamic_metadata(dict_table_t *table,
                                        PersistentTableMetadata *metadata) {
   ut_ad(mutex_own(&dict_persist->mutex));
@@ -3874,8 +3874,8 @@ static void dict_init_dynamic_metadata(dict_table_t *table,
 
 /** Apply the persistent dynamic metadata read from redo logs or
 DDTableBuffer to corresponding table during recovery.
-@param[in,out]	table		table
-@param[in]	metadata	structure of persistent metadata
+@param[in,out]  table           table
+@param[in]      metadata        structure of persistent metadata
 @return true if we do apply something to the in-memory table object,
 otherwise false */
 bool dict_table_apply_dynamic_metadata(
@@ -3950,9 +3950,9 @@ bool dict_table_apply_dynamic_metadata(
 
 #ifndef UNIV_HOTBACKUP
 /** Read persistent dynamic metadata stored in a buffer
-@param[in]	buffer		buffer to read
-@param[in]	size		size of data in buffer
-@param[in]	metadata	where we store the metadata from buffer */
+@param[in]      buffer          buffer to read
+@param[in]      size            size of data in buffer
+@param[in]      metadata        where we store the metadata from buffer */
 void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
                                       PersistentTableMetadata *metadata) {
   const byte *pos = buffer;
@@ -3983,7 +3983,7 @@ void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
 /** Check if there is any latest persistent dynamic metadata recorded
 in DDTableBuffer table of the specific table. If so, read the metadata and
 update the table object accordingly. It's used when loading table.
-@param[in]	table		table object */
+@param[in]      table           table object */
 void dict_table_load_dynamic_metadata(dict_table_t *table) {
   DDTableBuffer *table_buffer;
 
@@ -4032,7 +4032,7 @@ void dict_table_load_dynamic_metadata(dict_table_t *table) {
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
 dirty_dict_tables list if necessary.
-@param[in,out]	table		table */
+@param[in,out]  table           table */
 void dict_table_mark_dirty(dict_table_t *table) {
   ut_ad(!table->is_temporary());
 
@@ -4070,7 +4070,7 @@ We don't want to hold dict_sys->mutex here, so that we can set index as
 corrupted in some low-level functions. We would only set the flags from
 not corrupted to corrupted when server is running, so it should be safe
 to set it directly.
-@param[in,out]	index		index, must not be NULL */
+@param[in,out]  index           index, must not be NULL */
 void dict_set_corrupted(dict_index_t *index) {
   dict_table_t *table = index->table;
 
@@ -4102,7 +4102,7 @@ void dict_set_corrupted(dict_index_t *index) {
 
 /** Write the dirty persistent dynamic metadata for a table to
 DD TABLE BUFFER table. This is the low level function to write back.
-@param[in,out]	table	table to write */
+@param[in,out]  table   table to write */
 static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
   ut_ad(dict_sys != nullptr);
   ut_ad(mutex_own(&dict_persist->mutex));
@@ -4135,7 +4135,7 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
 
 /** Write back the dirty persistent dynamic metadata of the table
 to DDTableBuffer
-@param[in,out]	table	table object */
+@param[in,out]  table   table object */
 void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
   mutex_enter(&dict_persist->mutex);
 
@@ -4256,8 +4256,8 @@ static void dict_persist_update_log_margin() {
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
-@param[in]	list			pointer to the list of tables
-@param[in]	merge_threshold_all	value to set for all indexes */
+@param[in]      list                    pointer to the list of tables
+@param[in]      merge_threshold_all     value to set for all indexes */
 inline void dict_set_merge_threshold_list_debug(
     dict_sys_t::Table_LRU_list_base *list, uint merge_threshold_all) {
   for (auto table : *list) {
@@ -4270,7 +4270,7 @@ inline void dict_set_merge_threshold_list_debug(
 }
 
 /** Sets merge_threshold for all indexes in dictionary cache for debug.
-@param[in]	merge_threshold_all	value to set for all indexes */
+@param[in]      merge_threshold_all     value to set for all indexes */
 void dict_set_merge_threshold_all_debug(uint merge_threshold_all) {
   dict_sys_mutex_enter();
 
@@ -4311,9 +4311,9 @@ void dict_ind_free(void) {
 }
 
 /** Get an index by name.
-@param[in]	table		the table where to look for the index
-@param[in]	name		the index name to look for
-@param[in]	committed	true=search for committed,
+@param[in]      table           the table where to look for the index
+@param[in]      name            the index name to look for
+@param[in]      committed       true=search for committed,
 false=search for uncommitted
 @return index, NULL if does not exist */
 dict_index_t *dict_table_get_index_on_name(dict_table_t *table,
@@ -4449,12 +4449,12 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
 "@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
 in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
 be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
-@param[in]	db_and_table	database and table names,
+@param[in]      db_and_table    database and table names,
                                 e.g. "@code d@i1b/a@q1b@1Kc @endcode"
-@param[out]	db_utf8		database name, e.g. dцb
-@param[in]	db_utf8_size	dbname_utf8 size
-@param[out]	table_utf8	table name, e.g. aюbØc
-@param[in]	table_utf8_size	table_utf8 size */
+@param[out]     db_utf8         database name, e.g. dцb
+@param[in]      db_utf8_size    dbname_utf8 size
+@param[out]     table_utf8      table name, e.g. aюbØc
+@param[in]      table_utf8_size table_utf8 size */
 void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
                   char *table_utf8, size_t table_utf8_size) {
   char db[MAX_DATABASE_NAME_LEN + 1];
@@ -4894,7 +4894,7 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
-@param[in]	table_flags	dict_table_t::flags
+@param[in]      table_flags     dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
 uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) {
   DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (UINT32_UNDEFINED););
@@ -4938,7 +4938,7 @@ const char *dict_tf_to_row_format_string(
 }
 
 /** Determine the extent size (in pages) for the given table
-@param[in]	table	the table whose extent size is being
+@param[in]      table   the table whose extent size is being
                         calculated.
 @return extent size in pages (256, 128 or 64) */
 page_no_t dict_table_extent_size(const dict_table_t *table) {
@@ -5144,8 +5144,8 @@ void DDTableBuffer::open() {
 }
 
 /** Initialize the id field of tuple
-@param[out]	tuple	the tuple to be initialized
-@param[in]	id	table id */
+@param[out]     tuple   the tuple to be initialized
+@param[in]      id      table id */
 void DDTableBuffer::init_tuple_with_id(dtuple_t *tuple, table_id_t id) {
   dfield_t *dfield = dtuple_get_nth_field(tuple, TABLE_ID_FIELD_NO);
   void *data = dfield->data;
@@ -5165,8 +5165,8 @@ void DDTableBuffer::close() {
 }
 
 /** Prepare for a update on METADATA field
-@param[in]	entry	clustered index entry to replace rec
-@param[in]	rec	clustered index record
+@param[in]      entry   clustered index entry to replace rec
+@param[in]      rec     clustered index record
 @return update vector of differing fields without system columns,
 or NULL if there isn't any different field */
 upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
@@ -5213,10 +5213,10 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
 }
 
 /** Replace the dynamic metadata for a specific table
-@param[in]	id		table id
-@param[in]	version		table dynamic metadata version
-@param[in]	metadata	the metadata we want to replace
-@param[in]	len		the metadata length
+@param[in]      id              table id
+@param[in]      version         table dynamic metadata version
+@param[in]      metadata        the metadata we want to replace
+@param[in]      len             the metadata length
 @return DB_SUCCESS or error code */
 dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
                                const byte *metadata, size_t len) {
@@ -5296,7 +5296,7 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
 }
 
 /** Remove the whole row for a specific table
-@param[in]	id	table id
+@param[in]      id      table id
 @return DB_SUCCESS or error code */
 dberr_t DDTableBuffer::remove(table_id_t id) {
   btr_pcur_t pcur;
@@ -5337,8 +5337,8 @@ void DDTableBuffer::truncate() {
 
 /** Get the buffered metadata for a specific table, the caller
 has to delete the returned std::string object by ut::delete_
-@param[in]	id	table id
-@param[out]	version	table dynamic metadata version
+@param[in]      id      table id
+@param[out]     version table dynamic metadata version
 @return the metadata saved in a string object, if nothing, the
 string would be of length 0 */
 std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
@@ -5387,9 +5387,9 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
 }
 
 /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
-@param[in]	id		Table id
-@param[in]	metadata	Metadata used to write the log
-@param[in,out]	mtr		Mini-transaction */
+@param[in]      id              Table id
+@param[in]      metadata        Metadata used to write the log
+@param[in,out]  mtr             Mini-transaction */
 void Persister::write_log(table_id_t id,
                           const PersistentTableMetadata &metadata,
                           mtr_t *mtr) const {
@@ -5420,9 +5420,9 @@ void Persister::write_log(table_id_t id,
 
 /** Write the corrupted indexes of a table, we can pre-calculate the size
 by calling get_write_size()
-@param[in]	metadata	persistent data
-@param[out]	buffer		write buffer
-@param[in]	size		size of write buffer, should be at least
+@param[in]      metadata        persistent data
+@param[out]     buffer          write buffer
+@param[in]      size            size of write buffer, should be at least
                                 get_write_size()
 @return the length of bytes written */
 ulint CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
@@ -5458,7 +5458,7 @@ ulint CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
 }
 
 /** Pre-calculate the size of metadata to be written
-@param[in]	metadata	metadata to be written
+@param[in]      metadata        metadata to be written
 @return the size of metadata */
 ulint CorruptedIndexPersister::get_write_size(
     const PersistentTableMetadata &metadata) const {
@@ -5480,10 +5480,10 @@ ulint CorruptedIndexPersister::get_write_size(
 
 /** Read the corrupted indexes from buffer, and store them to
 metadata object
-@param[out]	metadata	metadata where we store the read data
-@param[in]	buffer		buffer to read
-@param[in]	size		size of buffer
-@param[out]	corrupt		true if we found something wrong in
+@param[out]     metadata        metadata where we store the read data
+@param[in]      buffer          buffer to read
+@param[in]      size            size of buffer
+@param[out]     corrupt         true if we found something wrong in
                                 the buffer except incomplete buffer,
                                 otherwise false
 @return the bytes we read from the buffer if the buffer data
@@ -5538,9 +5538,9 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
 
 /** Write the autoinc counter of a table, we can pre-calculate
 the size by calling get_write_size()
-@param[in]	metadata	persistent metadata
-@param[out]	buffer		write buffer
-@param[in]	size		size of write buffer, should be
+@param[in]      metadata        persistent metadata
+@param[out]     buffer          write buffer
+@param[in]      size            size of write buffer, should be
                                 at least get_write_size()
 @return the length of bytes written */
 ulint AutoIncPersister::write(const PersistentTableMetadata &metadata,
@@ -5562,10 +5562,10 @@ ulint AutoIncPersister::write(const PersistentTableMetadata &metadata,
 
 /** Read the autoinc counter from buffer, and store them to
 metadata object
-@param[out]	metadata	metadata where we store the read data
-@param[in]	buffer		buffer to read
-@param[in]	size		size of buffer
-@param[out]	corrupt		true if we found something wrong in
+@param[out]     metadata        metadata where we store the read data
+@param[in]      buffer          buffer to read
+@param[in]      size            size of buffer
+@param[out]     corrupt         true if we found something wrong in
                                 the buffer except incomplete buffer,
                                 otherwise false
 @return the bytes we read from the buffer if the buffer data
@@ -5621,7 +5621,7 @@ Persisters::~Persisters() {
 }
 
 /** Get the persister object with specified type
-@param[in]	type	persister type
+@param[in]      type    persister type
 @return Persister object required or NULL if not found */
 Persister *Persisters::get(persistent_type_t type) const {
   ut_ad(type > PM_SMALLEST_TYPE);
@@ -5635,7 +5635,7 @@ Persister *Persisters::get(persistent_type_t type) const {
 /** Add a specified persister of type, we will allocate the Persister
 if there is no such persister exist, otherwise do nothing and return
 the existing one
-@param[in]	type	persister type
+@param[in]      type    persister type
 @return the persister of type */
 Persister *Persisters::add(persistent_type_t type) {
   ut_ad(type > PM_SMALLEST_TYPE);
@@ -5666,7 +5666,7 @@ Persister *Persisters::add(persistent_type_t type) {
 }
 
 /** Remove a specified persister of type, we will free the Persister
-@param[in]	type	persister type */
+@param[in]      type    persister type */
 void Persisters::remove(persistent_type_t type) {
   persisters_t::iterator iter = m_persisters.find(type);
 
@@ -5678,8 +5678,8 @@ void Persisters::remove(persistent_type_t type) {
 
 #ifndef UNIV_HOTBACKUP
 /** Serialize the metadata to a buffer
-@param[in]	metadata	metadata to serialize
-@param[out]	buffer		buffer to store the serialized metadata
+@param[in]      metadata        metadata to serialize
+@param[out]     buffer          buffer to store the serialized metadata
 @return the length of serialized metadata */
 size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   size_t size = 0;
@@ -5707,7 +5707,7 @@ void dict_sdi_close_table(dict_table_t *table) {
 }
 
 /** Retrieve in-memory index for SDI table.
-@param[in]	tablespace_id	innodb tablespace ID
+@param[in]      tablespace_id   innodb tablespace ID
 @return dict_index_t structure or NULL*/
 dict_index_t *dict_sdi_get_index(space_id_t tablespace_id) {
   dict_table_t *table = dd_table_open_on_id(
@@ -5721,9 +5721,9 @@ dict_index_t *dict_sdi_get_index(space_id_t tablespace_id) {
 }
 
 /** Retrieve in-memory table object for SDI table.
-@param[in]	tablespace_id	innodb tablespace ID
-@param[in]	dict_locked	true if dict_sys mutex is acquired
-@param[in]	is_create	true when creating SDI Index
+@param[in]      tablespace_id   innodb tablespace ID
+@param[in]      dict_locked     true if dict_sys mutex is acquired
+@param[in]      is_create       true when creating SDI Index
 @return dict_table_t structure */
 dict_table_t *dict_sdi_get_table(space_id_t tablespace_id, bool dict_locked,
                                  bool is_create) {
@@ -5746,9 +5746,9 @@ dict_table_t *dict_sdi_get_table(space_id_t tablespace_id, bool dict_locked,
 }
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablespace ID
-@param[in]	sdi_table	SDI table
-@param[in]	dict_locked	true if dict_sys mutex acquired */
+@param[in]      space_id        InnoDB tablespace ID
+@param[in]      sdi_table       SDI table
+@param[in]      dict_locked     true if dict_sys mutex acquired */
 void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
                                 bool dict_locked) {
   if (sdi_table == nullptr) {
@@ -5876,7 +5876,7 @@ bool dict_sys_table_id_build() {
 }
 
 /** @return true if table is InnoDB SYS_* table
-@param[in]	table_id	table id  */
+@param[in]      table_id        table id  */
 bool dict_table_is_system(table_id_t table_id) {
   for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
     if (table_id == dict_sys_table_id[i]) {

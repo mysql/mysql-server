@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <map>
 
-/*			PAGE HEADER
+/*                      PAGE HEADER
                         ===========
 
 Index page header starts at the first offset left free by the FIL-module */
@@ -269,11 +269,11 @@ void page_zip_rec_set_owned(page_zip_des_t *page_zip, const byte *rec,
                             ulint flag);
 
 /** Shift the dense page directory when a record is deleted.
-@param[in,out]	page_zip	compressed page
-@param[in]	rec		deleted record
-@param[in]	index		index of rec
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	free		previous start of the free list */
+@param[in,out]  page_zip        compressed page
+@param[in]      rec             deleted record
+@param[in]      index           index of rec
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      free            previous start of the free list */
 void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          dict_index_t *index, const ulint *offsets,
                          const byte *free);

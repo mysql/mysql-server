@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -145,7 +145,7 @@ struct Builder {
   [[nodiscard]] dberr_t init(Cursor &cursor, size_t n_threads) noexcept;
 
   /** Add a row to the merge buffer.
-  @param[in,out]	cursor        Current scan cursor.
+  @param[in,out]        cursor        Current scan cursor.
   @param[in,out] row            Row to add.
   @param[in] thread_id          ID of current thread.
   @param[in,out] latch_release  Called when a log free check is required.
@@ -270,13 +270,13 @@ struct Builder {
   dberr_t finalize() noexcept;
 
   /** Convert the field data from compact to redundant format.
-  @param[in]	clust_index	      Clustered index being built
-  @param[in]	row_field	        Field to copy from
-  @param[out]	field		          Field to copy to
-  @param[in]	len		            Length of the field data
-  @param[in]	page_size	        Compressed BLOB page size
-  @param[in]	is_sdi		        true for SDI Indexes
-  @param[in,out]	heap		      Memory heap where to allocate
+  @param[in]    clust_index           Clustered index being built
+  @param[in]    row_field               Field to copy from
+  @param[out]   field                     Field to copy to
+  @param[in]    len                         Length of the field data
+  @param[in]    page_size               Compressed BLOB page size
+  @param[in]    is_sdi                  true for SDI Indexes
+  @param[in,out]        heap                  Memory heap where to allocate
                                 data when converting to ROW_FORMAT=REDUNDANT,
                                 or nullptr */
   static void convert(const dict_index_t *clust_index,
@@ -305,7 +305,7 @@ struct Builder {
   [[nodiscard]] dberr_t batch_add_row(Row &row, size_t thread_id) noexcept;
 
   /** Add a row to the merge buffer.
-  @param[in,out]	cursor        Current scan cursor.
+  @param[in,out]        cursor        Current scan cursor.
   @param[in,out] row            Row to add.
   @param[in] thread_id          ID of current thread.
   @param[in,out] latch_release  Called when a log free check is required.
@@ -375,7 +375,7 @@ struct Builder {
 
   /** Sort the buffer in memory and insert directly in the BTree loader,
   don't write to a temporary file.
-  @param[in,out]	cursor        Current scan cursor.
+  @param[in,out]        cursor        Current scan cursor.
   @param[in] thread_id          ID of current thread.
   @return DB_SUCCESS or error code. */
   dberr_t insert_direct(Cursor &cursor, size_t thread_id) noexcept;

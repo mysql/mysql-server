@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,8 +44,8 @@ external tools. */
 #include <stdarg.h>
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
-@param[in]	heap	memory heap where string is allocated
-@param[in]	str	string to be copied
+@param[in]      heap    memory heap where string is allocated
+@param[in]      str     string to be copied
 @return own: a copy of the string */
 char *mem_heap_strdup(mem_heap_t *heap, const char *str) {
   return (static_cast<char *>(mem_heap_dup(heap, str, strlen(str) + 1)));
@@ -218,7 +218,7 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
 /** Validates the contents of a memory heap.
 Checks a memory heap for consistency, prints the contents if any error
 is detected. A fatal error is logged if an error is detected.
-@param[in]	heap	Memory heap to validate. */
+@param[in]      heap    Memory heap to validate. */
 void mem_heap_validate(const mem_heap_t *heap) {
   ulint size = 0;
 

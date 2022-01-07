@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -105,9 +105,9 @@ static inline void upd_field_set_field_no(upd_field_t *upd_field,
 }
 
 /** set field number to a update vector field, marks this field is updated.
-@param[in,out]	upd_field	update vector field
-@param[in]	field_no	virtual column sequence num
-@param[in]	index		index */
+@param[in,out]  upd_field       update vector field
+@param[in]      field_no        virtual column sequence num
+@param[in]      index           index */
 static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                                             ulint field_no,
                                             const dict_index_t *index) {

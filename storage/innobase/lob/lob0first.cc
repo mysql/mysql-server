@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -212,8 +212,8 @@ bool first_page_t::validate() const {
 #endif /* UNIV_DEBUG */
 
 /** Allocate the first page for uncompressed LOB.
-@param[in,out]	alloc_mtr	the allocation mtr.
-@param[in]	is_bulk		true if it is bulk operation.
+@param[in,out]  alloc_mtr       the allocation mtr.
+@param[in]      is_bulk         true if it is bulk operation.
                                 (OPCODE_INSERT_BULK)
 return the allocated buffer block.*/
 buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
@@ -257,7 +257,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 
 /** Allocate one index entry.  If required an index page (of type
 FIL_PAGE_TYPE_LOB_INDEX) will be allocated.
-@param[in]	bulk	true if it is a bulk operation
+@param[in]      bulk    true if it is a bulk operation
                         (OPCODE_INSERT_BULK), false otherwise.
 @return the file list node of the index entry. */
 flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
@@ -402,9 +402,9 @@ void first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
 }
 
 /** Read data from the first page.
-@param[in]	offset	the offset from where read starts.
-@param[out]	ptr	the output buffer
-@param[in]	want	number of bytes to read.
+@param[in]      offset  the offset from where read starts.
+@param[out]     ptr     the output buffer
+@param[in]      want    number of bytes to read.
 @return number of bytes read. */
 ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
   byte *start = data_begin();
@@ -417,9 +417,9 @@ ulint first_page_t::read(ulint offset, byte *ptr, ulint want) {
 }
 
 /** Write as much as possible of the given data into the page.
-@param[in]	trxid	the current transaction.
-@param[in]	data	the data to be written.
-@param[in]	len	the length of the given data.
+@param[in]      trxid   the current transaction.
+@param[in]      data    the data to be written.
+@param[in]      len     the length of the given data.
 @return number of bytes actually written. */
 ulint first_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
   byte *ptr = data_begin();

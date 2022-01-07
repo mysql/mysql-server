@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,10 +87,10 @@ rec_t *rtr_page_split_and_insert(
     mtr_t *mtr);           /*!< in: mtr */
 
 /** Sets the child node mbr in a node pointer.
-@param[in]	index	index
-@param[in]	block	bufer block
-@param[out]	mbr	MBR encapsulates the page
-@param[in]	heap	heap for the memory allocation */
+@param[in]      index   index
+@param[in]      block   bufer block
+@param[out]     mbr     MBR encapsulates the page
+@param[in]      heap    heap for the memory allocation */
 static inline void rtr_page_cal_mbr(const dict_index_t *index,
                                     const buf_block_t *block, rtr_mbr_t *mbr,
                                     mem_heap_t *heap);
@@ -98,16 +98,16 @@ static inline void rtr_page_cal_mbr(const dict_index_t *index,
 /** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
-@param[in]	tuple		Data tuple; NOTE: n_fields_cmp in tuple
+@param[in]      tuple           Data tuple; NOTE: n_fields_cmp in tuple
                                 must be set so that it cannot get compared
                                 to the node ptr page number field!
-@param[in]	mode		Cursor search mode
-@param[in]	sel_mode	Select mode: SELECT_ORDINARY,
+@param[in]      mode            Cursor search mode
+@param[in]      sel_mode        Select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	cursor		Persistent cursor; NOTE that the function
+@param[in]      cursor          Persistent cursor; NOTE that the function
                                 may release the page latch
-@param[in]	cur_level	Current level
-@param[in]	mtr		Mini-transaction
+@param[in]      cur_level       Current level
+@param[in]      mtr             Mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
@@ -158,25 +158,25 @@ void rtr_get_father_node(
     mtr_t *mtr);           /*!< in: mtr */
 
 /** Push a nonleaf index node to the search path
-@param[in,out]	path		search path
-@param[in]	pageno		pageno to insert
-@param[in]	seq_no		Node sequence num
-@param[in]	level		index level
-@param[in]	child_no	child page no
-@param[in]	cursor		position cursor
-@param[in]	mbr_inc		MBR needs to be enlarged */
+@param[in,out]  path            search path
+@param[in]      pageno          pageno to insert
+@param[in]      seq_no          Node sequence num
+@param[in]      level           index level
+@param[in]      child_no        child page no
+@param[in]      cursor          position cursor
+@param[in]      mbr_inc         MBR needs to be enlarged */
 static inline void rtr_non_leaf_stack_push(rtr_node_path_t *path,
                                            page_no_t pageno, node_seq_t seq_no,
                                            ulint level, page_no_t child_no,
                                            btr_pcur_t *cursor, double mbr_inc);
 
 /** Push a nonleaf index node to the search path for insertion
-@param[in]	index	index descriptor
-@param[in,out]	path	search path
-@param[in]	level	index level
-@param[in]	block	block of the page
-@param[in]	rec	positioned record
-@param[in]	mbr_inc	MBR needs to be enlarged */
+@param[in]      index   index descriptor
+@param[in,out]  path    search path
+@param[in]      level   index level
+@param[in]      block   block of the page
+@param[in]      rec     positioned record
+@param[in]      mbr_inc MBR needs to be enlarged */
 void rtr_non_leaf_insert_stack_push(dict_index_t *index, rtr_node_path_t *path,
                                     ulint level, const buf_block_t *block,
                                     const rec_t *rec, double mbr_inc);
@@ -233,13 +233,13 @@ void rtr_get_mbr_from_rec(const rec_t *rec, const ulint *offsets,
 void rtr_get_mbr_from_tuple(const dtuple_t *dtuple, rtr_mbr *mbr);
 
 /* Get the rtree page father.
-@param[in]	offsets		work area for the return value
-@param[in]	index		rtree index
-@param[in]	block		child page in the index
-@param[in]	mtr		mtr
-@param[in]	sea_cur		search cursor, contains information
+@param[in]      offsets         work area for the return value
+@param[in]      index           rtree index
+@param[in]      block           child page in the index
+@param[in]      mtr             mtr
+@param[in]      sea_cur         search cursor, contains information
                                 about parent nodes in search
-@param[in]	cursor		cursor on node pointer record,
+@param[in]      cursor          cursor on node pointer record,
                                 its page x-latched */
 void rtr_page_get_father(dict_index_t *index, buf_block_t *block, mtr_t *mtr,
                          btr_cur_t *sea_cur, btr_cur_t *cursor);
@@ -291,17 +291,17 @@ void rtr_pcur_open_low(
 struct btr_cur_t;
 
 /** Returns the R-Tree node stored in the parent search path
-@param[in]	btr_cur		persistent cursor
-@param[in]	level		index level of buffer page
-@param[in]	is_insert	whether insert operation
+@param[in]      btr_cur         persistent cursor
+@param[in]      level           index level of buffer page
+@param[in]      is_insert       whether insert operation
 @return pointer to R-Tree cursor component */
 static inline node_visit_t *rtr_get_parent_node(btr_cur_t *btr_cur, ulint level,
                                                 ulint is_insert);
 
 /** Returns the R-Tree cursor stored in the parent search path
-@param[in]	btr_cur		persistent cursor
-@param[in]	level		index level of buffer page
-@param[in]	is_insert	whether insert operation
+@param[in]      btr_cur         persistent cursor
+@param[in]      level           index level of buffer page
+@param[in]      is_insert       whether insert operation
 @return pointer to R-Tree cursor component */
 static inline btr_pcur_t *rtr_get_parent_cursor(btr_cur_t *btr_cur, ulint level,
                                                 ulint is_insert);
@@ -398,13 +398,13 @@ bool rtr_check_same_block(
     mem_heap_t *heap);    /*!< in: memory heap */
 
 /** Sets pointer to the data and length in a field.
-@param[out]	data	data
-@param[in]	mbr	data */
+@param[out]     data    data
+@param[in]      mbr     data */
 static inline void rtr_write_mbr(byte *data, const rtr_mbr_t *mbr);
 
 /** Sets pointer to the data and length in a field.
-@param[in]	data	data
-@param[out]	mbr	data */
+@param[in]      data    data
+@param[out]     mbr     data */
 static inline void rtr_read_mbr(const byte *data, rtr_mbr_t *mbr);
 
 /** Check whether a discarding page is in anyone's search path
@@ -415,17 +415,17 @@ void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
                             buf_block_t *block);
 
 /** Reinitialize a RTree search info
-@param[in,out]	cursor		tree cursor
-@param[in]	index		index struct
-@param[in]	need_prdt	Whether predicate lock is needed */
+@param[in,out]  cursor          tree cursor
+@param[in]      index           index struct
+@param[in]      need_prdt       Whether predicate lock is needed */
 static inline void rtr_info_reinit_in_cursor(btr_cur_t *cursor,
                                              dict_index_t *index,
                                              bool need_prdt);
 
 /** Estimates the number of rows in a given area.
-@param[in]	index	index
-@param[in]	tuple	range tuple containing mbr, may also be empty tuple
-@param[in]	mode	search mode
+@param[in]      index   index
+@param[in]      tuple   range tuple containing mbr, may also be empty tuple
+@param[in]      mode    search mode
 @return estimated number of rows */
 int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
                                      page_cur_mode_t mode);

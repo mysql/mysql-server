@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -351,7 +351,7 @@ on the io_type */
   ((io_type == BUF_IO_READ) ? (counter##_READ) : (counter##_WRITTEN))
 
 /** Registers a chunk to buf_pool_chunk_map
-@param[in]	chunk	chunk of buffers */
+@param[in]      chunk   chunk of buffers */
 static void buf_pool_register_chunk(buf_chunk_t *chunk) {
   buf_chunk_map_reg->insert(
       buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
@@ -533,9 +533,9 @@ buf_block_t *buf_block_alloc(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Prints a page to stderr.
-@param[in]	read_buf	a database page
-@param[in]	page_size	page size
-@param[in]	flags		0 or BUF_PAGE_PRINT_NO_CRASH or
+@param[in]      read_buf        a database page
+@param[in]      page_size       page size
+@param[in]      flags           0 or BUF_PAGE_PRINT_NO_CRASH or
 BUF_PAGE_PRINT_NO_FULL */
 void buf_page_print(const byte *read_buf, const page_size_t &page_size,
                     ulint flags) {
@@ -1096,8 +1096,8 @@ static buf_block_t *buf_chunk_contains_zip(
 /** Finds a block in the buffer pool that points to a
 given compressed page. Used only to confirm that buffer pool does not contain a
 given pointer, thus protected by zip_free_mutex.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	data		pointer to compressed page
+@param[in]      buf_pool        buffer pool instance
+@param[in]      data            pointer to compressed page
 @return buffer block pointing to the compressed page, or NULL */
 buf_block_t *buf_pool_contains_zip(buf_pool_t *buf_pool, const void *data) {
   ulint n;
@@ -1184,9 +1184,9 @@ static void buf_pool_set_sizes(void) {
 }
 
 /** Initialize a buffer pool instance.
-@param[in]	buf_pool	    buffer pool instance
-@param[in]	buf_pool_size size in bytes
-@param[in]	instance_no   id of the instance
+@param[in]      buf_pool            buffer pool instance
+@param[in]      buf_pool_size size in bytes
+@param[in]      instance_no   id of the instance
 @param[in,out]  mutex     Mutex to protect common data structures
 @param[out] err           DB_SUCCESS if all goes well */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
@@ -1354,7 +1354,7 @@ void buf_page_free_descriptor(buf_page_t *bpage) {
 }
 
 /** Free one buffer pool instance
-@param[in]	buf_pool	buffer pool instance to free */
+@param[in]      buf_pool        buffer pool instance to free */
 static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   buf_chunk_t *chunk;
   buf_chunk_t *chunks;
@@ -1528,10 +1528,10 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 }
 
 /** Reallocate a control block.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	block		pointer to control block
-@retval true	if succeeded or if failed because the block was fixed
-@retval false	if failed because of no free blocks. */
+@param[in]      buf_pool        buffer pool instance
+@param[in]      block           pointer to control block
+@retval true    if succeeded or if failed because the block was fixed
+@retval false   if failed because of no free blocks. */
 static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   buf_block_t *new_block;
 
@@ -1659,8 +1659,8 @@ static void buf_resize_status(const char *fmt, ...)
 /** Sets the global variable that feeds MySQL's innodb_buffer_pool_resize_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3).
-@param[in]	fmt	format
-@param[in]	...	extra parameters according to fmt */
+@param[in]      fmt     format
+@param[in]      ...     extra parameters according to fmt */
 static void buf_resize_status(const char *fmt, ...) {
   va_list ap;
 
@@ -1676,9 +1676,9 @@ static void buf_resize_status(const char *fmt, ...) {
 
 /** Determines if a block is intended to be withdrawn. The caller must ensure
 that there was a sufficient memory barrier to read curr_size and old_size.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	block		pointer to control block
-@retval true	if will be withdrawn */
+@param[in]      buf_pool        buffer pool instance
+@param[in]      block           pointer to control block
+@retval true    if will be withdrawn */
 bool buf_block_will_withdrawn(buf_pool_t *buf_pool, const buf_block_t *block) {
   ut_ad(buf_pool->curr_size < buf_pool->old_size);
 
@@ -1697,9 +1697,9 @@ bool buf_block_will_withdrawn(buf_pool_t *buf_pool, const buf_block_t *block) {
 
 /** Determines if a frame is intended to be withdrawn. The caller must ensure
 that there was a sufficient memory barrier to read curr_size and old_size.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	ptr		pointer to a frame
-@retval true	if will be withdrawn */
+@param[in]      buf_pool        buffer pool instance
+@param[in]      ptr             pointer to a frame
+@retval true    if will be withdrawn */
 bool buf_frame_will_withdrawn(buf_pool_t *buf_pool, const byte *ptr) {
   ut_ad(buf_pool->curr_size < buf_pool->old_size);
 
@@ -1719,8 +1719,8 @@ bool buf_frame_will_withdrawn(buf_pool_t *buf_pool, const byte *ptr) {
 
 /** Withdraw the buffer pool blocks from end of the buffer pool instance
 until withdrawn by buf_pool->withdraw_target.
-@param[in]	buf_pool	buffer pool instance
-@retval true	if retry is needed */
+@param[in]      buf_pool        buffer pool instance
+@retval true    if retry is needed */
 static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   buf_block_t *block;
   ulint loop_count = 0;
@@ -1891,7 +1891,7 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 }
 
 /** resize page_hash and zip_hash for a buffer pool instance.
-@param[in]	buf_pool	buffer pool instance */
+@param[in]      buf_pool        buffer pool instance */
 static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   hash_table_t *new_hash_table;
 
@@ -2583,9 +2583,9 @@ void buf_pool_clear_hash_index(void) {
 /** Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
 The caller must take care of relocating bpage->list.
-@param[in,out]	bpage	control block being relocated, buf_page_get_state()
+@param[in,out]  bpage   control block being relocated, buf_page_get_state()
                         must be BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE
-@param[in,out]	dpage	destination control block */
+@param[in,out]  dpage   destination control block */
 static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
   buf_page_t *b;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -2664,7 +2664,7 @@ static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
 /* Hazard Pointer implementation. */
 
 /** Set current value
-@param bpage	buffer block to be set as hp */
+@param bpage    buffer block to be set as hp */
 void HazardPointer::set(buf_page_t *bpage) {
   ut_ad(mutex_own(m_mutex));
   ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
@@ -2701,7 +2701,7 @@ void HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage) {
 
 /** Adjust the value of hp. This happens when some other thread working
 on the same list attempts to remove the hp from the list.
-@param bpage	buffer block to be compared */
+@param bpage    buffer block to be compared */
 
 void FlushHp::adjust(const buf_page_t *bpage) {
   ut_ad(bpage != nullptr);
@@ -2716,7 +2716,7 @@ void FlushHp::adjust(const buf_page_t *bpage) {
 
 /** Adjust the value of hp. This happens when some other thread working
 on the same list attempts to remove the hp from the list.
-@param bpage	buffer block to be compared */
+@param bpage    buffer block to be compared */
 
 void LRUHp::adjust(const buf_page_t *bpage) {
   ut_ad(bpage);
@@ -2768,8 +2768,8 @@ ibool buf_pool_watch_is_sentinel(const buf_pool_t *buf_pool,
 appropriate hash_lock for the bpage and hold the LRU list mutex to avoid a race
 condition with buf_LRU_free_page inserting the same page into the page hash.
 This function may release the hash_lock and reacquire it.
-@param[in]	page_id		page id
-@param[in,out]	hash_lock	hash_lock currently latched
+@param[in]      page_id         page id
+@param[in,out]  hash_lock       hash_lock currently latched
 @return NULL if watch set, block if the page is in the buffer pool */
 static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
                                       rw_lock_t **hash_lock) {
@@ -2876,8 +2876,8 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
 /** Remove the sentinel block for the watch before replacing it with a
 real block. buf_page_watch_unset() or buf_page_watch_occurred() will notice
 that the block has been replaced with the real block.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in,out]	watch		sentinel for watch
+@param[in,out]  buf_pool        buffer pool instance
+@param[in,out]  watch           sentinel for watch
 */
 static void buf_pool_watch_remove(buf_pool_t *buf_pool, buf_page_t *watch) {
 #ifdef UNIV_DEBUG
@@ -2897,7 +2897,7 @@ static void buf_pool_watch_remove(buf_pool_t *buf_pool, buf_page_t *watch) {
 
 /** Stop watching if the page has been read in.
 buf_pool_watch_set(same_page_id) must have returned NULL before.
-@param[in]	page_id	page id */
+@param[in]      page_id page id */
 void buf_pool_watch_unset(const page_id_t &page_id) {
   buf_page_t *bpage;
   buf_pool_t *buf_pool = buf_pool_get(page_id);
@@ -2923,7 +2923,7 @@ void buf_pool_watch_unset(const page_id_t &page_id) {
 /** Check if the page has been read in.
 This may only be called after buf_pool_watch_set(same_page_id)
 has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return false if the given page was not read in, true if it was */
 ibool buf_pool_watch_occurred(const page_id_t &page_id) {
   ibool ret;
@@ -2949,7 +2949,7 @@ ibool buf_pool_watch_occurred(const page_id_t &page_id) {
 /** Moves a page to the start of the buffer pool LRU list. This high-level
 function can be used to prevent an important page from slipping out of
 the buffer pool.
-@param[in,out]	bpage	buffer block of a file page */
+@param[in,out]  bpage   buffer block of a file page */
 void buf_page_make_young(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
@@ -2977,7 +2977,7 @@ void buf_page_make_old(buf_page_t *bpage) {
 /** Moves a page to the start of the buffer pool LRU list if it is too old.
 This high-level function can be used to prevent an important page from
 slipping out of the buffer pool. The page must be fixed to the buffer pool.
-@param[in,out]	bpage	buffer block of a file page */
+@param[in,out]  bpage   buffer block of a file page */
 static void buf_page_make_young_if_needed(buf_page_t *bpage) {
   ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
   ut_ad(bpage->buf_fix_count > 0);
@@ -2994,7 +2994,7 @@ static void buf_page_make_young_if_needed(buf_page_t *bpage) {
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return control block if found in page hash table, otherwise NULL */
 buf_page_t *buf_page_set_file_page_was_freed(const page_id_t &page_id) {
   buf_page_t *bpage;
@@ -3020,7 +3020,7 @@ buf_page_t *buf_page_set_file_page_was_freed(const page_id_t &page_id) {
 This function should be called when we free a file page and want the
 debug version to check that it is not accessed any more unless
 reallocated.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return control block if found in page hash table, otherwise NULL */
 buf_page_t *buf_page_reset_file_page_was_freed(const page_id_t &page_id) {
   buf_page_t *bpage;
@@ -3043,7 +3043,7 @@ buf_page_t *buf_page_reset_file_page_was_freed(const page_id_t &page_id) {
 
 /** Attempts to discard the uncompressed frame of a compressed page.
 The caller should not be holding any mutexes when this function is called.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 */
 static void buf_block_try_discard_uncompressed(const page_id_t &page_id) {
   buf_page_t *bpage;
@@ -3080,8 +3080,8 @@ NOTE: the page is not protected by any latch.  Mutual exclusion has to
 be implemented at a higher level.  In other words, all possible
 accesses to a given page through this function must be protected by
 the same set of mutexes or latches.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]      page_id         page id
+@param[in]      page_size       page size
 @return pointer to the block */
 buf_page_t *buf_page_get_zip(const page_id_t &page_id,
                              const page_size_t &page_size) {
@@ -3294,7 +3294,7 @@ ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
 #ifndef UNIV_HOTBACKUP
 /** Get a buffer block from an adaptive hash index pointer.
 This function does not return if the block is not identified.
-@param[in]	ptr	pointer to within a page frame
+@param[in]      ptr     pointer to within a page frame
 @return pointer to block, never NULL */
 buf_block_t *buf_block_from_ahi(const byte *ptr) {
   buf_pool_chunk_map_t::iterator it;
@@ -3362,7 +3362,7 @@ static bool buf_debug_execute_is_force_flush() {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Wait for the block to be read in.
-@param[in]	block	The block to check */
+@param[in]      block   The block to check */
 static void buf_wait_for_read(buf_block_t *block) {
   /* Note:
   This unlocked read of IO fix is safe as we have the block buf-fixed. The page
@@ -4577,10 +4577,10 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
 
 /** Inits a page to the buffer buf_pool. The block pointer must be private to
 the calling thread at the start of this function.
-@param[in,out]	buf_pool	buffer pool
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in,out]	block		block to init */
+@param[in,out]  buf_pool        buffer pool
+@param[in]      page_id         page id
+@param[in]      page_size       page size
+@param[in,out]  block           block to init */
 static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
                           const page_size_t &page_size, buf_block_t *block) {
   buf_page_t *hash_page;
@@ -4660,11 +4660,11 @@ then this function does nothing.
 Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later.
-@param[out]	err			DB_SUCCESS or DB_TABLESPACE_DELETED
-@param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
-@param[in]	page_id			page id
-@param[in]	page_size		page size
-@param[in]	unzip			TRUE=request uncompressed page
+@param[out]     err                     DB_SUCCESS or DB_TABLESPACE_DELETED
+@param[in]      mode                    BUF_READ_IBUF_PAGES_ONLY, ...
+@param[in]      page_id                 page id
+@param[in]      page_size               page size
+@param[in]      unzip                   TRUE=request uncompressed page
 @return pointer to the block or NULL */
 buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
                                    const page_id_t &page_id,
@@ -5150,7 +5150,7 @@ static void buf_page_monitor(
 
 /** Unfixes the page, unlatches the page,
 removes it from page_hash and removes it from LRU.
-@param[in,out]	bpage	pointer to the block */
+@param[in,out]  bpage   pointer to the block */
 void buf_read_page_handle_error(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
   const ibool uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
@@ -5753,7 +5753,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 }
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
-@param[in]	buf_pool	buffer pool instance */
+@param[in]      buf_pool        buffer pool instance */
 static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
   ulint i;
   buf_chunk_t *chunk;
@@ -5777,7 +5777,7 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
 }
 
 /** Refreshes the statistics used to print per-second averages.
-@param[in,out]	buf_pool	buffer pool instance */
+@param[in,out]  buf_pool        buffer pool instance */
 static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
   buf_pool->last_printout_time = std::chrono::steady_clock::now();
 
@@ -5785,7 +5785,7 @@ static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
 }
 
 /** Invalidates file pages in one buffer pool instance
-@param[in]	buf_pool	buffer pool instance */
+@param[in]      buf_pool        buffer pool instance */
 static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   ulint i;
 
@@ -5849,7 +5849,7 @@ void buf_pool_invalidate(void) {
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates data in one buffer pool instance
-@param[in]	buf_pool	buffer pool instance
+@param[in]      buf_pool        buffer pool instance
 @return true */
 static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
   buf_chunk_t *chunk;
@@ -6055,7 +6055,7 @@ ibool buf_validate(void) {
 
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Prints info of the buffer buf_pool data structure for one instance.
-@param[in]	buf_pool	buffer pool instance */
+@param[in]      buf_pool        buffer pool instance */
 static void buf_print_instance(buf_pool_t *buf_pool) {
   index_id_t *index_ids;
   ulint *counts;
@@ -6153,7 +6153,7 @@ void buf_print(void) {
 
 #ifdef UNIV_DEBUG
 /** Returns the number of latched pages in the buffer pool.
-@param[in]	buf_pool	buffer pool instance
+@param[in]      buf_pool        buffer pool instance
 @return number of latched pages */
 static ulint buf_get_latched_pages_number_instance(buf_pool_t *buf_pool) {
   ulint i;
@@ -6644,9 +6644,9 @@ ulint buf_pool_check_no_pending_io(void) {
 #else /* !UNIV_HOTBACKUP */
 
 /** Inits a page to the buffer buf_pool, for use in mysqlbackup --restore.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in,out]	block		block to init */
+@param[in]      page_id         page id
+@param[in]      page_size       page size
+@param[in,out]  block           block to init */
 void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
                    buf_block_t *block) {
   block->page.state = BUF_BLOCK_FILE_PAGE;
@@ -6672,8 +6672,8 @@ void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Print the given buf_pool_t object.
-@param[in,out]	out		the output stream
-@param[in]	buf_pool	the buf_pool_t object to be printed
+@param[in,out]  out             the output stream
+@param[in]      buf_pool        the buf_pool_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const buf_pool_t &buf_pool) {
 #ifndef UNIV_HOTBACKUP

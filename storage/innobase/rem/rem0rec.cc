@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 
-/*			PHYSICAL RECORD (OLD STYLE)
+/*                      PHYSICAL RECORD (OLD STYLE)
                         ===========================
 
 The physical record, which is the data type of all the records
@@ -89,7 +89,7 @@ or two-byte unsigned integers. The most significant bit
 is not part of the offset, instead it indicates the SQL-null
 if the bit is set to 1. */
 
-/*			PHYSICAL RECORD (NEW STYLE)
+/*                      PHYSICAL RECORD (NEW STYLE)
                         ===========================
 
 The physical record, which is the data type of all the records
@@ -680,16 +680,16 @@ static rec_t *rec_convert_dtuple_to_rec_old(
 }
 
 /** Builds a ROW_FORMAT=COMPACT record out of a data tuple.
-@param[in]	rec		origin of record
-@param[in]	index		record descriptor
-@param[in]	fields		array of data fields
-@param[in]	n_fields	number of data fields
-@param[in]	v_entry		dtuple contains virtual column data
-@param[in]	status		status bits of the record
-@param[in]	temp		whether to use the format for temporary
+@param[in]      rec             origin of record
+@param[in]      index           record descriptor
+@param[in]      fields          array of data fields
+@param[in]      n_fields        number of data fields
+@param[in]      v_entry         dtuple contains virtual column data
+@param[in]      status          status bits of the record
+@param[in]      temp            whether to use the format for temporary
                                 files in index creation
-@return	true	if this record is an instant record on leaf page
-@retval	false	if not an instant record */
+@return true    if this record is an instant record on leaf page
+@retval false   if not an instant record */
 static inline bool rec_convert_dtuple_to_rec_comp(
     rec_t *rec, const dict_index_t *index, const dfield_t *fields,
     ulint n_fields, const dtuple_t *v_entry, ulint status, bool temp) {
@@ -1625,10 +1625,10 @@ void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index) {
 }
 
 /** Pretty-print a record.
-@param[in,out]	o	output stream
-@param[in]	rec	physical record
-@param[in]	info	rec_get_info_bits(rec)
-@param[in]	offsets	rec_get_offsets(rec) */
+@param[in,out]  o       output stream
+@param[in]      rec     physical record
+@param[in]      info    rec_get_info_bits(rec)
+@param[in]      offsets rec_get_offsets(rec) */
 void rec_print(std::ostream &o, const rec_t *rec, ulint info,
                const ulint *offsets) {
   const ulint comp = rec_offs_comp(offsets);
@@ -1676,9 +1676,9 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
 }
 
 /** Display a record.
-@param[in,out]	o	output stream
-@param[in]	r	record to display
-@return	the output stream */
+@param[in,out]  o       output stream
+@param[in]      r       record to display
+@return the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
   mem_heap_t *heap = nullptr;
   ulint *offsets =
@@ -1690,9 +1690,9 @@ std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
 }
 
 /** Display a record.
-@param[in,out]	o	output stream
-@param[in]	r	record to display
-@return	the output stream */
+@param[in,out]  o       output stream
+@param[in]      r       record to display
+@return the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_offsets_print &r) {
   rec_print(o, r.m_rec, rec_get_info_bits(r.m_rec, rec_offs_comp(r.m_offsets)),
             r.m_offsets);
@@ -1738,8 +1738,8 @@ trx_id_t rec_get_trx_id(const rec_t *rec,          /*!< in: record */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Mark the nth field as externally stored.
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	n		nth field */
+@param[in]      offsets         array returned by rec_get_offsets()
+@param[in]      n               nth field */
 void rec_offs_make_nth_extern(ulint *offsets, const ulint n) {
   ut_ad(!rec_offs_nth_sql_null(offsets, n));
   rec_offs_base(offsets)[1 + n] |= REC_OFFS_EXTERNAL;

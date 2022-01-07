@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,28 +56,28 @@ class ut_hash_interface_t {
   virtual ~ut_hash_interface_t() = default;
 
   /** Get the value mapped to a given key.
-  @param[in]	key	key to look for
+  @param[in]    key     key to look for
   @return the value that corresponds to key or NOT_FOUND. */
   virtual int64_t get(uint64_t key) const = 0;
 
   /** Set the value for a given key, either inserting a new (key, val)
   tuple or overwriting an existent value.
-  @param[in]	key	key whose value to set
-  @param[in]	val	value to be set */
+  @param[in]    key     key whose value to set
+  @param[in]    val     value to be set */
   virtual void set(uint64_t key, int64_t val) = 0;
 
   /** Delete a (key, val) pair from the hash.
-  @param[in]	key	key whose pair to delete */
+  @param[in]    key     key whose pair to delete */
   virtual void del(uint64_t key) = 0;
 
   /** Increment the value for a given key with 1 or insert a new tuple
   (key, 1).
-  @param[in]	key	key whose value to increment or insert as 1 */
+  @param[in]    key     key whose value to increment or insert as 1 */
   virtual void inc(uint64_t key) = 0;
 
   /** Decrement the value of a given key with 1 or insert a new tuple
   (key, -1).
-  @param[in]	key	key whose value to decrement */
+  @param[in]    key     key whose value to decrement */
   virtual void dec(uint64_t key) = 0;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -219,7 +219,7 @@ class ut_lock_free_list_node_t {
   typedef ut_lock_free_list_node_t<T> *next_t;
 
   /** Constructor.
-  @param[in]	n_elements	number of elements to create */
+  @param[in]    n_elements      number of elements to create */
   explicit ut_lock_free_list_node_t(size_t n_elements)
       : m_n_base_elements(n_elements), m_pending_free(false), m_next(nullptr) {
     m_base = ut::new_arr_withkey<T>(
@@ -237,9 +237,9 @@ class ut_lock_free_list_node_t {
   attempt this at the same time and only one will succeed. When this
   method returns, the caller can be sure that the job is done (either
   by this or another thread).
-  @param[in]	deleted_val	the constant that designates that
+  @param[in]    deleted_val     the constant that designates that
   a value is deleted
-  @param[out]	grown_by_this_thread	set to true if the next
+  @param[out]   grown_by_this_thread    set to true if the next
   array was created and appended by this thread; set to false if
   created and appended by another thread.
   @return the next array, appended by this or another thread */
@@ -287,9 +287,9 @@ class ut_lock_free_list_node_t {
 
   /** Mark the beginning of an access to this object. Used to prevent a
   destruction of this object while some threads may be accessing it.
-  @retval true	access is granted, the caller should invoke
+  @retval true  access is granted, the caller should invoke
   end_access() when done
-  @retval false	access is denied, this object is to be removed from
+  @retval false access is denied, this object is to be removed from
   the list and thus new access to it is not allowed. The caller should
   retry from the head of the list and need not to call end_access(). */
   bool begin_access() {
@@ -344,7 +344,7 @@ class ut_lock_free_list_node_t {
  private:
   /** Count the number of deleted elements. The value returned could
   be inaccurate because it is obtained without any locks.
-  @param[in]	deleted_val	the constant that designates that
+  @param[in]    deleted_val     the constant that designates that
   a value is deleted
   @return the number of deleted elements */
   size_t n_deleted(int64_t deleted_val) const {
@@ -425,9 +425,9 @@ and the value are of integer type.
 class ut_lock_free_hash_t : public ut_hash_interface_t {
  public:
   /** Constructor. Not thread safe.
-  @param[in]	initial_size	number of elements to allocate
+  @param[in]    initial_size    number of elements to allocate
   initially. Must be a power of 2, greater than 0.
-  @param[in]	del_when_zero	if true then automatically delete a
+  @param[in]    del_when_zero   if true then automatically delete a
   tuple from the hash if due to increment or decrement its value becomes
   zero. */
   explicit ut_lock_free_hash_t(size_t initial_size, bool del_when_zero)
@@ -475,7 +475,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Get the value mapped to a given key.
-  @param[in]	key	key to look for
+  @param[in]    key     key to look for
   @return the value that corresponds to key or NOT_FOUND. */
   int64_t get(uint64_t key) const override {
     ut_ad(key != UNUSED);
@@ -537,8 +537,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 2: set(key, val_b)
   when both have finished, then a tuple with the given key will be
   present with value either val_a or val_b.
-  @param[in]	key	key whose value to set
-  @param[in]	val	value to be set */
+  @param[in]    key     key whose value to set
+  @param[in]    val     value to be set */
   void set(uint64_t key, int64_t val) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
@@ -566,7 +566,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   (key == 5, value == 1).
   It is undefined which one of [1] or [2] will happen. It is up to the
   caller to accept this behavior or prevent it at a higher level.
-  @param[in]	key	key whose pair to delete */
+  @param[in]    key     key whose pair to delete */
   void del(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
@@ -636,7 +636,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 1: inc(key)
   Thread 2: set(key, val)
   when both have finished the value will be either val or val + 1.
-  @param[in]	key	key whose value to increment or insert as 1 */
+  @param[in]    key     key whose value to increment or insert as 1 */
   void inc(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
@@ -650,7 +650,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   same applies as with inc(), see its comment. The only guarantee is
   that the calls will execute in isolation, but the order in which they
   will execute is undeterministic.
-  @param[in]	key	key whose value to decrement */
+  @param[in]    key     key whose value to decrement */
   void dec(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
@@ -715,8 +715,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   array. A linear search to the right is done after this position to find
   the tuple with the given key or find a tuple with key == UNUSED or
   AVOID which means that the key is not present in the array.
-  @param[in]	key		key to map into a position
-  @param[in]	arr_size	number of elements in the array
+  @param[in]    key             key to map into a position
+  @param[in]    arr_size        number of elements in the array
   @return a position (index) in the array where the tuple is guessed
   to be */
   size_t guess_position(uint64_t key, size_t arr_size) const {
@@ -729,9 +729,9 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Get the array cell of a key from a given array.
-  @param[in]	arr		array to search into
-  @param[in]	arr_size	number of elements in the array
-  @param[in]	key		search for a tuple with this key
+  @param[in]    arr             array to search into
+  @param[in]    arr_size        number of elements in the array
+  @param[in]    key             search for a tuple with this key
   @return pointer to the array cell or NULL if not found */
   key_val_t *get_tuple_from_array(key_val_t *arr, size_t arr_size,
                                   uint64_t key) const {
@@ -765,8 +765,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Get the array cell of a key.
-  @param[in]	key	key to search for
-  @param[in,out]	arr	start the search from this array; when this
+  @param[in]    key     key to search for
+  @param[in,out]        arr     start the search from this array; when this
   method ends, *arr will point to the array in which the search
   ended (in which the returned key_val resides)
   @return pointer to the array cell or NULL if not found */
@@ -801,9 +801,9 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
   /** Insert the given key into a given array or return its cell if
   already present.
-  @param[in]	arr		array into which to search and insert
-  @param[in]	arr_size	number of elements in the array
-  @param[in]	key		key to insert or whose cell to retrieve
+  @param[in]    arr             array into which to search and insert
+  @param[in]    arr_size        number of elements in the array
+  @param[in]    key             key to insert or whose cell to retrieve
   @return a pointer to the inserted or previously existent tuple or NULL
   if a tuple with this key is not present in the array and the array is
   full, without any unused cells and thus insertion cannot be done into
@@ -862,8 +862,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
   /** Copy all used elements from one array to another. Flag the ones
   in the old array as 'go to the next array'.
-  @param[in,out]	src_arr	array to copy from
-  @param[in,out]	dst_arr	array to copy to */
+  @param[in,out]        src_arr array to copy from
+  @param[in,out]        dst_arr array to copy to */
   void copy_to_another_array(arr_node_t *src_arr, arr_node_t *dst_arr) {
     for (size_t i = 0; i < src_arr->m_n_base_elements; i++) {
       key_val_t *t = &src_arr->m_base[i];
@@ -931,12 +931,12 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Update the value of a given tuple.
-  @param[in,out]	t		tuple whose value to update
-  @param[in]	val_to_set	value to set or delta to apply
-  @param[in]	is_delta	if true then set the new value to
+  @param[in,out]        t               tuple whose value to update
+  @param[in]    val_to_set      value to set or delta to apply
+  @param[in]    is_delta        if true then set the new value to
   old + val, otherwise just set to val
-  @retval		true		update succeeded
-  @retval		false		update failed due to GOTO_NEXT_ARRAY
+  @retval               true            update succeeded
+  @retval               false           update failed due to GOTO_NEXT_ARRAY
   @return whether the update succeeded or not */
   bool update_tuple(key_val_t *t, int64_t val_to_set, bool is_delta) {
     int64_t cur_val = t->m_val.load(std::memory_order_relaxed);
@@ -1030,15 +1030,15 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   is ignored. If a tuple with this key exists and is_delta is true, then
   the current value is changed to be current value + val, otherwise it
   is overwritten to be val.
-  @param[in]	key			key to insert or whose value
+  @param[in]    key                     key to insert or whose value
   to update
-  @param[in]	val			value to set; if the tuple
+  @param[in]    val                     value to set; if the tuple
   does not exist or if is_delta is false, then the new value is set
   to val, otherwise it is set to old + val
-  @param[in]	is_delta		if true then set the new
+  @param[in]    is_delta                if true then set the new
   value to old + val, otherwise just set to val.
-  @param[in]	arr			array to start the search from
-  @param[in]	optimize_allowed	if true then call optimize()
+  @param[in]    arr                     array to start the search from
+  @param[in]    optimize_allowed        if true then call optimize()
   after an eventual grow(), if false, then never call optimize(). Used
   to prevent recursive optimize() call by insert_or_update() ->
   optimize() -> copy_to_another_array() -> insert_or_update() ->

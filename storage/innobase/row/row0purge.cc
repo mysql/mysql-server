@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,8 +74,8 @@ If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
 /** Create a purge node to a query graph.
-@param[in]	parent	parent node, i.e., a thr node
-@param[in]	heap	memory heap where created
+@param[in]      parent  parent node, i.e., a thr node
+@param[in]      heap    memory heap where created
 @return own: purge node */
 purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap) {
   ut_ad(parent != nullptr);
@@ -581,7 +581,7 @@ static inline void row_purge_remove_sec_if_poss(
   ibool success;
   ulint n_tries = 0;
 
-  /*	fputs("Purge: Removing secondary record\n", stderr); */
+  /*    fputs("Purge: Removing secondary record\n", stderr); */
 
   if (!entry) {
     /* The node->row must have lacked some fields of this
@@ -612,7 +612,7 @@ retry:
 }
 
 /** Skip uncommitted virtual indexes on newly added virtual column.
-@param[in,out]	index	dict index object */
+@param[in,out]  index   dict index object */
 static inline void row_purge_skip_uncommitted_virtual_index(
     dict_index_t *&index) {
   /* We need to skip virtual indexes which is not
@@ -627,9 +627,9 @@ static inline void row_purge_skip_uncommitted_virtual_index(
 }
 
 /** Remove multi-value index entries if possible.
-@param[in,out]	node		row purge node
-@param[in,out]	heap		memory heap
-@param[in]	selected	true if only selected multi-value data should
+@param[in,out]  node            row purge node
+@param[in,out]  heap            memory heap
+@param[in]      selected        true if only selected multi-value data should
                                 be purged */
 static inline void row_purge_remove_multi_sec_if_poss(purge_node_t *node,
                                                       mem_heap_t *heap,
@@ -830,12 +830,12 @@ skip_secondaries:
 #endif /* UNIV_DEBUG */
 
 /** Parses the row reference and other info in a modify undo log record.
- @param[in,out]	node			row undo node
- @param[in]	undo_rec		undo record to purge
- @param[out]	updated_extern		whether an externally stored
+ @param[in,out] node                    row undo node
+ @param[in]     undo_rec                undo record to purge
+ @param[out]    updated_extern          whether an externally stored
  field was updated
- @param[in,out]	thd			current thread
- @param[in,out]	thr			execution thread
+ @param[in,out] thd                     current thread
+ @param[in,out] thr                     execution thread
  @return true if purge operation required */
 static bool row_purge_parse_undo_rec(purge_node_t *node,
                                      trx_undo_rec_t *undo_rec,
@@ -1065,15 +1065,15 @@ try_again:
 }
 
 /** Purges the parsed record.
-@param[in,out]	node		row purge node
-@param[in]	undo_rec	undo record to purge */
+@param[in,out]  node            row purge node
+@param[in]      undo_rec        undo record to purge */
 #ifdef UNIV_DEBUG
 /**
-@param[in,out]	thr		query thread */
+@param[in,out]  thr             query thread */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	updated_extern	whether external columns were updated
-@param[in,out]	thd		current thread
+@param[in]      updated_extern  whether external columns were updated
+@param[in,out]  thd             current thread
 @return true if purged, false if skipped */
 [[nodiscard]] static bool row_purge_record_func(purge_node_t *node,
                                                 trx_undo_rec_t *undo_rec,
@@ -1182,7 +1182,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 }
 
 /** Reset the purge query thread.
-@param[in,out]	thr		The query thread to execute */
+@param[in,out]  thr             The query thread to execute */
 static void row_purge_end(que_thr_t *thr) {
   purge_node_t *node;
 
@@ -1213,7 +1213,7 @@ static void row_purge_end(que_thr_t *thr) {
 
 /** Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
-@param[in,out]	thr		The query thread to execute
+@param[in,out]  thr             The query thread to execute
 @return query thread to run next or nullptr */
 que_thr_t *row_purge_step(que_thr_t *thr) {
   purge_node_t *node;

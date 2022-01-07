@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,8 +62,8 @@ when it is written to a file and also checked for a match when reading from
 the file. When reading we allow both normal CRC32 and CRC-legacy-big-endian
 variants. Note that we must be careful to calculate the same value on 32-bit
 and 64-bit architectures.
-@param[in]	page			buffer page (UNIV_PAGE_SIZE bytes)
-@param[in]	use_legacy_big_endian	if true then use big endian
+@param[in]      page                    buffer page (UNIV_PAGE_SIZE bytes)
+@param[in]      use_legacy_big_endian   if true then use big endian
 byteorder when converting byte strings to integers
 @return checksum */
 uint32_t buf_calc_page_crc32(const byte *page,
@@ -157,9 +157,9 @@ const char *buf_checksum_algorithm_name(
 }
 
 /** Do lsn checks on a page during innodb recovery.
-@param[in]	check_lsn	if recv_lsn_checks_on & check_lsn
+@param[in]      check_lsn       if recv_lsn_checks_on & check_lsn
                                 perform lsn check
-@param[in]	read_buf	buffer containing the page. */
+@param[in]      read_buf        buffer containing the page. */
 inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_LIBRARY)
   if (check_lsn && recv_lsn_checks_on) {
@@ -200,9 +200,9 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 }
 
 /** Checks if the page is in innodb checksum format.
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	algo		current checksum algorithm
+@param[in]      checksum_field1 new checksum field
+@param[in]      checksum_field2 old checksum field
+@param[in]      algo            current checksum algorithm
 @return true if the page is in innodb checksum format. */
 bool BlockReporter::is_checksum_valid_innodb(
     ulint checksum_field1, ulint checksum_field2,
@@ -237,9 +237,9 @@ bool BlockReporter::is_checksum_valid_innodb(
 }
 
 /** Checks if the page is in none checksum format.
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	algo		current checksum algorithm
+@param[in]      checksum_field1 new checksum field
+@param[in]      checksum_field2 old checksum field
+@param[in]      algo            current checksum algorithm
 @return true if the page is in none checksum format. */
 bool BlockReporter::is_checksum_valid_none(
     ulint checksum_field1, ulint checksum_field2,
@@ -251,10 +251,10 @@ bool BlockReporter::is_checksum_valid_none(
 }
 
 /** Checks if the page is in crc32 checksum format.
-@param[in]	checksum_field1		new checksum field
-@param[in]	checksum_field2		old checksum field
-@param[in]	algo			current checksum algorithm
-@param[in]	use_legacy_big_endian	big endian algorithm
+@param[in]      checksum_field1         new checksum field
+@param[in]      checksum_field2         old checksum field
+@param[in]      algo                    current checksum algorithm
+@param[in]      use_legacy_big_endian   big endian algorithm
 @return true if the page is in crc32 checksum format. */
 bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
                                             ulint checksum_field2,
@@ -280,8 +280,8 @@ bool BlockReporter::is_encrypted() const noexcept {
 }
 
 /** Checks if a page is corrupt.
-@retval	true	if page is corrupt
-@retval	false	if page is not corrupt */
+@retval true    if page is corrupt
+@retval false   if page is not corrupt */
 bool BlockReporter::is_corrupted() const {
   ulint checksum_field1;
   ulint checksum_field2;
@@ -680,9 +680,9 @@ bool BlockReporter::verify_zip_checksum() const {
 
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
-@param[in]	curr_algo	current checksum algorithm
-@param[in]	page_checksum	page valid checksum
-@param[in]	page_id		page identifier */
+@param[in]      curr_algo       current checksum algorithm
+@param[in]      page_checksum   page valid checksum
+@param[in]      page_id         page identifier */
 void BlockReporter::page_warn_strict_checksum(
     srv_checksum_algorithm_t curr_algo, srv_checksum_algorithm_t page_checksum,
     const page_id_t &page_id) const {
@@ -720,8 +720,8 @@ void BlockReporter::page_warn_strict_checksum(
 }
 
 /** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
+@param[in,out]  out     the output stream
+@param[in]      page_id the page_id_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const page_id_t &page_id) {
   out << "[page id: space=" << page_id.m_space

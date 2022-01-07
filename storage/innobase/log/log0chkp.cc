@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -98,7 +98,7 @@ static void log_consider_sync_flush(log_t &log);
 /** Makes a checkpoint. Note that this function does not flush dirty blocks
 from the buffer pool. It only checks what is lsn of the oldest modification
 in the buffer pool, and writes information about the lsn in log files.
-@param[in,out]	log	redo log */
+@param[in,out]  log     redo log */
 static void log_checkpoint(log_t &log);
 
 /** Calculates time that elapsed since last checkpoint.
@@ -109,13 +109,13 @@ static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
 /** Requests a checkpoint written for lsn greater or equal to provided one.
 The log.checkpointer_mutex has to be acquired before it is called, and it
 is not released within this function.
-@param[in,out]	log		redo log
-@param[in]	requested_lsn	provided lsn (checkpoint should be not older) */
+@param[in,out]  log             redo log
+@param[in]      requested_lsn   provided lsn (checkpoint should be not older) */
 static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn);
 
 /** Waits for checkpoint advanced to at least that lsn.
-@param[in]	log	redo log
-@param[in]	lsn	lsn up to which we are waiting */
+@param[in]      log     redo log
+@param[in]      lsn     lsn up to which we are waiting */
 static void log_wait_for_checkpoint(const log_t &log, lsn_t lsn);
 
 /** Requests for urgent flush of dirty pages, to advance oldest_lsn

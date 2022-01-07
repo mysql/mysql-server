@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,7 +52,7 @@ struct data_page_t : public basic_page_t {
       : basic_page_t(nullptr, mtr, index) {}
 
   /** Constructor.
-  @param[in]	block	the buffer block.*/
+  @param[in]    block   the buffer block.*/
   data_page_t(buf_block_t *block) : basic_page_t(block, nullptr, nullptr) {}
 
   /** Allocate a LOB data page.
@@ -87,7 +87,7 @@ struct data_page_t : public basic_page_t {
 
   /** Write the trx identifier to the header, without
   generating redo log.
-  @param[in]	id	the transaction identifier.*/
+  @param[in]    id      the transaction identifier.*/
   void set_trx_id_no_redo(trx_id_t id) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, id);
@@ -128,23 +128,23 @@ struct data_page_t : public basic_page_t {
   }
 
   /** Read data from the data page.
-  @param[in]	offset	read begins at this offset.
-  @param[out]	ptr	the output buffer.
-  @param[in]	want	bytes to read
+  @param[in]    offset  read begins at this offset.
+  @param[out]   ptr     the output buffer.
+  @param[in]    want    bytes to read
   @return bytes actually read. */
   ulint read(ulint offset, byte *ptr, ulint want);
 
   /** Write data into a data page.
-  @param[in,out]	data	the data to be written.  it will be updated to
+  @param[in,out]        data    the data to be written.  it will be updated to
   point to the byte not yet written.
-  @param[in,out]	len	length of data to be written.
+  @param[in,out]        len     length of data to be written.
   @return amount of data actually written into the page. */
   ulint write(const byte *&data, ulint &len);
 
   /** Append given data in data page.
-  @param[in]	trxid	transaction doing append.
-  @param[in,out]	data	data to be appended.
-  @param[in,out]	len	length of data.
+  @param[in]    trxid   transaction doing append.
+  @param[in,out]        data    data to be appended.
+  @param[in,out]        len     length of data.
   @return number of bytes appended. */
   ulint append(trx_id_t trxid, byte *&data, ulint &len);
 

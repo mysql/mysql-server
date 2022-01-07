@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -307,19 +307,19 @@ before proceeds. */
 #define FK_MAX_CASCADE_DEL 15
 
 /** Adds a virtual column definition to a table.
-@param[in,out]	table		table
-@param[in]	heap		temporary memory heap, or NULL. It is
+@param[in,out]  table           table
+@param[in]      heap            temporary memory heap, or NULL. It is
                                 used to store name when we have not finished
                                 adding all columns. When all columns are
                                 added, the whole name will copy to memory from
                                 table->heap
-@param[in]	name		column name
-@param[in]	mtype		main datatype
-@param[in]	prtype		precise type
-@param[in]	len		length
-@param[in]	pos		position in a table
-@param[in]	num_base	number of base columns
-@param[in]	is_visible	True if virtual column is visible to user
+@param[in]      name            column name
+@param[in]      mtype           main datatype
+@param[in]      prtype          precise type
+@param[in]      len             length
+@param[in]      pos             position in a table
+@param[in]      num_base        number of base columns
+@param[in]      is_visible      True if virtual column is visible to user
 @return the virtual column definition */
 dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        const char *name, ulint mtype,
@@ -327,8 +327,8 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        ulint num_base, bool is_visible);
 
 /** Adds a stored column definition to a table.
-@param[in,out]	table		table
-@param[in]	num_base	number of base columns. */
+@param[in,out]  table           table
+@param[in]      num_base        number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base);
 
 /** Renames a column of a table in the data dictionary cache.
@@ -343,15 +343,15 @@ void dict_mem_table_col_rename(dict_table_t *table, ulint nth_col,
 
 /** This function poplulates a dict_index_t index memory structure with
 supplied information.
-@param[out]	index		index to be filled
-@param[in]	heap		memory heap
-@param[in]	table_name	table name
-@param[in]	index_name	index name
-@param[in]	space		space where the index tree is placed, the
+@param[out]     index           index to be filled
+@param[in]      heap            memory heap
+@param[in]      table_name      table name
+@param[in]      index_name      index name
+@param[in]      space           space where the index tree is placed, the
                                 clustered type ignored if the index is of
 the clustered type
-@param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
-@param[in]	n_fields	number of fields */
+@param[in]      type            DICT_UNIQUE, DICT_CLUSTERED, ... ORed
+@param[in]      n_fields        number of fields */
 static inline void dict_mem_fill_index_struct(
     dict_index_t *index, mem_heap_t *heap, const char *table_name,
     const char *index_name, ulint space, ulint type, ulint n_fields);
@@ -382,15 +382,15 @@ void dict_mem_referenced_table_name_lookup_set(
 Reason for being dependent are
 1) FK can be present on base column of virtual columns
 2) FK can be present on column which is a part of virtual index
-@param[in,out]	foreign	foreign key information. */
+@param[in,out]  foreign foreign key information. */
 void dict_mem_foreign_fill_vcol_set(dict_foreign_t *foreign);
 
 /** Fill virtual columns set in each fk constraint present in the table.
-@param[in,out]	table	innodb table object. */
+@param[in,out]  table   innodb table object. */
 void dict_mem_table_fill_foreign_vcol_set(dict_table_t *table);
 
 /** Free the vcol_set from all foreign key constraint on the table.
-@param[in,out]	table	innodb table object. */
+@param[in,out]  table   innodb table object. */
 void dict_mem_table_free_foreign_vcol_set(dict_table_t *table);
 
 /** Create a temporary tablename like "#sql-ibtid-inc" where
@@ -401,9 +401,9 @@ initialized at bootstrap. The second number is 32 bits, can use up to 10
 digits, and is initialized at startup to a randomly distributed number.
 It is hoped that the combination of these two numbers will provide a
 reasonably unique temporary file name.
-@param[in]	heap	A memory heap
-@param[in]	dbtab	Table name in the form database/table name
-@param[in]	id	Table id
+@param[in]      heap    A memory heap
+@param[in]      dbtab   Table name in the form database/table name
+@param[in]      id      Table id
 @return A unique temporary tablename suitable for InnoDB use */
 char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
                                           table_id_t id);
@@ -417,11 +417,11 @@ class id_name_t {
   /** Default constructor */
   id_name_t() : m_name() {}
   /** Constructor
-  @param[in]	name	identifier to assign */
+  @param[in]    name    identifier to assign */
   explicit id_name_t(const char *name) : m_name(name) {}
 
   /** Assignment operator
-  @param[in]	name	identifier to assign */
+  @param[in]    name    identifier to assign */
   id_name_t &operator=(const char *name) {
     m_name = name;
     return (*this);
@@ -535,7 +535,7 @@ struct dict_col_t {
   bool is_nullable() const { return ((prtype & DATA_NOT_NULL) == 0); }
 
   /** Gets the column data type.
-  @param[out] type	data type */
+  @param[out] type      data type */
   void copy_type(dtype_t *type) const {
     ut_ad(type != nullptr);
 
@@ -554,8 +554,8 @@ struct dict_col_t {
   ulint get_mbmaxlen() const { return (DATA_MBMAXLEN(mbminmaxlen)); }
 
   /** Sets the minimum and maximum number of bytes per character.
-  @param[in] mbminlen	minimum multi byte character size, in bytes
-  @param[in] mbmaxlen	mAXimum multi-byte character size, in bytes */
+  @param[in] mbminlen   minimum multi byte character size, in bytes
+  @param[in] mbmaxlen   mAXimum multi-byte character size, in bytes */
   void set_mbminmaxlen(ulint mbminlen, ulint mbmaxlen) {
     ut_ad(mbminlen < DATA_MBMAX);
     ut_ad(mbmaxlen < DATA_MBMAX);
@@ -565,7 +565,7 @@ struct dict_col_t {
   }
 
   /** Returns the size of a fixed size column, 0 if not a fixed size column.
-  @param[in] comp		nonzero=ROW_FORMAT=COMPACT
+  @param[in] comp               nonzero=ROW_FORMAT=COMPACT
   @return fixed size, or 0 */
   ulint get_fixed_size(ulint comp) const {
     return (dtype_get_fixed_size_low(mtype, prtype, len, mbminmaxlen, comp));
@@ -573,7 +573,7 @@ struct dict_col_t {
 
   /** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
   For fixed length types it is the fixed length of the type, otherwise 0.
-  @param[in] comp		nonzero=ROW_FORMAT=COMPACT
+  @param[in] comp               nonzero=ROW_FORMAT=COMPACT
   @return SQL null storage size in ROW_FORMAT=REDUNDANT */
   ulint get_null_size(ulint comp) const { return (get_fixed_size(comp)); }
 
@@ -601,14 +601,14 @@ struct dict_col_t {
   }
 
   /** Set default value
-  @param[in]	value	Default value
-  @param[in]	length	Default value length
-  @param[in,out]	heap	Heap to allocate memory */
+  @param[in]    value   Default value
+  @param[in]    length  Default value length
+  @param[in,out]        heap    Heap to allocate memory */
   void set_default(const byte *value, size_t length, mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
   /** Assert that a column and a data type match.
-  param[in] type		data type
+  param[in] type                data type
   @return true */
   bool assert_equal(const dtype_t *type) const {
     ut_ad(type);
@@ -1020,7 +1020,7 @@ struct dict_index_t {
   }
 
   /** Flag an index committed or uncommitted.
-  @param[in]	committed	whether the index is committed */
+  @param[in]    committed       whether the index is committed */
   void set_committed(bool committed) {
     ut_ad(!to_be_dropped);
     ut_ad(committed || !(type & DICT_CLUSTERED));
@@ -1028,16 +1028,16 @@ struct dict_index_t {
   }
 
   /** Get the next index.
-  @return	next index
-  @retval	NULL	if this was the last index */
+  @return       next index
+  @retval       NULL    if this was the last index */
   const dict_index_t *next() const {
     const dict_index_t *next = UT_LIST_GET_NEXT(indexes, this);
     ut_ad(magic_n == DICT_INDEX_MAGIC_N);
     return (next);
   }
   /** Get the next index.
-  @return	next index
-  @retval	NULL	if this was the last index */
+  @return       next index
+  @retval       NULL    if this was the last index */
   dict_index_t *next() {
     return (const_cast<dict_index_t *>(
         const_cast<const dict_index_t *>(this)->next()));
@@ -1081,7 +1081,7 @@ struct dict_index_t {
   }
 
   /** Check whether index can be used by transaction
-  @param[in] trx		transaction*/
+  @param[in] trx                transaction*/
   bool is_usable(const trx_t *trx) const;
 
   /** Check whether index has any instantly added columns
@@ -1089,13 +1089,13 @@ struct dict_index_t {
   bool has_instant_cols() const { return (instant_cols); }
 
   /** Check if tuple is having instant format.
-  @param[in]	n_fields_in_tuple	number of fields in tuple
+  @param[in]    n_fields_in_tuple       number of fields in tuple
   @return true if yes, false otherwise. */
   bool is_tuple_instant_format(const uint16_t n_fields_in_tuple) const;
 
   /** Returns the number of nullable fields before specified
   nth field
-  @param[in]	nth	nth field to check */
+  @param[in]    nth     nth field to check */
   uint32_t get_n_nullable_before(uint32_t nth) const {
     uint32_t nullable = n_nullable;
 
@@ -1116,10 +1116,10 @@ struct dict_index_t {
   /** Adds a field definition to an index. NOTE: does not take a copy
   of the column name if the field is a column. The memory occupied
   by the column name may be released only after publishing the index.
-  @param[in] name_arg	column name
-  @param[in] prefix_len	0 or the column prefix length in a MySQL index
+  @param[in] name_arg   column name
+  @param[in] prefix_len 0 or the column prefix length in a MySQL index
                           like INDEX (textcol(25))
-  @param[in] is_ascending	true=ASC, false=DESC */
+  @param[in] is_ascending       true=ASC, false=DESC */
   void add_field(const char *name_arg, ulint prefix_len, bool is_ascending) {
     dict_field_t *field;
 
@@ -1135,7 +1135,7 @@ struct dict_index_t {
   }
 
   /** Gets the nth field of an index.
-  @param[in] pos	position of field
+  @param[in] pos        position of field
   @return pointer to field object */
   dict_field_t *get_field(ulint pos) const {
     ut_ad(pos < n_def);
@@ -1145,24 +1145,24 @@ struct dict_index_t {
   }
 
   /** Gets pointer to the nth column in an index.
-  @param[in] pos	position of the field
+  @param[in] pos        position of the field
   @return column */
   const dict_col_t *get_col(ulint pos) const { return (get_field(pos)->col); }
 
   /** Gets the column number the nth field in an index.
-  @param[in] pos	position of the field
+  @param[in] pos        position of the field
   @return column number */
   ulint get_col_no(ulint pos) const;
 
   /** Returns the position of a system column in an index.
-  @param[in] type		DATA_ROW_ID, ...
+  @param[in] type               DATA_ROW_ID, ...
   @return position, ULINT_UNDEFINED if not contained */
   ulint get_sys_col_pos(ulint type) const;
 
   /** Looks for column n in an index.
-  @param[in]	n		column number
-  @param[in]	inc_prefix	true=consider column prefixes too
-  @param[in]	is_virtual	true==virtual column
+  @param[in]    n               column number
+  @param[in]    inc_prefix      true=consider column prefixes too
+  @param[in]    is_virtual      true==virtual column
   @return position in internal representation of the index;
   ULINT_UNDEFINED if not contained */
   ulint get_col_pos(ulint n, bool inc_prefix = false,
@@ -1170,9 +1170,9 @@ struct dict_index_t {
 
   /** Get the default value of nth field and its length if exists.
   If not exists, both the return value is nullptr and length is 0.
-  @param[in]	nth	nth field to get
-  @param[in,out]	length	length of the default value
-  @return	the default value data of nth field */
+  @param[in]    nth     nth field to get
+  @param[in,out]        length  length of the default value
+  @return       the default value data of nth field */
   const byte *get_nth_default(ulint nth, ulint *length) const {
     ut_ad(nth < n_fields);
     ut_ad(get_instant_fields() <= nth);
@@ -1189,9 +1189,9 @@ struct dict_index_t {
   }
 
   /** Sets srid and srid_is_valid values
-  @param[in]	srid_value		value of SRID, may be garbage
+  @param[in]    srid_value              value of SRID, may be garbage
                                           if srid_is_valid_value = false
-  @param[in]	srid_is_valid_value	value of srid_is_valid */
+  @param[in]    srid_is_valid_value     value of srid_is_valid */
   void fill_srid_value(uint32_t srid_value, bool srid_is_valid_value) {
     srid_is_valid = srid_is_valid_value;
     srid = srid_value;
@@ -1205,7 +1205,7 @@ struct dict_index_t {
   virtual column. Please note that there could be only one multi-value
   virtual column on the multi-value index, but not necessary the first
   field of the index.
-  @param[in]	mv_col	multi-value virtual column
+  @param[in]    mv_col  multi-value virtual column
   @return non-zero means the column is on the index and this is the
   nth position of the column, zero means it's not on the index */
   uint32_t has_multi_value_col(const dict_v_col_t *mv_col) const {
@@ -1365,13 +1365,13 @@ struct dict_foreign_not_exists {
 };
 
 /** Validate the search order in the foreign key set.
-@param[in]	fk_set	the foreign key set to be validated
+@param[in]      fk_set  the foreign key set to be validated
 @return true if search order is fine in the set, false otherwise. */
 bool dict_foreign_set_validate(const dict_foreign_set &fk_set);
 
 /** Validate the search order in the foreign key sets of the table
 (foreign_set and referenced_set).
-@param[in]	table	table whose foreign key sets are to be validated
+@param[in]      table   table whose foreign key sets are to be validated
 @return true if foreign key sets are fine, false otherwise. */
 bool dict_foreign_set_validate(const dict_table_t &table);
 
@@ -1414,14 +1414,14 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /** @} */
 
 /** Display an identifier.
-@param[in,out]	s	output stream
-@param[in]	id_name	SQL identifier (other than table name)
+@param[in,out]  s       output stream
+@param[in]      id_name SQL identifier (other than table name)
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const id_name_t &id_name);
 
 /** Display a table name.
-@param[in,out]	s		output stream
-@param[in]	table_name	table name
+@param[in,out]  s               output stream
+@param[in]      table_name      table name
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const table_name_t &table_name);
 
@@ -1524,8 +1524,8 @@ struct dict_table_t {
 
 #ifndef UNIV_HOTBACKUP
   /** Get schema and table name in system character set.
-  @param[out]	schema	schema name
-  @param[out]	table	table name */
+  @param[out]   schema  schema name
+  @param[out]   table   table name */
   void get_table_name(std::string &schema, std::string &table);
 
   /** Mutex of the table for concurrency access. */
@@ -2044,7 +2044,7 @@ detect this and will eventually quit sooner. */
   }
 
   /** Set the number of columns when the first instant ADD COLUMN happens.
-  @param[in]	instant_cols	number of fields when first instant
+  @param[in]    instant_cols    number of fields when first instant
                                   ADD COLUMN happens, without system
                                   columns */
   void set_instant_cols(uint16_t instant_cols) {
@@ -2053,7 +2053,7 @@ detect this and will eventually quit sooner. */
 
   /** Get the number of user columns when the first instant ADD COLUMN
   happens.
-  @return	the number of user columns as described above */
+  @return       the number of user columns as described above */
   uint16_t get_instant_cols() const {
     return static_cast<uint16_t>(n_instant_cols - get_n_sys_cols());
   }
@@ -2075,7 +2075,7 @@ detect this and will eventually quit sooner. */
   }
 
   /** Returns a column's name.
-  @param[in] col_nr	column number
+  @param[in] col_nr     column number
   @return column name. NOTE: not guaranteed to stay valid if table is
   modified in any way (columns added, etc.). */
   const char *get_col_name(ulint col_nr) const {
@@ -2093,7 +2093,7 @@ detect this and will eventually quit sooner. */
   }
 
   /**Gets the nth column of a table.
-  @param[in] pos	position of column
+  @param[in] pos        position of column
   @return pointer to column object */
   dict_col_t *get_col(ulint pos) const {
     ut_ad(pos < n_def);
@@ -2221,8 +2221,8 @@ typedef std::vector<index_id_t, ut::allocator<index_id_t>> corrupted_ids_t;
 class PersistentTableMetadata {
  public:
   /** Constructor
-  @param[in]	id	table id
-  @param[in]	version	table dynamic metadata version */
+  @param[in]    id      table id
+  @param[in]    version table dynamic metadata version */
   PersistentTableMetadata(table_id_t id, uint64 version)
       : m_id(id), m_version(version), m_corrupted_ids(), m_autoinc(0) {}
 
@@ -2233,13 +2233,13 @@ class PersistentTableMetadata {
   }
 
   /** Add a corrupted index id and space id
-  @param[in]	id	corrupted index id */
+  @param[in]    id      corrupted index id */
   void add_corrupted_index(const index_id_t id) {
     m_corrupted_ids.push_back(id);
   }
 
   /** Set the dynamic metadata version.
-  @param[in]	version		dynamic metadata version */
+  @param[in]    version         dynamic metadata version */
   void set_version(uint64_t version) { m_version = version; }
 
   /** Get the dynamic metadata version */
@@ -2250,7 +2250,7 @@ class PersistentTableMetadata {
   table_id_t get_table_id() const { return (m_id); }
 
   /** Set the autoinc counter of the table if it's bigger
-  @param[in]	autoinc	autoinc counter */
+  @param[in]    autoinc autoinc counter */
   void set_autoinc_if_bigger(uint64_t autoinc) {
     /* We only set the biggest autoinc counter. Callers don't
     guarantee passing a bigger number in. */
@@ -2260,7 +2260,7 @@ class PersistentTableMetadata {
   }
 
   /** Set the autoinc counter of the table
-  @param[in]	autoinc	autoinc counter */
+  @param[in]    autoinc autoinc counter */
   void set_autoinc(uint64_t autoinc) { m_autoinc = autoinc; }
 
   /** Get the autoinc counter of the table
@@ -2291,26 +2291,26 @@ class Persister {
 
   /** Write the dynamic metadata of a table, we can pre-calculate
   the size by calling get_write_size()
-  @param[in]	metadata	persistent data
-  @param[out]	buffer		write buffer
-  @param[in]	size		size of write buffer, should be
+  @param[in]    metadata        persistent data
+  @param[out]   buffer          write buffer
+  @param[in]    size            size of write buffer, should be
                                   at least get_write_size()
   @return the length of bytes written */
   virtual ulint write(const PersistentTableMetadata &metadata, byte *buffer,
                       ulint size) const = 0;
 
   /** Pre-calculate the size of metadata to be written
-  @param[in]	metadata	metadata to be written
+  @param[in]    metadata        metadata to be written
   @return the size of metadata */
   virtual ulint get_write_size(
       const PersistentTableMetadata &metadata) const = 0;
 
   /** Read the dynamic metadata from buffer, and store them to
   metadata object
-  @param[out]	metadata	metadata where we store the read data
-  @param[in]	buffer		buffer to read
-  @param[in]	size		size of buffer
-  @param[out]	corrupt		true if we found something wrong in
+  @param[out]   metadata        metadata where we store the read data
+  @param[in]    buffer          buffer to read
+  @param[in]    size            size of buffer
+  @param[out]   corrupt         true if we found something wrong in
                                   the buffer except incomplete buffer,
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
@@ -2320,9 +2320,9 @@ class Persister {
 
   /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
   metadata of table
-  @param[in]	id		Table id
-  @param[in]	metadata	Metadata used to write the log
-  @param[in,out]	mtr		Mini-transaction */
+  @param[in]    id              Table id
+  @param[in]    metadata        Metadata used to write the log
+  @param[in,out]        mtr             Mini-transaction */
   void write_log(table_id_t id, const PersistentTableMetadata &metadata,
                  mtr_t *mtr) const;
 };
@@ -2332,25 +2332,25 @@ class CorruptedIndexPersister : public Persister {
  public:
   /** Write the corrupted indexes of a table, we can pre-calculate the size
   by calling get_write_size()
-  @param[in]	metadata	persistent data
-  @param[out]	buffer		write buffer
-  @param[in]	size		size of write buffer, should be at least
+  @param[in]    metadata        persistent data
+  @param[out]   buffer          write buffer
+  @param[in]    size            size of write buffer, should be at least
                                   get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
               ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
-  @param[in]	metadata	metadata to be written
+  @param[in]    metadata        metadata to be written
   @return the size of metadata */
   ulint get_write_size(const PersistentTableMetadata &metadata) const override;
 
   /** Read the corrupted indexes from buffer, and store them to
   metadata object
-  @param[out]	metadata	metadata where we store the read data
-  @param[in]	buffer		buffer to read
-  @param[in]	size		size of buffer
-  @param[out]	corrupt		true if we found something wrong in
+  @param[out]   metadata        metadata where we store the read data
+  @param[in]    buffer          buffer to read
+  @param[in]    size            size of buffer
+  @param[out]   corrupt         true if we found something wrong in
                                   the buffer except incomplete buffer,
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
@@ -2368,16 +2368,16 @@ class AutoIncPersister : public Persister {
  public:
   /** Write the autoinc counter of a table, we can pre-calculate
   the size by calling get_write_size()
-  @param[in]	metadata	persistent metadata
-  @param[out]	buffer		write buffer
-  @param[in]	size		size of write buffer, should be
+  @param[in]    metadata        persistent metadata
+  @param[out]   buffer          write buffer
+  @param[in]    size            size of write buffer, should be
                                   at least get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
               ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
-  @param[in]	metadata	metadata to be written
+  @param[in]    metadata        metadata to be written
   @return the size of metadata */
   inline ulint get_write_size(const PersistentTableMetadata &metadata
                               [[maybe_unused]]) const override {
@@ -2390,10 +2390,10 @@ class AutoIncPersister : public Persister {
 
   /** Read the autoinc counter from buffer, and store them to
   metadata object
-  @param[out]	metadata	metadata where we store the read data
-  @param[in]	buffer		buffer to read
-  @param[in]	size		size of buffer
-  @param[out]	corrupt		true if we found something wrong in
+  @param[out]   metadata        metadata where we store the read data
+  @param[in]    buffer          buffer to read
+  @param[in]    size            size of buffer
+  @param[out]   corrupt         true if we found something wrong in
                                   the buffer except incomplete buffer,
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
@@ -2419,24 +2419,24 @@ class Persisters {
   ~Persisters();
 
   /** Get the persister object with specified type
-  @param[in]	type	persister type
+  @param[in]    type    persister type
   @return Persister object required or NULL if not found */
   Persister *get(persistent_type_t type) const;
 
   /** Add a specified persister of type, we will allocate the Persister
   if there is no such persister exist, otherwise do nothing and return
   the existing one
-  @param[in]	type	persister type
+  @param[in]    type    persister type
   @return the persister of type */
   Persister *add(persistent_type_t type);
 
   /** Remove a specified persister of type, we will free the Persister
-  @param[in]	type	persister type */
+  @param[in]    type    persister type */
   void remove(persistent_type_t type);
 
   /** Serialize the metadata to a buffer
-  @param[in]	metadata	metadata to serialize
-  @param[out]	buffer		buffer to store the serialized metadata
+  @param[in]    metadata        metadata to serialize
+  @param[out]   buffer          buffer to store the serialized metadata
   @return the length of serialized metadata */
   size_t write(PersistentTableMetadata &metadata, byte *buffer);
 
@@ -2462,7 +2462,7 @@ struct dict_foreign_add_to_referenced_table {
 /** Request for lazy creation of the mutex of a given table.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose mutex is to be created */
+@param[in,out]  table   table whose mutex is to be created */
 inline void dict_table_mutex_create_lazy(dict_table_t *table) {
   table->mutex = nullptr;
   table->mutex_created = os_once::NEVER_DONE;
@@ -2471,7 +2471,7 @@ inline void dict_table_mutex_create_lazy(dict_table_t *table) {
 /** Destroy the mutex of a given table.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose mutex is to be created */
+@param[in,out]  table   table whose mutex is to be created */
 inline void dict_table_mutex_destroy(dict_table_t *table) {
   if (table->mutex_created == os_once::DONE) {
     if (table->mutex != nullptr) {
@@ -2484,7 +2484,7 @@ inline void dict_table_mutex_destroy(dict_table_t *table) {
 /** Destroy the autoinc latch of the given table.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose stats latch to destroy */
+@param[in,out]  table   table whose stats latch to destroy */
 inline void dict_table_autoinc_destroy(dict_table_t *table) {
   if (table->autoinc_mutex_created == os_once::DONE) {
     if (table->autoinc_mutex != nullptr) {
@@ -2502,7 +2502,7 @@ inline void dict_table_autoinc_destroy(dict_table_t *table) {
 /** Request for lazy creation of the autoinc latch of a given table.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose autoinc latch is to be created. */
+@param[in,out]  table   table whose autoinc latch is to be created. */
 inline void dict_table_autoinc_create_lazy(dict_table_t *table) {
   table->autoinc_mutex = nullptr;
   table->autoinc_persisted_mutex = nullptr;
@@ -2512,7 +2512,7 @@ inline void dict_table_autoinc_create_lazy(dict_table_t *table) {
 /** Request a lazy creation of dict_index_t::zip_pad::mutex.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	index	index whose zip_pad mutex is to be created */
+@param[in,out]  index   index whose zip_pad mutex is to be created */
 inline void dict_index_zip_pad_mutex_create_lazy(dict_index_t *index) {
   index->zip_pad.mutex = nullptr;
   index->zip_pad.mutex_created = os_once::NEVER_DONE;
@@ -2521,7 +2521,7 @@ inline void dict_index_zip_pad_mutex_create_lazy(dict_index_t *index) {
 /** Destroy the zip_pad_mutex of the given index.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	index	index whose stats latch to destroy */
+@param[in,out]  index   index whose stats latch to destroy */
 inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
   if (index->zip_pad.mutex_created == os_once::DONE &&
       index->zip_pad.mutex != nullptr) {
@@ -2532,7 +2532,7 @@ inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
 #endif /* !UNIV_HOTBACKUP */
 
 /** Release the zip_pad_mutex of a given index.
-@param[in,out]	index	index whose zip_pad_mutex is to be released */
+@param[in,out]  index   index whose zip_pad_mutex is to be released */
 inline void dict_index_zip_pad_unlock(dict_index_t *index) {
 #ifndef UNIV_HOTBACKUP
   mutex_exit(index->zip_pad.mutex);
@@ -2541,7 +2541,7 @@ inline void dict_index_zip_pad_unlock(dict_index_t *index) {
 
 #ifdef UNIV_DEBUG
 /** Check if the current thread owns the autoinc_mutex of a given table.
-@param[in]	table	the autoinc_mutex belongs to this table
+@param[in]      table   the autoinc_mutex belongs to this table
 @return true, if the current thread owns the autoinc_mutex, false otherwise.*/
 inline bool dict_table_autoinc_own(const dict_table_t *table) {
   return (mutex_own(table->autoinc_mutex));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ namespace dd {
 class Spatial_reference_system;
 }
 
-/*		ALPHABETICAL ORDER
+/*              ALPHABETICAL ORDER
                 ==================
 
 The records are put into alphabetical order in the following
@@ -154,11 +154,11 @@ bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
 
 /** Compare two DATA_DECIMAL (MYSQL_TYPE_DECIMAL) fields.
 TODO: Remove this function. Everything should use MYSQL_TYPE_NEWDECIMAL.
-@param[in]	a		data field
-@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
-@param[in]	b		data field
-@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
-@param[in]	is_asc		true=ascending, false=descending order
+@param[in]      a               data field
+@param[in]      a_length        length of a, in bytes (not UNIV_SQL_NULL)
+@param[in]      b               data field
+@param[in]      b_length        length of b, in bytes (not UNIV_SQL_NULL)
+@param[in]      is_asc          true=ascending, false=descending order
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static UNIV_COLD int cmp_decimal(const byte *a, unsigned int a_length,
@@ -225,7 +225,7 @@ static UNIV_COLD int cmp_decimal(const byte *a, unsigned int a_length,
 }
 
 /** Innobase uses this function to compare two geometry data fields
-@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+@return 1, 0, -1, if a is greater, equal, less than b, respectively */
 static int cmp_geometry_field(ulint prtype,          /*!< in: precise type */
                               const byte *a,         /*!< in: data field */
                               unsigned int a_length, /*!< in: data field length,
@@ -283,7 +283,7 @@ static int cmp_geometry_field(ulint prtype,          /*!< in: precise type */
 }
 
 /** Innobase uses this function to compare two gis data fields
- @return	1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
+ @return        1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
  1, 0 for rest compare modes, depends on a and b qualifies the
  relationship (CONTAINT, WITHIN etc.) */
 static int cmp_gis_field(
@@ -306,13 +306,13 @@ static int cmp_gis_field(
 }
 
 /** Compare two data fields.
-@param[in]	mtype		main type
-@param[in]	prtype		precise type
-@param[in]	is_asc		true=ascending, false=descending order
-@param[in]	a		data field
-@param[in]	a_length	length of a, in bytes (not UNIV_SQL_NULL)
-@param[in]	b		data field
-@param[in]	b_length	length of b, in bytes (not UNIV_SQL_NULL)
+@param[in]      mtype           main type
+@param[in]      prtype          precise type
+@param[in]      is_asc          true=ascending, false=descending order
+@param[in]      a               data field
+@param[in]      a_length        length of a, in bytes (not UNIV_SQL_NULL)
+@param[in]      b               data field
+@param[in]      b_length        length of b, in bytes (not UNIV_SQL_NULL)
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
 static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
@@ -382,13 +382,13 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
 }
 
 /** Compare two data fields.
-@param[in]	mtype	main type
-@param[in]	prtype	precise type
-@param[in]	is_asc	true=ascending, false=descending order
-@param[in]	data1	data field
-@param[in]	len1	length of data1 in bytes, or UNIV_SQL_NULL
-@param[in]	data2	data field
-@param[in]	len2	length of data2 in bytes, or UNIV_SQL_NULL
+@param[in]      mtype   main type
+@param[in]      prtype  precise type
+@param[in]      is_asc  true=ascending, false=descending order
+@param[in]      data1   data field
+@param[in]      len1    length of data1 in bytes, or UNIV_SQL_NULL
+@param[in]      data2   data field
+@param[in]      len2    length of data2 in bytes, or UNIV_SQL_NULL
 @return the comparison result of data1 and data2
 @retval 0 if data1 is equal to data2
 @retval negative if data1 is less than data2
@@ -690,9 +690,9 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
 }
 
 /** Get the pad character code point for a type.
-@param[in]	type SQL data type
-@return		pad character code point
-@retval		ULINT_UNDEFINED if no padding is specified */
+@param[in]      type SQL data type
+@return         pad character code point
+@retval         ULINT_UNDEFINED if no padding is specified */
 static inline ulint cmp_get_pad_char(const dtype_t *type) {
   switch (type->mtype) {
     case DATA_FIXBINARY:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -686,7 +686,7 @@ bool Clone_persist_gtid::wait_thread(bool start, bool wait_flush,
 }
 
 /** Persist GTID to on disk table from time to time.
-@param[in,out]	persist_gtid	GTID persister */
+@param[in,out]  persist_gtid    GTID persister */
 static void clone_gtid_thread(Clone_persist_gtid *persist_gtid) {
   persist_gtid->periodic_write();
 }

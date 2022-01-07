@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,13 +31,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Read one data chunk associated with one index entry.
-@param[in]	index	The clustered index containing the LOB.
-@param[in]	entry	Pointer to the index entry
-@param[in]	offset	The offset from which to read the chunk.
-@param[in,out]	len	The length of the output buffer. This length can
+@param[in]      index   The clustered index containing the LOB.
+@param[in]      entry   Pointer to the index entry
+@param[in]      offset  The offset from which to read the chunk.
+@param[in,out]  len     The length of the output buffer. This length can
                         be greater than the chunk size.
-@param[in,out]	buf	The output buffer.
-@param[in]	mtr	Mini-transaction context.
+@param[in,out]  buf     The output buffer.
+@param[in]      mtr     Mini-transaction context.
 @return number of bytes copied into the output buffer. */
 ulint z_read_chunk(dict_index_t *index, z_index_entry_t &entry, ulint offset,
                    ulint &len, byte *&buf, mtr_t *mtr);
@@ -65,9 +65,9 @@ ulint z_read(ReadContext *ctx, trx_t *trx, lob::ref_t ref, ulint offset,
 
 #ifdef UNIV_DEBUG
 /** Validate one zlib stream, given its index entry.
-@param[in]	index      The index dictionary object.
-@param[in]	entry      The index entry (memory copy).
-@param[in]	mtr        Mini-transaction.
+@param[in]      index      The index dictionary object.
+@param[in]      entry      The index entry (memory copy).
+@param[in]      mtr        Mini-transaction.
 @return true if validation passed.
 @return does not return if validation failed.*/
 bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr);

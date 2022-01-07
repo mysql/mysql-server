@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -218,7 +218,7 @@ static inline void dtype_new_store_for_order_and_null_size(
     buf[0] |= 128;
   }
 
-  /* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
+  /* In versions < 4.1.2 we had:        if (type->prtype & DATA_NONLATIN1) {
   buf[0] |= 64;
   }
   */
@@ -547,8 +547,8 @@ static inline ulint dtype_get_min_size_low(
 
 /** Returns the maximum size of a data type. Note: types in system tables may
 be incomplete and return incorrect information.
-@param[in]	mtype	main type
-@param[in]	len	length
+@param[in]      mtype   main type
+@param[in]      len     length
 @return maximum size */
 static inline ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
                                            ulint len)   /*!< in: length */

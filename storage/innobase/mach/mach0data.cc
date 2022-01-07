@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,9 +36,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 
 /** Read a 64-bit integer in a much compressed form.
-@param[in,out]	ptr	pointer to memory from where to read,
+@param[in,out]  ptr     pointer to memory from where to read,
 advanced by the number of bytes consumed, or set NULL if out of space
-@param[in]	end_ptr	end of the buffer
+@param[in]      end_ptr end of the buffer
 @return unsigned 64-bit integer */
 ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
                                            const byte *end_ptr) {
@@ -73,9 +73,9 @@ ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
 }
 
 /** Read a 32-bit integer in a compressed form.
-@param[in,out]	ptr	pointer to memory from where to read;
+@param[in,out]  ptr     pointer to memory from where to read;
 advanced by the number of bytes consumed, or set NULL if out of space
-@param[in]	end_ptr	end of the buffer
+@param[in]      end_ptr end of the buffer
 @return unsigned value */
 ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
   ulint val;

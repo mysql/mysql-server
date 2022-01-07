@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -76,9 +76,9 @@ class os_once {
 
   /** Call a given function or wait its execution to complete if it is
   already called by another thread.
-  @param[in,out]	state		control variable
-  @param[in]	do_func		function to call
-  @param[in,out]	do_func_arg	an argument to pass to do_func(). */
+  @param[in,out]        state           control variable
+  @param[in]    do_func         function to call
+  @param[in,out]        do_func_arg     an argument to pass to do_func(). */
   static void do_or_wait_for_done(std::atomic<state_t> *state,
                                   void (*do_func)(void *), void *do_func_arg) {
     /* Avoid calling compare_exchange_strong() in the most common case. */

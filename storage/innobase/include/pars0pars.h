@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -266,9 +266,9 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
                                                    is of type NOT NULL. */
 
 /** Parses a table creation operation.
-@param[in]	table_sym		table name node in the symbol table
-@param[in]	column_defs		list of column names
-@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
+@param[in]      table_sym               table name node in the symbol table
+@param[in]      column_defs             list of column names
+@param[in]      not_fit_in_memory       a non-NULL pointer means that this is a
                                         table which in simulations should be
                                         simulated as not fitting in memory;
                                         thread is put to sleep to simulate disk
@@ -277,8 +277,8 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
                                         and the database will forget about
                                         non-NULL value if it has to reload the
                                         table definition from disk
-@param[in]	compact			non-NULL if COMPACT table
-@param[in]	block_size		block size (can be NULL)
+@param[in]      compact                 non-NULL if COMPACT table
+@param[in]      block_size              block size (can be NULL)
 @return table create subgraph */
 tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
                               sym_node_t *compact, sym_node_t *block_size,
@@ -306,11 +306,11 @@ que_fork_t *pars_procedure_definition(
 /** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
-@param[in]	node		root node for an incomplete query
+@param[in]      node            root node for an incomplete query
                                 graph, or NULL for dummy graph
-@param[in]	trx		transaction handle
-@param[in]	heap		memory heap from which allocated
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      trx             transaction handle
+@param[in]      heap            memory heap from which allocated
+@param[in]      prebuilt        row prebuilt structure
 @return query thread node to run */
 [[nodiscard]] que_thr_t *pars_complete_graph_for_exec(que_node_t *node,
                                                       trx_t *trx,
@@ -387,10 +387,10 @@ void pars_info_bind_function(pars_info_t *info, const char *name,
                              pars_user_func_cb_t func, void *arg);
 
 /** Add bound id.
-@param[in]	info		info struct
-@param[in]	copy_name	copy name if TRUE
-@param[in]	name		name
-@param[in]	id		id */
+@param[in]      info            info struct
+@param[in]      copy_name       copy name if TRUE
+@param[in]      name            name
+@param[in]      id              id */
 void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
                        const char *id);
 
@@ -427,9 +427,9 @@ void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
                                 const ib_uint64_t *val);
 
 /** Add bound id.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	id	id */
+@param[in]      info    info struct
+@param[in]      name    name
+@param[in]      id      id */
 void pars_info_add_id(pars_info_t *info, const char *name, const char *id);
 
 /** Get bound literal with the given name.
@@ -439,8 +439,8 @@ pars_bound_lit_t *pars_info_get_bound_lit(
     const char *name); /*!< in: bound literal name to find */
 
 /** Get bound identifier with the given name.
-@param[in]	info	info struct
-@param[in]	name	bound id name to find
+@param[in]      info    info struct
+@param[in]      name    bound id name to find
 @return bound id, or NULL if not found */
 pars_bound_id_t *pars_info_get_bound_id(pars_info_t *info, const char *name);
 

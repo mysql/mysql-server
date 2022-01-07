@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -135,8 +135,8 @@ struct z_index_entry_t {
       : m_node(node), m_mtr(mtr), m_index(index) {}
 
   /** Constructor
-  @param[in]	mtr	the mini-transaction
-  @param[in]	index	the clustered index to which LOB belongs. */
+  @param[in]    mtr     the mini-transaction
+  @param[in]    index   the clustered index to which LOB belongs. */
   z_index_entry_t(mtr_t *mtr, dict_index_t *index)
       : m_node(nullptr),
         m_mtr(mtr),
@@ -145,7 +145,7 @@ struct z_index_entry_t {
         m_page_no(FIL_NULL) {}
 
   /** Constructor
-  @param[in]	node	the location where index entry starts. */
+  @param[in]    node    the location where index entry starts. */
   z_index_entry_t(flst_node_t *node)
       : m_node(node),
         m_mtr(nullptr),
@@ -187,9 +187,9 @@ struct z_index_entry_t {
   }
 
   /** Determine if the current index entry be rolled back.
-  @param[in]	trxid		the transaction that is being rolled
+  @param[in]    trxid           the transaction that is being rolled
                                   back.
-  @param[in]	undo_no		the savepoint undo number of trx,
+  @param[in]    undo_no         the savepoint undo number of trx,
                                   upto which rollback happens.
   @return true if this entry can be rolled back, false otherwise. */
   bool can_rollback(trx_id_t trxid, undo_no_t undo_no) {
@@ -198,8 +198,8 @@ struct z_index_entry_t {
   }
 
   /** Determine if the current index entry be purged.
-  @param[in]	trxid		the transaction that is being purged.
-  @param[in]	undo_no		the undo number of trx.
+  @param[in]    trxid           the transaction that is being purged.
+  @param[in]    undo_no         the undo number of trx.
   @return true if this entry can be purged, false otherwise. */
   bool can_be_purged(trx_id_t trxid, undo_no_t undo_no) {
     return ((trxid == get_trx_id_modifier()) &&
@@ -207,11 +207,11 @@ struct z_index_entry_t {
   }
 
   /** Purge one index entry.
-  @param[in]	index		index to which LOB belongs.
-  @param[in]	first		first page of LOB.
-  @param[in,out]	lst		list from which this entry will be
+  @param[in]    index           index to which LOB belongs.
+  @param[in]    first           first page of LOB.
+  @param[in,out]        lst             list from which this entry will be
                                   removed.
-  @param[in,out]	free_list	list to which this entry will be
+  @param[in,out]        free_list       list to which this entry will be
                                   added.*/
   fil_addr_t purge_version(dict_index_t *index, z_first_page_t &first,
                            flst_base_node_t *lst, flst_base_node_t *free_list);
@@ -222,7 +222,7 @@ struct z_index_entry_t {
   void purge(dict_index_t *index, z_first_page_t &first);
 
   /** Remove this node from the given list.
-  @param[in]	bnode	the base node of the list from which to remove
+  @param[in]    bnode   the base node of the list from which to remove
                           current node. */
   void remove(flst_base_node_t *bnode) {
     ut_ad(m_mtr != nullptr);
@@ -231,8 +231,8 @@ struct z_index_entry_t {
   }
 
   /** Insert the given index entry after the current index entry.
-  @param[in]	base	the base node of the file based list.
-  @param[in]	entry	the new node to be inserted.*/
+  @param[in]    base    the base node of the file based list.
+  @param[in]    entry   the new node to be inserted.*/
   void insert_after(flst_base_node_t *base, z_index_entry_t &entry) {
     ut_ad(m_mtr != nullptr);
 
@@ -326,14 +326,14 @@ struct z_index_entry_t {
 
   /** Set the trx identifier to given value, without generating redo
   log records.
-  @param[in]	id	the given trx identifier.*/
+  @param[in]    id      the given trx identifier.*/
   void set_trx_id_no_redo(trx_id_t id) {
     byte *ptr = m_node + OFFSET_TRXID;
     mach_write_to_6(ptr, id);
   }
 
   /** Set the trx identifier to given value.
-  @param[in]	id	the given trx identifier.*/
+  @param[in]    id      the given trx identifier.*/
   void set_trx_id(trx_id_t id) {
     ut_ad(m_mtr != nullptr);
     byte *ptr = m_node + OFFSET_TRXID;
@@ -342,7 +342,7 @@ struct z_index_entry_t {
   }
 
   /** Set the modifier trxid to the given value.
-  @param[in]	id	the modifier trxid.*/
+  @param[in]    id      the modifier trxid.*/
   void set_trx_id_modifier(trx_id_t id) {
     ut_ad(m_mtr != nullptr);
 
@@ -353,14 +353,14 @@ struct z_index_entry_t {
 
   /** Set the modifier trxid to the given value, without generating
   redo log records.
-  @param[in]	id	the modifier trxid.*/
+  @param[in]    id      the modifier trxid.*/
   void set_trx_id_modifier_no_redo(trx_id_t id) {
     byte *ptr = m_node + OFFSET_TRXID_MODIFIER;
     mach_write_to_6(ptr, id);
   }
 
   /** Set the undo number of the creator trx.
-  @param[in]	undo_no		the undo number value.*/
+  @param[in]    undo_no         the undo number value.*/
   void set_trx_undo_no(undo_no_t undo_no) {
     ut_ad(m_mtr != nullptr);
     byte *ptr = m_node + OFFSET_TRX_UNDO_NO;
@@ -368,7 +368,7 @@ struct z_index_entry_t {
   }
 
   /** Set the undo number of the modifier trx.
-  @param[in]	undo_no		the undo number value.*/
+  @param[in]    undo_no         the undo number value.*/
   void set_trx_undo_no_modifier(undo_no_t undo_no) {
     ut_ad(m_mtr != nullptr);
     byte *ptr = m_node + OFFSET_TRX_UNDO_NO_MODIFIER;
@@ -452,8 +452,8 @@ struct z_index_entry_t {
   back to the index list from the versions list.  Then remove the
   current entry from the index list.  Move the versions list from
   current entry to older entry.
-  @param[in]	index	the index in which LOB exists.
-  @param[in]	first	The first lob page containing index list and free
+  @param[in]    index   the index in which LOB exists.
+  @param[in]    first   The first lob page containing index list and free
   list. */
   fil_addr_t make_old_version_current(dict_index_t *index,
                                       z_first_page_t &first);
@@ -465,7 +465,7 @@ struct z_index_entry_t {
   std::ostream &print_pages(std::ostream &out) const;
 
   /** Load the page (in shared mode) whose number was cached.
-  @return	the buffer block of the page loaded. */
+  @return       the buffer block of the page loaded. */
   buf_block_t *load_s() {
     ut_ad(m_page_no != FIL_NULL);
 
@@ -476,7 +476,7 @@ struct z_index_entry_t {
   }
 
   /** Load the given file address in s mode.
-  @param[in]	addr	the file address of the required node. */
+  @param[in]    addr    the file address of the required node. */
   void load_s(fil_addr_t &addr) {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
@@ -485,7 +485,7 @@ struct z_index_entry_t {
   }
 
   /** Load the given file address in x mode.
-  @param[in]	addr	the file address of the required node. */
+  @param[in]    addr    the file address of the required node. */
   void load_x(fil_addr_t &addr) {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
@@ -494,11 +494,11 @@ struct z_index_entry_t {
   }
 
   /** Read the given LOB index entry.
-  @param[in]	entry_mem	the LOB index entry. */
+  @param[in]    entry_mem       the LOB index entry. */
   void read(z_index_entry_mem_t &entry_mem) const;
 
   /** Read the given LOB index entry and then commit the mtr.
-  @param[in]	entry_mem	the LOB index entry. */
+  @param[in]    entry_mem       the LOB index entry. */
   void read_and_commit(z_index_entry_mem_t &entry_mem) {
     read(entry_mem);
     mtr_commit(m_mtr);
@@ -510,7 +510,7 @@ struct z_index_entry_t {
 
  private:
   /** Move the version base node from current entry to the given entry.
-  @param[in]	entry	The index entry to which the version base
+  @param[in]    entry   The index entry to which the version base
                           node is moved to. */
   void move_version_base_node(z_index_entry_t &entry);
 

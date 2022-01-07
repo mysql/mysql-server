@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -793,18 +793,18 @@ upd_t *row_upd_build_sec_rec_difference_binary(
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
-@param[in]	index		clustered index
-@param[in]	entry		clustered index entry to insert
-@param[in]	rec		clustered index record
-@param[in]	offsets		rec_get_offsets(rec,index), or NULL
-@param[in]	no_sys		skip the system columns
+@param[in]      index           clustered index
+@param[in]      entry           clustered index entry to insert
+@param[in]      rec             clustered index record
+@param[in]      offsets         rec_get_offsets(rec,index), or NULL
+@param[in]      no_sys          skip the system columns
                                 DB_TRX_ID and DB_ROLL_PTR
-@param[in]	trx		transaction (for diagnostics),
+@param[in]      trx             transaction (for diagnostics),
                                 or NULL
-@param[in]	heap		memory heap from which allocated
-@param[in]	mysql_table	NULL, or mysql table object when
+@param[in]      heap            memory heap from which allocated
+@param[in]      mysql_table     NULL, or mysql table object when
                                 user thread invokes dml
-@param[out]	error		error number in case of failure
+@param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t *row_upd_build_difference_binary(dict_index_t *index,
@@ -968,19 +968,19 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
 /** Fetch a prefix of an externally stored column.
 This is similar to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
-@param[in]	clust_index	the clustered index.
-@param[in]	data		'internally' stored part of the field
+@param[in]      clust_index     the clustered index.
+@param[in]      data            'internally' stored part of the field
 containing also the reference to the external part
-@param[in]	local_len	length of data, in bytes
-@param[in]	page_size	BLOB page size
-@param[in,out]	len		input - length of prefix to
+@param[in]      local_len       length of data, in bytes
+@param[in]      page_size       BLOB page size
+@param[in,out]  len             input - length of prefix to
 fetch; output: fetched length of the prefix */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	is_sdi		true for SDI indexes */
+@param[in]      is_sdi          true for SDI indexes */
 #endif /* UNIV_DEBUG */
 /**
-@param[in,out]	heap		heap where to allocate
+@param[in,out]  heap            heap where to allocate
 @return BLOB prefix */
 static byte *row_upd_ext_fetch_func(dict_index_t *clust_index, const byte *data,
                                     ulint local_len,
@@ -1002,19 +1002,19 @@ static byte *row_upd_ext_fetch_func(dict_index_t *clust_index, const byte *data,
 
 /** Replaces the new column value stored in the update vector in
 the given index entry field.
-@param[in]	index		index dictionary object.
-@param[in,out]	dfield		data field of the index entry
-@param[in]	field		index field
-@param[in]	col		field->col
-@param[in]	uf		update field
-@param[in,out]	heap		memory heap for allocating and copying
+@param[in]      index           index dictionary object.
+@param[in,out]  dfield          data field of the index entry
+@param[in]      field           index field
+@param[in]      col             field->col
+@param[in]      uf              update field
+@param[in,out]  heap            memory heap for allocating and copying
 the new value */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	is_sdi		true for SDI indexes */
+@param[in]      is_sdi          true for SDI indexes */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	page_size	page size */
+@param[in]      page_size       page size */
 static void row_upd_index_replace_new_col_val_func(
     const dict_index_t *index, dfield_t *dfield, const dict_field_t *field,
     const dict_col_t *col, const upd_field_t *uf, mem_heap_t *heap,
@@ -1206,10 +1206,10 @@ void row_upd_index_replace_new_col_vals(dtuple_t *entry,
 }
 
 /** Replaces the virtual column values stored in the update vector.
-@param[in,out]	row	row whose column to be set
-@param[in]	field	data to set
-@param[in]	len	data length
-@param[in]	vcol	virtual column info */
+@param[in,out]  row     row whose column to be set
+@param[in]      field   data to set
+@param[in]      len     data length
+@param[in]      vcol    virtual column info */
 static void row_upd_set_vcol_data(dtuple_t *row, const byte *field, ulint len,
                                   dict_v_col_t *vcol) {
   dfield_t *dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
@@ -1223,12 +1223,12 @@ static void row_upd_set_vcol_data(dtuple_t *row, const byte *field, ulint len,
 
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
-@param[in,out]	row	dtuple whose column to be updated
-@param[in]	table	table
-@param[in]	update	an update vector built for the clustered index
-@param[in]	upd_new	update to new or old value
-@param[in,out]	undo_row undo row (if needs to be updated)
-@param[in]	ptr	remaining part in update undo log */
+@param[in,out]  row     dtuple whose column to be updated
+@param[in]      table   table
+@param[in]      update  an update vector built for the clustered index
+@param[in]      upd_new update to new or old value
+@param[in,out]  undo_row undo row (if needs to be updated)
+@param[in]      ptr     remaining part in update undo log */
 void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
                           const upd_t *update, bool upd_new, dtuple_t *undo_row,
                           const byte *ptr) {
@@ -1775,10 +1775,10 @@ static ibool row_upd_changes_first_fields_binary(
 }
 
 /** Copies the column values from a record.
-@param[in]	rec	record in a clustered index
-@param[in]	offsets	array returned by rec_get_offsets()
-@param[in]	index	clustered index where record resides
-@param[in]	column	first column in a column list, or nullptr */
+@param[in]      rec     record in a clustered index
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      index   clustered index where record resides
+@param[in]      column  first column in a column list, or nullptr */
 static inline void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
                                         const dict_index_t *index,
                                         sym_node_t *column) {
@@ -1820,10 +1820,10 @@ static inline void row_upd_eval_new_vals(
 }
 
 /** Stores to the heap the virtual columns that need for any indexes
-@param[in,out]	node		row update node
-@param[in]	update		an update vector if it is update
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	mysql table object */
+@param[in,out]  node            row update node
+@param[in]      update          an update vector if it is update
+@param[in]      thd             mysql thread handle
+@param[in,out]  mysql_table     mysql table object */
 static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
                                 TABLE *mysql_table) {
   mem_heap_t *heap = nullptr;
@@ -1969,9 +1969,9 @@ static void srv_mbr_print(const byte *data) {
 
 /** Delete mark a secondary index entry of a row, when the index
 is built on multi-value field
-@param[in]	index	the multi-value index
-@param[in]	entry	the entry to handle on the index
-@param[in]	thr	query thread
+@param[in]      index   the multi-value index
+@param[in]      entry   the entry to handle on the index
+@param[in]      thr     query thread
 @return DB_SUCCESS on success, otherwise error code */
 static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
                                                             dtuple_t *entry,
@@ -2067,9 +2067,9 @@ static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
 
 /** Updates secondary index entries of a row, when the index is built on
 multi-value field.
-@param[in,out]  node		row update node
-@param[in]      thr		query thread
-@param[in]	non_mv_upd	true if any non-multi-value field on the index
+@param[in,out]  node            row update node
+@param[in]      thr             query thread
+@param[in]      non_mv_upd      true if any non-multi-value field on the index
                                 gets updated too
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
@@ -2134,10 +2134,10 @@ func_exit:
 }
 
 /** Updates a secondary index entry of a row.
-@param[in]	node		row update node
-@param[in]	old_entry	the old entry to search, or nullptr then it
+@param[in]      node            row update node
+@param[in]      old_entry       the old entry to search, or nullptr then it
                                 has to be created in this function
-@param[in]	thr		query thread
+@param[in]      thr             query thread
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
 [[nodiscard]] static dberr_t row_upd_sec_index_entry_low(upd_node_t *node,
@@ -2669,8 +2669,8 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
 
 /** Get the new autoinc counter from the update vector when there is
 an autoinc field defined in this table.
-@param[in]	update			update vector for the clustered index
-@param[in]	autoinc_field_no	autoinc field's order in clustered index
+@param[in]      update                  update vector for the clustered index
+@param[in]      autoinc_field_no        autoinc field's order in clustered index
 @return the new counter if we find it in the update vector, otherwise 0.
 We don't mind that the new counter happens to be 0, we just care about
 non-zero counters. */
@@ -2702,8 +2702,8 @@ ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
 /** If the table has autoinc column and the counter is updated to
 some bigger value, we need to log the new autoinc counter. We will
 use the given mtr to do logging for performance reasons.
-@param[in]	node	Row update node
-@param[in,out]	mtr	Mini-transaction
+@param[in]      node    Row update node
+@param[in,out]  mtr     Mini-transaction
 @return true if auto increment needs to be persisted to DD table buffer. */
 static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   dict_table_t *table = node->table;
@@ -3409,7 +3409,7 @@ upd_field_t *upd_t::get_field_by_field_no(ulint field_no,
 }
 
 /** Check if the given field number is partially updated.
-@param[in]	field_no	the field number.
+@param[in]      field_no        the field number.
 @return true if partially updated, false otherwise. */
 bool upd_t::is_partially_updated(ulint field_no) const {
   if (mysql_table == nullptr || !mysql_table->has_binary_diff_columns()) {

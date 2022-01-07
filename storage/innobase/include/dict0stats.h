@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,9 +64,9 @@ enum dict_stats_upd_option_t {
 /** Set the persistent statistics flag for a given table. This is set only in
 the in-memory table object and is not saved on disk. It will be read from the
 .frm file upon first open from MySQL after a server restart.
-@param[in,out]	table	table
-@param[in]	ps_on	persistent stats explicitly enabled
-@param[in]	ps_off	persistent stats explicitly disabled */
+@param[in,out]  table   table
+@param[in]      ps_on   persistent stats explicitly enabled
+@param[in]      ps_off  persistent stats explicitly disabled */
 static inline void dict_stats_set_persistent(dict_table_t *table, ibool ps_on,
                                              ibool ps_off);
 
@@ -79,9 +79,9 @@ static inline void dict_stats_set_persistent(dict_table_t *table, ibool ps_on,
 stats enabled table). The flag is set only in the in-memory table object and is
 not saved in InnoDB files. It will be read from the .frm file upon first open
 from MySQL after a server restart.
-@param[in,out]	table		table
-@param[in]	auto_recalc_on	explicitly enabled
-@param[in]	auto_recalc_off	explicitly disabled */
+@param[in,out]  table           table
+@param[in]      auto_recalc_on  explicitly enabled
+@param[in]      auto_recalc_off explicitly disabled */
 static inline void dict_stats_auto_recalc_set(dict_table_t *table,
                                               ibool auto_recalc_on,
                                               ibool auto_recalc_off);
@@ -166,9 +166,9 @@ class TableStatsRecord {
   ~TableStatsRecord();
 
   /** Set the data for the innodb_table_stats record.
-  @param[in]	data		data to be set in the record
-  @param[in]	col_offset	column offset
-  @param[in]	len		length of the data. */
+  @param[in]    data            data to be set in the record
+  @param[in]    col_offset      column offset
+  @param[in]    len             length of the data. */
   void set_data(const byte *data, ulint col_offset, ulint len);
 
   /** Get the table name from innodb_table_stats record.
@@ -176,8 +176,8 @@ class TableStatsRecord {
   char *get_tbl_name() const;
 
   /** Set the table name for the innodb_table_stats record.
-  @param[in]	data	data to be set in the record
-  @param[in]	len	length of the data. */
+  @param[in]    data    data to be set in the record
+  @param[in]    len     length of the data. */
   void set_tbl_name(const byte *data, ulint len);
 
   /** Get the db name from the innodb_table_stats record.
@@ -185,8 +185,8 @@ class TableStatsRecord {
   char *get_db_name() const;
 
   /** Set the db name for the innodb_table_stats record.
-  @param[in]	data	data to be set
-  @param[in]	len	length of the data. */
+  @param[in]    data    data to be set
+  @param[in]    len     length of the data. */
   void set_db_name(const byte *data, ulint len);
 
   /** Get the n_rows from the innodb_table_stats record.
@@ -194,7 +194,7 @@ class TableStatsRecord {
   ib_uint64_t get_n_rows() const;
 
   /** Set the n_rows for the innodb_table_stats record.
-  @param[in]	no_of_rows	number of rows. */
+  @param[in]    no_of_rows      number of rows. */
   void set_n_rows(ib_uint64_t no_of_rows);
 
   /** Get the clustered index size from
@@ -204,7 +204,7 @@ class TableStatsRecord {
 
   /** Set the clustered index size for the
   innodb_table_stats record.
-  @param[in]	clust_size	clustered index size. */
+  @param[in]    clust_size      clustered index size. */
   void set_clustered_index_size(ulint clust_size);
 
   /** Get the sum of other index size.
@@ -212,7 +212,7 @@ class TableStatsRecord {
   ulint get_sum_of_other_index_size() const;
 
   /** Set the sum of sec index size.
-  @param[in]	sum_of_other_index_size	sum of secondary index size. */
+  @param[in]    sum_of_other_index_size sum of secondary index size. */
   void set_sum_of_other_index_size(ulint sum_of_other_index_size);
 
   /** Column number of innodb_table_stats.database_name. */

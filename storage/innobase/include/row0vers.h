@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,9 +61,9 @@ trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
 
 /** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
- @param[in]	trx_id		Transaction id in the version
- @param[in]	name		Table name
- @param[in,out]	mtr		Mini-transaction  holding the latch on the
+ @param[in]     trx_id          Transaction id in the version
+ @param[in]     name            Table name
+ @param[in,out] mtr             Mini-transaction  holding the latch on the
                                  clustered index record; it will also hold
                                   the latch on purge_view
  @return true if earlier version should be preserved */

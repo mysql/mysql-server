@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -273,7 +273,7 @@ static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
 }
 
 /** I/o-handler thread function.
-@param[in]	segment		The AIO segment the thread will work on */
+@param[in]      segment         The AIO segment the thread will work on */
 static void io_handler_thread(ulint segment) {
   while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
          buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
@@ -337,11 +337,11 @@ static void io_handler_thread(ulint segment) {
 #define INIT_LOG_FILE0 (SRV_N_LOG_FILES_MAX + 1)
 
 /** Creates all log files.
-@param[in,out]  logfilename	    buffer for log file name
+@param[in,out]  logfilename         buffer for log file name
 @param[in]      dirnamelen      length of the directory path
 @param[in]      lsn             FIL_PAGE_FILE_FLUSH_LSN value
 @param[in]      num_old_files   number of old redo log files to remove
-@param[out]     logfile0	      name of the first log file
+@param[out]     logfile0              name of the first log file
 @param[out]     checkpoint_lsn  lsn of the first created checkpoint
 @return DB_SUCCESS or error code */
 static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
@@ -631,7 +631,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
 }
 
 /** Try to enable encryption of an undo log tablespace.
-@param[in]	space_id	undo tablespace id
+@param[in]      space_id        undo tablespace id
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
   dberr_t err;
@@ -654,9 +654,9 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 }
 
 /** Try to read encryption metadata from an undo tablespace.
-@param[in]	fh		file handle of undo log file
-@param[in]	file_name	file name
-@param[in]	space		undo tablespace
+@param[in]      fh              file handle of undo log file
+@param[in]      file_name       file name
+@param[in]      space           undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
                                                    const char *file_name,
@@ -970,7 +970,7 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 }
 
 /** Open an undo tablespace with a specified space_id.
-@param[in]	space_id	tablespace ID
+@param[in]      space_id        tablespace ID
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   undo::Tablespace undo_space(space_id);
@@ -1505,7 +1505,7 @@ void undo_spaces_deinit() {
 }
 
 /** Open the configured number of implicit undo tablespaces.
-@param[in]	create_new_db	true if new db being created
+@param[in]      create_new_db   true if new db being created
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   dberr_t err = DB_SUCCESS;
@@ -1573,8 +1573,8 @@ static void srv_start_wait_for_purge_to_start() {
 }
 
 /** Create the temporary file tablespace.
-@param[in]	create_new_db	whether we are creating a new database
-@param[in,out]	tmp_space	Shared Temporary SysTablespace
+@param[in]      create_new_db   whether we are creating a new database
+@param[in,out]  tmp_space       Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
 static dberr_t srv_open_tmp_tablespace(bool create_new_db,
                                        SysTablespace *tmp_space) {
@@ -1767,14 +1767,14 @@ void srv_shutdown_exit_threads() {
 #endif /* UNIV_DEBUG */
 
 /** Innobase start-up aborted. Perform cleanup actions.
-@param[in]	create_new_db	TRUE if new db is  being created */
+@param[in]      create_new_db   TRUE if new db is  being created */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	file		File name
-@param[in]	line		Line number */
+@param[in]      file            File name
+@param[in]      line            Line number */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	err		Reason for aborting InnoDB startup
+@param[in]      err             Reason for aborting InnoDB startup
 @return DB_SUCCESS or error code. */
 static dberr_t srv_init_abort_low(bool create_new_db,
 #ifdef UNIV_DEBUG
@@ -1801,7 +1801,7 @@ static dberr_t srv_init_abort_low(bool create_new_db,
 
 /** Prepare to delete the redo log files. Flush the dirty pages from all the
 buffer pools.  Flush the redo log buffer to the redo log file.
-@param[in]	n_files		number of old redo log files
+@param[in]      n_files         number of old redo log files
 @return lsn upto which data pages have been flushed. */
 static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
   lsn_t flushed_lsn;
@@ -3025,7 +3025,7 @@ void srv_start_purge_threads() {
 }
 
 /** Start up the InnoDB service threads which are independent of DDL recovery
-@param[in]	bootstrap	True if this is in bootstrap */
+@param[in]      bootstrap       True if this is in bootstrap */
 void srv_start_threads(bool bootstrap) {
   if (!srv_read_only_mode) {
     /* Before 8.0, it was master thread that was doing periodical

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -84,8 +84,8 @@ class Ha_innopart_share : public Partition_share {
   ~Ha_innopart_share() override;
 
   /** Set innodb table for given partition.
-  @param[in]	part_id	Partition number.
-  @param[in]	table	Table. */
+  @param[in]    part_id Partition number.
+  @param[in]    table   Table. */
   inline void set_table_part(uint part_id, dict_table_t *table) {
     ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
@@ -93,14 +93,14 @@ class Ha_innopart_share : public Partition_share {
   }
   /** Get table reference for given partition.
   @param[in]    part_id Partition number
-  @return	InnoDB table reference. */
+  @return       InnoDB table reference. */
   inline dict_table_t **get_table_part_ref(uint part_id) {
     return (&m_table_parts[part_id]);
   }
 
   /** Return innodb table for given partition.
-  @param[in]	part_id	Partition number.
-  @return	InnoDB table. */
+  @param[in]    part_id Partition number.
+  @return       InnoDB table. */
   inline dict_table_t *get_table_part(uint part_id) const {
     ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
@@ -108,9 +108,9 @@ class Ha_innopart_share : public Partition_share {
   }
 
   /** Return innodb index for given partition and key number.
-  @param[in]	part_id	Partition number.
-  @param[in]	keynr	Key number.
-  @return	InnoDB index. */
+  @param[in]    part_id Partition number.
+  @param[in]    keynr   Key number.
+  @return       InnoDB index. */
   dict_index_t *get_index(uint part_id, uint keynr);
 
   /** Get MySQL key number corresponding to InnoDB index.
@@ -121,9 +121,9 @@ class Ha_innopart_share : public Partition_share {
   to the traditional way of looping through dict_index_t list to find a
   match. In this case, we have to take into account if we generated a
   default clustered index for the table
-  @param[in]	part_id	Partition the index belongs to.
-  @param[in]	index	Index to return MySQL key number for.
-  @return	the key number used inside MySQL or UINT_MAX if key is not
+  @param[in]    part_id Partition the index belongs to.
+  @param[in]    index   Index to return MySQL key number for.
+  @return       the key number used inside MySQL or UINT_MAX if key is not
   found. */
   uint get_mysql_key(uint part_id, const dict_index_t *index);
 
@@ -134,21 +134,21 @@ class Ha_innopart_share : public Partition_share {
   void increment_ref_counts();
 
   /** Open InnoDB tables for partitions and return them as array.
-  @param[in,out]	thd		Thread context
-  @param[in]	table		MySQL table definition
-  @param[in]	dd_table	Global DD table object
-  @param[in]	part_info	Partition info (partition names to use)
-  @param[in]	table_name	Table name (db/table_name)
-  @return	Array on InnoDB tables on success else nullptr. */
+  @param[in,out]        thd             Thread context
+  @param[in]    table           MySQL table definition
+  @param[in]    dd_table        Global DD table object
+  @param[in]    part_info       Partition info (partition names to use)
+  @param[in]    table_name      Table name (db/table_name)
+  @return       Array on InnoDB tables on success else nullptr. */
   static dict_table_t **open_table_parts(THD *thd, const TABLE *table,
                                          const dd::Table *dd_table,
                                          partition_info *part_info,
                                          const char *table_name);
 
   /** Initialize the share with table and indexes per partition.
-  @param[in]	part_info	Partition info (partition names to use).
-  @param[in]	table_parts	Array of InnoDB tables for partitions.
-  @return	false on success else true. */
+  @param[in]    part_info       Partition info (partition names to use).
+  @param[in]    table_parts     Array of InnoDB tables for partitions.
+  @return       false on success else true. */
   bool set_table_parts_and_indexes(partition_info *part_info,
                                    dict_table_t **table_parts);
 
@@ -157,8 +157,8 @@ class Ha_innopart_share : public Partition_share {
   void close_table_parts();
 
   /** Close InnoDB tables for partitions.
-  @param[in]	table_parts	Array of InnoDB tables for partitions.
-  @param[in]	tot_parts       Number of partitions. */
+  @param[in]    table_parts     Array of InnoDB tables for partitions.
+  @param[in]    tot_parts       Number of partitions. */
   static void close_table_parts(dict_table_t **table_parts, uint tot_parts);
 
   /** @return the TABLE SHARE object */
@@ -173,9 +173,9 @@ class Ha_innopart_share : public Partition_share {
 
   /** Set up the virtual column template for partition table, and points
   all m_table_parts[]->vc_templ to it.
-  @param[in]	table		MySQL TABLE object
-  @param[in]	ib_table	InnoDB dict_table_t
-  @param[in]	name		Table name (db/table_name) */
+  @param[in]    table           MySQL TABLE object
+  @param[in]    ib_table        InnoDB dict_table_t
+  @param[in]    name            Table name (db/table_name) */
   void set_v_templ(TABLE *table, dict_table_t *ib_table, const char *name);
 
  private:
@@ -183,14 +183,14 @@ class Ha_innopart_share : public Partition_share {
   Ha_innopart_share() = default;
 
   /** Open one partition
-  @param[in,out]	client		Data dictionary client
-  @param[in]	thd		Thread THD
-  @param[in]	table		MySQL table definition
-  @param[in]	dd_part		dd::Partition
-  @param[in]	part_name	Table name of this partition
-  @param[out]	part_dict_table	InnoDB table for partition
-  @retval	false	On success
-  @retval	true	On failure */
+  @param[in,out]        client          Data dictionary client
+  @param[in]    thd             Thread THD
+  @param[in]    table           MySQL table definition
+  @param[in]    dd_part         dd::Partition
+  @param[in]    part_name       Table name of this partition
+  @param[out]   part_dict_table InnoDB table for partition
+  @retval       false   On success
+  @retval       true    On failure */
   static bool open_one_table_part(dd::cache::Dictionary_client *client,
                                   THD *thd, const TABLE *table,
                                   const dd::Partition *dd_part,
@@ -200,9 +200,9 @@ class Ha_innopart_share : public Partition_share {
 
 /** Get explicit specified tablespace for one (sub)partition, checking
 from lowest level
-@param[in]	tablespace	table-level tablespace if specified
-@param[in]	part		Partition to check
-@param[in]	sub_part	Sub-partition to check, if no, just NULL
+@param[in]      tablespace      table-level tablespace if specified
+@param[in]      part            Partition to check
+@param[in]      sub_part        Sub-partition to check, if no, just NULL
 @return Tablespace name, if nullptr or [0] = '\0' then nothing specified */
 const char *partition_get_tablespace(const char *tablespace,
                                      const partition_element *part,
@@ -227,9 +227,9 @@ class ha_innopart : public ha_innobase,
 
   /** Clone this handler, used when needing more than one cursor
   to the same table.
-  @param[in]	name		Table name.
-  @param[in]	mem_root	mem_root to allocate from.
-  @retval	Pointer to clone or NULL if error. */
+  @param[in]    name            Table name.
+  @param[in]    mem_root        mem_root to allocate from.
+  @retval       Pointer to clone or NULL if error. */
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
 
   /** \defgroup ONLINE_ALTER_TABLE_INTERFACE On-line ALTER TABLE interface
@@ -237,15 +237,15 @@ class ha_innopart : public ha_innobase,
   @{ */
 
   /** Check if InnoDB supports a particular alter table in-place.
-  @param[in]	altered_table	TABLE object for new version of table.
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in]    altered_table   TABLE object for new version of table.
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
-  @retval	HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-  @retval	HA_ALTER_INPLACE_NO_LOCK	Supported
-  @retval	HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE	Supported, but
+  @retval       HA_ALTER_INPLACE_NOT_SUPPORTED  Not supported
+  @retval       HA_ALTER_INPLACE_NO_LOCK        Supported
+  @retval       HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE      Supported, but
   requires lock during main phase and exclusive lock during prepare
   phase.
-  @retval	HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare
+  @retval       HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE  Supported, prepare
   phase requires exclusive lock. */
   enum_alter_inplace_result check_if_supported_inplace_alter(
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
@@ -255,17 +255,17 @@ class ha_innopart : public ha_innobase,
   writes blocked (provided that check_if_supported_inplace_alter()
   did not return HA_ALTER_INPLACE_NO_LOCK).
   This will be invoked before inplace_alter_table().
-  @param[in]	altered_table	TABLE object for new version of table.
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in]    altered_table   TABLE object for new version of table.
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
-  @param[in]	old_table_def	dd::Table object describing old
+  @param[in]    old_table_def   dd::Table object describing old
   version of the table.
-  @param[in,out]	new_table_def	dd::Table object for the new version
+  @param[in,out]        new_table_def   dd::Table object for the new version
   of the table. Can be adjusted by this call. Changes to the table
   definition will be persisted in the data-dictionary at statement
   commit time.
-  @retval	true	Failure.
-  @retval	false	Success. */
+  @retval       true    Failure.
+  @retval       false   Success. */
   bool prepare_inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
                                    const dd::Table *old_table_def,
@@ -276,17 +276,17 @@ class ha_innopart : public ha_innobase,
   specified using HA_ALTER_FLAGS and Alter_inplace_information.
   The level of concurrency allowed during this operation depends
   on the return value from check_if_supported_inplace_alter().
-  @param[in]	altered_table	TABLE object for new version of table.
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in]    altered_table   TABLE object for new version of table.
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
-  @param[in]	old_table_def	dd::Table object describing old
+  @param[in]    old_table_def   dd::Table object describing old
   version of the table.
-  @param[in,out]	new_table_def	dd::Table object for the new version
+  @param[in,out]        new_table_def   dd::Table object for the new version
   of the table. Can be adjusted by this call. Changes to the table
   definition will be persisted in the data-dictionary at statement
   commit time.
-  @retval	true	Failure.
-  @retval	false	Success. */
+  @retval       true    Failure.
+  @retval       false   Success. */
   bool inplace_alter_table(TABLE *altered_table,
                            Alter_inplace_info *ha_alter_info,
                            const dd::Table *old_table_def,
@@ -300,19 +300,19 @@ class ha_innopart : public ha_innobase,
   inplace_alter_table() and thus might be higher than during
   prepare_inplace_alter_table(). (E.g concurrent writes were
   blocked during prepare, but might not be during commit).
-  @param[in]	altered_table	TABLE object for new version of table.
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in]    altered_table   TABLE object for new version of table.
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
                                   by ALTER TABLE and holding data used during
   in-place alter.
-  @param[in]	commit		true => Commit, false => Rollback.
-  @param[in]	old_table_def	dd::Table object describing old
+  @param[in]    commit          true => Commit, false => Rollback.
+  @param[in]    old_table_def   dd::Table object describing old
   version of the table.
-  @param[in,out]	new_table_def	dd::Table object for the new version
+  @param[in,out]        new_table_def   dd::Table object for the new version
   of the table. Can be adjusted by this call. Changes to the table
   definition will be persisted in the data-dictionary at statement
   commit time.
-  @retval	true	Failure.
-  @retval	false	Success. */
+  @retval       true    Failure.
+  @retval       false   Success. */
   bool commit_inplace_alter_table(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info,
                                   bool commit, const dd::Table *old_table_def,
@@ -326,14 +326,14 @@ class ha_innopart : public ha_innobase,
   to inplace_alter_table().
   This will be invoked before inplace_alter_partition().
 
-  @param[in,out]	altered_table	TABLE object for new version of table
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in,out]        altered_table   TABLE object for new version of table
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
                                   by ALTER TABLE and holding data used during
                                   in-place alter.
-  @param[in]	old_dd_tab	Table definition before the ALTER
-  @param[in,out]	new_dd_tab	Table definition after the ALTER
-  @retval true	Failure
-  @retval false	Success */
+  @param[in]    old_dd_tab      Table definition before the ALTER
+  @param[in,out]        new_dd_tab      Table definition after the ALTER
+  @retval true  Failure
+  @retval false Success */
   bool prepare_inplace_alter_partition(TABLE *altered_table,
                                        Alter_inplace_info *ha_alter_info,
                                        const dd::Table *old_dd_tab,
@@ -346,23 +346,23 @@ class ha_innopart : public ha_innobase,
   The level of concurrency allowed during this operation depends
   on the return value from check_if_supported_inplace_alter().
 
-  @param[in,out]	ha_alter_info	Structure describing changes to be done
+  @param[in,out]        ha_alter_info   Structure describing changes to be done
                                   by ALTER TABLE and holding data used
                                   during in-place alter.
-  @retval	true	Failure
-  @retval	false	Success */
+  @retval       true    Failure
+  @retval       false   Success */
   bool inplace_alter_partition(Alter_inplace_info *ha_alter_info);
 
   /** Prepare to commit or roll back ALTER TABLE...ALGORITHM=INPLACE.
   This is for 'ALTER TABLE ... PARTITION' and a corresponding function
   to commit_inplace_alter_table().
-  @param[in,out]	altered_table	TABLE object for new version of table.
-  @param[in,out]	ha_alter_info	ALGORITHM=INPLACE metadata
-  @param[in]	commit		true=Commit, false=Rollback.
-  @param[in]	old_dd_tab	old table
-  @param[in,out]	new_dd_tab	new table
-  @retval	true	on failure (my_error() will have been called)
-  @retval	false	on success */
+  @param[in,out]        altered_table   TABLE object for new version of table.
+  @param[in,out]        ha_alter_info   ALGORITHM=INPLACE metadata
+  @param[in]    commit          true=Commit, false=Rollback.
+  @param[in]    old_dd_tab      old table
+  @param[in,out]        new_dd_tab      new table
+  @retval       true    on failure (my_error() will have been called)
+  @retval       false   on success */
   bool commit_inplace_alter_partition(TABLE *altered_table,
                                       Alter_inplace_info *ha_alter_info,
                                       bool commit, const dd::Table *old_dd_tab,
@@ -373,15 +373,15 @@ class ha_innopart : public ha_innobase,
   /** Optimize table.
   This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
   the table in MySQL.
-  @param[in]	thd		Connection thread handle.
-  @param[in]	check_opt	Currently ignored.
-  @return	0 for success else error code. */
+  @param[in]    thd             Connection thread handle.
+  @param[in]    check_opt       Currently ignored.
+  @return       0 for success else error code. */
   int optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
 
   /** Set DD discard attribute for tablespace.
-  @param[in]	table_def	dd table
-  @param[in]	discard		True if this table is discarded
-  @return	0 or error number. */
+  @param[in]    table_def       dd table
+  @param[in]    discard         True if this table is discarded
+  @return       0 or error number. */
   int set_dd_discard_attribute(dd::Table *table_def, bool discard);
 
   int discard_or_import_tablespace(bool discard, dd::Table *table_def) override;
@@ -393,14 +393,14 @@ class ha_innopart : public ha_innobase,
   This is used for comparing/sorting rows first according to
   KEY and if same KEY, by rowid (ref).
 
-  @param[in]	key_info	Null terminated array of index
+  @param[in]    key_info        Null terminated array of index
   information.
-  @param[in]	a		Pointer to record+ref in first record.
-  @param[in]	b		Pointer to record+ref in second record.
+  @param[in]    a               Pointer to record+ref in first record.
+  @param[in]    b               Pointer to record+ref in second record.
   @return Return value is SIGN(first_rec - second_rec)
-  @retval	0	Keys are equal.
-  @retval	-1	second_rec is greater than first_rec.
-  @retval	+1	first_rec is greater than second_rec. */
+  @retval       0       Keys are equal.
+  @retval       -1      second_rec is greater than first_rec.
+  @retval       +1      first_rec is greater than second_rec. */
   static int key_and_rowid_cmp(KEY **key_info, uchar *a, uchar *b);
 
   int extra(enum ha_extra_function operation) override;
@@ -424,19 +424,19 @@ class ha_innopart : public ha_innobase,
              dd::Table *table_def) override;
 
   /** Drop a table.
-  @param[in]	name		table name
-  @param[in,out]	dd_table	data dictionary table
+  @param[in]    name            table name
+  @param[in,out]        dd_table        data dictionary table
   @return error number
   @retval 0 on success */
   int delete_table(const char *name, const dd::Table *dd_table) override;
 
   /** Rename a table.
-  @param[in]	from		table name before rename
-  @param[in]	to		table name after rename
-  @param[in]	from_table	data dictionary table before rename
-  @param[in,out]	to_table	data dictionary table after rename
-  @return	error number
-  @retval	0 on success */
+  @param[in]    from            table name before rename
+  @param[in]    to              table name after rename
+  @param[in]    from_table      data dictionary table before rename
+  @param[in,out]        to_table        data dictionary table after rename
+  @return       error number
+  @retval       0 on success */
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table, dd::Table *to_table) override;
 
@@ -445,17 +445,17 @@ class ha_innopart : public ha_innobase,
   /** Repair a partitioned table.
   Only repairs records in wrong partitions (moves them to the correct
   partition or deletes them if not in any partition).
-  @param[in]	thd		MySQL THD object/thread handle.
-  @param[in]	repair_opt	Repair options.
-  @return	0 or error code. */
+  @param[in]    thd             MySQL THD object/thread handle.
+  @param[in]    repair_opt      Repair options.
+  @return       0 or error code. */
   int repair(THD *thd, HA_CHECK_OPT *repair_opt) override;
 
   /** Get the current auto_increment value.
-  @param[in]	offset			Table auto-inc offset.
-  @param[in]	increment		Table auto-inc increment.
-  @param[in]	nb_desired_values	Number of required values.
-  @param[out]	first_value		The auto increment value.
-  @param[out]	nb_reserved_values	Number of reserved values. */
+  @param[in]    offset                  Table auto-inc offset.
+  @param[in]    increment               Table auto-inc increment.
+  @param[in]    nb_desired_values       Number of required values.
+  @param[out]   first_value             The auto increment value.
+  @param[out]   nb_reserved_values      Number of reserved values. */
   void get_auto_increment(ulonglong offset, ulonglong increment,
                           ulonglong nb_desired_values, ulonglong *first_value,
                           ulonglong *nb_reserved_values) override;
@@ -677,14 +677,14 @@ class ha_innopart : public ha_innobase,
   void free_blob_heap_array();
 
   /** Changes the active index of a handle.
-  @param[in]	part_id	Use this partition.
-  @param[in]	keynr	Use this index; MAX_KEY means always clustered index,
+  @param[in]    part_id Use this partition.
+  @param[in]    keynr   Use this index; MAX_KEY means always clustered index,
   even if it was internally generated by InnoDB.
-  @return	0 or error number. */
+  @return       0 or error number. */
   int change_active_index(uint part_id, uint keynr);
 
   /** Move to next partition and set its index.
-  @return	0 for success else error number. */
+  @return       0 for success else error number. */
   int next_partition_index();
 
   /** Internally called for initializing auto increment value.
@@ -693,35 +693,35 @@ class ha_innopart : public ha_innobase,
   int innobase_initialize_autoinc();
 
   /** Get the index for the current partition
-  @param[in]	keynr	MySQL index number.
+  @param[in]    keynr   MySQL index number.
   @return InnoDB index or NULL. */
   dict_index_t *innobase_get_index(uint keynr) override;
 
   /** Get the index for a handle.
   Does not change active index.
-  @param[in]	keynr	Use this index; MAX_KEY means always clustered index,
+  @param[in]    keynr   Use this index; MAX_KEY means always clustered index,
   even if it was internally generated by InnoDB.
-  @param[in]	part_id	From this partition.
-  @return	NULL or index instance. */
+  @param[in]    part_id From this partition.
+  @return       NULL or index instance. */
   dict_index_t *innopart_get_index(uint part_id, uint keynr);
 
   /** Change active partition.
   Copies needed info into m_prebuilt from the partition specific memory.
-  @param[in]	part_id	Partition to set as active. */
+  @param[in]    part_id Partition to set as active. */
   void set_partition(uint part_id);
 
   /** Update active partition.
   Copies needed info from m_prebuilt into the partition specific memory.
-  @param[in]	part_id	Partition to set as active. */
+  @param[in]    part_id Partition to set as active. */
   void update_partition(uint part_id);
 
   /** TRUNCATE an InnoDB partitioned table.
-  @param[in]		name		table name
-  @param[in]		form		table definition
-  @param[in,out]	table_def	dd::Table describing table to be
+  @param[in]            name            table name
+  @param[in]            form            table definition
+  @param[in,out]        table_def       dd::Table describing table to be
   truncated. Can be adjusted by SE, the changes will be saved into
   the data-dictionary at statement commit time.
-  @return	error number
+  @return       error number
   @retval 0 on success */
   int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
@@ -732,16 +732,16 @@ class ha_innopart : public ha_innobase,
   /** Set the autoinc column max value.
   This should only be called once from ha_innobase::open().
   Therefore there's no need for a covering lock.
-  @param[in]	no_lock	If locking should be skipped. Not used!
-  @return	0 for success or error code. */
+  @param[in]    no_lock If locking should be skipped. Not used!
+  @return       0 for success or error code. */
   int initialize_auto_increment(bool no_lock) override;
 
   /** Save currently highest auto increment value.
-  @param[in]	nr	Auto increment value to save. */
+  @param[in]    nr      Auto increment value to save. */
   void save_auto_increment(ulonglong nr) override;
 
   /** Setup the ordered record buffer and the priority queue.
-  @param[in]	used_parts	Number of used partitions in query.
+  @param[in]    used_parts      Number of used partitions in query.
   @return false for success, else true. */
   int init_record_priority_queue_for_parts(uint used_parts) override;
 
@@ -749,70 +749,70 @@ class ha_innopart : public ha_innobase,
   void destroy_record_priority_queue_for_parts() override;
 
   /** Create the Altered_partitoins object
-  @param[in]	ha_alter_info	thd DDL operation
-  @retval true	On failure
-  @retval false	On success */
+  @param[in]    ha_alter_info   thd DDL operation
+  @retval true  On failure
+  @retval false On success */
   bool prepare_for_copy_partitions(Alter_inplace_info *ha_alter_info);
 
   /** write row to new partition.
-  @param[in]	new_part	New partition to write to.
+  @param[in]    new_part        New partition to write to.
   @return 0 for success else error code. */
   int write_row_in_new_part(uint new_part) override;
 
   /** Write a row in specific partition.
   Stores a row in an InnoDB database, to the table specified in this
   handle.
-  @param[in]	part_id	Partition to write to.
-  @param[in]	record	A row in MySQL format.
+  @param[in]    part_id Partition to write to.
+  @param[in]    record  A row in MySQL format.
   @return error code. */
   int write_row_in_part(uint part_id, uchar *record) override;
 
   /** Update a row in partition.
   Updates a row given as a parameter to a new value.
-  @param[in]	part_id	Partition to update row in.
-  @param[in]	old_row	Old row in MySQL format.
-  @param[in]	new_row	New row in MySQL format.
-  @return	0 or error number. */
+  @param[in]    part_id Partition to update row in.
+  @param[in]    old_row Old row in MySQL format.
+  @param[in]    new_row New row in MySQL format.
+  @return       0 or error number. */
   int update_row_in_part(uint part_id, const uchar *old_row,
                          uchar *new_row) override;
 
   /** Deletes a row in partition.
-  @param[in]	part_id	Partition to delete from.
-  @param[in]	record	Row to delete in MySQL format.
-  @return	0 or error number. */
+  @param[in]    part_id Partition to delete from.
+  @param[in]    record  Row to delete in MySQL format.
+  @return       0 or error number. */
   int delete_row_in_part(uint part_id, const uchar *record) override;
 
   /** Return first record in index from a partition.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	First record in index in the partition.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  First record in index in the partition.
   @return error number or 0. */
   int index_first_in_part(uint part, uchar *record) override;
 
   /** Return last record in index from a partition.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	Last record in index in the partition.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  Last record in index in the partition.
   @return error number or 0. */
   int index_last_in_part(uint part, uchar *record) override;
 
   /** Return previous record in index from a partition.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	Last record in index in the partition.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  Last record in index in the partition.
   @return error number or 0. */
   int index_prev_in_part(uint part, uchar *record) override;
 
   /** Return next record in index from a partition.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	Last record in index in the partition.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  Last record in index in the partition.
   @return error number or 0. */
   int index_next_in_part(uint part, uchar *record) override;
 
   /** Return next same record in index from a partition.
   This routine is used to read the next record, but only if the key is
   the same as supplied in the call.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	Last record in index in the partition.
-  @param[in]	key	Key to match.
-  @param[in]	length	Length of key.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  Last record in index in the partition.
+  @param[in]    key     Key to match.
+  @param[in]    length  Length of key.
   @return error number or 0. */
   int index_next_same_in_part(uint part, uchar *record, const uchar *key,
                               uint length) override;
@@ -820,54 +820,54 @@ class ha_innopart : public ha_innobase,
   /** Start index scan and return first record from a partition.
   This routine starts an index scan using a start key. The calling
   function will check the end key on its own.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	First matching record in index in the partition.
-  @param[in]	key	Key to match.
-  @param[in]	keypart_map	Which part of the key to use.
-  @param[in]	find_flag	Key condition/direction to use.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  First matching record in index in the partition.
+  @param[in]    key     Key to match.
+  @param[in]    keypart_map     Which part of the key to use.
+  @param[in]    find_flag       Key condition/direction to use.
   @return error number or 0. */
   int index_read_map_in_part(uint part, uchar *record, const uchar *key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag) override;
 
   /** Return last matching record in index from a partition.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	Last matching record in index in the partition.
-  @param[in]	key	Key to match.
-  @param[in]	keypart_map	Which part of the key to use.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  Last matching record in index in the partition.
+  @param[in]    key     Key to match.
+  @param[in]    keypart_map     Which part of the key to use.
   @return error number or 0. */
   int index_read_last_map_in_part(uint part, uchar *record, const uchar *key,
                                   key_part_map keypart_map) override;
 
   /** Start index scan and return first record from a partition.
   This routine starts an index scan using a start and end key.
-  @param[in]	part		Partition to read from.
-  @param[in,out]	record		First matching record in index in the
+  @param[in]    part            Partition to read from.
+  @param[in,out]        record          First matching record in index in the
   partition, if NULL use table->record[0] as return buffer.
-  @param[in]	start_key	Start key to match.
-  @param[in]	end_key		End key to match.
-  @param[in]	sorted		Return rows in sorted order.
-  @return	error number or 0. */
+  @param[in]    start_key       Start key to match.
+  @param[in]    end_key         End key to match.
+  @param[in]    sorted          Return rows in sorted order.
+  @return       error number or 0. */
   int read_range_first_in_part(uint part, uchar *record,
                                const key_range *start_key,
                                const key_range *end_key, bool sorted) override;
 
   /** Return next record in index range scan from a partition.
-  @param[in]	part	Partition to read from.
-  @param[in,out]	record	First matching record in index in the partition,
+  @param[in]    part    Partition to read from.
+  @param[in,out]        record  First matching record in index in the partition,
   if NULL use table->record[0] as return buffer.
-  @return	error number or 0. */
+  @return       error number or 0. */
   int read_range_next_in_part(uint part, uchar *record) override;
 
   /** Start index scan and return first record from a partition.
   This routine starts an index scan using a start key. The calling
   function will check the end key on its own.
-  @param[in]	part	Partition to read from.
-  @param[out]	record	First matching record in index in the partition.
-  @param[in]	index	Index to read from.
-  @param[in]	key	Key to match.
-  @param[in]	keypart_map	Which part of the key to use.
-  @param[in]	find_flag	Key condition/direction to use.
+  @param[in]    part    Partition to read from.
+  @param[out]   record  First matching record in index in the partition.
+  @param[in]    index   Index to read from.
+  @param[in]    key     Key to match.
+  @param[in]    keypart_map     Which part of the key to use.
+  @param[in]    find_flag       Key condition/direction to use.
   @return error number or 0. */
   int index_read_idx_map_in_part(uint part, uchar *record, uint index,
                                  const uchar *key, key_part_map keypart_map,
@@ -900,21 +900,21 @@ class ha_innopart : public ha_innobase,
   int sample_end(void *scan_ctx) override;
 
   /** Initialize random read/scan of a specific partition.
-  @param[in]	part_id		Partition to initialize.
-  @param[in]	scan		True for scan else random access.
+  @param[in]    part_id         Partition to initialize.
+  @param[in]    scan            True for scan else random access.
   @return error number or 0. */
   int rnd_init_in_part(uint part_id, bool scan) override;
 
   /** Get next row during scan of a specific partition.
   Also used to read the FIRST row in a table scan.
-  @param[in]	part_id	Partition to read from.
-  @param[out]	buf	Next row.
+  @param[in]    part_id Partition to read from.
+  @param[out]   buf     Next row.
   @return error number or 0. */
   int rnd_next_in_part(uint part_id, uchar *buf) override;
 
   /** End random read/scan of a specific partition.
-  @param[in]	part_id		Partition to end random read/scan.
-  @param[in]	scan		True for scan else random access.
+  @param[in]    part_id         Partition to end random read/scan.
+  @param[in]    scan            True for scan else random access.
   @return error number or 0. */
   int rnd_end_in_part(uint part_id, bool scan) override;
 
@@ -926,8 +926,8 @@ class ha_innopart : public ha_innobase,
   the row id internally generated in InnoDB, then 'record' does not contain
   it. We just guess that the row id must be for the record where the handle
   was positioned the last time.
-  @param[out]	ref_arg	Pointer to buffer where to write the position.
-  @param[in]	record	Record to position for. */
+  @param[out]   ref_arg Pointer to buffer where to write the position.
+  @param[in]    record  Record to position for. */
   void position_in_last_part(uchar *ref_arg, const uchar *record) override;
 
   /** Read row using position using given record to find.
@@ -936,14 +936,14 @@ class ha_innopart : public ha_innobase,
   the 'record' should go.
   Only useful when position is based on primary key
   (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
-  @param[in]	record	Current record in MySQL Row Format.
-  @return	0 for success else error code. */
+  @param[in]    record  Current record in MySQL Row Format.
+  @return       0 for success else error code. */
   int rnd_pos_by_record(uchar *record) override;
 
   /** Copy a cached MySQL row.
   If requested, also avoids overwriting non-read columns.
-  @param[out]	buf		Row in MySQL format.
-  @param[in]	cached_row	Which row to copy. */
+  @param[out]   buf             Row in MySQL format.
+  @param[in]    cached_row      Which row to copy. */
   void copy_cached_row(uchar *buf, const uchar *cached_row) override;
   /** @} */
 
@@ -953,10 +953,10 @@ class ha_innopart : public ha_innobase,
   @{ */
 
   /** Open an InnoDB table.
-  @param[in]	name		table name
-  @param[in]	mode		access mode
-  @param[in]	test_if_locked	test if the file to be opened is locked
-  @param[in]	table_def	dd::Table describing table to be opened
+  @param[in]    name            table name
+  @param[in]    mode            access mode
+  @param[in]    test_if_locked  test if the file to be opened is locked
+  @param[in]    table_def       dd::Table describing table to be opened
   @retval 1 if error
   @retval 0 if success */
   int open(const char *name, int mode, uint test_if_locked,
@@ -978,7 +978,7 @@ class ha_innopart : public ha_innobase,
   If this method returns true, it will also signal the storage
   engine that the next read will be a locking re-read of the row.
   @see handler.h and row0mysql.h
-  @return	true if last read was semi consistent else false. */
+  @return       true if last read was semi consistent else false. */
   bool was_semi_consistent_read() override;
 
   /** Try semi consistent read.
@@ -987,7 +987,7 @@ class ha_innopart : public ha_innobase,
   by another transaction, the engine may try an optimistic read of
   the last committed row value under the cursor.
   @see handler.h and row0mysql.h
-  @param[in]	yes	Should semi-consistent read be used. */
+  @param[in]    yes     Should semi-consistent read be used. */
   void try_semi_consistent_read(bool yes) override;
 
   /** Removes a lock on a row.
@@ -1053,20 +1053,20 @@ class ha_innopart : public ha_innobase,
 
   /** Delete all rows in the requested partitions.
   Done by deleting the partitions and recreate them again.
-  @param[in,out]	dd_table	dd::Table object for partitioned table
+  @param[in,out]        dd_table        dd::Table object for partitioned table
   which partitions need to be truncated. Can be adjusted by this call.
   Changes to the table definition will be persisted in the data-dictionary
   at statement commit time.
-  @return	0 or error number. */
+  @return       0 or error number. */
   int truncate_partition_low(dd::Table *dd_table) override;
 
   /** Exchange partition.
   Low-level primitive which implementation is provided here.
-  @param[in]	part_id			The id of the partition to be exchanged
-  @param[in]	part_table		partitioned table to be exchanged
-  @param[in]	swap_table		table to be exchanged
+  @param[in]    part_id                 The id of the partition to be exchanged
+  @param[in]    part_table              partitioned table to be exchanged
+  @param[in]    swap_table              table to be exchanged
   @return error number
-  @retval 0	on success */
+  @retval 0     on success */
   int exchange_partition_low(uint part_id, dd::Table *part_table,
                              dd::Table *swap_table) override;
 
@@ -1090,9 +1090,9 @@ class ha_innopart : public ha_innobase,
 
   /** Fill in data_dir_path and tablespace name from internal data
   dictionary.
-  @param[in,out]	part_elem		Partition element to fill.
-  @param[in]	ib_table		InnoDB table to copy from.
-  @param[in]	display_tablespace	Display tablespace name if
+  @param[in,out]        part_elem               Partition element to fill.
+  @param[in]    ib_table                InnoDB table to copy from.
+  @param[in]    display_tablespace      Display tablespace name if
                                           set. */
   void update_part_elem(partition_element *part_elem, dict_table_t *ib_table,
                         bool display_tablespace);
@@ -1157,9 +1157,9 @@ class ha_innopart : public ha_innobase,
   /** Updates and return statistics.
   Returns statistics information of the table to the MySQL interpreter,
   in various fields of the handle object.
-  @param[in]	flag		Flags for what to update and return.
-  @param[in]	is_analyze	True if called from "::analyze()".
-  @return	HA_ERR_* error code or 0. */
+  @param[in]    flag            Flags for what to update and return.
+  @param[in]    is_analyze      True if called from "::analyze()".
+  @return       HA_ERR_* error code or 0. */
   int info_low(uint flag, bool is_analyze) override;
 
   bool can_reuse_mysql_template() const override {

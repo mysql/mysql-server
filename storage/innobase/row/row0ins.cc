@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -829,12 +829,12 @@ static void row_ins_foreign_report_add_err(
 }
 
 /** Fill virtual column information in cascade node for the child table.
-@param[out]	cascade		child update node
-@param[in]	rec		clustered rec of child table
-@param[in]	index		clustered index of child table
-@param[in]	node		parent update node
-@param[in]	foreign		foreign key information.
-@param[out]	err		error code. */
+@param[out]     cascade         child update node
+@param[in]      rec             clustered rec of child table
+@param[in]      index           clustered index of child table
+@param[in]      node            parent update node
+@param[in]      foreign         foreign key information.
+@param[out]     err             error code. */
 static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
                                          dict_index_t *index, upd_node_t *node,
                                          dict_foreign_t *foreign,
@@ -1319,13 +1319,13 @@ nonstandard_exit_func:
 
 /** Sets a lock on a record. Used in locking possible duplicate key
  records and also in checking foreign key constraints.
-@param[in]	mode	requested lock type: LOCK_S or LOCK_X mode
-@param[in]	type	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP type lock
-@param[in]	block	buffer block of rec
-@param[in]	rec	record
-@param[in]	index	index
-@param[in]	offsets	rec_get_offsets(rec, index)
-@param[in]	thr	query thread
+@param[in]      mode    requested lock type: LOCK_S or LOCK_X mode
+@param[in]      type    LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP type lock
+@param[in]      block   buffer block of rec
+@param[in]      rec     record
+@param[in]      index   index
+@param[in]      offsets rec_get_offsets(rec, index)
+@param[in]      thr     query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static dberr_t row_ins_set_rec_lock(lock_mode mode, ulint type,
                                     const buf_block_t *block, const rec_t *rec,
@@ -1945,9 +1945,9 @@ static bool row_allow_duplicates(que_thr_t *thr) {
     } else if (allow_duplicates) {
 #if 0  // TODO: Enable this assert after WL#9509. REPLACE will not be allowed on
        // DD tables
-			/* This assert means DD tables should not use REPLACE
-			or INSERT INTO table.. ON DUPLCIATE KEY */
-			ut_ad(!index->table->is_dd_table);
+                        /* This assert means DD tables should not use REPLACE
+                        or INSERT INTO table.. ON DUPLCIATE KEY */
+                        ut_ad(!index->table->is_dd_table);
 #endif
 
 #if 1  // TODO: Remove this code after WL#9509. REPLACE will not be allowed on
@@ -2043,11 +2043,11 @@ end_scan:
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
-@param[in]	n_uniq	offset of DB_TRX_ID
-@param[in]	entry	entry being inserted
-@param[in]	rec	clustered index record at insert position
-@param[in]	index	clustered index
-@param[in,out]	offsets	rec_get_offsets(rec)
+@param[in]      n_uniq  offset of DB_TRX_ID
+@param[in]      entry   entry being inserted
+@param[in]      rec     clustered index record at insert position
+@param[in]      index   clustered index
+@param[in,out]  offsets rec_get_offsets(rec)
 @retval DB_SUCCESS when no duplicate is detected
 @retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
@@ -2271,19 +2271,19 @@ static inline ibool row_ins_must_modify_rec(
 
 /** Insert the externally stored fields (off-page columns)
 of a clustered index entry.
-@param[in]	trx	current transaction
-@param[in]	entry	index entry to insert
-@param[in]	big_rec	externally stored fields
-@param[in,out]	offsets	rec_get_offsets()
-@param[in,out]	heap	memory heap */
+@param[in]      trx     current transaction
+@param[in]      entry   index entry to insert
+@param[in]      big_rec externally stored fields
+@param[in,out]  offsets rec_get_offsets()
+@param[in,out]  heap    memory heap */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	thd	client connection, or NULL */
+@param[in]      thd     client connection, or NULL */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	index	clustered index
-@return	error code
-@retval	DB_SUCCESS
+@param[in]      index   clustered index
+@return error code
+@retval DB_SUCCESS
 @retval DB_OUT_OF_FILE_SPACE */
 static dberr_t row_ins_index_entry_big_rec_func(trx_t *trx,
                                                 const dtuple_t *entry,
@@ -2337,7 +2337,7 @@ static dberr_t row_ins_index_entry_big_rec_func(trx_t *trx,
 #endif /* UNIV_DEBUG */
 
 /** Update all the prebuilts working on this temporary table
-@param[in,out]	table	dict_table_t for the table */
+@param[in,out]  table   dict_table_t for the table */
 static void row_ins_temp_prebuilt_tree_modified(dict_table_t *table) {
   if (table->temp_prebuilt == nullptr) {
     return;
@@ -2600,12 +2600,12 @@ func_exit:
 /** This is a specialized function meant for direct insertion to auto-generated
 clustered index based on cached position from last successful insert. To be
 used when data is sorted.
-@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
+@param[in]      mode    BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
                         depending on whether we wish optimistic or pessimistic
                         descent down the index tree
-@param[in,out]	index	clustered index
-@param[in,out]	entry	index entry to insert
-@param[in]	thr	query thread
+@param[in,out]  index   clustered index
+@param[in,out]  entry   index entry to insert
+@param[in]      thr     query thread
 @return error code */
 static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
                                                 dtuple_t *entry,
@@ -2725,10 +2725,10 @@ static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
 }
 
 /** Start a mini-transaction and check if the index will be dropped.
-@param[in,out]	mtr		Mini-transaction
-@param[in,out]	index		Secondary index
-@param[in]	check		Whether to check
-@param[in]	search_mode	Flags
+@param[in,out]  mtr             Mini-transaction
+@param[in,out]  index           Secondary index
+@param[in]      check           Whether to check
+@param[in]      search_mode     Flags
 @return true if the index is to be dropped */
 [[nodiscard]] static bool row_ins_sec_mtr_start_and_check_if_aborted(
     mtr_t *mtr, dict_index_t *index, bool check, ulint search_mode) {
@@ -2767,19 +2767,19 @@ static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
 /** Tries to insert an entry into a secondary index. If a record with exactly
 the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@param[in]	flags		undo logging and locking flags
-@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+@param[in]      flags           undo logging and locking flags
+@param[in]      mode            BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                                 depending on whether we wish optimistic or
                                 pessimistic descent down the index tree
-@param[in]	index		secondary index
-@param[in,out]	offsets_heap	memory heap that can be emptied
-@param[in,out]	heap		memory heap
-@param[in,out]	entry		index entry to insert
-@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+@param[in]      index           secondary index
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
+@param[in,out]  entry           index entry to insert
+@param[in]      trx_id          PAGE_MAX_TRX_ID during row_log_table_apply(),
                                 or trx_id when undo log is disabled during
                                 alter copy operation or 0
-@param[in]	thr		query thread
-@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+@param[in]      thr             query thread
+@param[in]      dup_chk_only    TRUE, just do duplicate check and return.
                                 don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
@@ -3283,16 +3283,16 @@ static dberr_t row_ins_sec_index_multi_value_entry(dict_index_t *index,
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
 record.
-@param[in]	index		index to insert the entry
-@param[in,out]	entry		entry to insert
-@param[in,out]	multi_val_pos	if multi-value index, the start position
+@param[in]      index           index to insert the entry
+@param[in,out]  entry           entry to insert
+@param[in,out]  multi_val_pos   if multi-value index, the start position
                                 to insert next multi-value data,
                                 and the returned value should be either
                                 0 if all are done, or the position where the
                                 insert failed. So return value of 0 could be
                                 a bit ambiguous, however the return error
                                 can help to see which case it is
-@param[in]	thr		query thread
+@param[in]      thr             query thread
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 static dberr_t row_ins_index_entry(dict_index_t *index, dtuple_t *entry,
                                    uint32_t &multi_val_pos, que_thr_t *thr) {
@@ -3340,9 +3340,9 @@ static void row_ins_spatial_index_entry_set_mbr_field(
 
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
-@param[in]	index	index handler
-@param[out]	entry	index entry to make
-@param[in]	row	row
+@param[in]      index   index handler
+@param[out]     entry   index entry to make
+@param[in]      row     row
 @return DB_SUCCESS if the set is successful */
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row) {

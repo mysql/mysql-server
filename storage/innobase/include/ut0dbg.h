@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <functional>
 
 /** Set a callback function to be called before exiting.
-@param[in]	callback	user callback function */
+@param[in]      callback        user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Report a failed assertion.
@@ -112,14 +112,14 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** A "chronometer" used to clock snippets of code.
 Example usage:
-        ut_chrono_t	ch("this loop");
+        ut_chrono_t     ch("this loop");
         for (;;) { ... }
         ch.show();
 would print the timings of the for() loop, prefixed with "this loop:" */
 class ut_chrono_t {
  public:
   /** Constructor.
-  @param[in]	name	chrono's name, used when showing the values */
+  @param[in]    name    chrono's name, used when showing the values */
   ut_chrono_t(const char *name) : m_name(name), m_show_from_destructor(true) {
     reset();
   }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1343,7 +1343,7 @@ void Clone_Task_Manager::add_incomplete_chunk(Clone_Task *task) {
 }
 
 /** Print completed chunk information
-@param[in]	chunk_info	chunk information */
+@param[in]      chunk_info      chunk information */
 static void print_chunk_info(Chunk_Info *chunk_info) {
   for (auto &chunk : chunk_info->m_incomplete_chunks) {
     ib::info(ER_IB_CLONE_RESTART)

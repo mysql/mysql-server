@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,9 +65,9 @@ typedef OSMutex ib_bpmutex_t;
 #include "sync0policy.h"
 
 /** Create a typedef using the MutexType<PolicyType>
-@param[in]	M		Mutex type
-@param[in]	P		Policy type
-@param[in]	T		The resulting typedef alias */
+@param[in]      M               Mutex type
+@param[in]      P               Policy type
+@param[in]      T               The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P>> T;
 
 typedef OSMutex EventMutex;
@@ -188,7 +188,7 @@ class MutexMonitor {
   void reset();
 
   /** Invoke the callback for each active mutex collection
-  @param[in,out]	callback	Functor to call
+  @param[in,out]        callback        Functor to call
   @return false if callback returned false */
   template <typename Callback>
   bool iterate(Callback &callback) const UNIV_NOTHROW {
@@ -224,10 +224,10 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed.
 Add the mutex instance to the global mutex list.
-@param[in,out]	mutex		mutex to initialise
-@param[in]	id		The mutex ID (Latch ID)
-@param[in]	file_name	Filename from where it was called
-@param[in]	line		Line number in filename from where called */
+@param[in,out]  mutex           mutex to initialise
+@param[in]      id              The mutex ID (Latch ID)
+@param[in]      file_name       Filename from where it was called
+@param[in]      line            Line number in filename from where called */
 template <typename Mutex>
 void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
                 uint32_t line) {
@@ -239,7 +239,7 @@ void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
 /**
 Removes a mutex instance from the mutex list. The mutex is checked to
 be in the reset state.
-@param[in,out]	 mutex		mutex instance to destroy */
+@param[in,out]   mutex          mutex instance to destroy */
 template <typename Mutex>
 void mutex_destroy(Mutex *mutex) {
   mutex->destroy();

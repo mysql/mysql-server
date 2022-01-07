@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,9 +55,9 @@ struct OSTrackMutex {
   ~OSTrackMutex() UNIV_NOTHROW { ut_ad(!m_destroy_at_exit || !m_locked); }
 
   /** Initialise the mutex.
-  @param[in]	id              Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
+  @param[in]    id              Mutex ID
+  @param[in]    filename        File where mutex was created
+  @param[in]    line            Line in filename */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
     ut_ad(m_freed);
     ut_ad(!m_locked);
@@ -91,10 +91,10 @@ struct OSTrackMutex {
   }
 
   /** Acquire the mutex.
-  @param[in]	max_spins	max number of spins
-  @param[in]	max_delay	max delay per spin
-  @param[in]	filename	from where called
-  @param[in]	line		within filename */
+  @param[in]    max_spins       max number of spins
+  @param[in]    max_delay       max delay per spin
+  @param[in]    filename        from where called
+  @param[in]    line            within filename */
   void enter(uint32_t max_spins [[maybe_unused]],
              uint32_t max_delay [[maybe_unused]],
              const char *filename [[maybe_unused]],
@@ -197,9 +197,9 @@ struct TTASFutexMutex {
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
-  @param[in]	id		Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
+  @param[in]    id              Mutex ID
+  @param[in]    filename        File where mutex was created
+  @param[in]    line            Line in filename */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
     ut_a(m_lock_word == mutex_state_t::UNLOCKED);
     m_policy.init(*this, id, filename, line);
@@ -213,10 +213,10 @@ struct TTASFutexMutex {
   }
 
   /** Acquire the mutex.
-  @param[in]	max_spins	max number of spins
-  @param[in]	max_delay	max delay per spin
-  @param[in]	filename	from where called
-  @param[in]	line		within filename */
+  @param[in]    max_spins       max number of spins
+  @param[in]    max_delay       max delay per spin
+  @param[in]    filename        from where called
+  @param[in]    line            within filename */
   void enter(uint32_t max_spins, uint32_t max_delay, const char *filename,
              uint32_t line) UNIV_NOTHROW {
     uint32_t n_spins;
@@ -334,9 +334,9 @@ struct TTASFutexMutex {
   }
 
   /** Poll waiting for mutex to be unlocked.
-  @param[in]	max_spins	max spins
-  @param[in]	max_delay	max delay per spin
-  @param[out]	n_spins		retries before acquire
+  @param[in]    max_spins       max spins
+  @param[in]    max_delay       max delay per spin
+  @param[out]   n_spins         retries before acquire
   @return value of lock word before locking. */
   lock_word_t ttas(uint32_t max_spins, uint32_t max_delay,
                    uint32_t &n_spins) UNIV_NOTHROW {
@@ -386,9 +386,9 @@ struct TTASEventMutex {
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
-  @param[in]	id		Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
+  @param[in]    id              Mutex ID
+  @param[in]    filename        File where mutex was created
+  @param[in]    line            Line in filename */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
     ut_a(m_event == nullptr);
     ut_a(!is_locked());
@@ -429,10 +429,10 @@ struct TTASEventMutex {
   }
 
   /** Acquire the mutex.
-  @param[in]	max_spins	max number of spins
-  @param[in]	max_delay	max delay per spin
-  @param[in]	filename	from where called
-  @param[in]	line		within filename */
+  @param[in]    max_spins       max number of spins
+  @param[in]    max_delay       max delay per spin
+  @param[in]    filename        from where called
+  @param[in]    line            within filename */
   void enter(uint32_t max_spins, uint32_t max_delay, const char *filename,
              uint32_t line) UNIV_NOTHROW {
     if (!try_lock()) {
@@ -462,16 +462,16 @@ struct TTASEventMutex {
 
  private:
   /** Wait in the sync array.
-  @param[in]	filename	from where it was called
-  @param[in]	line		line number in file
-  @param[in]	spin		retry this many times again
+  @param[in]    filename        from where it was called
+  @param[in]    line            line number in file
+  @param[in]    spin            retry this many times again
   @return true if the mutex acquisition was successful. */
   bool wait(const char *filename, uint32_t line, uint32_t spin) UNIV_NOTHROW;
 
   /** Spin and wait for the mutex to become free.
-  @param[in]	max_spins	max spins
-  @param[in]	max_delay	max delay per spin
-  @param[in,out]	n_spins		spin start index
+  @param[in]    max_spins       max spins
+  @param[in]    max_delay       max delay per spin
+  @param[in,out]        n_spins         spin start index
   @return true if unlocked */
   bool is_free(uint32_t max_spins, uint32_t max_delay,
                uint32_t &n_spins) const UNIV_NOTHROW {
@@ -498,10 +498,10 @@ struct TTASEventMutex {
   }
 
   /** Spin while trying to acquire the mutex
-  @param[in]	max_spins	max number of spins
-  @param[in]	max_delay	max delay per spin
-  @param[in]	filename	from where called
-  @param[in]	line		within filename */
+  @param[in]    max_spins       max number of spins
+  @param[in]    max_delay       max delay per spin
+  @param[in]    filename        from where called
+  @param[in]    line            within filename */
   void spin_and_try_lock(uint32_t max_spins, uint32_t max_delay,
                          const char *filename, uint32_t line) UNIV_NOTHROW {
     uint32_t n_spins = 0;
@@ -612,10 +612,10 @@ struct PolicyMutex {
   }
 
   /** Acquire the mutex.
-  @param n_spins	max number of spins
-  @param n_delay	max delay per spin
-  @param name	filename where locked
-  @param line	line number where locked */
+  @param n_spins        max number of spins
+  @param n_delay        max delay per spin
+  @param name   filename where locked
+  @param line   line number where locked */
   void enter(uint32_t n_spins, uint32_t n_delay, const char *name,
              uint32_t line) UNIV_NOTHROW {
 #ifdef UNIV_PFS_MUTEX
@@ -639,8 +639,8 @@ struct PolicyMutex {
   }
 
   /** Try and lock the mutex, return 0 on SUCCESS and 1 otherwise.
-  @param name	filename where locked
-  @param line	line number where locked */
+  @param name   filename where locked
+  @param line   line number where locked */
   int trylock(const char *name, uint32_t line) UNIV_NOTHROW {
 #ifdef UNIV_PFS_MUTEX
     /* Note: locker is really an alias for state. That's why
@@ -679,9 +679,9 @@ struct PolicyMutex {
   /**
   Initialise the mutex.
 
-  @param[in]	id              Mutex ID
-  @param[in]	filename	file where created
-  @param[in]	line		line number in file where created */
+  @param[in]    id              Mutex ID
+  @param[in]    filename        file where created
+  @param[in]    line            line number in file where created */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
 #ifdef UNIV_PFS_MUTEX
     pfs_add(sync_latch_get_pfs_key(id));

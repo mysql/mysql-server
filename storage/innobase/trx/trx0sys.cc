@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,8 +58,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 trx_sys_t *trx_sys = nullptr;
 
 /** Check whether transaction id is valid.
-@param[in]	id	transaction id to check
-@param[in]	name	table name */
+@param[in]      id      transaction id to check
+@param[in]      name    table name */
 void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
   if (&name == &dict_sys->dynamic_metadata->name) {
     /* The table mysql.innodb_dynamic_metadata uses a
@@ -176,11 +176,11 @@ void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids) {
 }
 
 /** Read binary log positions from buffer passed.
-@param[in]	binlog_buf	binary log buffer from trx sys page
-@param[out]	file_name	binary log file name
-@param[out]	high		offset part high order bytes
-@param[out]	low		offset part low order bytes
-@return	true, if buffer has valid binary log position. */
+@param[in]      binlog_buf      binary log buffer from trx sys page
+@param[out]     file_name       binary log file name
+@param[out]     high            offset part high order bytes
+@param[out]     low             offset part low order bytes
+@return true, if buffer has valid binary log position. */
 static bool read_binlog_position(const byte *binlog_buf, const char *&file_name,
                                  uint32_t &high, uint32_t &low) {
   /* Initialize out parameters. */
@@ -205,10 +205,10 @@ static bool read_binlog_position(const byte *binlog_buf, const char *&file_name,
 }
 
 /** Write binary log position into passed buffer.
-@param[in]	file_name	Binary log file name
-@param[in]	offset		Binary log offset
-@param[out]	binlog_buf	Buffer from trx sys page to write to
-@param[in,out]	mtr		Mini-transaction */
+@param[in]      file_name       Binary log file name
+@param[in]      offset          Binary log offset
+@param[out]     binlog_buf      Buffer from trx sys page to write to
+@param[in,out]  mtr             Mini-transaction */
 static void write_binlog_position(const char *file_name, uint64_t offset,
                                   byte *binlog_buf, mtr_t *mtr) {
   if (file_name == nullptr ||
@@ -269,9 +269,9 @@ void trx_sys_read_binlog_position(char *file, uint64_t &offset) {
 }
 
 /** Check if binary log position is changed.
-@param[in]	file_name	previous binary log file name
-@param[in]	offset		previous binary log file offset
-@param[out]	binlog_buf	buffer from trx sys page to write to
+@param[in]      file_name       previous binary log file name
+@param[in]      offset          previous binary log file offset
+@param[out]     binlog_buf      buffer from trx sys page to write to
 @return true, iff binary log position is modified from previous position. */
 static bool binlog_position_changed(const char *file_name, uint64_t offset,
                                     byte *binlog_buf) {
@@ -329,7 +329,7 @@ void trx_sys_update_mysql_binlog_offset(trx_t *trx, mtr_t *mtr) {
 }
 
 /** Find the page number in the TRX_SYS page for a given slot/rseg_id
-@param[in]	rseg_id		slot number in the TRX_SYS page rseg array
+@param[in]      rseg_id         slot number in the TRX_SYS page rseg array
 @return page number from the TRX_SYS page rseg array */
 page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id) {
   page_no_t page_no;
@@ -346,7 +346,7 @@ page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id) {
 }
 
 /** Look for a free slot for a rollback segment in the trx system file copy.
-@param[in,out]	mtr		mtr
+@param[in,out]  mtr             mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint trx_sysf_rseg_find_free(mtr_t *mtr) {
   trx_sysf_t *sys_header = trx_sysf_get(mtr);

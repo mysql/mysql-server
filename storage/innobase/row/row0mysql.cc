@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -504,7 +504,7 @@ byte *row_mysql_store_col_in_innobase_format(
     Consider a CHAR(n) field, a field of n characters.
     It will contain between n * mbminlen and n * mbmaxlen bytes.
     We will try to truncate it to n bytes by stripping
-    space padding.	If the field contains single-byte
+    space padding.      If the field contains single-byte
     characters only, it will be truncated to n characters.
     Consider a CHAR(5) field containing the string
     ".a   " where "." denotes a 3-byte character represented
@@ -1205,7 +1205,7 @@ run_again:
 }
 
 /** Sets a table lock on the table mentioned in prebuilt.
-@param[in,out]	prebuilt	table handle
+@param[in,out]  prebuilt        table handle
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt) {
   trx_t *trx = prebuilt->trx;
@@ -1264,10 +1264,10 @@ run_again:
 }
 
 /** Perform explicit rollback in absence of UNDO logs.
-@param[in]	index	Apply rollback action on this index
-@param[in]	entry	Entry to remove/rollback.
-@param[in,out]	thr	Thread handler.
-@param[in,out]	mtr	Mini-transaction.
+@param[in]      index   Apply rollback action on this index
+@param[in]      entry   Entry to remove/rollback.
+@param[in,out]  thr     Thread handler.
+@param[in,out]  mtr     Mini-transaction.
 @return error code or DB_SUCCESS */
 static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
                                      que_thr_t *thr, mtr_t *mtr) {
@@ -1313,9 +1313,9 @@ static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
 
 /** Convert a row in the MySQL format to a row in the Innobase format.
 This is specialized function used for intrinsic table with reduce branching.
-@param[in,out]	row		row where field values are copied.
-@param[in]	prebuilt	prebuilt handler
-@param[in]	mysql_rec	row in mysql format. */
+@param[in,out]  row             row where field values are copied.
+@param[in]      prebuilt        prebuilt handler
+@param[in]      mysql_rec       row in mysql format. */
 static void row_mysql_to_innobase(dtuple_t *row, row_prebuilt_t *prebuilt,
                                   const byte *mysql_rec) {
   ut_ad(prebuilt->table->is_intrinsic());
@@ -1400,8 +1400,8 @@ static void row_mysql_to_innobase(dtuple_t *row, row_prebuilt_t *prebuilt,
 Cursor interface is low level interface that directly interacts at
 Storage Level by-passing all the locking and transaction semantics.
 For InnoDB case, this will also by-pass hidden column generation.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
                                                  row_prebuilt_t *prebuilt) {
@@ -1495,8 +1495,8 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
 
 /** Does an insert for MySQL using INSERT graph. This function will run/execute
 INSERT graph.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
                                                     row_prebuilt_t *prebuilt) {
@@ -1700,8 +1700,8 @@ run_again:
 }
 
 /** Does an insert for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
 dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
   /* For intrinsic tables there a lot of restrictions that can be
@@ -1903,7 +1903,7 @@ class ib_dec_counter {
 
 /** Do an in-place update in the intrinsic table.  The update should not
 modify any of the keys and it should not change the size of any fields.
-@param[in]	node	the update node.
+@param[in]      node    the update node.
 @return DB_SUCCESS on success, an error code on failure. */
 static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   mtr_t mtr;
@@ -1961,9 +1961,9 @@ typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 Function will maintain cursor to the entries to invoke explicity rollback
 just in case update action following delete fails.
 
-@param[in]	node		update node carrying information to delete.
-@param[out]	delete_entries	vector of cursor to deleted entries.
-@param[in]	restore_delete	if true, then restore DELETE records by
+@param[in]      node            update node carrying information to delete.
+@param[out]     delete_entries  vector of cursor to deleted entries.
+@param[in]      restore_delete  if true, then restore DELETE records by
                                 unmarking delete.
 @return error code or DB_SUCCESS */
 static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
@@ -2065,9 +2065,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
 }
 
 /** Does an update of a row for MySQL by inserting new entry with update values.
-@param[in]	node		update node carrying information to delete.
-@param[out]	delete_entries	vector of cursor to deleted entries.
-@param[in]	thr		thread handler
+@param[in]      node            update node carrying information to delete.
+@param[out]     delete_entries  vector of cursor to deleted entries.
+@param[in]      thr             thread handler
 @return error code or DB_SUCCESS */
 static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
                                                  cursors_t &delete_entries,
@@ -2149,7 +2149,7 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
 }
 
 /** Does an update or delete of a row for MySQL.
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 static dberr_t row_del_upd_for_mysql_using_cursor(row_prebuilt_t *prebuilt) {
   dberr_t err = DB_SUCCESS;
@@ -2248,8 +2248,8 @@ static dberr_t row_del_upd_for_mysql_using_cursor(row_prebuilt_t *prebuilt) {
 }
 
 /** Does an update or delete of a row for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
                                                     row_prebuilt_t *prebuilt) {
@@ -2433,8 +2433,8 @@ error:
 }
 
 /** Does an update or delete of a row for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
   if (prebuilt->table->is_intrinsic()) {
@@ -2446,7 +2446,7 @@ dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
 }
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in,out]	table	table handler */
+@param[in,out]  table   table handler */
 void row_delete_all_rows(dict_table_t *table) {
   ut_ad(table->is_temporary());
   dict_index_t *index;
@@ -3018,9 +3018,9 @@ error_handling:
  in both participating tables. The indexes are allowed to contain more
  fields than mentioned in the constraint.
 
- @param[in]	trx		transaction
- @param[in]	name		table full name in normalized form
- @param[in]	dd_table	MySQL dd::Table for the table
+ @param[in]     trx             transaction
+ @param[in]     name            table full name in normalized form
+ @param[in]     dd_table        MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
 dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
                                            const dd::Table *dd_table) {
@@ -3266,8 +3266,8 @@ static ibool row_add_table_to_background_drop_list(const char *name [
 }
 
 /** Reassigns the table identifier of a table.
-@param[in,out]	table	table
-@param[out]	new_id	new table id
+@param[in,out]  table   table
+@param[out]     new_id  new table id
 @return error code or DB_SUCCESS */
 static dberr_t row_mysql_table_id_reassign(dict_table_t *table,
                                            table_id_t *new_id) {
@@ -3288,7 +3288,7 @@ static dict_table_t *row_discard_tablespace_begin(
 {
   trx->op_info = "discarding tablespace";
 
-  //	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+  //    trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
   trx_start_if_not_started_xa(trx, true);
 
@@ -3361,10 +3361,10 @@ static dberr_t row_discard_tablespace_foreign_key_checks(
 }
 
 /** Cleanup after the DISCARD TABLESPACE operation.
-@param[in,out]	trx	transaction handle
-@param[in,out]	table	table to be discarded
-@param[in]	err	error code
-@param[in,out]	aux_vec	fts aux table name vector
+@param[in,out]  trx     transaction handle
+@param[in,out]  table   table to be discarded
+@param[in]      err     error code
+@param[in,out]  aux_vec fts aux table name vector
 @return error code. */
 static dberr_t row_discard_tablespace_end(trx_t *trx, dict_table_t *table,
                                           dberr_t err,
@@ -3397,9 +3397,9 @@ static dberr_t row_discard_tablespace_end(trx_t *trx, dict_table_t *table,
 }
 
 /** Do the DISCARD TABLESPACE operation.
-@param[in,out]	trx	transaction handle
-@param[in,out]	table	table to be discarded
-@param[in,out]	aux_vec	fts aux table name vector
+@param[in,out]  trx     transaction handle
+@param[in,out]  table   table to be discarded
+@param[in,out]  aux_vec fts aux table name vector
 @return DB_SUCCESS or error code. */
 static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
                                       aux_name_vec_t *aux_vec) {
@@ -3627,9 +3627,9 @@ run_again:
 }
 
 /** Drop ancillary FTS tables as part of dropping a table.
-@param[in,out]	table		Table cache entry
-@param[in,out]	aux_vec		Fts aux table name vector
-@param[in,out]	trx		Transaction handle
+@param[in,out]  table           Table cache entry
+@param[in,out]  aux_vec         Fts aux table name vector
+@param[in,out]  trx             Transaction handle
 @return error code or DB_SUCCESS */
 static inline dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
                                                     aux_name_vec_t *aux_vec,
@@ -3663,8 +3663,8 @@ static inline dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
 }
 
 /** Drop a table from the memory cache as part of dropping a table.
-@param[in,out]	table		Table cache entry
-@param[in,out]	trx		Transaction handle
+@param[in,out]  table           Table cache entry
+@param[in,out]  trx             Transaction handle
 @return error code or DB_SUCCESS */
 static inline dberr_t row_drop_table_from_cache(dict_table_t *table,
                                                 trx_t *trx) {
@@ -3694,8 +3694,8 @@ static inline dberr_t row_drop_table_from_cache(dict_table_t *table,
 
 /** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	File path of tablespace to delete
+@param[in]      space_id        Tablespace ID
+@param[in]      filepath        File path of tablespace to delete
 @return error code or DB_SUCCESS */
 dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   dberr_t err = DB_SUCCESS;
@@ -3728,11 +3728,11 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
-@param[in]	name		Table name
-@param[in]	trx		Transaction handle
-@param[in]	nonatomic	Whether it is permitted to release
+@param[in]      name            Table name
+@param[in]      trx             Transaction handle
+@param[in]      nonatomic       Whether it is permitted to release
 and reacquire dict_operation_lock
-@param[in,out]	handler		Table handler or NULL
+@param[in,out]  handler         Table handler or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
                                  dict_table_t *handler) {
@@ -4129,11 +4129,11 @@ funct_exit:
 }
 
 /** Renames a table for MySQL.
-@param[in]	old_name	old table name
-@param[in]	new_name	new table name
-@param[in]	dd_table	dd::Table for new table
-@param[in,out]	trx		transaction
-@param[in]	replay		whether in replay stage
+@param[in]      old_name        old table name
+@param[in]      new_name        new table name
+@param[in]      dd_table        dd::Table for new table
+@param[in,out]  trx             transaction
+@param[in]      replay          whether in replay stage
 @return error code or DB_SUCCESS */
 dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                                    const dd::Table *dd_table, trx_t *trx,

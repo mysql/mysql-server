@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -80,7 +80,7 @@ progress in an even manner across the entire ALTER TABLE lifetime. */
 class Alter_stage {
  public:
   /** Constructor.
-  @param[in]	pk	primary key of the old table */
+  @param[in]    pk      primary key of the old table */
   explicit Alter_stage(const dict_index_t *pk) noexcept
       : m_pk(pk), m_cur_phase(NOT_STARTED) {}
 
@@ -92,7 +92,7 @@ class Alter_stage {
   ~Alter_stage();
 
   /** Flag an ALTER TABLE start (read primary key phase).
-  @param[in]	n_sort_indexes	number of indexes that will be sorted
+  @param[in]    n_sort_indexes  number of indexes that will be sorted
   during ALTER TABLE, used for estimating the total work to be done */
   void begin_phase_read_pk(size_t n_sort_indexes);
 
@@ -109,7 +109,7 @@ class Alter_stage {
 
   /** Flag either one record or one page processed, depending on the
   current phase.
-  @param[in]	inc_val	flag this many units processed at once */
+  @param[in]    inc_val flag this many units processed at once */
   void inc(uint64_t inc_val);
 
   /** Flag the end of reading of the primary key.
@@ -118,7 +118,7 @@ class Alter_stage {
   void end_phase_read_pk();
 
   /** Flag the beginning of the sort phase.
-  @param[in]	sort_multi_factor	since merge sort processes
+  @param[in]    sort_multi_factor       since merge sort processes
   one page more than once we only update the estimate once per this
   many pages processed. */
   void begin_phase_sort(double sort_multi_factor);
@@ -127,7 +127,7 @@ class Alter_stage {
   void begin_phase_insert();
 
   /** Flag the beginning of the flush phase.
-  @param[in]	n_flush_pages	this many pages are going to be
+  @param[in]    n_flush_pages   this many pages are going to be
   flushed */
   void begin_phase_flush(page_no_t n_flush_pages);
 
@@ -149,7 +149,7 @@ class Alter_stage {
   void reestimate();
 
   /** Change the current phase.
-  @param[in]	new_stage	pointer to the new stage to change to */
+  @param[in]    new_stage       pointer to the new stage to change to */
   void change_phase(const PSI_stage_info *new_stage);
 
  private:

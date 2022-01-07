@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -59,8 +59,8 @@ table name as unuique as possible. */
 static std::atomic<ib_uint32_t> dict_temp_file_num;
 
 /** Display an identifier.
-@param[in,out]	s	output stream
-@param[in]	id_name	SQL identifier (other than table name)
+@param[in,out]  s       output stream
+@param[in]      id_name SQL identifier (other than table name)
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const id_name_t &id_name) {
   const char q = '`';
@@ -77,8 +77,8 @@ std::ostream &operator<<(std::ostream &s, const id_name_t &id_name) {
 }
 
 /** Display a table name.
-@param[in,out]	s		output stream
-@param[in]	table_name	table name
+@param[in,out]  s               output stream
+@param[in]      table_name      table name
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const table_name_t &table_name) {
 #ifndef UNIV_HOTBACKUP
@@ -143,8 +143,8 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 }
 
 /** Adds a stored column definition to a table.
-@param[in,out]	table		table
-@param[in]	num_base	number of base columns. */
+@param[in,out]  table           table
+@param[in]      num_base        number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   ulint i = table->n_def - 1;
   dict_col_t *col = table->get_col(i);
@@ -407,8 +407,8 @@ void dict_mem_referenced_table_name_lookup_set(
 
 /** Fill the virtual column set with virtual column information
 present in the given virtual index.
-@param[in]	index	virtual index
-@param[out]	v_cols	virtual column set. */
+@param[in]      index   virtual index
+@param[out]     v_cols  virtual column set. */
 static void dict_mem_fill_vcol_has_index(const dict_index_t *index,
                                          dict_vcol_set **v_cols) {
   for (ulint i = 0; i < index->table->n_v_cols; i++) {
@@ -434,9 +434,9 @@ static void dict_mem_fill_vcol_has_index(const dict_index_t *index,
 
 /** Fill the virtual column set with virtual column of the index
 if the index contains the given column name.
-@param[in]	col_name	column name
-@param[in]	table		innodb table object
-@param[out]	v_cols		set of virtual column information. */
+@param[in]      col_name        column name
+@param[in]      table           innodb table object
+@param[out]     v_cols          set of virtual column information. */
 static void dict_mem_fill_vcol_from_v_indexes(const char *col_name,
                                               const dict_table_t *table,
                                               dict_vcol_set **v_cols) {
@@ -463,9 +463,9 @@ static void dict_mem_fill_vcol_from_v_indexes(const char *col_name,
 
 /** Fill the virtual column set with virtual columns which have base columns
 as the given col_name
-@param[in]	col_name	column name
-@param[in]	table		table object
-@param[out]	v_cols		set of virtual columns. */
+@param[in]      col_name        column name
+@param[in]      table           table object
+@param[out]     v_cols          set of virtual columns. */
 static void dict_mem_fill_vcol_set_for_base_col(const char *col_name,
                                                 const dict_table_t *table,
                                                 dict_vcol_set **v_cols) {
@@ -515,7 +515,7 @@ void dict_mem_foreign_fill_vcol_set(dict_foreign_t *foreign) {
 }
 
 /** Fill virtual columns set in each fk constraint present in the table.
-@param[in,out]	table	innodb table object. */
+@param[in,out]  table   innodb table object. */
 void dict_mem_table_fill_foreign_vcol_set(dict_table_t *table) {
   dict_foreign_set fk_set = table->foreign_set;
   dict_foreign_t *foreign;
@@ -528,7 +528,7 @@ void dict_mem_table_fill_foreign_vcol_set(dict_table_t *table) {
 }
 
 /** Free the vcol_set from all foreign key constraint on the table.
-@param[in,out]	table	innodb table object. */
+@param[in,out]  table   innodb table object. */
 void dict_mem_table_free_foreign_vcol_set(dict_table_t *table) {
   dict_foreign_set fk_set = table->foreign_set;
   dict_foreign_t *foreign;
@@ -544,9 +544,9 @@ void dict_mem_table_free_foreign_vcol_set(dict_table_t *table) {
 }
 
 /** Set default value
-@param[in]	value	Default value
-@param[in]	length	Default value length
-@param[in,out]	heap	Heap to allocate memory */
+@param[in]      value   Default value
+@param[in]      length  Default value length
+@param[in,out]  heap    Heap to allocate memory */
 void dict_col_t::set_default(const byte *value, size_t length,
                              mem_heap_t *heap) {
   ut_ad(instant_default == nullptr);
@@ -598,7 +598,7 @@ bool dict_col_default_t::operator!=(const dict_col_default_t &other) {
 }
 
 /** Check whether index can be used by transaction
-@param[in] trx		transaction*/
+@param[in] trx          transaction*/
 bool dict_index_t::is_usable(const trx_t *trx) const {
   /* Indexes that are being created are not usable. */
   if (!is_clustered() && dict_index_is_online_ddl(this)) {
@@ -646,14 +646,14 @@ bool dict_index_t::is_tuple_instant_format(
 }
 
 /** Gets the column number the nth field in an index.
-@param[in] pos	position of the field
+@param[in] pos  position of the field
 @return column number */
 ulint dict_index_t::get_col_no(ulint pos) const {
   return (dict_col_get_no(get_col(pos)));
 }
 
 /** Returns the position of a system column in an index.
-@param[in] type		DATA_ROW_ID, ...
+@param[in] type         DATA_ROW_ID, ...
 @return position, ULINT_UNDEFINED if not contained */
 ulint dict_index_t::get_sys_col_pos(ulint type) const {
   ut_ad(magic_n == DICT_INDEX_MAGIC_N);
@@ -667,9 +667,9 @@ ulint dict_index_t::get_sys_col_pos(ulint type) const {
 }
 
 /** Looks for column n in an index.
-@param[in]	n		column number
-@param[in]	inc_prefix	true=consider column prefixes too
-@param[in]	is_virtual	true==virtual column
+@param[in]      n               column number
+@param[in]      inc_prefix      true=consider column prefixes too
+@param[in]      is_virtual      true==virtual column
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
 ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix,
@@ -744,9 +744,9 @@ at bootstrap. The second number is 32 bits, can use up to 10 digits, and is
 initialized at startup to a randomly distributed number. It is hoped that the
 combination of these two numbers will provide a reasonably unique temporary
 file name.
-@param[in]	heap	A memory heap
-@param[in]	dbtab	Table name in the form database/table name
-@param[in]	id	Table id
+@param[in]      heap    A memory heap
+@param[in]      dbtab   Table name in the form database/table name
+@param[in]      id      Table id
 @return A unique temporary tablename suitable for InnoDB use */
 char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
                                           table_id_t id) {
@@ -784,7 +784,7 @@ void dict_mem_init(void) {
 }
 
 /** Validate the search order in the foreign key set.
-@param[in]	fk_set	the foreign key set to be validated
+@param[in]      fk_set  the foreign key set to be validated
 @return true if search order is fine in the set, false otherwise. */
 bool dict_foreign_set_validate(const dict_foreign_set &fk_set) {
   dict_foreign_not_exists not_exists(fk_set);
@@ -805,7 +805,7 @@ bool dict_foreign_set_validate(const dict_foreign_set &fk_set) {
 
 /** Validate the search order in the foreign key sets of the table
 (foreign_set and referenced_set).
-@param[in]	table	table whose foreign key sets are to be validated
+@param[in]      table   table whose foreign key sets are to be validated
 @return true if foreign key sets are fine, false otherwise. */
 bool dict_foreign_set_validate(const dict_table_t &table) {
   return (dict_foreign_set_validate(table.foreign_set) &&

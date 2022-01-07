@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -255,7 +255,7 @@ void dict_stats_thread_deinit() {
 
 /** Get the first table that has been added for auto recalc and eventually
 update its stats.
-@param[in,out]	thd	current thread */
+@param[in,out]  thd     current thread */
 static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   table_id_t table_id;
 

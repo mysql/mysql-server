@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,7 +63,7 @@ class ReadView;
 extern trx_sys_t *trx_sys;
 
 /** Checks if a page address is the trx sys header page.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return true if trx sys header page */
 static inline bool trx_sys_hdr_page(const page_id_t &page_id);
 
@@ -77,12 +77,12 @@ void trx_sys_create(void);
 void trx_sys_create_sys_pages(void);
 
 /** Find the page number in the TRX_SYS page for a given slot/rseg_id
-@param[in]	rseg_id		slot number in the TRX_SYS page rseg array
+@param[in]      rseg_id         slot number in the TRX_SYS page rseg array
 @return page number from the TRX_SYS page rseg array */
 page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id);
 
 /** Look for a free slot for a rollback segment in the trx system file copy.
-@param[in,out]	mtr		mtr
+@param[in,out]  mtr             mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint trx_sysf_rseg_find_free(mtr_t *mtr);
 
@@ -92,38 +92,38 @@ static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
 
 /** Gets the space of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	mtr		mtr
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      mtr             mtr
 @return space id */
 static inline space_id_t trx_sysf_rseg_get_space(trx_sysf_t *sys_header,
                                                  ulint i, mtr_t *mtr);
 
 /** Gets the page number of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	mtr		mtr
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      mtr             mtr
 @return page number, FIL_NULL if slot unused */
 static inline page_no_t trx_sysf_rseg_get_page_no(trx_sysf_t *sys_header,
                                                   ulint i, mtr_t *mtr);
 
 /** Sets the space id of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	space		space id
-@param[in]	mtr		mtr */
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      space           space id
+@param[in]      mtr             mtr */
 static inline void trx_sysf_rseg_set_space(trx_sysf_t *sys_header, ulint i,
                                            space_id_t space, mtr_t *mtr);
 
 /** Set the page number of the nth rollback segment slot in the trx system
 file copy.
-@param[in]	sys_header	trx sys file copy
-@param[in]	i		slot index == rseg id
-@param[in]	page_no		page number, FIL_NULL if the slot is reset to
+@param[in]      sys_header      trx sys file copy
+@param[in]      i               slot index == rseg id
+@param[in]      page_no         page number, FIL_NULL if the slot is reset to
                                 unused
-@param[in]	mtr		mtr */
+@param[in]      mtr             mtr */
 static inline void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
                                              page_no_t page_no, mtr_t *mtr);
 
@@ -150,8 +150,8 @@ extern uint trx_rseg_n_slots_debug;
 
 /** Writes a trx id to an index page. In case that the id size changes in some
 future version, this function should be used instead of mach_write_...
-@param[in]	ptr	pointer to memory where written
-@param[in]	id	id */
+@param[in]      ptr     pointer to memory where written
+@param[in]      id      id */
 static inline void trx_write_trx_id(byte *ptr, trx_id_t id);
 
 #ifndef UNIV_HOTBACKUP
@@ -171,35 +171,35 @@ impossible for the caller to hold any of these mutexes when calling this
 function as the function itself internally acquires Trx_shard's mutex which
 would cause recurrent mutex acquisition if caller already had the same mutex,
 or latching order violation in case of holding trx->mutex.
-@param[in]	trx_id		trx id of the transaction
-@param[in]	do_ref_count	if true then increment the trx_t::n_ref_count
+@param[in]      trx_id          trx id of the transaction
+@param[in]      do_ref_count    if true then increment the trx_t::n_ref_count
 @return transaction instance if active, or NULL; */
 static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count);
 
 /** Persist transaction number limit below which all transaction GTIDs
 are persisted to disk table.
-@param[in]	gtid_trx_no	transaction number */
+@param[in]      gtid_trx_no     transaction number */
 void trx_sys_persist_gtid_num(trx_id_t gtid_trx_no);
 
 /** @return oldest transaction number yet to be committed. */
 trx_id_t trx_sys_oldest_trx_no();
 
 /** Get a list of all binlog prepared transactions.
-@param[out]	trx_ids	all prepared transaction IDs. */
+@param[out]     trx_ids all prepared transaction IDs. */
 void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids);
 
 /** Get current binary log positions stored.
-@param[out]	file	binary log file name
-@param[out]	offset	binary log file offset */
+@param[out]     file    binary log file name
+@param[out]     offset  binary log file offset */
 void trx_sys_read_binlog_position(char *file, uint64_t &offset);
 
 /** Update binary log position if not already updated. This is called
 by clone to update any stale binary log position if any transaction
 is yet to update the binary log position in SE.
-@param[in]	last_file	last noted binary log file name
-@param[in]	last_offset	last noted binary log offset
-@param[in]	file		current binary log file name
-@param[in]	offset		current binary log file offset
+@param[in]      last_file       last noted binary log file name
+@param[in]      last_offset     last noted binary log offset
+@param[in]      file            current binary log file name
+@param[in]      offset          current binary log file offset
 @return true, if binary log position is updated with current. */
 bool trx_sys_write_binlog_position(const char *last_file, uint64_t last_offset,
                                    const char *file, uint64_t offset);
@@ -208,8 +208,8 @@ bool trx_sys_write_binlog_position(const char *last_file, uint64_t last_offset,
 which corresponds to the transaction being committed, external XA transaction
 being prepared or rolled back. In a MySQL replication slave updates the latest
 master binlog position up to which replication has proceeded.
-@param[in]	trx	Current transaction
-@param[in,out]	mtr	Mini-transaction for update */
+@param[in]      trx     Current transaction
+@param[in,out]  mtr     Mini-transaction for update */
 void trx_sys_update_mysql_binlog_offset(trx_t *trx, mtr_t *mtr);
 
 /** Shutdown/Close the transaction system. */
@@ -237,7 +237,7 @@ of InnoDB exited during shutdown of MySQL. */
 void trx_sys_after_background_threads_shutdown_validate();
 
 /** Add the transaction to the RW transaction set.
-@param trx		transaction instance to add */
+@param trx              transaction instance to add */
 static inline void trx_sys_rw_trx_add(trx_t *trx);
 
 #endif /* !UNIV_HOTBACKUP */

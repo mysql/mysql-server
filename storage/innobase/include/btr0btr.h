@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -172,14 +172,14 @@ page_t *btr_root_get(const dict_index_t *index, /*!< in: index tree */
 
 #ifndef UNIV_HOTBACKUP
 /** Gets a buffer page and declares its latching order level.
-@param[in]	page_id		Page id
-@param[in]	page_size	Page size
-@param[in]	mode		Latch mode
-@param[in]	file		File name
-@param[in]	line		Line where called
-@param[in]	index		Index tree, may be NULL if it is not an insert
+@param[in]      page_id         Page id
+@param[in]      page_size       Page size
+@param[in]      mode            Latch mode
+@param[in]      file            File name
+@param[in]      line            Line where called
+@param[in]      index           Index tree, may be NULL if it is not an insert
 buffer tree
-@param[in,out]	mtr		Mini-transaction
+@param[in,out]  mtr             Mini-transaction
 @return block */
 static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                               const page_size_t &page_size,
@@ -245,9 +245,9 @@ static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
 
 #ifndef UNIV_HOTBACKUP
 /** Releases the latch on a leaf page and bufferunfixes it.
-@param[in]	block		buffer block
-@param[in]	latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
-@param[in]	mtr		mtr */
+@param[in]      block           buffer block
+@param[in]      latch_mode      BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
+@param[in]      mtr             mtr */
 static inline void btr_leaf_page_release(buf_block_t *block, ulint latch_mode,
                                          mtr_t *mtr);
 #endif /* !UNIV_HOTBACKUP */
@@ -275,27 +275,27 @@ buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
                                     rw_lock_type_t type = RW_SX_LATCH);
 
 /** Create the root node for a new index tree.
-@param[in]	type			Type of the index
-@param[in]	space			Space where created
-@param[in]	index_id		Index id
-@param[in]	index			Index tree
-@param[in,out]	mtr			Mini-transaction
+@param[in]      type                    Type of the index
+@param[in]      space                   Space where created
+@param[in]      index_id                Index id
+@param[in]      index                   Index tree
+@param[in,out]  mtr                     Mini-transaction
 @return page number of the created root
 @retval FIL_NULL if did not succeed */
 ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
                  dict_index_t *index, mtr_t *mtr);
 
 /** Free a persistent index tree if it exists.
-@param[in]	page_id		Root page id
-@param[in]	page_size	Page size
-@param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		Mini-transaction */
+@param[in]      page_id         Root page id
+@param[in]      page_size       Page size
+@param[in]      index_id        PAGE_INDEX_ID contents
+@param[in,out]  mtr             Mini-transaction */
 void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
                         space_index_t index_id, mtr_t *mtr);
 
 /** Free an index tree in a temporary tablespace.
-@param[in]	page_id		root page id
-@param[in]	page_size	page size */
+@param[in]      page_id         root page id
+@param[in]      page_size       page size */
 void btr_free(const page_id_t &page_id, const page_size_t &page_size);
 
 /** Truncate an index tree. We just free all except the root.
@@ -303,12 +303,12 @@ Currently, this function is only specific for clustered indexes and the only
 caller is DDTableBuffer which manages a table with only a clustered index.
 It is up to the caller to ensure atomicity and to ensure correct recovery by
 calling btr_truncate_recover().
-@param[in]	index		clustered index */
+@param[in]      index           clustered index */
 void btr_truncate(const dict_index_t *index);
 
 /** Recovery function for btr_truncate. We will check if there is a
 crash during btr_truncate, if so, do recover it, if not, do nothing.
-@param[in]	index		clustered index */
+@param[in]      index           clustered index */
 void btr_truncate_recover(const dict_index_t *index);
 
 /** Makes tree one level higher by splitting the root, and inserts
@@ -575,8 +575,8 @@ void btr_print_index(dict_index_t *index, /*!< in: index */
     bool lockout);       /*!< in: true if X-latch index is intended */
 
 /** Creates SDI index and stores the root page numbers in page 1 & 2
-@param[in]	space_id	tablespace id
-@param[in]	dict_locked	true if dict_sys mutex is acquired
+@param[in]      space_id        tablespace id
+@param[in]      dict_locked     true if dict_sys mutex is acquired
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked);
 
