@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +66,10 @@ class Mysql_protocol : public cs::reader::Reader {
    *
    * This constructor takes a MYSQL connection handle, a server_id and flags.
    *
-   * @param mysql
-   * @param server_id
-   * @param flags
+   * @param mysql the MySQL connection handle.
+   * @param server_id the server id that this connection will identify itself
+   * with.
+   * @param flags replication handshake flags.
    */
   Mysql_protocol(MYSQL *mysql, uint32_t server_id, uint32_t flags);
 
