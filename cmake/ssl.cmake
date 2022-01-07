@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -289,7 +289,7 @@ MACRO (MYSQL_CHECK_SSL)
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
 
-    # The whitspace here C:/Program Files/OpenSSL-Win64
+    # The whitespace here C:/Program Files/OpenSSL-Win64
     # creates problems for transitive library dependencies.
     # Copy the .lib files to the build directory, and link with the copies.
     IF(WIN32 AND WITH_SSL STREQUAL "system")
