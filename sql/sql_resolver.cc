@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3611,17 +3611,23 @@ bool Query_block::merge_derived(THD *thd, TABLE_LIST *derived_table) {
           is_distinct() || is_ordered() ||
           get_table_list()->next_local != nullptr)) {
       order_list.push_back(&derived_query_block->order_list);
-      /*
-        If at outer-most level (not within another derived table), ensure
-        the ordering columns are marked in read_set, since columns selected
-        from derived tables are not marked in initial resolving.
-      */
-      if (!thd->derived_tables_processing) {
-        Mark_field mf(thd->mark_used_columns);
-        for (ORDER *o = derived_query_block->order_list.first; o != nullptr;
-             o = o->next)
+      for (ORDER *o = derived_query_block->order_list.first; o != nullptr;
+           o = o->next) {
+        /*
+          ORDER BY clause may contain expressions with outer references that
+          must be adjusted:
+        */
+        o->item[0]->fix_after_pullout(this, derived_query_block);
+        /*
+          If at outer-most level (not within another derived table), ensure
+          the ordering columns are marked in read_set, since columns selected
+          from derived tables are not marked in initial resolving.
+        */
+        if (!thd->derived_tables_processing) {
+          Mark_field mf(thd->mark_used_columns);
           o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                            pointer_cast<uchar *>(&mf));
+        }
       }
     } else {
       derived_query_block->empty_order_list(this);
