@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3200,8 +3200,6 @@ void THD::disable_mem_cnt() {
   @param db         Schema name in which table is being created.
   @param tablename  Table name being created.
   @param hton       Handlerton representing engine used for table.
-
-  @returns void
 */
 void Transactional_ddl_context::init(dd::String_type db,
                                      dd::String_type tablename,
@@ -3215,8 +3213,6 @@ void Transactional_ddl_context::init(dd::String_type db,
 /**
   Remove the table share used while creating the table, if the transaction
   is being rolledback.
-
-  @returns void
 */
 void Transactional_ddl_context::rollback() {
   if (!inited()) return;
@@ -3241,8 +3237,6 @@ void Transactional_ddl_context::rollback() {
   End the transactional context created by calling post ddl hook for engine
   on which table is being created. This is done after transaction rollback
   and commit.
-
-  @returns void
 */
 void Transactional_ddl_context::post_ddl() {
   if (!inited()) return;
