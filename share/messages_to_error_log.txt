@@ -3374,7 +3374,7 @@ ER_THREAD_POOL_CON_HANDLER_INIT_FAILED
 ER_THREAD_POOL_INIT_FAILED
   eng "Failed to initialize thread pool plugin."
 
-ER_THREAD_POOL_PLUGIN_STARTED
+OBSOLETE_ER_THREAD_POOL_PLUGIN_STARTED
   eng "Thread pool plugin started successfully with parameters: thread_pool_size = %lu, thread_pool_algorithm = %s, thread_pool_stall_limit = %u, thread_pool_prio_kickup_timer = %u, thread_pool_max_unused_threads = %u, thread_pool_high_priority_connection = %d."
 
 ER_THREAD_POOL_CANNOT_SET_THREAD_SPECIFIC_DATA
@@ -11631,6 +11631,9 @@ ER_MY_MALLOC_GETPROCADDRESS_FAILED
 
 ER_ACCOUNT_WITH_EXPIRED_PASSWORD
   eng "Password for the account '%-.48s'@'%-.64s' has expired. To log in, either change it using a client that supports expired passwords or send the change request to an administrator."
+
+ER_THREAD_POOL_PLUGIN_STARTED
+  eng "Thread pool plugin started successfully with parameters: %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
