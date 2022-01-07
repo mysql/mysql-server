@@ -672,3 +672,110 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE col1 < "00:00:00";
 EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN "00:00:00" AND "";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug# 33302021 - Equi-height histogram is not equi-height
+--echo #
+
+# Histogram construction bug example:
+#
+# A data distribution with a few highly frequent largest values can cause
+# two distinct values that together account for almost the entire distribution
+# to end up in the same bucket, causing large potential errors in selectivity
+# estimates.
+
+# Explanation of the bug:
+#
+# If during histogram construction, we end up in a state with at least as many
+# buckets remaining as there are there are distinct values remaining, we begin
+# adding buckets indiscriminately. If many "light" buckets are added this way,
+# the target threshold is moved far ahead of the actual cumulative frequency of
+# the buckets. It might then happen that placing two "heavy" values in the same
+# bucket will bring us closer to the target than just adding one.
+
+delimiter //;
+
+CREATE PROCEDURE insert_repeat(IN value INT, IN num_insertions INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  SET i = 1;
+  WHILE i <= num_insertions DO
+    INSERT INTO t1 VALUES (value);
+    SET i = i + 1;
+  END WHILE;
+END//
+
+CREATE PROCEDURE insert_range(IN first INT, IN last INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  SET i = first;
+  WHILE i <= last DO
+    INSERT INTO t1 VALUES (i);
+    SET i = i + 1;
+  END WHILE;
+END//
+
+delimiter ;//
+
+CREATE TABLE t1(x INT);
+CALL insert_range(1, 10);
+CALL insert_repeat(11, 10);
+CALL insert_repeat(12, 20);
+
+# With the bug the value 11 (25% of values) and 12 (50% of values) end up in the
+# same bucket. They should be placed in singleton buckets.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+
+# It seems that we have to call ANALYZE TABLE for the histogram to be used.
+# TODO(christiani): Investigate if this is a bug.
+ANALYZE TABLE t1;
+
+# Test that we get selectivity estimates that correspond to singleton buckets.
+EXPLAIN SELECT * FROM t1 WHERE x = 11;
+EXPLAIN SELECT * FROM t1 WHERE x = 12;
+
+TRUNCATE TABLE t1;
+
+# Create histograms for a couple of different data sets and verify manually that
+# the output looks reasonable.
+
+# Test case: Uniform data set.
+# Buckets should be evenly distributed and contain close to 10 values each.
+CALL insert_range(1, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+# Test case: A few heavy hitters at the end.
+# The heavy values should be placed in singleton buckets and the remaining buckets
+# should be used efficiently, i.e, they should contain roughly 100/7 = 14.3
+# values each.
+CALL insert_range(1, 100);
+CALL insert_repeat(101, 100);
+CALL insert_repeat(102, 100);
+CALL insert_repeat(103, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+# Test case: Heavy hitters with a few values in between.
+# The heavy values should be placed in singleton buckets. This will force the
+# values between them, e.g. 1, 3-4, and 6-9, to be placed in their own buckets.
+# The remaining 4 buckets should contain approximately 23 values each.
+CALL insert_range(1, 100);
+CALL insert_repeat(2, 100);
+CALL insert_repeat(5, 100);
+CALL insert_repeat(10, 100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
+SELECT JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = 't1' AND column_name = 'x';
+TRUNCATE TABLE t1;
+
+DROP TABLE t1;
+DROP PROCEDURE insert_repeat;
+DROP PROCEDURE insert_range;

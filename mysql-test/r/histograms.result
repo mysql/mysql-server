@@ -1211,7 +1211,7 @@ test.t1	histogram	status	Histogram statistics created for column 'eighty'.
 EXPLAIN SELECT a.forty, b.twenty FROM t1 AS a, t1 AS b
 WHERE a.twenty = b.ten AND b.eighty >= (3 + 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	b	NULL	ALL	idx	NULL	NULL	NULL	50	60.00	Using where
+1	SIMPLE	b	NULL	ALL	idx	NULL	NULL	NULL	50	58.80	Using where
 1	SIMPLE	a	NULL	ref	idx3	idx3	5	test.b.ten	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`forty` AS `forty`,`test`.`b`.`twenty` AS `twenty` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`a`.`twenty` = `test`.`b`.`ten`) and (`test`.`b`.`eighty` >= <cache>((3 + 20))))
@@ -3050,7 +3050,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	tbl_float	col	{"buckets": [[0.1, 0.2, 0.2, 2], [0.3, 0.3, 0.4, 1], [0.4, 0.5, 0.7, 2], [0.8, 0.8, 0.8, 1]], "data-type": "double", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
+test	tbl_float	col	{"buckets": [[0.1, 0.2, 0.2, 2], [0.3, 0.4, 0.5, 2], [0.5, 0.5, 0.7, 1], [0.8, 0.8, 0.8, 1]], "data-type": "double", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.0;
 COUNT(*)/10.0
 0.8000
@@ -3080,7 +3080,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.3)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.4;
@@ -3088,7 +3088,7 @@ COUNT(*)/10.0
 0.3000
 EXPLAIN SELECT * FROM tbl_float WHERE col > 0.4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.4)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.5;
@@ -3168,7 +3168,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.4)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.5;
@@ -3176,7 +3176,7 @@ COUNT(*)/10.0
 0.3000
 EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.5)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col >= 0.6;
@@ -3240,7 +3240,7 @@ COUNT(*)/10.0
 0.2000
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	15.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.3)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.4;
@@ -3256,7 +3256,7 @@ COUNT(*)/10.0
 0.2000
 EXPLAIN SELECT * FROM tbl_float WHERE col = 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	15.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.5)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col = 0.6;
@@ -3320,7 +3320,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.3)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.4;
@@ -3328,7 +3328,7 @@ COUNT(*)/10.0
 0.5000
 EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.4)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <= 0.5;
@@ -3408,7 +3408,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.4)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.5;
@@ -3416,7 +3416,7 @@ COUNT(*)/10.0
 0.5000
 EXPLAIN SELECT * FROM tbl_float WHERE col < 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.5)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col < 0.6;
@@ -3480,7 +3480,7 @@ COUNT(*)/10.0
 0.6000
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	65.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.3)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.4;
@@ -3496,7 +3496,7 @@ COUNT(*)/10.0
 0.6000
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	65.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.5)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.6;
@@ -3560,7 +3560,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.3)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
@@ -3568,7 +3568,7 @@ COUNT(*)/10.0
 0.5000
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.4)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.5;
@@ -3648,7 +3648,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.4 AND 0.9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.4 and 0.9)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
@@ -3656,7 +3656,7 @@ COUNT(*)/10.0
 0.3000
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.5 and 0.9)
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.6 AND 0.9;
@@ -3720,7 +3720,7 @@ COUNT(*)/10.0
 0.4000
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.4,0.5,0.6,0.7,0.8,0.9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	45.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.4,0.5,0.6,0.7,0.8,0.9))
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
@@ -3728,7 +3728,7 @@ COUNT(*)/10.0
 0.3000
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	25.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.5,0.6,0.7,0.8,0.9))
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.6,0.7,0.8,0.9);
@@ -3784,7 +3784,7 @@ COUNT(*)/10.0
 0.3000
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.5,0.6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	25.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.2,0.5,0.6))
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.9,1.0,1.1,1.2,1.3);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1668,7 +1668,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
         return true;
 
       *selectivity = std::max(
-          get_non_null_values_frequency() - greater_than_selectivity, 0.0);
+          get_non_null_values_fraction() - greater_than_selectivity, 0.0);
       return false;
     }
     case enum_operator::GREATER_THAN_OR_EQUAL: {
@@ -1677,8 +1677,8 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
                                      typelib, &less_than_selectivity))
         return true;
 
-      *selectivity = std::max(
-          get_non_null_values_frequency() - less_than_selectivity, 0.0);
+      *selectivity =
+          std::max(get_non_null_values_fraction() - less_than_selectivity, 0.0);
       return false;
     }
     case enum_operator::NOT_EQUALS_TO: {
@@ -1687,8 +1687,8 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
                                      typelib, &equals_to_selectivity))
         return true;
 
-      *selectivity = std::max(
-          get_non_null_values_frequency() - equals_to_selectivity, 0.0);
+      *selectivity =
+          std::max(get_non_null_values_fraction() - equals_to_selectivity, 0.0);
       return false;
     }
     case enum_operator::BETWEEN: {
@@ -1700,7 +1700,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
                                      typelib, &greater_than_selectivity))
         return true;
 
-      *selectivity = this->get_non_null_values_frequency() -
+      *selectivity = this->get_non_null_values_fraction() -
                      (less_than_selectivity + greater_than_selectivity);
 
       /*
@@ -1726,7 +1726,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
           EXPLAIN SELECT a FROM t1 WHERE t1.a NOT BETWEEN 3 AND 0;
       */
       *selectivity = std::min(less_than_selectivity + greater_than_selectivity,
-                              get_non_null_values_frequency());
+                              get_non_null_values_fraction());
       return false;
     }
     /*
@@ -1745,18 +1745,18 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
 
         *selectivity += equals_to_selectivity;
 
-        if (*selectivity >= get_non_null_values_frequency()) break;
+        if (*selectivity >= get_non_null_values_fraction()) break;
       }
 
       /*
         Long in-lists may easily exceed a selectivity of
-        get_non_null_values_frequency() in certain cases.
+        get_non_null_values_fraction() in certain cases.
       */
-      *selectivity = std::min(*selectivity, get_non_null_values_frequency());
+      *selectivity = std::min(*selectivity, get_non_null_values_fraction());
       return false;
     }
     case enum_operator::NOT_IN_LIST: {
-      *selectivity = this->get_non_null_values_frequency();
+      *selectivity = this->get_non_null_values_fraction();
       for (size_t i = 1; i < item_count; ++i) {
         double equals_to_selectivity;
         if (get_selectivity_dispatcher(items[i], enum_operator::EQUALS_TO,
