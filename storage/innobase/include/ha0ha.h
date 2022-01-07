@@ -101,7 +101,7 @@ void ha_clear(hash_table_t *table); /*!< in, own: hash table */
  created!
  @param[in] block buffer block containing the data
  @param[in] data data, must not be NULL
- @return true if succeed, false if no more memory could be allocated */
+ @return true if succeeded, false if no more memory could be allocated */
 bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
                              IF_AHI_DEBUG(buf_block_t *block, )
                                  const rec_t *data);
@@ -110,11 +110,10 @@ bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return true if succeed, false if no more memory could be allocated
-@param t in: hash table
-@param f in: folded value of data
-@param b in: buffer block containing the data
-@param d in: data, must not be NULL */
+@param[in] t  hash table
+@param[in] f  folded value of data
+@param[in] b  buffer block containing the data
+@param[in] d  data, must not be NULL */
 static inline void ha_insert_for_fold(hash_table_t *t, ulint f, buf_block_t *b,
                                       const rec_t *d) {
   ha_insert_for_fold_func(t, f, IF_AHI_DEBUG(b, ) d);

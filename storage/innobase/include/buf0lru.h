@@ -190,8 +190,7 @@ void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content);
 void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/** Validates the LRU list.
- @return true */
+/** Validates the LRU list. */
 void buf_LRU_validate(void);
 
 /** Validates the LRU list for one buffer pool instance.
