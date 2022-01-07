@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -354,6 +354,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
     assert(m_impl.m_table == 0);
+    ndb_log_info("NdbInfo::openTable failed for %s", name);
     if (err == NdbInfo::ERR_NoSuchTable) {
       if (g_ndb_cluster_connection->get_min_db_version() < NDB_VERSION_D) {
         // The table does not exist but there is a data node from a lower
@@ -763,7 +764,10 @@ ulong ha_ndbinfo::index_flags(uint, uint, bool) const {
 int ha_ndbinfo::index_init(uint index, bool) {
   assert(index == 0);
   active_index = index;  // required
-  return rnd_init(true);
+  int err = rnd_init(true);
+  if (err != 0) return err;
+  m_impl.m_scan_op->initIndex(index);
+  return 0;
 }
 
 int ha_ndbinfo::index_end() { return rnd_end(); }
@@ -903,7 +907,7 @@ static int ndbinfo_init(void *plugin) {
   char prefix[FN_REFLEN];
   build_table_filename(prefix, sizeof(prefix) - 1, opt_ndbinfo_dbname,
                        opt_ndbinfo_table_prefix, "", 0);
-  DBUG_PRINT("info", ("prefix: '%s'", prefix));
+  ndb_log_info("ndbinfo prefix: '%s'", prefix);
   assert(g_ndb_cluster_connection);
   g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix);
   if (!g_ndbinfo) {

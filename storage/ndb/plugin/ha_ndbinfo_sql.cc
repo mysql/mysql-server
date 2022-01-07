@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,9 @@ static struct view {
      "FROM `ndbinfo`.`ndb$membership` "
      "GROUP BY arbitrator, arb_ticket, arb_connected"},
     {"ndbinfo", "backup_id", "SELECT id FROM `ndbinfo`.`ndb$backup_id`"},
+    {"ndbinfo", "blocks",
+     "SELECT block_number, block_name "
+     "FROM `ndbinfo`.`ndb$blocks`"},
     {"ndbinfo", "cluster_locks",
      "SELECT "
      "`ndbinfo`.`ndb$acc_operations`.`node_id` AS `node_id`,"
@@ -222,7 +225,7 @@ static struct view {
      " END AS counter_name, "
      "val "
      "FROM `ndbinfo`.`ndb$counters` c "
-     "LEFT JOIN `ndbinfo`.`blocks` b "
+     "LEFT JOIN `ndbinfo`.`ndb$blocks` b "
      "ON c.block_number = b.block_number"},
     {"ndbinfo", "cpudata",
      "SELECT * "
@@ -316,6 +319,9 @@ static struct view {
     {"ndbinfo", "hwinfo",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$hwinfo`"},
+    {"ndbinfo", "index_stats",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$index_stats`"},
     {"ndbinfo", "locks_per_fragment",
      "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
      "types.type_name AS type, table_id, node_id, block_instance, "
@@ -619,7 +625,7 @@ static struct view {
     {"ndbinfo", "threadblocks",
      "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
      "FROM `ndbinfo`.`ndb$threadblocks` t "
-     "LEFT JOIN `ndbinfo`.`blocks` b "
+     "LEFT JOIN `ndbinfo`.`ndb$blocks` b "
      "ON t.block_number = b.block_number"},
     {"ndbinfo", "threads",
      "SELECT * "
@@ -647,67 +653,80 @@ static struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {
-    {
-        "ndbinfo",
-        "blocks",
-        "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-        "block_name VARCHAR(512)",
-    },
-    {
-        "ndbinfo",
-        "index_stats",
-        "index_id INT UNSIGNED, "
-        "index_version INT UNSIGNED, "
-        "sample_version INT UNSIGNED",
-    },
-    {"ndbinfo", "ndb$backup_id",
-     "id BIGINT UNSIGNED, "
-     "fragment INT UNSIGNED, "
-     "row_id BIGINT UNSIGNED"},
-    {"ndbinfo", "ndb$config_params",
-     "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-     "param_name VARCHAR(512), "
-     "param_description VARCHAR(512), "
-     "param_type VARCHAR(512), "
-     "param_default VARCHAR(512), "
-     "param_min VARCHAR(512), "
-     "param_max VARCHAR(512), "
-     "param_mandatory INT UNSIGNED, "
-     "param_status VARCHAR(512)"},
-    {
-        "ndbinfo",
-        "ndb$dblqh_tcconnect_state",
-        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-        "state_name VARCHAR(256), "
-        "state_friendly_name VARCHAR(256), "
-        "state_description VARCHAR(256)",
-    },
-    {
-        "ndbinfo",
-        "ndb$dbtc_apiconnect_state",
-        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-        "state_name VARCHAR(256), "
-        "state_friendly_name VARCHAR(256), "
-        "state_description VARCHAR(256)",
-    },
-    {
-        "ndbinfo",
-        "ndb$dict_obj_types",
-        "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
-        "type_name VARCHAR(512)",
-    },
-    {
-        "ndbinfo",
-        "ndb$error_messages",
-        "error_code INT UNSIGNED, "
-        "error_description VARCHAR(512), "
-        "error_status VARCHAR(512), "
-        "error_classification VARCHAR(512)",
-    },
-};
+} lookups[] = {{"ndbinfo", "ndb$backup_id",
+                "id BIGINT UNSIGNED, "
+                "fragment INT UNSIGNED, "
+                "row_id BIGINT UNSIGNED"},
+               {
+                   "ndbinfo",
+                   "ndb$blocks",
+                   "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+                   "block_name VARCHAR(512)",
+               },
+               {"ndbinfo", "ndb$config_params",
+                "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+                "param_name VARCHAR(512), "
+                "param_description VARCHAR(512), "
+                "param_type VARCHAR(512), "
+                "param_default VARCHAR(512), "
+                "param_min VARCHAR(512), "
+                "param_max VARCHAR(512), "
+                "param_mandatory INT UNSIGNED, "
+                "param_status VARCHAR(512)"},
+               {
+                   "ndbinfo",
+                   "ndb$dblqh_tcconnect_state",
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+                   "state_name VARCHAR(256), "
+                   "state_friendly_name VARCHAR(256), "
+                   "state_description VARCHAR(256)",
+               },
+               {
+                   "ndbinfo",
+                   "ndb$dbtc_apiconnect_state",
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+                   "state_name VARCHAR(256), "
+                   "state_friendly_name VARCHAR(256), "
+                   "state_description VARCHAR(256)",
+               },
+               {
+                   "ndbinfo",
+                   "ndb$dict_obj_types",
+                   "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+                   "type_name VARCHAR(512)",
+               },
+               {
+                   "ndbinfo",
+                   "ndb$error_messages",
+                   "error_code INT UNSIGNED, "
+                   "error_description VARCHAR(512), "
+                   "error_status VARCHAR(512), "
+                   "error_classification VARCHAR(512)",
+               },
+               {
+                   "ndbinfo",
+                   "ndb$index_stats",
+                   "index_id INT UNSIGNED, "
+                   "index_version INT UNSIGNED, "
+                   "sample_version INT UNSIGNED",
+               }};
 
 static constexpr size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
+
+struct obsolete_object {
+  const char *schema_name;
+  const char *name;
+};
+
+/* Views that were present in previous versions */
+static struct obsolete_object obsolete_views[] = {
+    {"ndbinfo", "dummy_view"}  // replace this with an actual deleted view
+};
+
+/* Base tables that were present in previous versions */
+static struct obsolete_object obsolete_tables[] = {
+    {"ndbinfo", "dummy_table"}  // replace this with an actual deleted table
+};
 
 static int compare_names(const void *px, const void *py) {
   const Ndbinfo::Table *const *x =
@@ -759,6 +778,16 @@ static Plugin_table *ndbinfo_define_table(const Ndbinfo::Table &table) {
 }
 
 bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
+  /* Drop views from previous versions */
+  for (const obsolete_object &v : obsolete_views)
+    plugin_tables->push_back(
+        new Plugin_view(v.schema_name, v.name, nullptr, nullptr));
+
+  /* Drop base tables from previous versions */
+  for (const obsolete_object &t : obsolete_tables)
+    plugin_tables->push_back(
+        new Plugin_table(t.schema_name, t.name, nullptr, nullptr, nullptr));
+
   /* Sort Ndbinfo tables; define Ndbinfo tables as tables in DD */
   const Ndbinfo::Table **tables =
       new const Ndbinfo::Table *[Ndbinfo::getNumTables()];

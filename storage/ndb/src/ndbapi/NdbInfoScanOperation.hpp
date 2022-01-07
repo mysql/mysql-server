@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ public:
   virtual const NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
   virtual int execute() = 0;
   virtual int nextResult() = 0;
+  virtual void initIndex(Uint32) = 0;
   virtual bool seek(Seek, int value=0) = 0;
   virtual ~NdbInfoScanOperation() {}
 };

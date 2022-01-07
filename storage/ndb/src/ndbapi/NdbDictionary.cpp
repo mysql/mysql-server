@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3796,13 +3796,13 @@ NdbDictionary::NdbDataPrintFormat::NdbDataPrintFormat()
 }
 NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {}
 
-
 NdbOut&
-operator<<(NdbOut& out, const NdbDictionary::Column& col)
+NdbDictionary::printColumnTypeDescription(NdbOut& out,
+                                          const NdbDictionary::Column& col)
 {
   const CHARSET_INFO *cs = col.getCharset();
   const char *csname = cs ? cs->name : "?";
-  out << col.getName() << " ";
+
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:
     out << "Tinyint";
@@ -3930,6 +3930,15 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
       break;
     }
   }
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const NdbDictionary::Column& col)
+{
+  out << col.getName() << " ";
+
+  NdbDictionary::printColumnTypeDescription(out, col);
 
   if (col.getPrimaryKey())
     out << " PRIMARY KEY";

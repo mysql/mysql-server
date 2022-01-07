@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,8 @@ NdbInfo::NdbInfo(class Ndb_cluster_connection* connection, const char* prefix) :
   m_full_prefix(prefix),
   m_id_counter(0)
 {
-  m_short_prefix.assign(m_full_prefix, m_full_prefix.lastIndexOf('/') + 1);
+  m_short_prefix.assign(m_full_prefix,
+                        m_full_prefix.lastIndexOf(DIR_SEPARATOR[0]) + 1);
 }
 
 bool NdbInfo::init(void)

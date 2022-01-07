@@ -53,10 +53,9 @@ SELECT table_name, table_rows, avg_row_length
   AND table_name not like '%cpu%'
   ORDER BY table_name;
 TABLE_NAME	TABLE_ROWS	AVG_ROW_LENGTH
-blocks	29	20
-index_stats	64	12
 ndb$acc_operations	15	64
 ndb$backup_id	1	20
+ndb$blocks	29	20
 ndb$columns	530	44
 ndb$config_nodes	34	28
 ndb$config_params	167	120
@@ -76,6 +75,7 @@ ndb$frag_locks	344	96
 ndb$frag_mem_use	344	100
 ndb$frag_operations	344	192
 ndb$hwinfo	2	44
+ndb$index_stats	64	12
 ndb$logbuffers	8	40
 ndb$logspaces	8	40
 ndb$membership	2	88
@@ -110,8 +110,8 @@ count(*)
 SELECT table_name from rowcounts WHERE est_rows = actual_rows
   ORDER BY table_name;
 table_name
-blocks
 ndb$backup_id
+ndb$blocks
 ndb$columns
 ndb$config_nodes
 ndb$config_params
@@ -153,7 +153,7 @@ SELECT table_name, constraint_name, column_name, ordinal_position
   WHERE table_schema = 'ndbinfo'
   ORDER BY table_name;
 TABLE_NAME	CONSTRAINT_NAME	COLUMN_NAME	ORDINAL_POSITION
-blocks	PRIMARY	block_number	1
+ndb$blocks	PRIMARY	block_number	1
 ndb$config_params	PRIMARY	param_number	1
 ndb$dblqh_tcconnect_state	PRIMARY	state_int_value	1
 ndb$dbtc_apiconnect_state	PRIMARY	state_int_value	1
@@ -205,21 +205,21 @@ block_number	251
 block_name	NDBCNTR
 
 explain format=tree select * from blocks where block_number in (250,251);
-EXPLAIN	-> Filter: (blocks.block_number in (250,251))  (cost=1.41 rows=2)
-    -> Index range scan on blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (cost=1.41 rows=2)
+EXPLAIN	-> Filter: (ndb$blocks.block_number in (250,251))  (cost=1.41 rows=2)
+    -> Index range scan on ndb$blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (cost=1.41 rows=2)
 
 explain format=tree select * from blocks order by block_number;
-EXPLAIN	-> Index scan on blocks using PRIMARY  (cost=3.40 rows=29)
+EXPLAIN	-> Index scan on ndb$blocks using PRIMARY  (cost=3.40 rows=29)
 
 explain format=tree select * from blocks where block_number < 250;
-EXPLAIN	-> Filter: (blocks.block_number < 250)  (cost=4.76 rows=10)
-    -> Index range scan on blocks using PRIMARY over (block_number < 250)  (cost=4.76 rows=10)
+EXPLAIN	-> Filter: (ndb$blocks.block_number < 250)  (cost=4.76 rows=10)
+    -> Index range scan on ndb$blocks using PRIMARY over (block_number < 250)  (cost=4.76 rows=10)
 
 ## Can scan backwards:
 explain format=tree select * from blocks where block_number > 250
   order by block_number desc;
-EXPLAIN	-> Filter: (blocks.block_number > 250)  (cost=4.76 rows=10)
-    -> Index range scan on blocks using PRIMARY over (250 < block_number) (reverse)  (cost=4.76 rows=10)
+EXPLAIN	-> Filter: (ndb$blocks.block_number > 250)  (cost=4.76 rows=10)
+    -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number) (reverse)  (cost=4.76 rows=10)
 
 
 select * from dict_obj_types where type_id = 6;
