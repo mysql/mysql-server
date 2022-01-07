@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,7 +60,7 @@ namespace dblwr {
 /** IO buffer in UNIV_PAGE_SIZE units and aligned on UNIV_PAGE_SIZE */
 struct Buffer {
   /** Constructor
-  @param[in]	n_pages		        Number of pages to create */
+  @param[in]    n_pages                 Number of pages to create */
   explicit Buffer(size_t n_pages) noexcept
       : m_n_bytes(n_pages * univ_page_size.physical()) {
     ut_a(n_pages > 0);
@@ -163,8 +163,8 @@ void force_flush(buf_flush_t flush_type, uint32_t buf_pool_index) noexcept;
 /** Writes a page to the doublewrite buffer on disk, syncs it,
 then writes the page to the datafile.
 @param[in]  flush_type          Flush type
-@param[in]	bpage		            Buffer block to write
-@param[in]	sync		            True if sync IO requested
+@param[in]      bpage                       Buffer block to write
+@param[in]      sync                        True if sync IO requested
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t write(buf_flush_t flush_type, buf_page_t *bpage,
                             bool sync) noexcept;
@@ -224,7 +224,7 @@ namespace recv {
 class Pages;
 
 /** Create the recovery dblwr data structures
-@param[out]	pages		Pointer to newly created instance */
+@param[out]     pages           Pointer to newly created instance */
 void create(Pages *&pages) noexcept;
 
 /** Load the doublewrite buffer pages.
@@ -234,26 +234,26 @@ void create(Pages *&pages) noexcept;
 [[nodiscard]] dberr_t load(Pages *pages) noexcept;
 
 /** Restore pages from the double write buffer to the tablespace.
-@param[in,out]	pages		Pages from the doublewrite buffer
-@param[in]	space		Tablespace pages to restore, if set
+@param[in,out]  pages           Pages from the doublewrite buffer
+@param[in]      space           Tablespace pages to restore, if set
                                 to nullptr then try and restore all. */
 void recover(Pages *pages, fil_space_t *space) noexcept;
 
 /** Find a doublewrite copy of a page.
-@param[in]	pages		Pages read from the doublewrite buffer
-@param[in]	page_id		Page number to lookup
-@return	page frame
+@param[in]      pages           Pages read from the doublewrite buffer
+@param[in]      page_id         Page number to lookup
+@return page frame
 @retval NULL if no page was found */
 [[nodiscard]] const byte *find(const Pages *pages,
                                const page_id_t &page_id) noexcept;
 
 /** Check if some pages from the double write buffer could not be
 restored because of the missing tablespace IDs.
-@param[in]	pages		Pages to check */
+@param[in]      pages           Pages to check */
 void check_missing_tablespaces(const Pages *pages) noexcept;
 
 /** Free the recovery dblwr data structures
-@param[out]	pages		Free the instance */
+@param[out]     pages           Free the instance */
 void destroy(Pages *&pages) noexcept;
 
 /** Redo recovery configuration. */
@@ -273,7 +273,7 @@ class DBLWR {
   [[nodiscard]] dberr_t load() noexcept { return (dblwr::recv::load(m_pages)); }
 
   /** Restore pages from the double write buffer to the tablespace.
-  @param[in]	space		Tablespace pages to restore,
+  @param[in]    space           Tablespace pages to restore,
                                   if set to nullptr then try
                                   and restore all. */
   void recover(fil_space_t *space = nullptr) noexcept {
@@ -281,8 +281,8 @@ class DBLWR {
   }
 
   /** Find a doublewrite copy of a page.
-  @param[in]	page_id		Page number to lookup
-  @return	page frame
+  @param[in]    page_id         Page number to lookup
+  @return       page frame
   @retval nullptr if no page was found */
   [[nodiscard]] const byte *find(const page_id_t &page_id) noexcept {
     return (dblwr::recv::find(m_pages, page_id));

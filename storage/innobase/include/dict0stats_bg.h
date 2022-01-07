@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -104,10 +104,10 @@ void dict_stats_thread_deinit();
 #ifdef UNIV_DEBUG
 /** Disables dict stats thread. It's used by:
         SET GLOBAL innodb_dict_stats_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]      thd             thread handle
+@param[in]      var             pointer to system variable
+@param[out]     var_ptr         where the formal string goes
+@param[in]      save            immediate result from check function */
 void dict_stats_disabled_debug_update(THD *thd, SYS_VAR *var, void *var_ptr,
                                       const void *save);
 #endif /* UNIV_DEBUG */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -76,7 +76,7 @@ step over the ':' in a Windows filepath.
 A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
 partition may have a specification like "\\.\C::1Gnewraw" or
 "\\.\PHYSICALDRIVE2:1Gnewraw".
-@param[in]	ptr		system tablespace file path spec
+@param[in]      ptr             system tablespace file path spec
 @return next character in string after the file name */
 char *SysTablespace::parse_file_name(char *ptr) {
   const char *start = ptr;
@@ -94,7 +94,7 @@ char *SysTablespace::parse_file_name(char *ptr) {
 optionally ending in upper or lower case G, M, or K,
 to a number of megabytes, rounding down to the nearest megabyte.
 Then return the number of pages in the file.
-@param[in,out]	ptr	Pointer to a numeric string
+@param[in,out]  ptr     Pointer to a numeric string
 @return the number of pages in the file. */
 page_no_t SysTablespace::parse_units(char *&ptr) {
   char *endp;
@@ -129,8 +129,8 @@ page_no_t SysTablespace::parse_units(char *&ptr) {
 }
 
 /** Parse the input params and populate member variables.
-@param[in]	filepath_spec	path to data files
-@param[in]	supports_raw	true if the tablespace supports raw devices
+@param[in]      filepath_spec   path to data files
+@param[in]      supports_raw    true if the tablespace supports raw devices
 @return true on success parse */
 bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
   char *filepath;
@@ -324,7 +324,7 @@ void SysTablespace::shutdown() {
 }
 
 /** Verify the size of the physical file.
-@param[in]	file	data file object
+@param[in]      file    data file object
 @return DB_SUCCESS if OK else error code. */
 dberr_t SysTablespace::check_size(Datafile &file) {
   os_offset_t size = os_file_get_size(file.m_handle);
@@ -376,7 +376,7 @@ dberr_t SysTablespace::check_size(Datafile &file) {
 }
 
 /** Set the size of the file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::set_size(Datafile &file) {
   ut_a(!srv_read_only_mode || m_ignore_read_only);
@@ -409,7 +409,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 }
 
 /** Create a data file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::create_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -446,7 +446,7 @@ dberr_t SysTablespace::create_file(Datafile &file) {
 }
 
 /** Open a data file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -510,7 +510,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
 
 #ifndef UNIV_HOTBACKUP
 /** Check the tablespace header for this tablespace.
-@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
+@param[out]     flushed_lsn     the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   /* Only relevant for the system tablespace. */
@@ -573,8 +573,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 }
 
 /** Check if a file can be opened in the correct mode.
-@param[in,out]	file	data file object
-@param[out]	reason	exact reason if file_status check failed.
+@param[in,out]  file    data file object
+@param[out]     reason  exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 dberr_t SysTablespace::check_file_status(const Datafile &file,
                                          file_status_t &reason) {
@@ -637,8 +637,8 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
 }
 
 /** Note that the data file was not found.
-@param[in]	file		data file object
-@param[in]	create_new_db	true if a new instance to be created
+@param[in]      file            data file object
+@param[in]      create_new_db   true if a new instance to be created
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
   file.m_exists = false;
@@ -686,7 +686,7 @@ dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object */
+@param[in,out]  file    data file object */
 void SysTablespace::file_found(Datafile &file) {
   /* Note that the file exists and can be opened
   in the appropriate mode. */
@@ -792,10 +792,10 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
 }
 
 /** Open or create the data files
-@param[in]  is_temp		whether this is a temporary tablespace
-@param[in]  create_new_db	whether we are creating a new database
-@param[out] sum_new_sizes	sum of sizes of the new files added
-@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
+@param[in]  is_temp             whether this is a temporary tablespace
+@param[in]  create_new_db       whether we are creating a new database
+@param[out] sum_new_sizes       sum of sizes of the new files added
+@param[out] flush_lsn           FIL_PAGE_FILE_FLUSH_LSN of first file
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,

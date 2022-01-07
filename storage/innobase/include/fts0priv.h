@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -141,8 +141,8 @@ void fts_get_table_name(
 /** Construct the name of an ancillary FTS table for the given table in
 5.7 compatible format. Caller must allocate enough memory(usually size
 of MAX_FULL_NAME_LEN) for param 'table_name'
-@param[in]	fts_table	Auxiliary table object
-@param[in,out]	table_name	aux table name */
+@param[in]      fts_table       Auxiliary table object
+@param[in,out]  table_name      aux table name */
 void fts_get_table_name_5_7(const fts_table_t *fts_table, char *table_name);
 
 /** Construct the column specification part of the SQL string for selecting the
@@ -204,12 +204,12 @@ Write out a single word's data as new entry/entries in the INDEX table.
 1. for ngram token, check whether the token contains any words in stopwords
 2. for non-ngram token, check if it's stopword or less than fts_min_token_size
 or greater than fts_max_token_size.
-@param[in]	token		token string
-@param[in]	stopwords	stopwords rb tree
-@param[in]	is_ngram	is ngram parser
-@param[in]	cs		token charset
-@retval true	if it is not stopword and length in range
-@retval false	if it is stopword or length not in range */
+@param[in]      token           token string
+@param[in]      stopwords       stopwords rb tree
+@param[in]      is_ngram        is ngram parser
+@param[in]      cs              token charset
+@retval true    if it is not stopword and length in range
+@retval false   if it is stopword or length not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs);
 
@@ -240,14 +240,14 @@ dberr_t fts_index_fetch_nodes(
 
 /** Compare two fts_trx_table_t instances, we actually compare the
 table id's here.
-@param[in]	v1	id1
-@param[in]	v2	id2
+@param[in]      v1      id1
+@param[in]      v2      id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 static inline int fts_trx_table_cmp(const void *v1, const void *v2);
 
 /** Compare a table id with a trx_table_t table id.
-@param[in]	p1	id1
-@param[in]	p2	id2
+@param[in]      p1      id1
+@param[in]      p2      id2
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 static inline int fts_trx_table_id_cmp(const void *p1, const void *p2);
 
@@ -360,8 +360,8 @@ bool fts_wait_for_background_thread_to_start(
 
 /** Write the table id to the given buffer (including final NUL). Buffer must
 be at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
-@param[in]	id		a table/index id
-@param[in]	str		buffer to write the id to
+@param[in]      id              a table/index id
+@param[in]      str             buffer to write the id to
 @return number of bytes written */
 static inline int fts_write_object_id(ib_id_t id, char *str);
 

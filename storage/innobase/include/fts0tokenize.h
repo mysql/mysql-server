@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,16 +62,16 @@ struct FT_WORD {
 
 /** Tokenizer for ngram referring to ft_get_word(ft_parser.c) in MyISAM.
 Differences: a. code format changed; b. stopword processing removed.
-@param[in]	cs	charset
-@param[in,out]	start	doc start pointer
-@param[in,out]	end	doc end pointer
-@param[in,out]	word	token
-@param[in,out]	info	token info
-@retval	0	eof
-@retval	1	word found
-@retval	2	left bracket
-@retval	3	right bracket
-@retval	4	stopword found */
+@param[in]      cs      charset
+@param[in,out]  start   doc start pointer
+@param[in,out]  end     doc end pointer
+@param[in,out]  word    token
+@param[in,out]  info    token info
+@retval 0       eof
+@retval 1       word found
+@retval 2       left bracket
+@retval 3       right bracket
+@retval 4       stopword found */
 inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
                           FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
   uchar *doc = *start;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -318,24 +318,24 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
 /** An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index, with possible indexing on ongoing
 addition of new virtual columns.
-@param[in]	type		ROW_COPY_POINTERS or ROW_COPY_DATA;
-@param[in]	index		clustered index
-@param[in]	rec		record in the clustered index
-@param[in]	offsets		rec_get_offsets(rec,index) or NULL
-@param[in]	col_table	table, to check which
+@param[in]      type            ROW_COPY_POINTERS or ROW_COPY_DATA;
+@param[in]      index           clustered index
+@param[in]      rec             record in the clustered index
+@param[in]      offsets         rec_get_offsets(rec,index) or NULL
+@param[in]      col_table       table, to check which
                                 externally stored columns
                                 occur in the ordering columns
                                 of an index, or NULL if
                                 index->table should be
                                 consulted instead
-@param[in]	add_cols	default values of added columns, or NULL
-@param[in]	add_v		new virtual columns added
+@param[in]      add_cols        default values of added columns, or NULL
+@param[in]      add_v           new virtual columns added
                                 along with new indexes
-@param[in]	col_map		mapping of old column
+@param[in]      col_map         mapping of old column
                                 numbers to new ones, or NULL
-@param[in]	ext		cache of externally stored column
+@param[in]      ext             cache of externally stored column
                                 prefixes, or NULL
-@param[in]	heap		memory heap from which
+@param[in]      heap            memory heap from which
                                 the memory needed is allocated
 @return own: row built; */
 static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
@@ -524,24 +524,24 @@ dtuple_t *row_build(ulint type, const dict_index_t *index, const rec_t *rec,
 /** An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index, with possible indexing on ongoing
 addition of new virtual columns.
-@param[in]	type		ROW_COPY_POINTERS or ROW_COPY_DATA;
-@param[in]	index		clustered index
-@param[in]	rec		record in the clustered index
-@param[in]	offsets		rec_get_offsets(rec,index) or NULL
-@param[in]	col_table	table, to check which
+@param[in]      type            ROW_COPY_POINTERS or ROW_COPY_DATA;
+@param[in]      index           clustered index
+@param[in]      rec             record in the clustered index
+@param[in]      offsets         rec_get_offsets(rec,index) or NULL
+@param[in]      col_table       table, to check which
                                 externally stored columns
                                 occur in the ordering columns
                                 of an index, or NULL if
                                 index->table should be
                                 consulted instead
-@param[in]	add_cols	default values of added columns, or NULL
-@param[in]	add_v		new virtual columns added
+@param[in]      add_cols        default values of added columns, or NULL
+@param[in]      add_v           new virtual columns added
                                 along with new indexes
-@param[in]	col_map		mapping of old column
+@param[in]      col_map         mapping of old column
                                 numbers to new ones, or NULL
-@param[in]	ext		cache of externally stored column
+@param[in]      ext             cache of externally stored column
                                 prefixes, or NULL
-@param[in]	heap		memory heap from which
+@param[in]      heap            memory heap from which
                                 the memory needed is allocated
 @return own: row built */
 dtuple_t *row_build_w_add_vcol(ulint type, const dict_index_t *index,
@@ -897,7 +897,7 @@ rec_t *row_get_clust_rec(
 DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
 1) the value is less than 0 and the type is not unsigned
 or 2) the field is null.
-@param[in]	field		field to read the int value
+@param[in]      field           field to read the int value
 @return the integer value read from the field, 0 for negative signed
 int or NULL field */
 uint64_t row_parse_int_from_field(const dfield_t *field) {
@@ -915,8 +915,8 @@ uint64_t row_parse_int_from_field(const dfield_t *field) {
 }
 
 /** Read the autoinc counter from the clustered index row.
-@param[in]	row	row to read the autoinc counter
-@param[in]	n	autoinc counter is in the nth field
+@param[in]      row     row to read the autoinc counter
+@param[in]      n       autoinc counter is in the nth field
 @return the autoinc counter read */
 uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n) {
   const dfield_t *field = dtuple_get_nth_field(row, n);

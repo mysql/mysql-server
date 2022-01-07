@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,7 +103,7 @@ static const uint CLONE_TASK_BLOCK_OFFSET = CLONE_TASK_CHUNK_OFFSET + 4;
 static const uint CLONE_TASK_META_LEN = CLONE_TASK_BLOCK_OFFSET + 4;
 
 /** Initialize header
-@param[in]	version	descriptor version */
+@param[in]      version descriptor version */
 void Clone_Desc_Task_Meta::init_header(uint version) {
   m_header.m_version = version;
 
@@ -588,16 +588,16 @@ void Clone_Desc_Locator::deserialize(const byte *desc_loc, uint desc_len,
 }
 
 /** Check a specific bit in flag.
-@param[in]	flag	bit flag
-@param[in]	bit	check bit
+@param[in]      flag    bit flag
+@param[in]      bit     check bit
 @return true, iff bit is set in flag. */
 inline bool DESC_CHECK_FLAG(ulint flag, ulint bit) {
   return ((flag & (1ULL << (bit - 1))) > 0);
 }
 
 /** Set a specific bit in flag.
-@param[in]	flag	bit flag
-@param[in]	bit	set bit */
+@param[in]      flag    bit flag
+@param[in]      bit     set bit */
 inline void DESC_SET_FLAG(ulint &flag, ulint bit) {
   flag |= static_cast<ulint>(1ULL << (bit - 1));
 }

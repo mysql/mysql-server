@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -154,8 +154,8 @@ class ib_counter_t {
 
   /** Use this if you can use a unique identifier, saves a
   call to get_rnd_index().
-  @param	index	index into a slot
-  @param	n	amount to increment */
+  @param        index   index into a slot
+  @param        n       amount to increment */
   void add(size_t index, Type n) UNIV_NOTHROW {
     size_t i = m_policy.offset(index);
 
@@ -179,8 +179,8 @@ class ib_counter_t {
 
   /** Use this if you can use a unique identifier, saves a
   call to get_rnd_index().
-  @param	index	index into a slot
-  @param	n	amount to decrement */
+  @param        index   index into a slot
+  @param        n       amount to decrement */
   void sub(size_t index, Type n) UNIV_NOTHROW {
     size_t i = m_policy.offset(index);
 
@@ -251,7 +251,7 @@ struct Shards {
   std::memory_order m_memory_order{Memory_order};
 
   /** Override default memory order.
-  @param[in]	memory_order	memory order */
+  @param[in]    memory_order    memory order */
   void set_order(std::memory_order memory_order) {
     m_memory_order = memory_order;
   }

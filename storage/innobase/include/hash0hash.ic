@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -133,10 +133,10 @@ static inline rw_lock_t *hash_get_lock(
 
 /** If not appropriate rw_lock for a fold value in a hash table,
 relock S-lock the another rw_lock until appropriate for a fold value.
-@param[in]	hash_lock	latched rw_lock to be confirmed
-@param[in]	table		hash table
-@param[in]	fold		fold value
-@return	latched rw_lock */
+@param[in]      hash_lock       latched rw_lock to be confirmed
+@param[in]      table           hash table
+@param[in]      fold            fold value
+@return latched rw_lock */
 static inline rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock,
                                              hash_table_t *table, ulint fold) {
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_S));
@@ -155,10 +155,10 @@ static inline rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock,
 
 /** If not appropriate rw_lock for a fold value in a hash table,
 relock X-lock the another rw_lock until appropriate for a fold value.
-@param[in]	hash_lock	latched rw_lock to be confirmed
-@param[in]	table		hash table
-@param[in]	fold		fold value
-@return	latched rw_lock */
+@param[in]      hash_lock       latched rw_lock to be confirmed
+@param[in]      table           hash table
+@param[in]      fold            fold value
+@return latched rw_lock */
 static inline rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock,
                                              hash_table_t *table, ulint fold) {
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));

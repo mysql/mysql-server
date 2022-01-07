@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,10 +36,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 /** Build a roll pointer.
-@param[in]	is_insert	true if insert undo log
-@param[in]	space_id	space ID of the rollback segment
-@param[in]	page_no		page number
-@param[in]	offset		offset of the undo entry within page
+@param[in]      is_insert       true if insert undo log
+@param[in]      space_id        space ID of the rollback segment
+@param[in]      page_no         page number
+@param[in]      offset          offset of the undo entry within page
 @return roll pointer */
 inline roll_ptr_t trx_undo_build_roll_ptr(bool is_insert, space_id_t space_id,
                                           page_no_t page_no, ulint offset) {
@@ -115,9 +115,9 @@ static inline roll_ptr_t trx_read_roll_ptr(
 #ifndef UNIV_HOTBACKUP
 
 /** Gets an undo log page and x-latches it.
-@param[in]	page_id		Page id
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      page_id         Page id
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return pointer to page x-latched */
 static inline page_t *trx_undo_page_get(const page_id_t &page_id,
                                         const page_size_t &page_size,
@@ -130,9 +130,9 @@ static inline page_t *trx_undo_page_get(const page_id_t &page_id,
 }
 
 /** Gets an undo log page and s-latches it.
-@param[in]	page_id		Page id
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      page_id         Page id
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return pointer to page s-latched */
 static inline page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,
                                                   const page_size_t &page_size,

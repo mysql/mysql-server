@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,7 +82,7 @@ int zInserter::write_first_page(big_rec_field_t &field) {
 
 /** For the given blob field, update its length in the blob reference
 which is available in the clustered index record.
-@param[in]	field	the concerned blob field. */
+@param[in]      field   the concerned blob field. */
 void zInserter::update_length_in_blobref(big_rec_field_t &field) {
   /* After writing the last blob page, update the blob reference
   with the correct length. */
@@ -102,7 +102,7 @@ void zInserter::update_length_in_blobref(big_rec_field_t &field) {
 
 /** Write one small blob field data. Refer to ref_t to determine
 the definition of small blob.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::write_one_small_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
@@ -126,7 +126,7 @@ dberr_t zInserter::write_one_small_blob(size_t blob_j) {
 }
 
 /** Write one blob field data.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::write_one_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();

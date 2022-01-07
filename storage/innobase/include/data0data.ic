@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -124,7 +124,7 @@ static inline void dfield_set_ext(dfield_t *field) /*!< in/out: field */
 }
 
 /** Gets spatial status for "external storage"
-@param[in,out]	field		field */
+@param[in,out]  field           field */
 static inline spatial_status_t dfield_get_spatial_status(
     const dfield_t *field) {
   ut_ad(field);
@@ -134,8 +134,8 @@ static inline spatial_status_t dfield_get_spatial_status(
 }
 
 /** Sets spatial status for "external storage"
-@param[in,out]	field		field
-@param[in]	spatial_status	spatial status */
+@param[in,out]  field           field
+@param[in]      spatial_status  spatial status */
 static inline void dfield_set_spatial_status(dfield_t *field,
                                              spatial_status_t spatial_status) {
   ut_ad(field);
@@ -357,7 +357,7 @@ static inline ulint dtuple_get_n_fields(const dtuple_t *tuple) /*!< in: tuple */
 }
 
 /** Gets the number of virtual fields in a data tuple.
-@param[in]	tuple	dtuple to check
+@param[in]      tuple   dtuple to check
 @return number of fields */
 static inline ulint dtuple_get_n_v_fields(const dtuple_t *tuple) {
   ut_ad(tuple);
@@ -383,10 +383,10 @@ static inline dfield_t *dtuple_get_nth_v_field(const dtuple_t *tuple, ulint n) {
 The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
 The default value for number of fields used in record comparisons
 for this tuple is n_fields.
-@param[in,out]	buf		buffer to use
-@param[in]	buf_size	buffer size
-@param[in]	n_fields	number of field
-@param[in]	n_v_fields	number of fields on virtual columns
+@param[in,out]  buf             buffer to use
+@param[in]      buf_size        buffer size
+@param[in]      n_fields        number of field
+@param[in]      n_v_fields      number of fields on virtual columns
 @return created tuple (inside buf) */
 static inline dtuple_t *dtuple_create_from_mem(void *buf, ulint buf_size,
                                                ulint n_fields,
@@ -437,8 +437,8 @@ static inline dtuple_t *dtuple_create_from_mem(void *buf, ulint buf_size,
 }
 
 /** Duplicate the virtual field data in a dtuple_t
-@param[in,out]		vrow	dtuple contains the virtual fields
-@param[in]		heap	heap memory to use */
+@param[in,out]          vrow    dtuple contains the virtual fields
+@param[in]              heap    heap memory to use */
 static inline void dtuple_dup_v_fld(const dtuple_t *vrow, mem_heap_t *heap) {
   for (ulint i = 0; i < vrow->n_v_fields; i++) {
     dfield_t *dfield = dtuple_get_nth_v_field(vrow, i);
@@ -451,7 +451,7 @@ static inline void dtuple_dup_v_fld(const dtuple_t *vrow, mem_heap_t *heap) {
 }
 
 /** Initialize the virtual field data in a dtuple_t
-@param[in,out]		vrow	dtuple contains the virtual fields */
+@param[in,out]          vrow    dtuple contains the virtual fields */
 static inline void dtuple_init_v_fld(const dtuple_t *vrow) {
   for (ulint i = 0; i < vrow->n_v_fields; i++) {
     dfield_t *dfield = dtuple_get_nth_v_field(vrow, i);
@@ -474,9 +474,9 @@ static inline dtuple_t *dtuple_create(
 }
 
 /** Creates a data tuple with virtual columns to a memory heap.
-@param[in]	heap		memory heap where the tuple is created
-@param[in]	n_fields	number of fields
-@param[in]	n_v_fields	number of fields on virtual col
+@param[in]      heap            memory heap where the tuple is created
+@param[in]      n_fields        number of fields
+@param[in]      n_v_fields      number of fields on virtual col
 @return own: created tuple */
 static inline dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap,
                                                 ulint n_fields,
@@ -500,8 +500,8 @@ static inline dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap,
 }
 
 /** Copies a data tuple's virtual fields to another. This is a shallow copy;
-@param[in,out]	d_tuple		destination tuple
-@param[in]	s_tuple		source tuple */
+@param[in,out]  d_tuple         destination tuple
+@param[in]      s_tuple         source tuple */
 static inline void dtuple_copy_v_fields(dtuple_t *d_tuple,
                                         const dtuple_t *s_tuple) {
   ulint n_v_fields = dtuple_get_n_v_fields(d_tuple);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,7 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 
-/*			PHYSICAL RECORD (OLD STYLE)
+/*                      PHYSICAL RECORD (OLD STYLE)
                         ===========================
 
 The physical record, which is the data type of all the records
@@ -90,7 +90,7 @@ or two-byte unsigned integers. The most significant bit
 is not part of the offset, instead it indicates the SQL-null
 if the bit is set to 1. */
 
-/*			PHYSICAL RECORD (NEW STYLE)
+/*                      PHYSICAL RECORD (NEW STYLE)
                         ===========================
 
 The physical record, which is the data type of all the records
@@ -163,7 +163,7 @@ A record is a complete-field prefix of another record, if
 the corresponding canonical strings have the same property. */
 
 /** Validates the consistency of an old-style physical record.
-@param[in]	rec	physical record
+@param[in]      rec     physical record
 @return true if ok */
 static bool rec_validate_old(const rec_t *rec);
 
@@ -243,16 +243,16 @@ ulint rec_get_n_extern_new(
 }
 
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
-@param[in]	index		record descriptor, dict_table_is_comp() is
+@param[in]      index           record descriptor, dict_table_is_comp() is
                                 assumed to hold, even if it does not
-@param[in]	fields		array of data fields
-@param[in]	n_fields	number of data fields
-@param[in]	v_entry		dtuple contains virtual column data
-@param[out]	extra		extra size
-@param[in]	status		status bits of the record, can be nullptr if
+@param[in]      fields          array of data fields
+@param[in]      n_fields        number of data fields
+@param[in]      v_entry         dtuple contains virtual column data
+@param[out]     extra           extra size
+@param[in]      status          status bits of the record, can be nullptr if
                                 unnecessary
-@param[in]	temp		whether this is a temporary file record
-@param[in]	rec_version	rec version if INSTANT
+@param[in]      temp            whether this is a temporary file record
+@param[in]      rec_version     rec version if INSTANT
 @return total size */
 [[nodiscard]] static inline ulint rec_get_converted_size_comp_prefix_low(
     const dict_index_t *index, const dfield_t *fields, ulint n_fields,
@@ -504,9 +504,9 @@ ulint rec_get_converted_size_comp(
 
 /** Builds an old-style physical record out of a data tuple and
  stores it beginning from the start of the given buffer.
- @param[in]	buf	start address of the physical record
- @param[in]	index	record descriptor
- @param[in]	dtuple	data tuple
+ @param[in]     buf     start address of the physical record
+ @param[in]     index   record descriptor
+ @param[in]     dtuple  data tuple
  @return pointer to the origin of physical record */
 static rec_t *rec_convert_dtuple_to_rec_old(byte *buf,
                                             const dict_index_t *index,
@@ -659,17 +659,17 @@ static rec_t *rec_convert_dtuple_to_rec_old(byte *buf,
 }
 
 /** Builds a ROW_FORMAT=COMPACT record out of a data tuple.
-@param[in]	rec		origin of record
-@param[in]	index		record descriptor
-@param[in]	fields		array of data fields
-@param[in]	n_fields	number of data fields
-@param[in]	v_entry		dtuple contains virtual column data
-@param[in]	status		status bits of the record
-@param[in]	temp		whether to use the format for temporary
+@param[in]      rec             origin of record
+@param[in]      index           record descriptor
+@param[in]      fields          array of data fields
+@param[in]      n_fields        number of data fields
+@param[in]      v_entry         dtuple contains virtual column data
+@param[in]      status          status bits of the record
+@param[in]      temp            whether to use the format for temporary
                                 files in index creation
-@param[in]	rec_version	rec version (could be 0 also)
-@return	true	if this record is an instant record on leaf page
-@retval	false	if not an instant record */
+@param[in]      rec_version     rec version (could be 0 also)
+@return true    if this record is an instant record on leaf page
+@retval false   if not an instant record */
 static inline bool rec_convert_dtuple_to_rec_comp(
     rec_t *rec, const dict_index_t *index, const dfield_t *fields,
     ulint n_fields, const dtuple_t *v_entry, ulint status, bool temp,
@@ -979,9 +979,9 @@ static inline bool rec_convert_dtuple_to_rec_comp(
 
 /** Builds a new-style physical record out of a data tuple and stores it
 beginning from the start of the given buffer.
-@param[in]	buf	start address of the physical record
-@param[in]	index	record descriptor
-@param[in]	dtuple	data tuple
+@param[in]      buf     start address of the physical record
+@param[in]      index   record descriptor
+@param[in]      dtuple  data tuple
 @return pointer to the origin of physical record */
 static rec_t *rec_convert_dtuple_to_rec_new(byte *buf,
                                             const dict_index_t *index,
@@ -1094,12 +1094,12 @@ void rec_deserialize_init_offsets(
 }
 
 /** Builds a temporary file record out of a data tuple.
-@param[out]	rec		record
-@param[in]	index		record descriptor
-@param[in]	fields		array of data fields
-@param[in]	n_fields	number of fields
-@param[in]	v_entry		dtuple contains virtual column data
-@param[in]	rec_version	rec version
+@param[out]     rec             record
+@param[in]      index           record descriptor
+@param[in]      fields          array of data fields
+@param[in]      n_fields        number of fields
+@param[in]      v_entry         dtuple contains virtual column data
+@param[in]      rec_version     rec version
 @see rec_deserialize_init_offsets() */
 void rec_serialize_dtuple(rec_t *rec, const dict_index_t *index,
                           const dfield_t *fields, ulint n_fields,
@@ -1150,11 +1150,11 @@ void rec_copy_prefix_to_dtuple(
 
 /** Copies the first n fields of an old-style physical record to a new physical
 record in a buffer.
-@param[in]	rec		physical record
-@param[in]	n_fields	number of fields to copy
-@param[in]	area_end	end of the prefix data
-@param[in,out]	buf		memory buffer for the copied prefix, or NULL
-@param[in,out]	buf_size	buffer size
+@param[in]      rec             physical record
+@param[in]      n_fields        number of fields to copy
+@param[in]      area_end        end of the prefix data
+@param[in,out]  buf             memory buffer for the copied prefix, or NULL
+@param[in,out]  buf_size        buffer size
  @return own: copied record */
 static rec_t *rec_copy_prefix_to_buf_old(const rec_t *rec, ulint n_fields,
                                          ulint area_end, byte **buf,
@@ -1311,7 +1311,7 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
 #endif /* UNIV_HOTBACKUP */
 
 /** Validates the consistency of an old-style physical record.
-@param[in]	rec	physical record
+@param[in]      rec     physical record
 @return true if ok */
 static bool rec_validate_old(const rec_t *rec) {
   ulint len;
@@ -1353,8 +1353,8 @@ static bool rec_validate_old(const rec_t *rec) {
 }
 
 /** Validates the consistency of a physical record.
-@param[in]	rec		physical record
-@param[in]	offsets		array returned by rec_get_offsets()
+@param[in]      rec             physical record
+@param[in]      offsets         array returned by rec_get_offsets()
 @return true if ok */
 bool rec_validate(const rec_t *rec, const ulint *offsets) {
   ulint len;
@@ -1710,10 +1710,10 @@ void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index) {
 }
 
 /** Pretty-print a record.
-@param[in,out]	o	output stream
-@param[in]	rec	physical record
-@param[in]	info	rec_get_info_bits(rec)
-@param[in]	offsets	rec_get_offsets(rec) */
+@param[in,out]  o       output stream
+@param[in]      rec     physical record
+@param[in]      info    rec_get_info_bits(rec)
+@param[in]      offsets rec_get_offsets(rec) */
 void rec_print(std::ostream &o, const rec_t *rec, ulint info,
                const ulint *offsets) {
   const ulint comp = rec_offs_comp(offsets);
@@ -1764,9 +1764,9 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
 }
 
 /** Display a record.
-@param[in,out]	o	output stream
-@param[in]	r	record to display
-@return	the output stream */
+@param[in,out]  o       output stream
+@param[in]      r       record to display
+@return the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
   mem_heap_t *heap = nullptr;
   ulint *offsets =
@@ -1778,9 +1778,9 @@ std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
 }
 
 /** Display a record.
-@param[in,out]	o	output stream
-@param[in]	r	record to display
-@return	the output stream */
+@param[in,out]  o       output stream
+@param[in]      r       record to display
+@return the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_offsets_print &r) {
   rec_print(o, r.m_rec, rec_get_info_bits(r.m_rec, rec_offs_comp(r.m_offsets)),
             r.m_offsets);

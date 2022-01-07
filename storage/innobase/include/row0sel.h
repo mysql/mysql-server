@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,8 +59,8 @@ void sel_col_prefetch_buf_free(
     sel_buf_t *prefetch_buf); /*!< in, own: prefetch buffer */
 
 /** Gets the plan node for the nth table in a join.
-@param[in]	node	select node
-@param[in]	i	get ith plan node
+@param[in]      node    select node
+@param[in]      i       get ith plan node
 @return plan node */
 static inline plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 
@@ -78,9 +78,9 @@ que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
 are not covered by current key.
-@param[out]	buf		Where to copy the MySQL row.
-@param[in]	cached_rec	What to copy (in MySQL row format).
-@param[in]	prebuilt	prebuilt struct. */
+@param[out]     buf             Where to copy the MySQL row.
+@param[in]      cached_rec      What to copy (in MySQL row format).
+@param[in]      prebuilt        prebuilt struct. */
 void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
                                           row_prebuilt_t *prebuilt);
 
@@ -144,15 +144,15 @@ and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
@@ -167,15 +167,15 @@ Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
@@ -190,15 +190,15 @@ so it employs technique that can help re-construct the rows that
 transaction is suppose to see.
 It also has optimization such as pre-caching the rows, using AHI, etc.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
@@ -421,20 +421,20 @@ enum row_sel_match_mode {
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
-@param[in,out] dest		buffer where to store; NOTE
+@param[in,out] dest             buffer where to store; NOTE
                                 that BLOBs are not in themselves stored
                                 here: the caller must allocate and copy
                                 the BLOB into buffer before, and pass
                                 the pointer to the BLOB in 'data'
-@param[in]	templ		MySQL column template. Its following fields
+@param[in]      templ           MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+@param[in]      index           InnoDB index
+@param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
                                 or templ->icp_rec_field_no
-@param[in]	data		data to store
-@param[in]	len		length of the data
-@param[in]	sec_field	secondary index field no if the secondary index
+@param[in]      data            data to store
+@param[in]      len             length of the data
+@param[in]      sec_field       secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
@@ -453,9 +453,9 @@ static inline void row_sel_field_store_in_mysql_format(
 
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[out]	table_stats	stats table structure.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[out]     table_stats     stats table structure.
 @return true if successful else false. */
 bool row_search_table_stats(const char *db_name, const char *tbl_name,
                             TableStatsRecord &table_stats);
@@ -463,11 +463,11 @@ bool row_search_table_stats(const char *db_name, const char *tbl_name,
 /** Search the record present in innodb_index_stats using
 db_name, table name and index_name and fill the
 cardinality for the each column.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[in]	index_name	index name
-@param[in]	col_offset	offset of the column in the index
-@param[out]	cardinality	cardinality of the column.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[in]      index_name      index name
+@param[in]      col_offset      offset of the column in the index
+@param[out]     cardinality     cardinality of the column.
 @return true if successful else false. */
 bool row_search_index_stats(const char *db_name, const char *tbl_name,
                             const char *index_name, ulint col_offset,

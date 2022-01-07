@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,11 +40,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem/rec.h"
 
 /** Gets the value of the specified field in the record.
-@param[in]	index	record descriptor
-@param[in]	rec	physical record
-@param[in]	offsets	array returned by rec_get_offsets()
-@param[in]	n	index of the field
-@param[out]	len	length of the field, UNIV_SQL_NULL if SQL null
+@param[in]      index   record descriptor
+@param[in]      rec     physical record
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       index of the field
+@param[out]     len     length of the field, UNIV_SQL_NULL if SQL null
 @return value of the field */
 byte *rec_get_nth_field(const dict_index_t *index, const rec_t *rec,
                         const ulint *offsets, ulint n, ulint *len);
@@ -55,7 +55,7 @@ const byte *rec_get_nth_field_old(const dict_index_t *index, const rec_t *rec,
 /** Gets the physical size of an old-style field.
 Also an SQL null may have a field of size > 0, if the data type is of a fixed
 size.
-@param[in]	index	record descriptor
+@param[in]      index   record descriptor
 @param[in]      rec     record
 @param[in]      n       index of the field
 @return field size in bytes */
@@ -64,7 +64,7 @@ size.
 
 /** The following function is used to get an offset to the nth data field in a
 record.
-@param[in]	index	record descriptor
+@param[in]      index   record descriptor
 @param[in]      offsets array returned by rec_get_offsets()
 @param[in]      n       index of the field
 @param[out]     len     length of the field; UNIV_SQL_NULL if SQL null;
@@ -76,7 +76,7 @@ ulint rec_get_nth_field_offs(const dict_index_t *index, const ulint *offsets,
 
 /** The following function is used to get the offset to the nth
 data field in an old-style record.
-@param[in]	index	record descriptor
+@param[in]      index   record descriptor
 @param[in]      rec     record
 @param[in]      n       index of the field
 @param[in]      len     length of the field;UNIV_SQL_NULL if SQL null

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,9 +43,9 @@ external tools. */
 #include "rem0rec.h"
 
 /** Initialize offset for each field in a new style record.
-@param[in]	rec	physical record
-@param[in]	index	record descriptor
-@param[in, out]	offsets	array of offsets */
+@param[in]      rec     physical record
+@param[in]      index   record descriptor
+@param[in, out] offsets array of offsets */
 static void rec_init_offsets_new(const rec_t *rec, const dict_index_t *index,
                                  ulint *offsets) {
   ulint status = rec_get_status(rec);
@@ -162,10 +162,10 @@ static void rec_init_offsets_new(const rec_t *rec, const dict_index_t *index,
 
 /** Initialize offsets for record in REDUNDNT format when each field offsets is
 stored in 1 byte.
-@param[in]	rec	physical record
-@param[in]	index	record descriptor
-@param[in,out]	offsets array of offsets
-@param[in]	row_version  row version in record */
+@param[in]      rec     physical record
+@param[in]      index   record descriptor
+@param[in,out]  offsets array of offsets
+@param[in]      row_version  row version in record */
 static void rec_init_offset_old_1byte(const rec_t *rec,
                                       const dict_index_t *index, ulint *offsets,
                                       uint8_t row_version) {
@@ -242,10 +242,10 @@ static void rec_init_offset_old_1byte(const rec_t *rec,
 
 /** Initialize offsets for record in REDUNDNT format when each field offsets is
 stored in 2 byte.
-@param[in]	rec	physical record
-@param[in]	index	record descriptor
-@param[in, out]	offsets	array of offsets
-@param[in]	row_version	row version in record */
+@param[in]      rec     physical record
+@param[in]      index   record descriptor
+@param[in, out] offsets array of offsets
+@param[in]      row_version     row version in record */
 static void rec_init_offset_old_2byte(const rec_t *rec,
                                       const dict_index_t *index, ulint *offsets,
                                       uint8_t row_version) {
@@ -327,9 +327,9 @@ static void rec_init_offset_old_2byte(const rec_t *rec,
 }
 
 /** Initialize offset for each field in an old style record.
-@param[in]	rec	physical record
-@param[in]	index	record descriptor
-@param[in, out]	offsets	array of offsets */
+@param[in]      rec     physical record
+@param[in]      index   record descriptor
+@param[in, out] offsets array of offsets */
 static void rec_init_offsets_old(const rec_t *rec, const dict_index_t *index,
                                  ulint *offsets) {
   /* Old-style record: determine extra size and end offsets */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 namespace lob {
 
 /** Apply the undo information to the given LOB.
-@param[in]	index		clustered index containing the LOB.
-@param[in]	lob_mem		LOB on which the given undo will be
+@param[in]      index           clustered index containing the LOB.
+@param[in]      lob_mem         LOB on which the given undo will be
                                 applied.
 @param[in]    len             length of LOB.
 @param[in]    lob_version     lob version number

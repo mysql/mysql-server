@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,8 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0rw.h"
 
 /** Updates the search info.
-@param[in,out]	info	 search info
-@param[in]    	cursor cursor which was just positioned */
+@param[in,out]  info     search info
+@param[in]      cursor cursor which was just positioned */
 void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor);
 
 /** Returns search info for an index.
@@ -128,7 +128,7 @@ static inline void btr_search_s_unlock_all() {
 
 #ifdef UNIV_DEBUG
 /** Check if thread owns all the search latches.
-@param[in]	mode	lock mode check
+@param[in]      mode    lock mode check
 @retval true if owns all of them
 @retval false if does not own some of them */
 static inline bool btr_search_own_all(ulint mode) {
@@ -141,7 +141,7 @@ static inline bool btr_search_own_all(ulint mode) {
 }
 
 /** Check if thread owns any of the search latches.
-@param[in]	mode	lock mode check
+@param[in]      mode    lock mode check
 @retval true if owns any of them
 @retval false if owns no search latch */
 static inline bool btr_search_own_any(ulint mode) {
@@ -155,7 +155,7 @@ static inline bool btr_search_own_any(ulint mode) {
 #endif /* UNIV_DEBUG */
 
 /** Get the adaptive hash search index latch for a b-tree.
-@param[in]	index	b-tree index
+@param[in]      index   b-tree index
 @return latch */
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
   ut_ad(index != nullptr);
@@ -168,7 +168,7 @@ static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
 
 /** Get the hash-table based on index attributes.
 A table is selected from an array of tables using pair of index-id, space-id.
-@param[in]	index	index handler
+@param[in]      index   index handler
 @return hash table */
 static inline hash_table_t *btr_get_search_table(const dict_index_t *index) {
   ut_ad(index != nullptr);

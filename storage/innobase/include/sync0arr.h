@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,10 +46,10 @@ the instance for waiting for an object. The event of the cell is reset to
 nonsignalled state.
 If reserving cell of the instance fails, try to get another new instance until
 we can reserve an empty cell of it.
-@param[in]	object	pointer to the object to wait for
-@param[in]	type	lock request type
-@param[in]	location	location where requested
-@param[out]	cell	the cell reserved, never NULL
+@param[in]      object  pointer to the object to wait for
+@param[in]      type    lock request type
+@param[in]      location        location where requested
+@param[out]     cell    the cell reserved, never NULL
 @return the sync array found, never NULL. */
 static inline sync_array_t *sync_array_get_and_reserve_cell(
     void *object, ulint type, ut::Location location, sync_cell_t **cell);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1647,9 +1647,9 @@ double rtr_rec_cal_increase(
 }
 
 /** Estimates the number of rows in a given area.
-@param[in]	index	index
-@param[in]	tuple	range tuple containing mbr, may also be empty tuple
-@param[in]	mode	search mode
+@param[in]      index   index
+@param[in]      tuple   range tuple containing mbr, may also be empty tuple
+@param[in]      mode    search mode
 @return estimated number of rows */
 int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
                                      page_cur_mode_t mode) {

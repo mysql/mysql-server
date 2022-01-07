@@ -762,9 +762,9 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 }
 
 /** Create an internal cursor instance on the clustered index.
-@param[out]	ib_crsr		InnoDB cursor
-@param[in,out]	table		table instance
-@param[in,out]	trx		transaction
+@param[out]     ib_crsr         InnoDB cursor
+@param[in,out]  table           table instance
+@param[in,out]  trx             transaction
 @return DB_SUCCESS or err code */
 static ib_err_t ib_create_cursor_with_clust_index(ib_crsr_t *ib_crsr,
                                                   dict_table_t *table,
@@ -889,7 +889,7 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
 }
 
 /** Check the table whether it contains virtual columns.
-@param[in]	crsr	InnoDB Cursor
+@param[in]      crsr    InnoDB Cursor
 @return true if the table contains virtual column else failure. */
 bool ib_is_virtual_table(ib_crsr_t crsr) {
   return (crsr->prebuilt->table->n_v_cols > 0);
@@ -2685,8 +2685,8 @@ static ib_err_t ib_cursor_open_table_using_id(
 }
 
 /** Create a tuple to search from SDI table
-@param[in,out]	ib_crsr		Memcached cursor
-@param[in,out]	sdi_key		SDI Key
+@param[in,out]  ib_crsr         Memcached cursor
+@param[in,out]  sdi_key         SDI Key
 @return search tuple */
 static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
                                            const sdi_key_t *sdi_key) {
@@ -2701,11 +2701,11 @@ static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
 }
 
 /** Create a tuple to insert into  SDI table
-@param[in,out]	ib_crsr		Memcached cursor
-@param[in]	sdi_key		SDI Key
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI data
+@param[in,out]  ib_crsr         Memcached cursor
+@param[in]      sdi_key         SDI Key
+@param[in]      uncomp_len      uncompressed length of SDI
+@param[in]      comp_len        compressed length of SDI
+@param[in]      sdi             compressed SDI data
 @return insert tuple */
 static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
                                            const sdi_key_t *sdi_key,
@@ -2724,9 +2724,9 @@ static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
 }
 
 /** Open SDI table
-@param[in]	tablespace_id	tablespace id
-@param[in,out]	trx		innodb transaction
-@param[in,out]	ib_crsr		memcached cursor
+@param[in]      tablespace_id   tablespace id
+@param[in,out]  trx             innodb transaction
+@param[in,out]  ib_crsr         memcached cursor
 @return DB_SUCCESS if SDI table is opened, else error */
 static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
                                   ib_crsr_t *ib_crsr) {
@@ -2747,13 +2747,13 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
 }
 
 /** Insert/Update SDI in tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key to uniquely identify the tablespace
                                 object
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI to be stored in tablespace
-@param[in,out]	trx		innodb transaction
+@param[in]      uncomp_len      uncompressed length of SDI
+@param[in]      comp_len        compressed length of SDI
+@param[in]      sdi             compressed SDI to be stored in tablespace
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI Insert/Update is successful, else error */
 dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    uint32_t uncomp_len, uint32_t comp_len, const void *sdi,
@@ -2868,10 +2868,10 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace_id	tablespace id
-@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
+@param[in]      tablespace_id   tablespace id
+@param[in,out]  ib_sdi_vector   vector to hold objects with tablespace types
 and ids
-@param[in,out]	trx		data dictionary transaction
+@param[in,out]  trx             data dictionary transaction
 @return DB_SUCCESS if retrieval of SDI kyes is successful, else error */
 dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                         trx_t *trx) {
@@ -2915,14 +2915,14 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
 }
 
 /** Retrieve SDI from tablespace.
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key
-@param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key
+@param[in,out]  comp_sdi        in: buffer to hold the SDI BLOB
                                 out: compressed SDI retrieved from tablespace
-@param[in,out]	comp_sdi_len	in:  Size of memory allocated
+@param[in,out]  comp_sdi_len    in:  Size of memory allocated
                                 out: compressed length of SDI
-@param[out]	uncomp_sdi_len	out: uncompressed length of SDI
-@param[in,out]	trx		innodb transaction
+@param[out]     uncomp_sdi_len  out: uncompressed length of SDI
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI retrieval is successful, else error.
 @return DB_OUT_OF_MEMORY if the passed buffer is not sufficient to
 hold the compressed SDI retrieved from tablespace. */
@@ -3012,10 +3012,10 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Delete SDI from tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key to uniquely identify the tablespace
                                 object
-@param[in,out]	trx		innodb transaction
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                        trx_t *trx) {
@@ -3071,7 +3071,7 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Create SDI in a tablespace
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if SDI index creation is successful, else error */
 ib_err_t ib_sdi_create(space_id_t tablespace_id) {
   /* Check if the FSP_FLAG_SDI has already been set. If it
@@ -3108,7 +3108,7 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id) {
 
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   fil_space_t *space = fil_space_acquire(tablespace_id);
@@ -3162,7 +3162,7 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
 
 /** Flush SDI in a tablespace. The pages of a SDI Index modified by the
 transaction will be flushed to disk.
-@param[in]	space_id	tablespace id
+@param[in]      space_id        tablespace id
 @return DB_SUCCESS always */
 ib_err_t ib_sdi_flush(space_id_t space_id [[maybe_unused]]) {
   return (DB_SUCCESS);
@@ -3170,8 +3170,8 @@ ib_err_t ib_sdi_flush(space_id_t space_id [[maybe_unused]]) {
 
 #ifdef UNIV_MEMCACHED_SDI
 /** Parse string a unsigned long number
-@param[in]	num_str		input string which has number
-@param[out]	dest_num	Number converted from input string
+@param[in]      num_str         input string which has number
+@param[out]     dest_num        Number converted from input string
 @return DB_SUCCESS on successful conversion, else DB_ERROR */
 static ib_err_t parse_string_to_number(const char *num_str,
                                        uint64_t *dest_num) {
@@ -3193,8 +3193,8 @@ static ib_err_t parse_string_to_number(const char *num_str,
 
 /** Extracts SDI key from the memcached key. For example if the key is
 "sdi_3:4", it parses as type:3, id:4
-@param[in]	key_str		Memcached key
-@param[in,out]	sk		SDI key
+@param[in]      key_str         Memcached key
+@param[in,out]  sk              SDI key
 @return DB_SUCCESS if SDI key extraction is successful, else error */
 static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
   /* 25 is sufficient here, the prefix will be
@@ -3229,10 +3229,10 @@ static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
 }
 
 /** Wrapper function to retrieve SDI from tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in,out]	sdi		SDI data retrieved
-@param[in,out]	sdi_len		Length of SDI data
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in,out]  sdi             SDI data retrieved
+@param[in,out]  sdi_len         Length of SDI data
 @return DB_SUCCESS if SDI retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
                          uint64_t *sdi_len) {
@@ -3275,8 +3275,8 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
 }
 
 /** Wrapper function to delete SDI from tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3301,10 +3301,10 @@ ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
 }
 
 /** Wrapper function to insert SDI into tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in]      sdi             SDI to be stored in tablespace
+@param[in]      sdi_len         SDI length
 @return DB_SUCCESS if SDI insertion is successful, else error */
 ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
                          uint64_t *sdi_len) {
@@ -3333,7 +3333,7 @@ ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
 }
 
 /** Wrapper function to create SDI in a tablespace
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
 ib_err_t ib_memc_sdi_create(ib_crsr_t crsr) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3341,7 +3341,7 @@ ib_err_t ib_memc_sdi_create(ib_crsr_t crsr) {
 }
 
 /** Wrapper function to drop SDI in a tablespace
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
 ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3350,9 +3350,9 @@ ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
 
 /** Wrapper function to retreive list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in,out]	sdi		The keys are copies into this buffer
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in,out]  sdi             The keys are copies into this buffer
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
                               uint64_t list_buf_len) {

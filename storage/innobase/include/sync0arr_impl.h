@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -124,7 +124,7 @@ struct sync_array_t {
   Creates a synchronization wait array. It is protected by a mutex
   which is automatically reserved when the functions operating on it
   are called.
-  @param[in]	num_cells	Number of cells to create */
+  @param[in]    num_cells       Number of cells to create */
   sync_array_t(ulint num_cells) UNIV_NOTHROW;
 
   /** Destructor */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -96,8 +96,8 @@ before hash index building is started */
 constexpr uint32_t BTR_SEARCH_BUILD_LIMIT = 100;
 
 /** Compute the hash value of an index identifier.
-@param[in]	space_id	tablespace identifier
-@param[in]	index_id	index identifier
+@param[in]      space_id        tablespace identifier
+@param[in]      index_id        index identifier
 @return hash value */
 static ulint btr_search_fold_index_id(uint32_t space_id,
                                       space_index_t index_id) {
@@ -106,7 +106,7 @@ static ulint btr_search_fold_index_id(uint32_t space_id,
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Compute the hash value of an index identifier.
-@param[in]	id	index identifier
+@param[in]      id      index identifier
 @return hash value */
 static ulint btr_search_fold_index_id(const index_id_t &id) {
   return (btr_search_fold_index_id(id.m_space_id, id.m_index_id));
@@ -114,17 +114,17 @@ static ulint btr_search_fold_index_id(const index_id_t &id) {
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /** Determine the number of accessed key fields.
-@param[in]	n_fields	number of complete fields
-@param[in]	n_bytes		number of bytes in an incomplete last field
-@return	number of complete or incomplete fields */
+@param[in]      n_fields        number of complete fields
+@param[in]      n_bytes         number of bytes in an incomplete last field
+@return number of complete or incomplete fields */
 [[nodiscard]] inline ulint btr_search_get_n_fields(ulint n_fields,
                                                    ulint n_bytes) {
   return (n_fields + (n_bytes > 0 ? 1 : 0));
 }
 
 /** Determine the number of accessed key fields.
-@param[in]	cursor		b-tree cursor
-@return	number of complete or incomplete fields */
+@param[in]      cursor          b-tree cursor
+@return number of complete or incomplete fields */
 [[nodiscard]] inline ulint btr_search_get_n_fields(const btr_cur_t *cursor) {
   return (btr_search_get_n_fields(cursor->n_fields, cursor->n_bytes));
 }
@@ -133,11 +133,11 @@ static ulint btr_search_fold_index_id(const index_id_t &id) {
 has a hash index with different parameters, the old hash index is removed.
 If index is non-NULL, this function checks if n_fields and n_bytes are
 sensible, and does not build a hash index if not.
-@param[in,out]	index		index for which to build, or NULL if not known
-@param[in,out]	block		index page, s-/x- latched.
-@param[in]	n_fields	hash this many full fields
-@param[in]	n_bytes		hash this many bytes of the next field
-@param[in]	left_side	hash for searches from left side */
+@param[in,out]  index           index for which to build, or NULL if not known
+@param[in,out]  block           index page, s-/x- latched.
+@param[in]      n_fields        hash this many full fields
+@param[in]      n_bytes         hash this many bytes of the next field
+@param[in]      left_side       hash for searches from left side */
 static void btr_search_build_page_hash_index(dict_index_t *index,
                                              buf_block_t *block, ulint n_fields,
                                              ulint n_bytes, bool left_side);
@@ -151,7 +151,7 @@ system. If not, allocates a free frames for the heap. This check makes it
 probable that, when have reserved the btr search system latch and we need to
 allocate a new node to the hash table, it will succeed. However, the check
 will not guarantee success.
-@param[in]	index	index handler */
+@param[in]      index   index handler */
 static void btr_search_check_free_space_in_heap(dict_index_t *index) {
   hash_table_t *table;
   mem_heap_t *heap;
@@ -183,7 +183,7 @@ static void btr_search_check_free_space_in_heap(dict_index_t *index) {
 }
 
 /** Creates and initializes the adaptive search system at a database start.
-@param[in]	hash_size	hash table size. */
+@param[in]      hash_size       hash table size. */
 void btr_search_sys_create(ulint hash_size) {
   /* Search System is divided into n parts.
   Each part controls access to distinct set of hash buckets from
@@ -222,7 +222,7 @@ void btr_search_sys_create(ulint hash_size) {
 }
 
 /** Resize hash index hash table.
-@param[in]	hash_size	hash index hash table size */
+@param[in]      hash_size       hash index hash table size */
 void btr_search_sys_resize(ulint hash_size) {
   /* Step-1: Lock all search latches in exclusive mode. */
   btr_search_x_lock_all(UT_LOCATION_HERE);
@@ -284,7 +284,7 @@ void btr_search_sys_free() {
 }
 
 /** Set index->ref_count = 0 on all indexes of a table.
-@param[in,out]	table	table handler */
+@param[in,out]  table   table handler */
 static void btr_search_disable_ref_count(dict_table_t *table) {
   dict_index_t *index;
 
@@ -298,7 +298,7 @@ static void btr_search_disable_ref_count(dict_table_t *table) {
 }
 
 /** Disable the adaptive hash search system and empty the index.
-@param[in]	need_mutex	Need to acquire dict_sys->mutex */
+@param[in]      need_mutex      Need to acquire dict_sys->mutex */
 void btr_search_disable(bool need_mutex) {
   if (need_mutex) {
     dict_sys_mutex_enter();
@@ -357,7 +357,7 @@ void btr_search_enable() {
 }
 
 /** Creates and initializes a search info struct.
-@param[in]	heap		heap where created.
+@param[in]      heap            heap where created.
 @return own: search info struct */
 btr_search_t *btr_search_info_create(mem_heap_t *heap) {
   btr_search_t *info;
@@ -391,8 +391,8 @@ btr_search_t *btr_search_info_create(mem_heap_t *heap) {
 }
 
 /** Returns the value of ref_count. The value is protected by latch.
-@param[in]	info		search info
-@param[in]	index		index identifier
+@param[in]      info            search info
+@param[in]      index           index identifier
 @return ref_count value. */
 ulint btr_search_info_get_ref_count(const btr_search_t *info,
                                     const dict_index_t *index) {
@@ -417,8 +417,8 @@ ulint btr_search_info_get_ref_count(const btr_search_t *info,
 /** Updates the search info of an index about hash successes. NOTE that info
 is NOT protected by any semaphore, to save CPU time! Do not assume its fields
 are consistent.
-@param[in,out]	info	search info
-@param[in]	cursor	cursor which was just positioned */
+@param[in,out]  info    search info
+@param[in]      cursor  cursor which was just positioned */
 static void btr_search_info_update_hash(btr_search_t *info, btr_cur_t *cursor) {
   dict_index_t *index = cursor->index;
   ulint n_unique;
@@ -521,9 +521,9 @@ set_new_recomm:
 block->n_hash_helps, n_fields, n_bytes, left_side are NOT protected by any
 semaphore, to save CPU time! Do not assume the fields are consistent.
 @return true if building a (new) hash index on the block is recommended
-@param[in,out]	info	search info
-@param[in,out]	block	buffer block
-@param[in]	cursor	cursor */
+@param[in,out]  info    search info
+@param[in,out]  block   buffer block
+@param[in]      cursor  cursor */
 static bool btr_search_update_block_hash_info(btr_search_t *info,
                                               buf_block_t *block,
                                               const btr_cur_t *cursor) {
@@ -588,9 +588,9 @@ what happens at page boundaries, and therefore there can be misleading
 hash nodes. Also, collisions in the fold value can lead to misleading
 references. This function lazily fixes these imperfections in the hash
 index.
-@param[in]	info	search info
-@param[in]	block	buffer block where cursor positioned
-@param[in]	cursor	cursor */
+@param[in]      info    search info
+@param[in]      block   buffer block where cursor positioned
+@param[in]      cursor  cursor */
 static void btr_search_update_hash_ref(const btr_search_t *info,
                                        buf_block_t *block,
                                        const btr_cur_t *cursor) {
@@ -691,17 +691,17 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
 /** Checks if a guessed position for a tree cursor is right. Note that if
 mode is PAGE_CUR_LE, which is used in inserts, and the function returns
 true, then cursor->up_match and cursor->low_match both have sensible values.
-@param[in,out]	cursor		Guess cursor position
-@param[in]	can_only_compare_to_cursor_rec
+@param[in,out]  cursor          Guess cursor position
+@param[in]      can_only_compare_to_cursor_rec
                                 If we do not have a latch on the page of cursor,
                                 but a latch corresponding search system, then
                                 ONLY the columns of the record UNDER the cursor
                                 are protected, not the next or previous record
                                 in the chain: we cannot look at the next or
                                 previous record to check our guess!
-@param[in]	tuple		Data tuple
-@param[in]	mode		PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, PAGE_CUR_GE
-@param[in]	mtr		Mini-transaction
+@param[in]      tuple           Data tuple
+@param[in]      mode            PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, PAGE_CUR_GE
+@param[in]      mtr             Mini-transaction
 @return true if success */
 static bool btr_search_check_guess(btr_cur_t *cursor,
                                    bool can_only_compare_to_cursor_rec,
@@ -838,20 +838,20 @@ static void btr_search_failure(btr_search_t *info, btr_cur_t *cursor) {
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns true, then cursor->up_match and cursor->low_match
 both have sensible values.
-@param[in,out]	index		Index
-@param[in,out]	info		Index search info
-@param[in]	tuple		Logical record
-@param[in]	mode		PAGE_CUR_L, ....
-@param[in]	latch_mode	BTR_SEARCH_LEAF, ...;
+@param[in,out]  index           Index
+@param[in,out]  info            Index search info
+@param[in]      tuple           Logical record
+@param[in]      mode            PAGE_CUR_L, ....
+@param[in]      latch_mode      BTR_SEARCH_LEAF, ...;
                                 NOTE that only if has_search_latch is 0, we will
                                 have a latch set on the cursor page, otherwise
                                 we assume the caller uses his search latch
                                 to protect the record!
-@param[out]	cursor		Tree cursor
-@param[in]	has_search_latch
+@param[out]     cursor          Tree cursor
+@param[in]      has_search_latch
                                 Latch mode the caller currently has on
                                 search system: RW_S/X_LATCH or 0
-@param[in]	mtr		Mini-transaction
+@param[in]      mtr             Mini-transaction
 @return true if succeeded */
 bool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
                               const dtuple_t *tuple, ulint mode,
@@ -1038,7 +1038,7 @@ bool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 }
 
 /** Drop any adaptive hash index entries that point to an index page.
-@param[in,out]	block	block containing index page, s- or x-latched, or an
+@param[in,out]  block   block containing index page, s- or x-latched, or an
                         index page for which we know that
                         block->buf_fix_count == 0 or it is an index page which
                         has already been removed from the buf_pool->page_hash
@@ -1232,8 +1232,8 @@ cleanup:
 /** Drop any adaptive hash index entries that may point to an index
 page that may be in the buffer pool, when a page is evicted from the
 buffer pool or freed in a file segment.
-@param[in]	page_id		page id
-@param[in]	page_size	page size */
+@param[in]      page_id         page id
+@param[in]      page_size       page size */
 void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
                                           const page_size_t &page_size) {
   buf_block_t *block;
@@ -1321,7 +1321,7 @@ static void btr_drop_next_batch(const page_size_t &page_size,
   }
 }
 /** Drop any adaptive hash index entries for a table.
-@param[in,out]	table	to drop indexes of this table */
+@param[in,out]  table   to drop indexes of this table */
 void btr_drop_ahi_for_table(dict_table_t *table) {
   const ulint len = UT_LIST_GET_LEN(table->indexes);
 
@@ -1360,7 +1360,7 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
 }
 
 /** Drop any adaptive hash index entries for a index.
-@param[in,out]	index	to drop hash indexes for this index */
+@param[in,out]  index   to drop hash indexes for this index */
 void btr_drop_ahi_for_index(const dict_index_t *index) {
   ut_ad(index->is_committed());
 
@@ -1386,11 +1386,11 @@ void btr_drop_ahi_for_index(const dict_index_t *index) {
 has a hash index with different parameters, the old hash index is removed.
 If index is non-NULL, this function checks if n_fields and n_bytes are
 sensible, and does not build a hash index if not.
-@param[in,out]	index		index for which to build, or NULL if not known
-@param[in,out]	block		index page, s-/x- latched.
-@param[in]	n_fields	hash this many full fields
-@param[in]	n_bytes		hash this many bytes of the next field
-@param[in]	left_side	hash for searches from left side */
+@param[in,out]  index           index for which to build, or NULL if not known
+@param[in,out]  block           index page, s-/x- latched.
+@param[in]      n_fields        hash this many full fields
+@param[in]      n_bytes         hash this many bytes of the next field
+@param[in]      left_side       hash for searches from left side */
 static void btr_search_build_page_hash_index(dict_index_t *index,
                                              buf_block_t *block, ulint n_fields,
                                              ulint n_bytes, bool left_side) {
@@ -1573,10 +1573,10 @@ exit_func:
 hashed, then the hash index for page, if any, is dropped. If new_page is not
 hashed, and page is hashed, then a new hash index is built to new_page with the
 same parameters as page (this often happens when a page is split).
-@param[in,out]	new_block	records are copied to this page.
-@param[in,out]	block		index page from which record are copied, and the
+@param[in,out]  new_block       records are copied to this page.
+@param[in,out]  block           index page from which record are copied, and the
                                 copied records will be deleted from this page.
-@param[in,out]	index		record descriptor */
+@param[in,out]  index           record descriptor */
 void btr_search_move_or_delete_hash_entries(buf_block_t *new_block,
                                             buf_block_t *block,
                                             dict_index_t *index) {
@@ -1633,7 +1633,7 @@ void btr_search_move_or_delete_hash_entries(buf_block_t *new_block,
 }
 
 /** Updates the page hash index when a single record is deleted from a page.
-@param[in]	cursor	cursor which was positioned on the record to delete
+@param[in]      cursor  cursor which was positioned on the record to delete
                         using btr_cur_search_, the record is not yet deleted.*/
 void btr_search_update_hash_on_delete(btr_cur_t *cursor) {
   hash_table_t *table;
@@ -1696,7 +1696,7 @@ void btr_search_update_hash_on_delete(btr_cur_t *cursor) {
 }
 
 /** Updates the page hash index when a single record is inserted on a page.
-@param[in]	cursor	cursor which was positioned to the place to insert
+@param[in]      cursor  cursor which was positioned to the place to insert
                         using btr_cur_search_, and the new record has been
                         inserted next to the cursor. */
 void btr_search_update_hash_node_on_insert(btr_cur_t *cursor) {
@@ -1753,7 +1753,7 @@ void btr_search_update_hash_node_on_insert(btr_cur_t *cursor) {
 }
 
 /** Updates the page hash index when a single record is inserted on a page.
-@param[in,out]	cursor		cursor which was positioned to the
+@param[in,out]  cursor          cursor which was positioned to the
                                 place to insert using btr_cur_search_...,
                                 and the new record has been inserted next
                                 to the cursor */
@@ -1906,7 +1906,7 @@ function_exit:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 
 /** Validates the search system for given hash table.
-@param[in]	hash_table_id	hash table to validate
+@param[in]      hash_table_id   hash table to validate
 @return true if ok */
 static bool btr_search_hash_table_validate(ulint hash_table_id) {
   ha_node_t *node;

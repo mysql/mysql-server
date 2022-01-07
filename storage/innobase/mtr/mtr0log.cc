@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -84,12 +84,12 @@ void mlog_write_initial_log_record(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Parses an initial log record written by mlog_write_initial_dict_log_record.
-@param[in]	ptr		buffer
-@param[in]	end_ptr		buffer end
-@param[out]	type		log record type, should be
+@param[in]      ptr             buffer
+@param[in]      end_ptr         buffer end
+@param[out]     type            log record type, should be
                                 MLOG_TABLE_DYNAMIC_META
-@param[out]	id		table id
-@param[out]	version		table dynamic metadata version
+@param[out]     id              table id
+@param[out]     version         table dynamic metadata version
 @return parsed record end, NULL if not a complete record */
 byte *mlog_parse_initial_dict_log_record(const byte *ptr, const byte *end_ptr,
                                          mlog_id_t *type, table_id_t *id,

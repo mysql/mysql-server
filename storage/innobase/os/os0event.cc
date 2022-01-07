@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -143,7 +143,7 @@ struct os_event {
   std::chrono::microseconds::max()
   @param  reset_sig_count Zero or the value returned by previous call of
   os_event_reset().
-  @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+  @return       0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
   ulint wait_time_low(std::chrono::microseconds timeout,
                       int64_t reset_sig_count) UNIV_NOTHROW;
 
@@ -522,7 +522,7 @@ os_event::~os_event() UNIV_NOTHROW { destroy(); }
 Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
-@return	the event handle */
+@return the event handle */
 os_event_t os_event_create() {
   os_event_t ret = (ut::new_withkey<os_event>(UT_NEW_THIS_FILE_PSI_KEY));
 /**
@@ -562,7 +562,7 @@ The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
-@return	current signal_count. */
+@return current signal_count. */
 int64_t os_event_reset(os_event_t event) /*!< in/out: event to reset */
 {
   return (event->reset());

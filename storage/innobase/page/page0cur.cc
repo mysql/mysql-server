@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -85,14 +85,14 @@ static uint64_t page_cur_lcg_prng(void) {
 }
 
 /** Try a search shortcut based on the last insert.
-@param[in]	block			index page
-@param[in]	index			index tree
-@param[in]	tuple			search key
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   index page
+@param[in]      index                   index tree
+@param[in]      tuple                   search key
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[out]	cursor			page cursor
+@param[out]     cursor                  page cursor
 @return true on success */
 static inline bool page_cur_try_search_shortcut(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
@@ -151,18 +151,18 @@ exit_func:
 }
 
 /** Try a search shortcut based on the last insert.
-@param[in]	block			index page
-@param[in]	index			index tree
-@param[in]	tuple			search key
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   index page
+@param[in]      index                   index tree
+@param[in]      tuple                   search key
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	iup_matched_bytes	already matched bytes in the
+@param[in,out]  iup_matched_bytes       already matched bytes in the
 first partially matched field in the upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[in,out]	ilow_matched_bytes	already matched bytes in the
+@param[in,out]  ilow_matched_bytes      already matched bytes in the
 first partially matched field in the lower limit record
-@param[out]	cursor			page cursor
+@param[out]     cursor                  page cursor
 @return true on success */
 static inline bool page_cur_try_search_shortcut_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
@@ -238,11 +238,11 @@ exit_func:
 /** Checks if the nth field in a record is a character type field which extends
  the nth field in tuple, i.e., the field is longer or equal in length and has
  common first characters.
- @param[in]	tuple	data tuple
- @param[in]	rec	record
- @param[in]	offsets	array returned by rec_get_offsets()
- @param[in]	n	compare nth field
- @param[in]	index	index where the record resides
+ @param[in]     tuple   data tuple
+ @param[in]     rec     record
+ @param[in]     offsets array returned by rec_get_offsets()
+ @param[in]     n       compare nth field
+ @param[in]     index   index where the record resides
  @return true if rec field extends tuple field */
 static bool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
                                        const ulint *offsets, ulint n,
@@ -285,8 +285,8 @@ static bool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
 /** Check if rec has at least one NULL value among the columns for which
 rec_cache.offsets was cached, which means rec_cache.offsets should not be used
 for this rec as it has a different layout of fields than the cached version.
-@param[in]	rec	B-Tree record
-@param[in]	index	The index from which the rec was taken
+@param[in]      rec     B-Tree record
+@param[in]      index   The index from which the rec was taken
 @return true iff the rec has at least one relevant column with NULL */
 static bool page_cur_has_null(const rec_t *rec, const dict_index_t *index) {
   ut_ad(index->rec_cache.offsets);
@@ -594,19 +594,19 @@ void page_cur_search_with_match(const buf_block_t *block,
 }
 
 /** Search the right position for a page cursor.
-@param[in]	block			buffer block
-@param[in]	index			index tree
-@param[in]	tuple			key to be searched for
-@param[in]	mode			search mode
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   buffer block
+@param[in]      index                   index tree
+@param[in]      tuple                   key to be searched for
+@param[in]      mode                    search mode
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	iup_matched_bytes	already matched bytes in the
+@param[in,out]  iup_matched_bytes       already matched bytes in the
 first partially matched field in the upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[in,out]	ilow_matched_bytes	already matched bytes in the
+@param[in,out]  ilow_matched_bytes      already matched bytes in the
 first partially matched field in the lower limit record
-@param[out]	cursor			page cursor */
+@param[out]     cursor                  page cursor */
 void page_cur_search_with_match_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     page_cur_mode_t mode, ulint *iup_matched_fields, ulint *iup_matched_bytes,
@@ -1977,10 +1977,10 @@ rec_t *page_cur_insert_rec_zip(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of copying a record list end to a new created page.
-@param[in,out]	page	Index page
-@param[in,out]	index	Record descriptor
-@param[in,out]	mtr	Mini-transaction
-@param[out]	log_ptr	4-byte field where to write the log data length
+@param[in,out]  page    Index page
+@param[in,out]  index   Record descriptor
+@param[in,out]  mtr     Mini-transaction
+@param[out]     log_ptr 4-byte field where to write the log data length
 @retval true if mtr log is opened successfully.
 @retval false if mtr log is not opened. One case is when redo is disabled. */
 static inline bool page_copy_rec_list_to_created_page_write_log(

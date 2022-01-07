@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -46,7 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
-/*			THE INDEX PAGE
+/*                      THE INDEX PAGE
                         ==============
 
 The index page consists of a page header which contains the page's
@@ -252,10 +252,10 @@ byte *page_mem_alloc_heap(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of page creation
-@param[in]	frame		A buffer frame where the page is created
-@param[in]	mtr		Mini-transaction handle
-@param[in]	comp		true=compact page format
-@param[in]	page_type	Page type */
+@param[in]      frame           A buffer frame where the page is created
+@param[in]      mtr             Mini-transaction handle
+@param[in]      comp            true=compact page format
+@param[in]      page_type       Page type */
 static inline void page_create_write_log(buf_frame_t *frame, mtr_t *mtr,
                                          bool comp, page_type_t page_type) {
   mlog_id_t type;
@@ -301,9 +301,9 @@ static const byte infimum_supremum_compact[] = {
     0x00 /* end of record list */, 's', 'u', 'p', 'r', 'e', 'm', 'u', 'm'};
 
 /** The index page creation function.
-@param[in,out]	block		a buffer block where the page is created
-@param[in]	comp		nonzero=compact page format
-@param[in]	page_type	page type
+@param[in,out]  block           a buffer block where the page is created
+@param[in]      comp            nonzero=compact page format
+@param[in]      page_type       page type
 @return pointer to the page */
 static page_t *page_create_low(buf_block_t *block, ulint comp,
                                page_type_t page_type) {
@@ -355,9 +355,9 @@ static page_t *page_create_low(buf_block_t *block, ulint comp,
 }
 
 /** Parses a redo log record of creating a page.
-@param[in,out]	block		buffer block, or NULL
-@param[in]	comp		nonzero=compact page format
-@param[in]	page_type	page type (FIL_PAGE_INDEX, FIL_PAGE_RTREE
+@param[in,out]  block           buffer block, or NULL
+@param[in]      comp            nonzero=compact page format
+@param[in]      page_type       page type (FIL_PAGE_INDEX, FIL_PAGE_RTREE
                                 or FIL_PAGE_SDI) */
 void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type) {
   if (block != nullptr) {
@@ -366,10 +366,10 @@ void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type) {
 }
 
 /** Create an uncompressed B-tree or R-tree or SDI index page.
-@param[in]	block		A buffer block where the page is created
-@param[in]	mtr		Mini-transaction handle
-@param[in]	comp		nonzero=compact page format
-@param[in]	page_type	Page type
+@param[in]      block           A buffer block where the page is created
+@param[in]      mtr             Mini-transaction handle
+@param[in]      comp            nonzero=compact page format
+@param[in]      page_type       Page type
 @return pointer to the page */
 page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
                     page_type_t page_type) {
@@ -378,13 +378,13 @@ page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
 }
 
 /** Create a compressed B-tree index page.
-@param[in,out]	block		Buffer frame where the page is created
-@param[in]	index		Index of the page, or NULL when applying
+@param[in,out]  block           Buffer frame where the page is created
+@param[in]      index           Index of the page, or NULL when applying
                                 TRUNCATE log record during recovery
-@param[in]	level		The B-tree level of the page
-@param[in]	max_trx_id	PAGE_MAX_TRX_ID
-@param[in]	mtr		Mini-transaction handle
-@param[in]	page_type	Page type to be created. Only FIL_PAGE_INDEX,
+@param[in]      level           The B-tree level of the page
+@param[in]      max_trx_id      PAGE_MAX_TRX_ID
+@param[in]      mtr             Mini-transaction handle
+@param[in]      page_type       Page type to be created. Only FIL_PAGE_INDEX,
                                 FIL_PAGE_RTREE, FIL_PAGE_SDI allowed
 @return pointer to the page */
 page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
@@ -2106,8 +2106,8 @@ func_exit:
 
 /** This function checks if the page in which record is present is a
 non-leaf node of a spatial index.
-param[in]	rec	Btree record
-param[in]	index	index
+param[in]       rec     Btree record
+param[in]       index   index
 @return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
   return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
@@ -2530,7 +2530,7 @@ bool page_delete_rec(const dict_index_t *index, page_cur_t *pcur,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Get the last non-delete-marked record on a page.
-@param[in]	page	index tree leaf page
+@param[in]      page    index tree leaf page
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
 const rec_t *page_find_rec_last_not_deleted(const page_t *page) {
@@ -2560,9 +2560,9 @@ const rec_t *page_find_rec_last_not_deleted(const page_t *page) {
 
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
-@param[in]	curr_algo	current checksum algorithm
-@param[in]	page_checksum	page valid checksum
-@param[in]	page_id		page identifier */
+@param[in]      curr_algo       current checksum algorithm
+@param[in]      page_checksum   page valid checksum
+@param[in]      page_id         page identifier */
 void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
                                srv_checksum_algorithm_t page_checksum,
                                const page_id_t &page_id) {

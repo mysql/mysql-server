@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -172,7 +172,7 @@ for all cases. This is used by ut0lst.h related code. */
 #pragma pointers_to_members(full_generality, single_inheritance)
 #endif /* _WIN32 */
 
-/*			DEBUG VERSION CONTROL
+/*                      DEBUG VERSION CONTROL
                         ===================== */
 
 /* When this macro is defined then additional test functions will be
@@ -648,7 +648,7 @@ constexpr uint32_t SPDIMS = 2;
   { name, n_indexes }
 
 /** Explicitly call the destructor, this is to get around Clang bug#12350.
-@param[in,out]	p		Instance on which to call the destructor */
+@param[in,out]  p               Instance on which to call the destructor */
 template <typename T>
 void call_destructor(T *p) {
   p->~T();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,11 +65,11 @@ class Page_load : private ut::Non_copyable {
 
  public:
   /** Constructor
-  @param[in]	index		          B-tree index
-  @param[in]	trx_id		        Transaction id
-  @param[in]	page_no		        Page number
-  @param[in]	level		          Page level
-  @param[in]	observer	        Flush observer */
+  @param[in]    index                     B-tree index
+  @param[in]    trx_id                  Transaction id
+  @param[in]    page_no                 Page number
+  @param[in]    level                     Page level
+  @param[in]    observer                Flush observer */
   Page_load(dict_index_t *index, trx_id_t trx_id, page_no_t page_no,
             size_t level, Flush_observer *observer) noexcept
       : m_index(index),
@@ -122,8 +122,8 @@ class Page_load : private ut::Non_copyable {
   void rollback() noexcept;
 
   /** Compress if it is compressed table
-  @return	true	compress successfully or no need to compress
-  @return	false	compress failed. */
+  @return       true    compress successfully or no need to compress
+  @return       false   compress failed. */
   [[nodiscard]] bool compress() noexcept;
 
   /** Check whether the record needs to be stored externally.
@@ -144,11 +144,11 @@ class Page_load : private ut::Non_copyable {
   void copy_all(const page_t *src_page) noexcept;
 
   /** Set next page
-  @param[in]	next_page_no	    Next page no */
+  @param[in]    next_page_no        Next page no */
   void set_next(page_no_t next_page_no) noexcept;
 
   /** Set previous page
-  @param[in]	prev_page_no	    Previous page no */
+  @param[in]    prev_page_no        Previous page no */
   void set_prev(page_no_t prev_page_no) noexcept;
 
   /** Release block by committing mtr */
@@ -158,9 +158,9 @@ class Page_load : private ut::Non_copyable {
   inline void latch() noexcept;
 
   /** Check if required space is available in the page for the rec
-  to be inserted.	We check fill factor & padding here.
-  @param[in]	rec_size	        Required space
-  @return true	if space is available */
+  to be inserted.       We check fill factor & padding here.
+  @param[in]    rec_size                Required space
+  @return true  if space is available */
   [[nodiscard]] inline bool is_space_available(size_t rec_size) const noexcept;
 
   /** Get page no */
@@ -1122,7 +1122,7 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
 
   if (is_left_most && level > 0 && page_loader->get_rec_no() == 0) {
     /* The node pointer must be marked as the predefined minimum
-    record,	as there is no lower alphabetical limit to records in
+    record,     as there is no lower alphabetical limit to records in
     the leftmost node of a level: */
     const auto info_bits = dtuple_get_info_bits(tuple) | REC_INFO_MIN_REC_FLAG;
     dtuple_set_info_bits(tuple, info_bits);

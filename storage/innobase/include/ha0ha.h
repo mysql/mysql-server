@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,8 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 
 /** Looks for an element in a hash table.
-@param[in]	table	hash table
-@param[in]	fold	folded value of the searched data
+@param[in]      table   hash table
+@param[in]      fold    folded value of the searched data
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
 static inline const rec_t *ha_search_and_get_data(hash_table_t *table,
@@ -123,9 +123,9 @@ static inline void ha_insert_for_fold(hash_table_t *t, ulint f, buf_block_t *b,
 
 /** Looks for an element when we know the pointer to the data and deletes it
 from the hash table if found.
-@param[in]	table	hash table
-@param[in]	fold	folded value of the searched data
-@param[in]	data	pointer to the data
+@param[in]      table   hash table
+@param[in]      fold    folded value of the searched data
+@param[in]      data    pointer to the data
 @return true if found */
 static inline bool ha_search_and_delete_if_found(hash_table_t *table,
                                                  ulint fold, const rec_t *data);

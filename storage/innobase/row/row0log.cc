@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -246,7 +246,7 @@ struct row_log_t {
 }
 
 /** Allocate the memory for the log buffer.
-@param[in,out]	log_buf	Buffer used for log operation
+@param[in,out]  log_buf Buffer used for log operation
 @return true if success, false if not */
 [[nodiscard]] static bool row_log_block_allocate(row_log_buf_t &log_buf) {
   DBUG_TRACE;
@@ -265,7 +265,7 @@ struct row_log_t {
 }
 
 /** Free the log buffer.
-@param[in,out]	log_buf	Buffer used for log operation */
+@param[in,out]  log_buf Buffer used for log operation */
 static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_TRACE;
   ut::free_large_page(log_buf.block, ut::fallback_to_normal_page_t{});
@@ -509,8 +509,8 @@ static inline void row_log_table_close(row_log_t *log,
 
 /** Check whether a virtual column is indexed in the new table being
 created during alter table
-@param[in]	index	cluster index
-@param[in]	v_no	virtual column number
+@param[in]      index   cluster index
+@param[in]      v_no    virtual column number
 @return true if it is indexed, else false */
 bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no) {
   return (
@@ -649,7 +649,7 @@ func_exit:
 @param[in]      insert          true if insert, false if update
 @param[in]      old_pk          old PRIMARY KEY value (if !insert and a PRIMARY
                                 KEY is being created)
-@param[in]	new_index	clustered index of the new table, not latched */
+@param[in]      new_index       clustered index of the new table, not latched */
 static void row_log_table_low_redundant(const rec_t *rec,
                                         const dtuple_t *ventry,
                                         const dtuple_t *o_ventry,
@@ -829,13 +829,13 @@ static void row_log_table_low_redundant(const rec_t *rec,
 }
 
 /** Logs an insert or update to a table that is being rebuilt.
-@param[in]	rec		clustered index leaf page record, page X-latched
-@param[in]	ventry		dtuple holding virtual column info
-@param[in]	o_ventry	dtuple holding old virtual column info
-@param[in,out]	index		clustered index, S-latched or X-latched
-@param[in]	offsets		rec_get_offsets(rec,index)
-@param[in]	insert		true if insert, false if update
-@param[in]	old_pk		old PRIMARY KEY value (if !insert and a PRIMARY
+@param[in]      rec             clustered index leaf page record, page X-latched
+@param[in]      ventry          dtuple holding virtual column info
+@param[in]      o_ventry        dtuple holding old virtual column info
+@param[in,out]  index           clustered index, S-latched or X-latched
+@param[in]      offsets         rec_get_offsets(rec,index)
+@param[in]      insert          true if insert, false if update
+@param[in]      old_pk          old PRIMARY KEY value (if !insert and a PRIMARY
                                 KEY is being created) */
 static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
                               const dtuple_t *o_ventry, dict_index_t *index,
@@ -1013,19 +1013,19 @@ static const dict_col_t *row_log_table_get_pk_old_col(const dict_table_t *table,
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param[in]	index		index being operated on
-@param[in]	ifield		clustered index field in the new table (after
+@param[in]      index           index being operated on
+@param[in]      ifield          clustered index field in the new table (after
 ALTER TABLE)
-@param[in,out]	dfield		clustered index tuple field in the new table
-@param[in,out]	heap		memory heap for allocating dfield contents
-@param[in]	rec		clustered index leaf page record in the old
+@param[in,out]  dfield          clustered index tuple field in the new table
+@param[in,out]  heap            memory heap for allocating dfield contents
+@param[in]      rec             clustered index leaf page record in the old
 table
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	i		rec field corresponding to col
-@param[in]	page_size	page size of the old table
-@param[in]	max_len		maximum length of dfield
-@retval DB_INVALID_NULL		if a NULL value is encountered
-@retval DB_TOO_BIG_INDEX_COL	if the maximum prefix length is exceeded */
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      i               rec field corresponding to col
+@param[in]      page_size       page size of the old table
+@param[in]      max_len         maximum length of dfield
+@retval DB_INVALID_NULL         if a NULL value is encountered
+@retval DB_TOO_BIG_INDEX_COL    if the maximum prefix length is exceeded */
 static dberr_t row_log_table_get_pk_col(dict_index_t *index,
                                         const dict_field_t *ifield,
                                         dfield_t *dfield, mem_heap_t *heap,
@@ -1633,9 +1633,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 }
 
 /** Delete a record from a secondary index.
-@param[in]	index	secondary index
-@param[in]	entry	entry to delete
-@param[in,out]	pcur	B-tree cursor
+@param[in]      index   secondary index
+@param[in]      entry   entry to delete
+@param[in,out]  pcur    B-tree cursor
 @return DB_SUCCESS or error code */
 [[nodiscard]] static inline dberr_t row_log_table_delete_sec(
     dict_index_t *index, const dtuple_t *entry, btr_pcur_t *pcur) {
@@ -1685,11 +1685,11 @@ flag_ok:
 }
 
 /** Deletes a record from a multi-value index.
-@param[in]	row	row to delete
-@param[in]	ext	external data
-@param[in]	index	multi-value index
-@param[in,out]	pcur	B-tree cursor
-@param[in,out]	heap	memory heap
+@param[in]      row     row to delete
+@param[in]      ext     external data
+@param[in]      index   multi-value index
+@param[in,out]  pcur    B-tree cursor
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or error code */
 [[nodiscard]] static inline dberr_t apply_delete_multi_value(
     const dtuple_t *row, row_ext_t *ext, dict_index_t *index, btr_pcur_t *pcur,
@@ -1901,17 +1901,17 @@ flag_ok:
 }
 
 /** Replays an update operation on the multi-value index.
-@param[in]	index		multi-value index
-@param[in]	n_index		the sequence of the index
-@param[in]	old_row		old row of the update
-@param[in]	old_ext		old external data of the update
-@param[in]	new_row		new row of the update
-@param[in]	non_mv_upd	true if any non-multi-value field on the index
+@param[in]      index           multi-value index
+@param[in]      n_index         the sequence of the index
+@param[in]      old_row         old row of the update
+@param[in]      old_ext         old external data of the update
+@param[in]      new_row         new row of the update
+@param[in]      non_mv_upd      true if any non-multi-value field on the index
                                 gets updated too
-@param[in]	trx_id		transaction id of the update
-@param[in]	thr		query graph
-@param[in,out]	offsets_heap	memory heap that can be emptied
-@param[in,out]	heap		memory heap
+@param[in]      trx_id          transaction id of the update
+@param[in]      thr             query graph
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
 @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t apply_update_multi_value(
     dict_index_t *index, uint32_t n_index, const dtuple_t *old_row,
@@ -2666,7 +2666,7 @@ inline ulint row_log_progress_inc_per_block() {
 
 /** Estimate how much work is to be done by the log apply phase
 of an ALTER TABLE for this index.
-@param[in]	index	index whose log to assess
+@param[in]      index   index whose log to assess
 @return work to be done by log-apply in abstract units
 */
 ulint row_log_estimate_work(const dict_index_t *index) {
@@ -2685,9 +2685,9 @@ inline ulint row_log_progress_inc_per_block() { return (0); }
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** Applies operations to a table was rebuilt.
-@param[in]	thr	query graph
-@param[in,out]	dup	for reporting duplicate key errors
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in]      thr     query graph
+@param[in,out]  dup     for reporting duplicate key errors
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -3018,10 +3018,10 @@ func_exit:
 }
 
 /** Apply the row_log_table log to a table upon completing rebuild.
-@param[in]	thr		query graph
-@param[in]	old_table	old table
-@param[in,out]	table		MySQL table (for reporting duplicates)
-@param[in,out]	stage		performance schema accounting object, used by
+@param[in]      thr             query graph
+@param[in]      old_table       old table
+@param[in,out]  table           MySQL table (for reporting duplicates)
+@param[in,out]  stage           performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -3458,11 +3458,11 @@ func_exit:
 }
 
 /** Applies operations to a secondary index that was being created.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	index
-@param[in,out]	dup	for reporting duplicate key errors
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   index
+@param[in,out]  dup     for reporting duplicate key errors
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
@@ -3759,11 +3759,11 @@ func_exit:
 }
 
 /** Apply the row log to the index upon completing index creation.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	secondary index
-@param[in,out]	table	MySQL table (for reporting duplicates)
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   secondary index
+@param[in,out]  table   MySQL table (for reporting duplicates)
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */

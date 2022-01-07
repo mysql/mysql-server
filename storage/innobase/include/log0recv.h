@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,16 +63,16 @@ extern bool recv_is_making_a_backup;
 
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned.
-@param[in]	buf			buffer containing log data
-@param[in]	buf_len			data length in that buffer
-@param[in,out]	scanned_lsn		lsn of buffer start, we return scanned
+@param[in]      buf                     buffer containing log data
+@param[in]      buf_len                 data length in that buffer
+@param[in,out]  scanned_lsn             lsn of buffer start, we return scanned
 lsn
-@param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
-@param[out]	block_no	highest block no in scanned buffer.
+@param[in,out]  scanned_checkpoint_no   4 lowest bytes of the highest scanned
+@param[out]     block_no        highest block no in scanned buffer.
 checkpoint number so far
-@param[out]	n_bytes_scanned		how much we were able to scan, smaller
+@param[out]     n_bytes_scanned         how much we were able to scan, smaller
 than buf_len if log data ended here
-@param[out]	has_encrypted_log	set true, if buffer contains encrypted
+@param[out]     has_encrypted_log       set true, if buffer contains encrypted
 redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
                       uint32_t *scanned_checkpoint_no, uint32_t *block_no,
@@ -83,7 +83,7 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 
 
-@param[in,out]	block		buffer block */
+@param[in,out]  block           buffer block */
 void recv_recover_page_func(buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
@@ -104,40 +104,40 @@ void meb_apply_log_recs(void);
 
 /** Applies log records in the hash table to a backup using a callback
 functions.
-@param[in]	apply_log_record_function  function for apply
-@param[in]	wait_till_done_function    function for wait */
+@param[in]      apply_log_record_function  function for apply
+@param[in]      wait_till_done_function    function for wait */
 void meb_apply_log_recs_via_callback(
     void (*apply_log_record_function)(recv_addr_t *),
     void (*wait_till_done_function)());
 
 /** Applies a log record in the hash table to a backup.
-@param[in]	recv_addr	chain of log records
-@param[in,out]	block		buffer block to apply the records to */
+@param[in]      recv_addr       chain of log records
+@param[in,out]  block           buffer block to apply the records to */
 void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block);
 
 /** Process a file name passed as an input
-@param[in]	name		absolute path of tablespace file
-@param[in]	space_id	the tablespace ID
-@retval		true		if able to process file successfully.
-@retval		false		if unable to process the file */
+@param[in]      name            absolute path of tablespace file
+@param[in]      space_id        the tablespace ID
+@retval         true            if able to process file successfully.
+@retval         false           if unable to process the file */
 void meb_fil_name_process(const char *name, space_id_t space_id);
 
 /** Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@param[in]	available_memory	we let the hash table of recs
+@param[in]      available_memory        we let the hash table of recs
 to grow to this size, at the maximum
-@param[in]	buf			buffer containing a log
+@param[in]      buf                     buffer containing a log
 segment or garbage
-@param[in]	len			buffer length
-@param[in]	start_lsn		buffer start lsn
-@param[in]	contiguous_lsn		it is known that all log
+@param[in]      len                     buffer length
+@param[in]      start_lsn               buffer start lsn
+@param[in]      contiguous_lsn          it is known that all log
 groups contain contiguous log data up to this lsn
-@param[out]	group_scanned_lsn	scanning succeeded up to this lsn
-@retval	true	if limit_lsn has been reached, or not able to scan any
+@param[out]     group_scanned_lsn       scanning succeeded up to this lsn
+@retval true    if limit_lsn has been reached, or not able to scan any
 more in this log group
-@retval	false	otherwise */
+@retval false   otherwise */
 bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
                        lsn_t start_lsn, lsn_t *contiguous_lsn,
                        lsn_t *group_scanned_lsn);
@@ -148,18 +148,18 @@ a null pointer, then encryption information is read from
 "ib_logfile0". If the encryption_info parameter is not null, then it
 should contain a copy of the encryption info stored in the header of
 "ib_logfile0".
-@param[in,out]	encryption_request      an IORequest object
-@param[in]	encryption_info         a copy of the encryption info in
+@param[in,out]  encryption_request      an IORequest object
+@param[in]      encryption_info         a copy of the encryption info in
 the header of "ib_logfile0", or a null pointer
-@retval	true	if the call succeeded
-@retval	false	otherwise */
+@retval true    if the call succeeded
+@retval false   otherwise */
 bool meb_read_log_encryption(IORequest &encryption_request,
                              byte *encryption_info = nullptr);
 
 bool recv_check_log_header_checksum(const byte *buf);
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
-@param[in]	block	pointer to a log block
+@param[in]      block   pointer to a log block
 @return whether the checksum matches */
 bool log_block_checksum_is_ok(const byte *block);
 #else /* UNIV_HOTBACKUP */
@@ -169,9 +169,9 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 
 
-@param[in]	just_read_in	true if the IO handler calls this for a freshly
+@param[in]      just_read_in    true if the IO handler calls this for a freshly
                                 read page
-@param[in,out]	block		buffer block */
+@param[in,out]  block           buffer block */
 void recv_recover_page_func(bool just_read_in, buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
@@ -180,7 +180,7 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 @param jri in: true if just read in (the i/o handler calls this for
 a freshly read page)
-@param[in,out]	block	buffer block */
+@param[in,out]  block   buffer block */
 static inline void recv_recover_page(bool jri, buf_block_t *block) {
   recv_recover_page_func(jri, block);
 }
@@ -211,15 +211,15 @@ bool recv_page_is_brand_new(buf_block_t *block);
 
 /** Start recovering from a redo log checkpoint.
 @see recv_recovery_from_checkpoint_finish
-@param[in,out]	log		redo log
-@param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
+@param[in,out]  log             redo log
+@param[in]      flush_lsn       FIL_PAGE_FILE_FLUSH_LSN
                                 of first system tablespace page
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
                                                           lsn_t flush_lsn);
 
 /** Complete the recovery from the latest checkpoint.
-@param[in]	aborting	true if the server has to abort due to an error
+@param[in]      aborting        true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
 [[nodiscard]] MetadataRecover *recv_recovery_from_checkpoint_finish(
     bool aborting);
@@ -234,16 +234,16 @@ void recv_sys_close();
 void recv_sys_init();
 
 /** Calculates the new value for lsn when more data is added to the log.
-@param[in]	lsn		Old LSN
-@param[in]	len		This many bytes of data is added, log block
+@param[in]      lsn             Old LSN
+@param[in]      len             This many bytes of data is added, log block
                                 headers not included
 @return LSN after data addition */
 lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len);
 
 /** Empties the hash table of stored log records, applying them to appropriate
 pages.
-@param[in,out]	log		Redo log
-@param[in]	allow_ibuf	if true, ibuf operations are allowed during
+@param[in,out]  log             Redo log
+@param[in]      allow_ibuf      if true, ibuf operations are allowed during
                                 the application; if false, no ibuf operations
                                 are allowed, and after the application all
                                 file pages are flushed to disk and invalidated
@@ -255,7 +255,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.
-@param[in]	type	record log record enum
+@param[in]      type    record log record enum
 @return string name of record log record */
 const char *get_mlog_string(mlog_id_t type);
 #endif /* UNIV_DEBUG || UNIV_HOTBACKUP */
@@ -356,10 +356,10 @@ class MetadataRecover {
 
   /** Parse a dynamic metadata redo log of a table and store
   the metadata locally
-  @param[in]	id	table id
-  @param[in]	version	table dynamic metadata version
-  @param[in]	ptr	redo log start
-  @param[in]	end	end of redo log
+  @param[in]    id      table id
+  @param[in]    version table dynamic metadata version
+  @param[in]    ptr     redo log start
+  @param[in]    end     end of redo log
   @retval ptr to next redo log record, nullptr if this log record
   was truncated */
   byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
@@ -373,13 +373,13 @@ class MetadataRecover {
   void store();
 
   /** If there is any metadata to be applied
-  @return	true if any metadata to be applied, otherwise false */
+  @return       true if any metadata to be applied, otherwise false */
   bool empty() const { return (m_tables.empty()); }
 
  private:
   /** Get the dynamic metadata of a specified table,
   create a new one if not exist
-  @param[in]	id	table id
+  @param[in]    id      table id
   @return the metadata of the specified table */
   PersistentTableMetadata *getMetadata(table_id_t id);
 
@@ -397,7 +397,7 @@ struct recv_sys_t {
   /** Every space has its own heap and pages that belong to it. */
   struct Space {
     /** Constructor
-    @param[in,out]	heap	Heap to use for the log records. */
+    @param[in,out]      heap    Heap to use for the log records. */
     explicit Space(mem_heap_t *heap) : m_heap(heap), m_pages() {}
 
     /** Default constructor */
@@ -470,12 +470,12 @@ struct recv_sys_t {
 
   /** Save mlog record information. Silently returns if cannot save. Works only
   in single threaded recovery scanner.
-  @param[in]	rec_num		record number in multi record group
-  @param[in]	space_id	space ID for the log record
-  @param[in]	page_no		page number for the log record
-  @param[in]	type		log record type
-  @param[in]	body		pointer to log record body in recovery buffer
-  @param[in]	len		length of the log record */
+  @param[in]    rec_num         record number in multi record group
+  @param[in]    space_id        space ID for the log record
+  @param[in]    page_no         page number for the log record
+  @param[in]    type            log record type
+  @param[in]    body            pointer to log record body in recovery buffer
+  @param[in]    len             length of the log record */
   void save_rec(size_t rec_num, space_id_t space_id, page_no_t page_no,
                 mlog_id_t type, const byte *body, size_t len) {
     /* No more space to save log. */
@@ -500,12 +500,12 @@ struct recv_sys_t {
 
   /** Return saved mlog record information, if there. Works only
   in single threaded recovery scanner.
-  @param[in]	rec_num		record number in multi record group
-  @param[out]	space_id	space ID for the log record
-  @param[out]	page_no		page number for the log record
-  @param[out]	type		log record type
-  @param[out]	body		pointer to log record body in recovery buffer
-  @param[out]	len		length of the log record
+  @param[in]    rec_num         record number in multi record group
+  @param[out]   space_id        space ID for the log record
+  @param[out]   page_no         page number for the log record
+  @param[out]   type            log record type
+  @param[out]   body            pointer to log record body in recovery buffer
+  @param[out]   len             length of the log record
   @return true iff saved record data is found. */
   bool get_saved_rec(size_t rec_num, space_id_t &space_id, page_no_t &page_no,
                      mlog_id_t &type, byte *&body, size_t &len) {

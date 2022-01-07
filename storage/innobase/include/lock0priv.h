@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,13 +55,13 @@ struct lock_table_t {
   locks; /*!< list of locks on the same
          table */
   /** Print the table lock into the given output stream
-  @param[in,out]	out	the output stream
+  @param[in,out]        out     the output stream
   @return the given output stream. */
   std::ostream &print(std::ostream &out) const;
 };
 
 /** Print the table lock into the given output stream
-@param[in,out]	out	the output stream
+@param[in,out]  out     the output stream
 @return the given output stream. */
 inline std::ostream &lock_table_t::print(std::ostream &out) const {
   out << "[lock_table_t: name=" << table->name << "]";
@@ -70,8 +70,8 @@ inline std::ostream &lock_table_t::print(std::ostream &out) const {
 
 /** The global output operator is overloaded to conveniently
 print the lock_table_t object into the given output stream.
-@param[in,out]	out	the output stream
-@param[in]	lock	the table lock
+@param[in,out]  out     the output stream
+@param[in]      lock    the table lock
 @return the given output stream */
 inline std::ostream &operator<<(std::ostream &out, const lock_table_t &lock) {
   return (lock.print(out));
@@ -87,13 +87,13 @@ struct lock_rec_t {
   uint32_t n_bits;
 
   /** Print the record lock into the given output stream
-  @param[in,out]	out	the output stream
+  @param[in,out]        out     the output stream
   @return the given output stream. */
   std::ostream &print(std::ostream &out) const;
 };
 
 /** Print the record lock into the given output stream
-@param[in,out]	out	the output stream
+@param[in,out]  out     the output stream
 @return the given output stream. */
 inline std::ostream &lock_rec_t::print(std::ostream &out) const {
   return out << "[lock_rec_t: page_id=" << page_id << ", n_bits=" << n_bits
@@ -120,8 +120,8 @@ static inline bool lock_mode_is_next_key_lock(ulint mode) {
 }
 
 /** Gets the nth bit of a record lock.
-@param[in]	lock	record lock
-@param[in]	i	index of the bit
+@param[in]      lock    record lock
+@param[in]      i       index of the bit
 @return true if bit set also if i == ULINT_UNDEFINED return false */
 static inline bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
 
@@ -227,7 +227,7 @@ struct lock_t {
   trx_que_t trx_que_state() const { return (trx->lock.que_state); }
 
   /** Print the lock object into the given output stream.
-  @param[in,out]	out	the output stream
+  @param[in,out]        out     the output stream
   @return the given output stream. */
   std::ostream &print(std::ostream &out) const;
 
@@ -538,11 +538,11 @@ locks on the inserted record. */
 
 /* LOCK COMPATIBILITY MATRIX
     IS IX S  X  AI
- IS +	 +  +  -  +
- IX +	 +  -  -  +
- S  +	 -  +  -  -
- X  -	 -  -  -  -
- AI +	 +  -  -  -
+ IS +    +  +  -  +
+ IX +    +  -  -  +
+ S  +    -  +  -  -
+ X  -    -  -  -  -
+ AI +    +  -  -  -
  *
  Note that for rows, InnoDB only acquires S or X locks.
  For tables, InnoDB normally acquires IS or IX locks.
@@ -594,16 +594,16 @@ enum lock_rec_req_status {
 Record lock ID */
 struct RecID {
   /** Constructor
-  @param[in]	lock		Record lock
-  @param[in]	heap_no		Heap number in the page */
+  @param[in]    lock            Record lock
+  @param[in]    heap_no         Heap number in the page */
   RecID(const lock_t *lock, ulint heap_no)
       : RecID(lock->rec_lock.page_id, heap_no) {
     ut_ad(lock->is_record_lock());
   }
 
   /** Constructor
-  @param[in]	page_id		Tablespace ID and page number within space
-  @param[in]	heap_no		Heap number in the page */
+  @param[in]    page_id         Tablespace ID and page number within space
+  @param[in]    heap_no         Heap number in the page */
   RecID(page_id_t page_id, uint32_t heap_no)
       : m_page_id(page_id), m_heap_no(heap_no), m_fold(lock_rec_fold(page_id)) {
     ut_ad(m_page_id.space() < UINT32_MAX);
@@ -612,8 +612,8 @@ struct RecID {
   }
 
   /** Constructor
-  @param[in]	block		Block in a tablespace
-  @param[in]	heap_no		Heap number in the block */
+  @param[in]    block           Block in a tablespace
+  @param[in]    heap_no         Heap number in the block */
   RecID(const buf_block_t *block, ulint heap_no)
       : RecID(block->get_page_id(), heap_no) {}
 
@@ -625,7 +625,7 @@ struct RecID {
   bool is_supremum() const { return (m_heap_no == PAGE_HEAP_NO_SUPREMUM); }
 
   /* Check if the rec id matches the lock instance.
-  @param[i]	lock		Lock to compare with
+  @param[i]     lock            Lock to compare with
   @return true if <space, page_no, heap_no> matches the lock. */
   inline bool matches(const lock_t *lock) const;
 
@@ -648,11 +648,11 @@ Create record locks */
 class RecLock {
  public:
   /**
-  @param[in,out] thr	Transaction query thread requesting the record
+  @param[in,out] thr    Transaction query thread requesting the record
                           lock
-  @param[in] index	Index on which record lock requested
-  @param[in] rec_id	Record lock tuple {space, page_no, heap_no}
-  @param[in] mode		The lock mode */
+  @param[in] index      Index on which record lock requested
+  @param[in] rec_id     Record lock tuple {space, page_no, heap_no}
+  @param[in] mode               The lock mode */
   RecLock(que_thr_t *thr, dict_index_t *index, const RecID &rec_id, ulint mode)
       : m_thr(thr),
         m_trx(thr_get_trx(thr)),
@@ -665,12 +665,12 @@ class RecLock {
   }
 
   /**
-  @param[in,out] thr	Transaction query thread requesting the record
+  @param[in,out] thr    Transaction query thread requesting the record
                           lock
-  @param[in] index	Index on which record lock requested
-  @param[in] block	Buffer page containing record
-  @param[in] heap_no	Heap number within the block
-  @param[in] mode		The lock mode */
+  @param[in] index      Index on which record lock requested
+  @param[in] block      Buffer page containing record
+  @param[in] heap_no    Heap number within the block
+  @param[in] mode               The lock mode */
   RecLock(que_thr_t *thr, dict_index_t *index, const buf_block_t *block,
           ulint heap_no, ulint mode)
       : m_thr(thr),
@@ -684,9 +684,9 @@ class RecLock {
   }
 
   /**
-  @param[in] index	Index on which record lock requested
-  @param[in] rec_id	Record lock tuple {space, page_no, heap_no}
-  @param[in] mode		The lock mode */
+  @param[in] index      Index on which record lock requested
+  @param[in] rec_id     Record lock tuple {space, page_no, heap_no}
+  @param[in] mode               The lock mode */
   RecLock(dict_index_t *index, const RecID &rec_id, ulint mode)
       : m_thr(), m_trx(), m_mode(mode), m_index(index), m_rec_id(rec_id) {
     ut_ad(is_predicate_lock(m_mode));
@@ -695,10 +695,10 @@ class RecLock {
   }
 
   /**
-  @param[in] index	Index on which record lock requested
-  @param[in] block	Buffer page containing record
-  @param[in] heap_no	Heap number withing block
-  @param[in] mode		The lock mode */
+  @param[in] index      Index on which record lock requested
+  @param[in] block      Buffer page containing record
+  @param[in] heap_no    Heap number withing block
+  @param[in] mode               The lock mode */
   RecLock(dict_index_t *index, const buf_block_t *block, ulint heap_no,
           ulint mode)
       : m_thr(),
@@ -729,18 +729,18 @@ class RecLock {
 
   /**
   Create a lock for a transaction and initialise it.
-  @param[in, out] trx		Transaction requesting the new lock
-  @param[in] prdt			Predicate lock (optional)
+  @param[in, out] trx           Transaction requesting the new lock
+  @param[in] prdt                       Predicate lock (optional)
   @return new lock instance */
   lock_t *create(trx_t *trx, const lock_prdt_t *prdt = nullptr);
 
   /**
   Create the lock instance
-  @param[in, out] trx	The transaction requesting the lock
-  @param[in, out] index	Index on which record lock is required
-  @param[in] mode		The lock mode desired
-  @param[in] rec_id	The record id
-  @param[in] size		Size of the lock + bitmap requested
+  @param[in, out] trx   The transaction requesting the lock
+  @param[in, out] index Index on which record lock is required
+  @param[in] mode               The lock mode desired
+  @param[in] rec_id     The record id
+  @param[in] size               Size of the lock + bitmap requested
   @return a record lock instance */
   static lock_t *lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
                             const RecID &rec_id, ulint size);
@@ -756,12 +756,12 @@ class RecLock {
 
   /**
   Setup the requesting transaction state for lock grant
-  @param[in,out] lock	Lock for which to change state */
+  @param[in,out] lock   Lock for which to change state */
   void set_wait_state(lock_t *lock);
 
   /**
   Add the lock to the record lock hash and the transaction's lock list
-  @param[in,out] lock	Newly created record lock to add to the
+  @param[in,out] lock   Newly created record lock to add to the
                           rec hash and the transaction lock list */
   void lock_add(lock_t *lock);
 
@@ -823,7 +823,7 @@ class RecLock {
 
   /**
   Calculate the record lock physical size required, non-predicate lock.
-  @param[in] page		For non-predicate locks the buffer page
+  @param[in] page               For non-predicate locks the buffer page
   @return the size of the lock data structure required in bytes */
   static size_t lock_size(const page_t *page) {
     ulint n_recs = page_dir_get_n_heap(page);
@@ -882,7 +882,7 @@ const lock_t *lock_rec_get_prev(
 
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
-@param[in,out]	lock		Waiting lock request */
+@param[in,out]  lock            Waiting lock request */
 void lock_cancel_waiting_and_release(lock_t *lock);
 
 /** This function is a wrapper around several functions which need to be called
@@ -915,8 +915,8 @@ static inline ulint lock_rec_get_n_bits(
     const lock_t *lock); /*!< in: record lock */
 
 /** Sets the nth bit of a record lock to true.
-@param[in]	lock	record lock
-@param[in]	i	index of the bit */
+@param[in]      lock    record lock
+@param[in]      i       index of the bit */
 static inline void lock_rec_set_nth_bit(lock_t *lock, ulint i);
 
 /** Gets the first or next record lock on a page.
@@ -926,37 +926,37 @@ static inline lock_t *lock_rec_get_next_on_page(
 
 /** Gets the first record lock on a page, where the page is identified by its
 file address.
-@param[in]	lock_hash	lock hash table
-@param[in]	page_id		specifies space id and page number of the page
+@param[in]      lock_hash       lock hash table
+@param[in]      page_id         specifies space id and page number of the page
 @return first lock, NULL if none exists */
 static inline lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
                                                       const page_id_t &page_id);
 
 /** Gets the first record lock on a page, where the page is identified by a
 pointer to it.
-@param[in]	lock_hash	lock hash table
-@param[in]	block		buffer block
+@param[in]      lock_hash       lock hash table
+@param[in]      block           buffer block
 @return first lock, NULL if none exists */
 static inline lock_t *lock_rec_get_first_on_page(hash_table_t *lock_hash,
                                                  const buf_block_t *block);
 
 /** Gets the next explicit lock request on a record.
-@param[in]	heap_no	heap number of the record
-@param[in]	lock	lock
+@param[in]      heap_no heap number of the record
+@param[in]      lock    lock
 @return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
 static inline lock_t *lock_rec_get_next(ulint heap_no, lock_t *lock);
 
 /** Gets the next explicit lock request on a record.
-@param[in]	heap_no	heap number of the record
-@param[in]	lock	lock
+@param[in]      heap_no heap number of the record
+@param[in]      lock    lock
 @return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
 static inline const lock_t *lock_rec_get_next_const(ulint heap_no,
                                                     const lock_t *lock);
 
 /** Gets the first explicit lock request on a record.
-@param[in]	hash	hash chain the lock on
-@param[in]	block	block containing the record
-@param[in]	heap_no	heap number of the record
+@param[in]      hash    hash chain the lock on
+@param[in]      block   block containing the record
+@param[in]      heap_no heap number of the record
 @return first lock, NULL if none exists */
 static inline lock_t *lock_rec_get_first(hash_table_t *hash,
                                          const buf_block_t *block,
@@ -967,15 +967,15 @@ static inline lock_t *lock_rec_get_first(hash_table_t *hash,
 static inline enum lock_mode lock_get_mode(const lock_t *lock); /*!< in: lock */
 
 /** Calculates if lock mode 1 is compatible with lock mode 2.
-@param[in]	mode1	lock mode
-@param[in]	mode2	lock mode
+@param[in]      mode1   lock mode
+@param[in]      mode2   lock mode
 @return nonzero if mode1 compatible with mode2 */
 static inline ulint lock_mode_compatible(enum lock_mode mode1,
                                          enum lock_mode mode2);
 
 /** Calculates if lock mode 1 is stronger or equal to lock mode 2.
-@param[in]	mode1	lock mode 1
-@param[in]	mode2	lock mode 2
+@param[in]      mode1   lock mode 1
+@param[in]      mode2   lock mode 2
 @return true iff mode1 stronger or equal to mode2 */
 static inline bool lock_mode_stronger_or_eq(enum lock_mode mode1,
                                             enum lock_mode mode2);
@@ -1001,9 +1001,9 @@ a bit redundant, but it does not affect performance yet makes the reasoning
 about data structure a bit easier and protects trx->lock.trx_locks data
 structure from corruption in case our high level reasoning about absence of
 parallel modifications turns out wrong.
-@param[in]	trx	transaction
-@param[in]	table	table
-@param[in]	mode	lock mode
+@param[in]      trx     transaction
+@param[in]      table   table
+@param[in]      mode    lock mode
 @return lock or NULL */
 static inline bool lock_table_has(const trx_t *trx, const dict_table_t *table,
                                   enum lock_mode mode);
@@ -1022,8 +1022,8 @@ void lock_notify_about_deadlock(const ut::vector<const trx_t *> &trxs_on_cycle,
 struct Lock_iter {
   /* First is the previous lock, and second is the current lock. */
   /** Gets the next record lock on a page.
-  @param[in]	rec_id		The record ID
-  @param[in]	lock		The current lock
+  @param[in]    rec_id          The record ID
+  @param[in]    lock            The current lock
   @return matching lock or nullptr if end of list */
   static lock_t *advance(const RecID &rec_id, lock_t *lock) {
     ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
@@ -1042,9 +1042,9 @@ struct Lock_iter {
   }
 
   /** Gets the first explicit lock request on a record.
-  @param[in]	list		Record hash
-  @param[in]	rec_id		Record ID
-  @return	first lock, nullptr if none exists */
+  @param[in]    list            Record hash
+  @param[in]    rec_id          Record ID
+  @return       first lock, nullptr if none exists */
   static lock_t *first(hash_cell_t *list, const RecID &rec_id) {
     ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
@@ -1060,9 +1060,9 @@ struct Lock_iter {
   }
 
   /** Iterate over all the locks on a specific row
-  @param[in]	rec_id		Iterate over locks on this row
-  @param[in]	f		Function to call for each entry
-  @param[in]	hash_table	The hash table to iterate over
+  @param[in]    rec_id          Iterate over locks on this row
+  @param[in]    f               Function to call for each entry
+  @param[in]    hash_table      The hash table to iterate over
   @return lock where the callback returned false */
   template <typename F>
   static const lock_t *for_each(const RecID &rec_id, F &&f,

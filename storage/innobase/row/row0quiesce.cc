@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -106,9 +106,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
   return (DB_SUCCESS);
 }
 /** Write the meta data config file index information
-@param[in]	index	write metadata for this index
-@param[in,out]	file	file to write to
-@param[in,out]	thd	session
+@param[in]      index   write metadata for this index
+@param[in,out]  file    file to write to
+@param[in,out]  thd     session
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static dberr_t row_quiesce_write_one_index(
     const dict_index_t *index, FILE *file, THD *thd) {
@@ -240,7 +240,7 @@ of dict_col_t default value part if exists.
 @param[in]  col_name    column name
 @param[in,out]  file        file to write to
 @param[in]  dict_table  InnoDB table cache
-@param[in]  thd	        THD
+@param[in]  thd         THD
 @return DB_SUCCESS or DB_IO_ERROR. */
 static dberr_t row_quiesce_write_dropped_col_metadata(
     const dict_col_t *col, const char *col_name, FILE *file,
@@ -368,8 +368,8 @@ static dberr_t row_quiesce_write_dropped_col_metadata(
 
 /** Write the metadata (table columns) config file. Serialise the contents
 of dict_col_t default value part if exists.
-@param[in]	col	column to which the default value belongs
-@param[in]	file	file to write to
+@param[in]      col     column to which the default value belongs
+@param[in]      file    file to write to
 @return DB_SUCCESS or DB_IO_ERROR. */
 [[nodiscard]] static dberr_t row_quiesce_write_default_value(
     const dict_col_t *col, FILE *file) {
@@ -530,9 +530,9 @@ of dict_col_t default value part if exists.
 }
 
 /** Write the meta data config file header.
-@param[in]	table	write the meta data for this table
-@param[in]	file	file to write to
-@param[in,out]	thd	session
+@param[in]      table   write the meta data for this table
+@param[in]      file    file to write to
+@param[in,out]  thd     session
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static dberr_t row_quiesce_write_header(const dict_table_t *table,
                                                       FILE *file, THD *thd) {
@@ -763,9 +763,9 @@ of dict_col_t default value part if exists.
 }
 
 /** Write the transfer key to CFP file.
-@param[in]	table		write the data for this table
-@param[in]	file		file to write to
-@param[in]	thd		session
+@param[in]      table           write the data for this table
+@param[in]      file            file to write to
+@param[in]      thd             session
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
@@ -845,8 +845,8 @@ of dict_col_t default value part if exists.
 }
 
 /** Write the encryption data after quiesce.
-@param[in]	table		write the data for this table
-@param[in]	thd		session
+@param[in]      table           write the data for this table
+@param[in]      thd             session
 @return DB_SUCCESS or error code */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_quiesce_write_cfp(dict_table_t *table, THD *thd) {

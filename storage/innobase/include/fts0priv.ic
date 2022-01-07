@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,8 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Write the table id to the given buffer (including final NUL). Buffer must be
  at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
- @param[in]	id	a table/index id
- @param[in]	str	buffer to write the id to
+ @param[in]     id      a table/index id
+ @param[in]     str     buffer to write the id to
  @return number of bytes written */
 static inline int fts_write_object_id(ib_id_t id, char *str) {
   return (sprintf(str, UINT64PFx, id));

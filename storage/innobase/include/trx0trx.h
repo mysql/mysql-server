@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,8 +69,8 @@ extern sess_t *trx_dummy_sess;
 
 #ifndef UNIV_HOTBACKUP
 /** Set flush observer for the transaction
-@param[in,out]	trx		transaction struct
-@param[in]	observer	flush observer */
+@param[in,out]  trx             transaction struct
+@param[in]      observer        flush observer */
 void trx_set_flush_observer(trx_t *trx, Flush_observer *observer);
 
 /** Set detailed error message for the transaction.
@@ -104,11 +104,11 @@ are resurrected. */
 void trx_clear_resurrected_table_ids();
 
 /** Free and initialize a transaction object instantiated during recovery.
-@param[in,out]	trx	transaction object to free and initialize */
+@param[in,out]  trx     transaction object to free and initialize */
 void trx_free_resurrected(trx_t *trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param[in,out]	trx	transaction object to free */
+@param[in,out]  trx     transaction object to free */
 void trx_free_for_background(trx_t *trx);
 
 /** At shutdown, frees a transaction object that represents either:
@@ -118,15 +118,15 @@ void trx_free_for_background(trx_t *trx);
 void trx_free_prepared_or_active_recovered(trx_t *trx);
 
 /** Free a transaction object for MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_free_for_mysql(trx_t *trx);
 
 /** Disconnect a transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_disconnect_plain(trx_t *trx);
 
 /** Disconnect a prepared transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_disconnect_prepared(trx_t *trx);
 
 /** Creates trx objects for transactions and initializes the trx list of
@@ -150,7 +150,7 @@ void trx_start_if_not_started_low(trx_t *trx, bool read_write);
 void trx_start_internal_low(trx_t *trx); /*!< in/out: transaction */
 
 /** Starts a read-only transaction for internal processing.
-@param[in,out] trx	transaction to be started */
+@param[in,out] trx      transaction to be started */
 void trx_start_internal_read_only_low(trx_t *trx);
 
 /** Commits a transaction. */
@@ -172,7 +172,7 @@ dberr_t trx_commit_for_mysql(trx_t *trx); /*!< in/out: transaction */
 
 /**
 Does the transaction prepare for MySQL.
-@param[in, out] trx		Transaction instance to prepare */
+@param[in, out] trx             Transaction instance to prepare */
 
 dberr_t trx_prepare_for_mysql(trx_t *trx);
 
@@ -255,8 +255,8 @@ void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
     const trx_t *trx); /*!< in: transaction */
 
 /** Flag a transaction a dictionary operation.
-@param[in,out]	trx	transaction
-@param[in]	op	operation, not TRX_DICT_OP_NONE */
+@param[in,out]  trx     transaction
+@param[in]      op      operation, not TRX_DICT_OP_NONE */
 static inline void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
 
 /** Determines if a transaction is in the given state.
@@ -319,12 +319,12 @@ transactions are unique. The values returned by this function for readonly
 transactions may be reused, so a subsequent RO transaction may get the same ID
 as a RO transaction that existed in the past. The values returned by this
 function should be used for printing purposes only.
-@param[in]	trx	transaction whose id to retrieve
+@param[in]      trx     transaction whose id to retrieve
 @return transaction id */
 static inline trx_id_t trx_get_id_for_print(const trx_t *trx);
 
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
-@param[in,out]	trx	transaction that involves write to temp-table. */
+@param[in,out]  trx     transaction that involves write to temp-table. */
 void trx_assign_rseg_temp(trx_t *trx);
 
 /** Create the trx_t pool */
@@ -336,26 +336,26 @@ void trx_pool_close();
 /**
 Set the transaction as a read-write transaction if it is not already
 tagged as such.
-@param[in,out] trx	Transaction that needs to be "upgraded" to RW from RO */
+@param[in,out] trx      Transaction that needs to be "upgraded" to RW from RO */
 void trx_set_rw_mode(trx_t *trx);
 
 /**
-@param[in] requestor	Transaction requesting the lock
-@param[in] holder	Transaction holding the lock
+@param[in] requestor    Transaction requesting the lock
+@param[in] holder       Transaction holding the lock
 @return the transaction that will be rolled back, null don't care */
 
 static inline const trx_t *trx_arbitrate(const trx_t *requestor,
                                          const trx_t *holder);
 
 /**
-@param[in] trx		Transaction to check
+@param[in] trx          Transaction to check
 @return true if the transaction is a high priority transaction.*/
 static inline bool trx_is_high_priority(const trx_t *trx);
 
 /**
 If this is a high priority transaction,
 kill all transactions that are blocking this transaction from acquiring locks.
-@param[in,out] trx	High priority transaction */
+@param[in,out] trx      High priority transaction */
 void trx_kill_blocking(trx_t *trx);
 
 /** Provides an id of the transaction which does not change over time.
@@ -369,7 +369,7 @@ static inline uint64_t trx_immutable_id(const trx_t *trx) {
 
 /**
 Check if redo/noredo rseg is modified for insert/update.
-@param[in] trx		Transaction to check */
+@param[in] trx          Transaction to check */
 static inline bool trx_is_rseg_updated(const trx_t *trx);
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1134,7 +1134,7 @@ Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
 wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
-@param	t transaction
+@param  t transaction
 @return lock wait timeout in seconds */
 static inline std::chrono::seconds trx_lock_wait_timeout_get(const trx_t *t) {
   return thd_lock_wait_timeout(t->mysql_thd);
@@ -1305,7 +1305,7 @@ Check if transaction was started. Note, that after the check
 situation might have already been changed (and note that holding
 the trx_sys->mutex does not prevent state transitions for read-only
 transactions).
-@param[in] trx		Transaction whose state we need to check
+@param[in] trx          Transaction whose state we need to check
 @return true if transaction is in state started */
 inline bool trx_was_started(const trx_t *trx) {
   const auto trx_state = trx->state.load(std::memory_order_relaxed);
@@ -1315,7 +1315,7 @@ inline bool trx_was_started(const trx_t *trx) {
 
 /**
 Check if transaction is started.
-@param[in] trx		Transaction whose state we need to check
+@param[in] trx          Transaction whose state we need to check
 @return true if transaction is in state started */
 inline bool trx_is_started(const trx_t *trx) {
   ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
@@ -1393,8 +1393,8 @@ like a gate between the Server and InnoDB.  */
 class TrxInInnoDB {
  public:
   /**
-  @param[in,out] trx	Transaction entering InnoDB via the handler
-  @param[in] disable	true if called from COMMIT/ROLLBACK method */
+  @param[in,out] trx    Transaction entering InnoDB via the handler
+  @param[in] disable    true if called from COMMIT/ROLLBACK method */
   TrxInInnoDB(trx_t *trx, bool disable = false) : m_trx(trx) {
     enter(trx, disable);
   }
@@ -1434,12 +1434,12 @@ class TrxInInnoDB {
 
   /**
   Start statement requested for transaction.
-  @param[in, out] trx	Transaction at the start of a SQL statement */
+  @param[in, out] trx   Transaction at the start of a SQL statement */
   static void begin_stmt(trx_t *trx) { enter(trx, false); }
 
   /**
   Note an end statement for transaction
-  @param[in, out] trx	Transaction at end of a SQL statement */
+  @param[in, out] trx   Transaction at end of a SQL statement */
   static void end_stmt(trx_t *trx) { exit(trx); }
 
   /**
@@ -1451,8 +1451,8 @@ class TrxInInnoDB {
 
  private:
   /** Note that we have crossed into InnoDB code.
-  @param[in]	trx	transaction
-  @param[in]	disable	true if called from COMMIT/ROLLBACK method */
+  @param[in]    trx     transaction
+  @param[in]    disable true if called from COMMIT/ROLLBACK method */
   static void enter(trx_t *trx, bool disable) {
     if (srv_read_only_mode) {
       return;
@@ -1581,7 +1581,7 @@ class TrxInInnoDB {
 };
 
 /** Check if transaction is internal XA transaction
-@param[in]	trx	transaction
+@param[in]      trx     transaction
 @return true, iff internal XA transaction. */
 bool trx_is_mysql_xa(const trx_t *trx);
 

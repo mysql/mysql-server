@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -161,7 +161,7 @@ along with a boolean showing whether the undo space number is in use. */
 extern struct space_id_account *space_id_bank;
 
 /** Check if the space_id is an undo space ID in the reserved range.
-@param[in]	space_id	undo tablespace ID
+@param[in]      space_id        undo tablespace ID
 @return true if it is in the reserved undo space ID range. */
 inline bool is_reserved(space_id_t space_id) {
   return (space_id >= dict_sys_t::s_min_undo_space_id &&
@@ -223,7 +223,7 @@ and s_undo_space_id_range = 400,000:
 
 This is done to maintain backward compatibility to when there was only one
 space_id per undo space number.
-@param[in]	space_id	undo tablespace ID
+@param[in]      space_id        undo tablespace ID
 @return space number of the undo tablespace */
 /* clang-format on */
 inline space_id_t id2num(space_id_t space_id) {
@@ -295,14 +295,14 @@ undo tablespaces. The slot will be marked as in-use.
 space_id_t get_next_available_space_num();
 
 /** Build a standard undo tablespace name from a space_id.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return tablespace name of the undo tablespace file */
 char *make_space_name(space_id_t space_id);
 
 /** Build a standard undo tablespace file name from a space_id.
 This will create a name like 'undo_001' if the space_id is in the
 reserved range, else it will be like 'undo001'.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return file_name of the undo tablespace file */
 char *make_file_name(space_id_t space_id);
 
@@ -422,7 +422,7 @@ struct Tablespace {
   }
 
   /** Build a log file name based on space_id
-  @param[in]	space_id	id of the undo tablespace.
+  @param[in]    space_id        id of the undo tablespace.
   @return DB_SUCCESS or error code */
   char *make_log_file_name(space_id_t space_id);
 
@@ -678,15 +678,15 @@ class Tablespaces {
   The vector has been pre-allocated to 128 so read threads will
   not loose what is pointed to. If tablespace_name and file_name
   are standard names, they are optional.
-  @param[in]	ref_undo_space	undo tablespace */
+  @param[in]    ref_undo_space  undo tablespace */
   void add(Tablespace &ref_undo_space);
 
   /** Drop an existing explicit undo::Tablespace.
-  @param[in]	undo_space	pointer to undo space */
+  @param[in]    undo_space      pointer to undo space */
   void drop(Tablespace *undo_space);
 
   /** Drop an existing explicit undo::Tablespace.
-  @param[in]	ref_undo_space	reference to undo space */
+  @param[in]    ref_undo_space  reference to undo space */
   void drop(Tablespace &ref_undo_space);
 
   /** Check if the given space_id is in the vector.
@@ -840,7 +840,7 @@ and they do not contain an RSEG_ARRAY page. */
 extern Space_Ids s_under_construction;
 
 /** Add undo tablespace to s_under_construction vector.
-@param[in]	space_id	space id of tablespace to
+@param[in]      space_id        space id of tablespace to
 truncate */
 void add_space_to_construction_list(space_id_t space_id);
 
@@ -848,7 +848,7 @@ void add_space_to_construction_list(space_id_t space_id);
 void clear_construction_list();
 
 /** Is an undo tablespace under construction at the moment.
-@param[in]	space_id	space id to check
+@param[in]      space_id        space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id);
 

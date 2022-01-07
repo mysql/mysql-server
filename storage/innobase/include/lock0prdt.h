@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -140,7 +140,7 @@ Get predicate lock's minimum bounding box
 static inline
 rtr_mbr_t*
 prdt_get_mbr_from_prdt(
-	const lock_prdt_t*	prdt);	/*!< in: the lock predicate */
+        const lock_prdt_t*      prdt);  /*!< in: the lock predicate */
 
 #endif
 /** Moves the locks of a record to another record and resets the lock bits of
@@ -152,15 +152,15 @@ void lock_prdt_rec_move(
                                  the donating record */
 
 /** Check whether there are no R-tree Page locks on a page by other transactions
-@param[in]	trx	trx to test the lock
-@param[in]	page_id	id of the page
-@retval	true	if there is no lock
-@retval	false	if some transaction other than trx holds a page lock */
+@param[in]      trx     trx to test the lock
+@param[in]      page_id id of the page
+@retval true    if there is no lock
+@retval false   if some transaction other than trx holds a page lock */
 bool lock_test_prdt_page_lock(const trx_t *trx, const page_id_t &page_id);
 
 /** Removes predicate lock objects set on an index page which is discarded.
-@param[in]	block		page to be discarded
-@param[in]	lock_hash	lock hash */
+@param[in]      block           page to be discarded
+@param[in]      lock_hash       lock hash */
 void lock_prdt_page_free_from_discard(const buf_block_t *block,
                                       hash_table_t *lock_hash);
 

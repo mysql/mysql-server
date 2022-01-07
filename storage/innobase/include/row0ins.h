@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -95,19 +95,19 @@ execute actual insert.
 /** Tries to insert an entry into a secondary index. If a record with exactly
 the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@param[in]	flags		undo logging and locking flags
-@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+@param[in]      flags           undo logging and locking flags
+@param[in]      mode            BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                                 depending on whether we wish optimistic or
                                 pessimistic descent down the index tree
-@param[in]	index		secondary index
-@param[in,out]	offsets_heap	memory heap that can be emptied
-@param[in,out]	heap		memory heap
-@param[in,out]	entry		index entry to insert
-@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+@param[in]      index           secondary index
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
+@param[in,out]  entry           index entry to insert
+@param[in]      trx_id          PAGE_MAX_TRX_ID during row_log_table_apply(),
                                 or trx_id when undo log is disabled during
                                 alter copy operation or 0
-@param[in]	thr		query thread
-@param[in]	dup_chk_only	true, just do duplicate check and return.
+@param[in]      thr             query thread
+@param[in]      dup_chk_only    true, just do duplicate check and return.
                                 don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
@@ -120,9 +120,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
-@param[in]	index	index handler
-@param[out]	entry	index entry to make
-@param[in]	row	row
+@param[in]      index   index handler
+@param[out]     entry   index entry to make
+@param[in]      row     row
 @return DB_SUCCESS if the set is successful */
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);

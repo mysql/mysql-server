@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1082,7 +1082,7 @@ called once during thread de-initialization. */
 void undo_spaces_deinit();
 
 /** Set redo log variable for performance schema global status.
-@param[in]	enable	true => redo log enabled, false => redo log disabled */
+@param[in]      enable  true => redo log enabled, false => redo log disabled */
 void set_srv_redo_log(bool enable);
 
 #ifdef UNIV_DEBUG
@@ -1090,10 +1090,10 @@ struct SYS_VAR;
 
 /** Disables master thread. It's used by:
         SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]      thd             thread handle
+@param[in]      var             pointer to system variable
+@param[out]     var_ptr         where the formal string goes
+@param[in]      save            immediate result from check function */
 void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save);
 #endif /* UNIV_DEBUG */

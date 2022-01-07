@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -263,7 +263,7 @@ static inline uint16_t rec_get_bit_field_2(
 
 #ifdef UNIV_DEBUG
 /** Check if the info bits are valid.
-@param[in]	bits	info bits to check
+@param[in]      bits    info bits to check
 @return true if valid */
 inline bool rec_info_bits_valid(ulint bits) {
   return (0 == (bits & ~(REC_INFO_DELETED_FLAG | REC_INFO_MIN_REC_FLAG |
@@ -272,8 +272,8 @@ inline bool rec_info_bits_valid(ulint bits) {
 #endif /* UNIV_DEBUG */
 
 /** The following function is used to retrieve the info bits of a record.
-@param[in]	rec	physical record
-@param[in]	comp	nonzero=compact page format
+@param[in]      rec     physical record
+@param[in]      comp    nonzero=compact page format
 @return info bits */
 static inline ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
   const ulint val =
@@ -285,8 +285,8 @@ static inline ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
 
 /** The following function is used to retrieve the info bits of a temporary
 record.
-@param[in]	rec	physical record
-@return	info bits */
+@param[in]      rec     physical record
+@return info bits */
 static inline ulint rec_get_info_bits_temp(const rec_t *rec) {
   const ulint val = rec_get_bit_field_1(
       rec, REC_TMP_INFO_BITS, REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
@@ -317,8 +317,8 @@ static inline ulint rec_get_info_bits_temp(const rec_t *rec) {
 in an old-style record. Have to consider the case that after
 instant ADD COLUMN, this record may have less fields than
 current index.
-@param[in]	rec	physical record
-@param[in]	index	index where the record resides
+@param[in]      rec     physical record
+@param[in]      index   index where the record resides
 @return number of data fields */
 [[nodiscard]] static inline uint16_t rec_get_n_fields_old(
     const rec_t *rec, const dict_index_t *index) {
@@ -400,10 +400,10 @@ static inline ulint rec_get_n_fields(
 
 /** Confirms the n_fields of the entry is sane with comparing the other
 record in the same page specified
-@param[in]	index	index
-@param[in]	rec	record of the same page
-@param[in]	entry	index entry
-@return	true if n_fields is sane */
+@param[in]      index   index
+@param[in]      rec     record of the same page
+@param[in]      entry   index entry
+@return true if n_fields is sane */
 static inline bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
                                         const dtuple_t *entry) {
   return (rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry)
@@ -469,9 +469,9 @@ static inline void rec_offs_set_n_fields(
 
 /** Determine the offset of a specified field in the record, when this
 field is a field added after an instant ADD COLUMN
-@param[in]	index	Clustered index where the record resides
-@param[in]	n	Nth field to get offset
-@param[in]	offs	Last offset before current field
+@param[in]      index   Clustered index where the record resides
+@param[in]      n       Nth field to get offset
+@param[in]      offs    Last offset before current field
 @return The offset of the specified field */
 static inline uint64_t rec_get_instant_offset(const dict_index_t *index,
                                               ulint n, uint64_t offs) {
@@ -500,9 +500,9 @@ record. The rest of the array will be initialized by this function.
   the field i is NULL.
 - If the second high-order bit of the offset at [i+1] is set
 (REC_OFFS_EXTERNAL), the field i is being stored externally.
-@param[in]	rec	physical record
-@param[in]	index	record descriptor
-@param[in,out]	offsets	array of offsets */
+@param[in]      rec     physical record
+@param[in]      index   record descriptor
+@param[in,out]  offsets array of offsets */
 void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
                       ulint *offsets);
 
@@ -603,7 +603,7 @@ std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets);
 #endif /* UNIV_DEBUG */
 
 /** The following function tells if a new-style record is instant record.
-@param[in]	rec	new-style record
+@param[in]      rec     new-style record
 @return true if it is instant affected */
 static inline bool rec_get_instant_flag_new(const rec_t *rec) {
   ulint info = rec_get_info_bits(rec, true);
@@ -611,7 +611,7 @@ static inline bool rec_get_instant_flag_new(const rec_t *rec) {
 }
 
 /** The following function tells if a new-style temp record is instant record.
-@param[in]	rec	new-style temp record
+@param[in]      rec     new-style temp record
 @return true if it is instant affected */
 static inline bool rec_get_instant_flag_new_temp(const rec_t *rec) {
   ulint info = rec_get_info_bits_temp(rec);
@@ -643,7 +643,7 @@ inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
 }
 
 /** The following function tells if a new-style record is versioned.
-@param[in]	rec	new-style (COMPACT/DYNAMIC) record
+@param[in]      rec     new-style (COMPACT/DYNAMIC) record
 @return true if it is versioned */
 static inline bool rec_new_is_versioned(const rec_t *rec) {
   ulint info = rec_get_info_bits(rec, true);
@@ -651,7 +651,7 @@ static inline bool rec_new_is_versioned(const rec_t *rec) {
 }
 
 /** The following function tells if an old-style record is versioned.
-@param[in]	rec	old-style (REDUNDANT) record
+@param[in]      rec     old-style (REDUNDANT) record
 @return true if it's versioned */
 static inline bool rec_old_is_versioned(const rec_t *rec) {
   ulint info = rec_get_info_bits(rec, false);
@@ -659,8 +659,8 @@ static inline bool rec_old_is_versioned(const rec_t *rec) {
 }
 
 /** The following function tells if a temporary record is versioned.
-@param[in]	rec	new-style temporary record
-@return	true if it's instant affected */
+@param[in]      rec     new-style temporary record
+@return true if it's instant affected */
 static inline bool rec_new_temp_is_versioned(const rec_t *rec) {
   ulint info = rec_get_info_bits_temp(rec);
   return ((info & REC_INFO_VERSION_FLAG) != 0);
@@ -668,10 +668,10 @@ static inline bool rec_new_temp_is_versioned(const rec_t *rec) {
 
 /** Get the number of fields for one new style leaf page record.
 This is only needed for table after instant ADD COLUMN.
-@param[in]	rec		leaf page record
-@param[in]	extra_bytes	extra bytes of this record
-@param[in,out]	length		length of number of fields
-@return	number of fields */
+@param[in]      rec             leaf page record
+@param[in]      extra_bytes     extra bytes of this record
+@param[in,out]  length          length of number of fields
+@return number of fields */
 static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
                                                 const ulint extra_bytes,
                                                 uint16_t *length) {
@@ -696,12 +696,12 @@ static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
 
 /** Determines the information about null bytes and variable length bytes
 for a new-style temporary record
-@param[in]	rec		physical record
-@param[in]	index		index where the record resides
-@param[out]	nulls		the start of null bytes
-@param[out]	lens		the start of variable length bytes
-@param[out]	n_null		number of null fields
-@return	the row version of record */
+@param[in]      rec             physical record
+@param[in]      index           index where the record resides
+@param[out]     nulls           the start of null bytes
+@param[out]     lens            the start of variable length bytes
+@param[out]     n_null          number of null fields
+@return the row version of record */
 static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
                                                   const dict_index_t *index,
                                                   const byte **nulls,
@@ -784,12 +784,12 @@ static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
 
 /** Determines the information about null bytes and variable length bytes
 for a new style record
-@param[in]	rec		physical record
-@param[in]	index		index where the record resides
-@param[out]	nulls		the start of null bytes
-@param[out]	lens		the start of variable length bytes
-@param[out]	n_null		number of null fields
-@return	number of fields with no default or the row version of record */
+@param[in]      rec             physical record
+@param[in]      index           index where the record resides
+@param[out]     nulls           the start of null bytes
+@param[out]     lens            the start of variable length bytes
+@param[out]     n_null          number of null fields
+@return number of fields with no default or the row version of record */
 static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
                                                   const dict_index_t *index,
                                                   const byte **nulls,
@@ -894,11 +894,11 @@ static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
 /** Determine the offset to each field in a leaf-page record in
 ROW_FORMAT=COMPACT.  This is a special case of rec_init_offsets() and
 rec_get_offsets_func().
-@param[in]	rec	physical record in ROW_FORMAT=COMPACT
-@param[in]	temp	whether to use the format for temporary files in index
+@param[in]      rec     physical record in ROW_FORMAT=COMPACT
+@param[in]      temp    whether to use the format for temporary files in index
                         creation
-@param[in]	index	record descriptor
-@param[in,out]	offsets	array of offsets */
+@param[in]      index   record descriptor
+@param[in,out]  offsets array of offsets */
 void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
                                     const dict_index_t *index, ulint *offsets);
 

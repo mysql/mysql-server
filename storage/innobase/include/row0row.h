@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -131,24 +131,24 @@ dtuple_t *row_build(ulint type, const dict_index_t *index, const rec_t *rec,
 /** An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index, with possible indexing on ongoing
 addition of new virtual columns.
-@param[in]	type		ROW_COPY_POINTERS or ROW_COPY_DATA;
-@param[in]	index		clustered index
-@param[in]	rec		record in the clustered index
-@param[in]	offsets		rec_get_offsets(rec,index) or NULL
-@param[in]	col_table	table, to check which
+@param[in]      type            ROW_COPY_POINTERS or ROW_COPY_DATA;
+@param[in]      index           clustered index
+@param[in]      rec             record in the clustered index
+@param[in]      offsets         rec_get_offsets(rec,index) or NULL
+@param[in]      col_table       table, to check which
                                 externally stored columns
                                 occur in the ordering columns
                                 of an index, or NULL if
                                 index->table should be
                                 consulted instead
-@param[in]	add_cols	default values of added columns, or NULL
-@param[in]	add_v		new virtual columns added
+@param[in]      add_cols        default values of added columns, or NULL
+@param[in]      add_v           new virtual columns added
                                 along with new indexes
-@param[in]	col_map		mapping of old column
+@param[in]      col_map         mapping of old column
                                 numbers to new ones, or NULL
-@param[in]	ext		cache of externally stored column
+@param[in]      ext             cache of externally stored column
                                 prefixes, or NULL
-@param[in]	heap		memory heap from which
+@param[in]      heap            memory heap from which
                                 the memory needed is allocated
 @return own: row built */
 dtuple_t *row_build_w_add_vcol(ulint type, const dict_index_t *index,
@@ -209,12 +209,12 @@ void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
 
 /** Builds from a secondary index record a row reference with which we can
 search the clustered index record.
-@param[in,out]	ref	typed data tuple where the reference is built
-@param[in]	map	array of field numbers in rec telling how ref should
+@param[in,out]  ref     typed data tuple where the reference is built
+@param[in]      map     array of field numbers in rec telling how ref should
                         be built from the fields of rec
-@param[in]	rec	record in the index; must be preserved while ref is
+@param[in]      rec     record in the index; must be preserved while ref is
                         used, as we do not copy field values to heap
-@param[in]	offsets	array returned by rec_get_offsets() */
+@param[in]      offsets array returned by rec_get_offsets() */
 static inline void row_build_row_ref_fast(dtuple_t *ref, const ulint *map,
                                           const rec_t *rec,
                                           const ulint *offsets);
@@ -242,10 +242,10 @@ static inline void row_build_row_ref_fast(dtuple_t *ref, const ulint *map,
 /** Parse the integer data from specified data, which could be
 DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
 and the type is not unsigned then we reset the value to 0
-@param[in]	data		data to read
-@param[in]	len		length of data
-@param[in]	mtype		mtype of data
-@param[in]	unsigned_type	if the data is unsigned
+@param[in]      data            data to read
+@param[in]      len             length of data
+@param[in]      mtype           mtype of data
+@param[in]      unsigned_type   if the data is unsigned
 @return the integer value from the data */
 inline uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
                               bool unsigned_type);
@@ -254,14 +254,14 @@ inline uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
 DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
 1) the value is less than 0 and the type is not unsigned
 or 2) the field is null.
-@param[in]	field		field to read the int value
+@param[in]      field           field to read the int value
 @return the integer value read from the field, 0 for negative signed
 int or NULL field */
 uint64_t row_parse_int_from_field(const dfield_t *field);
 
 /** Read the autoinc counter from the clustered index row.
-@param[in]	row	row to read the autoinc counter
-@param[in]	n	autoinc counter is in the nth field
+@param[in]      row     row to read the autoinc counter
+@param[in]      n       autoinc counter is in the nth field
 @return the autoinc counter read */
 uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n);
 
@@ -443,15 +443,15 @@ different values in the same multi-value field. */
 class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
  public:
   /** Constructor
-  @param[in]		row		based on which complete row to build
+  @param[in]            row             based on which complete row to build
                                         the index row
-  @param[in]		ext		externally stored column prefixes of
+  @param[in]            ext             externally stored column prefixes of
                                         the row
-  @param[in,out]	index		multi-value index
-  @param[in,out]	heap		memory heap
-  @param[in]		check		true if type can be checked, otherwise
+  @param[in,out]        index           multi-value index
+  @param[in,out]        heap            memory heap
+  @param[in]            check           true if type can be checked, otherwise
                                         skip checking
-  @param[in]		selected	true if only the selected(bitmap set)
+  @param[in]            selected        true if only the selected(bitmap set)
                                         multi-value data would be used to build
                                         the entries, otherwise false. */
   Multi_value_entry_builder_normal(const dtuple_t *row, const row_ext_t *ext,
@@ -518,8 +518,8 @@ each different value */
 class Multi_value_entry_builder_insert : public Multi_value_entry_builder {
  public:
   /** Constructor
-  @param[in,out]	index	multi-value index
-  @param[in]		entry	entry to insert based on the index */
+  @param[in,out]        index   multi-value index
+  @param[in]            entry   entry to insert based on the index */
   Multi_value_entry_builder_insert(dict_index_t *index, dtuple_t *entry)
       : Multi_value_entry_builder(index, entry, false) {}
 

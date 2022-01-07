@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -143,9 +143,9 @@ namespace recv {
 /** Page recovered from the doublewrite buffer */
 struct Page {
   /** Constructor
-  @param[in]	page_no	          Page number in the doublewrite buffer
-  @param[in]	page	            Page read from the double write buffer
-  @param[in]	n_bytes	          Length of the page data. */
+  @param[in]    page_no           Page number in the doublewrite buffer
+  @param[in]    page                Page read from the double write buffer
+  @param[in]    n_bytes           Length of the page data. */
   Page(page_no_t page_no, const byte *page, uint32_t n_bytes)
       : m_no(page_no), m_buffer(1), m_recovered() {
     ut_a(n_bytes <= univ_page_size.physical());
@@ -188,19 +188,19 @@ class Pages {
   }
 
   /** Add a page frame to the doublewrite recovery buffer.
-  @param[in]	page_no		        Page number in the doublewrite buffer
-  @param[in]	page		          Page contents
-  @param[in]	n_bytes		        Size in bytes */
+  @param[in]    page_no                 Page number in the doublewrite buffer
+  @param[in]    page                      Page contents
+  @param[in]    n_bytes                 Size in bytes */
   void add(page_no_t page_no, const byte *page, uint32_t n_bytes) noexcept;
 
   /** Find a doublewrite copy of a page.
-  @param[in]	page_id		        Page number to lookup
-  @return	page frame
+  @param[in]    page_id                 Page number to lookup
+  @return       page frame
   @retval nullptr if no page was found */
   const byte *find(const page_id_t &page_id) const noexcept;
 
   /** Recover double write buffer pages
-  @param[in]	space		          Tablespace pages to recover, if set
+  @param[in]    space                     Tablespace pages to recover, if set
                                 to nullptr then try and recovery all. */
   void recover(fil_space_t *space) noexcept;
 
@@ -462,7 +462,7 @@ class Double_write {
   /** Get the instance that handles a particular page's IO. Submit the
   write request to the a double write queue that is empty.
   @param[in]  flush_type        Flush type.
-  @param[in]	bpage             Page from the buffer pool.
+  @param[in]    bpage             Page from the buffer pool.
   @param[in]  e_block    compressed + encrypted frame contents or nullptr.*/
   static void submit(buf_flush_t flush_type, buf_page_t *bpage,
                      const file::Block *e_block) noexcept {
@@ -476,8 +476,8 @@ class Double_write {
 
   /** Writes a single page to the doublewrite buffer on disk, syncs it,
   then writes the page to the datafile.
-  @param[in]	bpage             Data page to write to disk.
-  @param[in]	e_block           Encrypted data block.
+  @param[in]    bpage             Data page to write to disk.
+  @param[in]    e_block           Encrypted data block.
   @return DB_SUCCESS or error code */
   [[nodiscard]] static dberr_t sync_page_flush(buf_page_t *bpage,
                                                file::Block *e_block) noexcept;
@@ -537,22 +537,22 @@ class Double_write {
   }
 
   /** Load the doublewrite buffer pages from an external file.
-  @param[in,out]	file		      File handle
-  @param[in,out]	pages		      For storing the doublewrite pages
+  @param[in,out]        file                  File handle
+  @param[in,out]        pages                 For storing the doublewrite pages
                                 read from the file
   @return DB_SUCCESS or error code */
   [[nodiscard]] static dberr_t load(dblwr::File &file,
                                     recv::Pages *pages) noexcept;
 
   /** Write zeros to the file if it is "empty"
-  @param[in]	file		          File instance.
-  @param[in]	n_pages           Size in physical pages.
+  @param[in]    file                      File instance.
+  @param[in]    n_pages           Size in physical pages.
   @return DB_SUCCESS or error code */
   [[nodiscard]] static dberr_t init_file(dblwr::File &file,
                                          uint32_t n_pages) noexcept;
 
   /** Reset the size in bytes to the configured size.
-  @param[in,out] file						File to reset.
+  @param[in,out] file                                           File to reset.
   @param[in] truncate           Truncate the file to configured size if true. */
   static void reset_file(dblwr::File &file, bool truncate) noexcept;
 
@@ -578,9 +578,9 @@ class Double_write {
 #endif /* _WIN32 */
 
   /** Extract the data and length to write to the doublewrite file
-  @param[in]	bpage		          Page to write
-  @param[out]	ptr		            Start of buffer to write
-  @param[out]	len		            Length of the data to write */
+  @param[in]    bpage                     Page to write
+  @param[out]   ptr                         Start of buffer to write
+  @param[out]   len                         Length of the data to write */
   static void prepare(const buf_page_t *bpage, void **ptr,
                       uint32_t *len) noexcept;
 
@@ -588,7 +588,7 @@ class Double_write {
   static void shutdown() noexcept;
 
   /** Toggle the doublewrite buffer dynamically
-  @param[in]	value		          Current value */
+  @param[in]    value                     Current value */
   static void toggle(bool value) noexcept {
     if (s_instances == nullptr) {
       return;
@@ -603,7 +603,7 @@ class Double_write {
 
   /** Write the data to disk synchronously.
   @param[in]    segment      Segment to write to.
-  @param[in]	bpage        Page to write.
+  @param[in]    bpage        Page to write.
   @param[in]    e_block      Encrypted block.  Can be nullptr. */
   static void single_write(Segment *segment, const buf_page_t *bpage,
                            file::Block *e_block) noexcept;
@@ -615,21 +615,21 @@ class Double_write {
 
   /** Asserts when a corrupt block is found during writing out
   data to the disk.
-  @param[in]	block		          Block that was corrupt */
+  @param[in]    block                     Block that was corrupt */
   static void croak(const buf_block_t *block) noexcept;
 
   /** Check the LSN values on the page with which this block
   is associated.  Also validate the page if the option is set.
-  @param[in]	block		          Block to check */
+  @param[in]    block                     Block to check */
   static void check_block(const buf_block_t *block) noexcept;
 
   /** Check the LSN values on the page.
-  @param[in]	page		          Page to check */
+  @param[in]    page                      Page to check */
   static void check_page_lsn(const page_t *page) noexcept;
 
   /** Calls buf_page_get() on the TRX_SYS_PAGE and returns
   a pointer to the doublewrite buffer within it.
-  @param[in,out]	mtr		        To manage the page latches
+  @param[in,out]        mtr                     To manage the page latches
   @return pointer to the doublewrite buffer within the filespace
           header page. */
   [[nodiscard]] static byte *get(mtr_t *mtr) noexcept;
@@ -2128,10 +2128,10 @@ static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
 }
 
 /** Recover a page from the doublewrite buffer.
-@param[in]	dblwr_page_no	      Page number if the doublewrite buffer
-@param[in]	space		            Tablespace the page belongs to
-@param[in]	page_no		          Page number in the tablespace
-@param[in]	page		            Data to write to <space, page_no>
+@param[in]      dblwr_page_no         Page number if the doublewrite buffer
+@param[in]      space                       Tablespace the page belongs to
+@param[in]      page_no                   Page number in the tablespace
+@param[in]      page                        Data to write to <space, page_no>
 @return true if page was restored to the tablespace */
 static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
                                page_no_t page_no, const byte *page) noexcept {

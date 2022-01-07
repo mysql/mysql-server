@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -422,16 +422,16 @@ static bool rtr_pcur_getnext_from_path(
 /** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
-@param[in]	tuple		Data tuple; NOTE: n_fields_cmp in tuple
+@param[in]      tuple           Data tuple; NOTE: n_fields_cmp in tuple
                                 must be set so that it cannot get compared
                                 to the node ptr page number field!
-@param[in]	mode		Cursor search mode
-@param[in]	sel_mode	Select mode: SELECT_ORDINARY,
+@param[in]      mode            Cursor search mode
+@param[in]      sel_mode        Select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	cursor		Persistent cursor; NOTE that the function
+@param[in]      cursor          Persistent cursor; NOTE that the function
                                 may release the page latch
-@param[in]	cur_level	Current level
-@param[in]	mtr		Mini-transaction
+@param[in]      cur_level       Current level
+@param[in]      mtr             Mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
@@ -471,7 +471,7 @@ bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
 }
 
 /** Check if the cursor holds record pointing to the specified child page
- @return	true if it is (pointing to the child page) false otherwise */
+ @return        true if it is (pointing to the child page) false otherwise */
 static bool rtr_compare_cursor_rec(
     dict_index_t *index, /*!< in: index */
     btr_cur_t *cursor,   /*!< in: Cursor to check */
@@ -584,7 +584,7 @@ void rtr_pcur_open_low(dict_index_t *index, ulint level, const dtuple_t *tuple,
 
 /** Returns the upper level node pointer to a R-Tree page. It is assumed
 that mtr holds an SX-latch or X-latch on the tree.
-@return	rec_get_offsets() of the node pointer record */
+@return rec_get_offsets() of the node pointer record */
 static ulint *rtr_page_get_father_node_ptr(
     ulint *offsets,     /*!< in: work area for the return value */
     mem_heap_t *heap,   /*!< in: memory heap to use */
@@ -665,12 +665,12 @@ static ulint *rtr_page_get_father_node_ptr(
 }
 
 /* Get the rtree page father.
-@param[in]	index		rtree index
-@param[in]	block		child page in the index
-@param[in]	mtr		mtr
-@param[in]	sea_cur		search cursor, contains information
+@param[in]      index           rtree index
+@param[in]      block           child page in the index
+@param[in]      mtr             mtr
+@param[in]      sea_cur         search cursor, contains information
                                 about parent nodes in search
-@param[in]	cursor		cursor on node pointer record,
+@param[in]      cursor          cursor on node pointer record,
                                 its page x-latched */
 void rtr_page_get_father(dict_index_t *index, buf_block_t *block, mtr_t *mtr,
                          btr_cur_t *sea_cur, btr_cur_t *cursor) {
@@ -1368,8 +1368,8 @@ static void rtr_non_leaf_insert_stack_push(
 
 /** Copy a buf_block_t structure, except "block->lock",
 "block->mutex","block->debug_latch", "block->n_pointers and block->frame."
-@param[in,out]	matches	copy to match->block
-@param[in]	block	block to copy */
+@param[in,out]  matches copy to match->block
+@param[in]      block   block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   /* Clear any space references in the page if it was copied before. */
   buf_page_prepare_for_free(&matches->block.page);

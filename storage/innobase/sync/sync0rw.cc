@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -57,27 +57,27 @@ The status of a rw_lock is held in lock_word. The initial value of lock_word is
 X_LOCK_DECR. lock_word is decremented by 1 for each s-lock and by X_LOCK_DECR
 or 1 for each x-lock. This describes the lock state for each value of lock_word:
 
-lock_word == X_LOCK_DECR:	Unlocked.
+lock_word == X_LOCK_DECR:       Unlocked.
 X_LOCK_HALF_DECR < lock_word < X_LOCK_DECR:
                                 S locked, no waiting writers.
                                 (X_LOCK_DECR - lock_word) is the number
                                 of S locks.
-lock_word == X_LOCK_HALF_DECR:	SX locked, no waiting writers.
+lock_word == X_LOCK_HALF_DECR:  SX locked, no waiting writers.
 0 < lock_word < X_LOCK_HALF_DECR:
                                 SX locked AND S locked, no waiting writers.
                                 (X_LOCK_HALF_DECR - lock_word) is the number
                                 of S locks.
-lock_word == 0:			X locked, no waiting writers.
+lock_word == 0:                 X locked, no waiting writers.
 -X_LOCK_HALF_DECR < lock_word < 0:
                                 S locked, with a waiting writer.
                                 (-lock_word) is the number of S locks.
-lock_word == -X_LOCK_HALF_DECR:	X locked and SX locked, no waiting writers.
+lock_word == -X_LOCK_HALF_DECR: X locked and SX locked, no waiting writers.
 -X_LOCK_DECR < lock_word < -X_LOCK_HALF_DECR:
                                 S locked, with a waiting writer
                                 which has SX lock.
                                 -(lock_word + X_LOCK_HALF_DECR) is the number
                                 of S locks.
-lock_word == -X_LOCK_DECR:	X locked with recursive X lock (2 X locks).
+lock_word == -X_LOCK_DECR:      X locked with recursive X lock (2 X locks).
 -(X_LOCK_DECR + X_LOCK_HALF_DECR) < lock_word < -X_LOCK_DECR:
                                 X locked. The number of the X locks is:
                                 2 - (lock_word + X_LOCK_DECR)
@@ -106,7 +106,7 @@ sx-lock holder.
 
 The other members of the lock obey the following rules to remain consistent:
 
-recursive:	This flag is true iff the lock->writer_thread is allowed to take
+recursive:      This flag is true iff the lock->writer_thread is allowed to take
                 the x or sx lock recursively.
 
                 In particular you should follow these rules:
@@ -119,7 +119,7 @@ recursive:	This flag is true iff the lock->writer_thread is allowed to take
                   recursive to `true`
                 - make sure that when you want to read both `recursive` and
                   `writer_thread` you do this in this precise order
-writer_thread:	Is used only in recursive x-locking.
+writer_thread:  Is used only in recursive x-locking.
                 This field is initialized to an impossible thread native handle
                 value at lock creation time and is updated atomically when sx or
                 x-lock is being acquired or when move_ownership is called.
@@ -130,7 +130,7 @@ writer_thread:	Is used only in recursive x-locking.
                 this field is to compare it to own thread's native handle
                 AFTER checking that lock->recursive flag is set, to see if we
                 are the current writer.
-waiters:	May be set to 1 anytime, but to avoid unnecessary wake-up
+waiters:        May be set to 1 anytime, but to avoid unnecessary wake-up
                 signals, it should only be set to 1 when there are threads
                 waiting on event. Must be 1 when a writer starts waiting to
                 ensure the current x-locking thread sends a wake-up signal
@@ -139,9 +139,9 @@ waiters:	May be set to 1 anytime, but to avoid unnecessary wake-up
                 memory barrier is required after waiters is set, and before
                 verifying lock_word is still held, to ensure some unlocker
                 really does see the flags new value.
-event:		Threads wait on event for read or writer lock when another
+event:          Threads wait on event for read or writer lock when another
                 thread has an x-lock or an x-lock reservation (wait_ex). A
-                thread may only	wait on event after performing the following
+                thread may only wait on event after performing the following
                 actions in order:
                    (1) Record the counter value of event (with os_event_reset).
                    (2) Set waiters to 1.
@@ -152,7 +152,7 @@ event:		Threads wait on event for read or writer lock when another
                 Immediately before sending the wake-up signal, we should:
                    (1) Verify lock_word == X_LOCK_DECR (unlocked)
                    (2) Reset waiters to 0.
-wait_ex_event:	A thread may only wait on the wait_ex_event after it has
+wait_ex_event:  A thread may only wait on the wait_ex_event after it has
                 performed the following actions in order:
                    (1) Decrement lock_word by X_LOCK_DECR.
                    (2) Record counter value of wait_ex_event (os_event_reset,
@@ -840,8 +840,8 @@ bool rw_lock_own(const rw_lock_t *lock, ulint lock_type) {
 typedef std::vector<const rw_lock_debug_t *> Infos;
 
 /** Get the thread debug info
-@param[in]	infos		The rw-lock mode owned by the threads
-@param[in]	lock		rw-lock to check
+@param[in]      infos           The rw-lock mode owned by the threads
+@param[in]      lock            rw-lock to check
 @return the thread debug info or NULL if not found */
 static void rw_lock_get_debug_info(const rw_lock_t *lock, Infos *infos) {
   ut_ad(rw_lock_validate(lock));

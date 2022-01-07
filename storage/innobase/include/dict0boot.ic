@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -70,7 +70,7 @@ static inline void dict_sys_write_row_id(byte *field, /*!< in: record field */
 }
 
 /** Check if a table id belongs to old innodb internal system table.
-@param[in]	id		table id
+@param[in]      id              table id
 @return true if the table id belongs to a system table. */
 static inline bool dict_is_old_sys_table(table_id_t id) {
   if (srv_is_upgrade_mode) {

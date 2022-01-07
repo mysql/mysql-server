@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -305,8 +305,8 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
 }
 
 /** Display a DDL record
-@param[in,out]	o	output stream
-@param[in]	record	DDL record to display
+@param[in,out]  o       output stream
+@param[in]      record  DDL record to display
 @return the output stream */
 std::ostream &operator<<(std::ostream &o, const DDL_Record &record) {
   return (record.print(o));

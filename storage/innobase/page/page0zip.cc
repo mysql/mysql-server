@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -123,9 +123,9 @@ ulint page_zip_empty_size(
 }
 
 /** Check whether a tuple is too big for compressed table
-@param[in]	index	dict index object
-@param[in]	entry	entry for the index
-@return	true if it's too big, otherwise false */
+@param[in]      index   dict index object
+@param[in]      entry   entry for the index
+@return true if it's too big, otherwise false */
 bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry) {
   const page_size_t &page_size = dict_table_page_size(index->table);
 
@@ -2318,11 +2318,11 @@ void page_zip_dir_insert(page_zip_des_t *page_zip, const byte *prev_rec,
 
 /** Shift the dense page directory and the array of BLOB pointers when a record
 is deleted.
-@param[in,out]	page_zip	compressed page
-@param[in]	rec		deleted record
-@param[in]	index		index of rec
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	free		previous start of the free list */
+@param[in,out]  page_zip        compressed page
+@param[in]      rec             deleted record
+@param[in]      index           index of rec
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      free            previous start of the free list */
 void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          const dict_index_t *index, const ulint *offsets,
                          const byte *free) {

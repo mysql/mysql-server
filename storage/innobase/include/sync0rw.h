@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -59,8 +59,8 @@ struct rw_lock_t;
 /**
 Pass-through version of rw_lock_own(), which normally checks that the
 thread has locked the rw-lock in the specified mode.
-@param[in]	lock		pointer to rw-lock
-@param[in]	lock_type	lock type: RW_LOCK_S, RW_LOCK_X
+@param[in]      lock            pointer to rw-lock
+@param[in]      lock_type       lock type: RW_LOCK_S, RW_LOCK_X
 @return true if success */
 static inline bool rw_lock_own(rw_lock_t *lock, ulint lock_type) {
   return (lock != nullptr);
@@ -143,10 +143,10 @@ bool rw_lock_validate(const rw_lock_t *lock); /*!< in: rw-lock */
 
 /** Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested
+@param[in]      location location where requested
 @return true if success */
 static inline bool rw_lock_s_lock_low(rw_lock_t *lock,
                                       ulint pass [[maybe_unused]],
@@ -157,26 +157,26 @@ you supply the file name and line number. Lock an rw-lock in shared mode for
 the current thread. If the rw-lock is locked in exclusive mode, or there is an
 exclusive lock request waiting, the function spins a preset time (controlled
 by srv_n_spin_wait_rounds), waiting for the lock, before suspending the thread.
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline void rw_lock_s_lock_func(rw_lock_t *lock, ulint pass,
                                        ut::Location location);
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be obtained
 immediately.
-@param[in]	lock		pointer to rw-lock
-@param[in]	location location where requested
+@param[in]      lock            pointer to rw-lock
+@param[in]      location location where requested
 @return true if success */
 static inline bool rw_lock_x_lock_func_nowait(rw_lock_t *lock,
                                               ut::Location location);
 
 /** Releases a shared mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed to another
+@param[in]      pass    pass value; != 0, if the lock will be passed to another
 thread to unlock
-@param[in,out]	lock	rw-lock */
+@param[in,out]  lock    rw-lock */
 static inline void rw_lock_s_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock);
 
@@ -216,16 +216,16 @@ an s-lock, locking does not succeed!
 void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location);
 
 /** Releases an exclusive mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed to another
+@param[in]      pass    pass value; != 0, if the lock will be passed to another
 thread to unlock
-@param[in,out]	lock	rw-lock */
+@param[in,out]  lock    rw-lock */
 static inline void rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
                                              rw_lock_t *lock);
 
 /** Releases an sx mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed to another
+@param[in]      pass    pass value; != 0, if the lock will be passed to another
 thread to unlock
-@param[in,out]	lock	rw-lock */
+@param[in,out]  lock    rw-lock */
 static inline void rw_lock_sx_unlock_func(IF_DEBUG(ulint pass, )
                                               rw_lock_t *lock);
 
@@ -265,16 +265,16 @@ static inline ulint rw_lock_get_reader_count(
 
 /** Decrements lock_word the specified amount if it is greater than 0.
 This is used by both s_lock and x_lock operations.
-@param[in,out]	lock		rw-lock
-@param[in]	amount		amount to decrement
-@param[in]	threshold	threshold of judgement
+@param[in,out]  lock            rw-lock
+@param[in]      amount          amount to decrement
+@param[in]      threshold       threshold of judgement
 @return true if decr occurs */
 static inline bool rw_lock_lock_word_decr(rw_lock_t *lock, ulint amount,
                                           lint threshold);
 
 /** Increments lock_word the specified amount and returns new value.
-@param[in,out]	lock		rw-lock
-@param[in]	amount		amount to decrement
+@param[in,out]  lock            rw-lock
+@param[in]      amount          amount to decrement
 @return lock->lock_word after increment */
 static inline lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
 
@@ -285,8 +285,8 @@ Note that it is assumed that the caller of this function effectively owns
 the lock i.e.: nobody else is allowed to modify lock->writer_thread at this
 point in time. The protocol is that lock->writer_thread MUST be updated BEFORE
 the lock->recursive flag is set.
-@param[in,out]	lock		lock to work on
-@param[in]	recursive	true if recursion allowed */
+@param[in,out]  lock            lock to work on
+@param[in]      recursive       true if recursion allowed */
 static inline void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock,
                                                             bool recursive);
 
@@ -502,12 +502,12 @@ rw_lock_free()
 /** Performance schema instrumented wrap function for rw_lock_create_func()
 NOTE! Please use the corresponding macro rw_lock_create(), not directly this
 function!
-@param[in]	key		key registered with performance schema
-@param[in]	lock		rw lock
-@param[in]	level		level
-@param[in]	cmutex_name	mutex name
-@param[in]	cline		file line where created
-@param[in]	cfile_name	file name where created */
+@param[in]      key             key registered with performance schema
+@param[in]      lock            rw lock
+@param[in]      level           level
+@param[in]      cmutex_name     mutex name
+@param[in]      cline           file line where created
+@param[in]      cfile_name      file name where created */
 static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
                                            IF_DEBUG(latch_level_t level,
                                                     const char *cmutex_name, )
@@ -517,18 +517,18 @@ static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly this
 function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline void pfs_rw_lock_x_lock_func(rw_lock_t *lock, ulint pass,
                                            ut::Location location);
 
 /** Performance schema instrumented wrap function for
 rw_lock_x_lock_func_nowait()
 NOTE! Please use the corresponding macro, not directly this function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	location location where requested
+@param[in]      lock            pointer to rw-lock
+@param[in]      location location where requested
 @return true if success */
 static inline bool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock,
                                                   ut::Location location);
@@ -536,20 +536,20 @@ static inline bool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock,
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly this
 function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline void pfs_rw_lock_s_lock_func(rw_lock_t *lock, ulint pass,
                                            ut::Location location);
 
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly this
 function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location  location where requested
+@param[in]      location  location where requested
 @return true if success */
 static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
                                           ut::Location location);
@@ -557,56 +557,56 @@ static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly this
 function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline void pfs_rw_lock_x_lock_func(rw_lock_t *lock, ulint pass,
                                            ut::Location location);
 
 /** Performance schema instrumented wrap function for rw_lock_s_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_s_unlock(), not directly this
 function!
- @param[in]	pass	pass value; != 0, if the lock may have been passed to
+ @param[in]     pass    pass value; != 0, if the lock may have been passed to
                         another thread to unlock
- @param[in,out]	lock	rw-lock */
+ @param[in,out] lock    rw-lock */
 static inline void pfs_rw_lock_s_unlock_func(IF_DEBUG(ulint pass, )
                                                  rw_lock_t *lock);
 
 /** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly this
 function!
-@param[in]	pass	pass value; != 0, if the lock may have been passed to
+@param[in]      pass    pass value; != 0, if the lock may have been passed to
 another thread to unlock
-@param[in,out]	lock	rw-lock */
+@param[in,out]  lock    rw-lock */
 static inline void pfs_rw_lock_x_unlock_func(IF_DEBUG(ulint pass, )
                                                  rw_lock_t *lock);
 
 /** Performance schema instrumented wrap function for rw_lock_sx_lock_func()
 NOTE! Please use the corresponding macro rw_lock_sx_lock(), not directly this
 function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass,
                                             ut::Location location);
 
 /** Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
 NOTE! Please use the corresponding macro, not directly this function!
-@param[in]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in]      lock            pointer to rw-lock
+@param[in]      pass            pass value; != 0, if the lock will be passed
                                 to another thread to unlock
-@param[in]	location location where requested */
+@param[in]      location location where requested */
 static inline bool pfs_rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass,
                                            ut::Location location);
 
 /** Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly this
 function!
-@param[in]	pass		pass value; != 0, if the lock will be passed to
+@param[in]      pass            pass value; != 0, if the lock will be passed to
 another thread to unlock
-@param[in,out]	lock		pointer to rw-lock */
+@param[in,out]  lock            pointer to rw-lock */
 static inline void pfs_rw_lock_sx_unlock_func(IF_DEBUG(ulint pass, )
                                                   rw_lock_t *lock);
 

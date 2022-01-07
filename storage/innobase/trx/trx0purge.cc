@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -397,9 +397,9 @@ void trx_purge_add_update_undo_to_history(
 }
 
 /** Remove an rseg header from the history list.
-@param[in,out]	rseg_hdr	Rollback segment header
-@param[in]	log_hdr		Undo log segment header
-@param[in,out]	mtr		Mini-transaction. */
+@param[in,out]  rseg_hdr        Rollback segment header
+@param[in]      log_hdr         Undo log segment header
+@param[in,out]  mtr             Mini-transaction. */
 static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
                                      trx_ulogf_t *log_hdr, mtr_t *mtr) {
   flst_remove(rseg_hdr + TRX_RSEG_HISTORY, log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -410,9 +410,9 @@ static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
 
 /** Frees a rollback segment which is in the history list.
 Removes the rseg hdr from the history list.
-@param[in,out]	rseg		rollback segment
-@param[in]	hdr_addr	file address of log_hdr
-@param[in]	noredo		skip redo logging. */
+@param[in,out]  rseg            rollback segment
+@param[in]      hdr_addr        file address of log_hdr
+@param[in]      noredo          skip redo logging. */
 static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
                                    bool noredo) {
   mtr_t mtr;
@@ -771,7 +771,7 @@ void Tablespace::set_space_id(space_id_t space_id) {
 }
 
 /** Build a standard undo tablespace name from a space_id.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return tablespace name of the undo tablespace file */
 char *make_space_name(space_id_t space_id) {
   /* 8.0 undo tablespace names have an extra '_' */
@@ -791,7 +791,7 @@ char *make_space_name(space_id_t space_id) {
 /** Build a standard undo tablespace file name from a space_id.
 This will create a name like 'undo_001' if the space_id is in the
 reserved range, else it will be like 'undo001'.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return file_name of the undo tablespace file */
 char *make_file_name(space_id_t space_id) {
   /* 8.0 undo tablespace names have an extra '_' */
@@ -876,7 +876,7 @@ void Tablespace::set_file_name(const char *file_name) {
 }
 
 /** Populate log file name based on space_id
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return DB_SUCCESS or error code */
 char *Tablespace::make_log_file_name(space_id_t space_id) {
   size_t size = strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
@@ -1106,7 +1106,7 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 }
 
 /** Add undo tablespace to s_under_construction vector.
-@param[in]	space_id	space id of tablespace to
+@param[in]      space_id        space id of tablespace to
 truncate */
 void add_space_to_construction_list(space_id_t space_id) {
   s_under_construction.push_back(space_id);
@@ -1116,7 +1116,7 @@ void add_space_to_construction_list(space_id_t space_id) {
 void clear_construction_list() { s_under_construction.clear(); }
 
 /** Is an undo tablespace under constuction at the moment.
-@param[in]	space_id	space id to check
+@param[in]      space_id        space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id) {
   for (auto construct_id : s_under_construction) {
@@ -1798,8 +1798,8 @@ static void trx_purge_rseg_get_next_history_log(
 }
 
 /** Position the purge sys "iterator" on the undo record to use for purging.
-@param[in,out]	purge_sys	purge instance
-@param[in]	page_size	page size */
+@param[in,out]  purge_sys       purge instance
+@param[in]      page_size       page size */
 static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
                                     const page_size_t &page_size) {
   ulint offset;
@@ -2634,7 +2634,7 @@ void undo::Tablespaces::deinit() {
 The vector has been pre-allocated to 128 so read threads will
 not loose what is pointed to. If tablespace_name and file_name
 are standard names, they are optional.
-@param[in]	ref_undo_space	undo tablespace */
+@param[in]      ref_undo_space  undo tablespace */
 void undo::Tablespaces::add(Tablespace &ref_undo_space) {
   ut_ad(is_reserved(ref_undo_space.id()));
 
@@ -2649,7 +2649,7 @@ void undo::Tablespaces::add(Tablespace &ref_undo_space) {
 }
 
 /** Drop an existing explicit undo::Tablespace.
-@param[in]	undo_space	pointer to undo space */
+@param[in]      undo_space      pointer to undo space */
 void undo::Tablespaces::drop(Tablespace *undo_space) {
   ut_ad(is_reserved(undo_space->id()));
   ut_ad(contains(undo_space->num()));
@@ -2664,7 +2664,7 @@ void undo::Tablespaces::drop(Tablespace *undo_space) {
 }
 
 /** Drop an existing explicit undo::Tablespace.
-@param[in]	ref_undo_space	reference to undo space */
+@param[in]      ref_undo_space  reference to undo space */
 void undo::Tablespaces::drop(Tablespace &ref_undo_space) {
   ut_ad(is_reserved(ref_undo_space.id()));
 

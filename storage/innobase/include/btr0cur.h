@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -104,21 +104,21 @@ static inline page_t *btr_cur_get_page(
     btr_cur_t *cursor); /*!< in: tree cursor */
 
 /** Positions a tree cursor at a given record.
-@param[in]	index	index
-@param[in]	rec	record in tree
-@param[in]	block	buffer block of rec
-@param[in]	cursor	cursor */
+@param[in]      index   index
+@param[in]      rec     record in tree
+@param[in]      block   buffer block of rec
+@param[in]      cursor  cursor */
 static inline void btr_cur_position(dict_index_t *index, rec_t *rec,
                                     buf_block_t *block, btr_cur_t *cursor);
 
 /** Optimistically latches the leaf page or pages requested.
-@param[in]	block		Guessed buffer block
-@param[in]	modify_clock	Modify clock value
-@param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in,out]	cursor		Cursor
-@param[in]	file		File name
-@param[in]	line		Line where called
-@param[in]	mtr		Mini-transaction
+@param[in]      block           Guessed buffer block
+@param[in]      modify_clock    Modify clock value
+@param[in,out]  latch_mode      BTR_SEARCH_LEAF, ...
+@param[in,out]  cursor          Cursor
+@param[in]      file            File name
+@param[in]      line            Line where called
+@param[in]      mtr             Mini-transaction
 @return true if success */
 bool btr_cur_optimistic_latch_leaves(buf_block_t *block, uint64_t modify_clock,
                                      ulint *latch_mode, btr_cur_t *cursor,
@@ -168,18 +168,18 @@ void btr_cur_search_to_nth_level(
 This function will avoid placing latches while traversing the path and so
 should be used only for cases where-in latching is not needed.
 
-@param[in]	index	Index
-@param[in]	level	The tree level of search
-@param[in]	tuple	Data tuple; Note: n_fields_cmp in compared
+@param[in]      index   Index
+@param[in]      level   The tree level of search
+@param[in]      tuple   Data tuple; Note: n_fields_cmp in compared
                         to the node ptr page node field
-@param[in]	mode	PAGE_CUR_L, ....
+@param[in]      mode    PAGE_CUR_L, ....
                         Insert should always be made using PAGE_CUR_LE
                         to search the position.
-@param[in,out]	cursor	Tree cursor; points to record of interest.
-@param[in]	file	File name
-@param[in]	line	Line where called from
-@param[in,out]	mtr	Mini-transaction
-@param[in]	mark_dirty if true then mark the block as dirty */
+@param[in,out]  cursor  Tree cursor; points to record of interest.
+@param[in]      file    File name
+@param[in]      line    Line where called from
+@param[in,out]  mtr     Mini-transaction
+@param[in]      mark_dirty if true then mark the block as dirty */
 void btr_cur_search_to_nth_level_with_no_latch(
     dict_index_t *index, ulint level, const dtuple_t *tuple,
     page_cur_mode_t mode, btr_cur_t *cursor, const char *file, ulint line,
@@ -202,13 +202,13 @@ void btr_cur_open_at_index_side(bool from_left, dict_index_t *index,
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
-@param[in]	from_left	true if open to low end, false if open to high
+@param[in]      from_left       true if open to low end, false if open to high
 end.
-@param[in]	index	Index
-@param[in,out]	cursor	Cursor
-@param[in]	level	Level to search for (0=leaf)
-@param[in]	location	Location where called
-@param[in,out]	mtr	Mini-transaction */
+@param[in]      index   Index
+@param[in,out]  cursor  Cursor
+@param[in]      level   Level to search for (0=leaf)
+@param[in]      location        Location where called
+@param[in,out]  mtr     Mini-transaction */
 void btr_cur_open_at_index_side_with_no_latch(bool from_left,
                                               dict_index_t *index,
                                               btr_cur_t *cursor, ulint level,
@@ -526,11 +526,11 @@ byte *btr_cur_parse_del_mark_set_sec_rec(
 #ifndef UNIV_HOTBACKUP
 
 /** Estimates the number of rows in a given index range.
-@param[in]	index	index
-@param[in]	tuple1	range start, may also be empty tuple
-@param[in]	mode1	search mode for range start
-@param[in]	tuple2	range end, may also be empty tuple
-@param[in]	mode2	search mode for range end
+@param[in]      index   index
+@param[in]      tuple1  range start, may also be empty tuple
+@param[in]      mode1   search mode for range start
+@param[in]      tuple2  range end, may also be empty tuple
+@param[in]      mode2   search mode for range end
 @return estimated number of rows */
 int64_t btr_estimate_n_rows_in_range(dict_index_t *index,
                                      const dtuple_t *tuple1,
@@ -552,17 +552,17 @@ bool btr_estimate_number_of_different_key_vals(
     dict_index_t *index); /*!< in: index */
 
 /** Copies an externally stored field of a record to mem heap.
-@param[in]	trx		the trx doing the operation.
-@param[in]	index		index containing the LOB.
-@param[in]	rec		record in a clustered index; must be
+@param[in]      trx             the trx doing the operation.
+@param[in]      index           index containing the LOB.
+@param[in]      rec             record in a clustered index; must be
                                 protected by a lock or a page latch
-@param[in]	offsets		array returned by rec_get_offsets()
-@param[in]	page_size	BLOB page size
-@param[in]	no		field number
-@param[out]	len		length of the field
-@param[out]	lob_version	version of lob
-@param[in]	is_sdi		true for SDI Indexes
-@param[in,out]	heap		mem heap
+@param[in]      offsets         array returned by rec_get_offsets()
+@param[in]      page_size       BLOB page size
+@param[in]      no              field number
+@param[out]     len             length of the field
+@param[out]     lob_version     version of lob
+@param[in]      is_sdi          true for SDI Indexes
+@param[in,out]  heap            mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, dict_index_t *index, const rec_t *rec, const ulint *offsets,
@@ -580,21 +580,21 @@ void btr_cur_set_deleted_flag_for_ibuf(
     mtr_t *mtr);              /*!< in/out: mini-transaction */
 
 /** The following function is used to set the deleted bit of a record.
-@param[in,out]	rec		physical record
-@param[in,out]	page_zip	compressed page (or NULL)
-@param[in]	flag		nonzero if delete marked */
+@param[in,out]  rec             physical record
+@param[in,out]  page_zip        compressed page (or NULL)
+@param[in]      flag            nonzero if delete marked */
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
                                             bool flag);
 
 /** Latches the leaf page or pages requested.
-@param[in]	block		Leaf page where the search converged
-@param[in]	page_id		Page id of the leaf
-@param[in]	page_size	Page size
-@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in]	cursor		Cursor
-@param[in]	mtr		Mini-transaction
-@return	blocks and savepoints which actually latched. */
+@param[in]      block           Leaf page where the search converged
+@param[in]      page_id         Page id of the leaf
+@param[in]      page_size       Page size
+@param[in]      latch_mode      BTR_SEARCH_LEAF, ...
+@param[in]      cursor          Cursor
+@param[in]      mtr             Mini-transaction
+@return blocks and savepoints which actually latched. */
 btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
                                         const page_id_t &page_id,
                                         const page_size_t &page_size,
@@ -613,8 +613,8 @@ limit, merging it to a neighbor is tried */
 tree. Each slot contains data on a single level of the tree. */
 struct btr_path_t {
   /* Assume a page like:
-  records:		(inf, a, b, c, d, sup)
-  index of the record:	0, 1, 2, 3, 4, 5
+  records:              (inf, a, b, c, d, sup)
+  index of the record:  0, 1, 2, 3, 4, 5
   */
 
   /** Index of the record where the page cursor stopped on this level
@@ -726,9 +726,9 @@ struct btr_cur_t {
 };
 
 /** The following function is used to set the deleted bit of a record.
-@param[in,out]	rec		physical record
-@param[in,out]	page_zip	compressed page (or NULL)
-@param[in]	flag		nonzero if delete marked */
+@param[in,out]  rec             physical record
+@param[in,out]  page_zip        compressed page (or NULL)
+@param[in]      flag            nonzero if delete marked */
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
                                             bool flag);

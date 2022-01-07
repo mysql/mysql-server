@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -835,9 +835,9 @@ void Clone_Snapshot::page_update_for_flush(const page_size_t &page_size,
 }
 
 /** Set Page encryption information for IORequest.
-@param[in,out]	request		IO request
-@param[in]	page_id		page id
-@param[in]	file_ctx	clone file context */
+@param[in,out]  request         IO request
+@param[in]      page_id         page id
+@param[in]      file_ctx        clone file context */
 static void set_page_encryption(IORequest &request, const page_id_t &page_id,
                                 const Clone_file_ctx *file_ctx) {
   auto file_meta = file_ctx->get_file_meta_read();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -224,13 +224,13 @@ void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
                               table handle */
 
 /** Sets a table lock on the table mentioned in prebuilt.
-@param[in,out]	prebuilt	table handle
+@param[in,out]  prebuilt        table handle
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt);
 
 /** Does an insert for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
 [[nodiscard]] dberr_t row_insert_for_mysql(const byte *mysql_rec,
                                            row_prebuilt_t *prebuilt);
@@ -252,14 +252,14 @@ bool row_table_got_default_clust_index(
     const dict_table_t *table); /*!< in: table */
 
 /** Does an update or delete of a row for MySQL.
-@param[in]	mysql_rec	row in the MySQL format
-@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in]      mysql_rec       row in the MySQL format
+@param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_update_for_mysql(const byte *mysql_rec,
                                            row_prebuilt_t *prebuilt);
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in,out]	table	table handler */
+@param[in,out]  table   table handler */
 void row_delete_all_rows(dict_table_t *table);
 
 #endif /* !UNIV_HOTBACKUP */
@@ -307,11 +307,11 @@ void row_mysql_unfreeze_data_dictionary(trx_t *trx); /*!< in/out: transaction */
 
 /** Creates a table for MySQL. On success the in-memory table could be
 kept in non-LRU list while on failure the 'table' object will be freed.
-@param[in]	table		table definition(will be freed, or on
+@param[in]      table           table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
-@param[in]	compression	compression algorithm to use, can be nullptr
-@param[in]	create_info     HA_CREATE_INFO object
-@param[in,out]	trx		transaction
+@param[in]      compression     compression algorithm to use, can be nullptr
+@param[in]      create_info     HA_CREATE_INFO object
+@param[in,out]  trx             transaction
 @param[in]      heap            temp memory heap or nullptr
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_create_table_for_mysql(
@@ -340,9 +340,9 @@ kept in non-LRU list while on failure the 'table' object will be freed.
  in both participating tables. The indexes are allowed to contain more
  fields than mentioned in the constraint.
 
- @param[in]	trx		transaction
- @param[in]	name		table full name in normalized form
- @param[in]	dd_table	MySQL dd::Table for the table
+ @param[in]     trx             transaction
+ @param[in]     name            table full name in normalized form
+ @param[in]     dd_table        MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_table_load_foreign_constraints(
     trx_t *trx, const char *name, const dd::Table *dd_table);
@@ -363,27 +363,27 @@ ulint row_drop_tables_for_mysql_in_background(void);
 
 /** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	File path of tablespace to delete
+@param[in]      space_id        Tablespace ID
+@param[in]      filepath        File path of tablespace to delete
 @return error code or DB_SUCCESS */
 dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath);
 
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
-@param[in]	name		Table name
-@param[in]	trx		Transaction handle
-@param[in]	nonatomic	Whether it is permitted to release
+@param[in]      name            Table name
+@param[in]      trx             Transaction handle
+@param[in]      nonatomic       Whether it is permitted to release
 and reacquire dict_operation_lock
-@param[in,out]	handler		Table handler or NULL
+@param[in,out]  handler         Table handler or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
                                  dict_table_t *handler = nullptr);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
-@param[in]	name		table name
-@param[in,out]	trx		data dictionary transaction
+@param[in]      name            table name
+@param[in,out]  trx             data dictionary transaction
 @return error code or DB_SUCCESS */
 inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
   return (row_drop_table_for_mysql(name, trx, true, nullptr));
@@ -398,17 +398,17 @@ inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
     trx_t *trx);      /*!< in: transaction handle */
 
 /** Drop a database for MySQL.
-@param[in]	name	database name which ends at '/'
-@param[in]	trx	transaction handle
-@param[out]	found	number of dropped tables
+@param[in]      name    database name which ends at '/'
+@param[in]      trx     transaction handle
+@param[out]     found   number of dropped tables
 @return error code or DB_SUCCESS */
 dberr_t row_drop_database_for_mysql(const char *name, trx_t *trx, ulint *found);
 
 /** Renames a table for MySQL.
-@param[in]	old_name	old table name
-@param[in]	new_name	new table name
-@param[in]	dd_table	dd::Table for new table
-@param[in,out]	trx		transaction
+@param[in]      old_name        old table name
+@param[in]      new_name        new table name
+@param[in]      dd_table        dd::Table for new table
+@param[in,out]  trx             transaction
 @param[in]      replay          whether in replay stage
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_rename_table_for_mysql(const char *old_name,
@@ -691,12 +691,12 @@ struct row_prebuilt_t {
                                 ('semi-consistent read').  Then,
                                 this field will be set to
                                 ROW_READ_DID_SEMI_CONSISTENT to
-                                indicate that.	If the row does not
+                                indicate that.  If the row does not
                                 match the WHERE condition, MySQL will
                                 invoke handler::unlock_row() to
                                 clear the flag back to
                                 ROW_READ_TRY_SEMI_CONSISTENT and
-                                to simply skip the row.	 If
+                                to simply skip the row.  If
                                 the row matches, the next call to
                                 row_search_for_mysql() will lock
                                 the row.
@@ -870,7 +870,7 @@ struct row_prebuilt_t {
   Thus, this implements a 'mini-rollback' that releases the latest index record
   locks we've just set.
 
-  @param[in]	has_latches_on_recs	true if called so that we have the
+  @param[in]    has_latches_on_recs     true if called so that we have the
                                         latches on the records under pcur
                                         and clust_pcur, and we do not need
                                         to reposition the cursors. */
@@ -935,18 +935,18 @@ dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
                                                 upd_t *update, uint32_t col_no);
 
 /** Get the computed value by supplying the base column values.
-@param[in,out]	row		the data row
-@param[in]	col		virtual column
-@param[in]	index		index on the virtual column
-@param[in,out]	local_heap	heap memory for processing large data etc.
-@param[in,out]	heap		memory heap that copies the actual index row
-@param[in]	ifield		index field
-@param[in]	thd		MySQL thread handle
-@param[in,out]	mysql_table	mysql table object
-@param[in]	old_table	during ALTER TABLE, this is the old table
+@param[in,out]  row             the data row
+@param[in]      col             virtual column
+@param[in]      index           index on the virtual column
+@param[in,out]  local_heap      heap memory for processing large data etc.
+@param[in,out]  heap            memory heap that copies the actual index row
+@param[in]      ifield          index field
+@param[in]      thd             MySQL thread handle
+@param[in,out]  mysql_table     mysql table object
+@param[in]      old_table       during ALTER TABLE, this is the old table
                                 or NULL.
-@param[in]	parent_update	update vector for the parent row
-@param[in]	foreign		foreign key information
+@param[in]      parent_update   update vector for the parent row
+@param[in]      foreign         foreign key information
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t *innobase_get_computed_value(
@@ -969,11 +969,11 @@ void innobase_get_multi_value(const TABLE *mysql_table, ulint f_idx,
                               uint old_val, ulint comp, mem_heap_t *heap);
 
 /** Get the computed value by supplying the base column values.
-@param[in,out]	table	the table whose virtual column template to be built */
+@param[in,out]  table   the table whose virtual column template to be built */
 void innobase_init_vc_templ(dict_table_t *table);
 
 /** Change dbname and table name in table->vc_templ.
-@param[in,out]	table	the table whose virtual column template
+@param[in,out]  table   the table whose virtual column template
 dbname and tbname to be renamed. */
 void innobase_rename_vc_templ(dict_table_t *table);
 

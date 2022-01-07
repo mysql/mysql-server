@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,14 +69,14 @@ static inline rec_t *page_cur_get_rec(page_cur_t *cur); /*!< in: page cursor */
 #endif /* UNIV_DEBUG */
 
 /** Sets the cursor object to point before the first user record on the page.
-@param[in]	block	index page
-@param[in]	cur	cursor */
+@param[in]      block   index page
+@param[in]      cur     cursor */
 static inline void page_cur_set_before_first(const buf_block_t *block,
                                              page_cur_t *cur);
 
 /** Sets the cursor object to point after the last user record on the page.
-@param[in]	block	index page
-@param[in]	cur	cursor */
+@param[in]      block   index page
+@param[in]      cur     cursor */
 static inline void page_cur_set_after_last(const buf_block_t *block,
                                            page_cur_t *cur);
 
@@ -90,9 +90,9 @@ static inline bool page_cur_is_after_last(
     const page_cur_t *cur); /*!< in: cursor */
 
 /** Positions the cursor on the given record.
-@param[in]	rec	record on a page
-@param[in]	block	buffer block containing the record
-@param[out]	cur	page cursor */
+@param[in]      rec     record on a page
+@param[in]      block   buffer block containing the record
+@param[out]     cur     page cursor */
 static inline void page_cur_position(const rec_t *rec, const buf_block_t *block,
                                      page_cur_t *cur);
 
@@ -135,11 +135,11 @@ compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction, or by invoking
 ibuf_reset_free_bits() before mtr_commit().
 
-@param[in,out]	cursor	A page cursor
-@param[in]	rec	record To insert
-@param[in]	index	Record descriptor
-@param[in,out]	offsets	rec_get_offsets(rec, index)
-@param[in]	mtr	Mini-transaction handle, or NULL
+@param[in,out]  cursor  A page cursor
+@param[in]      rec     record To insert
+@param[in]      index   Record descriptor
+@param[in,out]  offsets rec_get_offsets(rec, index)
+@param[in]      mtr     Mini-transaction handle, or NULL
 @return pointer to record if succeed, NULL otherwise */
 static inline rec_t *page_cur_rec_insert(page_cur_t *cursor, const rec_t *rec,
                                          dict_index_t *index, ulint *offsets,
@@ -158,11 +158,11 @@ static inline rec_t *page_cur_rec_insert(page_cur_t *cursor, const rec_t *rec,
     mtr_t *mtr);         /*!< in: mini-transaction handle, or NULL */
 
 /** Inserts a record next to page cursor on an uncompressed page.
-@param[in]	current_rec	Pointer to current record after which
+@param[in]      current_rec     Pointer to current record after which
                                 the new record is inserted.
-@param[in]	index		Record descriptor
-@param[in]	tuple		Pointer to a data tuple
-@param[in]	mtr		Mini-transaction handle, or NULL
+@param[in]      index           Record descriptor
+@param[in]      tuple           Pointer to a data tuple
+@param[in]      mtr             Mini-transaction handle, or NULL
 @param[in]      rec_size        The size of new record
 
 @return pointer to record if succeed, NULL otherwise */
@@ -250,19 +250,19 @@ void page_cur_search_with_match(const buf_block_t *block,
                                 page_cur_t *cursor, rtr_info_t *rtr_info);
 
 /** Search the right position for a page cursor.
-@param[in]	block			buffer block
-@param[in]	index			index tree
-@param[in]	tuple			key to be searched for
-@param[in]	mode			search mode
-@param[in,out]	iup_matched_fields	already matched fields in the
+@param[in]      block                   buffer block
+@param[in]      index                   index tree
+@param[in]      tuple                   key to be searched for
+@param[in]      mode                    search mode
+@param[in,out]  iup_matched_fields      already matched fields in the
 upper limit record
-@param[in,out]	iup_matched_bytes	already matched bytes in the
+@param[in,out]  iup_matched_bytes       already matched bytes in the
 first partially matched field in the upper limit record
-@param[in,out]	ilow_matched_fields	already matched fields in the
+@param[in,out]  ilow_matched_fields     already matched fields in the
 lower limit record
-@param[in,out]	ilow_matched_bytes	already matched bytes in the
+@param[in,out]  ilow_matched_bytes      already matched bytes in the
 first partially matched field in the lower limit record
-@param[out]	cursor			page cursor */
+@param[out]     cursor                  page cursor */
 void page_cur_search_with_match_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     page_cur_mode_t mode, ulint *iup_matched_fields, ulint *iup_matched_bytes,

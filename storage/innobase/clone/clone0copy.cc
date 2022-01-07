@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,11 +40,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 
 /** Callback to add an archived redo file to current snapshot
-@param[in]	file_name	file name
-@param[in]	file_size	file size in bytes
-@param[in]	file_offset	start offset in bytes
-@param[in]	context		snapshot
-@return	error code */
+@param[in]      file_name       file name
+@param[in]      file_size       file size in bytes
+@param[in]      file_offset     start offset in bytes
+@param[in]      context         snapshot
+@return error code */
 static int add_redo_file_callback(char *file_name, uint64_t file_size,
                                   uint64_t file_offset, void *context) {
   auto snapshot = static_cast<Clone_Snapshot *>(context);
@@ -55,10 +55,10 @@ static int add_redo_file_callback(char *file_name, uint64_t file_size,
 }
 
 /** Callback to add tracked page IDs to current snapshot
-@param[in]	context		snapshot
-@param[in]	buff		buffer having page IDs
-@param[in]	num_pages	number of tracked pages
-@return	error code */
+@param[in]      context         snapshot
+@param[in]      buff            buffer having page IDs
+@param[in]      num_pages       number of tracked pages
+@return error code */
 static int add_page_callback(void *context, byte *buff, uint num_pages) {
   uint index;
   Clone_Snapshot *snapshot;

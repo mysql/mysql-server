@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -258,10 +258,10 @@ char *trx_i_s_create_lock_id(
 /** Fill performance schema lock data.
 Create a string that represents the LOCK_DATA
 column, for a given lock record.
-@param[out]	lock_data	Lock data string
-@param[in]	lock		Lock to inspect
-@param[in]	heap_no		Lock heap number
-@param[in]	container	Data container to fill
+@param[out]     lock_data       Lock data string
+@param[in]      lock            Lock to inspect
+@param[in]      heap_no         Lock heap number
+@param[in]      container       Data container to fill
 */
 void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
                         ulint heap_no,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -158,13 +158,13 @@ func_exit:
 }
 
 /** Removes a secondary index entry if found.
-@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+@param[in]      mode    BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                         depending on whether we wish optimistic or
                         pessimistic descent down the index tree
-@param[in]	index	index
-@param[in]	entry	index entry to remove
-@param[in]	thr	query thread
-@param[in]	node	undo node
+@param[in]      index   index
+@param[in]      entry   index entry to remove
+@param[in]      thr     query thread
+@param[in]      node    undo node
 @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_ins_remove_sec_low(ulint mode,
                                                          dict_index_t *index,
@@ -264,10 +264,10 @@ func_exit_no_pcur:
 
 /** Removes a secondary index entry from the index if found. Tries first
  optimistic, then pessimistic descent down the tree.
-@param[in]	index	index
-@param[in]	entry	index entry to insert
-@param[in]	thr	query thread
-@param[in]	node	undo node
+@param[in]      index   index
+@param[in]      entry   index entry to insert
+@param[in]      thr     query thread
+@param[in]      node    undo node
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] static dberr_t row_undo_ins_remove_sec(dict_index_t *index,
                                                      dtuple_t *entry,
@@ -306,9 +306,9 @@ retry:
 }
 
 /** Parses the row reference and other info in a fresh insert undo record.
-@param[in,out]	node	row undo node
+@param[in,out]  node    row undo node
 @param[in]      thd     THD associated with the node
-@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
+@param[in,out]  mdl     MDL ticket or nullptr if unnecessary */
 static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
                                         MDL_ticket **mdl) {
   dict_index_t *clust_index;
@@ -366,10 +366,10 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
 /** Removes a secondary index entry from the index, which is built on
 multi-value field, if found. For each value, it tries first optimistic,
 then pessimistic descent down the tree.
-@param[in,out]	index	multi-value index
-@param[in]	node	undo node
-@param[in]	thr	query thread
-@param[in,out]	heap	memory heap
+@param[in,out]  index   multi-value index
+@param[in]      node    undo node
+@param[in]      thr     query thread
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or error code */
 static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
                                              undo_node_t *node, que_thr_t *thr,

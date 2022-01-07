@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -168,10 +168,10 @@ static inline bool dict_stats_should_ignore_index(
 
 /** Executes a given SQL statement using the InnoDB internal SQL parser.
 This function will free the pinfo object.
-@param[in,out]	pinfo	pinfo to pass to que_eval_sql() must already
+@param[in,out]  pinfo   pinfo to pass to que_eval_sql() must already
 have any literals bound to it
-@param[in]	sql	SQL string to execute
-@param[in,out]	trx	in case of NULL the function will allocate and
+@param[in]      sql     SQL string to execute
+@param[in,out]  trx     in case of NULL the function will allocate and
 free the trx object. If it is not NULL then it will be rolled back
 only in the case of error, but not freed.
 @return DB_SUCCESS or error code */
@@ -583,7 +583,7 @@ dict_index_t::stat_index_size
 dict_index_t::stat_n_leaf_pages
 The returned object should be freed with dict_stats_snapshot_free()
 when no longer needed.
-@param[in]	table	table whose stats to copy
+@param[in]      table   table whose stats to copy
 @return incomplete table object */
 static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
   dict_sys_mutex_enter();
@@ -1051,22 +1051,22 @@ static bool dict_stats_analyze_index_level(
                  __func__, *total_recs, *total_pages, i, n_diff[i]);
 
 #if 0
-		if (n_diff_boundaries != NULL) {
-			uint64_t	j;
+                if (n_diff_boundaries != NULL) {
+                        uint64_t        j;
 
-			DEBUG_PRINTF("    %s(): boundaries[%lu]: ",
-				     __func__, i);
+                        DEBUG_PRINTF("    %s(): boundaries[%lu]: ",
+                                     __func__, i);
 
-			for (j = 0; j < n_diff[i]; j++) {
-				uint64_t	idx;
+                        for (j = 0; j < n_diff[i]; j++) {
+                                uint64_t        idx;
 
-				idx = n_diff_boundaries[i][j];
+                                idx = n_diff_boundaries[i][j];
 
-				DEBUG_PRINTF(UINT64PF "=" UINT64PF ", ",
-					     j, idx);
-			}
-			DEBUG_PRINTF("\n");
-		}
+                                DEBUG_PRINTF(UINT64PF "=" UINT64PF ", ",
+                                             j, idx);
+                        }
+                        DEBUG_PRINTF("\n");
+                }
 #endif
   }
 #endif /* UNIV_STATS_DEBUG */
@@ -1106,17 +1106,17 @@ will return as soon as it finds a record that does not match its neighbor
 to the right, which means that in the case of QUIT_ON_FIRST_NON_BORING the
 returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
 equal) or 2 (the function found a non-boring record and returned).
-@param[out]	out_rec			record, or NULL
-@param[out]	offsets1		rec_get_offsets() working space (must
+@param[out]     out_rec                 record, or NULL
+@param[out]     offsets1                rec_get_offsets() working space (must
 be big enough)
-@param[out]	offsets2		rec_get_offsets() working space (must
+@param[out]     offsets2                rec_get_offsets() working space (must
 be big enough)
-@param[in]	index			index of the page
-@param[in]	page			the page to scan
-@param[in]	n_prefix		look at the first n_prefix columns
-@param[in]	scan_method		scan to the end of the page or not
-@param[out]	n_diff			number of distinct records encountered
-@param[out]	n_external_pages	if this is non-NULL then it will be set
+@param[in]      index                   index of the page
+@param[in]      page                    the page to scan
+@param[in]      n_prefix                look at the first n_prefix columns
+@param[in]      scan_method             scan to the end of the page or not
+@param[out]     n_diff                  number of distinct records encountered
+@param[out]     n_external_pages        if this is non-NULL then it will be set
 to the number of externally stored pages which were encountered
 @return offsets1 or offsets2 (the offsets of *out_rec),
 or NULL if the page is empty and does not contain user records. */
@@ -1228,11 +1228,11 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
 distinct records on the leaf page, when looking at the fist n_prefix
 columns. Also calculate the number of external pages pointed by records
 on the leaf page.
-@param[in]	cur			cursor
-@param[in]	n_prefix		look at the first n_prefix columns
+@param[in]      cur                     cursor
+@param[in]      n_prefix                look at the first n_prefix columns
 when comparing records
-@param[out]	n_diff			number of distinct records
-@param[out]	n_external_pages	number of external pages
+@param[out]     n_diff                  number of distinct records
+@param[out]     n_external_pages        number of external pages
 */
 static void dict_stats_analyze_index_below_cur(const btr_cur_t *cur,
                                                ulint n_prefix, uint64_t *n_diff,
@@ -1353,8 +1353,8 @@ static void dict_stats_analyze_index_below_cur(const btr_cur_t *cur,
                            n_diff, n_external_pages);
 
 #if 0
-	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: " UINT64PF "\n",
-		     __func__, page_no, n_diff);
+        DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: " UINT64PF "\n",
+                     __func__, page_no, n_diff);
 #endif
 
   mtr_commit(&mtr);
@@ -1403,20 +1403,20 @@ the first n_prefix columns. For a given level in an index select
 n_diff_data->n_leaf_pages_to_analyze records from that level and dive below
 them to the corresponding leaf pages, then scan those leaf pages and save the
 sampling results in n_diff_data->n_diff_all_analyzed_pages.
-@param[in]	index			Index
-@param[in]	n_prefix		Look at first 'n_prefix' columns when
+@param[in]      index                   Index
+@param[in]      n_prefix                Look at first 'n_prefix' columns when
 comparing records
-@param[in]	boundaries		A vector that contains
+@param[in]      boundaries              A vector that contains
 n_diff_data->n_diff_on_level integers each of which represents the index (on
 level 'level', counting from left/smallest to right/biggest from 0) of the
 last record from each group of distinct keys
-@param[in,out]	n_diff_data		n_diff_all_analyzed_pages and
+@param[in,out]  n_diff_data             n_diff_all_analyzed_pages and
 n_external_pages_sum in this structure will be set by this function. The
 members level, n_diff_on_level and n_leaf_pages_to_analyze must be set by the
 caller in advance - they are used by some calculations inside this function
-@param[in,out]	wait_start_time         last known time index lock wasn't
+@param[in,out]  wait_start_time         last known time index lock wasn't
 awaited.
-@param[in,out]	mtr			Mini-transaction
+@param[in,out]  mtr                     Mini-transaction
 @return false if aborted */
 static bool dict_stats_analyze_index_for_n_prefix(
     dict_index_t *index, ulint n_prefix, const boundaries_t *boundaries,
@@ -1428,10 +1428,10 @@ static bool dict_stats_analyze_index_for_n_prefix(
   uint64_t i;
 
 #if 0
-	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu,"
-		     " n_diff_on_level=" UINT64PF ")\n",
-		     __func__, index->table->name, index->name, level,
-		     n_prefix, n_diff_data->n_diff_on_level);
+        DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu,"
+                     " n_diff_on_level=" UINT64PF ")\n",
+                     __func__, index->table->name, index->name, level,
+                     n_prefix, n_diff_data->n_diff_on_level);
 #endif
 
   ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index), MTR_MEMO_SX_LOCK));
@@ -1523,8 +1523,8 @@ static bool dict_stats_analyze_index_for_n_prefix(
         boundaries->at(static_cast<unsigned>(left + rnd));
 
 #if 0
-		DEBUG_PRINTF("    %s(): dive below record with index="
-			     UINT64PF "\n", __func__, dive_below_idx);
+                DEBUG_PRINTF("    %s(): dive below record with index="
+                             UINT64PF "\n", __func__, dive_below_idx);
 #endif
 
     /* seek to the record with index dive_below_idx */
@@ -1599,8 +1599,8 @@ static bool dict_stats_analyze_index_for_n_prefix(
 }
 
 /** Set dict_index_t::stat_n_diff_key_vals[] and stat_n_sample_sizes[].
-@param[in]	n_diff_data	input data to use to derive the results
-@param[in,out]	index		index whose stat_n_diff_key_vals[] to set */
+@param[in]      n_diff_data     input data to use to derive the results
+@param[in,out]  index           index whose stat_n_diff_key_vals[] to set */
 static inline void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
                                                dict_index_t *index) {
   for (ulint n_prefix = dict_index_get_n_unique(index); n_prefix >= 1;
@@ -2079,13 +2079,13 @@ static dberr_t dict_stats_update_persistent(
 
 /** Save an individual index's statistic into the persistent statistics
 storage.
-@param[in]	index			index to be updated
-@param[in]	last_update		timestamp of the stat
-@param[in]	stat_name		name of the stat
-@param[in]	stat_value		value of the stat
-@param[in]	sample_size		n pages sampled or NULL
-@param[in]	stat_description	description of the stat
-@param[in,out]	trx			in case of NULL the function will
+@param[in]      index                   index to be updated
+@param[in]      last_update             timestamp of the stat
+@param[in]      stat_name               name of the stat
+@param[in]      stat_value              value of the stat
+@param[in]      sample_size             n pages sampled or NULL
+@param[in]      stat_description        description of the stat
+@param[in,out]  trx                     in case of NULL the function will
 allocate and free the trx object. If it is not NULL then it will be
 rolled back only in the case of error, but not freed.
 @return DB_SUCCESS or error code */
@@ -2179,8 +2179,8 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
 }
 
 /** Save the table's statistics into the persistent statistics storage.
-@param[in]	table_orig	table whose stats to save
-@param[in]	only_for_index	if this is non-NULL, then stats for indexes
+@param[in]      table_orig      table whose stats to save
+@param[in]      only_for_index  if this is non-NULL, then stats for indexes
 that are not equal to it will not be saved, if NULL, then all indexes' stats
 are saved
 @return DB_SUCCESS or error code */

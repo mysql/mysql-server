@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -163,13 +163,13 @@ are alphabetically the same as the corresponding columns in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@param[in]	sec_rec		secondary index record
-@param[in]	sec_index	secondary index
-@param[in]	clust_rec	clustered index record;
+@param[in]      sec_rec         secondary index record
+@param[in]      sec_index       secondary index
+@param[in]      clust_rec       clustered index record;
                                 must be protected by a page s-latch
-@param[in]	clust_index	clustered index
-@param[in]	thr		query thread
-@param[out]	is_equal	set to true if the secondary record is equal
+@param[in]      clust_index     clustered index
+@param[in]      thr             query thread
+@param[out]     is_equal        set to true if the secondary record is equal
 to the corresponding fields in the clustered record, when compared with
                                 collation; false if not equal or if the
 clustered record has been marked for deletion; only valid if DB_SUCCESS was
@@ -946,16 +946,16 @@ err_exit:
 /** Sets a lock on a page of R-Tree record. This is all or none action,
 mostly due to we cannot reposition a record in R-Tree (with the
 nature of splitting)
-@param[in]	pcur		cursor
-@param[in]	first_rec	record
-@param[in]	index		index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      pcur            cursor
+@param[in]      first_rec       record
+@param[in]      index           index
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		lock mode
-@param[in]	type		LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
-@param[in]	thr		query thread
-@param[in]	mtr		mtr
+@param[in]      mode            lock mode
+@param[in]      type            LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
+@param[in]      thr             query thread
+@param[in]      mtr             mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static inline dberr_t sel_set_rtr_rec_lock(
     btr_pcur_t *pcur, const rec_t *first_rec, dict_index_t *index,
@@ -1121,16 +1121,16 @@ func_end:
 /** Sets a lock on a record.
 mostly due to we cannot reposition a record in R-Tree (with the
 nature of splitting)
-@param[in]	pcur		cursor
-@param[in]	rec		record
-@param[in]	index		index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]      pcur            cursor
+@param[in]      rec             record
+@param[in]      index           index
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in]      sel_mode        select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	mode		lock mode
-@param[in]	type		LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
-@param[in]	thr		query thread
-@param[in]	mtr		mtr
+@param[in]      mode            lock mode
+@param[in]      type            LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
+@param[in]      thr             query thread
+@param[in]      mtr             mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static inline dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
                                        dict_index_t *index,
@@ -2476,20 +2476,20 @@ static void row_sel_store_row_id_to_prebuilt(
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
-@param[in,out] dest		buffer where to store; NOTE
+@param[in,out] dest             buffer where to store; NOTE
                                 that BLOBs are not in themselves stored
                                 here: the caller must allocate and copy
                                 the BLOB into buffer before, and pass
                                 the pointer to the BLOB in 'data'
-@param[in]	templ		MySQL column template. Its following fields
+@param[in]      templ           MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index
-@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+@param[in]      index           InnoDB index
+@param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
                                 or templ->icp_rec_field_no
-@param[in]	data		data to store
-@param[in]	len		length of the data
-@param[in]	sec_field	secondary index field no if the secondary index
+@param[in]      data            data to store
+@param[in]      len             length of the data
+@param[in]      sec_field       secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
@@ -3019,20 +3019,20 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 }
 
 /** Builds a previous version of a clustered index record for a consistent read
-@param[in]	read_view	read view
-@param[in]	clust_index	clustered index
-@param[in]	prebuilt	prebuilt struct
-@param[in]	rec		record in clustered index
-@param[in,out]	offsets		offsets returned by
+@param[in]      read_view       read view
+@param[in]      clust_index     clustered index
+@param[in]      prebuilt        prebuilt struct
+@param[in]      rec             record in clustered index
+@param[in,out]  offsets         offsets returned by
                                 rec_get_offsets(rec, clust_index)
-@param[in,out]	offset_heap	memory heap from which the offsets are
+@param[in,out]  offset_heap     memory heap from which the offsets are
                                 allocated
-@param[out]	old_vers	old version, or NULL if the record does not
+@param[out]     old_vers        old version, or NULL if the record does not
                                 exist in the view: i.e., it was freshly
                                 inserted afterwards
-@param[out]	vrow		dtuple to hold old virtual column data
-@param[in]	mtr		the mini-transaction context.
-@param[in,out]	lob_undo	Undo information for BLOBs.
+@param[out]     vrow            dtuple to hold old virtual column data
+@param[in]      mtr             the mini-transaction context.
+@param[in,out]  lob_undo        Undo information for BLOBs.
 @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_sel_build_prev_vers_for_mysql(
     ReadView *read_view, dict_index_t *clust_index, row_prebuilt_t *prebuilt,
@@ -3480,9 +3480,9 @@ static void row_sel_copy_cached_field_for_mysql(
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
 are not covered by current key.
-@param[out]	buf		Where to copy the MySQL row.
-@param[in]	cached_rec	What to copy (in MySQL row format).
-@param[in]	prebuilt	prebuilt struct. */
+@param[out]     buf             Where to copy the MySQL row.
+@param[in]      cached_rec      What to copy (in MySQL row format).
+@param[in]      prebuilt        prebuilt struct. */
 void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
                                           row_prebuilt_t *prebuilt) {
   const mysql_row_templ_t *templ;
@@ -3508,7 +3508,7 @@ void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
 }
 
 /** Get the record buffer provided by the server, if there is one.
-@param	prebuilt	prebuilt struct
+@param  prebuilt        prebuilt struct
 @return the record buffer, or nullptr if none was provided */
 static Record_buffer *row_sel_get_record_buffer(
     const row_prebuilt_t *prebuilt) {
@@ -3807,19 +3807,19 @@ static ICP_RESULT row_search_idx_cond_check(
 /** Check the pushed-down end-range condition to avoid extra traversal
 if records are not with in view and also to avoid prefetching too
 many records into the record buffer.
-@param[in]	mysql_rec		record in MySQL format
-@param[in]	rec			InnoDB record
-@param[in]	prebuilt		prebuilt struct
-@param[in]	clust_templ_for_sec	true if \a rec belongs to the secondary
+@param[in]      mysql_rec               record in MySQL format
+@param[in]      rec                     InnoDB record
+@param[in]      prebuilt                prebuilt struct
+@param[in]      clust_templ_for_sec     true if \a rec belongs to the secondary
                                         index but the \a prebuilt template is in
                                         clustered index format
-@param[in]	offsets			information about column offsets in the
+@param[in]      offsets                 information about column offsets in the
                                         secondary index, if virtual columns need
                                         to be copied into \a mysql_rec
-@param[in,out]	record_buffer		the record buffer we are reading into,
+@param[in,out]  record_buffer           the record buffer we are reading into,
                                         or \c nullptr if there is no buffer
-@retval true	if the row in \a mysql_rec is out of range
-@retval false	if the row in \a mysql_rec is in range */
+@retval true    if the row in \a mysql_rec is out of range
+@retval false   if the row in \a mysql_rec is in range */
 static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
                                        row_prebuilt_t *prebuilt,
                                        bool clust_templ_for_sec,
@@ -3860,10 +3860,10 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
 }
 
 /** Traverse to next/previous record.
-@param[in]	moves_up	If true, move to next record else previous
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in,out]	pcur		Cursor to record
-@param[in]	mtr		Mini-transaction
+@param[in]      moves_up        If true, move to next record else previous
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in,out]  pcur            Cursor to record
+@param[in]      mtr             Mini-transaction
 
 @return DB_SUCCESS or error code */
 static dberr_t row_search_traverse(bool moves_up, ulint match_mode,
@@ -3890,15 +3890,15 @@ Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
@@ -4146,10 +4146,10 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
 }
 
 /** Extract virtual column data from a virtual index record and fill a dtuple
-@param[in]	rec		the virtual (secondary) index record
-@param[in]	index		the virtual index
-@param[in,out]	vrow		the dtuple where data extract to
-@param[in]	heap		memory heap to allocate memory
+@param[in]      rec             the virtual (secondary) index record
+@param[in]      index           the virtual index
+@param[in,out]  vrow            the dtuple where data extract to
+@param[in]      heap            memory heap to allocate memory
 */
 static void row_sel_fill_vrow(const rec_t *rec, dict_index_t *index,
                               const dtuple_t **vrow, mem_heap_t *heap) {
@@ -4339,15 +4339,15 @@ so it employs technique that can help re-construct the rows that
 transaction is suppose to see.
 It also has optimization such as pre-caching the rows, using AHI, etc.
 
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
+@param[out]     buf             buffer for the fetched row in MySQL format
+@param[in]      mode            search mode PAGE_CUR_L
+@param[in,out]  prebuilt        prebuilt struct for the table handler;
                                 this contains the info to search_tuple,
                                 index; if search tuple contains 0 field then
                                 we position the cursor at start or the end of
                                 index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+@param[in]      match_mode      0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]      direction       0 or ROW_SEL_NEXT or ROW_SEL_PREV;
                                 Note: if this is != 0, then prebuilt must has a
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
@@ -6173,8 +6173,8 @@ func_exit:
 }
 
 /** Get the maximum and non-delete-marked record in an index.
-@param[in]	index	Index tree
-@param[in,out]	mtr	Mini-transaction (may be committed and restarted)
+@param[in]      index   Index tree
+@param[in,out]  mtr     Mini-transaction (may be committed and restarted)
 @return maximum record, page s-latched in mtr
 @retval NULL if there are no records, or if all of them are delete-marked */
 static const rec_t *row_search_get_max_rec(dict_index_t *index, mtr_t *mtr) {
@@ -6240,11 +6240,11 @@ dberr_t row_search_max_autoinc(
 
 /** Convert the innodb_table_stats clustered index record to
 table_stats format.
-@param[in]	clust_rec	clustered index record
-@param[in]	clust_index	clustered index
-@param[in]	clust_offsets	offsets of the clustered index
+@param[in]      clust_rec       clustered index record
+@param[in]      clust_index     clustered index
+@param[in]      clust_offsets   offsets of the clustered index
                                 record
-@param[out]	tbl_stats	table_stats information
+@param[out]     tbl_stats       table_stats information
                                 to be filled. */
 static void convert_to_table_stats_record(rec_t *clust_rec,
                                           dict_index_t *clust_index,
@@ -6265,9 +6265,9 @@ static void convert_to_table_stats_record(rec_t *clust_rec,
 
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[out]	table_stats	stats table structure.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[out]     table_stats     stats table structure.
 @return true if successful else false. */
 bool row_search_table_stats(const char *db_name, const char *tbl_name,
                             TableStatsRecord &table_stats) {
@@ -6325,11 +6325,11 @@ bool row_search_table_stats(const char *db_name, const char *tbl_name,
 /** Search the record present in innodb_index_stats using
 db_name, table name and index_name and fill the
 cardinality for the each column.
-@param[in]	db_name		database name
-@param[in]	tbl_name	table name
-@param[in]	index_name	index name
-@param[in]	col_offset	offset of the column in the index
-@param[out]	cardinality	cardinality of the column.
+@param[in]      db_name         database name
+@param[in]      tbl_name        table name
+@param[in]      index_name      index name
+@param[in]      col_offset      offset of the column in the index
+@param[out]     cardinality     cardinality of the column.
 @return true if successful else false. */
 bool row_search_index_stats(const char *db_name, const char *tbl_name,
                             const char *index_name, ulint col_offset,

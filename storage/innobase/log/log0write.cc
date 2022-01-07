@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -671,7 +671,7 @@ consuming operation, such as fil_io. The log.write_lsn is advanced.
 @param[in]  log            redo log
 @param[in]  buffer         the beginning of first log block to write
 @param[in]  buffer_size    number of bytes to write since 'buffer'
-@param[in]  start_lsn	lsn  corresponding to first block start */
+@param[in]  start_lsn   lsn  corresponding to first block start */
 static void log_files_write_buffer(log_t &log, byte *buffer, size_t buffer_size,
                                    lsn_t start_lsn);
 
@@ -701,7 +701,7 @@ Advances log.flushed_to_disk_lsn and notifies log flush_notifier thread.
 Note: if only a single log block was flushed to disk, user threads
 waiting for lsns within the block are notified directly from here,
 and log flush_notifier thread is not notified! (optimization)
-@param[in,out]	log   redo log */
+@param[in,out]  log   redo log */
 static void log_flush_low(log_t &log);
 
 /**************************************************/ /**
@@ -795,10 +795,10 @@ static inline uint64_t log_max_spins_when_waiting_in_user_thread(
 
 /** Waits until redo log is written up to provided lsn (or greater).
 We do not care if it's flushed or not.
-@param[in]	log	redo log
-@param[in]	lsn	wait until log.write_lsn >= lsn
+@param[in]      log     redo log
+@param[in]      lsn     wait until log.write_lsn >= lsn
 @param[in,out]  interrupted     if true, was interrupted, needs retry.
-@return		statistics related to waiting inside */
+@return         statistics related to waiting inside */
 static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn,
                                      bool *interrupted) {
   os_event_set(log.writer_event);
@@ -838,10 +838,10 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn,
 }
 
 /** Waits until redo log is flushed up to provided lsn (or greater).
-@param[in]	log	redo log
-@param[in]	lsn	wait until log.flushed_to_disk_lsn >= lsn
+@param[in]      log     redo log
+@param[in]      lsn     wait until log.flushed_to_disk_lsn >= lsn
 @param[in,out]  interrupted     if true, was interrupted, needs retry.
-@return		statistics related to waiting inside */
+@return         statistics related to waiting inside */
 static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn,
                                      bool *interrupted) {
   if (log.write_lsn.load(std::memory_order_relaxed) < lsn) {

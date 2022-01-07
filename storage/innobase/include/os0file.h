@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -134,12 +134,12 @@ static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
 #define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 
 /** Associates a C file descriptor with an existing native file handle
-@param[in]	file	native file handle
+@param[in]      file    native file handle
 @return C file descriptor */
 #define OS_FD_FROM_FILE(file) _open_osfhandle((intptr_t)file, _O_RDONLY)
 
 /** Closes the file associated with C file descriptor fd
-@param[in]	fd	C file descriptor
+@param[in]      fd      C file descriptor
 @return 0 if success */
 #define OS_FILE_CLOSE_FD(fd) _close(fd)
 
@@ -156,12 +156,12 @@ static constexpr os_fd_t OS_FILE_CLOSED = OS_FD_CLOSED;
 #define OS_FILE_FROM_FD(fd) fd
 
 /** C file descriptor from an existing native file handle
-@param[in]	file	native file handle
+@param[in]      file    native file handle
 @return C file descriptor */
 #define OS_FD_FROM_FILE(file) file
 
 /** Closes the file associated with C file descriptor fd
-@param[in]	fd	C file descriptor
+@param[in]      fd      C file descriptor
 @return 0 if success */
 #define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : OS_FD_CLOSED)
 
@@ -338,7 +338,7 @@ class IORequest {
   }
 
   /**
-  @param[in]	type		Request type, can be a value that is
+  @param[in]    type            Request type, can be a value that is
                                   ORed from the above enum */
   explicit IORequest(ulint type)
       : m_block_size(UNIV_SECTOR_SIZE),
@@ -435,7 +435,7 @@ class IORequest {
   [[nodiscard]] ulint block_size() const { return (m_block_size); }
 
   /** Set the block size for IO
-  @param[in] block_size		Block size to set */
+  @param[in] block_size         Block size to set */
   void block_size(ulint block_size) {
     m_block_size = static_cast<uint32_t>(block_size);
   }
@@ -460,7 +460,7 @@ class IORequest {
   bool operator==(const IORequest &rhs) const { return (m_type == rhs.m_type); }
 
   /** Set compression algorithm
-  @param[in]	type	The compression algorithm to use */
+  @param[in]    type    The compression algorithm to use */
   void compression_algorithm(Compression::Type type) {
     if (type == Compression::NONE) {
       return;
@@ -491,7 +491,7 @@ class IORequest {
   void disable_compression() { m_type |= NO_COMPRESSION; }
 
   /** Set encryption algorithm
-  @param[in] type		The encryption algorithm to use */
+  @param[in] type               The encryption algorithm to use */
   void encryption_algorithm(Encryption::Type type) {
     if (type == Encryption::NONE) {
       return;
@@ -501,9 +501,9 @@ class IORequest {
   }
 
   /** Set encryption key and iv
-  @param[in] key		The encryption key to use
-  @param[in] key_len	length of the encryption key
-  @param[in] iv		The encryption iv to use */
+  @param[in] key                The encryption key to use
+  @param[in] key_len    length of the encryption key
+  @param[in] iv         The encryption iv to use */
   void encryption_key(const byte *key, ulint key_len, const byte *iv) {
     m_encryption.set_key(key);
     m_encryption.set_key_length(key_len);
@@ -750,23 +750,23 @@ directory gets default permissions. On Unix the permissions are
 the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns false.
-@param[in]	pathname	directory name as null-terminated string
-@param[in]	fail_if_exists	if true, pre-existing directory is treated as
+@param[in]      pathname        directory name as null-terminated string
+@param[in]      fail_if_exists  if true, pre-existing directory is treated as
                                 an error.
 @return true if call succeeds, false on error */
 bool os_file_create_directory(const char *pathname, bool fail_if_exists);
 
 /** Callback function type to be implemented by caller. It is called for each
 entry in directory.
-@param[in]	path	path to the file
-@param[in]	name	name of the file */
+@param[in]      path    path to the file
+@param[in]      name    name of the file */
 typedef void (*os_dir_cbk_t)(const char *path, const char *name);
 
 /** This function scans the contents of a directory and invokes the callback
 for each entry.
-@param[in]	path		directory name as null-terminated string
-@param[in]	scan_cbk	use callback to be called for each entry
-@param[in]	is_drop		attempt to drop the directory after scan
+@param[in]      path            directory name as null-terminated string
+@param[in]      scan_cbk        use callback to be called for each entry
+@param[in]      is_drop         attempt to drop the directory after scan
 @return true if call succeeds, false on error */
 bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
                             bool is_drop);
@@ -774,12 +774,12 @@ bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
 /** NOTE! Use the corresponding macro os_file_create_simple(), not directly
 this function!
 A simple function to open or create a file.
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	create_mode	create mode
-@param[in]	access_type	OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]	read_only	if true, read only checks are enforced
-@param[out]	success		true if succeed, false if error
+@param[in]      create_mode     create mode
+@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
+@param[in]      read_only       if true, read only checks are enforced
+@param[out]     success         true if succeed, false if error
 @return handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
@@ -789,14 +789,14 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 /** NOTE! Use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
-@param[in]	name		name of the file or path as a
+@param[in]      name            name of the file or path as a
 null-terminated string
-@param[in]	create_mode	create mode
-@param[in]	access_type	OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
+@param[in]      create_mode     create mode
+@param[in]      access_type     OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
                                 OS_FILE_READ_ALLOW_DELETE; the last option
                                 is used by a backup program reading the file
-@param[in]	read_only	if true read only mode checks are enforced
-@param[out]	success		true if succeeded
+@param[in]      read_only       if true read only mode checks are enforced
+@param[out]     success         true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] pfs_os_file_t os_file_create_simple_no_error_handling_func(
@@ -804,9 +804,9 @@ null-terminated string
     bool *success);
 
 /** Tries to disable OS caching on an opened file descriptor.
-@param[in]	fd		file descriptor to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
+@param[in]      fd              file descriptor to alter
+@param[in]      file_name       file name, used in the diagnostic message
+@param[in]      operation_name  "open" or "create"; used in the diagnostic
                                 message */
 void os_file_set_nocache(int fd, const char *file_name,
                          const char *operation_name);
@@ -814,18 +814,18 @@ void os_file_set_nocache(int fd, const char *file_name,
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
+@param[in]      create_mode     create mode
+@param[in]      purpose         OS_FILE_AIO, if asynchronous, non-buffered I/O
                                 is desired, OS_FILE_NORMAL, if any normal file;
                                 NOTE that it also depends on type, os_aio_..
                                 and srv_.. variables whether we really use
                                 async I/O or unbuffered I/O: look in the
                                 function source code for the exact rules
-@param[in]	type		OS_DATA_FILE, OS_LOG_FILE etc.
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in]	success		true if succeeded
+@param[in]      type            OS_DATA_FILE, OS_LOG_FILE etc.
+@param[in]      read_only       if true read only mode checks are enforced
+@param[in]      success         true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] pfs_os_file_t os_file_create_func(const char *name,
@@ -834,13 +834,13 @@ Opens an existing file or creates a new.
                                                 bool read_only, bool *success);
 
 /** Deletes a file. The file has to be closed before calling this.
-@param[in]	name		file path as a null-terminated string
+@param[in]      name            file path as a null-terminated string
 @return true if success */
 bool os_file_delete_func(const char *name);
 
 /** Deletes a file if it exists. The file has to be closed before calling this.
-@param[in]	name		file path as a null-terminated string
-@param[out]	exist		indicate if file pre-exist
+@param[in]      name            file path as a null-terminated string
+@param[out]     exist           indicate if file pre-exist
 @return true if success */
 bool os_file_delete_if_exists_func(const char *name, bool *exist);
 
@@ -848,8 +848,8 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist);
 this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
-@param[in]	oldpath		old file path as a null-terminated string
-@param[in]	newpath		new file path
+@param[in]      oldpath         old file path as a null-terminated string
+@param[in]      newpath         new file path
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath);
 
@@ -857,7 +857,7 @@ bool os_file_rename_func(const char *oldpath, const char *newpath);
 this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in]	file		Handle to a file
+@param[in]      file            Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file);
 
@@ -1035,15 +1035,15 @@ The wrapper functions have the prefix of "innodb_". */
 not directly this function!
 A performance schema instrumented wrapper function for
 os_file_create_simple() which opens or creates a file.
-@param[in]	key		Performance Schema Key
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      key             Performance Schema Key
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	create_mode	create mode
-@param[in]	access_type	OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]	read_only	if true read only mode checks are enforced
-@param[out]	success		true if succeeded
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      create_mode     create mode
+@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
+@param[in]      read_only       if true read only mode checks are enforced
+@param[out]     success         true if succeeded
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
@@ -1055,17 +1055,17 @@ os_file_create_simple_no_error_handling(), not directly this function!
 A performance schema instrumented wrapper function for
 os_file_create_simple_no_error_handling(). Add instrumentation to
 monitor file creation/open.
-@param[in]	key		Performance Schema Key
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      key             Performance Schema Key
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	create_mode	create mode
-@param[in]	access_type	OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
+@param[in]      create_mode     create mode
+@param[in]      access_type     OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
                                 OS_FILE_READ_ALLOW_DELETE; the last option is
                                 used by a backup program reading the file
-@param[in]	read_only	if true read only mode checks are enforced
-@param[out]	success		true if succeeded
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      read_only       if true read only mode checks are enforced
+@param[out]     success         true if succeeded
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t
@@ -1077,21 +1077,21 @@ pfs_os_file_create_simple_no_error_handling_func(
 this function!
 A performance schema wrapper function for os_file_create().
 Add instrumentation to monitor file creation/open.
-@param[in]	key		Performance Schema Key
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      key             Performance Schema Key
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
+@param[in]      create_mode     create mode
+@param[in]      purpose         OS_FILE_AIO, if asynchronous, non-buffered I/O
                                 is desired, OS_FILE_NORMAL, if any normal file;
                                 NOTE that it also depends on type, os_aio_..
                                 and srv_.. variables whether we really use
                                 async I/O or unbuffered I/O: look in the
                                 function source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
-@param[in]	read_only	if true read only mode checks are enforced
-@param[out]	success		true if succeeded
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      type            OS_DATA_FILE or OS_LOG_FILE
+@param[in]      read_only       if true read only mode checks are enforced
+@param[out]     success         true if succeeded
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_func(
@@ -1102,9 +1102,9 @@ Add instrumentation to monitor file creation/open.
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
 A performance schema instrumented wrapper function for os_file_close().
-@param[in]	file		handle to a file
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            handle to a file
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_close_func(pfs_os_file_t file,
                                           const char *src_file, uint src_line);
@@ -1113,14 +1113,14 @@ static inline bool pfs_os_file_close_func(pfs_os_file_t file,
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_read() which requests a synchronous read operation.
-@param[in, out]	type		IO request context
+@param[in, out] type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
@@ -1131,13 +1131,13 @@ not directly this function!
 This is the performance schema instrumented wrapper function for
 os_file_read_first_page() which requests a synchronous read operation
 of page 0 of IBD file
-@param[in, out]	type		IO request context
+@param[in, out] type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      n               number of bytes to read
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_first_page_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
@@ -1145,13 +1145,13 @@ static inline dberr_t pfs_os_file_read_first_page_func(
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
-@param[in]	src		file handle to copy from
-@param[in]	src_offset	offset to copy from
-@param[in]	dest		file handle to copy to
-@param[in]	dest_offset	offset to copy to
-@param[in]	size		number of bytes to copy
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      src             file handle to copy from
+@param[in]      src_offset      offset to copy from
+@param[in]      dest            file handle to copy to
+@param[in]      dest_offset     offset to copy to
+@param[in]      size            number of bytes to copy
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if successful */
 static inline dberr_t pfs_os_file_copy_func(
     pfs_os_file_t src, os_offset_t src_offset, pfs_os_file_t dest,
@@ -1162,15 +1162,15 @@ not directly this function!
 This is the performance schema instrumented wrapper function for
 os_file_read_no_error_handling_func() which requests a synchronous
 read operation.
-@param[in, out]	type		IO request context
+@param[in, out] type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[out]	o		number of bytes actually read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
+@param[out]     o               number of bytes actually read
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_no_error_handling_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
@@ -1201,24 +1201,24 @@ static inline dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
 function!
 Performance schema wrapper function of os_aio() which requests
 an asynchronous I/O operation.
-@param[in]	type		IO request context
-@param[in]	mode		IO mode
-@param[in]	name		Name of the file or path as NUL terminated
+@param[in]      type            IO request context
+@param[in]      mode            IO mode
+@param[in]      name            Name of the file or path as NUL terminated
                                 string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		how many bytes to read or write; this
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               how many bytes to read or write; this
 must not cross a file boundary; in AIO this must be a block size multiple
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in,out]	m1		Message for the AIO handler, (can be used to
+@param[in]      read_only       if true read only mode checks are enforced
+@param[in,out]  m1              Message for the AIO handler, (can be used to
                                 identify a completed AIO operation); ignored
                                 if mode is OS_AIO_SYNC
-@param[in,out]	m2		message for the AIO handler (can be used to
+@param[in,out]  m2              message for the AIO handler (can be used to
                                 identify a completed AIO operation); ignored
                                 if mode is OS_AIO_SYNC
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
                                       const char *name, pfs_os_file_t file,
@@ -1230,15 +1230,15 @@ static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_write() which requests a synchronous write operation.
-@param[in, out]	type		IO request context
-@param[in]	name		Name of the file or path as NUL terminated
+@param[in, out] type            IO request context
+@param[in]      name            Name of the file or path as NUL terminated
                                 string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_write_func(
     IORequest &type, const char *name, pfs_os_file_t file, const void *buf,
@@ -1255,7 +1255,7 @@ on files with int type descriptors.
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      offset          file offset where to read
-@param[in]      n		number of bytes to read
+@param[in]      n               number of bytes to read
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
@@ -1268,9 +1268,9 @@ this function!
 This is the performance schema instrumented wrapper function for
 os_file_flush() which flushes the write buffers of a given file to the disk.
 Flushes the write buffers of a given file to the disk.
-@param[in]	file		Open file handle
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      file            Open file handle
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_flush_func(pfs_os_file_t file,
                                           const char *src_file, uint src_line);
@@ -1279,11 +1279,11 @@ static inline bool pfs_os_file_flush_func(pfs_os_file_t file,
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_rename()
-@param[in]	key		Performance Schema Key
-@param[in]	oldpath		old file path as a null-terminated string
-@param[in]	newpath		new file path
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      key             Performance Schema Key
+@param[in]      oldpath         old file path as a null-terminated string
+@param[in]      newpath         new file path
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_rename_func(mysql_pfs_key_t key,
                                            const char *oldpath,
@@ -1295,10 +1295,10 @@ NOTE! Please use the corresponding macro os_file_delete(), not directly
 this function!
 This is the performance schema instrumented wrapper function for
 os_file_delete()
-@param[in]	key		Performance Schema Key
-@param[in]	name		old file path as a null-terminated string
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      key             Performance Schema Key
+@param[in]      name            old file path as a null-terminated string
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_delete_func(mysql_pfs_key_t key,
                                            const char *name,
@@ -1309,11 +1309,11 @@ NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
 directly this function!
 This is the performance schema instrumented wrapper function for
 os_file_delete_if_exists()
-@param[in]	key		Performance Schema Key
-@param[in]	name		old file path as a null-terminated string
-@param[in]	exist		indicate if file pre-exist
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
+@param[in]      key             Performance Schema Key
+@param[in]      name            old file path as a null-terminated string
+@param[in]      exist           indicate if file pre-exist
+@param[in]      src_file        file name where func invoked
+@param[in]      src_line        line where the func invoked
 @return true if success */
 static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
                                                      const char *name,
@@ -1437,75 +1437,75 @@ to original un-instrumented file I/O APIs */
 
 #ifdef UNIV_HOTBACKUP
 /** Closes a file handle.
-@param[in] file		handle to a file
+@param[in] file         handle to a file
 @return true if success */
 bool os_file_close_no_error_handling(os_file_t file);
 #endif /* UNIV_HOTBACKUP */
 
 /** Gets a file size.
-@param[in]	filename	Full path to the filename to check
+@param[in]      filename        Full path to the filename to check
 @return file size if OK, else set m_total_size to ~0 and m_alloc_size to
         errno. */
 [[nodiscard]] os_file_size_t os_file_get_size(const char *filename);
 
 /** Gets a file size.
-@param[in]	file		Handle to a file
+@param[in]      file            Handle to a file
 @return file size, or (os_offset_t) -1 on failure */
 [[nodiscard]] os_offset_t os_file_get_size(pfs_os_file_t file);
 
 /** Allocate a block to file using fallocate from the given offset if
 fallocate is supported. Falls back to the old slower method of writing
 zeros otherwise.
-@param[in]	name		name of the file
-@param[in]	file		handle to the file
-@param[in]	offset		file offset
-@param[in]	size		file size
-@param[in]	read_only	enable read-only checks if true
-@param[in]	flush		flush file content to disk
+@param[in]      name            name of the file
+@param[in]      file            handle to the file
+@param[in]      offset          file offset
+@param[in]      size            file size
+@param[in]      read_only       enable read-only checks if true
+@param[in]      flush           flush file content to disk
 @return true if success */
 [[nodiscard]] bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
                                          os_offset_t offset, os_offset_t size,
                                          bool read_only, bool flush);
 
 /** Write the specified number of zeros to a file from specific offset.
-@param[in]	name		name of the file or path as a null-terminated
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	file		handle to a file
-@param[in]	offset		file offset
-@param[in]	size		file size
-@param[in]	read_only	enable read-only checks if true
-@param[in]	flush		flush file content to disk
+@param[in]      file            handle to a file
+@param[in]      offset          file offset
+@param[in]      size            file size
+@param[in]      read_only       enable read-only checks if true
+@param[in]      flush           flush file content to disk
 @return true if success */
 [[nodiscard]] bool os_file_set_size(const char *name, pfs_os_file_t file,
                                     os_offset_t offset, os_offset_t size,
                                     bool read_only, bool flush);
 
 /** Truncates a file at its current position.
-@param[in,out]	file	file to be truncated
+@param[in,out]  file    file to be truncated
 @return true if success */
 bool os_file_set_eof(FILE *file); /*!< in: file to be truncated */
 
 /** Truncates a file to a specified size in bytes.
 Do nothing if the size to preserve is greater or equal to the current
 size of the file.
-@param[in]	pathname	file path
-@param[in]	file		file to be truncated
-@param[in]	size		size to preserve in bytes
+@param[in]      pathname        file path
+@param[in]      file            file to be truncated
+@param[in]      size            size to preserve in bytes
 @return true if success */
 bool os_file_truncate(const char *pathname, pfs_os_file_t file,
                       os_offset_t size);
 
 /** Set read/write position of a file handle to specific offset.
-@param[in]	pathname	file path
-@param[in]	file		file handle
-@param[in]	offset		read/write offset
+@param[in]      pathname        file path
+@param[in]      file            file handle
+@param[in]      offset          read/write offset
 @return true if success */
 bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
 function!
 Flushes the write buffers of a given file to the disk.
-@param[in]	file		handle to a file
+@param[in]      file            handle to a file
 @return true if success */
 bool os_file_flush_func(os_file_t file);
 
@@ -1513,7 +1513,7 @@ bool os_file_flush_func(os_file_t file);
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@param[in]	report_all_errors	true if we want an error message printed
+@param[in]      report_all_errors       true if we want an error message printed
                                         for all errors
 @return error number, or OS error number + 100 */
 ulint os_file_get_last_error(bool report_all_errors);
@@ -1521,12 +1521,12 @@ ulint os_file_get_last_error(bool report_all_errors);
 /** NOTE! Use the corresponding macro os_file_read_first_page(), not directly
 this function!
 Requests a synchronous read operation of page 0 of IBD file.
-@param[in]	type		IO request context
+@param[in]      type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_func(IORequest &type, const char *file_name,
                                         os_file_t file, void *buf,
@@ -1535,11 +1535,11 @@ Requests a synchronous read operation of page 0 of IBD file.
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
 Requests a synchronous read operation of page 0 of IBD file
-@param[in]	type		IO request context
+@param[in]      type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_first_page_func(IORequest &type,
                                                    const char *file_name,
@@ -1548,11 +1548,11 @@ Requests a synchronous read operation of page 0 of IBD file
 
 /** Copy data from one file to another file. Data is read/written
 at current file offset.
-@param[in]	src_file	file handle to copy from
-@param[in]	src_offset	offset to copy from
-@param[in]	dest_file	file handle to copy to
-@param[in]	dest_offset	offset to copy to
-@param[in]	size		number of bytes to copy
+@param[in]      src_file        file handle to copy from
+@param[in]      src_offset      offset to copy from
+@param[in]      dest_file       file handle to copy to
+@param[in]      dest_offset     offset to copy to
+@param[in]      size            number of bytes to copy
 @return DB_SUCCESS if successful */
 [[nodiscard]] dberr_t os_file_copy_func(os_file_t src_file,
                                         os_offset_t src_offset,
@@ -1562,22 +1562,22 @@ at current file offset.
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files.
-@param[in,out]	file		File to read from
-@param[in,out]	str		Buffer where to read
-@param[in]	size		Size of buffer */
+@param[in,out]  file            File to read from
+@param[in,out]  str             Buffer where to read
+@param[in]      size            Size of buffer */
 void os_file_read_string(FILE *file, char *str, ulint size);
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns false.
-@param[in]	type		IO request context
+@param[in]      type            IO request context
 @param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[out]	o		number of bytes actually read
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
+@param[out]     o               number of bytes actually read
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t os_file_read_no_error_handling_func(
     IORequest &type, const char *file_name, os_file_t file, void *buf,
@@ -1586,13 +1586,13 @@ any error handling. In case of error it returns false.
 /** NOTE! Use the corresponding macro os_file_write(), not directly this
 function!
 Requests a synchronous write operation.
-@param[in,out]	type		IO request context
-@param[in]	name		name of the file or path as a null-terminated
+@param[in,out]  type            IO request context
+@param[in]      name            name of the file or path as a null-terminated
                                 string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful */
 [[nodiscard]] dberr_t os_file_write_func(IORequest &type, const char *name,
                                          os_file_t file, const void *buf,
@@ -1642,9 +1642,9 @@ array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
-@param[in]	n_readers	number of reader threads
-@param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of dblwr slots in the sync aio array */
+@param[in]      n_readers       number of reader threads
+@param[in]      n_writers       number of writer threads
+@param[in]      n_slots_sync    number of dblwr slots in the sync aio array */
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync);
 
 /**
@@ -1654,19 +1654,19 @@ void os_aio_free();
 /**
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
-@param[in]	type		IO request context
-@param[in]	aio_mode	IO mode
-@param[in]	name		Name of the file or path as NUL terminated
+@param[in]      type            IO request context
+@param[in]      aio_mode        IO mode
+@param[in]      name            Name of the file or path as NUL terminated
 string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		how many bytes to read or write; this
+@param[in]      file            Open file handle
+@param[out]     buf             buffer where to read
+@param[in]      offset          file offset where to read
+@param[in]      n               how many bytes to read or write; this
 must not cross a file boundary; in AIO this must be a block size multiple
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in,out]	m1		Message for the AIO handler, (can be used to
+@param[in]      read_only       if true read only mode checks are enforced
+@param[in,out]  m1              Message for the AIO handler, (can be used to
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
-@param[in,out]	m2		message for the AIO handler (can be used to
+@param[in,out]  m2              message for the AIO handler (can be used to
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
@@ -1695,26 +1695,26 @@ for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the AIO slot,
 therefore no other thread is allowed to do the freeing!
-@param[in]	segment		The number of the segment in the AIO arrays to
+@param[in]      segment         The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
                                 segment 1 the log I/O thread, then follow the
                                 non-ibuf read threads, and as the last are the
                                 non-ibuf write threads; if this is
                                 ULINT_UNDEFINED, then it means that sync AIO
                                 is used, and this parameter is ignored
-@param[out]	m1		the messages passed with the AIO request; note
+@param[out]     m1              the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and
                                 can be used to restart the operation,
                                 for example
-@param[out]	m2		callback message
-@param[out]	request		OS_FILE_WRITE or ..._READ
+@param[out]     m2              callback message
+@param[out]     request         OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
 dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
                        IORequest *request);
 
 /** Prints info of the aio arrays.
-@param[in,out]	file		file where to print */
+@param[in,out]  file            file where to print */
 void os_aio_print(FILE *file);
 
 /** Refreshes the statistics used to print per-second averages. */
@@ -1727,23 +1727,23 @@ bool os_aio_all_slots_free();
 #ifdef UNIV_DEBUG
 
 /** Prints all pending IO
-@param[in]	file		File where to print */
+@param[in]      file            File where to print */
 void os_aio_print_pending_io(FILE *file);
 
 #endif /* UNIV_DEBUG */
 
 /** Get available free space on disk
-@param[in]	path		pathname of a directory or file in disk
-@param[out]	free_space	free space available in bytes
+@param[in]      path            pathname of a directory or file in disk
+@param[out]     free_space      free space available in bytes
 @return DB_SUCCESS if all OK */
 dberr_t os_get_free_space(const char *path, uint64_t &free_space);
 
 /** This function returns information about the specified file
-@param[in]	path		pathname of the file
-@param[out]	stat_info	information of a file in a directory
-@param[in]	check_rw_perm	for testing whether the file can be opened
+@param[in]      path            pathname of the file
+@param[out]     stat_info       information of a file in a directory
+@param[in]      check_rw_perm   for testing whether the file can be opened
                                 in RW mode
-@param[in]	read_only	true if file is opened in read-only mode
+@param[in]      read_only       true if file is opened in read-only mode
 @return DB_SUCCESS if all OK */
 dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
                            bool check_rw_perm, bool read_only);
@@ -1755,26 +1755,26 @@ char *innobase_mysql_tmpdir();
 
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in --tmpdir.
-@param[in]	path	location for creating temporary file
+@param[in]      path    location for creating temporary file
 @return temporary file descriptor, or OS_FD_CLOSED on error */
 os_fd_t innobase_mysql_tmpfile(const char *path);
 
 #endif /* !UNIV_HOTBACKUP */
 
 /** If it is a compressed page return the compressed page data + footer size
-@param[in]	buf		Buffer to check, must include header + 10 bytes
+@param[in]      buf             Buffer to check, must include header + 10 bytes
 @return ULINT_UNDEFINED if the page is not a compressed page or length
         of the compressed data (including footer) if it is a compressed page */
 ulint os_file_compressed_page_size(const byte *buf);
 
 /** If it is a compressed page return the original page data + footer size
-@param[in]	buf		Buffer to check, must include header + 10 bytes
+@param[in]      buf             Buffer to check, must include header + 10 bytes
 @return ULINT_UNDEFINED if the page is not a compressed page or length
         of the original data + footer if it is a compressed page */
 ulint os_file_original_page_size(const byte *buf);
 
 /** Set the file create umask
-@param[in]	umask		The umask to use for file creation. */
+@param[in]      umask           The umask to use for file creation. */
 void os_file_set_umask(ulint umask);
 
 /** Get the file create umask
@@ -1782,9 +1782,9 @@ void os_file_set_umask(ulint umask);
 ulint os_file_get_umask();
 
 /** Free storage space associated with a section of the file.
-@param[in]	fh		Open file handle
-@param[in]	off		Starting offset (SEEK_SET)
-@param[in]	len		Size of the hole
+@param[in]      fh              Open file handle
+@param[in]      off             Starting offset (SEEK_SET)
+@param[in]      len             Size of the hole
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off,
                                          os_offset_t len);
@@ -1797,46 +1797,46 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	fh	File handle for the file - if opened
+@param[in]      fh      File handle for the file - if opened
 @return true if the file system supports sparse files */
 [[nodiscard]] bool os_is_sparse_file_supported(pfs_os_file_t fh);
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_read	true of double write recovery in progress
-@param[in,out]	src		Data read from disk, decompressed data will be
+@param[in]      dblwr_read      true of double write recovery in progress
+@param[in,out]  src             Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression or
+@param[in,out]  dst             Scratch area to use for decompression or
                                 nullptr.
-@param[in]	dst_len		If dst is valid, then size of the scratch area
+@param[in]      dst_len         If dst is valid, then size of the scratch area
                                 in bytes
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t os_file_decompress_page(bool dblwr_read, byte *src,
                                               byte *dst, ulint dst_len);
 
 /** Compress a data page
-@param[in]	compression	Compression algorithm
-@param[in]	block_size	File system block size
-@param[in]	src		Source contents to compress
-@param[in]	src_len		Length in bytes of the source
-@param[out]	dst		Compressed page contents
-@param[out]	dst_len		Length in bytes of dst contents
+@param[in]      compression     Compression algorithm
+@param[in]      block_size      File system block size
+@param[in]      src             Source contents to compress
+@param[in]      src_len         Length in bytes of the source
+@param[out]     dst             Compressed page contents
+@param[out]     dst_len         Length in bytes of dst contents
 @return buffer data, dst_len will have the length of the data */
 byte *os_file_compress_page(Compression compression, ulint block_size,
                             byte *src, ulint src_len, byte *dst,
                             ulint *dst_len);
 
 /** Determine if O_DIRECT is supported.
-@retval	true	if O_DIRECT is supported.
-@retval	false	if O_DIRECT is not supported. */
+@retval true    if O_DIRECT is supported.
+@retval false   if O_DIRECT is not supported. */
 [[nodiscard]] bool os_is_o_direct_supported();
 
 /** Fill the pages with NULs
-@param[in] file		File handle
-@param[in] name		File name
-@param[in] page_size	physical page size
-@param[in] start	Offset from the start of the file in bytes
-@param[in] len		Length in bytes
+@param[in] file         File handle
+@param[in] name         File name
+@param[in] page_size    physical page size
+@param[in] start        Offset from the start of the file in bytes
+@param[in] len          Length in bytes
 @param[in] read_only_mode
                         if true, then read only mode checks are enforced.
 @return DB_SUCCESS or error code */
@@ -1851,7 +1851,7 @@ class Dir_Walker {
   using Path = std::string;
 
   /** Check if the path is a directory. The file/directory must exist.
-  @param[in]	path		The path to check
+  @param[in]    path            The path to check
   @return true if it is a directory */
   static bool is_directory(const Path &path);
 
@@ -1872,8 +1872,8 @@ class Dir_Walker {
   /** Directory names for the depth first directory scan. */
   struct Entry {
     /** Constructor
-    @param[in]	path		Directory to traverse
-    @param[in]	depth		Relative depth to the base
+    @param[in]  path            Directory to traverse
+    @param[in]  depth           Relative depth to the base
                                     directory in walk() */
     Entry(const Path &path, size_t depth) : m_path(path), m_depth(depth) {}
 
@@ -1907,23 +1907,23 @@ class Dir_Walker {
 [[nodiscard]] byte *os_block_get_frame(const file::Block *block) noexcept;
 
 /** Free a page after sync IO
-@param[in,out]	block		The block to free/release */
+@param[in,out]  block           The block to free/release */
 void os_free_block(file::Block *block) noexcept;
 
 inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
 
 /** Encrypt a page content when write it to disk.
-@param[in]	type		IO flags
-@param[out]	buf		buffer to read or write
-@param[in]	n		number of bytes to read/write, starting from
+@param[in]      type            IO flags
+@param[out]     buf             buffer to read or write
+@param[in]      n               number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted page */
 file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n);
 
 /** Allocate the buffer for IO on a transparently compressed table.
-@param[in]	type		IO flags
-@param[out]	buf		buffer to read or write
-@param[in,out]	n		number of bytes to read/write, starting from
+@param[in]      type            IO flags
+@param[out]     buf             buffer to read or write
+@param[in,out]  n               number of bytes to read/write, starting from
                                 offset
 @return pointer to allocated page, compressed data is written to the offset
         that is aligned on the disk sector size */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,7 +74,7 @@ static std::chrono::steady_clock::time_point last_check_sync_time;
 #if 0
 /** Check each table in round robin to see whether they'd
 need to be "optimized" */
-static	ulint	fts_optimize_sync_iterator = 0;
+static  ulint   fts_optimize_sync_iterator = 0;
 #endif
 
 /** State of a table within the optimization sub system. */
@@ -2447,18 +2447,18 @@ Optimize a table. */
 static
 void
 fts_optimize_do_table(
-	dict_table_t*	table)			/*!< in: table to optimize */
+        dict_table_t*   table)                  /*!< in: table to optimize */
 {
-	fts_msg_t*	msg;
+        fts_msg_t*      msg;
 
-	/* Optimizer thread could be shutdown */
-	if (!fts_optimize_wq) {
-		return;
-	}
+        /* Optimizer thread could be shutdown */
+        if (!fts_optimize_wq) {
+                return;
+        }
 
-	msg = fts_optimize_create_msg(FTS_MSG_OPTIMIZE_TABLE, table);
+        msg = fts_optimize_create_msg(FTS_MSG_OPTIMIZE_TABLE, table);
 
-	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+        ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 }
 #endif
 
@@ -2493,7 +2493,7 @@ void fts_optimize_remove_table(dict_table_t *table) /*!< in: table to remove */
 }
 
 /** Send sync fts cache for the table.
-@param[in]	table	table to sync */
+@param[in]      table   table to sync */
 void fts_optimize_request_sync_table(dict_table_t *table) {
   fts_msg_t *msg;
   table_id_t *table_id;
@@ -2730,52 +2730,52 @@ Check whether a table needs to be optimized. */
 static
 void
 fts_optimize_need_sync(
-	ib_vector_t*	tables)	/*!< in: list of tables */
+        ib_vector_t*    tables) /*!< in: list of tables */
 {
-	dict_table_t*	table = NULL;
-	fts_slot_t*	slot;
-	ulint		num_table = ib_vector_size(tables);
+        dict_table_t*   table = NULL;
+        fts_slot_t*     slot;
+        ulint           num_table = ib_vector_size(tables);
 
-	if (!num_table) {
-		return;
-	}
+        if (!num_table) {
+                return;
+        }
 
-	if (fts_optimize_sync_iterator >= num_table) {
-		fts_optimize_sync_iterator = 0;
-	}
+        if (fts_optimize_sync_iterator >= num_table) {
+                fts_optimize_sync_iterator = 0;
+        }
 
-	slot = ib_vector_get(tables, fts_optimize_sync_iterator);
-	table = slot->table;
+        slot = ib_vector_get(tables, fts_optimize_sync_iterator);
+        table = slot->table;
 
-	if (!table) {
-		return;
-	}
+        if (!table) {
+                return;
+        }
 
-	ut_ad(table->fts);
+        ut_ad(table->fts);
 
-	if (table->fts->cache) {
-		ulint	deleted = table->fts->cache->deleted;
+        if (table->fts->cache) {
+                ulint   deleted = table->fts->cache->deleted;
 
-		if (table->fts->cache->added
-		    >= fts_optimize_add_threshold) {
-			fts_sync_table(table);
-		} else if (deleted >= fts_optimize_delete_threshold) {
-			fts_optimize_do_table(table);
+                if (table->fts->cache->added
+                    >= fts_optimize_add_threshold) {
+                        fts_sync_table(table);
+                } else if (deleted >= fts_optimize_delete_threshold) {
+                        fts_optimize_do_table(table);
 
-			mutex_enter(&table->fts->cache->deleted_lock);
-			table->fts->cache->deleted -= deleted;
-			mutex_exit(&table->fts->cache->deleted_lock);
-		}
-	}
+                        mutex_enter(&table->fts->cache->deleted_lock);
+                        table->fts->cache->deleted -= deleted;
+                        mutex_exit(&table->fts->cache->deleted_lock);
+                }
+        }
 
-	fts_optimize_sync_iterator++;
+        fts_optimize_sync_iterator++;
 
-	return;
+        return;
 }
 #endif
 
 /** Sync fts cache of a table
-@param[in]	table_id	table id */
+@param[in]      table_id        table id */
 void fts_optimize_sync_table(table_id_t table_id) {
   dict_table_t *table = nullptr;
   MDL_ticket *mdl = nullptr;

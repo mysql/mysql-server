@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -170,7 +170,7 @@ void mtr_t::release_block_at_savepoint(ulint savepoint, buf_block_t *block) {
 
 /**
 Gets the logging mode of a mini-transaction.
-@return	logging mode: MTR_LOG_NONE, ... */
+@return logging mode: MTR_LOG_NONE, ... */
 
 mtr_log_t mtr_t::get_log_mode() const {
   ut_ad(m_impl.m_log_mode >= MTR_LOG_ALL);
@@ -210,7 +210,7 @@ void mtr_t::sx_lock(rw_lock_t *lock, ut::Location location) {
 
 /**
 Reads 1 - 4 bytes from a file page buffered in the buffer pool.
-@return	value read */
+@return value read */
 
 uint32_t mtr_t::read_ulint(const byte *ptr, mlog_id_t type) const {
   ut_ad(is_active());

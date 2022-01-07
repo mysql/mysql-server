@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -109,7 +109,7 @@ static void sync_array_validate(sync_array_t *arr) /*!< in: sync wait array */
 Creates a synchronization wait array. It is protected by a mutex
 which is automatically reserved when the functions operating on it
 are called.
-@param[in]	num_cells		Number of cells to create */
+@param[in]      num_cells               Number of cells to create */
 sync_array_t::sync_array_t(ulint num_cells) UNIV_NOTHROW : n_reserved(),
                                                            n_cells(),
                                                            cells(),

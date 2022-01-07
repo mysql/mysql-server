@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -58,7 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 /** Checks if the page in the cursor can be merged with given page.
  If necessary, re-organize the merge_page.
- @return	true if possible to merge. */
+ @return        true if possible to merge. */
 static bool btr_can_merge_with_page(
     btr_cur_t *cursor,         /*!< in: cursor on the page to merge */
     page_no_t page_no,         /*!< in: a sibling page */
@@ -763,8 +763,8 @@ static void btr_page_get_father(
 have been called.
 In a persistent tablespace, the caller must invoke fsp_init_file_page()
 before mtr.commit().
-@param[in,out]	block	Index root page
-@param[in,out]	mtr	Mini-transaction */
+@param[in,out]  block   Index root page
+@param[in,out]  mtr     Mini-transaction */
 static void btr_free_root(buf_block_t *block, mtr_t *mtr) {
   fseg_header_t *header;
 
@@ -787,8 +787,8 @@ static const space_index_t BTR_FREED_INDEX_ID = 0;
 
 /** Invalidate an index root page so that btr_free_root_check()
 will not find it.
-@param[in,out]	block	Index root page
-@param[in,out]	mtr	Mini-transaction */
+@param[in,out]  block   Index root page
+@param[in,out]  mtr     Mini-transaction */
 static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
   ut_ad(page_is_root(block->frame));
 
@@ -797,10 +797,10 @@ static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
 }
 
 /** Prepare to free a B-tree.
-@param[in]	page_id		Page id
-@param[in]	page_size Page size
-@param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		Mini-transaction
+@param[in]      page_id         Page id
+@param[in]      page_size Page size
+@param[in]      index_id        PAGE_INDEX_ID contents
+@param[in,out]  mtr             Mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
 [[nodiscard]] static buf_block_t *btr_free_root_check(
@@ -950,8 +950,8 @@ ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
 
 /** Free a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
-@param[in,out]	block		root page
-@param[in]	log_mode	mtr logging mode */
+@param[in,out]  block           root page
+@param[in]      log_mode        mtr logging mode */
 static void btr_free_but_not_root(buf_block_t *block, mtr_log_t log_mode) {
   bool finished;
   mtr_t mtr;
@@ -1000,10 +1000,10 @@ top_loop:
 }
 
 /** Free a persistent index tree if it exists.
-@param[in]	page_id		Root page id
-@param[in]	page_size	Page size
-@param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		Mini-transaction */
+@param[in]      page_id         Root page id
+@param[in]      page_size       Page size
+@param[in]      index_id        PAGE_INDEX_ID contents
+@param[in,out]  mtr             Mini-transaction */
 void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
                         space_index_t index_id, mtr_t *mtr) {
   buf_block_t *root = btr_free_root_check(page_id, page_size, index_id, mtr);
@@ -1018,8 +1018,8 @@ void btr_free_if_exists(const page_id_t &page_id, const page_size_t &page_size,
 }
 
 /** Free an index tree in a temporary tablespace.
-@param[in]	page_id		root page id
-@param[in]	page_size	page size */
+@param[in]      page_id         root page id
+@param[in]      page_size       page size */
 void btr_free(const page_id_t &page_id, const page_size_t &page_size) {
   mtr_t mtr;
   mtr.start();
@@ -1040,7 +1040,7 @@ Currently, this function is only specific for clustered indexes and the only
 caller is DDTableBuffer which manages a table with only a clustered index.
 It is up to the caller to ensure atomicity and to ensure correct recovery by
 calling btr_truncate_recover().
-@param[in]	index		clustered index */
+@param[in]      index           clustered index */
 void btr_truncate(const dict_index_t *index) {
   ut_ad(index->is_clustered());
   ut_ad(index->next() == nullptr);
@@ -1096,7 +1096,7 @@ void btr_truncate(const dict_index_t *index) {
 
 /** Recovery function for btr_truncate. We will check if there is a
 crash during btr_truncate, if so, do recover it, if not, do nothing.
-@param[in]	index		clustered index */
+@param[in]      index           clustered index */
 void btr_truncate_recover(const dict_index_t *index) {
   ut_ad(index->is_clustered());
   ut_ad(index->next() == nullptr);
@@ -2148,16 +2148,16 @@ static void btr_attach_half_pages(
 
 /** Insert the tuple into the right sibling page, if the cursor is at the end
 of a page.
-@param[in]	flags	Undo logging and locking flags
-@param[in,out]	cursor	Cursor at which to insert; when the function succeeds,
+@param[in]      flags   Undo logging and locking flags
+@param[in,out]  cursor  Cursor at which to insert; when the function succeeds,
                         the cursor is positioned before the insert point.
-@param[out]	offsets	Offsets on inserted record
-@param[in,out]	heap	Memory heap for allocating offsets
-@param[in]	tuple	Tuple to insert
-@param[in,out]	mtr	Mini-transaction
-@return	inserted record (first record on the right sibling page);
+@param[out]     offsets Offsets on inserted record
+@param[in,out]  heap    Memory heap for allocating offsets
+@param[in]      tuple   Tuple to insert
+@param[in,out]  mtr     Mini-transaction
+@return inserted record (first record on the right sibling page);
         the cursor will be positioned on the page infimum
-@retval	NULL if the operation was not performed */
+@retval NULL if the operation was not performed */
 static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
                                             ulint **offsets, mem_heap_t *heap,
                                             const dtuple_t *tuple, mtr_t *mtr) {
@@ -2475,7 +2475,7 @@ func_start:
 
   /* 5. Move then the records to the new page */
   if (direction == FSP_DOWN) {
-    /*		fputs("Split left\n", stderr); */
+    /*          fputs("Split left\n", stderr); */
 
     if (false
 #ifdef UNIV_ZIP_COPY
@@ -2517,7 +2517,7 @@ func_start:
       lock_update_split_left(right_block, left_block);
     }
   } else {
-    /*		fputs("Split right\n", stderr); */
+    /*          fputs("Split right\n", stderr); */
 
     if (false
 #ifdef UNIV_ZIP_COPY
@@ -4461,7 +4461,7 @@ node_ptr_fails:
 }
 
 /** Do an index level validation of spaital index tree.
- @return	true if no error found */
+ @return        true if no error found */
 static bool btr_validate_spatial_index(
     dict_index_t *index, /*!< in: index */
     const trx_t *trx)    /*!< in: transaction or NULL */
@@ -4573,7 +4573,7 @@ bool btr_validate_index(
 
 /** Checks if the page in the cursor can be merged with given page.
  If necessary, re-organize the merge_page.
- @return	true if possible to merge. */
+ @return        true if possible to merge. */
 static bool btr_can_merge_with_page(
     btr_cur_t *cursor,         /*!< in: cursor on the page to merge */
     page_no_t page_no,         /*!< in: a sibling page */
@@ -4654,9 +4654,9 @@ error:
 }
 
 /** Create an SDI Index
-@param[in]	space_id	Tablespace id
-@param[in,out]	mtr		Mini-transaction
-@param[in,out]	table		SDI table
+@param[in]      space_id        Tablespace id
+@param[in,out]  mtr             Mini-transaction
+@param[in,out]  table           SDI table
 @return root page number of the SDI index created or FIL_NULL on failure */
 static page_no_t btr_sdi_create(space_id_t space_id, mtr_t *mtr,
                                 dict_table_t *table) {
@@ -4671,8 +4671,8 @@ static page_no_t btr_sdi_create(space_id_t space_id, mtr_t *mtr,
 }
 
 /** Creates SDI index and stores the root page numbers in page 1 & 2
-@param[in]	space_id	tablespace id
-@param[in]	dict_locked	true if dict_sys mutex is acquired
+@param[in]      space_id        tablespace id
+@param[in]      dict_locked     true if dict_sys mutex is acquired
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   fil_space_t *space = fil_space_acquire(space_id);

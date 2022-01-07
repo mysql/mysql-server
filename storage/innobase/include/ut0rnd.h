@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,21 +52,21 @@ static inline ulint ut_rnd_gen_next_ulint(
 static inline ulint ut_rnd_gen_ulint(void);
 
 /** Generates a random integer from a given interval.
-@param[in]	low	low limit; can generate also this value
-@param[in]	high	high limit; can generate also this value
+@param[in]      low     low limit; can generate also this value
+@param[in]      high    high limit; can generate also this value
 @return the 'random' number */
 static inline ulint ut_rnd_interval(ulint low, ulint high);
 
 /** The following function generates a hash value for a ulint integer to a
 hash table of size table_size, which should be a prime or some random number
 to work reliably.
-@param[in]	key		value to be hashed
-@param[in]	table_size	hash table size
+@param[in]      key             value to be hashed
+@param[in]      table_size      hash table size
 @return hash value */
 static inline ulint ut_hash_ulint(ulint key, ulint table_size);
 
 /** Folds a 64-bit integer.
-@param[in]	d	64-bit integer
+@param[in]      d       64-bit integer
 @return folded value */
 static inline ulint ut_fold_ull(uint64_t d);
 
@@ -77,19 +77,19 @@ static inline ulint ut_fold_ull(uint64_t d);
 
 /** Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
-@param[in]	n  positive number > 100
+@param[in]      n  positive number > 100
 @return prime */
 ulint ut_find_prime(ulint n);
 
 /** Folds a pair of ulints.
-@param[in]	n1	first ulint
-@param[in]	n2	second ulint
+@param[in]      n1      first ulint
+@param[in]      n2      second ulint
 @return folded value */
 static inline ulint ut_fold_ulint_pair(ulint n1, ulint n2);
 
 /** Folds a binary string.
-@param[in]	str		string of bytes
-@param[in]	len		length
+@param[in]      str             string of bytes
+@param[in]      len             length
 @return folded value */
 static inline ulint ut_fold_binary(const byte *str, ulint len);
 

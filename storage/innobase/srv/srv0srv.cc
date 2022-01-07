@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -685,21 +685,21 @@ constexpr std::chrono::seconds SRV_MASTER_DICT_LRU_INTERVAL{47};
 There is the following analogue between this database
 server and an operating system kernel:
 
-DB concept			equivalent OS concept
-----------			---------------------
-transaction		--	process;
+DB concept                      equivalent OS concept
+----------                      ---------------------
+transaction             --      process;
 
-query thread		--	thread;
+query thread            --      thread;
 
-lock			--	semaphore;
+lock                    --      semaphore;
 
-kernel			--	kernel;
+kernel                  --      kernel;
 
 query thread execution:
 (a) without lock mutex
-reserved		--	process executing in user mode;
+reserved                --      process executing in user mode;
 (b) with lock mutex reserved
-                        --	process executing in kernel mode;
+                        --      process executing in kernel mode;
 
 The server has several backgroind threads all running at the same
 priority as user threads. It periodically checks if here is anything
@@ -1907,8 +1907,8 @@ This is polled during the final phase of shutdown.
 The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
-@retval true	if any thread is active
-@retval false	if no thread is active */
+@retval true    if any thread is active
+@retval false   if no thread is active */
 bool srv_master_thread_is_active() {
   return (srv_thread_is_active(srv_threads.m_master));
 }
@@ -2078,8 +2078,8 @@ void srv_master_thread_disabled_debug_update(THD *, SYS_VAR *, void *,
 
 #ifdef UNIV_LINUX
 /** Calculates difference between two timeval values.
-@param[in]	a	later timeval
-@param[in]	b	earlier timeval
+@param[in]      a       later timeval
+@param[in]      b       earlier timeval
 @return a - b; number of microseconds between b and a */
 [[maybe_unused]] static int64_t timeval_diff_us(timeval a, timeval b) {
   return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);

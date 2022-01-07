@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,12 +71,12 @@ static inline row_id_t dict_sys_read_row_id(
     const byte *field); /*!< in: record field */
 
 /** Writes a row id to a record or other 6-byte stored form.
-@param[in]	field	record field
-@param[in]	row_id	row id */
+@param[in]      field   record field
+@param[in]      row_id  row id */
 static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
 
 /** Check if a table id belongs to old innodb internal system table.
-@param[in]	id		table id
+@param[in]      id              table id
 @return true if the table id belongs to a system table. */
 [[nodiscard]] static inline bool dict_is_old_sys_table(table_id_t id);
 #endif /* !UNIV_HOTBACKUP */

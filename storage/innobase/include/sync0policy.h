@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,14 +58,14 @@ class MutexDebug {
     }
 
     /** Create the context for SyncDebug
-    @param[in]	id	ID of the latch to track */
+    @param[in]  id      ID of the latch to track */
     Context(latch_id_t id) : latch_t(id) { /* No op */
     }
 
     /** Set to locked state
-    @param[in]	mutex		The mutex to acquire
-    @param[in]	filename	File name from where to acquire
-    @param[in]	line		Line number in filename */
+    @param[in]  mutex           The mutex to acquire
+    @param[in]  filename        File name from where to acquire
+    @param[in]  line            Line number in filename */
     void locked(const Mutex *mutex, const char *filename,
                 ulint line) UNIV_NOTHROW {
       m_mutex = mutex;
@@ -146,24 +146,24 @@ class MutexDebug {
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
-  @param[in]	id              Mutex ID */
+  @param[in]    id              Mutex ID */
   void init(latch_id_t id) UNIV_NOTHROW;
 
   /** Called when an attempt is made to lock the mutex
-  @param[in]	mutex		Mutex instance to be locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance to be locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void enter(const Mutex *mutex, const char *filename, ulint line) UNIV_NOTHROW;
 
   /** Called when the mutex is locked
-  @param[in]	mutex		Mutex instance that was locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance that was locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void locked(const Mutex *mutex, const char *filename,
               ulint line) UNIV_NOTHROW;
 
   /** Called when the mutex is released
-  @param[in]	mutex		Mutex that was released */
+  @param[in]    mutex           Mutex that was released */
   void release(const Mutex *mutex) UNIV_NOTHROW;
 
   /** @return true if thread owns the mutex */
@@ -232,10 +232,10 @@ struct GenericPolicy
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
-  @param[in]	mutex		Mutex instance to track
-  @param[in]	id              Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
+  @param[in]    mutex           Mutex instance to track
+  @param[in]    id              Mutex ID
+  @param[in]    filename        File where mutex was created
+  @param[in]    line            Line in filename */
   void init(const MutexType &mutex [[maybe_unused]], latch_id_t id,
             const char *filename, uint32_t line) UNIV_NOTHROW {
     m_id = id;
@@ -263,9 +263,9 @@ struct GenericPolicy
   }
 
   /** Called after a successful mutex acquire.
-  @param[in]	n_spins		Number of times the thread did
+  @param[in]    n_spins         Number of times the thread did
                                   spins while trying to acquire the mutex
-  @param[in]	n_waits		Number of times the thread waited
+  @param[in]    n_waits         Number of times the thread waited
                                   in some type of OS queue */
   void add(uint32_t n_spins, uint32_t n_waits) UNIV_NOTHROW {
     /* Currently global on/off. Keeps things simple and fast */
@@ -281,25 +281,25 @@ struct GenericPolicy
   }
 
   /** Called when an attempt is made to lock the mutex
-  @param[in]	mutex		Mutex instance to be locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance to be locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void enter(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
              ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::enter(&mutex, filename, line));
   }
 
   /** Called when the mutex is locked
-  @param[in]	mutex		Mutex instance that is locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance that is locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void locked(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
               ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::locked(&mutex, filename, line));
   }
 
   /** Called when the mutex is released
-  @param[in]	mutex		Mutex instance that is released */
+  @param[in]    mutex           Mutex instance that is released */
   void release(const MutexType &IF_DEBUG(mutex)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::release(&mutex));
   }
@@ -352,10 +352,10 @@ class BlockMutexPolicy
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
-  @param[in]	mutex		Mutex instance to track
-  @param[in]	id              Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
+  @param[in]    mutex           Mutex instance to track
+  @param[in]    id              Mutex ID
+  @param[in]    filename        File where mutex was created
+  @param[in]    line            Line in filename */
   void init(const MutexType &mutex [[maybe_unused]], latch_id_t id,
             const char *filename [[maybe_unused]],
             uint32_t line [[maybe_unused]]) UNIV_NOTHROW {
@@ -389,9 +389,9 @@ class BlockMutexPolicy
   }
 
   /** Called after a successful mutex acquire.
-  @param[in]	n_spins		Number of times the thread did
+  @param[in]    n_spins         Number of times the thread did
                                   spins while trying to acquire the mutex
-  @param[in]	n_waits		Number of times the thread waited
+  @param[in]    n_waits         Number of times the thread waited
                                   in some type of OS queue */
   void add(uint32_t n_spins, uint32_t n_waits) UNIV_NOTHROW {
     if (!m_count->m_enabled) {
@@ -405,24 +405,24 @@ class BlockMutexPolicy
   }
 
   /** Called when the mutex is locked
-  @param[in]	mutex		Mutex instance that is locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance that is locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void locked(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
               ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::locked(&mutex, filename, line));
   }
 
   /** Called when the mutex is released
-  @param[in]	mutex		Mutex instance that is released */
+  @param[in]    mutex           Mutex instance that is released */
   void release(const MutexType &IF_DEBUG(mutex)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::release(&mutex));
   }
 
   /** Called when an attempt is made to lock the mutex
-  @param[in]	mutex		Mutex instance to be locked
-  @param[in]	filename	Filename from where it was called
-  @param[in]	line		Line number from where it was called */
+  @param[in]    mutex           Mutex instance to be locked
+  @param[in]    filename        Filename from where it was called
+  @param[in]    line            Line number from where it was called */
   void enter(const MutexType &IF_DEBUG(mutex), const char *IF_DEBUG(filename),
              ulint IF_DEBUG(line)) UNIV_NOTHROW {
     ut_d(MutexDebug<MutexType>::enter(&mutex, filename, line));

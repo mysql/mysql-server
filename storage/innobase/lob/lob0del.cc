@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ void Deleter::x_latch_rec_page() {
 }
 
 /** Returns the page number where the next BLOB part is stored.
-@param[in]	blob_header	the BLOB header.
+@param[in]      blob_header     the BLOB header.
 @return page number or FIL_NULL if no more pages */
 static inline page_no_t btr_blob_get_next_page_no(const byte *blob_header) {
   return (mach_read_from_4(blob_header + LOB_HDR_NEXT_PAGE_NO));

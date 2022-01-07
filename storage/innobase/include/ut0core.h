@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,9 +173,9 @@ struct hex {
 /** This is an overload of the global operator<< for the user defined type
 ib::hex.  The unsigned value held in the ib::hex wrapper class will be printed
 into the given output stream in hexadecimal format.
-@param[in,out]	lhs	the output stream into which rhs is written.
-@param[in]	rhs	the object to be written into lhs.
-@retval	reference to the output stream. */
+@param[in,out]  lhs     the output stream into which rhs is written.
+@param[in]      rhs     the object to be written into lhs.
+@retval reference to the output stream. */
 inline std::ostream &operator<<(std::ostream &lhs, const hex &rhs) {
   std::ios_base::fmtflags ff = lhs.flags();
   lhs << std::showbase << std::hex << rhs.m_val;

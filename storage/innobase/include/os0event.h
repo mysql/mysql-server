@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,7 +48,7 @@ constexpr uint32_t OS_SYNC_TIME_EXCEEDED = 1;
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling os_event_reset().
-@return	the event handle */
+@return the event handle */
 os_event_t os_event_create();
 
 /**

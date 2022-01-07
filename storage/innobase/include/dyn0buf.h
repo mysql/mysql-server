@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,14 +63,14 @@ class dyn_buf_t {
 
     /**
     Gets the number of used bytes in a block.
-    @return	number of bytes used */
+    @return     number of bytes used */
     [[nodiscard]] ulint used() const {
       return (static_cast<ulint>(m_used & ~DYN_BLOCK_FULL_FLAG));
     }
 
     /**
     Gets pointer to the start of data.
-    @return	pointer to data */
+    @return     pointer to data */
     [[nodiscard]] byte *start() { return (m_data); }
 
     /**
@@ -178,8 +178,8 @@ class dyn_buf_t {
   /**
   Makes room on top and returns a pointer to a buffer in it. After
   copying the elements, the caller must close the buffer using close().
-  @param size	in bytes of the buffer; MUST be <= MAX_DATA_SIZE!
-  @return	pointer to the buffer */
+  @param size   in bytes of the buffer; MUST be <= MAX_DATA_SIZE!
+  @return       pointer to the buffer */
   [[nodiscard]] byte *open(ulint size) {
     ut_ad(size > 0);
     ut_ad(size <= MAX_DATA_SIZE);
@@ -196,7 +196,7 @@ class dyn_buf_t {
 
   /**
   Closes the buffer returned by open.
-  @param ptr	end of used space */
+  @param ptr    end of used space */
   void close(const byte *ptr) {
     ut_ad(UT_LIST_GET_LEN(m_list) > 0);
     block_t *block = back();
@@ -211,8 +211,8 @@ class dyn_buf_t {
   /**
   Makes room on top and returns a pointer to the added element.
   The caller must copy the element to the pointer returned.
-  @param size	in bytes of the element
-  @return	pointer to the element */
+  @param size   in bytes of the element
+  @return       pointer to the element */
   template <typename Type>
   Type push(uint32_t size) {
     ut_ad(size > 0);
@@ -231,8 +231,8 @@ class dyn_buf_t {
 
   /**
   Pushes n bytes.
-  @param	ptr	string to write
-  @param	len	string length */
+  @param        ptr     string to write
+  @param        len     string length */
   void push(const byte *ptr, uint32_t len) {
     while (len > 0) {
       uint32_t n_copied;
@@ -252,8 +252,8 @@ class dyn_buf_t {
 
   /**
   Returns a pointer to an element in the buffer. const version.
-  @param pos	position of element in bytes from start
-  @return	pointer to element */
+  @param pos    position of element in bytes from start
+  @return       pointer to element */
   template <typename Type>
   const Type at(ulint pos) const {
     block_t *block =
@@ -264,8 +264,8 @@ class dyn_buf_t {
 
   /**
   Returns a pointer to an element in the buffer. non const version.
-  @param pos	position of element in bytes from start
-  @return	pointer to element */
+  @param pos    position of element in bytes from start
+  @return       pointer to element */
   template <typename Type>
   Type at(ulint pos) {
     block_t *block = const_cast<block_t *>(find(pos));
@@ -275,7 +275,7 @@ class dyn_buf_t {
 
   /**
   Returns the size of the total stored data.
-  @return	data size in bytes */
+  @return       data size in bytes */
   [[nodiscard]] ulint size() const {
 #ifdef UNIV_DEBUG
     ulint total_size = 0;
@@ -291,7 +291,7 @@ class dyn_buf_t {
 
   /**
   Iterate over each block and call the functor.
-  @return	false if iteration was terminated. */
+  @return       false if iteration was terminated. */
   template <typename Functor>
   bool for_each_block(Functor &functor) const {
     for (const block_t *block : m_list) {
@@ -305,7 +305,7 @@ class dyn_buf_t {
 
   /**
   Iterate over all the blocks in reverse and call the iterator
-  @return	false if iteration was terminated. */
+  @return       false if iteration was terminated. */
   template <typename Functor>
   bool for_each_block_in_reverse(Functor &functor) const {
     for (block_t *block = UT_LIST_GET_LAST(m_list); block != nullptr;
@@ -360,7 +360,7 @@ class dyn_buf_t {
   }
 
   /** Find the block that contains the pos.
-  @param pos	absolute offset, it is updated to make it relative
+  @param pos    absolute offset, it is updated to make it relative
                   to the block
   @return the block containing the pos. */
   block_t *find(ulint &pos) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,10 +46,10 @@ re-checked and function stops as soon as the condition returned true.
 Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
 (but it's limited up to maximum value of 100ms).
 
-@param[in,out]	event			event on which function may wait
-@param[in]	spins_limit		maximum spin iterations
-@param[in]	timeout			initial timeout value
-@param[in]	condition		returns true when condition is
+@param[in,out]  event                   event on which function may wait
+@param[in]      spins_limit             maximum spin iterations
+@param[in]      timeout                 initial timeout value
+@param[in]      condition               returns true when condition is
                                         satisfied
 
 @return number of loops with wait on event that have been used */

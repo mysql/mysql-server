@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -191,8 +191,8 @@ class page_id_t {
   page_id_t() = delete;
 
   /** Constructor from (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   page_id_t(space_id_t space, page_no_t page_no)
       : m_space(space), m_page_no(page_no) {}
 
@@ -209,31 +209,31 @@ class page_id_t {
   inline uint32_t fold() const { return (m_space << 20) + m_space + m_page_no; }
 
   /** Reset the values from a (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   inline void reset(space_id_t space, page_no_t page_no) {
     m_space = space;
     m_page_no = page_no;
   }
 
   /** Reset the page number only.
-  @param[in]	page_no	page number */
+  @param[in]    page_no page number */
   inline void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
   /** Check if a given page_id_t object is equal to the current one.
-  @param[in]	a	page_id_t object to compare
+  @param[in]    a       page_id_t object to compare
   @return true if equal */
   inline bool operator==(const page_id_t &a) const {
     return (a.space() == m_space && a.page_no() == m_page_no);
   }
 
   /** Check if a given page_id_t object is not equal to the current one.
-  @param[in]	a	page_id_t object to compare
+  @param[in]    a       page_id_t object to compare
   @return true if not equal */
   inline bool operator!=(const page_id_t &a) const { return !(*this == a); }
 
   /** Provides a lexicographic ordering on <space_id,page_no> pairs
-  @param[in]	other	page_id_t object to compare
+  @param[in]    other   page_id_t object to compare
   @return true if this is strictly smaller than other */
   inline bool operator<(const page_id_t &other) const {
     return m_space < other.space() ||
@@ -251,8 +251,8 @@ class page_id_t {
 };
 
 /** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
+@param[in,out]  out     the output stream
+@param[in]      page_id the page_id_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const page_id_t &page_id);
 

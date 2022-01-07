@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,11 +49,11 @@ static std::atomic<uint32_t> active_rseg_init_threads{1};
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
-@param[in]	space_id	Space id
-@param[in]	page_size	Page size
-@param[in]	max_size	Max size in pages
-@param[in]	rseg_slot	Rseg id == slot number in RSEG_ARRAY
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space_id        Space id
+@param[in]      page_size       Page size
+@param[in]      max_size        Max size in pages
+@param[in]      rseg_slot       Rseg id == slot number in RSEG_ARRAY
+@param[in,out]  mtr             Mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
 page_no_t trx_rseg_header_create(space_id_t space_id,
                                  const page_size_t &page_size,
@@ -127,7 +127,7 @@ page_no_t trx_rseg_header_create(space_id_t space_id,
 }
 
 /** Free an instance of the rollback segment in memory.
-@param[in]	rseg	pointer to an rseg to free */
+@param[in]      rseg    pointer to an rseg to free */
 void trx_rseg_mem_free(trx_rseg_t *rseg) {
   mutex_free(&rseg->mutex);
 
@@ -211,11 +211,11 @@ static void trx_rseg_persist_gtid(trx_rseg_t *rseg, trx_id_t gtid_trx_no) {
 }
 
 /* Initialize rollback segment in memory
-@param[in]	id		rollback segment id
-@param[in]	space_id	space id of the space
-@param[in]	page_no		page no for the rollback segment
-@param[in]	page_size	page_size
-@return trx_rseg_t	initialized rollback segment */
+@param[in]      id              rollback segment id
+@param[in]      space_id        space id of the space
+@param[in]      page_no         page no for the rollback segment
+@param[in]      page_size       page_size
+@return trx_rseg_t      initialized rollback segment */
 static trx_rseg_t *trx_rseg_mem_initialize(ulint id, space_id_t space_id,
                                            page_no_t page_no,
                                            const page_size_t &page_size) {
@@ -320,8 +320,8 @@ static trx_rseg_t *trx_rseg_physical_initialize(trx_rseg_t *rseg,
 
 /** Return a page number from a slot in the rseg_array page of an
 undo tablespace.
-@param[in]	space_id	undo tablespace ID
-@param[in]	rseg_id		rollback segment ID
+@param[in]      space_id        undo tablespace ID
+@param[in]      rseg_id         rollback segment ID
 @return page_no Page number of the rollback segment header page */
 page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id) {
   mtr_t mtr;
@@ -337,8 +337,8 @@ page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id) {
 }
 
 /** Thread to initialize rollback segments in parallel.
-@param[in]	arg		purge queue
-@param[in]	gtid_trx_no	GTID to be set in the rollback segment */
+@param[in]      arg             purge queue
+@param[in]      gtid_trx_no     GTID to be set in the rollback segment */
 void trx_rseg_init_thread(void *arg, trx_id_t gtid_trx_no) {
   trx_rseg_t *rseg = nullptr;
   purge_pq_t *purge_queue = (purge_pq_t *)arg;
@@ -461,7 +461,7 @@ single-threaded startup.If we find existing rseg slots in TRX_SYS page
 that reference undo tablespaces and have active undo logs, then quit.
 They require an upgrade of undo tablespaces and that cannot happen with
 active undo logs.
-@param[in]	purge_queue	queue of rsegs to purge */
+@param[in]      purge_queue     queue of rsegs to purge */
 void trx_rsegs_init_start(purge_pq_t *purge_queue) {
   trx_sys->rseg_history_len = 0;
 
@@ -609,7 +609,7 @@ single-threaded startup.  If we find existing rseg slots in TRX_SYS page
 that reference undo tablespaces and have active undo logs, then quit.
 They require an upgrade of undo tablespaces and that cannot happen with
 active undo logs.
-@param[in]	purge_queue	queue of rsegs to purge */
+@param[in]      purge_queue     queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue) {
   trx_sys->rseg_history_len.store(0);
 
@@ -704,8 +704,8 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
 
 /** Create a rollback segment in the given tablespace. This could be either
 the system tablespace, the temporary tablespace, or an undo tablespace.
-@param[in]	space_id	tablespace to get the rollback segment
-@param[in]	rseg_id		slot number of the rseg within this tablespace
+@param[in]      space_id        tablespace to get the rollback segment
+@param[in]      rseg_id         slot number of the rseg within this tablespace
 @return page number of the rollback segment header page created */
 page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id) {
   mtr_t mtr;
@@ -768,7 +768,7 @@ void Rsegs::clear() {
 }
 
 /** Find an rseg in the std::vector that uses the rseg_id given.
-@param[in]	rseg_id		A slot in a durable array such as
+@param[in]      rseg_id         A slot in a durable array such as
 the TRX_SYS page or RSEG_ARRAY page.
 @return a pointer to an trx_rseg_t that uses the rseg_id. */
 trx_rseg_t *Rsegs::find(ulint rseg_id) {
@@ -797,11 +797,11 @@ trx_rseg_t *Rsegs::find(ulint rseg_id) {
 2. Make sure each rollback segment is tracked in memory (trx_rseg_mem_create).
 All existing rollback segments were found earlier in trx_rsegs_init().
 This will add new ones if we need them according to target_rsegs.
-@param[in]	space_id	tablespace ID that should contain rollback
+@param[in]      space_id        tablespace ID that should contain rollback
                                 segments
-@param[in]	target_rsegs	target number of rollback segments per
+@param[in]      target_rsegs    target number of rollback segments per
                                 tablespace
-@param[in]	rsegs		list of rsegs to add to
+@param[in]      rsegs           list of rsegs to add to
 @param[in,out] n_total_created  A running total of rollback segment created in
 undo tablespaces
 @return true if all rsegs are added, false if not. */
@@ -974,7 +974,7 @@ exists so that the purge_queue can be filled and processed with any
 existing undo log. If the rollback segments do not exist in this
 tablespace and we need them according to target_rollback_segments,
 then build them in the tablespace.
-@param[in]	target_rollback_segments	new number of rollback
+@param[in]      target_rollback_segments        new number of rollback
                                                 segments per space
 @return true if all necessary rollback segments and trx_rseg_t objects
 were created. */
@@ -1044,7 +1044,7 @@ bool trx_rseg_init_rollback_segments(space_id_t space_id,
 
 /** Build a list of unique undo tablespaces found in the TRX_SYS page.
 Do not count the system tablespace. The vector will be sorted on space id.
-@param[in,out]	spaces_to_open		list of undo tablespaces found. */
+@param[in,out]  spaces_to_open          list of undo tablespaces found. */
 void trx_rseg_get_n_undo_tablespaces(Space_Ids *spaces_to_open) {
   ulint i;
   mtr_t mtr;
@@ -1129,8 +1129,8 @@ void trx_rseg_upgrade_undo_tablespaces() {
 /** Create the file page for the rollback segment directory in an undo
 tablespace. This function is called just after an undo tablespace is
 created so the next page created here should by FSP_FSEG_DIR_PAGE_NUM.
-@param[in]	space_id	Undo Tablespace ID
-@param[in]	mtr		mtr */
+@param[in]      space_id        Undo Tablespace ID
+@param[in]      mtr             mtr */
 void trx_rseg_array_create(space_id_t space_id, mtr_t *mtr) {
   trx_rsegsf_t *rsegs_header;
   buf_block_t *block;

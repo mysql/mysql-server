@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1281,7 +1281,7 @@ void Arch_Block::update_block_header(lsn_t stop_lsn, lsn_t reset_lsn) {
 }
 
 /** Set the block ready to begin writing page ID
-@param[in]	pos	position to initiate block number */
+@param[in]      pos     position to initiate block number */
 void Arch_Block::begin_write(Arch_Page_Pos pos) {
   m_data_len = 0;
 
@@ -1305,8 +1305,8 @@ Change state to #ARCH_BLOCK_READY_TO_FLUSH */
 void Arch_Block::end_write() { m_state = ARCH_BLOCK_READY_TO_FLUSH; }
 
 /** Add page ID to current block
-@param[in]	page	page from buffer pool
-@param[in]	pos	Archiver current position
+@param[in]      page    page from buffer pool
+@param[in]      pos     Archiver current position
 @return true, if successful
         false, if no more space in current block */
 bool Arch_Block::add_page(buf_page_t *page, Arch_Page_Pos *pos) {
@@ -1375,8 +1375,8 @@ bool Arch_Block::set_data(uint read_len, byte *read_buff, uint read_offset) {
 }
 
 /** Flush this block to the file group.
-@param[in]	file_group	current archive group
-@param[in]	type		flush type
+@param[in]      file_group      current archive group
+@param[in]      type            flush type
 @return error code. */
 dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
   dberr_t err = DB_SUCCESS;
@@ -1556,8 +1556,8 @@ void ArchPageData::clean() {
 }
 
 /** Get the block for a position
-@param[in]	pos	position in page archive sys
-@param[in]	type	block type
+@param[in]      pos     position in page archive sys
+@param[in]      type    block type
 @return page archive in memory block */
 Arch_Block *ArchPageData::get_block(Arch_Page_Pos *pos, Arch_Blk_Type type) {
   switch (type) {
@@ -1696,10 +1696,10 @@ void Arch_Page_Sys::flush_at_checkpoint(lsn_t checkpoint_lsn) {
 
 /** Check and add page ID to archived data.
 Check for duplicate page.
-@param[in]	bpage		page to track
-@param[in]	track_lsn	LSN when tracking started
-@param[in]	frame_lsn	current LSN of the page
-@param[in]	force		if true, add page ID without check */
+@param[in]      bpage           page to track
+@param[in]      track_lsn       LSN when tracking started
+@param[in]      frame_lsn       current LSN of the page
+@param[in]      force           if true, add page ID without check */
 void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
                                lsn_t frame_lsn, bool force) {
   Arch_Block *cur_blk;
@@ -1798,10 +1798,10 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
 /** Get page IDs from a specific position.
 Caller must ensure that read_len doesn't exceed the block.
-@param[in]	group		group whose pages we're interested in
-@param[in]	read_pos	position in archived data
-@param[in]	read_len	amount of data to read
-@param[out]	read_buff	buffer to return the page IDs.
+@param[in]      group           group whose pages we're interested in
+@param[in]      read_pos        position in archived data
+@param[in]      read_len        amount of data to read
+@param[out]     read_buff       buffer to return the page IDs.
 @note Caller must allocate the buffer.
 @return true if we could successfully read the block. */
 bool Arch_Page_Sys::get_pages(Arch_Group *group, Arch_Page_Pos *read_pos,
@@ -2267,7 +2267,7 @@ void Arch_Page_Sys::track_initial_pages() {
 }
 
 /** Enable tracking pages in all buffer pools.
-@param[in]	tracking_lsn	track pages from this LSN */
+@param[in]      tracking_lsn    track pages from this LSN */
 void Arch_Page_Sys::set_tracking_buf_pool(lsn_t tracking_lsn) {
   uint index;
   buf_pool_t *buf_pool;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -59,7 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define mtr_commit(m) (m)->commit()
 
 /** Set and return a savepoint in mtr.
-@return	savepoint */
+@return savepoint */
 #define mtr_set_savepoint(m) (m)->get_savepoint()
 
 /** Release the (index tree) s-latch stored in an mtr memo after a
@@ -68,11 +68,11 @@ savepoint. */
   (m)->release_s_latch_at_savepoint((s), (l))
 
 /** Get the logging mode of a mini-transaction.
-@return	logging mode: MTR_LOG_NONE, ... */
+@return logging mode: MTR_LOG_NONE, ... */
 #define mtr_get_log_mode(m) (m)->get_log_mode()
 
 /** Change the logging mode of a mini-transaction.
-@return	old mode */
+@return old mode */
 #define mtr_set_log_mode(m, d) (m)->set_log_mode((d))
 
 /** Get the flush observer of a mini-transaction.
@@ -83,7 +83,7 @@ savepoint. */
 #define mtr_set_flush_observer(m, d) (m)->set_flush_observer((d))
 
 /** Read 1 - 4 bytes from a file page buffered in the buffer pool.
-@return	value read */
+@return value read */
 #define mtr_read_ulint(p, t, m) (m)->read_ulint((p), (t))
 
 /** Release an object in the memo stack.
@@ -103,11 +103,11 @@ savepoint. */
   (mtr_memo_contains_page(m, p, t) || table->is_intrinsic())
 
 /** Check if memo contains the given item.
-@return	true if contains */
+@return true if contains */
 #define mtr_memo_contains(m, o, t) (m)->memo_contains((m)->get_memo(), (o), (t))
 
 /** Check if memo contains the given page.
-@return	true if contains */
+@return true if contains */
 #define mtr_memo_contains_page(m, p, t) \
   (m)->memo_contains_page_flagged((p), (t))
 #endif /* UNIV_DEBUG */
@@ -116,7 +116,7 @@ savepoint. */
 #define mtr_print(m) (m)->print()
 
 /** Return the log object of a mini-transaction buffer.
-@return	log */
+@return log */
 #define mtr_get_log(m) (m)->get_log()
 
 /** Push an object to an mtr memo stack. */
@@ -149,7 +149,7 @@ savepoint. */
   (m)->x_latch_at_savepoint((s), (b))
 
 /** Check if a mini-transaction is dirtying a clean page.
-@param b	block being x-fixed
+@param b        block being x-fixed
 @return true if the mtr is dirtying a clean page. */
 #define mtr_block_dirtied(b) mtr_t::is_block_dirtied((b))
 
@@ -272,13 +272,13 @@ struct mtr_t {
     }
 
     /** Disable mtr redo logging. Server is crash unsafe without logging.
-    @param[in]	thd	server connection THD
+    @param[in]  thd     server connection THD
     @return mysql error code. */
     int disable(THD *thd);
 
     /** Enable mtr redo logging. Ensure that the server is crash safe
     before returning.
-    @param[in]	thd	server connection THD
+    @param[in]  thd     server connection THD
     @return mysql error code. */
     int enable(THD *thd);
 
@@ -393,7 +393,7 @@ struct mtr_t {
 #endif /* UNIV_DEBUG */
 
   /** Start a mini-transaction.
-  @param sync		true if it is a synchronous mini-transaction */
+  @param sync           true if it is a synchronous mini-transaction */
   void start(bool sync = true);
 
   /** @return whether this is an asynchronous mini-transaction. */
@@ -406,7 +406,7 @@ struct mtr_t {
   void commit();
 
   /** Return current size of the buffer.
-  @return	savepoint */
+  @return       savepoint */
   [[nodiscard]] ulint get_savepoint() const {
     ut_ad(is_active());
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
@@ -416,8 +416,8 @@ struct mtr_t {
 
   /** Release the (index tree) s-latch stored in an mtr memo after a
   savepoint.
-  @param savepoint	value returned by @see set_savepoint.
-  @param lock		latch to release */
+  @param savepoint      value returned by @see set_savepoint.
+  @param lock           latch to release */
   inline void release_s_latch_at_savepoint(ulint savepoint, rw_lock_t *lock);
 
   /** Release the block in an mtr memo after a savepoint. */
@@ -430,54 +430,54 @@ struct mtr_t {
   inline void x_latch_at_savepoint(ulint savepoint, buf_block_t *block);
 
   /** Get the logging mode.
-  @return	logging mode */
+  @return       logging mode */
   [[nodiscard]] inline mtr_log_t get_log_mode() const;
 
   /** Change the logging mode.
-  @param mode	 logging mode
-  @return	old mode */
+  @param mode    logging mode
+  @return       old mode */
   mtr_log_t set_log_mode(mtr_log_t mode);
 
   /** Read 1 - 4 bytes from a file page buffered in the buffer pool.
-  @param ptr	pointer from where to read
-  @param type	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
-  @return	value read */
+  @param ptr    pointer from where to read
+  @param type   MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
+  @return       value read */
   [[nodiscard]] inline uint32_t read_ulint(const byte *ptr,
                                            mlog_id_t type) const;
 
   /** Locks a rw-latch in S mode.
   NOTE: use mtr_s_lock().
-  @param lock	rw-lock
+  @param lock   rw-lock
   @param location location from where called */
   inline void s_lock(rw_lock_t *lock, ut::Location location);
 
   /** Locks a rw-latch in X mode.
   NOTE: use mtr_x_lock().
-  @param lock	rw-lock
+  @param lock   rw-lock
   @param location location where name from where called */
   inline void x_lock(rw_lock_t *lock, ut::Location location);
 
   /** Locks a rw-latch in X mode.
   NOTE: use mtr_sx_lock().
-  @param lock	rw-lock
+  @param lock   rw-lock
   @param location location from where called */
   inline void sx_lock(rw_lock_t *lock, ut::Location location);
 
   /** Acquire a tablespace X-latch.
   NOTE: use mtr_x_lock_space().
-  @param[in]	space		tablespace instance
-  @param[in]	file		file name from where called
-  @param[in]	line		line number in file */
+  @param[in]    space           tablespace instance
+  @param[in]    file            file name from where called
+  @param[in]    line            line number in file */
   void x_lock_space(fil_space_t *space, const char *file, ulint line);
 
   /** Release an object in the memo stack.
-  @param object	object
-  @param type	object type: MTR_MEMO_S_LOCK, ... */
+  @param object object
+  @param type   object type: MTR_MEMO_S_LOCK, ... */
   void memo_release(const void *object, ulint type);
 
   /** Release a page latch.
-  @param[in]	ptr	pointer to within a page frame
-  @param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
+  @param[in]    ptr     pointer to within a page frame
+  @param[in]    type    object type: MTR_MEMO_PAGE_X_FIX, ... */
   void release_page(const void *ptr, mtr_memo_type_t type);
 
   /** Note that the mini-transaction has modified data. */
@@ -520,7 +520,7 @@ struct mtr_t {
   }
 
   /** Set flush observer
-  @param[in]	observer	flush observer */
+  @param[in]    observer        flush observer */
   void set_flush_observer(Flush_observer *observer) {
     ut_ad(observer == nullptr || m_impl.m_log_mode == MTR_LOG_NO_REDO);
 
@@ -535,31 +535,31 @@ struct mtr_t {
 
 #ifdef UNIV_DEBUG
   /** Check if memo contains the given item.
-  @param memo	memo stack
-  @param object	object to search
-  @param type	type of object
-  @return	true if contains */
+  @param memo   memo stack
+  @param object object to search
+  @param type   type of object
+  @return       true if contains */
   [[nodiscard]] static bool memo_contains(const mtr_buf_t *memo,
                                           const void *object, ulint type);
 
   /** Check if memo contains the given item.
-  @param ptr		object to search
-  @param flags		specify types of object (can be ORred) of
+  @param ptr            object to search
+  @param flags          specify types of object (can be ORred) of
                           MTR_MEMO_PAGE_S_FIX ... values
   @return true if contains */
   [[nodiscard]] bool memo_contains_flagged(const void *ptr, ulint flags) const;
 
   /** Check if memo contains the given page.
-  @param[in]	ptr	pointer to within buffer frame
-  @param[in]	flags	specify types of object with OR of
+  @param[in]    ptr     pointer to within buffer frame
+  @param[in]    flags   specify types of object with OR of
                           MTR_MEMO_PAGE_S_FIX... values
-  @return	the block
-  @retval	NULL	if not found */
+  @return       the block
+  @retval       NULL    if not found */
   [[nodiscard]] buf_block_t *memo_contains_page_flagged(const byte *ptr,
                                                         ulint flags) const;
 
   /** Mark the given latched page as modified.
-  @param[in]	ptr	pointer to within buffer frame */
+  @param[in]    ptr     pointer to within buffer frame */
   void memo_modify_page(const byte *ptr);
 
   /** Print info of an mtr handle. */
@@ -611,7 +611,7 @@ struct mtr_t {
   void added_rec() { ++m_impl.m_n_log_recs; }
 
   /** Get the buffered redo log of this mini-transaction.
-  @return	redo log */
+  @return       redo log */
   [[nodiscard]] const mtr_buf_t *get_log() const {
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
@@ -619,7 +619,7 @@ struct mtr_t {
   }
 
   /** Get the buffered redo log of this mini-transaction.
-  @return	redo log */
+  @return       redo log */
   [[nodiscard]] mtr_buf_t *get_log() {
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
@@ -627,8 +627,8 @@ struct mtr_t {
   }
 
   /** Push an object to an mtr memo stack.
-  @param object	object
-  @param type	object type: MTR_MEMO_S_LOCK, ... */
+  @param object object
+  @param type   object type: MTR_MEMO_S_LOCK, ... */
   inline void memo_push(void *object, mtr_memo_type_t type);
 
 #ifdef UNIV_DEBUG
@@ -643,7 +643,7 @@ struct mtr_t {
 #endif
 
   /** Check if this mini-transaction is dirtying a clean page.
-  @param block	block being x-fixed
+  @param block  block being x-fixed
   @return true if the mtr is dirtying a clean page. */
   [[nodiscard]] static bool is_block_dirtied(const buf_block_t *block);
 

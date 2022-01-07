@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,7 +57,7 @@ constexpr uint32_t TRX_SYS_RSEG_SLOT_SIZE = 8;
 void trx_sys_write_max_trx_id(void);
 
 /** Checks if a page address is the trx sys header page.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return true if trx sys header page */
 static inline bool trx_sys_hdr_page(const page_id_t &page_id) {
   return (page_id.space() == TRX_SYS_SPACE &&

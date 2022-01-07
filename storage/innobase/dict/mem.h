@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -72,7 +72,7 @@ dict_index_t *dict_mem_index_create(
 @param[in] prtype       precise type
 @param[in] len          length of column
 @param[in] is_visible   true if column is visible
-@param[in] phy_pos	position of col in physical record
+@param[in] phy_pos      position of col in physical record
 @param[in] v_added      table row version when col was added INSTANTly
 @param[in] v_dropped    table_row version when col was dropped INSTANTly */
 void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
@@ -90,7 +90,7 @@ supplied information.
 @param[in]  prtype      precise type
 @param[in]  col_len     column length
 @param[in]  is_visible  true if column is visible
-@param[in]  phy_pos	position of col in physical record
+@param[in]  phy_pos     position of col in physical record
 @param[in]  v_added     table row version when col was added INSTANTly
 @param[in]  v_dropped   table row version when col was dropped INSTANTly */
 void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,

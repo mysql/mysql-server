@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -172,13 +172,13 @@ static void btr_cur_add_path_info(btr_cur_t *cursor, ulint height,
 /*==================== B-TREE SEARCH =========================*/
 
 /** Latches the leaf page or pages requested.
-@param[in]	block		Leaf page where the search converged
-@param[in]	page_id		Page id of the leaf
-@param[in]	page_size	Page size
-@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in]	cursor		Cursor
-@param[in]	mtr		Mini-transaction
-@return	blocks and savepoints which actually latched. */
+@param[in]      block           Leaf page where the search converged
+@param[in]      page_id         Page id of the leaf
+@param[in]      page_size       Page size
+@param[in]      latch_mode      BTR_SEARCH_LEAF, ...
+@param[in]      cursor          Cursor
+@param[in]      mtr             Mini-transaction
+@return blocks and savepoints which actually latched. */
 btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
                                         const page_id_t &page_id,
                                         const page_size_t &page_size,
@@ -330,13 +330,13 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
 }
 
 /** Optimistically latches the leaf page or pages requested.
-@param[in]	block		Guessed buffer block
-@param[in]	modify_clock	Modify clock value
-@param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in,out]	cursor		Cursor
-@param[in]	file		File name
-@param[in]	line		Line where called
-@param[in]	mtr		Mini-transaction
+@param[in]      block           Guessed buffer block
+@param[in]      modify_clock    Modify clock value
+@param[in,out]  latch_mode      BTR_SEARCH_LEAF, ...
+@param[in,out]  cursor          Cursor
+@param[in]      file            File name
+@param[in]      line            Line where called
+@param[in]      mtr             Mini-transaction
 @return true if success */
 bool btr_cur_optimistic_latch_leaves(buf_block_t *block, uint64_t modify_clock,
                                      ulint *latch_mode, btr_cur_t *cursor,
@@ -407,7 +407,7 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block, uint64_t modify_clock,
 /**
 Gets intention in btr_intention_t from latch_mode, and cleares the intention
 at the latch_mode.
-@param latch_mode	in/out: pointer to latch_mode
+@param latch_mode       in/out: pointer to latch_mode
 @return intention for latching tree */
 static btr_intention_t btr_cur_get_and_clear_intention(ulint *latch_mode) {
   btr_intention_t intention;
@@ -431,7 +431,7 @@ static btr_intention_t btr_cur_get_and_clear_intention(ulint *latch_mode) {
 /**
 Gets the desired latch type for the root leaf (root page is root leaf)
 at the latch mode.
-@param latch_mode	in: BTR_SEARCH_LEAF, ...
+@param latch_mode       in: BTR_SEARCH_LEAF, ...
 @return latch type */
 static rw_lock_type_t btr_cur_latch_for_root_leaf(ulint latch_mode) {
   switch (latch_mode) {
@@ -456,13 +456,13 @@ static rw_lock_type_t btr_cur_latch_for_root_leaf(ulint latch_mode) {
 }
 
 /** Detects whether the modifying record might need a modifying tree structure.
-@param[in]	index		index
-@param[in]	page		page
-@param[in]	lock_intention	lock intention for the tree operation
-@param[in]	rec		record (current node_ptr)
-@param[in]	rec_size	size of the record or max size of node_ptr
-@param[in]	page_size	page size
-@param[in]	mtr		mtr
+@param[in]      index           index
+@param[in]      page            page
+@param[in]      lock_intention  lock intention for the tree operation
+@param[in]      rec             record (current node_ptr)
+@param[in]      rec_size        size of the record or max size of node_ptr
+@param[in]      page_size       page size
+@param[in]      mtr             mtr
 @return true if tree modification is needed */
 static bool btr_cur_will_modify_tree(dict_index_t *index, const page_t *page,
                                      btr_intention_t lock_intention,
@@ -581,10 +581,10 @@ static bool btr_cur_will_modify_tree(dict_index_t *index, const page_t *page,
 
 /** Detects whether the modifying record might need a opposite modification
 to the intention.
-@param[in]	page		page
-@param[in]	lock_intention	lock intention for the tree operation
-@param[in]	rec		record (current node_ptr)
-@return	true if tree modification is needed */
+@param[in]      page            page
+@param[in]      lock_intention  lock intention for the tree operation
+@param[in]      rec             record (current node_ptr)
+@return true if tree modification is needed */
 static bool btr_cur_need_opposite_intention(const page_t *page,
                                             btr_intention_t lock_intention,
                                             const rec_t *rec) {
@@ -1701,18 +1701,18 @@ func_exit:
 This function will avoid placing latches while traversing the path and so
 should be used only for cases where-in latching is not needed.
 
-@param[in]	index	Index
-@param[in]	level	The tree level of search
-@param[in]	tuple	Data tuple; Note: n_fields_cmp in compared
+@param[in]      index   Index
+@param[in]      level   The tree level of search
+@param[in]      tuple   Data tuple; Note: n_fields_cmp in compared
                         to the node ptr page node field
-@param[in]	mode	PAGE_CUR_L, ....
+@param[in]      mode    PAGE_CUR_L, ....
                         Insert should always be made using PAGE_CUR_LE
                         to search the position.
-@param[in,out]	cursor	Tree cursor; points to record of interest.
-@param[in]	file	File name
-@param[in]	line	Line where called from
-@param[in,out]	mtr	Mini-transaction
-@param[in]	mark_dirty if true then mark the block as dirty */
+@param[in,out]  cursor  Tree cursor; points to record of interest.
+@param[in]      file    File name
+@param[in]      line    Line where called from
+@param[in,out]  mtr     Mini-transaction
+@param[in]      mark_dirty if true then mark the block as dirty */
 void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
                                                const dtuple_t *tuple,
                                                page_cur_mode_t mode,
@@ -2158,13 +2158,13 @@ Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
 
-@param[in]	from_left	true if open to low end, false if open to high
+@param[in]      from_left       true if open to low end, false if open to high
 end.
-@param[in]	index	Index
-@param[in,out]	cursor	Cursor
-@param[in]	level	Level to search for (0=leaf)
-@param[in]	location	Location where called
-@param[in,out]	mtr	Mini-transaction */
+@param[in]      index   Index
+@param[in,out]  cursor  Cursor
+@param[in]      level   Level to search for (0=leaf)
+@param[in]      location        Location where called
+@param[in,out]  mtr     Mini-transaction */
 void btr_cur_open_at_index_side_with_no_latch(bool from_left,
                                               dict_index_t *index,
                                               btr_cur_t *cursor, ulint level,
@@ -2630,7 +2630,7 @@ bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
 
 /**
 Prefetch siblings of the leaf for the pessimistic operation.
-@param block	leaf page */
+@param block    leaf page */
 static void btr_cur_prefetch_siblings(buf_block_t *block) {
   page_t *page = buf_block_get_frame(block);
 
@@ -4969,12 +4969,12 @@ in a given range. */
 static const int64_t rows_in_range_arbitrary_ret_val = 10;
 
 /** Estimates the number of rows in a given index range.
-@param[in]	index		index
-@param[in]	tuple1		range start, may also be empty tuple
-@param[in]	mode1		search mode for range start
-@param[in]	tuple2		range end, may also be empty tuple
-@param[in]	mode2		search mode for range end
-@param[in]	nth_attempt	if the tree gets modified too much while
+@param[in]      index           index
+@param[in]      tuple1          range start, may also be empty tuple
+@param[in]      mode1           search mode for range start
+@param[in]      tuple2          range end, may also be empty tuple
+@param[in]      mode2           search mode for range end
+@param[in]      nth_attempt     if the tree gets modified too much while
 we are trying to analyze it, then we will retry (this function will call
 itself, incrementing this parameter)
 @return estimated number of rows; if after rows_in_range_max_retries
@@ -5286,11 +5286,11 @@ static int64_t btr_estimate_n_rows_in_range_low(
 }
 
 /** Estimates the number of rows in a given index range.
-@param[in]	index	index
-@param[in]	tuple1	range start, may also be empty tuple
-@param[in]	mode1	search mode for range start
-@param[in]	tuple2	range end, may also be empty tuple
-@param[in]	mode2	search mode for range end
+@param[in]      index   index
+@param[in]      tuple1  range start, may also be empty tuple
+@param[in]      mode1   search mode for range start
+@param[in]      tuple2  range end, may also be empty tuple
+@param[in]      mode2   search mode for range end
 @return estimated number of rows */
 int64_t btr_estimate_n_rows_in_range(dict_index_t *index,
                                      const dtuple_t *tuple1,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Move the version base node from current entry to the given entry.
-@param[in]	to_entry	The index entry to which the version base
+@param[in]      to_entry        The index entry to which the version base
                                 node is moved to. */
 void index_entry_t::move_version_base_node(index_entry_t &to_entry) {
   flst_base_node_t *from_node = get_versions_list();
@@ -172,7 +172,7 @@ void index_entry_t::read(index_entry_mem_t &entry_mem) const {
 
 /** Load the index entry available in the given file address.
 Take x-latch on the index page.
-@param[in]	addr	the file address of the index entry.
+@param[in]      addr    the file address of the index entry.
 @return the buffer block containing the index entry. */
 buf_block_t *index_entry_t::load_x(const fil_addr_t &addr) {
   ut_ad(m_mtr != nullptr);
@@ -189,7 +189,7 @@ buf_block_t *index_entry_t::load_x(const fil_addr_t &addr) {
 
 /** Load the index entry available in the given file address.
 Take s-latch on the index page.
-@param[in]	addr	the file location of index entry.
+@param[in]      addr    the file location of index entry.
 @return the buffer block. */
 buf_block_t *index_entry_t::load_s(const fil_addr_t &addr) {
   ut_ad(m_mtr != nullptr);
@@ -218,7 +218,7 @@ void index_entry_mem_t::reset() {
 }
 
 /** Print this object into the given output stream.
-@param[in]	out	the output stream.
+@param[in]      out     the output stream.
 @return the output stream. */
 std::ostream &index_entry_mem_t::print(std::ostream &out) const {
   out << "[index_entry_mem_t: m_self=" << m_self << ", m_prev=" << m_prev

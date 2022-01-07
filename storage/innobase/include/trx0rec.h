@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,9 +49,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0types.h"
 
 /** Copies the undo record to the heap.
-@param[in]	undo_page	Undo Page
-@param[in]	undo_offset	offset of the undo record in the page
-@param[in]	heap		heap where copied
+@param[in]      undo_page       Undo Page
+@param[in]      undo_offset     offset of the undo record in the page
+@param[in]      heap            heap where copied
 @return copy of undo log record */
 static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
                                                 uint32_t undo_offset,
@@ -75,7 +75,7 @@ static inline undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 
 /** Reads from an undo log record the table ID
-@param[in]	undo_rec	Undo log record
+@param[in]      undo_rec        Undo log record
 @return the table ID */
 [[nodiscard]] table_id_t trx_undo_rec_get_table_id(
     const trx_undo_rec_t *undo_rec);
@@ -202,26 +202,26 @@ Equivalently, if the vrow is not returned, it is either because it was not
 requested, or not available due to UPD_NODE_NO_ORD_CHANGE.
 Obviously vrow is also not set in case rec is the oldest version in history,
 in which case we also set old_vers to NULL.
-@param[in]	index_rec	clustered index record in the index tree
-@param[in]	index_mtr	mtr which contains the latch to index_rec page
+@param[in]      index_rec       clustered index record in the index tree
+@param[in]      index_mtr       mtr which contains the latch to index_rec page
                                 and purge_view
-@param[in]	rec		version of a clustered index record
-@param[in]	index		clustered index
-@param[in,out]	offsets		rec_get_offsets(rec, index)
-@param[in]	heap		memory heap from which the memory needed is
+@param[in]      rec             version of a clustered index record
+@param[in]      index           clustered index
+@param[in,out]  offsets         rec_get_offsets(rec, index)
+@param[in]      heap            memory heap from which the memory needed is
                                 allocated
-@param[out]	old_vers	previous version, or NULL if rec is the first
+@param[out]     old_vers        previous version, or NULL if rec is the first
                                 inserted version, or if history data has been
                                 deleted
-@param[in]	v_heap		memory heap used to create vrow dtuple if it is
+@param[in]      v_heap          memory heap used to create vrow dtuple if it is
                                 not yet created. This heap diffs from "heap"
                                 above in that it could be
                                 prebuilt->old_vers_heap for selection
-@param[out]	vrow		virtual column info, if any
-@param[in]	v_status	status determine if it is going into this
+@param[out]     vrow            virtual column info, if any
+@param[in]      v_status        status determine if it is going into this
                                 function by purge thread or not. And if we read
                                 "after image" of undo log has been rebuilt
-@param[in]	lob_undo	LOB undo information.
+@param[in]      lob_undo        LOB undo information.
 @retval true if previous version was built, or if it was an insert or the table
 has been rebuilt
 @retval false if the previous version is earlier than purge_view, or being
@@ -240,32 +240,32 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
                                   byte *end_ptr, /*!< in: buffer end */
                                   page_t *page); /*!< in: page or NULL */
 /** Parses a redo log record of erasing of an undo page end.
-@param[in,out]	ptr      Buffer.
-@param[in,out]	end_ptr  Buffer end.
-@param[in,out]	page     Page or nullptr.
-@param[in,out]	mtr      MTR or nullptr.
+@param[in,out]  ptr      Buffer.
+@param[in,out]  end_ptr  Buffer end.
+@param[in,out]  page     Page or nullptr.
+@param[in,out]  mtr      MTR or nullptr.
 @return end of log record or nullptr */
 byte *trx_undo_parse_erase_page_end(byte *ptr, byte *end_ptr, page_t *page,
                                     mtr_t *mtr);
 
 /** Read from an undo log record a non-virtual column value.
-@param[in,out]	ptr		pointer to remaining part of the undo record
-@param[in,out]	field		stored field
-@param[in,out]	len		length of the field, or UNIV_SQL_NULL
-@param[in,out]	orig_len	original length of the locally stored part
+@param[in,out]  ptr             pointer to remaining part of the undo record
+@param[in,out]  field           stored field
+@param[in,out]  len             length of the field, or UNIV_SQL_NULL
+@param[in,out]  orig_len        original length of the locally stored part
 of an externally stored column, or 0
 @return remaining part of undo log record after reading these values */
 byte *trx_undo_rec_get_col_val(const byte *ptr, const byte **field, ulint *len,
                                ulint *orig_len);
 
 /** Read virtual column value from undo log
-@param[in]	table		the table
-@param[in]	ptr		undo log pointer
-@param[in,out]	row		the dtuple to fill
-@param[in]	in_purge        called by purge thread
-@param[in]	online		true if this is from online DDL log
-@param[in]	col_map		online rebuild column map
-@param[in,out]	heap		memory heap to keep value when necessary */
+@param[in]      table           the table
+@param[in]      ptr             undo log pointer
+@param[in,out]  row             the dtuple to fill
+@param[in]      in_purge        called by purge thread
+@param[in]      online          true if this is from online DDL log
+@param[in]      col_map         online rebuild column map
+@param[in,out]  heap            memory heap to keep value when necessary */
 void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
                           const dtuple_t *row, bool in_purge, bool online,
                           const ulint *col_map, mem_heap_t *heap);
@@ -273,16 +273,16 @@ void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
 /** Read virtual column index from undo log or online log if the log
 contains such info, and in the undo log case, verify the column is
 still indexed, and output its position
-@param[in]	table		the table
-@param[in]	ptr		undo log pointer
-@param[in]	first_v_col	if this is the first virtual column, which
+@param[in]      table           the table
+@param[in]      ptr             undo log pointer
+@param[in]      first_v_col     if this is the first virtual column, which
                                 has the version marker
-@param[in,out]	is_undo_log	this function is used to parse both undo log,
+@param[in,out]  is_undo_log     this function is used to parse both undo log,
                                 and online log for virtual columns. So
                                 check to see if this is undo log. When
                                 first_v_col is true, is_undo_log is output,
                                 when first_v_col is false, is_undo_log is input
-@param[in,out]	field_no	the column number
+@param[in,out]  field_no        the column number
 @return remaining part of undo log record after reading these values */
 const byte *trx_undo_read_v_idx(const dict_table_t *table, const byte *ptr,
                                 bool first_v_col, bool *is_undo_log,
@@ -381,11 +381,11 @@ size_t trx_undo_max_free_space();
 bool trx_undo_rec_is_multi_value(const byte *undo_rec);
 
 /** Read from an undo log record of a multi-value virtual column.
-@param[in]	ptr	pointer to remaining part of the undo record
-@param[in,out]	field	stored field, nullptr if the col is no longer
+@param[in]      ptr     pointer to remaining part of the undo record
+@param[in,out]  field   stored field, nullptr if the col is no longer
                         indexed or existing, in the latter case,
                         this function will only skip the log
-@param[in,out]	heap	memory heap
+@param[in,out]  heap    memory heap
 @return remaining part of undo log record after reading these values */
 const byte *trx_undo_rec_get_multi_value(const byte *ptr, dfield_t *field,
                                          mem_heap_t *heap);

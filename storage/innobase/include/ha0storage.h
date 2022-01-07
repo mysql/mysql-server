@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,9 +50,9 @@ struct ha_storage_t;
 
 /** Creates a hash storage. If any of the parameters is 0, then a default value
 is used.
-@param[in]	initial_hash_cells	initial number of cells in the hash
+@param[in]      initial_hash_cells      initial number of cells in the hash
                                         table
-@param[in]	initial_heap_bytes	initial heap's size
+@param[in]      initial_heap_bytes      initial heap's size
 @return own: hash storage */
 static inline ha_storage_t *ha_storage_create(ulint initial_heap_bytes,
                                               ulint initial_hash_cells);

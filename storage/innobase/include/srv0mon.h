@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** @file include/srv0mon.h
  Server monitor counter related defines
 
- Created 12/15/2009	Jimmy Yang
+ Created 12/15/2009     Jimmy Yang
  *******************************************************/
 
 #ifndef srv0mon_h

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,7 +69,7 @@ ulint btr_rec_get_field_ref_offs(const dict_index_t *index,
 The ownership must be transferred to the updated record which is
 inserted elsewhere in the index tree. In purge only the owner of
 externally stored field is allowed to free the field.
-@param[in]	update		update vector. */
+@param[in]      update          update vector. */
 void BtrContext::disown_inherited_fields(const upd_t *update) {
   ut_ad(rec_offs_validate());
   ut_ad(!rec_offs_comp(m_offsets) || !rec_get_node_ptr_flag(m_rec));
@@ -132,7 +132,7 @@ void BtrContext::check_redolog_normal() {
 }
 
 /** Print this blob directory into the given output stream.
-@param[in]	out	the output stream.
+@param[in]      out     the output stream.
 @return the output stream. */
 std::ostream &blob_dir_t::print(std::ostream &out) const {
   out << "[blob_dir_t: ";
@@ -144,7 +144,7 @@ std::ostream &blob_dir_t::print(std::ostream &out) const {
 }
 
 /** Print this blob_page_into_t object into the given output stream.
-@param[in]	out	the output stream.
+@param[in]      out     the output stream.
 @return the output stream. */
 std::ostream &blob_page_info_t::print(std::ostream &out) const {
   out << "[blob_page_info_t: m_page_no=" << m_page_no << ", m_bytes=" << m_bytes
@@ -390,20 +390,20 @@ TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
-@param[in]	trx		the trx doing LOB store. If unavailable it
+@param[in]      trx             the trx doing LOB store. If unavailable it
                                 could be nullptr.
-@param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
+@param[in,out]  pcur            a persistent cursor. if btr_mtr is restarted,
                                 then this can be repositioned.
-@param[in]	upd		update vector
-@param[in,out]	offsets		rec_get_offsets() on pcur. the "external in
+@param[in]      upd             update vector
+@param[in,out]  offsets         rec_get_offsets() on pcur. the "external in
                                 offsets will correctly correspond storage"
                                 flagsin offsets will correctly correspond to
                                 rec when this function returns
-@param[in]	big_rec_vec	vector containing fields to be stored
+@param[in]      big_rec_vec     vector containing fields to be stored
                                 externally
-@param[in,out]	btr_mtr		mtr containing the latches to the clustered
+@param[in,out]  btr_mtr         mtr containing the latches to the clustered
                                 index. can be committed and restarted.
-@param[in]	op		operation code
+@param[in]      op              operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
                                         const upd_t *upd, ulint *offsets,
@@ -682,17 +682,17 @@ byte *btr_rec_copy_externally_stored_field_func(
 }
 
 /** Returns the page number where the next BLOB part is stored.
-@param[in]	blob_header	the BLOB header.
+@param[in]      blob_header     the BLOB header.
 @return page number or FIL_NULL if no more pages */
 static inline page_no_t btr_blob_get_next_page_no(const byte *blob_header) {
   return (mach_read_from_4(blob_header + LOB_HDR_NEXT_PAGE_NO));
 }
 
 /** Check the FIL_PAGE_TYPE on an uncompressed BLOB page.
-@param[in]	space_id	space identifier.
-@param[in]	page_no		page number.
-@param[in]	page		the page
-@param[in]	read		true=read, false=purge */
+@param[in]      space_id        space identifier.
+@param[in]      page_no         page number.
+@param[in]      page            the page
+@param[in]      read            true=read, false=purge */
 static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
                                          const page_t *page, bool read) {
   ulint type = fil_page_get_type(page);
@@ -726,7 +726,7 @@ static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
 }
 
 /** Returns the length of a BLOB part stored on the header page.
-@param[in]	blob_header	the BLOB header.
+@param[in]      blob_header     the BLOB header.
 @return part length */
 static inline ulint btr_blob_get_part_len(const byte *blob_header) {
   return (mach_read_from_4(blob_header + LOB_HDR_PART_LEN));
@@ -793,18 +793,18 @@ ulint Reader::fetch() {
 
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
-@param[in]	trx		the current transaction object if available
+@param[in]      trx             the current transaction object if available
 or nullptr.
-@param[in]	index		the clust index in which lob is read.
-@param[out]	buf		the field, or a prefix of it
-@param[in]	len		length of buf, in bytes
-@param[in]	page_size	BLOB page size
-@param[in]	data		'internally' stored part of the field
+@param[in]      index           the clust index in which lob is read.
+@param[out]     buf             the field, or a prefix of it
+@param[in]      len             length of buf, in bytes
+@param[in]      page_size       BLOB page size
+@param[in]      data            'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
                                 latch.
-@param[in]	is_sdi		true for SDI indexes
-@param[in]	local_len	length of data, in bytes
+@param[in]      is_sdi          true for SDI indexes
+@param[in]      local_len       length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
 ulint btr_copy_externally_stored_field_prefix_func(
@@ -1010,11 +1010,11 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
 }
 
 /** Deallocate a buffer block that was reserved for a BLOB part.
-@param[in]	index	Index
-@param[in]	block	Buffer block
-@param[in]	all	true=remove also the compressed page
+@param[in]      index   Index
+@param[in]      block   Buffer block
+@param[in]      all     true=remove also the compressed page
                         if there is one
-@param[in]	mtr	Mini-transaction to commit */
+@param[in]      mtr     Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
   buf_pool_t *buf_pool = buf_pool_from_block(block);
   page_id_t page_id(block->page.id.space(), block->page.id.page_no());
@@ -1051,9 +1051,9 @@ void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
 }
 
 /** Gets the externally stored size of a record, in units of a database page.
-@param[in]	index	index
-@param[in]	rec	record
-@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]      index   index
+@param[in]      rec     record
+@param[in]      offsets array returned by rec_get_offsets()
 @return externally stored part, in units of a database page */
 ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
                                         const rec_t *rec,
@@ -1083,13 +1083,13 @@ ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
 }
 
 /** Frees the externally stored fields for a record.
-@param[in]	trx_id		transaction identifier whose LOB is
+@param[in]      trx_id          transaction identifier whose LOB is
                                 being freed.
-@param[in]	undo_no		undo number within a transaction whose
+@param[in]      undo_no         undo number within a transaction whose
                                 LOB is being freed.
-@param[in]	rollback	performing rollback?
-@param[in]	rec_type	undo record type.
-@param[in]	node        purge node or nullptr */
+@param[in]      rollback        performing rollback?
+@param[in]      rec_type        undo record type.
+@param[in]      node        purge node or nullptr */
 void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
                                                undo_no_t undo_no, bool rollback,
                                                ulint rec_type,
@@ -1120,9 +1120,9 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
 }
 
 /** Load the first page of LOB and read its page type.
-@param[in]	index			the index object.
-@param[in]	page_size		the page size of LOB.
-@param[out]	is_partially_updatable	is the LOB partially updatable.
+@param[in]      index                   the index object.
+@param[in]      page_size               the page size of LOB.
+@param[out]     is_partially_updatable  is the LOB partially updatable.
 @return the page type of first page of LOB.*/
 ulint ref_t::get_lob_page_info(const dict_index_t *index,
                                const page_size_t &page_size,
@@ -1203,7 +1203,7 @@ void ref_t::mark_not_partially_updatable(trx_t *trx, mtr_t *mtr,
 
 /** Check if the LOB can be partially updated. This is done by loading
 the first page of LOB and looking at the flags.
-@param[in]	index	the index to which LOB belongs.
+@param[in]      index   the index to which LOB belongs.
 @return true if LOB is partially updatable, false otherwise.*/
 bool ref_t::is_lob_partially_updatable(const dict_index_t *index) const {
   if (is_null_relaxed()) {

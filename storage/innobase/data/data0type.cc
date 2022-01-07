@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -155,7 +155,7 @@ bool dtype_validate(const dtype_t *type) /*!< in: type struct to validate */
 
 #ifdef UNIV_DEBUG
 /** Print a data type structure.
-@param[in]	type	data type */
+@param[in]      type    data type */
 void dtype_print(const dtype_t *type) {
   ulint mtype;
   ulint prtype;

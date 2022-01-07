@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,8 +65,8 @@ class Clone_Monitor {
   }
 
   /** Initialize all monitoring data.
-  @param[in]	key	PFS key to register stage event
-  @param[in]	enable  if true, enable PFS trackig. */
+  @param[in]    key     PFS key to register stage event
+  @param[in]    enable  if true, enable PFS trackig. */
   void init_state(PSI_stage_key key, bool enable) {
     change_phase();
     m_progress = nullptr;
@@ -101,7 +101,7 @@ class Clone_Monitor {
   }
 
   /** Update the work estimated for the clone operation.
-  @param[in]	size	size in bytes that needs to transferred
+  @param[in]    size    size in bytes that needs to transferred
   across. */
   void add_estimate(uint64_t size) {
     m_estimate += convert_bytes_to_work(size, true);
@@ -117,7 +117,7 @@ class Clone_Monitor {
   }
 
   /** Update the progress of the clone operation.
-  param[in]	size	size in bytes that is being transferred
+  param[in]     size    size in bytes that is being transferred
   across. */
   void update_work(uint size) {
     if (m_cur_phase == NOT_STARTED) {
@@ -164,8 +164,8 @@ class Clone_Monitor {
 
  private:
   /** Translate bytes to  work unit.
-  @param[in]	size	size in bytes that needs to be converted to the
-  @param[in]	is_estimate	if called during estimation
+  @param[in]    size    size in bytes that needs to be converted to the
+  @param[in]    is_estimate     if called during estimation
   corresponding work unit.
   @return the number of PFS chunks that the size constitutes. */
   uint64_t convert_bytes_to_work(uint64_t size, bool is_estimate) {

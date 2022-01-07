@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,20 +40,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Gets a rollback segment header.
-@param[in]	space		Space where placed
-@param[in]	page_no		Page number of the header
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space           Space where placed
+@param[in]      page_no         Page number of the header
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return rollback segment header, page x-latched */
 static inline trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
                                          const page_size_t &page_size,
                                          mtr_t *mtr);
 
 /** Gets a newly created rollback segment header.
-@param[in]	space		Space where placed
-@param[in]	page_no		Page number of the header
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space           Space where placed
+@param[in]      page_no         Page number of the header
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return rollback segment header, page x-latched */
 static inline trx_rsegf_t *trx_rsegf_get_new(space_id_t space,
                                              page_no_t page_no,
@@ -61,35 +61,35 @@ static inline trx_rsegf_t *trx_rsegf_get_new(space_id_t space,
                                              mtr_t *mtr);
 
 /** Gets the file page number of the nth undo log slot.
-@param[in]	rsegf	rollback segment header
-@param[in]	n	index of slot
-@param[in]	mtr	mtr
+@param[in]      rsegf   rollback segment header
+@param[in]      n       index of slot
+@param[in]      mtr     mtr
 @return page number of the undo log segment */
 static inline page_no_t trx_rsegf_get_nth_undo(trx_rsegf_t *rsegf, ulint n,
                                                mtr_t *mtr);
 
 /** Sets the file page number of the nth undo log slot.
-@param[in]	rsegf	rollback segment header
-@param[in]	n	index of slot
-@param[in]	page_no	page number of the undo log segment
-@param[in]	mtr	mtr */
+@param[in]      rsegf   rollback segment header
+@param[in]      n       index of slot
+@param[in]      page_no page number of the undo log segment
+@param[in]      mtr     mtr */
 static inline void trx_rsegf_set_nth_undo(trx_rsegf_t *rsegf, ulint n,
                                           page_no_t page_no, mtr_t *mtr);
 
 /** Looks for a free slot for an undo log segment.
-@param[in]	rsegf	rollback segment header
-@param[in]	mtr	mtr
+@param[in]      rsegf   rollback segment header
+@param[in]      mtr     mtr
 @return slot index or ULINT_UNDEFINED if not found */
 static inline ulint trx_rsegf_undo_find_free(trx_rsegf_t *rsegf, mtr_t *mtr);
 
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
-@param[in]	space_id	Space id
-@param[in]	page_size	Page size
-@param[in]	max_size	Max size in pages
-@param[in]	rseg_slot	Rseg id == slot number in RSEG_ARRAY
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space_id        Space id
+@param[in]      page_size       Page size
+@param[in]      max_size        Max size in pages
+@param[in]      rseg_slot       Rseg id == slot number in RSEG_ARRAY
+@param[in,out]  mtr             Mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
 page_no_t trx_rseg_header_create(space_id_t space_id,
                                  const page_size_t &page_size,
@@ -102,7 +102,7 @@ exists so that the purge_queue can be filled and processed with any
 existing undo log. If the rollback segments do not exist in this
 tablespace and we need them according to target_rollback_segments,
 then build them in the tablespace.
-@param[in]	target_rollback_segments	new number of rollback
+@param[in]      target_rollback_segments        new number of rollback
                                                 segments per space
 @return true if all necessary rollback segments and trx_rseg_t objects
 were created. */
@@ -127,23 +127,23 @@ single-threaded startup.  If we find existing rseg slots in TRX_SYS page
 that reference undo tablespaces and have active undo logs, then quit.
 They require an upgrade of undo tablespaces and that cannot happen with
 active undo logs.
-@param[in]	purge_queue	queue of rsegs to purge */
+@param[in]      purge_queue     queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue);
 
 /** Initialize rollback segments in parallel
-@param[in]	purge_queue	queue of rsegs to purge */
+@param[in]      purge_queue     queue of rsegs to purge */
 void trx_rsegs_parallel_init(purge_pq_t *purge_queue);
 
 /** Create and initialize a rollback segment object.  Some of
 the values for the fields are read from the segment header page.
 The caller must insert it into the correct list.
-@param[in]	id		Rollback segment id
-@param[in]	space_id	Space where the segment is placed
-@param[in]	page_no		Page number of the segment header
-@param[in]	page_size	Page size
+@param[in]      id              Rollback segment id
+@param[in]      space_id        Space where the segment is placed
+@param[in]      page_no         Page number of the segment header
+@param[in]      page_size       Page size
 @param[in]      gtid_trx_no     Trx number up to which GTID is persisted
-@param[in,out]	purge_queue	Rseg queue
-@param[in,out]	mtr		Mini-transaction
+@param[in,out]  purge_queue     Rseg queue
+@param[in,out]  mtr             Mini-transaction
 @return own: rollback segment object */
 trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
                                 page_no_t page_no, const page_size_t &page_size,
@@ -152,14 +152,14 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
 
 /** Create a rollback segment in the given tablespace. This could be either
 the system tablespace, the temporary tablespace, or an undo tablespace.
-@param[in]	space_id	tablespace to get the rollback segment
-@param[in]	rseg_id		slot number of the rseg within this tablespace
+@param[in]      space_id        tablespace to get the rollback segment
+@param[in]      rseg_id         slot number of the rseg within this tablespace
 @return page number of the rollback segment header page created */
 page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id);
 
 /** Build a list of unique undo tablespaces found in the TRX_SYS page.
 Do not count the system tablespace. The vector will be sorted on space id.
-@param[in,out]	spaces_to_open		list of undo tablespaces found. */
+@param[in,out]  spaces_to_open          list of undo tablespaces found. */
 void trx_rseg_get_n_undo_tablespaces(Space_Ids *spaces_to_open);
 
 /** Upgrade the TRX_SYS page so that it no longer tracks rsegs in undo
@@ -170,16 +170,16 @@ void trx_rseg_upgrade_undo_tablespaces();
 /** Create the file page for the rollback segment directory in an undo
 tablespace. This function is called just after an undo tablespace is
 created so the next page created here should by FSP_FSEG_DIR_PAGE_NUM.
-@param[in]	space_id	Undo Tablespace ID
-@param[in]	mtr		mtr */
+@param[in]      space_id        Undo Tablespace ID
+@param[in]      mtr             mtr */
 void trx_rseg_array_create(space_id_t space_id, mtr_t *mtr);
 
 /** Sets the page number of the nth rollback segment slot in the
 independent undo tablespace.
-@param[in]	rsegs_header	rollback segment array page header
-@param[in]	slot		slot number on page  == rseg id
-@param[in]	page_no		rollback regment header page number
-@param[in]	mtr		mtr */
+@param[in]      rsegs_header    rollback segment array page header
+@param[in]      slot            slot number on page  == rseg id
+@param[in]      page_no         rollback regment header page number
+@param[in]      mtr             mtr */
 static inline void trx_rsegsf_set_page_no(trx_rsegsf_t *rsegs_header,
                                           ulint slot, page_no_t page_no,
                                           mtr_t *mtr);

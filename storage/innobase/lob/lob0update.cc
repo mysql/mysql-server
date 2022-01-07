@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,17 +37,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Replace a large object (LOB) with the given new data of equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
-@param[in]	count		number of replace done on current LOB.
+@param[in]      count           number of replace done on current LOB.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
@@ -55,15 +55,15 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 
 /** Replace a small portion of large object (LOB) with the given new data of
 equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
 @return DB_SUCCESS on success, error code on failure. */
 static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
@@ -74,8 +74,8 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
 #ifdef UNIV_DEBUG
 /** Print an information message in the server log file, informing
 that the LOB partial update feature code is hit.
-@param[in]	uf	the update field information
-@param[in]	index	index where partial update happens.*/
+@param[in]      uf      the update field information
+@param[in]      index   index where partial update happens.*/
 static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
   ib::info(ER_IB_MSG_632) << "LOB partial update of field=("
                           << uf->mysql_field->field_name << ") on index=("
@@ -85,12 +85,12 @@ static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 #endif /* UNIV_DEBUG */
 
 /** Update a portion of the given LOB.
-@param[in]	ctx		update operation context information.
-@param[in]	trx		the transaction that is doing the modification.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	upd		update vector
-@param[in]	field_no	the LOB field number
-@param[in]	blobref		LOB reference stored in clust record.
+@param[in]      ctx             update operation context information.
+@param[in]      trx             the transaction that is doing the modification.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      upd             update vector
+@param[in]      field_no        the LOB field number
+@param[in]      blobref         LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref) {
@@ -208,10 +208,10 @@ bool validate_size(const ulint lob_size, dict_index_t *index,
 
 /** Find the file location of the index entry which gives the portion of LOB
 containing the requested offset.
-@param[in]	index		The clustered index containing LOB.
-@param[in]	node_loc	Location of first index entry.
-@param[in]	offset		The LOB offset whose location we seek.
-@param[in]	mtr		Mini-transaction context.
+@param[in]      index           The clustered index containing LOB.
+@param[in]      node_loc        Location of first index entry.
+@param[in]      offset          The LOB offset whose location we seek.
+@param[in]      mtr             Mini-transaction context.
 @return file location of index entry which contains requested LOB offset.*/
 fil_addr_t find_offset(dict_index_t *index, fil_addr_t node_loc, ulint &offset,
                        mtr_t *mtr) {
@@ -252,17 +252,17 @@ fil_addr_t find_offset(dict_index_t *index, fil_addr_t node_loc, ulint &offset,
 }
 
 /** Replace a large object (LOB) with the given new data of equal length.
-@param[in]	ctx		replace operation context.
-@param[in]	trx		the transaction that is doing the read.
-@param[in]	index		the clustered index containing the LOB.
-@param[in]	ref		the LOB reference identifying the LOB.
-@param[in]	first_page	the first page of the LOB.
-@param[in]	offset		replace the LOB from the given offset.
-@param[in]	len		the length of LOB data that needs to be
+@param[in]      ctx             replace operation context.
+@param[in]      trx             the transaction that is doing the read.
+@param[in]      index           the clustered index containing the LOB.
+@param[in]      ref             the LOB reference identifying the LOB.
+@param[in]      first_page      the first page of the LOB.
+@param[in]      offset          replace the LOB from the given offset.
+@param[in]      len             the length of LOB data that needs to be
                                 replaced.
-@param[in]	buf		the buffer (owned by caller) with new data
+@param[in]      buf             the buffer (owned by caller) with new data
                                 (len bytes).
-@param[in]	count		number of replace done on current LOB.
+@param[in]      count           number of replace done on current LOB.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,

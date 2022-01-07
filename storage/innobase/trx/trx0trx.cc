@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -115,8 +115,8 @@ committed.
 static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised);
 
 /** Set flush observer for the transaction
-@param[in,out]	trx		transaction struct
-@param[in]	observer	flush observer */
+@param[in,out]  trx             transaction struct
+@param[in]      observer        flush observer */
 void trx_set_flush_observer(trx_t *trx, Flush_observer *observer) {
   trx->flush_observer = observer;
 }
@@ -529,7 +529,7 @@ trx_t *trx_allocate_for_mysql(void) {
 }
 
 /** Check state of transaction before freeing it.
-@param[in,out]	trx	transaction object to validate */
+@param[in,out]  trx     transaction object to validate */
 static void trx_validate_state_before_free(trx_t *trx) {
   if (trx->declared_to_be_inside_innodb) {
     ib::error(ER_IB_MSG_1202)
@@ -561,7 +561,7 @@ static void trx_validate_state_before_free(trx_t *trx) {
 }
 
 /** Free and initialize a transaction object instantiated during recovery.
-@param[in,out]	trx	transaction object to free and initialize */
+@param[in,out]  trx     transaction object to free and initialize */
 void trx_free_resurrected(trx_t *trx) {
   trx_validate_state_before_free(trx);
 
@@ -571,7 +571,7 @@ void trx_free_resurrected(trx_t *trx) {
 }
 
 /** Free a transaction that was allocated by background or user threads.
-@param[in,out]	trx	transaction object to free */
+@param[in,out]  trx     transaction object to free */
 void trx_free_for_background(trx_t *trx) {
   trx_validate_state_before_free(trx);
 
@@ -613,8 +613,8 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
 }
 
 /** Disconnect a transaction from MySQL.
-@param[in,out]	trx		transaction
-@param[in]	prepared	boolean value to specify whether trx is in
+@param[in,out]  trx             transaction
+@param[in]      prepared        boolean value to specify whether trx is in
                                 TRX_STATE_PREPARED state (such as after XA
                                 PREPARE) and we want to unlink it from the
                                 mysql_thd object, so it can potentially be
@@ -652,28 +652,28 @@ inline void trx_disconnect_from_mysql(trx_t *trx, bool prepared) {
 }
 
 /** Disconnect a transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 inline void trx_disconnect_plain(trx_t *trx) {
   trx_disconnect_from_mysql(trx, false);
 }
 
 /** Disconnect a prepared transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_disconnect_prepared(trx_t *trx) {
   trx_disconnect_from_mysql(trx, true);
 }
 
 /** Free a transaction object for MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_free_for_mysql(trx_t *trx) {
   trx_disconnect_plain(trx);
   trx_free_for_background(trx);
 }
 
 /** Resurrect the table IDs for a resurrected transaction.
-@param[in]	trx		resurrected transaction
-@param[in]	undo_ptr	pointer to undo segment
-@param[in]	undo		undo log */
+@param[in]      trx             resurrected transaction
+@param[in]      undo_ptr        pointer to undo segment
+@param[in]      undo            undo log */
 static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
                                     const trx_undo_t *undo) {
   mtr_t mtr;
@@ -960,7 +960,7 @@ static void trx_resurrect_update(
 
 /** Resurrect the transactions that were doing inserts and updates at
 the time of a crash, they need to be undone.
-@param[in]	rseg	rollback segment */
+@param[in]      rseg    rollback segment */
 static void trx_resurrect(trx_rseg_t *rseg) {
   ut_ad(rseg != nullptr);
 
@@ -1207,7 +1207,7 @@ static trx_rseg_t *get_next_temp_rseg() {
 
 /** Assign a durable rollback segment to a transaction in a round-robin
 fashion.
-@param[in,out]	trx	transaction that involves a durable write. */
+@param[in,out]  trx     transaction that involves a durable write. */
 void trx_assign_rseg_durable(trx_t *trx) {
   ut_ad(trx->rsegs.m_redo.rseg == nullptr);
 
@@ -1215,7 +1215,7 @@ void trx_assign_rseg_durable(trx_t *trx) {
 }
 
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
-@param[in,out]	trx	transaction that involves write to temp-table. */
+@param[in,out]  trx     transaction that involves write to temp-table. */
 void trx_assign_rseg_temp(trx_t *trx) {
   ut_ad(trx->rsegs.m_noredo.rseg == nullptr);
   ut_ad(!trx_is_autocommit_non_locking(trx));
@@ -1765,7 +1765,7 @@ Erase the transaction from running transaction lists and serialization
 list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
 won't include this transaction after this call. All implicit locks are
 also released by this call as trx is removed from rw_trx_list.
-@param[in]	trx		Transaction to erase, must have an ID > 0 */
+@param[in]      trx             Transaction to erase, must have an ID > 0 */
 static void trx_erase_lists(trx_t *trx) {
   ut_ad(trx->id > 0);
   ut_ad(trx_sys_mutex_own());
@@ -2756,7 +2756,7 @@ Fact 1. Each thread participating in the deadlock holds one trx mutex and waits
         for the second one it tried to acquire
 Fact 2. Thus each thread participating in the deadlock had gone through "else"
         branch inside trx_before_mutex_enter(), so it verifies Assumption 1.
-Fact 3.	Our thread owns_lock_shard(trx_a->lock.wait_lock)
+Fact 3. Our thread owns_lock_shard(trx_a->lock.wait_lock)
 Fact 4. Another thread has latched trx_a->mutex as the first of its two latches
 
 Consider the situation from the point of view of this other thread, which is now
@@ -3013,7 +3013,7 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
 
 /**
 Does the transaction prepare for MySQL.
-@param[in, out] trx		Transaction instance to prepare */
+@param[in, out] trx             Transaction instance to prepare */
 dberr_t trx_prepare_for_mysql(trx_t *trx) {
   trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
@@ -3276,7 +3276,7 @@ void trx_start_internal_low(trx_t *trx) /*!< in/out: transaction */
 }
 
 /** Starts a read-only transaction for internal processing.
-@param[in,out] trx	transaction to be started */
+@param[in,out] trx      transaction to be started */
 void trx_start_internal_read_only_low(trx_t *trx) {
   /* Ensure it is not flagged as an auto-commit-non-locking
   transaction. */

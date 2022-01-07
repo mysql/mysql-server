@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -411,9 +411,9 @@ int Clone_Snapshot::build_file_ctx(Clone_file_ctx::Extension extn,
 }
 
 /** Add directory path to file
-@param[in]	dir	directory
-@param[in]	file	file name
-@param[out]	path	file along with path. */
+@param[in]      dir     directory
+@param[in]      file    file name
+@param[out]     path    file along with path. */
 static void add_directory_path(const char *dir, const char *file,
                                std::string &path) {
   path.clear();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,8 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* UNIV_HOTBACKUP */
 
 /** Initialize the name and flags of this datafile.
-@param[in]	name	tablespace name, will be copied
-@param[in]	flags	tablespace flags */
+@param[in]      name    tablespace name, will be copied
+@param[in]      flags   tablespace flags */
 void Datafile::init(const char *name, uint32_t flags) {
   ut_ad(m_name == nullptr);
   ut_ad(name != nullptr);
@@ -85,7 +85,7 @@ void Datafile::shutdown() {
 }
 
 /** Create/open a data file.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_or_create(bool read_only_mode) {
   bool success;
@@ -107,7 +107,7 @@ dberr_t Datafile::open_or_create(bool read_only_mode) {
 
 /** Open a data file in read-only mode to check if it exists so that it
 can be validated.
-@param[in]	strict	whether to issue error messages
+@param[in]      strict  whether to issue error messages
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_read_only(bool strict) {
   bool success = false;
@@ -142,7 +142,7 @@ dberr_t Datafile::open_read_only(bool strict) {
 
 /** Open a data file in read-write mode during start-up so that
 doublewrite pages can be restored and then it can be validated.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t Datafile::open_read_write(bool read_only_mode) {
   bool success = false;
@@ -199,9 +199,9 @@ dberr_t Datafile::close() {
 Prepend the dirpath to filename using the extension given.
 If dirpath is nullptr, prepend the default datadir to filepath.
 Store the result in m_filepath.
-@param[in]	dirpath		directory path
-@param[in]	filename	filename or filepath
-@param[in]	ext		filename extension */
+@param[in]      dirpath         directory path
+@param[in]      filename        filename or filepath
+@param[in]      ext             filename extension */
 void Datafile::make_filepath(const char *dirpath, const char *filename,
                              ib_file_suffix ext) {
   free_filepath();
@@ -226,7 +226,7 @@ void Datafile::make_filepath(const char *dirpath, const char *filename,
 
 /** Set the filepath by duplicating the filepath sent in. This is the
 name of the file with its extension and absolute or relative path.
-@param[in]	filepath	filepath to set */
+@param[in]      filepath        filepath to set */
 void Datafile::set_filepath(const char *filepath) {
   free_filepath();
   m_filepath = static_cast<char *>(
@@ -247,7 +247,7 @@ void Datafile::free_filepath() {
 /** Do a quick test if the filepath provided looks the same as this filepath
 byte by byte. If they are two different looking paths to the same file,
 same_as() will be used to show that after the files are opened.
-@param[in]	other	filepath to compare with
+@param[in]      other   filepath to compare with
 @retval true if it is the same filename by byte comparison
 @retval false if it looks different */
 bool Datafile::same_filepath_as(const char *other) const {
@@ -255,7 +255,7 @@ bool Datafile::same_filepath_as(const char *other) const {
 }
 
 /** Test if another opened datafile is the same file as this object.
-@param[in]	other	Datafile to compare with
+@param[in]      other   Datafile to compare with
 @return true if it is the same file, else false */
 bool Datafile::same_as(const Datafile &other) const {
 #ifdef _WIN32
@@ -274,7 +274,7 @@ If a name is provided, use it; else if the datafile is file-per-table,
 extract a file-per-table tablespace name from m_filepath; else it is a
 general tablespace, so just call it that for now. The value of m_name
 will be freed in the destructor.
-@param[in]	name	Tablespace Name if known, nullptr if not */
+@param[in]      name    Tablespace Name if known, nullptr if not */
 void Datafile::set_name(const char *name) {
   ut::free(m_name);
 
@@ -312,7 +312,7 @@ void Datafile::set_name(const char *name) {
 
 /** Reads a few significant fields from the first page of the first
 datafile, which must already be open.
-@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
+@param[in]      read_only_mode  If true, then readonly mode checks are enforced.
 @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 dberr_t Datafile::read_first_page(bool read_only_mode) {
   if (m_handle.m_file == OS_FILE_CLOSED) {
@@ -378,9 +378,9 @@ void Datafile::free_first_page() {
 /** Validates the datafile and checks that it conforms with the expected
 space ID and flags.  The file should exist and be successfully opened
 in order for this function to validate it.
-@param[in]	space_id	The expected tablespace ID.
-@param[in]	flags		The expected tablespace flags.
-@param[in]	for_import	if it is for importing
+@param[in]      space_id        The expected tablespace ID.
+@param[in]      flags           The expected tablespace flags.
+@param[in]      for_import      if it is for importing
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
 dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
@@ -869,7 +869,7 @@ dberr_t Datafile::find_space_id() {
 
 /** Finds a given page of the given space id from the double write buffer
 and copies it to the corresponding .ibd file.
-@param[in]	restore_page_no		Page number to restore
+@param[in]      restore_page_no         Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
 dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
   ut_a(is_open());

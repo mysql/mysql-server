@@ -1,6 +1,6 @@
 /****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -295,10 +295,10 @@ struct FTS::Inserter {
   }
 
   /** Write out a single word's data as new entry/entries in the INDEX table.
-  @param[in] ins_ctx	            Insert context.
-  @param[in] word	                Word string.
-  @param[in] node	                Node columns.
-  @return	DB_SUCCUESS if insertion runs fine, otherwise error code */
+  @param[in] ins_ctx                Insert context.
+  @param[in] word                       Word string.
+  @param[in] node                       Node columns.
+  @return       DB_SUCCUESS if insertion runs fine, otherwise error code */
   dberr_t write_node(const Insert *ins_ctx, const fts_string_t *word,
                      const fts_node_t *node) noexcept;
 

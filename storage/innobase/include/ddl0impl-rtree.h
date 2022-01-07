@@ -1,7 +1,7 @@
 
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ class RTree_inserter {
  public:
   /** Constructor.
   @param[in,out] ctx            DDL context.
-  @param[in]	index	            Index to be created */
+  @param[in]    index               Index to be created */
   RTree_inserter(Context &ctx, dict_index_t *index) noexcept;
 
   /** Destructor */
@@ -60,13 +60,13 @@ class RTree_inserter {
   [[nodiscard]] dict_index_t *get_index() noexcept { return m_index; }
 
   /** Caches an index row into index tuple vector
-  @param[in] row	              Table row
-  @param[in] ext	              Externally stored column
+  @param[in] row                      Table row
+  @param[in] ext                      Externally stored column
   prefixes, or nullptr */
   void add_to_batch(const dtuple_t *row, const row_ext_t *ext) noexcept;
 
   /** Insert the rows cached in the batch (m_dtuples).
-  @param[in]	trx_id		        Transaction id.
+  @param[in]    trx_id                  Transaction id.
   @param[in,out] latch_release  Called when a log free check is required.
   @return DB_SUCCESS if successful, else error number */
   [[nodiscard]] dberr_t batch_insert(trx_id_t trx_id,
