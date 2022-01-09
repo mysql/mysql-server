@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "fil0types.h"
+#include "log0log.h" /* log_get_lsn */
 #include "mach0data.h"
 #include "my_dbug.h"
 #include "page0size.h"
@@ -193,7 +194,8 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
       ib::error(ER_IB_MSG_147)
 #endif /* UNIV_NO_ERR_MSGS */
           << "Your database may be corrupt or you may have copied the InnoDB"
-          << " tablespace but not the InnoDB log files. " << FORCE_RECOVERY_MSG;
+          << " tablespace but not the InnoDB redo log files. "
+          << FORCE_RECOVERY_MSG;
     }
   }
 #endif /* !UNIV_HOTBACKUP && !UNIV_LIBRARY */

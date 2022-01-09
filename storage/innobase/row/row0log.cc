@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0ddl.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"

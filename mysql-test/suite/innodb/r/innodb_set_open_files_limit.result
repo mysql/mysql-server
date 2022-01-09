@@ -42,14 +42,14 @@ ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. New limit value
 SELECT innodb_set_open_files_limit(12342147483647);
 ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. New limit value can't be larger than 2147483647.
 SELECT innodb_set_open_files_limit(10);
-ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 17.
-SELECT innodb_set_open_files_limit(16);
-ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 17.
-SELECT innodb_set_open_files_limit(17);
-innodb_set_open_files_limit(17)
-17
-SELECT innodb_set_open_files_limit(16);
-ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 17.
+ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 15.
+SELECT innodb_set_open_files_limit(14);
+ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 15.
+SELECT innodb_set_open_files_limit(15);
+innodb_set_open_files_limit(15)
+15
+SELECT innodb_set_open_files_limit(14);
+ERROR HY000: Incorrect arguments to innodb_set_open_files_limit. Cannot update innodb_open_files to this value. Not enough files could be closed in last 5 seconds or a number of files that cannot be closed would exceed 90% of the new limit. Consider setting it above 15.
 SELECT innodb_set_open_files_limit(2147483647);
 innodb_set_open_files_limit(2147483647)
 2147483647

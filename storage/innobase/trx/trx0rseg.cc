@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0clone.h"
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
+#include "log0chkp.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"

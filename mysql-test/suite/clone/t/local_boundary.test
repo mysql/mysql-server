@@ -92,6 +92,7 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LI
 --force-rmdir $CLONE_DATADIR
 
 ## Test-2A: Clone with redo log ending at file boundary
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
 SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
@@ -128,6 +129,7 @@ SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
 --force-rmdir $CLONE_DATADIR
 
 ## Test-2B: Clone with redo log ending at file boundary + some bytes
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
 SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET GLOBAL DEBUG ="+d,clone_arch_log_extra_bytes";
 SET DEBUG_SYNC = 'RESET';

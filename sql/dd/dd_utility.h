@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,11 +57,12 @@ size_t normalize_string(const CHARSET_INFO *cs, const String_type &src,
 
   @param thd                 Thread
   @param schema_name         Abbreviation or name of schema (I_S, P_S, ndbinfo)
-                             for use in warning message output
+                             for use in warning message output; nullptr if no
+                             warning should be emitted
 
   @returns false on success, otherwise true.
 */
-bool check_if_server_ddse_readonly(THD *thd, const char *schema_name);
+bool check_if_server_ddse_readonly(THD *thd, const char *schema_name = nullptr);
 
 ///////////////////////////////////////////////////////////////////////////
 

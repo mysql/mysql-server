@@ -217,7 +217,7 @@ select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_on
 #
 # Upgrade with innodb-read-only = 1 fails.
 #
-Pattern "Cannot resize log files in read-only mode" found
+Pattern "Cannot upgrade format \(v3\) of redo log files in read-only mode" found
 # -----------------------------------------------------------------------
 # Initialize.
 # -----------------------------------------------------------------------

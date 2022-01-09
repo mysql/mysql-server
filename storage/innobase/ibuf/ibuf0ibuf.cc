@@ -63,6 +63,8 @@ constexpr uint32_t IBUF_BITMAP = PAGE_DATA;
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -771,9 +773,6 @@ void ibuf_set_free_bits_func(
                                          UT_LOCATION_HERE, &mtr);
 
   switch (space->purpose) {
-    case FIL_TYPE_LOG:
-      ut_d(ut_error);
-      ut_o(break);
     case FIL_TYPE_TABLESPACE:
       break;
     case FIL_TYPE_TEMPORARY:

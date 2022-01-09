@@ -86,6 +86,7 @@ mysql_pfs_key_t log_flusher_mutex_key;
 mysql_pfs_key_t log_write_notifier_mutex_key;
 mysql_pfs_key_t log_flush_notifier_mutex_key;
 mysql_pfs_key_t log_limits_mutex_key;
+mysql_pfs_key_t log_files_mutex_key;
 mysql_pfs_key_t log_cmdq_mutex_key;
 mysql_pfs_key_t log_sn_lock_key;
 mysql_pfs_key_t log_sn_mutex_key;

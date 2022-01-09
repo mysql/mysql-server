@@ -1,0 +1,73 @@
+--source include/have_debug.inc
+
+--echo # Prepare schema.
+CREATE TABLE t (a INT PRIMARY KEY, b CHAR(100));
+
+--echo # Disable the dict_stats thread and the master thread to avoid redo log records being created in background.
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+--echo # Execute sharp checkpoint.
+SET GLOBAL innodb_log_checkpoint_now = 1;
+
+--echo # Ensure that redo log is logically empty (within 1 block)
+--let $assert_text='Redo log is logically empty (has 1 block)'
+--let $assert_cond= "[SELECT variable_value FROM performance_schema.global_status WHERE variable_name = \'Innodb_redo_log_logical_size\']" = 512
+--source include/assert.inc
+
+--echo # Disable page cleaners and prevent page flushing/checkpointing.
+--source ../include/log_disable_page_cleaners.inc
+
+--echo # Apply some modifications.
+INSERT INTO t(a,b) VALUES (1, REPEAT('x',100)), (2, REPEAT('x',100)), (3, REPEAT('x',100)),
+                          (4, REPEAT('x',100)), (5, REPEAT('x',100)), (6, REPEAT('x',100));
+UPDATE t SET b = REPEAT('y',100);
+
+--echo # Wait until the logical size is updated:
+SET GLOBAL DEBUG = '+d,syncpoint_log_status_variables_updated';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_status_variables_updated';
+SET GLOBAL DEBUG = '-d,syncpoint_log_status_variables_updated';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_status_variables_updated';
+
+--echo # Check if the logical size of the redo log is greater than 1kB.
+--let $REDO_LOG_SIZE= `SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_logical_size'`
+--let $assert_text='Redo log has more than 1kB of logical data'
+--let $assert_cond= "$REDO_LOG_SIZE" > 1024
+--source include/assert.inc
+
+--echo # Apply single row modification.
+UPDATE t SET b = REPEAT('z',100) WHERE a=1;
+
+--echo # Wait until the logical size is updated:
+SET GLOBAL DEBUG = '+d,syncpoint_log_status_variables_updated';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_status_variables_updated';
+SET GLOBAL DEBUG = '-d,syncpoint_log_status_variables_updated';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_status_variables_updated';
+
+--echo # Check if the logical size increase is in proper range (between 100bytes and 1kB).
+--let $NEW_REDO_LOG_SIZE= `SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_logical_size'`
+--let $INCREASE= `SELECT $NEW_REDO_LOG_SIZE - $REDO_LOG_SIZE`
+--let $assert_text='Redo log increased by at least 100 bytes'
+--let $assert_cond= "$INCREASE" >= 100
+--source include/assert.inc
+--let $assert_text='Redo log increased by no more than 16kB'
+--let $assert_cond= "$INCREASE" <= 16*1024
+--source include/assert.inc
+
+--echo # Enable page cleaners, page flushing and log checkpointing.
+--source ../include/log_enable_page_cleaners.inc
+
+--echo # Execute sharp checkpoint.
+SET GLOBAL innodb_log_checkpoint_now = 1;
+
+--echo # Ensure that redo log is logically empty (within 1 block)
+--let $assert_text='Redo log is logically empty (has 1 block)'
+--let $assert_cond= "[SELECT variable_value FROM performance_schema.global_status WHERE variable_name = \'Innodb_redo_log_logical_size\']" = 512
+--source include/assert.inc
+
+--echo # Enable the dict_stats thread and the master thread.
+SET GLOBAL innodb_dict_stats_disabled_debug = 0;
+SET GLOBAL innodb_master_thread_disabled_debug = 0;
+
+--echo # Cleanup.
+DROP TABLE t;

@@ -36,7 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"
-#include "log0log.h"
 #include "mtr0types.h"
 #include "os0proc.h"
 #include "page0types.h"
@@ -677,10 +676,20 @@ void buf_refresh_io_stats_all();
 /** Assert that all file pages in the buffer are in a replaceable state. */
 void buf_must_be_all_freed(void);
 
-/** Checks that there currently are no pending i/o-operations for the buffer
-pool.
-@return number of pending i/o */
-ulint buf_pool_check_no_pending_io(void);
+/** Computes number of pending I/O read operations for the buffer pool.
+@return number of pending i/o reads */
+size_t buf_pool_pending_io_reads_count();
+
+/** Computes number of pending I/O write operations for the buffer pool.
+@return number of pending i/o writes */
+size_t buf_pool_pending_io_writes_count();
+
+/** Waits until there are no pending I/O read operations for the buffer pool.
+Keep waiting in loop with sleeps, emitting information every minute.
+This is used to avoid risk of some pending async read (e.g. enqueued by
+the linear read-ahead), which would involve ibuf merge and create new
+redo records. */
+void buf_pool_wait_for_no_pending_io_reads();
 
 /** Invalidates the file pages in the buffer pool when an archive recovery is
  completed. All the file pages buffered must be in a replaceable state when
@@ -2233,7 +2242,7 @@ struct buf_pool_t {
   /** Old statistics */
   buf_pool_stat_t old_stat;
 
-  /* @} */
+  /** @} */
 
   /** @name Page flushing algorithm fields */
 
@@ -2293,7 +2302,7 @@ struct buf_pool_t {
   /** Maximum LSN for which write io has already started. */
   lsn_t max_lsn_io;
 
-  /* @} */
+  /** @} */
 
   /** @name LRU replacement algorithm fields */
   /** @{ */

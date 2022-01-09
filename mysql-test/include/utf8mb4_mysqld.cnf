@@ -14,7 +14,7 @@ character-set-server= utf8mb4
 log-bin-trust-function-creators=1
 
 innodb-buffer-pool-size=24M
-innodb-log-file-size=5M
+innodb-redo-log-capacity=10M
 # MAINTAINER:
 # the loose- syntax is to make sure the cnf file is also
 # valid when building without the performance schema.

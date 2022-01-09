@@ -126,18 +126,16 @@ void mutex_enter_inline(Mutex *m, ut::Location loc) {
 /* RAII guard for ib mutex */
 struct IB_mutex_guard {
   /** Constructor to acquire mutex
-  @param[in]   in_mutex        input mutex */
-  explicit IB_mutex_guard(ib_mutex_t *in_mutex) : m_mutex(in_mutex) {
-    mutex_enter(in_mutex);
-  }
-
-  IB_mutex_guard(ib_mutex_t *in_mutex, const ut::Location &loc)
+  @param[in]   in_mutex        input mutex
+  @param[in]   location        defines source file and line in code where the
+                               constructor of IB_mutex_guard is called */
+  IB_mutex_guard(ib_mutex_t *in_mutex, const ut::Location &location)
       : m_mutex(in_mutex) {
-    mutex_enter_inline(in_mutex, loc);
+    mutex_enter_inline(in_mutex, location);
   }
 
   /** Destructor to release mutex */
-  ~IB_mutex_guard() { mutex_exit(m_mutex); }
+  ~IB_mutex_guard() { clear(); }
 
   /** Disable copy construction */
   IB_mutex_guard(IB_mutex_guard const &) = delete;
@@ -148,6 +146,11 @@ struct IB_mutex_guard {
  private:
   /** Current mutex for RAII */
   ib_mutex_t *m_mutex;
+
+  void clear() {
+    mutex_exit(m_mutex);
+    m_mutex = nullptr;
+  }
 };
 
 #ifdef UNIV_DEBUG

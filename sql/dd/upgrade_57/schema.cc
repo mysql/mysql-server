@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,8 @@ bool find_schema_from_datadir(std::vector<String_type> *db_name) {
     if (file->name[0] == '.') continue;
 
     if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode) &&
-        strcmp(a->dir_entry[i].name, "#innodb_temp") != 0) {
+        strcmp(a->dir_entry[i].name, "#innodb_temp") != 0 &&
+        strcmp(a->dir_entry[i].name, "#innodb_redo") != 0) {
       db_name->push_back(a->dir_entry[i].name);
       continue;
     }

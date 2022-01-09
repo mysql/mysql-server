@@ -49,6 +49,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ha_prototypes.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "my_dbug.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -4199,6 +4201,8 @@ void dict_set_corrupted(dict_index_t *index) {
     /* Make sure the corruption bit won't be lost */
     log_write_up_to(*log_sys, mtr.commit_lsn(), true);
 
+    DBUG_INJECT_CRASH("log_corruption_crash", 1);
+
     dict_table_mark_dirty(table);
   }
 }
@@ -5538,6 +5542,7 @@ ulint CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
   ++buffer;
 
   mach_write_to_1(buffer, num);
+  DBUG_EXECUTE_IF("log_corruption_1", mach_write_to_1(buffer, 100););
   ++length;
   ++buffer;
 

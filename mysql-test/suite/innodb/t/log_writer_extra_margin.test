@@ -1,0 +1,204 @@
+# This test forces InnoDB to behave in a wrong way by missing a lot of calls
+# to the log_free_check(). The page flushing is disabled, so the log writer
+# thread quickly enters its private so-called extra_margin. This results in
+# a warning being emitted (verified by the test). Soon the log_writer runs
+# out of space in the extra_margin. Then error is emitted (verified).
+
+# Since then an attempt to update a row ends up in a hanging UPDATE query.
+
+# This is a moment, which simulates the situation that could potentially
+# have happened if some code-path was missing calls to the log_free_check()
+# and the oldest dirty page became re-modified and latched preventing the
+# last_checkpoint_lsn from being advanced (simulated by the disabled page
+# cleaners for sake of simplicity). If that happened during ordinary workload,
+# the only help can come from DBA, who needs to observe the warning / error
+# that were emitted and resize the redo log, increasing its capacity.
+
+# Therefore this is what is done in this test. The redo log becomes increased
+# by 1MB. However page cleaners are still disabled so the redo log becomes
+# filled again (verified). That happens without exiting the extra_margin
+# meanwhile, because the extra_margin is slightly bigger than 1MB.
+
+# Then the page cleaners are enabled and the hanging UPDATE becomes finished
+# (verified). Then the original redo log capacity is restored and it might
+# take some time but eventually the redo log should become resized down.
+
+# A next UPDATE should be finished easily (verified).
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Required to avoid full log buffer flushes and unexpected waits on mutex
+# inside binlog code when some threads are waiting for free space in redo.
+--source include/not_log_bin.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+SELECT @@innodb_redo_log_capacity INTO @orig_redo_log_capacity;
+SELECT @@innodb_flush_log_at_trx_commit INTO @orig_flush_log_at_trx_commit;
+
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+CREATE TABLE t (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t(a,b) VALUES (1,0);
+
+--echo # Disable page cleaners and prevent page flushing/checkpointing.
+--source ../include/log_disable_page_cleaners.inc
+
+--echo # Skip log free checks to fill redo log up to its very end.
+SET GLOBAL DEBUG = '+d,log_free_check_skip';
+
+--echo # Request the log writer to generate a signal when it enters the extra_margin.
+SET GLOBAL DEBUG = '+d,syncpoint_log_writer_entered_extra_margin';
+
+--echo # Fill redo log until the log writer enters the extra_margin...
+--connect(spam_worker_connection,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Redo log data is being generated...
+
+--echo # Wait until the log_writer signaled that it entered the extra margin.
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_writer_entered_extra_margin';
+
+--echo # Log writer entered the extra margin !
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Warning\] \[[^]]*\] \[[^]]*\] Redo log is running out of free space, pausing user threads;
+--source include/search_pattern.inc
+
+SET GLOBAL innodb_flush_log_at_trx_commit = 2;
+
+--echo # Request the log_writer to generate a signal when it runs out of free space in the extra_margin.
+SET GLOBAL DEBUG = '+d,syncpoint_log_writer_ran_out_space';
+
+--echo # Let the log writer continue, and wait until it runs out of free space in the extra_margin.
+SET GLOBAL DEBUG = '-d,syncpoint_log_writer_entered_extra_margin';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_writer_entered_extra_margin WAIT_FOR reached_log_writer_ran_out_space';
+
+--echo # Log writer ran out of free space !
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Out of space in the redo log. Checkpoint LSN:;
+--source include/search_pattern.inc
+
+--echo # Let log writer continue to try... It cannot succeed without checkpoint being advanced.
+SET GLOBAL DEBUG = '-d,syncpoint_log_writer_ran_out_space';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_writer_ran_out_space';
+
+SET GLOBAL innodb_flush_log_at_trx_commit = 1;
+
+--echo # Start a DML query which should be hanging on trx_commit_complete_for_mysql...
+--connect(dml_connection,localhost,root,,test)
+--send UPDATE t SET b=1 WHERE a=1
+--connection default
+
+--echo # Wait until UPDATE becomes visible in information_schema.processlist...
+--let $wait_condition=SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE info = 'UPDATE t SET b=1 WHERE a=1'
+--let $wait_timeout=60
+--source include/wait_condition.inc
+
+--echo # Sleep for 1s to validate it is still there (not yet completed).
+--sleep 1
+
+--echo # Ensure the DML has not been completed (no redo space)...
+--let $assert_text='The UPDATE is still not finished'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.processlist WHERE info = \'UPDATE t SET b=1 WHERE a=1\']" > 0
+--source include/assert.inc
+
+--echo # Assume that after resizing up we will be more lucky, not to hit the same issue again
+--echo # but at higher redo log size, so let's resume log_free_check() (else: we could quickly
+--echo # eat the whole extended space and remain in deadlock)
+
+SET GLOBAL DEBUG = '-d,log_free_check_skip';
+
+--echo # Resize-up redo log a little bit to ensure it will be filled again.
+SET GLOBAL innodb_redo_log_capacity = @@innodb_redo_log_capacity + 1048576;
+
+--echo # Ensure the log writer has still NOT exited the extra margin.
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Note\] \[[^]]*\] \[[^]]*\] Redo log reclaimed some free space, resuming user threads;
+--source include/search_pattern.inc
+
+--echo # Request the log writer to generate a signal when it exits the extra_margin.
+SET GLOBAL DEBUG = '+d,syncpoint_log_writer_exited_extra_margin';
+
+--echo ###############################
+--echo # Enable page cleaners.
+--echo ###############################
+
+--source ../include/log_enable_page_cleaners.inc
+
+--echo # Ensure the started DML becomes completed eventually.
+--connection dml_connection
+--reap
+--connection default
+--disconnect dml_connection
+
+--let $assert_text='The UPDATE has been completed'
+--let $assert_cond="[SELECT COUNT(*) FROM information_schema.processlist WHERE info = \'UPDATE t SET b=1 WHERE a=1\']" = 0
+--source include/assert.inc
+
+--echo # Request the spammer to stop, but do not wait because earlier the log_writer/log_checkpointer
+--echo # can be trapped at log_writer_exited_extra_margin
+
+--connect(spam_controller_connection,localhost,root,,test)
+--send UPDATE log_spam_controller SET status = 'Stopping' WHERE id = 1
+--connection default
+
+--echo # Wait until the log_writer signaled that it exited the extra margin.
+
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_writer_exited_extra_margin';
+SET GLOBAL DEBUG = '-d,syncpoint_log_writer_exited_extra_margin';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_writer_exited_extra_margin';
+
+--echo # Ensure the log writer has exited the extra margin.
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Note\] \[[^]]*\] \[[^]]*\] Redo log reclaimed some free space, resuming user threads;
+--source include/search_pattern.inc
+
+--echo # Wait until the request to stop spammer is completed.
+
+--connection spam_controller_connection
+--reap
+--connection default
+--disconnect spam_controller_connection
+
+--echo # Wait until the spammer is stopped.
+
+--connection spam_worker_connection
+--reap
+--connection default
+
+--disconnect spam_worker_connection
+
+--let $assert_text='The log spammer is stopped'
+--let $assert_cond="[SELECT status FROM log_spam_controller WHERE id = 1]" = "Stopped"
+--source include/assert.inc
+
+--echo # Ensure new changes can be done quickly too.
+UPDATE t SET b=2 WHERE a=1;
+SELECT * FROM t;
+
+--echo # Resize the redo log to its original capacity.
+
+SET GLOBAL innodb_redo_log_capacity = @orig_redo_log_capacity;
+
+--echo # Waiting for status = OK....
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value = 'OK'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_resize_status';
+--source include/wait_condition.inc
+
+--echo # Cleanup
+DROP TABLE t;
+--source include/ib_log_spammer_cleanup.inc
+
+SET GLOBAL innodb_flush_log_at_trx_commit = @orig_flush_log_at_trx_commit;
+
+SET DEBUG_SYNC = 'RESET';
+
+--source include/wait_until_count_sessions.inc

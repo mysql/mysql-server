@@ -1,0 +1,88 @@
+--source include/have_debug.inc
+
+--source include/ib_log_spammer_init.inc
+
+CREATE TABLE t(a INT PRIMARY KEY, b INT);
+INSERT INTO t(a, b) VALUES(1, 1);
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+SET GLOBAL innodb_log_checkpoint_now = 1;
+
+SET GLOBAL DEBUG = 'd,log_force_consumption';
+
+--echo # Wait until redo occupies no more than 1MB on disk
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value <= 1024*1024
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_physical_size';
+--source include/wait_condition.inc
+
+--echo # Resize redo log to 100M:
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Wait until redo occupies at least 10MB on disk
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value >= 10*1024*1024
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_physical_size';
+--source include/wait_condition.inc
+
+--echo # Kill and restart mysql allowing initially big redo log:
+let $restart_parameters = restart: --innodb-redo-log-capacity=104857600;
+--source include/kill_and_restart_mysqld.inc
+let $restart_parameters = restart:;
+
+--echo # Initial state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+SET GLOBAL DEBUG = '+d,log_force_consumption';
+
+--echo # Waiting until we have exactly 1 redo log file.
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MAX = 1;
+--source include/ib_redo_log_files_count_wait.inc
+
+SET GLOBAL DEBUG = '-d,log_force_consumption';
+
+--echo # Resize redo log to 8M:
+SET GLOBAL innodb_redo_log_capacity = 8*1024*1024;
+
+--echo # Waiting for status = OK....
+let $wait_timeout= 60000;
+let $wait_condition =
+  SELECT variable_value = 'OK'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_resize_status';
+--source include/wait_condition.inc
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_PHYSICAL_CAPACITY = 8388608;
+--source include/ib_redo_log_capacity_check.inc
+
+let SEARCH_PATTERN=Truncating redo log file;
+--source include/search_pattern.inc
+
+UPDATE t SET b = 2 WHERE a = 1;
+
+CALL mtr.add_suppression("The last block of redo had corrupted first_rec_group");
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--source include/ib_log_spammer_cleanup.inc

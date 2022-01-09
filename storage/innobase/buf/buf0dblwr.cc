@@ -31,6 +31,7 @@ Atomic writes handling. */
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
+#include "log0chkp.h"
 #include "os0enc.h"
 #include "os0thread-create.h"
 #include "page0zip.h"
@@ -2604,7 +2605,7 @@ void Double_write::write_complete(buf_page_t *bpage,
                            : Double_write::s_flush_list_batch_segments;
           }
 
-          fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+          fil_flush_file_spaces();
 
           while (!segments->enqueue(batch_segment)) {
             std::this_thread::yield();
@@ -3206,7 +3207,7 @@ dberr_t recv::Pages::recover(fil_space_t *space) noexcept {
     return (err);
   }
 
-  fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+  fil_flush_file_spaces();
 #endif /* !UNIV_HOTBACKUP */
   return DB_SUCCESS;
 }

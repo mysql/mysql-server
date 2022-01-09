@@ -14,6 +14,7 @@ let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 --mkdir $MYSQL_TMP_DIR/new_datadir
 --mkdir $MYSQL_TMP_DIR/new_datadir/data
 let $MYSQLD_NEW_DATADIR = $MYSQL_TMP_DIR/new_datadir/data;
+--mkdir $MYSQLD_NEW_DATADIR/#innodb_redo
 --mkdir $MYSQLD_NEW_DATADIR/test
 --mkdir $MYSQLD_NEW_DATADIR/mysql
 --mkdir $MYSQLD_NEW_DATADIR/sys
@@ -53,7 +54,7 @@ SELECT  file_name,file_type,tablespace_name FROM
 --copy_file $MYSQLD_OLD_DATADIR/ibdata1 $MYSQLD_NEW_DATADIR/ibdata1
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR undo*
---copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR ib_logfile*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/#innodb_redo/  $MYSQLD_NEW_DATADIR/#innodb_redo #ib_redo*
 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR/test/  $MYSQLD_NEW_DATADIR/test/ *.*
 --copy_files_wildcard $MYSQLD_OLD_DATADIR/sys/  $MYSQLD_NEW_DATADIR/sys/ *.*

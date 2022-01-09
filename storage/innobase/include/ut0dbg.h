@@ -93,6 +93,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
     snprintf(buf, sizeof buf, prefix "_%u", count);                    \
     DBUG_EXECUTE_IF(buf, log_buffer_flush_to_disk(); DBUG_SUICIDE();); \
   } while (0)
+
 #else
 #define DBUG_INJECT_CRASH(prefix, count)
 #define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)

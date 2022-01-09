@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifdef UNIV_HOTBACKUP
 #include "fsp0file.h"
 #endif /* UNIV_HOTBACKUP */
-#include "log0log.h"
+#include "log0files_io.h"
 #include "mach0data.h"
 #include "os0file.h"
 #include "page0page.h"
@@ -445,9 +445,9 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 #endif /* !UNIV_HOTBACKUP */
 }
 
-bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
-                                      byte *encrypt_info,
-                                      bool encrypt_key) noexcept {
+bool Encryption::fill_encryption_info(
+    const Encryption_metadata &encryption_metadata, bool encrypt_key,
+    byte *encrypt_info) noexcept {
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
 
@@ -494,8 +494,11 @@ bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
   /* Write (and encrypt if needed) key and iv */
   byte key_info[KEY_LEN * 2];
   memset(key_info, 0x0, sizeof(key_info));
-  memcpy(key_info, key, KEY_LEN);
-  memcpy(key_info + KEY_LEN, iv, KEY_LEN);
+
+  memcpy(key_info, encryption_metadata.m_key, KEY_LEN);
+
+  memcpy(key_info + KEY_LEN, encryption_metadata.m_iv, KEY_LEN);
+
   if (encrypt_key) {
     /* Encrypt key and iv. */
     auto elen = my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
@@ -523,10 +526,12 @@ bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
   return (true);
 }
 
-byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
-                                           uint32_t *m_key_id, char *srv_uuid,
-                                           byte **master_key) noexcept {
-  byte *ptr = encrypt_info;
+const byte *Encryption::get_master_key_from_info(const byte *encrypt_info,
+                                                 Version version,
+                                                 uint32_t *m_key_id,
+                                                 char *srv_uuid,
+                                                 byte **master_key) noexcept {
+  const byte *ptr = encrypt_info;
   *m_key_id = 0;
 
   /* Get master key id. */
@@ -602,11 +607,40 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
+bool Encryption::is_encrypted_with_version(
+    const byte *encryption_info, const char *version_magic_bytes) noexcept {
+  return std::memcmp(encryption_info, version_magic_bytes,
+                     Encryption::MAGIC_SIZE) == 0;
+}
+
+bool Encryption::is_encrypted_with_v3(const byte *encryption_info) noexcept {
+  return is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V3);
+}
+
+bool Encryption::is_encrypted(const byte *encryption_info) noexcept {
+  return is_encrypted_with_v3(encryption_info) ||
+         is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V2) ||
+         is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V1);
+}
+
+bool Encryption::decode_encryption_info(Encryption_metadata &e_metadata,
+                                        const byte *encryption_info,
+                                        bool decrypt_key) noexcept {
+  Encryption_key e_key{e_metadata.m_key, e_metadata.m_iv};
+  if (decode_encryption_info(dict_sys_t::s_invalid_space_id, e_key,
+                             encryption_info, decrypt_key)) {
+    e_metadata.m_key_len = Encryption::KEY_LEN;
+    e_metadata.m_type = Encryption::AES;
+    return true;
+  }
+  return false;
+}
+
 bool Encryption::decode_encryption_info(space_id_t space_id,
                                         Encryption_key &e_key,
-                                        byte *encryption_info,
+                                        const byte *encryption_info,
                                         bool decrypt_key) noexcept {
-  byte *ptr = encryption_info;
+  const byte *ptr = encryption_info;
   byte *key = e_key.m_key;
   byte *iv = e_key.m_iv;
   uint32_t &master_key_id = e_key.m_master_key_id;
@@ -1488,3 +1522,19 @@ void Encryption::set_key_length(ulint klen) { m_klen = klen; }
 void Encryption::set_initial_vector(const byte *iv) { m_iv = iv; }
 
 uint32_t Encryption::get_master_key_id() { return s_master_key_id; }
+
+void Encryption::set_or_generate(Type type, byte *key, byte *iv,
+                                 Encryption_metadata &metadata) {
+  ut_ad(type != Encryption::NONE);
+  metadata.m_type = type;
+  metadata.m_key_len = Encryption::KEY_LEN;
+  if (key == nullptr && iv == nullptr) {
+    Encryption::random_value(metadata.m_key);
+    Encryption::random_value(metadata.m_iv);
+  } else if (key != nullptr && iv != nullptr) {
+    memcpy(metadata.m_key, key, Encryption::KEY_LEN);
+    memcpy(metadata.m_iv, iv, Encryption::KEY_LEN);
+  } else {
+    ut_error;
+  }
+}

@@ -18,10 +18,10 @@ SET @mypath := CONCAT(@@global.innodb_data_home_dir, '/foo/bar.ibd');
 SELECT sys.format_path(@mypath);
 sys.format_path(@mypath)
 @@innodb_data_home_dir/foo/bar.ibd
-SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, '/ib_logfile0');
+SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, '/#innodb_redo/#ib_redo0');
 SELECT sys.format_path(@mypath);
 sys.format_path(@mypath)
-@@innodb_log_group_home_dir/ib_logfile0
+@@innodb_log_group_home_dir/#innodb_redo/#ib_redo0
 SET @mypath := CONCAT(@@global.innodb_undo_directory, '/undo0');
 SELECT sys.format_path(@mypath);
 sys.format_path(@mypath)

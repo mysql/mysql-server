@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0snapshot.h"
 #include "clone0clone.h"
+#include "log0log.h" /* log_get_lsn */
 #include "page0zip.h"
 #include "sql/handler.h"
 
@@ -99,12 +100,13 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
 
   state_desc->m_is_start = true;
   state_desc->m_is_ack = false;
-  state_desc->m_estimate = 0;
-  state_desc->m_estimate_disk = 0;
 
   if (do_estimate) {
     state_desc->m_estimate = m_monitor.get_estimate();
     state_desc->m_estimate_disk = m_data_bytes_disk;
+  } else {
+    state_desc->m_estimate = 0;
+    state_desc->m_estimate_disk = 0;
   }
 
   switch (m_snapshot_state) {
@@ -118,21 +120,15 @@ void Clone_Snapshot::get_state_info(bool do_estimate,
 
     case CLONE_SNAPSHOT_REDO_COPY:
       state_desc->m_num_files = num_redo_files();
-
-      /* Minimum of two redo files need to be created. */
-      if (state_desc->m_num_files < 2) {
-        state_desc->m_num_files = 2;
-      }
       break;
 
     case CLONE_SNAPSHOT_DONE:
-      [[fallthrough]];
-
     case CLONE_SNAPSHOT_INIT:
       state_desc->m_num_files = 0;
       break;
 
     default:
+      state_desc->m_num_files = 0;
       ut_d(ut_error);
   }
 }
@@ -243,7 +239,7 @@ bool Clone_Snapshot::is_aborted() const {
 }
 
 void Clone_Snapshot::set_abort() {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   m_aborted = true;
   ib::info(ER_IB_CLONE_OPERATION) << "Clone Snapshot aborted";
 }
@@ -329,7 +325,7 @@ int Clone_Snapshot::iterate_files(File_Cbk_Func &&func) {
 }
 
 int Clone_Snapshot::iterate_data_files(File_Cbk_Func &&func) {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
 
   for (auto file_ctx : m_data_file_vector) {
     auto err = func(file_ctx);
@@ -530,7 +526,7 @@ void Clone_Snapshot::update_block_size(uint buff_size) {
 }
 
 uint32_t Clone_Snapshot::get_blocks_per_chunk() const {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   uint32_t num_blocks = 0;
 
   switch (m_snapshot_state) {
@@ -741,48 +737,42 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
 
 bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
                                                uint32_t header_len) {
-  byte encryption_key[Encryption::KEY_LEN];
-  byte encryption_iv[Encryption::KEY_LEN];
-
-  size_t offset = LOG_ENCRYPTION + LOG_HEADER_CREATOR_END;
+  size_t offset = LOG_ENCRYPTION + LOG_HEADER_ENCRYPTION_INFO_OFFSET;
   ut_a(offset + Encryption::INFO_SIZE <= header_len);
 
   auto encryption_info = log_header + offset;
 
   /* Get log Encryption Key and IV. */
-  Encryption_key e_key{encryption_key, encryption_iv};
-  auto success = Encryption::decode_encryption_info(
-      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
+  Encryption_metadata encryption_metadata;
+  auto success = Encryption::decode_encryption_info(encryption_metadata,
+                                                    encryption_info, false);
 
   if (success) {
     /* Encrypt with master key and fill encryption information. */
-    success = Encryption::fill_encryption_info(
-        &encryption_key[0], &encryption_iv[0], encryption_info, true);
+    success = Encryption::fill_encryption_info(encryption_metadata, true,
+                                               encryption_info);
   }
   return (success);
 }
 
 bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
                                            byte *page_data) {
-  byte encryption_key[Encryption::KEY_LEN];
-  byte encryption_iv[Encryption::KEY_LEN];
-
   auto offset = fsp_header_get_encryption_offset(page_size);
   ut_ad(offset != 0 && offset + Encryption::INFO_SIZE <= UNIV_PAGE_SIZE);
 
   auto encryption_info = page_data + offset;
 
   /* Get tablespace Encryption Key and IV. */
-  Encryption_key e_key{encryption_key, encryption_iv};
-  auto success = Encryption::decode_encryption_info(
-      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
+  Encryption_metadata encryption_metadata;
+  auto success = Encryption::decode_encryption_info(encryption_metadata,
+                                                    encryption_info, false);
   if (!success) {
     return (false);
   }
 
   /* Encrypt with master key and fill encryption information. */
-  success = Encryption::fill_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, true);
+  success = Encryption::fill_encryption_info(encryption_metadata, true,
+                                             encryption_info);
   if (!success) {
     return (false);
   }
@@ -802,9 +792,8 @@ void Clone_Snapshot::decrypt_key_in_header(const Clone_File_Meta *file_meta,
   byte encryption_info[Encryption::INFO_SIZE];
 
   /* Get tablespace encryption information. */
-  Encryption::fill_encryption_info(file_meta->m_encryption_key,
-                                   file_meta->m_encryption_iv, encryption_info,
-                                   false);
+  Encryption::fill_encryption_info(file_meta->m_encryption_metadata, false,
+                                   encryption_info);
 
   /* Set encryption information in page. */
   auto offset = fsp_header_get_encryption_offset(page_size);
@@ -844,17 +833,18 @@ static void set_page_encryption(IORequest &request, const page_id_t &page_id,
 
   /* Page zero is never encrypted. Need to also check the FSP encryption
   flag in case decryption is in progress. */
-  if (file_meta->m_encrypt_type == Encryption::NONE ||
+  if (!file_meta->can_encrypt() ||
       !FSP_FLAGS_GET_ENCRYPTION(file_meta->m_fsp_flags) ||
       page_id.page_no() == 0) {
     request.clear_encrypted();
     return;
   }
 
-  request.encryption_key(file_meta->m_encryption_key, Encryption::KEY_LEN,
-                         file_meta->m_encryption_iv);
+  request.encryption_key(file_meta->m_encryption_metadata.m_key,
+                         file_meta->m_encryption_metadata.m_key_len,
+                         file_meta->m_encryption_metadata.m_iv);
 
-  request.encryption_algorithm(Encryption::AES);
+  request.encryption_algorithm(file_meta->m_encryption_metadata.m_type);
 }
 
 int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
@@ -912,7 +902,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
       static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
 
   /* First page of a encrypted tablespace. */
-  if (file_meta->m_encrypt_type != Encryption::NONE && page_id.page_no() == 0) {
+  if (file_meta->can_encrypt() && page_id.page_no() == 0) {
     /* Update unencrypted tablespace key in page 0 to be send over
     SSL connection. */
     decrypt_key_in_header(file_meta, page_size, page_data);
@@ -1089,7 +1079,12 @@ void Clone_file_ctx::get_file_name(std::string &name) const {
   /* Add file name extension. */
   switch (m_extension) {
     case Extension::REPLACE:
-      name.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+      if (m_meta.m_space_id == dict_sys_t::s_log_space_id) {
+        const auto [directory, file] = Fil_path::split(name);
+        name = directory + CLONE_INNODB_REPLACED_FILE_EXTN + file;
+      } else {
+        name.append(CLONE_INNODB_REPLACED_FILE_EXTN);
+      }
       break;
 
     case Extension::DDL:
@@ -1105,7 +1100,7 @@ void Clone_file_ctx::get_file_name(std::string &name) const {
 bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
                                      bool no_wait, bool check_intr,
                                      int &error) {
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   error = 0;
   bool blocked = false;
 
@@ -1205,7 +1200,7 @@ bool Clone_Snapshot::begin_ddl_state(Clone_notify::Type type, space_id_t space,
 
 void Clone_Snapshot::end_ddl_state(Clone_notify::Type type, space_id_t space) {
   /* Caller is responsible to call if we have blocked state change. */
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
   auto state = get_state();
 
   if (state == CLONE_SNAPSHOT_FILE_COPY || state == CLONE_SNAPSHOT_PAGE_COPY) {
@@ -1630,14 +1625,14 @@ int Clone_Snapshot::pin_file(Clone_file_ctx *file_ctx, bool &handle_delete) {
   if (!blocks_clone(file_ctx)) {
     /* Check and update deleted state. */
     if (file_ctx->deleted()) {
-      IB_mutex_guard guard(&m_snapshot_mutex);
+      IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
       handle_delete = update_deleted_state(file_ctx);
     }
     return 0;
   }
   file_ctx->unpin();
 
-  IB_mutex_guard guard(&m_snapshot_mutex);
+  IB_mutex_guard guard(&m_snapshot_mutex, UT_LOCATION_HERE);
 
   if (!blocks_clone(file_ctx)) {
     /* purecov: begin inspected */

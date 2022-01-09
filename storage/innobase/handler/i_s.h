@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,7 +58,6 @@ extern struct st_mysql_plugin i_s_innodb_tables;
 extern struct st_mysql_plugin i_s_innodb_tablestats;
 extern struct st_mysql_plugin i_s_innodb_indexes;
 extern struct st_mysql_plugin i_s_innodb_columns;
-extern struct st_mysql_plugin i_s_innodb_fields;
 extern struct st_mysql_plugin i_s_innodb_foreign;
 extern struct st_mysql_plugin i_s_innodb_foreign_cols;
 extern struct st_mysql_plugin i_s_innodb_tablespaces;

@@ -1,0 +1,173 @@
+--source include/have_debug.inc
+
+--source include/ib_log_spammer_init.inc
+
+SET GLOBAL innodb_log_checkpoint_now = 1;
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+--echo # Initial state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Resize redo log to 100M:
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+
+let SEARCH_PATTERN=User has set innodb_redo_log_capacity to 100M;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Redo log has been resized to 100M;
+--source include/search_pattern.inc
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Disable checkpointing to ensure redo would grow and to allow test of redo-resize cancellation.
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Wait until redo occupies at least 10MB
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value >= 10*1024*1024
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_logical_size';
+--source include/wait_condition.inc
+
+--echo # Start resizing down the redo log (spammer is working in background)
+SET GLOBAL innodb_redo_log_capacity = 9*1024*1024;
+
+let SEARCH_PATTERN=User has set innodb_redo_log_capacity to 9M;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Redo log has been requested to resize from 100M to 9M;
+--source include/search_pattern.inc
+--echo # Expected - not found:
+let SEARCH_PATTERN=Redo log has been resized to 9M;
+--source include/search_pattern.inc
+
+--echo # Checkpoint is still disabled so resize hasn't been finished. Cancel the resize.
+SET GLOBAL innodb_redo_log_capacity = 102*1024*1024;
+let SEARCH_PATTERN=User has set innodb_redo_log_capacity to 102M;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Redo log resize has been cancelled;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Redo log has been resized to 102M;
+--source include/search_pattern.inc
+
+--echo # Restart resizing down.
+SET GLOBAL innodb_redo_log_capacity = 8*1024*1024;
+let SEARCH_PATTERN=User has set innodb_redo_log_capacity to 8M;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Redo log has been requested to resize from 102M to 8M;
+--source include/search_pattern.inc
+--echo # Expected - not found:
+let SEARCH_PATTERN=Redo log has been resized to 8M;
+--source include/search_pattern.inc
+
+SET GLOBAL innodb_checkpoint_disabled = 0;
+
+--echo # Waiting for status = OK....
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value = 'OK'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_resize_status';
+--source include/wait_condition.inc
+
+let SEARCH_PATTERN=Redo log has been resized to 8M;
+--source include/search_pattern.inc
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_PHYSICAL_CAPACITY = 8388608;
+--source include/ib_redo_log_capacity_check.inc
+
+--echo # Kill and restart mysql:
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Initial state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Resize redo log to 500M:
+SET GLOBAL innodb_redo_log_capacity = 500*1024*1024;
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C2,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Wait until redo occupies at least 10MB
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value >= 10*1024*1024
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_physical_size';
+--source include/wait_condition.inc
+
+--echo # Kill and restart mysql with --innodb-redo-log-capacity=1G:
+--let $restart_parameters = restart: --innodb-redo-log-capacity=1G
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Initial state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Start resizing down the redo log (spammer is NOT working in background)
+SET GLOBAL innodb_redo_log_capacity = 8*1024*1024;
+
+--echo # Waiting for status = OK....
+let $wait_timeout= 60000;
+let $wait_condition =
+  SELECT variable_value = 'OK'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_resize_status';
+--source include/wait_condition.inc
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_PHYSICAL_CAPACITY = 8388608;
+--source include/ib_redo_log_capacity_check.inc
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C3,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Resize redo log to 1GB:
+SET GLOBAL innodb_redo_log_capacity = 1024*1024*1024;
+
+--echo # Current state:
+SELECT variable_name, variable_value FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_redo_log_capacity_resized';
+
+--echo # Wait until redo occupies at least 20MB
+let $wait_timeout= 600;
+let $wait_condition =
+  SELECT variable_value >= 20*1024*1024
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_redo_log_physical_size';
+--source include/wait_condition.inc
+
+--echo # Kill and restart mysql without --innodb-redo-log-capacity
+--let $restart_parameters = restart:
+--source include/kill_and_restart_mysqld.inc
+
+let SEARCH_PATTERN=Redo log has been requested to resize from .* to .*M;
+--source include/search_pattern.inc
+
+--source include/ib_log_spammer_cleanup.inc

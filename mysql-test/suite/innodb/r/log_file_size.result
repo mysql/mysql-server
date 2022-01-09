@@ -1,52 +1,32 @@
-call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
-CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
-BEGIN;
-INSERT INTO t1 VALUES (42);
-# Kill and restart: --innodb-log-file-size=6M
-SELECT * FROM t1;
-a
-INSERT INTO t1 VALUES (42);
-BEGIN;
-DELETE FROM t1;
-# Kill and restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M
-SELECT * FROM t1;
-a
-42
-INSERT INTO t1 VALUES (123);
-BEGIN;
-DELETE FROM t1;
-# Kill the server
-Pattern "syntax error in innodb_log_group_home_dir" found
---innodb-force-recovery-crash=1
-Pattern "Apply batch completed" found
---innodb-force-recovery-crash=3
-Pattern "Apply batch completed" found
-Pattern "Can.t initiate database recovery, running in read-only-mode" found
---innodb-force-recovery-crash=4
-Pattern "Apply batch completed" found
-Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
---innodb-force-recovery-crash=5
-Pattern "Apply batch completed" found
-Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
-Pattern "Can.t initiate database recovery, running in read-only-mode" found
---innodb-force-recovery-crash=6
-Pattern "Apply batch completed" found
-Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
---innodb-force-recovery-crash=7
-Pattern "Cannot create log files in read-only mode" found
---innodb-force-recovery-crash=8
-Pattern "Creating log file .*ib_logfile[0-9]+" found
---innodb-force-recovery-crash=9
-Pattern "Creating log file .*ib_logfile[0-9]+" found
-Pattern "Only one log file found" found
-Pattern "Log file .*ib_logfile0 size 7 is not a multiple of innodb_page_size" found
-Pattern "Log file .*ib_logfile1 is of different size 1048576 bytes than other log files" found
---innodb-force-recovery-crash=10
-Pattern "Creating log file .*ib_logfile[0-9]+" found
-Pattern "Renaming log file .*ib_logfile101 to .*ib_logfile0" found
+#
+# Do clean shutdown of MySQL and remove log files.
+#
+Prepared a file with size = 0 bytes
+Prepared a file with size = 1 bytes
+Prepared a file with size = 65535 bytes
+Prepared a file with size = 65537 bytes
+#
+# Create #ib_redo0 as empty file and start MySQL.
+# We should detect that #ib_redo0 is empty.
+#
+Pattern "redo log file .*#ib_redo0 is empty" found
+#
+# Create #ib_redo0 with 1 byte inside and start MySQL.
+# We should detect that #ib_redo0 is too small.
+#
+Pattern "redo log file .*#ib_redo0 is smaller than 65536 bytes" found
+#
+# Create #ib_redo0 with 64kB-1 bytes inside and start MySQL.
+# We should detect that #ib_redo0 is too small.
+#
+Pattern "redo log file .*#ib_redo0 is smaller than 65536 bytes" found
+#
+# Create #ib_redo0 with 64kB+1 bytes inside and start MySQL.
+# We should detect that #ib_redo0's size is not divisible by page size.
+#
+Pattern ".*#ib_redo0 size 65537 is not a multiple of innodb_page_size" found
+
+#
+# Start MySQL afterwards.
+#
 # restart:
-SELECT * FROM t1;
-a
-42
-123
-DROP TABLE t1;

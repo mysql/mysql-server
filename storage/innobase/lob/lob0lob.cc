@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0inf.h"
 #include "lob0lob.h"
 #include "lob0zip.h"
+#include "log0chkp.h"
 #include "row0upd.h"
 #include "zlob0first.h"
 

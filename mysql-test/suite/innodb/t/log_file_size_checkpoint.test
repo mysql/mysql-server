@@ -18,7 +18,7 @@ dec $i;
 # So we have to set buffer pool size to 50M which should be enough for this
 # test case. Once we fix the bug#22179133 and bug#22186325, we should use
 # the default innodb buffer pool(or the smaller one).
-let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=4M --innodb-buffer-pool-size=50M;
+let $restart_parameters = restart: --innodb-redo-log-capacity=8M --innodb-buffer-pool-size=50M;
 --source include/kill_and_restart_mysqld.inc
 
 --disable_query_log

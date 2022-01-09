@@ -1,0 +1,14 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.innodb_redo_log_files add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.innodb_redo_log_files;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.innodb_redo_log_files ADD INDEX test_index(IS_FULL);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.innodb_redo_log_files(FILE_ID);
+

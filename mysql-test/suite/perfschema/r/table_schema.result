@@ -864,6 +864,13 @@ def	performance_schema	host_cache	FIRST_SEEN	26	NULL	NO	timestamp	NULL	NULL	NULL
 def	performance_schema	host_cache	LAST_SEEN	27	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	LAST_ERROR_SEEN	29	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	innodb_redo_log_files	FILE_ID	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references	Id of the file.		NULL
+def	performance_schema	innodb_redo_log_files	FILE_NAME	2	NULL	NO	varchar	2000	8000	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(2000)			select,insert,update,references	Path to the file.		NULL
+def	performance_schema	innodb_redo_log_files	START_LSN	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references	LSN of the first block in the file.		NULL
+def	performance_schema	innodb_redo_log_files	END_LSN	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references	LSN after the last block in the file.		NULL
+def	performance_schema	innodb_redo_log_files	SIZE_IN_BYTES	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references	Size of the file (in bytes).		NULL
+def	performance_schema	innodb_redo_log_files	IS_FULL	6	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select,insert,update,references	1 iff file has no free space inside.		NULL
+def	performance_schema	innodb_redo_log_files	CONSUMER_LEVEL	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	All redo log consumers registered on smaller levels than this value, have already consumed this file.		NULL
 def	performance_schema	keyring_component_status	STATUS_KEY	1	NULL	NO	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select,insert,update,references			NULL
 def	performance_schema	keyring_component_status	STATUS_VALUE	2	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	keyring_keys	KEY_ID	1	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	varchar(255)			select,insert,update,references			NULL

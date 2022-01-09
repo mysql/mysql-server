@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "hash0hash.h"
 #include "ibuf0ibuf.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "my_dbug.h"
 #include "os0event.h"
 #include "os0file.h"
@@ -1411,7 +1412,7 @@ loop:
            " of your operating system may help. Look at the"
            " number of fsyncs in diagnostic info below."
            " Pending flushes (fsync) log: "
-        << fil_n_pending_log_flushes
+        << log_pending_flushes()
         << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
         << os_n_file_reads << " OS file reads, " << os_n_file_writes
         << " OS file writes, " << os_n_fsyncs

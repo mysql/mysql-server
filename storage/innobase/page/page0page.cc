@@ -2165,7 +2165,7 @@ bool page_validate(
   if (dict_index_is_sec_or_ibuf(index) && !index->table->is_temporary() &&
       page_is_leaf(page) && !page_is_empty(page)) {
     trx_id_t max_trx_id = page_get_max_trx_id(page);
-    /* This will be 0 during recv_apply_hashed_log_recs(true),
+    /* This will be 0 during recv_apply_hashed_log_recs(),
     because the transaction system has not been initialized yet */
     trx_id_t sys_next_trx_id_or_no = trx_sys_get_next_trx_id_or_no();
 

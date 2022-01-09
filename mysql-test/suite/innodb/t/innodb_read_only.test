@@ -57,7 +57,6 @@ DROP DATABASE WL6445;
 
 SHOW CREATE TABLE WL6445.t1;
 
-let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
 DROP TABLE WL6445.t1;

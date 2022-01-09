@@ -95,6 +95,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0clone.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
+#include "dd/impl/bootstrap/bootstrap_ctx.h"
 #include "dd/properties.h"
 #include "dd/types/index.h"
 #include "dd/types/object_table.h"
@@ -126,7 +127,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lex_string.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0meb.h"
+#include "log0pfs.h"
+#include "log0pre_8_0_30.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "my_compare.h"
@@ -184,10 +191,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "log0files_io.h"
+
 #include "json_binary.h"
 #include "json_dom.h"
 
-#include "log0log.h"
 #include "os0enc.h"
 #include "os0file.h"
 
@@ -227,13 +235,21 @@ static bool intitialize_service_handles() {
     return false;
   }
 
+  /* During initialize, PFS is not ready. */
+  if (!opt_initialize &&
+      !log_pfs_acquire_services(innobase::component_services::reg_srv)) {
+    ib::warn(ER_IB_MSG_LOG_PFS_ACQUIRE_SERVICES_FAILED);
+  }
+
   return true;
 }
 
 /** Deinitialize compoent service handles */
 static void deinitialize_service_handles() {
   DBUG_TRACE;
-
+  if (!opt_initialize) {
+    log_pfs_release_services(reg_srv);
+  }
   innobase::encryption::deinit_keyring_services(reg_srv);
   if (reg_srv != nullptr) {
     mysql_plugin_registry_release(reg_srv);
@@ -703,6 +719,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_files_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -821,6 +838,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(io_write_thread, "ib_io_wr", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_resize_thread, "ib_buf_resize", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_files_governor_thread, "ib_log_files_g",
+                   PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_writer_thread, "ib_log_writer", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_checkpointer_thread, "ib_log_checkpt",
@@ -1180,6 +1199,29 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"dblwr_writes", (char *)&export_vars.innodb_dblwr_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"redo_log_read_only", (char *)&export_vars.innodb_redo_log_read_only,
+     SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+    {"redo_log_uuid", (char *)&export_vars.innodb_redo_log_uuid, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_checkpoint_lsn",
+     (char *)&export_vars.innodb_redo_log_checkpoint_lsn, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_current_lsn", (char *)&export_vars.innodb_redo_log_current_lsn,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"redo_log_flushed_to_disk_lsn",
+     (char *)&export_vars.innodb_redo_log_flushed_to_disk_lsn, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_logical_size", (char *)&export_vars.innodb_redo_log_logical_size,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"redo_log_physical_size",
+     (char *)&export_vars.innodb_redo_log_physical_size, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_capacity_resized",
+     (char *)&export_vars.innodb_redo_log_capacity_resized, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"redo_log_resize_status",
+     (char *)&export_vars.innodb_redo_log_resize_status, SHOW_CHAR,
+     SHOW_SCOPE_GLOBAL},
     {"log_waits", (char *)&export_vars.innodb_log_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"log_write_requests", (char *)&export_vars.innodb_log_write_requests,
@@ -1469,7 +1511,10 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
-/** Checks if the filename name is reserved in InnoDB.
+/** Checks if the file name is reserved in InnoDB. Currently
+redo log file names from the old redo format (ib_logfile*)
+are reserved. There is no need to reserve file names from the
+newer redo formats, because they start with '#'.
 @return true if the name is reserved
 @param[in] hton handlerton of InnoDB
 @param[in] name Name of the database */
@@ -1522,6 +1567,8 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
   DBUG_TRACE;
 
   if (innodb_inited) {
+    log_pfs_delete_tables();
+
     innodb_inited = false;
     hash_table_free(innobase_open_tables);
     innobase_open_tables = nullptr;
@@ -4089,7 +4136,7 @@ static void innobase_post_recover() {
     ut_ad(Encryption::check_keyring());
 
     if (srv_read_only_mode) {
-      ib::error(ER_IB_MSG_1242);
+      ib::error(ER_IB_MSG_LOG_FILES_CANNOT_ENCRYPT_IN_READ_ONLY);
       srv_redo_log_encrypt = false;
     } else {
       /* Enable encryption for REDO log */
@@ -4111,6 +4158,14 @@ static void innobase_post_recover() {
   }
 
   srv_start_threads_after_ddl_recovery();
+
+  ut_a(innodb_inited);
+
+  if (!opt_initialize) {
+    if (!log_pfs_create_tables()) {
+      ib::warn(ER_IB_MSG_LOG_PFS_CREATE_TABLES_FAILED);
+    }
+  }
 }
 
 /**
@@ -4298,6 +4353,7 @@ rotation.
 bool innobase_encryption_key_rotation() {
   byte *master_key = nullptr;
   bool ret = false;
+  dberr_t err;
 
   /* Pause here to try other locks while this thread holds the backup locks. */
   DEBUG_SYNC_C("ib_pause_encryption_rotate");
@@ -4343,8 +4399,8 @@ bool innobase_encryption_key_rotation() {
     goto error_exit;
   }
 
-  /* Rotate log tablespace */
-  ret = !log_rotate_encryption();
+  err = log_encryption_on_master_key_changed(*log_sys);
+  ret = (err != DB_SUCCESS);
 
   /* If rotation failure, return error */
   if (ret) {
@@ -4403,8 +4459,8 @@ static
 #endif /* !UNIV_HOTBACKUP */
     void
     innodb_log_checksums_func_update(bool check) {
-  log_checksum_algorithm_ptr =
-      check ? log_block_calc_checksum_crc32 : log_block_calc_checksum_none;
+  log_checksum_algorithm_ptr.store(check ? log_block_calc_checksum_crc32
+                                         : log_block_calc_checksum_none);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -4526,15 +4582,63 @@ static void innodb_buffer_pool_size_init() {
   srv_buf_pool_curr_size = srv_buf_pool_size;
 }
 
-/** Initialize and normalize innodb_log_file_size
-and innodb_log_files_in_group. */
-static int innodb_log_file_size_init() {
+template <size_t N>
+static bool innodb_variable_is_set(const char (&var_name)[N]) {
+  enum enum_variable_source source;
+  ut_a(sysvar_source_svc != nullptr);
+  const auto svc_result = sysvar_source_svc->get(var_name, N - 1, &source);
+  ut_a(!svc_result);
+  return source != COMPILED;
+}
+
+static bool innodb_redo_log_capacity_is_set() {
+  return innodb_variable_is_set("innodb_redo_log_capacity");
+}
+
+bool innodb_log_file_size_is_set() {
+  return innodb_variable_is_set("innodb_log_file_size");
+}
+
+bool innodb_log_n_files_is_set() {
+  return innodb_variable_is_set("innodb_log_files_in_group");
+}
+
+/** Initialize srv_redo_log_capacity / srv_redo_log_capacity_used. */
+static void innodb_redo_log_capacity_init() {
   DBUG_TRACE;
 
-  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
-  ut_a(srv_log_file_size > 0);
+  ut_a(MB % UNIV_PAGE_SIZE == 0);
+  ut_a(srv_redo_log_capacity % MB == 0);
+  ut_a(srv_redo_log_capacity > 0);
 
-  if (srv_dedicated_server && sysvar_source_svc != nullptr) {
+  srv_redo_log_capacity_used = srv_redo_log_capacity;
+
+  if (sysvar_source_svc == nullptr) {
+    return;
+  }
+
+  const bool file_size_set = innodb_log_file_size_is_set();
+
+  const bool n_files_set = innodb_log_n_files_is_set();
+
+  bool capacity_set = innodb_redo_log_capacity_is_set();
+
+  if (capacity_set) {
+    if (file_size_set) {
+      ib::warn(ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED);
+    }
+    if (n_files_set) {
+      ib::warn(ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED);
+    }
+  } else {
+    if (file_size_set || n_files_set) {
+      srv_redo_log_capacity_used = srv_log_file_size * srv_log_n_files;
+      capacity_set = true;  // do not change it in dedicated_server mode
+      ib::warn(ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE, srv_redo_log_capacity_used);
+    }
+  }
+
+  if (srv_dedicated_server) {
     double auto_buf_pool_size_in_gb;
     static const char *var_name_buf_pool_size = "innodb_buffer_pool_size";
     enum enum_variable_source source;
@@ -4564,87 +4668,38 @@ static int innodb_log_file_size_init() {
       }
     }
 
-    /* If innodb_dedicated_server == ON and innodb_log_file_size is not set by
-    user. */
-    static const char *var_name_log_file_size = "innodb_log_file_size";
-    if (!sysvar_source_svc->get(
-            var_name_log_file_size,
-            static_cast<unsigned int>(strlen(var_name_log_file_size)),
-            &source)) {
-      if (source == COMPILED) {
-        if (auto_buf_pool_size_in_gb < 1.0) {
-          ;
-        } else if (auto_buf_pool_size_in_gb < 8.0) {
-          srv_log_file_size = 512ULL * MB;
-        } else if (auto_buf_pool_size_in_gb <= 128.0) {
-          srv_log_file_size = 1024ULL * MB;
-        } else {
-          srv_log_file_size = 2048ULL * MB;
-        }
+    if (!capacity_set) {
+      /* We update srv_redo_log_capacity (underlying sysvar variable),
+      because that is what innodb_dedicated_server is expected to do. */
+      if (auto_buf_pool_size_in_gb < 1.0) {
+        ut_ad(srv_redo_log_capacity == 100 * 1024 * 1024);
+      } else if (auto_buf_pool_size_in_gb < 8.0) {
+        srv_redo_log_capacity =
+            static_cast<ulong>(round(auto_buf_pool_size_in_gb)) * 512ULL * MB;
+      } else if (auto_buf_pool_size_in_gb <= 128.0) {
+        srv_redo_log_capacity =
+            static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75)) * GB;
       } else {
-        ib::warn(ER_IB_MSG_535)
-            << " Option innodb_dedicated_server is ignored for "
-            << "innodb_log_file_size"
-            << " because innodb_log_file_size=" << srv_log_file_size
-            << " is specified explicitly.";
-      }
-    }
+        constexpr os_offset_t LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER = 128 * GB;
 
-    /* If innodb_dedicated_server == ON and innodb_log_files_in_group is not set
-    by user. */
-    static const char *var_name_log_files = "innodb_log_files_in_group";
-    if (!sysvar_source_svc->get(
-            var_name_log_files,
-            static_cast<unsigned int>(strlen(var_name_log_files)), &source)) {
-      if (source == COMPILED) {
-        if (auto_buf_pool_size_in_gb < 1.0) {
-          ;
-        } else if (auto_buf_pool_size_in_gb < 8.0) {
-          srv_n_log_files = static_cast<ulong>(round(auto_buf_pool_size_in_gb));
-        } else if (auto_buf_pool_size_in_gb <= 128.0) {
-          srv_n_log_files =
-              static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75));
-        } else {
-          srv_n_log_files = 64;
-        }
+        static_assert(
+            LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER <= LOG_CAPACITY_MAX,
+            "Redo log capacity, for the dedicated server, is too big.");
 
-        srv_n_log_files = std::max<ulong>(srv_n_log_files, 2);
-      } else {
-        ib::warn(ER_IB_MSG_1271)
-            << " Option innodb_dedicated_server is ignored for "
-            << "innodb_log_files_in_group"
-            << " because innodb_log_files_in_group=" << srv_n_log_files
-            << " is specified explicitly.";
+        srv_redo_log_capacity = LOG_CAPACITY_FOR_BIG_DEDICATED_SERVER;
       }
+      srv_redo_log_capacity_used = srv_redo_log_capacity;
+
+    } else {
+      ut_a(srv_redo_log_capacity_used % MB == 0);
+      ib::warn(ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED,
+               ulonglong{srv_redo_log_capacity_used / MB});
     }
   }
 
-  if (srv_n_log_files * srv_log_file_size >=
-      512ULL * 1024ULL * 1024ULL * 1024ULL) {
-    /* log_block_convert_lsn_to_no() limits the returned block
-    number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
-    bytes, then we have a limit of 512 GB. If that limit is to
-    be raised, then log_block_convert_lsn_to_no() must be
-    modified. */
-    ib::error(ER_IB_MSG_536) << "Combined size of log files must be < 512 GB";
-
-    return HA_ERR_INITIALIZATION;
-  }
-
-  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
-    /* fil_io() is used for IO to log files and it takes page_id_t
-    as an argument which uses page_no_t. So any page number must
-    be < PAGE_NO_MAX. This means that a redo log file size is
-    limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
-    16k page size. */
-    ib::error(ER_IB_MSG_537)
-        << "Combined size of log files must be < "
-        << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
-
-    return HA_ERR_INITIALIZATION;
-  }
-
-  return 0;
+  ut_a(LOG_CAPACITY_MIN <= srv_redo_log_capacity_used);
+  ut_a(srv_redo_log_capacity_used <= LOG_CAPACITY_MAX);
+  ut_a(srv_redo_log_capacity_used % MB == 0);
 }
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
@@ -4974,10 +5029,7 @@ static int innodb_init_params() {
 
   innodb_undo_tablespaces_deprecate();
 
-  int ret = innodb_log_file_size_init();
-  if (ret != 0) {
-    return ret;
-  }
+  innodb_redo_log_capacity_init();
 
   /* Set the original value back to show in help. */
   if (srv_buf_pool_size_org != 0) {
@@ -14868,6 +14920,18 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   return 0;
 }
 
+int ha_innobase::check_for_upgrade(HA_CHECK_OPT *) {
+  const bool file_size_is_set = innodb_log_file_size_is_set();
+  const bool n_files_is_set = innodb_log_n_files_is_set();
+  if (file_size_is_set) {
+    return HA_ADMIN_INVALID;
+  }
+  if (n_files_is_set) {
+    return HA_ADMIN_INVALID;
+  }
+  return HA_ADMIN_OK;
+}
+
 /** Set Engine specific data to dd::Table object for upgrade.
 @param[in,out]  thd             thread handle
 @param[in]      db_name         database name
@@ -17780,11 +17844,6 @@ static bool innobase_get_tablespace_statistics(
   fil_type_t purpose = space->purpose;
 
   switch (purpose) {
-    case FIL_TYPE_LOG:
-      /* Do not report REDO LOGs to I_S.FILES */
-      space = nullptr;
-      ut_ad(!fsp_is_undo_tablespace(space_id));
-      return (DD_SUCCESS);
     case FIL_TYPE_TABLESPACE:
       if (fsp_is_undo_tablespace(space_id)) {
         type = "UNDO LOG";
@@ -21197,7 +21256,7 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   }
 
   if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1242);
+    ib::error(ER_IB_MSG_LOG_FILES_CANNOT_ENCRYPT_IN_READ_ONLY);
     return (0);
   }
 
@@ -21445,9 +21504,9 @@ static void checkpoint_now_set(THD *, SYS_VAR *, void *, const void *save) {
 
 /** Force InnoDB to do fuzzy checkpoint. Fuzzy checkpoint does not
 force InnoDB to flush dirty pages. It only forces to write the new
-checkpoint_lsn to the header of ib_logfile0. This LSN is where the
-recovery starts. You can read more about the fuzzy checkpoints in
-the internet.
+checkpoint_lsn to the header of the log file containing that LSN.
+This LSN is where the recovery starts. You can read more about the
+fuzzy checkpoints in the internet.
 @param[in]  save      immediate result from check function */
 static void checkpoint_fuzzy_now_set(THD *, SYS_VAR *, void *,
                                      const void *save) {
@@ -21642,6 +21701,40 @@ static void innodb_log_writer_threads_update(THD *, SYS_VAR *, void *var_ptr,
   log_control_writer_threads(*log_sys);
 }
 
+/** Update the system variable innodb_redo_log_capacity using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  save      immediate result from check function */
+static void innodb_redo_log_capacity_update(THD *thd, SYS_VAR *, void *,
+                                            const void *save) {
+  const auto new_value = *static_cast<const ulonglong *>(save);
+
+  ut_a(LOG_CAPACITY_MIN <= new_value);
+  ut_a(new_value <= LOG_CAPACITY_MAX);
+  ut_a(new_value % MB == 0);
+
+  srv_redo_log_capacity = new_value;
+
+  if (new_value == srv_redo_log_capacity_used) {
+    return;
+  }
+
+  srv_redo_log_capacity_used = new_value;
+
+  ib::info(ER_IB_MSG_LOG_FILES_CAPACITY_CHANGED,
+           srv_redo_log_capacity_used / MB);
+
+  log_files_resize_requested(*log_sys);
+
+  if (!log_sys->concurrency_margin_is_safe.load()) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Current innodb_redo_log_capacity"
+                        " is too small for safety of redo log files."
+                        " Consider increasing it or decreasing"
+                        " innodb_thread_concurrency.");
+  }
+}
+
 /** Update the system variable innodb_thread_concurrency using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]      thd       thread handle
@@ -21650,15 +21743,16 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *, void *,
                                              const void *save) {
   srv_thread_concurrency = *static_cast<const ulong *>(save);
 
-  if (!log_calc_concurrency_margin(*log_sys)) {
+  ib::info(ER_IB_MSG_THREAD_CONCURRENCY_CHANGED, srv_thread_concurrency);
+
+  log_files_thread_concurrency_updated(*log_sys);
+
+  if (!log_sys->concurrency_margin_is_safe.load()) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "Current innodb_thread_concurrency"
-                        " is too big for safety of log files."
-                        " Consider decreasing it or increase"
-                        " number of log files.");
-  } else {
-    ib::info(ER_IB_MSG_1270)
-        << "Set innodb_thread_concurrency to " << srv_thread_concurrency;
+                        " is too big for safety of redo log files."
+                        " Consider decreasing it or increasing"
+                        " innodb_redo_log_capacity.");
   }
 }
 
@@ -21996,7 +22090,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
 static MYSQL_SYSVAR_BOOL(
     dedicated_server, srv_dedicated_server,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
-    "Automatically scale innodb_buffer_pool_size and innodb_log_file_size "
+    "Automatically scale innodb_buffer_pool_size and innodb_redo_log_capacity "
     "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
     "if supported",
     nullptr, nullptr, false);
@@ -22307,19 +22401,23 @@ static MYSQL_SYSVAR_ULONG(
     nullptr, innodb_log_buffer_size_update, INNODB_LOG_BUFFER_SIZE_DEFAULT,
     INNODB_LOG_BUFFER_SIZE_MIN, INNODB_LOG_BUFFER_SIZE_MAX, 1024);
 
-static MYSQL_SYSVAR_ULONGLONG(log_file_size, srv_log_file_size,
-                              PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                              "Size of each log file (in bytes).", nullptr,
-                              nullptr, 48 * 1024 * 1024L, 4 * 1024 * 1024L,
-                              ULLONG_MAX, 1024 * 1024L);
+static MYSQL_SYSVAR_ULONGLONG(
+    log_file_size, srv_log_file_size, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Size of each log file before upgrading to 8.0.30. Deprecated.", nullptr,
+    nullptr, 48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX, 1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONG(
-    log_files_in_group, srv_n_log_files,
+    log_files_in_group, srv_log_n_files,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of log files (when multiplied by innodb_log_file_size gives total "
-    "size"
-    " of log files). InnoDB writes to files in a circular fashion.",
-    nullptr, nullptr, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+    "Number of log files before upgrading to 8.0.30. Deprecated.", nullptr,
+    nullptr, 2, 2, 100, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(
+    redo_log_capacity, srv_redo_log_capacity,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
+    "Limitation for total size of redo log files on disk (expressed in bytes).",
+    nullptr, innodb_redo_log_capacity_update, 100 * 1024 * 1024,
+    LOG_CAPACITY_MIN, LOG_CAPACITY_MAX, MB);
 
 #ifdef UNIV_DEBUG_DEDICATED
 static MYSQL_SYSVAR_ULONG(
@@ -22988,6 +23086,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_buffer_size),
     MYSQL_SYSVAR(log_file_size),
     MYSQL_SYSVAR(log_files_in_group),
+    MYSQL_SYSVAR(redo_log_capacity),
 #ifdef UNIV_DEBUG_DEDICATED
     MYSQL_SYSVAR(debug_sys_mem_size),
 #endif /* UNIV_DEBUG_DEDICATED */
@@ -23949,7 +24048,7 @@ static bool innodb_check_fk_column_compat(
 
 static bool innobase_check_reserved_file_name(handlerton *, const char *name) {
   CHARSET_INFO *ci = system_charset_info;
-  size_t logname_size = strlen(ib_logfile_basename);
+  size_t logname_size = strlen(log_pre_8_0_30::FILE_BASE_NAME);
 
   /* Name is smaller than reserved name */
   if (strlen(name) < logname_size) {
@@ -23957,7 +24056,10 @@ static bool innobase_check_reserved_file_name(handlerton *, const char *name) {
   }
   /* Do case insensitive comparison for name. */
   for (uint i = 0; i < logname_size; i++) {
-    if (my_tolower(ci, name[i]) != ib_logfile_basename[i]) {
+    ut_ad(!my_isalpha(ci, log_pre_8_0_30::FILE_BASE_NAME[i]) ||
+          my_islower(ci, log_pre_8_0_30::FILE_BASE_NAME[i]));
+
+    if (my_tolower(ci, name[i]) != log_pre_8_0_30::FILE_BASE_NAME[i]) {
       return (false);
     }
   }

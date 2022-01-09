@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "eval0proc.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "pars0types.h"
 #include "que0que.h"
 #include "row0ins.h"

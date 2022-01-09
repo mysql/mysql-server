@@ -93,15 +93,12 @@ SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
 @@global.innodb_read_io_threads
 4
-SELECT @@global.innodb_log_file_size;
-@@global.innodb_log_file_size
-5242880
 SELECT @@global.log_replica_updates;
 @@global.log_replica_updates
 1
 # modify existing persisted variables and add new
 SET PERSIST_ONLY innodb_read_io_threads= 16;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, log_replica_updates= 1;
+SET PERSIST_ONLY log_replica_updates= 1;
 # Restart server
 # after restart
 SELECT @@global.ft_query_expansion_limit;
@@ -113,9 +110,6 @@ SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
 @@global.innodb_read_io_threads
 16
-SELECT @@global.innodb_log_file_size;
-@@global.innodb_log_file_size
-4194304
 SELECT @@global.log_replica_updates;
 @@global.log_replica_updates
 1
@@ -154,7 +148,6 @@ VARIABLE_NAME
 binlog_gtid_simple_recovery
 ft_query_expansion_limit
 innodb_api_enable_mdl
-innodb_log_file_size
 innodb_read_io_threads
 log_replica_updates
 log_slave_updates
@@ -192,7 +185,6 @@ VARIABLE_NAME
 binlog_gtid_simple_recovery
 ft_query_expansion_limit
 innodb_api_enable_mdl
-innodb_log_file_size
 innodb_read_io_threads
 log_replica_updates
 log_slave_updates
@@ -233,23 +225,19 @@ ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIA
 # reset persisted variables
 RESET PERSIST;
 # test reset on readonly persisted variables
-SET @@persist_only.innodb_log_file_size= 4194304;
 SET @@persist_only.replica_type_conversions = ALL_UNSIGNED;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_log_file_size	4194304
 replica_type_conversions	ALL_UNSIGNED
 slave_type_conversions	ALL_UNSIGNED
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
-SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 auto_increment_increment	10
 ft_query_expansion_limit	20
 innodb_checksum_algorithm	strict_crc32
-innodb_log_file_size	50331648
 replica_type_conversions	ALL_UNSIGNED
 slave_type_conversions	ALL_UNSIGNED
 # reset replica_type_conversions
@@ -259,9 +247,8 @@ SELECT * FROM performance_schema.persisted_variables
 WHERE VARIABLE_NAME = 'replica_type_conversions';
 VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST auto_increment_increment;
-RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+WHERE VARIABLE_NAME IN ('auto_increment_increment')
 ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST;

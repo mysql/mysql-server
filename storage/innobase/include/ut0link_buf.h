@@ -316,7 +316,7 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
     auto next_load = slot.load(std::memory_order_acquire);
 
     if (next_load >= position + m_capacity) {
-      /* either we wrapped and tail was advanced mean while,
+      /* either we wrapped and tail was advanced meanwhile,
       or there is link start_lsn -> end_lsn of length >= m_capacity */
       position = m_tail.load(std::memory_order_acquire);
       if (position != from) {

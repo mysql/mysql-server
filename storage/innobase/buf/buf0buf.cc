@@ -54,7 +54,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats_bg.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -5016,7 +5017,8 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   /* These 8 bytes are also repurposed for PageIO compression and must
   be reset when the frame is assigned to a new page id. See fil0fil.h.
 
-  FIL_PAGE_FILE_FLUSH_LSN is used on the following pages:
+  The LSN stored at offset FIL_PAGE_FILE_FLUSH_LSN is used on the
+  following pages:
   (1) The first page of the InnoDB system tablespace (page 0:0)
   (2) FIL_RTREE_SPLIT_SEQ_NUM on R-tree pages .
 
@@ -6616,28 +6618,51 @@ void buf_must_be_all_freed(void) {
   }
 }
 
-/** Checks that there currently are no pending i/o-operations for the buffer
-pool.
-@return number of pending i/o */
-ulint buf_pool_check_no_pending_io(void) {
-  ulint i;
-  ulint pending_io = 0;
+size_t buf_pool_pending_io_reads_count() {
+  size_t pending_io_reads = 0;
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    pending_io_reads += buf_pool_from_array(i)->n_pend_reads;
+  }
+  return pending_io_reads;
+}
 
-  for (i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    pending_io += buf_pool->n_pend_reads;
-
+size_t buf_pool_pending_io_writes_count() {
+  size_t pending_io_writes = 0;
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
     mutex_enter(&buf_pool->flush_state_mutex);
-    pending_io += +buf_pool->n_flush[BUF_FLUSH_LRU] +
-                  buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] +
-                  buf_pool->n_flush[BUF_FLUSH_LIST];
+    pending_io_writes += buf_pool->n_flush[BUF_FLUSH_LRU] +
+                         buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] +
+                         buf_pool->n_flush[BUF_FLUSH_LIST];
     mutex_exit(&buf_pool->flush_state_mutex);
   }
+  return pending_io_writes;
+}
 
-  return (pending_io);
+void buf_pool_wait_for_no_pending_io_reads() {
+  uint32_t sleep_time_us = 100;
+  uint32_t sleep_time_since_info_emitted_us = 0;
+  constexpr uint32_t MAX_SLEEP_TIME_US = 1000 * 1000;
+  while (true) {
+    const size_t pending_io = buf_pool_pending_io_reads_count();
+    if (pending_io == 0) {
+      break;
+    }
+    /* Print a message every around 60 seconds,
+    if we are waiting for pending IO. */
+    if (sleep_time_since_info_emitted_us >= 60 * 1000 * 1000) {
+      const int error_code = srv_shutdown_state.load() != SRV_SHUTDOWN_NONE
+                                 ? ER_IB_MSG_BUF_PENDING_IO_ON_SHUTDOWN
+                                 : ER_IB_MSG_BUF_PENDING_IO;
+      ib::info(error_code, pending_io);
+      sleep_time_since_info_emitted_us = 0;
+    }
+
+    sleep_time_us = std::min(sleep_time_us * 2, MAX_SLEEP_TIME_US);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_us));
+
+    sleep_time_since_info_emitted_us += sleep_time_us;
+  }
 }
 
 #else /* !UNIV_HOTBACKUP */

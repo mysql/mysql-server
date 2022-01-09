@@ -44,7 +44,7 @@ COMMIT;
 # Same SQL used in all files but sequence of SQL is shuffled in each file
 perl;
    $files_cnt=$ENV{'client_cnt'};
-   $debug_var=$ENV{'debug_point'};
+   $debug_var="crash_".$ENV{'debug_point'};
    @load_type_array = ('mixed','high');
    @log_buffer_size_array = ('1048576','4194304','8388608','16777216','33554432');
    @log_innodb_log_write_ahead_size_array = ('512','1024','2048','4096','8192','16384');

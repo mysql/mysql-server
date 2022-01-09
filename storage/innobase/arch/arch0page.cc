@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0page.h"
 #include "arch0recv.h"
 #include "clone0clone.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "srv0start.h"
 
 #ifdef UNIV_DEBUG
@@ -143,35 +145,20 @@ dberr_t Arch_Group::write_to_doublewrite_file(Arch_File_Ctx *from_file,
 
 dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
                                         uint num_files, uint64_t file_size) {
-  auto err =
-      s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files, file_size);
+  auto err = s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files);
 
   if (err != DB_SUCCESS) {
     ut_ad(s_dblwr_file_ctx.get_phy_size() == file_size);
     return (err);
   }
 
-  err = s_dblwr_file_ctx.open(false, LSN_MAX, 0, 0);
+  err = s_dblwr_file_ctx.open(false, LSN_MAX, 0, 0, 0);
 
   if (err != DB_SUCCESS) {
     return (err);
   }
 
-  byte *buf = static_cast<byte *>(
-      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_archive), file_size));
-
-  /* Make sure that the physical file size is the same as logical by filling
-  the file with all-zeroes. Page archiver recovery expects that the physical
-  file size is the same as logical file size. */
-  err = s_dblwr_file_ctx.write(nullptr, buf, 0, file_size);
-
-  if (err == DB_SUCCESS) {
-    s_dblwr_file_ctx.flush();
-  }
-
-  ut::free(buf);
-
-  return (err);
+  return s_dblwr_file_ctx.resize_and_overwrite_with_zeros(file_size);
 }
 
 dberr_t Arch_Group::build_active_file_name() {
@@ -353,6 +340,8 @@ dberr_t Arch_Group::open_file(Arch_Page_Pos write_pos, bool create_new) {
   ut_d(auto count = get_file_count());
   ut_ad(count > 0);
 
+  ut_a(m_file_size == ARCH_PAGE_BLK_SIZE * ARCH_PAGE_FILE_CAPACITY);
+
   if (!create_new) {
     auto block_num = write_pos.m_block_num;
     uint file_index = Arch_Block::get_file_index(block_num, ARCH_DATA_BLOCK);
@@ -360,9 +349,9 @@ dberr_t Arch_Group::open_file(Arch_Page_Pos write_pos, bool create_new) {
 
     ut_ad(file_index + 1 == count);
 
-    err = m_file_ctx.open(false, m_begin_lsn, file_index, offset);
+    err = m_file_ctx.open(false, m_begin_lsn, file_index, offset, m_file_size);
   } else {
-    err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
+    err = m_file_ctx.open_new(m_begin_lsn, m_file_size, m_header_len);
   }
 
   return err;
@@ -903,7 +892,6 @@ void Page_Arch_Client_Ctx::print() {
 int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
   bool reset = false;
   int err = 0;
-  std::ostringstream msg;
 
   arch_client_mutex_enter();
 
@@ -960,7 +948,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
     dict_persist_to_dd_table_buffer();
 
     /* Make sure all written pages are synced to disk. */
-    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+    fil_flush_file_spaces();
 
     ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                            << m_start_lsn << ", checkpoint LSN : "
@@ -1384,7 +1372,7 @@ dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
 
   checksum = ut_crc32(m_data + ARCH_PAGE_BLK_HEADER_LENGTH, m_data_len);
 
-  /* Update block header. */
+  /* Update block's header. */
   mach_write_to_1(m_data + ARCH_PAGE_BLK_HEADER_VERSION_OFFSET,
                   ARCH_PAGE_FILE_VERSION);
   mach_write_to_1(m_data + ARCH_PAGE_BLK_HEADER_TYPE_OFFSET, m_type);
@@ -1402,11 +1390,17 @@ dberr_t Arch_Block::flush(Arch_Group *file_group, Arch_Blk_Flush_Type type) {
     case ARCH_DATA_BLOCK: {
       bool is_partial_flush = (type == ARCH_FLUSH_PARTIAL);
 
-      /** We allow partial flush to happen even if there were no pages added
-      since the last partial flush as the header might contain some useful
-      info required during recovery. */
+      /* Callback responsible for setting up file's header starting at offset 0.
+      This header is left empty within this flush operation. */
+      auto get_empty_file_header_cbk = [](uint64_t, byte *) {
+        return DB_SUCCESS;
+      };
+
+      /* We allow partial flush to happen even if there were no pages added
+      since the last partial flush as the block's header might contain some
+      useful info required during recovery. */
       err = file_group->write_to_file(nullptr, m_data, m_size, is_partial_flush,
-                                      true);
+                                      true, get_empty_file_header_cbk);
       break;
     }
 
@@ -2491,10 +2485,12 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       return (ER_OUTOFMEMORY);
     }
 
+    const uint64_t new_file_size =
+        static_cast<uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_PAGE_FILE_CAPACITY;
+
     /* Initialize archiver file context. */
     auto db_err = m_current_group->init_file_ctx(
-        ARCH_DIR, ARCH_PAGE_DIR, ARCH_PAGE_FILE, 0,
-        static_cast<uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_PAGE_FILE_CAPACITY);
+        ARCH_DIR, ARCH_PAGE_DIR, ARCH_PAGE_FILE, 0, new_file_size, 0);
 
     if (db_err != DB_SUCCESS) {
       arch_oper_mutex_exit();

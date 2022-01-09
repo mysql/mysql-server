@@ -45,6 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "srv0mon.h"

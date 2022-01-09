@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define buf0dblwr_h
 
 #include "buf0types.h"
-#include "log0log.h"
+#include "fil0fil.h"
 #include "log0recv.h"
 #include "ut0byte.h"
 

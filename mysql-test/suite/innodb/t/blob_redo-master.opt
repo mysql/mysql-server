@@ -1,1 +1,1 @@
---innodb-log-files-in-group=12 --innodb-log-file-size=5M
+--innodb-redo-log-capacity=60M

@@ -38,7 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0log.h"

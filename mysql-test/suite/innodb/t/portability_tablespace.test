@@ -20,6 +20,7 @@
 let $MYSQLD_OLD_DATADIR        = `select @@datadir`;
 let $MYSQLD_OLD                = $MYSQL_TMP_DIR/old;
 let $MYSQLD_OLD_REMOTE_DIR     = $MYSQLD_OLD/remote_dir;
+let $MYSQLD_OLD_REDO_LOG_DIR   = $MYSQLD_OLD_DATADIR/#innodb_redo;
 
 --disable_query_log
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -33,6 +34,7 @@ let $MYSQLD_NEW                = $MYSQL_TMP_DIR/new;
 let $MYSQLD_NEW_DATADIR        = $MYSQLD_NEW/data;
 let $MYSQLD_NEW_UNDO_DIR       = $MYSQLD_NEW/undo_dir;
 let $MYSQLD_NEW_DATA_HOME_DIR  = $MYSQLD_NEW/data_home_dir;
+let $MYSQLD_NEW_REDO_LOG_DIR   = $MYSQLD_NEW_DATA_HOME_DIR/#innodb_redo;
 let $MYSQLD_NEW_REMOTE_DIR     = $MYSQLD_NEW/remote_dir;
 
 --mkdir $MYSQLD_NEW
@@ -44,6 +46,7 @@ let $MYSQLD_NEW_REMOTE_DIR     = $MYSQLD_NEW/remote_dir;
 --mkdir $MYSQLD_NEW_DATADIR/mtr
 --mkdir $MYSQLD_NEW_UNDO_DIR
 --mkdir $MYSQLD_NEW_DATA_HOME_DIR
+--mkdir $MYSQLD_NEW_REDO_LOG_DIR
 --mkdir $MYSQLD_NEW_REMOTE_DIR
 --mkdir $MYSQLD_NEW_REMOTE_DIR/test
 
@@ -117,7 +120,7 @@ SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' 
 --copy_file $MYSQLD_OLD_DATADIR/auto.cnf         $MYSQLD_NEW_DATADIR/auto.cnf
 --copy_file $MYSQLD_OLD_DATADIR/ib_buffer_pool   $MYSQLD_NEW_DATA_HOME_DIR/ib_buffer_pool
 --copy_file $MYSQLD_OLD_DATADIR/ibdata1          $MYSQLD_NEW_DATA_HOME_DIR/ibdata1
---copy_files_wildcard $MYSQLD_OLD_DATADIR        $MYSQLD_NEW_DATA_HOME_DIR ib_logfile*
+--copy_files_wildcard $MYSQLD_OLD_REDO_LOG_DIR   $MYSQLD_NEW_REDO_LOG_DIR #ib_redo*
 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR        $MYSQLD_NEW_DATADIR *.ibd
 --copy_file $MYSQLD_OLD_DATADIR/undo_001         $MYSQLD_NEW_UNDO_DIR/undo_001
@@ -136,8 +139,8 @@ SELECT path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' 
 
 --echo # Remove the old datadir files and *.ibd files
 --remove_files_wildcard $MYSQLD_OLD_REMOTE_DIR/test/ *.ibd
+--remove_files_wildcard $MYSQLD_OLD_REDO_LOG_DIR/ #ib_redo*
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/ ib_buffer*
---remove_files_wildcard $MYSQLD_OLD_DATADIR/ ib_log*
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/ ibdata*
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/ undo*
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/ auto*
@@ -295,7 +298,7 @@ DROP TABLESPACE ts1;
 --copy_file $MYSQLD_NEW_DATADIR/auto.cnf $MYSQLD_OLD_DATADIR/auto.cnf
 --copy_file $MYSQLD_NEW_DATA_HOME_DIR/ib_buffer_pool $MYSQLD_OLD_DATADIR/ib_buffer_pool
 --copy_file $MYSQLD_NEW_DATA_HOME_DIR/ibdata1 $MYSQLD_OLD_DATADIR/ibdata1
---copy_files_wildcard $MYSQLD_NEW_DATA_HOME_DIR $MYSQLD_OLD_DATADIR/ ib_log*
+--copy_files_wildcard $MYSQLD_NEW_REDO_LOG_DIR $MYSQLD_OLD_REDO_LOG_DIR/ #ib_redo*
 --copy_files_wildcard $MYSQLD_NEW_DATADIR $MYSQLD_OLD_DATADIR *.ibd
 
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/sys/ $MYSQLD_OLD_DATADIR/sys/ *

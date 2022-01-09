@@ -19,7 +19,6 @@ might fail.
 
 log_error_verbosity=3
 lower_case_table_names=1
-innodb_log_files_in_group=4
 innodb_log_group_home_dir=../data_home
 innodb_data_home_dir=../data_home
 innodb_undo_directory=../undo_files

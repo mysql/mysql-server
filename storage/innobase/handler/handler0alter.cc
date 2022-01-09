@@ -75,7 +75,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "lex_string.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 
 #include "my_dbug.h"
 #include "my_io.h"

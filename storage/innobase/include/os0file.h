@@ -100,7 +100,7 @@ struct Block {
   size_t m_size;
   /** This padding is needed to avoid false sharing. TBD: of what exactly? We
   can't use alignas because std::vector<Block> uses std::allocator which in
-  C++14 doesn't have to handle overaligned types. (see 20.7.9.1.5 of N4140
+  C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
   draft) */
   byte pad[ut::INNODB_CACHE_LINE_SIZE];
   std::atomic<bool> m_in_use;
@@ -663,9 +663,6 @@ enum class AIO_mode : size_t {
   /**  Asynchronous i/o for ibuf pages or ibuf bitmap pages */
   IBUF = 22,
 
-  /** Asynchronous i/o for the log */
-  LOG = 23,
-
   /** Asynchronous i/o where the calling thread will itself wait for
   the i/o to complete, doing also the job of the i/o-handler thread;
   can be used for any pages, ibuf or non-ibuf.  This is used to save
@@ -760,7 +757,7 @@ bool os_file_create_directory(const char *pathname, bool fail_if_exists);
 entry in directory.
 @param[in]      path    path to the file
 @param[in]      name    name of the file */
-typedef void (*os_dir_cbk_t)(const char *path, const char *name);
+typedef std::function<void(const char *path, const char *name)> os_dir_cbk_t;
 
 /** This function scans the contents of a directory and invokes the callback
 for each entry.
@@ -1747,6 +1744,14 @@ dberr_t os_get_free_space(const char *path, uint64_t &free_space);
 @return DB_SUCCESS if all OK */
 dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
                            bool check_rw_perm, bool read_only);
+
+/** Check if a file can be opened in read-write mode.
+ @param[in]   name        filename to check
+ @param[in]   read_only   true if check for read-only mode only
+ @retval true   if file can be opened in the specified mode (rw or ro);
+                or file does not exist
+ @retval false  if file exists and can't be opened in the specified mode */
+bool os_file_check_mode(const char *name, bool read_only);
 
 #ifndef UNIV_HOTBACKUP
 

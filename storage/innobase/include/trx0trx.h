@@ -43,7 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #include "lock0types.h"
-#include "log0log.h"
 #include "mem0mem.h"
 #include "que0types.h"
 #include "trx0xa.h"

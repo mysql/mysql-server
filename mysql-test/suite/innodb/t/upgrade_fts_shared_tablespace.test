@@ -12,8 +12,8 @@
 
 --echo # Unzip the datadir
 # This zip file contains a data directory generated on 5.7 with following commands:
-# $ mysqld --initialize-insecure --innodb-log-file-size=4194304
-# $ mysqld --innodb-log-file-size=4194304
+# $ mysqld --initialize-insecure --innodb-redo-log-capacity=8388608
+# $ mysqld --innodb-redo-log-capacity=8388608
 # CREATE DATABASE test;
 # USE test;
 # CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' Engine=InnoDB;

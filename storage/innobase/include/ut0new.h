@@ -119,8 +119,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <type_traits> /* std::is_trivially_default_constructible */
 #include <unordered_set>
 
@@ -2852,10 +2854,23 @@ using ostringstream =
 template <typename T>
 using vector = std::vector<T, ut::allocator<T>>;
 
+/** Specialization of list which uses ut_allocator. */
+template <typename T>
+using list = std::list<T, ut::allocator<T>>;
+
+/** Specialization of set which uses ut_allocator. */
+template <typename Key, typename Compare = std::less<Key>>
+using set = std::set<Key, Compare, ut::allocator<Key>>;
+
 template <typename Key>
 using unordered_set =
     std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>,
                        ut::allocator<Key>>;
+
+/** Specialization of map which uses ut_allocator. */
+template <typename Key, typename Value, typename Compare = std::less<Key>>
+using map =
+    std::map<Key, Value, Compare, ut::allocator<std::pair<const Key, Value>>>;
 
 }  // namespace ut
 

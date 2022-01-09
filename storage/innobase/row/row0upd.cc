@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "mach0data.h"
 #include "pars0sym.h"
 #include "que0que.h"

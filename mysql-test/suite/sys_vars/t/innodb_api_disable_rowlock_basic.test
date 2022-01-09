@@ -80,9 +80,9 @@ SELECT @@innodb_api_disable_rowlock = @@GLOBAL.innodb_api_enable_binlog;
 
 
 --echo '#---------------------BS_STVARS_035_05----------------------#'
-################################################################################
-#   Check if innodb_log_file_size can be accessed with and without @@ sign     #
-################################################################################
+##################################################################################
+#   Check if innodb_api_disable_rowlock can be accessed with and without @@ sign #
+##################################################################################
 
 SELECT COUNT(@@innodb_api_disable_rowlock);
 --echo 1 Expected

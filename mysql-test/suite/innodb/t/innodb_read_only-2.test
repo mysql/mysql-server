@@ -2,7 +2,7 @@
 #                                                                    #
 # Testcase for worklog WL#6445: InnoDB should be able to work with   #
 # read-only tables
-# All sub-test in this file focus on changinf file permission and    #
+# All sub-test in this file focus on changing file permission and    #
 # restarting server in read only. It verifies necessary operations   #
 # are blocked                                                        #
 #                                                                    #
@@ -37,8 +37,9 @@ CREATE DATABASE testdb_wl6445;
 #------------------------------------------------------------------------------
 # Testcase covers
 # a) Create table/data ,
-# b) remove write permission of ibdata , ib_logfile0
-# c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
+# b) Stop the server
+# c) Remove write permission of ibdata , #ib_redo*
+# d) Start server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
 --echo case # 1
 
@@ -48,13 +49,19 @@ CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGI
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# refuse startup, in case there exist buffered changes from earlier tests.
+
+--source include/shutdown_innodb_clean.inc
+
 # remove write permissions
 --exec chmod a-w $MYSQLD_DATADIR/ibdata1
 --exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
---exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
-#
+--exec chmod a-w $MYSQLD_DATADIR/#innodb_redo/#ib_redo*
 
---source include/restart_innodb_read_only.inc
+--source include/start_innodb_readonly.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -86,9 +93,8 @@ UNLOCK TABLES;
 --source include/shutdown_mysqld.inc
 # Do something while server is down
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
---exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
+--exec chmod 0644 $MYSQLD_DATADIR/#innodb_redo/#ib_redo*
 --exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
-let $restart_parameters = restart;
 --source include/start_mysqld.inc
 DROP DATABASE testdb_wl6445;
 
@@ -96,8 +102,10 @@ DROP DATABASE testdb_wl6445;
 #------------------------------------------------------------------------------
 # Testcase covers
 # a) Create table/data ,
-# b) remove write permission of ibdata , ib_logfile0 when server is running
-# c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
+# b) Remove write permission of ibdata when server is running
+# c) Stop the server
+# d) Remove write permission of #ib_redo*
+# e) Start server in --innodb-read-only mode and verify DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
 --echo case # 2
 CREATE DATABASE testdb_wl6445;
@@ -110,8 +118,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 # remove write permissions
 --exec chmod a-w $MYSQLD_DATADIR/ibdata1
 --exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
---exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
-#
+
 # check dml/ddl after removing write permission
 CREATE TABLE t2 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
@@ -122,7 +129,15 @@ SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 
---source include/restart_innodb_read_only.inc
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# refuse startup, in case there exist buffered changes from earlier tests.
+--source include/shutdown_innodb_clean.inc
+
+--exec chmod a-w $MYSQLD_DATADIR/#innodb_redo/#ib_redo*
+
+--source include/start_innodb_readonly.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -153,8 +168,8 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 # Testcase covers
 # a) Create table/data ,
-# b) remove write permission of ibdata , ib_logfile0
-# c) try to restart server without --innodb-read-only mode
+# b) Remove write permission of ibdata , #ib_redo*
+# c) Try to restart server without --innodb-read-only mode
 #------------------------------------------------------------------------------
 #  Note : write permission is already removed in previous case so we just
 #         start server without --innodb-read-only option
@@ -189,10 +204,9 @@ let SEARCH_PATTERN= The innodb_system data file 'ibdata1' must be writable;
 #
 # Do something while server is down
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
---exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
+--exec chmod 0644 $MYSQLD_DATADIR/#innodb_redo/#ib_redo*
 --exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
 --remove_file $error_log
 
-let $restart_parameters = restart;
 --source include/start_mysqld.inc
 DROP DATABASE testdb_wl6445;

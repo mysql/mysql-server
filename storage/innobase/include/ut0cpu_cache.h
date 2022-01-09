@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,6 +39,9 @@ constexpr size_t INNODB_CACHE_LINE_SIZE = 128;
 #else
 constexpr size_t INNODB_CACHE_LINE_SIZE = 64;
 #endif /* __powerpc__ */
+
+/** Default kernel page size (not assuming huge pages support). */
+constexpr size_t INNODB_KERNEL_PAGE_SIZE_DEFAULT = 4 * 1024;
 
 /**
 A utility wrapper class, which adds padding at the end of the wrapped structure,

@@ -1,4 +1,4 @@
-# Scenario "random" - both redo and no-redo mini transactions happen
+# Scenario "random" - both redo and no-redo mini-transactions happen
 # concurrently in many threads. We freeze/unfreeze recent_closed
 # updates every 1 second (trying to make troubles).
 #

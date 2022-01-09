@@ -36,13 +36,8 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-# Note: we add the following parameters: "--innodb_log_file_size=15M
-# --innodb_log_files_in_group=2" to reduce bootstrap time. By default
-# innodb create 2*48MB redo log. With 2*10MB file, bootstrap takes less
-# time to create redo log files.
-
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
@@ -51,7 +46,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 # Wait for 300 seconds instead of the default 100
 --let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2"
+--let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1"
 --source include/start_mysqld.inc
 
 SET innodb_strict_mode=ON;
@@ -195,7 +190,7 @@ DROP TABLE tab5;
 --source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
 --error 1,42
@@ -211,7 +206,7 @@ let SEARCH_PATTERN= \[Warning\] .*MY-\\d+.* innodb-page-size has been changed fr
 # Wait for 300 seconds instead of the default 100
 --let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=15M --innodb_log_files_in_group=2"
+--let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1"
 --source include/start_mysqld.inc
 
 # Check page size
@@ -224,7 +219,7 @@ SELECT @@innodb_page_size;
 --force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameters for datadir1 and page size 64k
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD
@@ -233,7 +228,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 # Wait for 300 seconds instead of the default 100
 --let $wait_counter= 3000
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=15M --innodb_log_files_in_group=2"
+--let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1"
 --source include/start_mysqld.inc
 
 # Check page size

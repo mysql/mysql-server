@@ -1,0 +1,68 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+
+let $orig_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`;
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+SET GLOBAL DEBUG="+d,log_force_consumption";
+
+--echo # Waiting until we have exactly 1 redo log file.
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MAX = 1;
+--source include/ib_redo_log_files_count_wait.inc
+
+--echo # Disable checkpointing
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Redo log data is being generated and redo is resized-up after each round.
+let $i = 0;
+while ($i < 4) {
+   --echo "Waiting for physical size to reach 75% of"
+   SELECT @@innodb_redo_log_capacity;
+
+   let $wait_timeout= 60;
+   let $wait_condition=
+     SELECT 0.75*@@innodb_redo_log_capacity/1024/1024 <= variable_value
+     FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_physical_size';
+   --source include/wait_condition.inc
+
+   --sleep 1
+   SET GLOBAL innodb_redo_log_capacity = @@innodb_redo_log_capacity * 2;
+   inc $i;
+}
+
+--echo # Create 1 row in t.
+INSERT INTO t(a) VALUES(42);
+
+--echo # Enable checkpointing
+SET GLOBAL innodb_checkpoint_disabled = OFF;
+
+--echo # Redo log is resized-down in single shot.
+--eval SET GLOBAL innodb_redo_log_capacity = $orig_redo_log_capacity
+
+let $wait_timeout= 60;
+let $wait_condition=
+  SELECT variable_value <= @@innodb_redo_log_capacity/1024/1024
+  FROM performance_schema.global_status WHERE variable_name = 'Innodb_redo_log_physical_size';
+--source include/wait_condition.inc
+
+--echo # Kill the MySQL and recover to see all is fine
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t;
+
+--echo # Cleanup
+DROP TABLE t;
+--source include/ib_log_spammer_cleanup.inc

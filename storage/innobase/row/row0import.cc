@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0impl.h"
 #include "lob0lob.h"
 #include "lob0pages.h"
+#include "log0chkp.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0import.h"

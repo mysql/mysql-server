@@ -51,7 +51,7 @@ while ($pass != 2) {
   --source ../include/log_fill_block.inc
   let $start_lsn = $end_lsn;
 
-  --echo # 1. Execute tiny mini transaction in the current block [only pass 0]
+  --echo # 1. Execute tiny mini-transaction in the current block [only pass 0]
   if ($pass == 0) {
     SET AUTOCOMMIT = 0;
     INSERT INTO t (a) VALUES(102);
@@ -150,7 +150,7 @@ while ($pass != 4) {
   let $log_fill_block_and_crash = 0;
   --source ../include/log_fill_block.inc
 
-  --echo # 1. Execute tiny mini transaction in the current block [pass 0, 2]
+  --echo # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
   let $insert_202 = 0;
   if ($pass == 0) {
     let $insert_202 = 1;

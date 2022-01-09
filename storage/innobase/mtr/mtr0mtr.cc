@@ -39,8 +39,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0meb.h"
 #ifndef UNIV_HOTBACKUP
 #include "clone0clone.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
+#include "log0test.h"
+#include "log0write.h"
 #include "mtr0log.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
@@ -978,7 +981,20 @@ int mtr_t::Logging::disable(THD *) {
   }
 
   /* Mark that it is unsafe to crash going forward. */
-  log_persist_disable(*log_sys);
+  if (!srv_read_only_mode) {
+    /* We need to check for read-only mode, because InnoDB might be
+    restarted in read-only mode on log files for which redo logging
+    has been disabled just before the crash. During runtime, InnoDB
+    refuses to disable redo logging in read-only mode, but in such
+    case, we must pretend redo logging is still disabled. It should
+    not matter because in read-only, redo logging isn't used anyway.
+    However to preserve old behaviour we call s_logging.disable in
+    such case and we only prevent from calling log_persist_disable,
+    which in the old code was no-op anyway in such case (read-only).*/
+    log_persist_disable(*log_sys);
+  } else {
+    ut_ad(srv_is_being_started);
+  }
 
   ib::warn(ER_IB_WRN_REDO_DISABLED);
   m_state.store(DISABLED);
@@ -1174,8 +1190,8 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     static_assert(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
     ut_a(payload > MLOG_TEST_REC_OVERHEAD);
 
-    /* Subtract space which we will consume by usage of next record.
-    The remaining space is maximum we are allowed to consume within
+    /* Subtract space which we will occupy by usage of next record.
+    The remaining space is maximum we are allowed to occupy within
     this record. */
     payload -= MLOG_TEST_REC_OVERHEAD;
 

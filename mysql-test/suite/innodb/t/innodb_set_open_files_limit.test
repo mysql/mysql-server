@@ -67,13 +67,13 @@ SELECT innodb_set_open_files_limit(12342147483647);
 --error ER_WRONG_ARGUMENTS
 SELECT innodb_set_open_files_limit(10);
 --error ER_WRONG_ARGUMENTS
-SELECT innodb_set_open_files_limit(16);
+SELECT innodb_set_open_files_limit(14);
 
 # If the following (or above) query fails, check the error messages, you need
-# to adjust the value of 16 and 17 to match current limit.
-SELECT innodb_set_open_files_limit(17);
+# to adjust the value of 14 and 15 to match current limit.
+SELECT innodb_set_open_files_limit(15);
 --error ER_WRONG_ARGUMENTS
-SELECT innodb_set_open_files_limit(16);
+SELECT innodb_set_open_files_limit(14);
 
 #
 # Set correct values.

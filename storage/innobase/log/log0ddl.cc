@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "dict0stats.h"
 #include "ha_innodb.h"
+#include "log0chkp.h"
 #include "log0ddl.h"
 #include "mysql/plugin.h"
 #include "pars0pars.h"

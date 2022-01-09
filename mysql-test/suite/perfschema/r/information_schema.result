@@ -57,6 +57,7 @@ performance_schema	global_status	def
 performance_schema	global_variables	def
 performance_schema	host_cache	def
 performance_schema	hosts	def
+performance_schema	innodb_redo_log_files	def
 performance_schema	keyring_component_status	def
 performance_schema	keyring_keys	def
 performance_schema	log_status	def
@@ -171,6 +172,7 @@ global_status	BASE TABLE	PERFORMANCE_SCHEMA
 global_variables	BASE TABLE	PERFORMANCE_SCHEMA
 host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
+innodb_redo_log_files	BASE TABLE	PERFORMANCE_SCHEMA
 keyring_component_status	BASE TABLE	PERFORMANCE_SCHEMA
 keyring_keys	BASE TABLE	PERFORMANCE_SCHEMA
 log_status	BASE TABLE	PERFORMANCE_SCHEMA
@@ -285,6 +287,7 @@ global_status	10	Dynamic
 global_variables	10	Dynamic
 host_cache	10	Dynamic
 hosts	10	Fixed
+innodb_redo_log_files	10	Dynamic
 keyring_component_status	10	Dynamic
 keyring_keys	10	Dynamic
 log_status	10	Dynamic
@@ -398,6 +401,7 @@ file_summary_by_event_name	0
 file_summary_by_instance	0
 host_cache	0
 hosts	0
+innodb_redo_log_files	0
 keyring_component_status	0
 keyring_keys	0
 log_status	0
@@ -519,6 +523,7 @@ global_status	0	0
 global_variables	0	0
 host_cache	0	0
 hosts	0	0
+innodb_redo_log_files	0	0
 keyring_component_status	0	0
 keyring_keys	0	0
 log_status	0	0
@@ -633,6 +638,7 @@ global_status	0	0	NULL
 global_variables	0	0	NULL
 host_cache	0	0	NULL
 hosts	0	0	NULL
+innodb_redo_log_files	0	0	NULL
 keyring_component_status	0	0	NULL
 keyring_keys	0	0	NULL
 log_status	0	0	NULL
@@ -747,6 +753,7 @@ global_status	NULL	NULL	NULL
 global_variables	NULL	NULL	NULL
 host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
+innodb_redo_log_files	NULL	NULL	NULL
 keyring_component_status	NULL	NULL	NULL
 keyring_keys	NULL	NULL	NULL
 log_status	NULL	NULL	NULL
@@ -861,6 +868,7 @@ global_status	utf8mb4_0900_ai_ci	NULL
 global_variables	utf8mb4_0900_ai_ci	NULL
 host_cache	utf8mb4_0900_ai_ci	NULL
 hosts	utf8mb4_0900_ai_ci	NULL
+innodb_redo_log_files	utf8mb4_0900_ai_ci	NULL
 keyring_component_status	utf8mb4_0900_ai_ci	NULL
 keyring_keys	utf8mb4_bin	NULL
 log_status	utf8mb4_0900_ai_ci	NULL
@@ -975,6 +983,7 @@ global_status
 global_variables	
 host_cache	
 hosts	
+innodb_redo_log_files	
 keyring_component_status	
 keyring_keys	
 log_status	
@@ -1089,6 +1098,7 @@ global_status
 global_variables	
 host_cache	
 hosts	
+innodb_redo_log_files	
 keyring_component_status	
 keyring_keys	
 log_status	

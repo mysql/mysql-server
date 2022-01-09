@@ -33,7 +33,7 @@ if ($debug_test) {
 }
 
 --echo #
---echo # 1. Allow user threads to execute many redo-based mini transactions,
+--echo # 1. Allow user threads to execute many redo-based mini-transactions,
 --echo #    until current lsn is greater than init_lsn by more than capacity
 --echo #    of log.recent_closed.
 --echo #
@@ -87,7 +87,7 @@ SET DEBUG_SYNC = "now WAIT_FOR btr_ins_resume";
 disconnect con_mgr;
 
 --echo #
---echo # 4. Finish pending insertions in redo-based mini transactions.
+--echo # 4. Finish pending insertions in redo-based mini-transactions.
 --echo #
 
 let $i = $n_conn;
@@ -101,7 +101,7 @@ while ($i > 0) {
 --connection default
 
 --echo #
---echo # 5. Execute two standard mini transactions to ensure all is fine.
+--echo # 5. Execute two standard mini-transactions to ensure all is fine.
 --echo #
 
 CALL mtr_redo_generate_single(1, 1000);

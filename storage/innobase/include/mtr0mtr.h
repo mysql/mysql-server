@@ -41,7 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "dyn0buf.h"
 #include "fil0fil.h"
-#include "log0types.h"
 #include "mtr0types.h"
 #include "srv0srv.h"
 #include "trx0types.h"

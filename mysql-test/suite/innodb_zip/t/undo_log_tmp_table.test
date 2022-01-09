@@ -25,13 +25,13 @@
 # - Check constraints like duplicate key,default value             #
 # - Alter ADD COLUMN , ADD PRIMARY KEY                             #
 # - Flush Tables, logs command                                     #
-# - Vary innodb_rollback_segments & innodb_log_files_in_group      #
+# - Vary innodb_rollback_segments & innodb_redo_log_capacity       #
 # - Verify rseg message from server log                            #
 ####################################################################
 
 call mtr.ADD_suppression(".*Resizing redo log.*");
-call mtr.ADD_suppression(".*Starting to delete and rewrite log files.*");
-call mtr.ADD_suppression(".*New log files created.*");
+call mtr.ADD_suppression(".*Starting to delete and rewrite redo log files.*");
+call mtr.ADD_suppression(".*New redo log files created.*");
 # Save initial VALUES of server variable
 --disable_query_log
 let $innodb_file_per_table_orig=`SELECT @@innodb_file_per_table`;
@@ -450,9 +450,9 @@ disconnect con2;
 
 connection default;
 #
-## trying with VALUES innodb_rollback_segments ,innodb_log_files_in_group
+## trying with VALUES innodb_rollback_segments, innodb_redo_log_capacity
 ##
-let $restart_parameters = restart: --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_rollback_segments=20 --innodb_redo_log_capacity=20M;
 --source include/restart_mysqld.inc
 
 # Create two client for concurrent execution
@@ -505,7 +505,7 @@ disconnect con2;
 
 connection default;
 # innodb_rollback_segments > non redo rsegment
-let $restart_parameters = restart: --innodb_rollback_segments=30 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_rollback_segments=30 --innodb_redo_log_capacity=20M;
 --source include/restart_mysqld.inc
 
 connect (con1,localhost,root,,);

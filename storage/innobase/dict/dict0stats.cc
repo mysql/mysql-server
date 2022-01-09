@@ -760,7 +760,7 @@ static bool dict_stats_index_long_waiters(
   }
 }
 
-/* @{ Pseudo code about the relation between the following functions
+/** @{ Pseudo code about the relation between the following functions
 
 dict_stats_analyze_index()
   let N = N_SAMPLE_PAGES(index)
@@ -779,7 +779,7 @@ dict_stats_analyze_index_low(N)
       // full scan of the level in one mtr
       dive below some records and analyze the leaf page there:
       dict_stats_analyze_index_below_cur()
-@} */
+@} **/
 
 /** Find the total number and the number of distinct keys on a given level in
  an index. Each of the 1..n_uniq prefixes are looked up and the results are

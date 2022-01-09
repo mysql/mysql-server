@@ -1,0 +1,7 @@
+# Test starting MySQL with --innodb-log-file-size provided and --innodb-redo-log-capacity provided...
+# restart: --innodb-log-file-size=16777216 --log-error=ERROR_LOG
+Pattern "Ignored deprecated configuration parameter innodb_log_file_size\. Used innodb_redo_log_capacity instead\." found
+# Test starting MySQL with --innodb-log-files-in-group provided and --innodb-redo-log-capacity provided...
+# restart: --innodb-log-files-in-group=8 --log-error=ERROR_LOG
+Pattern "Ignored deprecated configuration parameter innodb_log_files_in_group\. Used innodb_redo_log_capacity instead\." found
+# restart:

@@ -25,7 +25,7 @@
 #
 include/assert.inc [We must advance current lsn by more than maximum flush order lag.]
 #
-# 4. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+# 4. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 #
 #    When bug was present, such mtr inserted pages with too big lsn using
 #    current lsn, which does not fit space in log.recent_closed, bypassing
@@ -65,7 +65,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #
 include/assert.inc [We must advance current lsn by more than maximum flush order lag.]
 #
-# 4. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+# 4. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 #
 #    When bug was present, such mtr inserted pages with too big lsn using
 #    current lsn, which does not fit space in log.recent_closed, bypassing
@@ -96,7 +96,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #
 #
 # 2. Optionally modify no-redo dirtied page (in which case next time we remodify it)
-#    Note it will be flushed mean while anyway.
+#    Note it will be flushed meanwhile anyway.
 #
 #
 # 3. Start transactions and open tables.
@@ -114,7 +114,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 7. Wait until we run out of free space in recent_closed...
 #
 #
-# 8. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+# 8. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 #    When bug was present, such mtr inserted pages with too big lsn using
 #    current lsn, which does not fit space in log.recent_closed, bypassing
 #    required wait for space there (thanks to MTR_LOG_NO_REDO).
@@ -123,7 +123,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 9. Resume log.recent_closed
 #
 #
-# 10. Finish pending mini transactions
+# 10. Finish pending mini-transactions
 #
 #
 # 11. Perform standard mtrs, just to ensure all is fine.
@@ -145,7 +145,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #
 #
 # 2. Optionally modify no-redo dirtied page (in which case next time we remodify it)
-#    Note it will be flushed mean while anyway.
+#    Note it will be flushed meanwhile anyway.
 #
 #
 # 3. Start transactions and open tables.
@@ -163,7 +163,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 7. Wait until we run out of free space in recent_closed...
 #
 #
-# 8. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+# 8. Execute mini-transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
 #    When bug was present, such mtr inserted pages with too big lsn using
 #    current lsn, which does not fit space in log.recent_closed, bypassing
 #    required wait for space there (thanks to MTR_LOG_NO_REDO).
@@ -172,7 +172,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 9. Resume log.recent_closed
 #
 #
-# 10. Finish pending mini transactions
+# 10. Finish pending mini-transactions
 #
 #
 # 11. Perform standard mtrs, just to ensure all is fine.
@@ -189,7 +189,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #    before it inserts the dirty page to flush list.
 #
 #
-# 1. Allow user threads to execute many redo-based mini transactions,
+# 1. Allow user threads to execute many redo-based mini-transactions,
 #    until current lsn is greater than init_lsn by more than capacity
 #    of log.recent_closed.
 #
@@ -200,10 +200,10 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 3. Resume the frozen no-redo mtr which seems to be too old.
 #
 #
-# 4. Finish pending insertions in redo-based mini transactions.
+# 4. Finish pending insertions in redo-based mini-transactions.
 #
 #
-# 5. Execute two standard mini transactions to ensure all is fine.
+# 5. Execute two standard mini-transactions to ensure all is fine.
 #
 include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # Kill and restart
@@ -217,7 +217,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #    before it inserts the dirty page to flush list.
 #
 #
-# 1. Allow user threads to execute many redo-based mini transactions,
+# 1. Allow user threads to execute many redo-based mini-transactions,
 #    until current lsn is greater than init_lsn by more than capacity
 #    of log.recent_closed.
 #
@@ -228,10 +228,10 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # 3. Resume the frozen no-redo mtr which seems to be too old.
 #
 #
-# 4. Finish pending insertions in redo-based mini transactions.
+# 4. Finish pending insertions in redo-based mini-transactions.
 #
 #
-# 5. Execute two standard mini transactions to ensure all is fine.
+# 5. Execute two standard mini-transactions to ensure all is fine.
 #
 include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # Kill and restart
@@ -245,7 +245,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #    before it inserts the dirty page to flush list.
 #
 #
-# 1. Allow user threads to execute many redo-based mini transactions,
+# 1. Allow user threads to execute many redo-based mini-transactions,
 #    until current lsn is greater than init_lsn by more than capacity
 #    of log.recent_closed.
 #
@@ -257,10 +257,10 @@ Flush all dirty pages...
 # 3. Resume the frozen no-redo mtr which seems to be too old.
 #
 #
-# 4. Finish pending insertions in redo-based mini transactions.
+# 4. Finish pending insertions in redo-based mini-transactions.
 #
 #
-# 5. Execute two standard mini transactions to ensure all is fine.
+# 5. Execute two standard mini-transactions to ensure all is fine.
 #
 include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # Kill and restart
@@ -275,7 +275,7 @@ include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 #    before it inserts the dirty page to flush list.
 #
 #
-# 1. Allow user threads to execute many redo-based mini transactions,
+# 1. Allow user threads to execute many redo-based mini-transactions,
 #    until current lsn is greater than init_lsn by more than capacity
 #    of log.recent_closed.
 #
@@ -287,17 +287,16 @@ Flush all dirty pages...
 # 3. Resume the frozen no-redo mtr which seems to be too old.
 #
 #
-# 4. Finish pending insertions in redo-based mini transactions.
+# 4. Finish pending insertions in redo-based mini-transactions.
 #
 #
-# 5. Execute two standard mini transactions to ensure all is fine.
+# 5. Execute two standard mini-transactions to ensure all is fine.
 #
 include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
 # Kill and restart
 #
-# Scenario 3 - Execute in parallel many redo and no-redo mini
-#              transactions. Freeze and unfreeze recent_closed
-#              every 1s.
+# Scenario 3 - Execute in parallel many redo and no-redo mini-transactions.
+#              Freeze and unfreeze recent_closed every 1s.
 #
 #
 # 0. Freeze log.recent_closed.

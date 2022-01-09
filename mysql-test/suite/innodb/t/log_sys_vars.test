@@ -1,0 +1,22 @@
+# Test different redo sys vars provided to the InnoDB on startup.
+
+let MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args=--console --log-error-verbosity=3 > $SEARCH_FILE 2>&1;
+
+--source include/shutdown_mysqld.inc
+
+--echo # Provide invalid path for redo directory (scenario 1 moved from log_file_size.test)
+--error 1,42
+--exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
+let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+--source include/start_mysqld.inc
+
+--echo # Check space occupied by redo log files
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_PHYSICAL_CAPACITY = `SELECT @@innodb_redo_log_capacity`;
+--source include/ib_redo_log_capacity_check.inc

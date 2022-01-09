@@ -23,7 +23,7 @@ c1	LEFT(c2,10)
 100	cccccccccc
 DROP TABLE tne_1;
 # Stop the MTR default DB server
-Pattern "Can\'t set redo log tablespace to be encrypted" found
+Pattern "Can\'t set redo log files to be encrypted" found
 # create bootstrap file
 # Restore global manifest file for MySQL server from backup
 # Prepare new datadir

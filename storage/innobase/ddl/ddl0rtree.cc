@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0load.h"
 #include "ddl0impl-cursor.h"
 #include "ddl0impl-rtree.h"
+#include "log0chkp.h"
 #include "row0vers.h"
 
 namespace ddl {
@@ -104,7 +105,7 @@ dberr_t RTree_inserter::batch_insert(trx_id_t trx_id,
 
     ut_ad(dtuple != nullptr);
 
-    if (log_needs_free_check() IF_DEBUG(|| force_log_free_check)) {
+    if (log_free_check_is_required() IF_DEBUG(|| force_log_free_check)) {
       if (!latches_released) {
         deep_copy_tuples(it);
 

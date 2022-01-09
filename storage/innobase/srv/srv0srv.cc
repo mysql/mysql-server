@@ -65,7 +65,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
+#include "log0buf.h"
+#include "log0chkp.h"
+#include "log0encryption.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
@@ -232,22 +236,15 @@ char *srv_log_group_home_dir = nullptr;
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
 
-ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
+ulong srv_log_n_files = 100; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_log_file_size; /* Deprecated (used only for deprecated sysvar). */
+
+ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
 #ifdef UNIV_DEBUG_DEDICATED
 ulong srv_debug_system_mem_size;
 #endif /* UNIV_DEBUG_DEDICATED */
-
-/** At startup, this is the current redo log file size.
-During startup, if this is different from srv_log_file_size_requested
-(innodb_log_file_size), the redo log will be rebuilt and this size
-will be initialized to srv_log_file_size_requested.
-When upgrading from a previous redo log format, this will be set to 0,
-and writing to the redo log is not allowed. Expressed in bytes. */
-ulonglong srv_log_file_size;
-
-/** The value of the startup parameter innodb_log_file_size. */
-ulonglong srv_log_file_size_requested;
 
 /** Space for log buffer, expressed in bytes. Note, that log buffer
 will use only the largest power of two, which is not greater than
@@ -1582,7 +1579,7 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+      log_pending_flushes() + fil_n_pending_tablespace_flushes;
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -1638,9 +1635,9 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_os_log_written = srv_stats.os_log_written;
 
-  export_vars.innodb_os_log_fsyncs = fil_n_log_flushes;
+  export_vars.innodb_os_log_fsyncs = log_total_flushes();
 
-  export_vars.innodb_os_log_pending_fsyncs = fil_n_pending_log_flushes;
+  export_vars.innodb_os_log_pending_fsyncs = log_pending_flushes();
 
   export_vars.innodb_os_log_pending_writes = srv_stats.os_log_pending_writes;
 
@@ -2499,37 +2496,30 @@ static bool srv_master_do_shutdown_tasks(
 
 /* Enable REDO tablespace encryption */
 bool srv_enable_redo_encryption() {
-  /* Start to encrypt the redo log block from now on. */
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+  log_t &log = *log_sys;
 
-  /* While enabling encryption, make sure not to overwrite the tablespace key.
-   */
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  /* While enabling encryption, make sure not to overwrite the existing
+  redo log encryption key (if it has already been generated).
+
+  Note that we can safely check log.m_encryption_metadata without acquiring
+  any of mutexes which are enlisted as required to protect updates of this
+  field. That's because srv_enable_redo_encryption() is called either in
+  startup phase, or during update of innodb_redo_log_encrypt. Server ensures
+  that sysvars are not being updated concurrently and that they are not being
+  updated during startup phase. */
+  if (log_can_encrypt(log)) {
     return false;
   }
 
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
-                        dict_sys_t::s_log_space_first_id, false);
+                        dict_sys_t::s_log_space_id, false);
   if (notifier.failed()) {
     return true;
   }
 
-  dberr_t err;
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
-
-  Encryption::random_value(key);
-  Encryption::random_value(iv);
-
-  if (!log_write_encryption(key, iv)) {
-    ib::error(ER_IB_MSG_1243);
-    return true;
-  }
-
-  fsp_flags_set_encryption(space->flags);
-  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-  if (err != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_1244);
+  /* Start to encrypt the redo log block from now on. */
+  if (log_encryption_generate_metadata(log) != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
     return true;
   }
 
@@ -2545,17 +2535,18 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
 
   dberr_t err;
   byte encrypt_info[Encryption::INFO_SIZE];
-  byte key[Encryption::KEY_LEN];
-  byte iv[Encryption::KEY_LEN];
 
-  Encryption::random_value(key);
-  Encryption::random_value(iv);
+  Encryption_metadata encryption_metadata;
+
+  Encryption::set_or_generate(Encryption::AES, nullptr, nullptr,
+                              encryption_metadata);
 
   /* 0 fill encryption info */
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
-  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, true)) {
+  if (!Encryption::fill_encryption_info(encryption_metadata, true,
+                                        encrypt_info)) {
     ib::error(ER_IB_MSG_1052, space->name);
     return true;
   }
@@ -2571,7 +2562,8 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
 
   /* Update In-Mem encryption information for UNDO tablespace */
   fsp_flags_set_encryption(space->flags);
-  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+  err = fil_set_encryption(space->id, encryption_metadata.m_type,
+                           encryption_metadata.m_key, encryption_metadata.m_iv);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
     return true;

@@ -42,7 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
-#include "log0log.h"
 #include "log0recv.h"
 #include "mtr0log.h"
 #include "os0file.h"

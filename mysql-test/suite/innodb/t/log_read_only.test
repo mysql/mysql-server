@@ -1,0 +1,74 @@
+# Test different redo sys vars provided to the InnoDB on startup.
+
+--source include/have_debug.inc
+
+let MYSQLD_DATADIR = `select @@datadir`;
+let $args=--datadir=$MYSQLD_DATADIR --log-error-verbosity=3;
+
+--echo # Scenario 1
+--echo # Ensure we do not allow recovery in read-only mode.
+--echo #
+--echo # Prepare non empty redo log and crash.
+
+SET GLOBAL innodb_redo_log_capacity = 10*1024*1024;
+
+SET GLOBAL innodb_monitor_enable = module_log;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+CREATE TABLE t (a INT PRIMARY KEY) ENGINE = INNODB;
+INSERT INTO t (a) VALUES (1);
+
+--echo Expecting 1 as result of below query:
+SELECT COUNT > 0 FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME = 'log_lsn_checkpoint_age';
+
+--source include/kill_mysqld.inc
+
+--echo # Restart MySQL in read-only mode (the same redo capacity).
+let MYSQLD_LOG_1= $MYSQLTEST_VARDIR/log/log_read_only-1.log;
+--error 1,42
+--exec $MYSQLD_CMD $args --innodb-read-only --innodb-redo-log-capacity=10M --log-error=$MYSQLD_LOG_1
+let SEARCH_FILE= $MYSQLD_LOG_1;
+let SEARCH_PATTERN= Can.t initiate database recovery, running in read-only-mode;
+--source include/search_pattern.inc
+
+--echo # Cleanup...
+--source include/start_mysqld.inc
+DROP TABLE t;
+
+--echo # Scenario 2
+--echo # Ensure we do not allow to resize redo log in read-only mode.
+--echo #
+--echo # Perform slow shutdown to ensure redo is empty.
+
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/shutdown_mysqld.inc
+
+--echo # Restart MySQL in read-only mode (different redo log capacity).
+let MYSQLD_LOG_2= $MYSQLTEST_VARDIR/log/log_read_only-2.log;
+--error 1,42
+--exec $MYSQLD_CMD $args --innodb-read-only --innodb-redo-log-capacity=8M --debug="d,log_force_resize" --log-error=$MYSQLD_LOG_2
+let SEARCH_FILE= $MYSQLD_LOG_2;
+let SEARCH_PATTERN= Cannot resize redo log files in read-only mode;
+--source include/search_pattern.inc
+
+--echo # Scenario 3
+--echo # Refuse to start in read-only mode without log files.
+--echo #
+--echo # Remove all redo log files.
+--remove_files_wildcard $MYSQLD_DATADIR/#innodb_redo #ib_redo*
+let MYSQLD_LOG_3= $MYSQLTEST_VARDIR/log/log_read_only-3.log;
+--error 1,42
+--exec $MYSQLD_CMD $args --innodb-read-only --log-error=$MYSQLD_LOG_3
+let SEARCH_FILE= $MYSQLD_LOG_3;
+let SEARCH_PATTERN= Cannot create redo log files in read-only mode;
+--source include/search_pattern.inc
+
+--echo # Cleanup...
+--source include/start_mysqld.inc
+
+# It might be useful to comment out code below, when debugging test failures
+--remove_file $MYSQLD_LOG_1
+--remove_file $MYSQLD_LOG_2
+--remove_file $MYSQLD_LOG_3

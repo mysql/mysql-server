@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0pcur.h"
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 
 namespace ddl {
 /** Innodb B-tree index fill factor for bulk load. */
@@ -971,7 +972,7 @@ dberr_t Btree_load::page_commit(Page_load *page_loader,
 }
 
 void Btree_load::log_free_check() noexcept {
-  if (log_needs_free_check()) {
+  if (log_free_check_is_required()) {
     release();
 
     ::log_free_check();

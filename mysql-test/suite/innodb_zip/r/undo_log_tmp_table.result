@@ -1,6 +1,6 @@
 call mtr.ADD_suppression(".*Resizing redo log.*");
-call mtr.ADD_suppression(".*Starting to delete and rewrite log files.*");
-call mtr.ADD_suppression(".*New log files created.*");
+call mtr.ADD_suppression(".*Starting to delete and rewrite redo log files.*");
+call mtr.ADD_suppression(".*New redo log files created.*");
 CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
 begin
 declare n int default 20;
@@ -820,7 +820,7 @@ c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 -2	-2	a	a	a	a	a	100.550	99	test
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_rollback_segments=20 --innodb_log_files_in_group=4
+# restart: --innodb_rollback_segments=20 --innodb_redo_log_capacity=20M
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"
@@ -1321,7 +1321,7 @@ c1
 138
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_rollback_segments=30 --innodb_log_files_in_group=4
+# restart: --innodb_rollback_segments=30 --innodb_redo_log_capacity=20M
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"

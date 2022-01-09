@@ -1,0 +1,76 @@
+# Test for redo files cooperation between producer (log_writer)
+# and consumer (log_checkpointer) when it comes to log files
+# producing and consuming.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+SET GLOBAL DEBUG = '+d,log_force_consumption';
+
+SET GLOBAL DEBUG = '+d,syncpoint_log_before_waiting_for_next_file';
+
+--echo # Freeze log files consumer.
+let err_msg=Redo log writer is waiting for a new redo log file;
+--eval CALL mtr.add_suppression("$err_msg.*");
+
+SET GLOBAL DEBUG = '+d,syncpoint_log_before_file_consume';
+
+--echo # Wait until log files consumer is frozen.
+
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_before_file_consume';
+
+--echo # Consumer is frozen. Create connection which generates spam to the redo log.
+
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Redo log data is being generated.
+--echo # Wait until log_writer signals it is waiting for a next file available.
+
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_before_waiting_for_next_file';
+
+SET GLOBAL DEBUG = '-d,syncpoint_log_before_waiting_for_next_file';
+
+# No need to keep the log_writer paused because it will be waiting anyway.
+SET DEBUG_SYNC = 'now SIGNAL continue_log_before_waiting_for_next_file';
+
+--echo # The log_writer is waiting because there are no free files and consumer is frozen.
+--echo # Check that error log received information about that.
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN=$err_msg;
+--source include/search_pattern.inc
+
+--echo # Unfreeze the log file consumer and wait until next log file is produced.
+
+SET GLOBAL DEBUG = '+d,syncpoint_log_after_file_produced';
+
+SET GLOBAL DEBUG = '-d,syncpoint_log_before_file_consume';
+
+SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_consume';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_log_after_file_produced';
+
+SET GLOBAL DEBUG = '-d,syncpoint_log_after_file_produced';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_after_file_produced';
+
+--echo # Create 1 row in t.
+INSERT INTO t(a) VALUES(42);
+
+--echo # Kill the MySQL and recover to see all is fine
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t;
+
+--echo # Cleanup.
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t;
+--source include/ib_log_spammer_cleanup.inc
