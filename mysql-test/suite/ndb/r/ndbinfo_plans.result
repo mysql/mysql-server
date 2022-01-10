@@ -323,7 +323,7 @@ select * from index_columns order by index_object_id;
 table_id	database_name	table_name	index_object_id	index_name	index_type	status	columns
 5	mysql	ndb_index_stat_sample	6	ndb_index_stat_sample_x1	6	retrieved	index_id,index_version,sample_version
 11	mysql	ndb_sql_metadata	12	PRIMARY	6	retrieved	type,name,seq
-select * from hash_maps;
+select * from hash_maps order by id limit 1;
 id	version	state	fq_name
 1	1	4	DEFAULT-HASHMAP-3840-8
 

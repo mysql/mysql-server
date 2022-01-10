@@ -59,8 +59,11 @@ CREATE TABLE t2 (
 
 alter table t2 algorithm=inplace, add unique index (c);
 
-let $ndb_desc_opts= -b -i -d test t1;
-source suite/ndb/include/ndb_desc_print.inc;
+let $ndb_describe_table= t1;
+let $ndb_describe_blobs= 1;
+let $ndb_describe_indexes= 1;
+let $ndb_describe_print_exit= 2;
+source suite/ndb/include/ndb_describe_table.inc;
 
 insert into t1 values
 (0, "row 0", 0, REPEAT("qubit#0",500)),

@@ -500,26 +500,31 @@ partition by key(a) partitions 3;
 Table: test.t1
 PartitionCount: 2
 FragmentCount: 2
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t2
 PartitionCount: 2
 FragmentCount: 2
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t3
 PartitionCount: 4
 FragmentCount: 4
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 4
 Table: test.t4
 PartitionCount: 2
 FragmentCount: 2
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t5
 PartitionCount: 3
 FragmentCount: 3
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
 c$unique(c) - UniqueHashIndex
@@ -1881,6 +1886,7 @@ a	b	c
 Table: test.t4
 PartitionCount: 2
 FragmentCount: 2
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 drop table t4;
@@ -2489,21 +2495,25 @@ a	b	c
 Table: test.t1
 PartitionCount: 5
 FragmentCount: 5
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 5
 Table: test.t2
 PartitionCount: 7
 FragmentCount: 7
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 7
 Table: test.t3
 PartitionCount: 8
 FragmentCount: 8
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 8
 Table: test.t5
 PartitionCount: 3
 FragmentCount: 3
+
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
 c$unique(c) - UniqueHashIndex

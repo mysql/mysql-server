@@ -22,22 +22,12 @@ if (`select LENGTH('$show_varpart_table') = 0`)
   let $show_varpart_table=t1;
 }
 
-# Dump the output of ndb_desc to file
---exec $NDB_DESC -d $show_varpart_db $show_varpart_table > $dump_file
+let $output=`SELECT Concat("ForceVarPart: ", force_var_part)
+  FROM ndbinfo.dictionary_tables
+  WHERE database_name="$show_varpart_db" AND table_name="$show_varpart_table"`;
 
-# Load the file into a temporary table
-CREATE TEMPORARY TABLE test.desc (a varchar(512));
+echo $output;
 
---replace_result $dump_file DUMP_FILE
-eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
---remove_file $dump_file
-
-# Query the temporary table
-let $value = `SELECT TRIM(TRAILING "\r" FROM a) FROM test.desc
-  WHERE a LIKE "ForceVarPart%"`;
-echo $value;
-
-DROP TABLE test.desc;
 let $show_varpart_db=;
 let $show_varpart_table=;
 --enable_query_log

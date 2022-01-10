@@ -40,8 +40,7 @@ ALTER TABLE t1 CHANGE b c INT UNSIGNED ;
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
---let $ndb_desc_opts= -b -i -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+--source show_attributes.inc
 
 INSERT INTO t1 values (2,2,2,"Two");
 SELECT * FROM t1 ORDER BY a;
@@ -50,8 +49,7 @@ ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE c D INT UNSIGNED;
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
---let $ndb_desc_opts= -b -i -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+--source show_attributes.inc
 
 INSERT INTO t1 values (3,3,3,"Three");
 SELECT * FROM t1 ORDER BY a;
@@ -60,8 +58,7 @@ ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE D d INT UNSIGNED;
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
---let $ndb_desc_opts= -b -i -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+--source show_attributes.inc
 
 INSERT INTO t1 values (4,4,4,"Four");
 SELECT * FROM t1 ORDER BY a;
@@ -70,8 +67,7 @@ ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE f t TEXT;
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
---let $ndb_desc_opts= -b -i -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+--source show_attributes.inc
 
 INSERT INTO t1 values (5,5,5,"Five");
 SELECT * FROM t1 ORDER BY a;
@@ -119,8 +115,10 @@ DROP TABLE t1;
 
 SELECT * FROM t1 ORDER BY a;
 
---let $ndb_desc_opts= -b -i -d test t1
---source suite/ndb/include/ndb_desc_print.inc
+--let $ndb_describe_table= t1
+--let $ndb_describe_indexes= 1
+--let $ndb_describe_blobs= 1
+--source suite/ndb/include/ndb_describe_table.inc
 
 --echo *********************************
 --echo * Error tests

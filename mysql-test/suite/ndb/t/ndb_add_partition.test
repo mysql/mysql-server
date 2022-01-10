@@ -1,3 +1,5 @@
+# This test has not yet been adapted to wl#11968, pending fix to bug#33739957
+
 --source include/have_multi_ndb.inc
 
 --disable_warnings

@@ -10,10 +10,9 @@ load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id2 = -@id;
 
 ## Check details of partitioning
---replace_regex /FragmentCount:/FragmentCount/ /PartitionCount:/PartitionCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*// /[0-9]*\/[0-9]*\/id1/.../
---exec $NDB_DESC -dtest t1
---replace_regex /FragmentCount:/FragmentCount/ /PartitionCount:/PartitionCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*// /[0-9]*\/[0-9]*\/id1/.../
---exec $NDB_DESC -dtest t2
+SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
+  WHERE table_name in ("t1", "t2");
+
 
 ## Create nodegroup for "new" nodes
 --replace_regex /Connected to Management Server at: .*//
@@ -30,10 +29,8 @@ alter table t2 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, reorganize partition;
 
 ## Check details of partitioning
---replace_regex /FragmentCount:/FragmentCount/ /PartitionCount:/PartitionCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*// /[0-9]*\/[0-9]*\/id1/.../
---exec $NDB_DESC -dtest t1
---replace_regex /FragmentCount:/FragmentCount/ /PartitionCount:/PartitionCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*// /[0-9]*\/[0-9]*\/id1/.../
---exec $NDB_DESC -dtest t2
+SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
+WHERE table_name in ("t1", "t2");
 
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze

@@ -34,8 +34,17 @@ create table t5 (a bigint, primary key (a)) engine=ndb
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 show create table t5;
 
---let ndb_desc_opts= -d test t1 t2 t3 t4 t5
---source suite/ndb/include/ndb_desc_print.inc
+--let $ndb_describe_table= t1
+--source suite/ndb/include/ndb_describe_table.inc
+--let $ndb_describe_table= t2
+--source suite/ndb/include/ndb_describe_table.inc
+--let $ndb_describe_table= t3
+--source suite/ndb/include/ndb_describe_table.inc
+--let $ndb_describe_table= t4
+--source suite/ndb/include/ndb_describe_table.inc
+--let $ndb_describe_table= t5
+--let $ndb_describe_print_exit= 2
+--source suite/ndb/include/ndb_describe_table.inc
 
 drop table t1, t2, t3, t4, t5;
 

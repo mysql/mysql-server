@@ -169,7 +169,7 @@ SELECT table_name from dictionary_tables where table_id = 9;
 
 select * from blobs;
 select * from index_columns order by index_object_id;
-select * from hash_maps;
+select * from hash_maps order by id limit 1;
 
 --vertical_results
 ## Create an all-MyISAM version of memory_per_fragment for comparison
