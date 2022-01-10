@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@ public:
 
   static constexpr int DEFAULT_KDF_ITER_COUNT = 100000;
   static constexpr size_t MEMORY_NEED = 32768;
+  static constexpr size_t MEMORY_ALIGN = alignof(size_t);
   static constexpr size_t BLOCK_LEN = 16;
   static constexpr size_t KEY_LEN = 32;
   static constexpr size_t IV_LEN = 32;
@@ -124,6 +125,8 @@ private:
   struct { byte m_key_iv[KEY_LEN + IV_LEN]; } m_key_iv[MAX_SALT_COUNT];
 };
 static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512);
+static_assert(alignof(ndb_openssl_evp::key256_iv256_set) ==
+                ndb_openssl_evp::MEMORY_ALIGN);
 
 class ndb_openssl_evp::operation
 {

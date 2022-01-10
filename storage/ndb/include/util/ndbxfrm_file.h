@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -347,7 +347,8 @@ class ndbxfrm_file
     FF_AZ31,
     FF_NDBXFRM1
   } m_file_format;
-  byte m_encryption_keys[ndb_openssl_evp::MEMORY_NEED];
+  alignas(ndb_openssl_evp::MEMORY_ALIGN)
+      byte m_encryption_keys[ndb_openssl_evp::MEMORY_NEED];
   size_t m_data_block_size;
   Uint32 m_data_crc32;
 
