@@ -104,6 +104,8 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   THD *thd= access->create_thd();
 
   saved_mode= thd->variables.sql_mode;
+  // Ensure replication tables are always read in a consistent way
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   tmp_disable_binlog(thd);
 
   /*

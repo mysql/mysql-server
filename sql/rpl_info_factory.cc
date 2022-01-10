@@ -1375,6 +1375,8 @@ Rpl_info_factory::load_channel_names_from_table(std::vector<std::string> &channe
 
   thd= info->access->create_thd();
   saved_mode= thd->variables.sql_mode;
+  // Ensure channel names are always read consistently
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   /*
      Opens and locks the rpl_info table before accessing it.

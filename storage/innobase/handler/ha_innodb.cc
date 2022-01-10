@@ -8742,7 +8742,7 @@ ha_innobase::index_read(
 	/* Note that if the index for which the search template is built is not
 	necessarily m_prebuilt->index, but can also be the clustered index */
 
-	if (m_prebuilt->sql_stat_start) {
+	if (m_prebuilt->sql_stat_start && !can_reuse_mysql_template()) {
 		build_template(false);
 	}
 

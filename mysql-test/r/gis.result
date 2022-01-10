@@ -3077,3 +3077,20 @@ ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND;
 '2010-10-10 10:10:10' + INTERVAL
 ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND
 2010-10-10 10:10:10
+#
+# Bug #32975221 5.7.29+ REGRESSION, SPATIAL INDEX NOT USED ANYMORE FOR MBRCONTAINS
+#
+CREATE TABLE t (
+c1 VARCHAR(8) NOT NULL,
+c2 VARCHAR(16) NOT NULL,
+geom POINT NOT NULL,
+PRIMARY KEY (c2,c1),
+SPATIAL KEY coord (geom)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+INSERT INTO t VALUES (1, 2, POINT(1, 2));
+EXPLAIN SELECT COUNT(*) FROM t WHERE MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((1 2, 2 2, 2 3, 1 2))'), geom) AND c1 <> '10';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	coord	coord	34	NULL	##	##	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` where (mbrcontains(<cache>(st_geometryfromtext('POLYGON((1 2, 2 2, 2 3, 1 2))')),`test`.`t`.`geom`) and (`test`.`t`.`c1` <> '10'))
+DROP TABLE t;

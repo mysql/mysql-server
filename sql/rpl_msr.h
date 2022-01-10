@@ -211,10 +211,17 @@ public:
     replication_channel_map and sets index in the  multisource_mi to 0;
     And also delete the {mi, rli} pair corresponding to this channel
 
+    @note this requires the caller to hold the mi->channel_wrlock.
+    If the method succeeds the master info object is deleted and the lock
+    is released. If the an error occurs and the method return true, the {mi}
+    object wont be deleted and the caller should release the channel_wrlock.
+
     @param[in]    channel_name     Name of the channel for a Master_info
                                    object which must exist.
+
+    @return true if an error occurred, false otherwise
   */
-  void delete_mi(const char* channel_name);
+  bool delete_mi(const char* channel_name);
 
   /**
     Get the default channel for this multisourced_slave;

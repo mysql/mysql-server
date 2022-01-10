@@ -4828,3 +4828,56 @@ SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
 1
 SET NAMES DEFAULT;
 DROP TABLE t;
+#
+# Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
+#                FOR ES_MX AND ES_ES LOCALES
+#
+CREATE PROCEDURE load_locale_format_table()
+BEGIN
+DECLARE locale_list VARCHAR(1000) DEFAULT '
+  es_AR,es_BO,es_CL,es_CO,es_CR,es_DO,es_EC,es_ES,es_GT,es_HN,
+  es_MX,es_NI,es_PA,es_PE,es_PR,es_PY,es_SV,es_US,es_UY,es_VE';
+SET @fmt_stmt = 'INSERT INTO locale_format VALUES
+                   (?, FORMAT(12131254123412541,2,?));';
+PREPARE stmt FROM @fmt_stmt;
+WHILE locale_list != '' DO
+/* get the first locale from the list */
+SET @locale =
+TRIM(REPLACE((SUBSTRING_INDEX(locale_list, ',', 1)), '\n',''));
+EXECUTE stmt USING @locale, @locale;
+/* remove the first locale from the list */
+IF LOCATE(',', locale_list) > 0 THEN
+SET locale_list =
+SUBSTRING(locale_list, LOCATE(',', locale_list) + 1);
+ELSE
+SET locale_list = '';
+END IF;
+END WHILE;
+DEALLOCATE PREPARE stmt;
+END|
+CREATE TABLE locale_format(locale VARCHAR(10), formatted_string VARCHAR(100));
+CALL load_locale_format_table();
+SELECT * FROM locale_format;
+locale	formatted_string
+es_AR	12.131.254.123.412.541,00
+es_BO	12.131.254.123.412.541,00
+es_CL	12.131.254.123.412.541,00
+es_CO	12.131.254.123.412.541,00
+es_CR	12 131 254 123 412 541,00
+es_DO	12,131,254,123,412,541.00
+es_EC	12.131.254.123.412.541,00
+es_ES	12.131.254.123.412.541,00
+es_GT	12,131,254,123,412,541.00
+es_HN	12,131,254,123,412,541.00
+es_MX	12,131,254,123,412,541.00
+es_NI	12,131,254,123,412,541.00
+es_PA	12,131,254,123,412,541.00
+es_PE	12,131,254,123,412,541.00
+es_PR	12,131,254,123,412,541.00
+es_PY	12.131.254.123.412.541,00
+es_SV	12,131,254,123,412,541.00
+es_US	12,131,254,123,412,541.00
+es_UY	12.131.254.123.412.541,00
+es_VE	12.131.254.123.412.541,00
+DROP PROCEDURE load_locale_format_table;
+DROP TABLE locale_format;
