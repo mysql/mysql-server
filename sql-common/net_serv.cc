@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,10 +125,9 @@ void net_extension_free(NET *net) {
   If the caller is server then fetch is fromthe server extension
   structure.
 
-  @param net  [in]    NET structure
+  @param[in] net    NET structure
 
-  @return
-    @retval  mysql_compress_context structure pointer
+  @returns mysql_compress_context structure pointer
 */
 static mysql_compress_context *compress_context(NET *net) {
   mysql_compress_context *mysql_compress_ctx = nullptr;
@@ -1815,9 +1814,8 @@ static void net_read_init_offsets(NET *net, size_t &start_of_packet,
   @param [in, out]  multi_byte_packet Flag that indicate if packet is multibyte
   @param [in, out]  first_packet_offset Starting offset of the packet to read
 
-  @returns
-   @retval true   The last packet read
-   @retval false  Otherwise
+  @retval true   The last packet read
+  @retval false  Otherwise
 */
 static bool net_read_process_buffer(NET *net, size_t &start_of_packet,
                                     size_t &buf_length, uint &multi_byte_packet,

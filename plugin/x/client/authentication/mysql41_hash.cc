@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@ int mysql_mysql41_hash_result(SHA_CTX *context,
 /**
   Wrapper function to compute mysql41_hash message digest.
 
-  @param digest [out]  Computed mysql41_hash digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
+  @param[out] digest   Computed mysql41_hash digest
+  @param[in]  buf      Message to be computed
+  @param[in]  len      Length of the message
 */
 void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
   SHA_CTX mysql41_hash_context;
@@ -57,11 +57,11 @@ void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
   Wrapper function to compute mysql41_hash message digest for
   two messages in order to emulate mysql41_hash(msg1, msg2).
 
-  @param digest [out]  Computed mysql41_hash digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
+  @param[out] digest   Computed mysql41_hash digest
+  @param[in]  buf1     First message
+  @param[in]  len1     Length of first message
+  @param[in]  buf2     Second message
+  @param[in]  len2     Length of second message
 */
 void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1,
                                 unsigned len1, const char *buf2,
