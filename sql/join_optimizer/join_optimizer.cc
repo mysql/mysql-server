@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5949,6 +5949,15 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
     // Final setup will be done in FinalizePlanForQueryBlock(),
     // when we have all materialization done.
+  }
+
+  // Before we apply the HAVING condition, make sure its used_tables() cache is
+  // refreshed. The condition might have been rewritten by
+  // FinalizePlanForQueryBlock() to point into a temporary table in a previous
+  // execution. Even if that change was rolled back at the end of the previous
+  // execution, used_tables() may still say it uses the temporary table.
+  if (join->having_cond != nullptr) {
+    join->having_cond->update_used_tables();
   }
 
   // Apply HAVING, if applicable (sans any window-related in2exists parts,

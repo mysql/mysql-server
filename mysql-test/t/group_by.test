@@ -3286,3 +3286,27 @@ GROUP BY t2d.a
 HAVING t2d.a <> 3 OR field2 < 5;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33738447:
+--echo # Assertion `!(used_tabs & (~ read_tables & ~filter_for_table))' failed.
+--echo #
+
+CREATE TABLE t (i INTEGER, blobfield LONGTEXT);
+INSERT INTO t VALUES (1, '');
+
+PREPARE ps FROM '
+SELECT d.i, COUNT(*)
+FROM t, LATERAL (SELECT i, blobfield) AS d
+GROUP BY d.i
+HAVING d.i < 100
+ORDER BY d.i
+';
+
+# The second execution used to get an assert failure with the
+# hypergraph optimizer.
+EXECUTE ps;
+EXECUTE ps;
+
+DEALLOCATE PREPARE ps;
+DROP TABLE t;

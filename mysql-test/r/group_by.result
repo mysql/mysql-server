@@ -4338,3 +4338,24 @@ a	field2
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'Q'
 DROP TABLE t1, t2;
+#
+# Bug#33738447:
+# Assertion `!(used_tabs & (~ read_tables & ~filter_for_table))' failed.
+#
+CREATE TABLE t (i INTEGER, blobfield LONGTEXT);
+INSERT INTO t VALUES (1, '');
+PREPARE ps FROM '
+SELECT d.i, COUNT(*)
+FROM t, LATERAL (SELECT i, blobfield) AS d
+GROUP BY d.i
+HAVING d.i < 100
+ORDER BY d.i
+';
+EXECUTE ps;
+i	COUNT(*)
+1	1
+EXECUTE ps;
+i	COUNT(*)
+1	1
+DEALLOCATE PREPARE ps;
+DROP TABLE t;
