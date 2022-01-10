@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -233,6 +233,14 @@ ENDIF()
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
+
+MACRO(STRING_PREPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
 IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
   SET(SOLARIS 1)
 ENDIF()
@@ -300,9 +308,14 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
       ELSEIF(LINUX_RHEL7)
-        SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
+        # gcc11 not available yet
+        IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
+          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
+        ELSE()
+          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
+        ENDIF()
       ELSEIF(LINUX_RHEL8)
-        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-10")
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-11")
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -327,6 +340,12 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
       ENDFOREACH()
       # A missing ALTERNATIVE_LD may generate bad executables.
       IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP AND ALTERNATIVE_LD)
+        # Set correct search path for executables, libraries, and data files.
+        GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
+        STRING_PREPEND(CMAKE_C_FLAGS "-B${GCC_B_PREFIX} ")
+        GET_FILENAME_COMPONENT(GPP_B_PREFIX ${ALTERNATIVE_GPP} DIRECTORY)
+        STRING_PREPEND(CMAKE_CXX_FLAGS "-B${GPP_B_PREFIX} ")
+
         SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
         SET(CMAKE_LINKER ${ALTERNATIVE_LD})
@@ -569,15 +588,6 @@ MACRO(REPORT_CXX_FLAGS)
   ENDFOREACH()
 ENDMACRO()
 
-# STRING(APPEND ...) from cmake VERSION 3.4
-MACRO(STRING_APPEND STRING_VAR INPUT)
-  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
-ENDMACRO()
-
-MACRO(STRING_PREPEND STRING_VAR INPUT)
-  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
-ENDMACRO()
-
 # Write content to file, using CONFIGURE_FILE
 # The advantage compared to FILE(WRITE) is that timestamp
 # does not change if file already has the same content
@@ -723,18 +733,6 @@ ENDIF()
 
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
-ENDIF()
-
-# Set correct search path for executables, libraries, and data files.
-IF(LINUX_RHEL)
-  IF(ALTERNATIVE_GCC)
-    GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
-    STRING_PREPEND(CMAKE_C_FLAGS "-B${GCC_B_PREFIX} ")
-  ENDIF()
-  IF(ALTERNATIVE_GPP)
-    GET_FILENAME_COMPONENT(GPP_B_PREFIX ${ALTERNATIVE_GPP} DIRECTORY)
-    STRING_PREPEND(CMAKE_CXX_FLAGS "-B${GPP_B_PREFIX} ")
-  ENDIF()
 ENDIF()
 
 INCLUDE(CMakePushCheckState)
