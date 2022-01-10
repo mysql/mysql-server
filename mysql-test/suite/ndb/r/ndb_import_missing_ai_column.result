@@ -1,0 +1,828 @@
+--echo ndb_import tests with missing-ai-column option
+SET @session_ai_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set session ndb_autoincrement_prefetch_sz=16;
+Test the auto inc column type with tinyint
+Auto increment coulumn being the primary key
+create table t1 (a tinyint not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b tinyint not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b tinyint not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c tinyint not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with tinyint unsigned
+Auto increment coulumn being the primary key
+create table t1 (a tinyint unsigned not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b tinyint unsigned not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b tinyint unsigned not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c tinyint unsigned not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with smallint
+Auto increment coulumn being the primary key
+create table t1 (a smallint not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b smallint not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b smallint not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c smallint not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with smallint unsigned
+Auto increment coulumn being the primary key
+create table t1 (a smallint unsigned not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b smallint unsigned not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b smallint unsigned not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c smallint unsigned not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+set session ndb_autoincrement_prefetch_sz=@session_ai_prefetch_sz;
+Test the auto inc column type with mediumint
+Auto increment coulumn being the primary key
+create table t1 (a mediumint not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b mediumint not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b mediumint not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c mediumint not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with mediumint unsigned
+Auto increment coulumn being the primary key
+create table t1 (a mediumint unsigned not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b mediumint unsigned not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b mediumint unsigned not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c mediumint unsigned not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with int
+Auto increment coulumn being the primary key
+create table t1 (a int not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b int not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b int not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c int not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with int unsigned
+Auto increment coulumn being the primary key
+create table t1 (a int unsigned not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b int unsigned not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b int unsigned not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c int unsigned not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with bigint
+Auto increment coulumn being the primary key
+create table t1 (a bigint not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b bigint not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b bigint not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c bigint not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test the auto inc column type with bigint unsigned
+Auto increment coulumn being the primary key
+create table t1 (a bigint unsigned not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being a part of the primary key
+create table t1 (a int, b bigint unsigned not null auto_increment, c bigint, primary key(a, b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn NOT being a part of the primary key
+create table t1 (a int primary key, b bigint unsigned not null auto_increment, c bigint, key(b)) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+2049
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.a = y.a;
+count(*)
+10
+drop table t1, t1ver;
+Auto increment coulumn being the last column in a table
+create table t1 (a int, b bigint, c bigint unsigned not null auto_increment primary key) engine ndb;
+create table t1ver like t1;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1ver";
+AUTO_INCREMENT
+11
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t1";
+AUTO_INCREMENT
+1025
+select count(*) from t1ver;
+count(*)
+10
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 x, t1ver y
+where x.b = y.b;
+count(*)
+10
+drop table t1, t1ver;
+Test that missing-ai-column option requires an explicit auto increment column
+create table t1 (a int not null primary key, b int, c bigint) engine ndb;
+drop table t1;
+Test that missing-ai-column option works with multiple tables
+create table t1 (a int not null auto_increment primary key, b int, c bigint) engine ndb;
+create table t2 (a int not null auto_increment primary key, b int, c bigint) engine ndb;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t2;
+count(*)
+2
+drop table t1;
+drop table t2;
