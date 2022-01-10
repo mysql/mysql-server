@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -522,12 +522,14 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
       present its own challenges.
     - Join conditions.
  */
-bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
-                               AccessPath *root_path) {
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   assert(query_block->join->needs_finalize);
 
   Query_block *old_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);
+
+  AccessPath *const root_path = query_block->join->root_access_path();
+  assert(root_path != nullptr);
 
   // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
   // we need to make sure that what we sort on is included in the

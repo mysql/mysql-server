@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,8 @@ static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
                                                 string *trace) {
   AccessPath *path = FindBestQueryPlan(thd, query_block, trace);
   if (path != nullptr) {
-    FinalizePlanForQueryBlock(thd, query_block, path);
+    query_block->join->set_root_access_path(path);
+    EXPECT_FALSE(FinalizePlanForQueryBlock(thd, query_block));
   }
   return path;
 }

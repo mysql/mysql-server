@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,8 +142,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
 
 // See comment in .cc file.
-bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
-                               AccessPath *root_path);
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block);
 
 // Exposed for unit testing only.
 void FindSargablePredicates(THD *thd, std::string *trace,

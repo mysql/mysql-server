@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -873,8 +873,7 @@ bool Query_expression::finalize(THD *thd) {
   for (Query_block *query_block = first_query_block(); query_block != nullptr;
        query_block = query_block->next_query_block()) {
     if (query_block->join != nullptr && query_block->join->needs_finalize) {
-      if (FinalizePlanForQueryBlock(thd, query_block,
-                                    query_block->join->root_access_path())) {
+      if (FinalizePlanForQueryBlock(thd, query_block)) {
         return true;
       }
     }

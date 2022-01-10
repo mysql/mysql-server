@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -766,6 +766,7 @@ class JOIN {
   bool push_to_engines();
 
   AccessPath *root_access_path() const { return m_root_access_path; }
+  void set_root_access_path(AccessPath *path) { m_root_access_path = path; }
 
   /**
     If this query block was planned twice, once with and once without conditions

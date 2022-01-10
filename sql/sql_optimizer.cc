@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -559,7 +559,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
 
     m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
     if (finalize_access_paths && m_root_access_path != nullptr) {
-      if (FinalizePlanForQueryBlock(thd, query_block, m_root_access_path)) {
+      if (FinalizePlanForQueryBlock(thd, query_block)) {
         return true;
       }
     }
