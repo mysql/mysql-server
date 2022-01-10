@@ -235,6 +235,12 @@ Validates the LRU list.
 ibool
 buf_LRU_validate(void);
 /*==================*/
+/**********************************************************************//**
+Validates the LRU list for one buffer pool instance. */
+void
+buf_LRU_validate_instance(
+/*======================*/
+	buf_pool_t*	buf_pool);	/*!< in: buffer pool instance */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
