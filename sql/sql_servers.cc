@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -204,7 +204,7 @@ bool servers_init(THD *thd) {
       system_charset_info, key_memory_servers);
 
   /* Initialize the mem root for data */
-  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE);
 
   if (thd == nullptr) {
     /* To be able to run this from boot, we allocate a temporary THD. */
@@ -247,7 +247,7 @@ static bool servers_load(THD *thd, TABLE *table) {
     servers_cache->clear();
   }
   mem.Clear();
-  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE);
 
   unique_ptr_destroy_only<RowIterator> iterator =
       init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,

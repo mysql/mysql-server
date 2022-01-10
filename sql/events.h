@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/bits/psi_thread_bits.h"
-#include "mysql/psi/psi_memory.h"  // PSI_memory_key
+#include "sql/psi_memory_key.h"
 
 class Event_db_repository;
 class Event_parse_data;
@@ -63,8 +63,6 @@ extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
 extern PSI_cond_key key_event_scheduler_COND_state;
 extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 #endif /* HAVE_PSI_INTERFACE */
-
-extern PSI_memory_key key_memory_event_basic_root;
 
 /* Always defined, for SHOW PROCESSLIST. */
 extern PSI_stage_info stage_waiting_on_empty_queue;

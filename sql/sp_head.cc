@@ -1989,7 +1989,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   sql_mode_t save_sql_mode;
   Query_arena *old_arena;
   /* per-instruction arena */
-  MEM_ROOT execute_mem_root;
+  MEM_ROOT execute_mem_root(key_memory_sp_head_execute_root,
+                            MEM_ROOT_BLOCK_SIZE);
   Query_arena execute_arena(&execute_mem_root,
                             Query_arena::STMT_INITIALIZED_FOR_SP),
       backup_arena;
@@ -2038,10 +2039,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   }
 
   opt_trace_disable_if_no_security_context_access(thd);
-
-  /* init per-instruction memroot */
-  init_sql_alloc(key_memory_sp_head_execute_root, &execute_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
 
   assert(!(m_flags & IS_INVOKED));
   m_flags |= IS_INVOKED;
@@ -2244,9 +2241,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     // Free items created when executing the instruction, etc.
     thd->cleanup_after_query();
 
-    // Release memory allocated during execution of the instruction
-    execute_mem_root.Clear();
-
     /*
       Find and process SQL handlers unless it is a fatal error (fatal
       errors are not catchable by SQL handlers) or the connection has been
@@ -2406,7 +2400,19 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
                               GRANT_INFO *grant_info) {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   bool err_status = false;
-  MEM_ROOT call_mem_root;
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of trigger call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).  We can't
+    use caller's arena/memroot for those objects because in this case
+    some fixed amount of memory will be consumed for each trigger
+    invocation and so statements which involve lot of them will hog
+    memory.
+
+    TODO: we should create sp_rcontext once per command and reuse it
+    on subsequent executions of a trigger.
+  */
+  MEM_ROOT call_mem_root(key_memory_sp_head_call_root, MEM_ROOT_BLOCK_SIZE);
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
@@ -2457,20 +2463,6 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
     security context we will disable tracing.
   */
 
-  /*
-    Prepare arena and memroot for objects which lifetime is whole
-    duration of trigger call (sp_rcontext, it's tables and items,
-    sp_cursor and Item_cache holders for case expressions).  We can't
-    use caller's arena/memroot for those objects because in this case
-    some fixed amount of memory will be consumed for each trigger
-    invocation and so statements which involve lot of them will hog
-    memory.
-
-    TODO: we should create sp_rcontext once per command and reuse it
-    on subsequent executions of a trigger.
-  */
-  init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
   thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *trigger_runtime_ctx =
@@ -2502,7 +2494,6 @@ err_with_cleanup:
 
   ::destroy(trigger_runtime_ctx);
   call_arena.free_items();
-  call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
   if (thd->killed) thd->send_kill_message();
@@ -2519,7 +2510,18 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   char buf[STRING_BUFFER_USUAL_SIZE];
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status = false;
-  MEM_ROOT call_mem_root;
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of function call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).
+    We can't use caller's arena/memroot for those objects because
+    in this case some fixed amount of memory will be consumed for
+    each function/trigger invocation and so statements which involve
+    lot of them will hog memory.
+    TODO: we should create sp_rcontext once per command and reuse
+    it on subsequent executions of a function/trigger.
+  */
+  MEM_ROOT call_mem_root(key_memory_sp_head_call_root, MEM_ROOT_BLOCK_SIZE);
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
@@ -2532,19 +2534,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   // Number of arguments has been checked during resolving
   assert(argcount == m_root_parsing_ctx->context_var_count());
 
-  /*
-    Prepare arena and memroot for objects which lifetime is whole
-    duration of function call (sp_rcontext, it's tables and items,
-    sp_cursor and Item_cache holders for case expressions).
-    We can't use caller's arena/memroot for those objects because
-    in this case some fixed amount of memory will be consumed for
-    each function/trigger invocation and so statements which involve
-    lot of them will hog memory.
-    TODO: we should create sp_rcontext once per command and reuse
-    it on subsequent executions of a function/trigger.
-  */
-  init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
   thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *func_runtime_ctx =

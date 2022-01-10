@@ -44,6 +44,8 @@ uint lower_case_table_names = 0;
 CHARSET_INFO *files_charset_info = nullptr;
 CHARSET_INFO *system_charset_info = nullptr;
 
+extern "C" void sql_alloc_error_handler() {}
+
 extern "C" unsigned int thd_get_current_thd_terminology_use_previous() {
   return 0;
 }

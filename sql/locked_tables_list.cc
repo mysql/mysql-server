@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,7 @@ Locked_tables_list::Locked_tables_list()
     : m_locked_tables(nullptr),
       m_locked_tables_last(&m_locked_tables),
       m_reopen_array(nullptr),
-      m_locked_tables_count(0) {
-  init_sql_alloc(key_memory_locked_table_list, &m_locked_tables_root,
-                 MEM_ROOT_BLOCK_SIZE, 0);
-}
+      m_locked_tables_count(0) {}
 
 /**
   Enter LTM_LOCK_TABLES mode.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@ struct CHANGED_TABLE_LIST {
 Transaction_ctx::Transaction_ctx()
     : m_savepoints(nullptr),
       m_xid_state(),
+      m_mem_root(key_memory_thd_transactions,
+                 global_system_variables.trans_alloc_block_size),
       last_committed(0),
       sequence_number(0),
       m_rpl_transaction_ctx(),
@@ -49,9 +51,6 @@ Transaction_ctx::Transaction_ctx()
       trans_begin_hook_invoked(false) {
   memset(&m_scope_info, 0, sizeof(m_scope_info));
   memset(&m_flags, 0, sizeof(m_flags));
-  init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
-                 global_system_variables.trans_alloc_block_size,
-                 global_system_variables.trans_prealloc_size);
 }
 
 void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd) {

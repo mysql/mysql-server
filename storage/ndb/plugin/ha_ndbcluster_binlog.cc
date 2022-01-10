@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7426,7 +7426,7 @@ restart_cluster_failure:
     MEM_ROOT **root_ptr = THR_MALLOC;
     MEM_ROOT *old_root = *root_ptr;
     MEM_ROOT mem_root;
-    init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096, 0);
+    init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096);
 
     // The Ndb_schema_event_handler does not necessarily need
     // to use the same memroot(or vice versa)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,6 +325,8 @@ static bool scan_tz_dir(char *name_end) {
 
   return false;
 }
+
+extern "C" void sql_alloc_error_handler() {}
 
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -258,7 +258,7 @@ bool Recovered_xa_transactions::add_prepared_xa_transaction(
 MEM_ROOT *Recovered_xa_transactions::get_allocated_memroot() {
   if (!m_mem_root_inited) {
     init_sql_alloc(key_memory_xa_transaction_contexts, &m_mem_root,
-                   TABLE_ALLOC_BLOCK_SIZE, 0);
+                   TABLE_ALLOC_BLOCK_SIZE);
     m_mem_root_inited = true;
   }
   return &m_mem_root;

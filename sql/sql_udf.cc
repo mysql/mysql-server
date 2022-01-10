@@ -202,7 +202,7 @@ void udf_init_globals() {
 #endif
 
   mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
-  init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE);
 
   udf_hash = new collation_unordered_map<std::string, udf_func *>(
       system_charset_info, key_memory_udf_mem);

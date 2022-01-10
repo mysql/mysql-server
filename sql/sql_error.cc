@@ -78,8 +78,6 @@ This file contains the implementation of error and warnings related
 using std::max;
 using std::min;
 
-static constexpr const size_t WARN_ALLOC_BLOCK_SIZE{2048};
-
 /*
   Design notes about Sql_condition::m_message_text.
 
@@ -345,15 +343,13 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
       m_saved_error_count(0),
       m_saved_warn_count(0) {
   /* Initialize sub structures */
-  init_sql_alloc(PSI_INSTRUMENT_ME, &m_condition_root, WARN_ALLOC_BLOCK_SIZE,
-                 0);
   m_conditions_list.clear();
   memset(m_current_statement_cond_count_by_qb, 0,
          sizeof(m_current_statement_cond_count_by_qb));
   m_message_text[0] = '\0';
 }
 
-Diagnostics_area::~Diagnostics_area() { m_condition_root.Clear(); }
+Diagnostics_area::~Diagnostics_area() {}
 
 void Diagnostics_area::reset_diagnostics_area() {
   DBUG_TRACE;
@@ -500,7 +496,7 @@ void Diagnostics_area::reset_condition_info(THD *thd) {
 
   m_conditions_list.clear();
   m_preexisting_sql_conditions.clear();
-  m_condition_root.Clear();
+  m_condition_root.ClearForReuse();
   memset(m_current_statement_cond_count_by_qb, 0,
          sizeof(m_current_statement_cond_count_by_qb));
   m_current_statement_cond_count = 0;

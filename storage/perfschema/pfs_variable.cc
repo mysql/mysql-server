@@ -243,8 +243,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
 */
 void PFS_system_variable_cache::set_mem_root(void) {
   if (m_mem_sysvar_ptr == nullptr) {
-    init_sql_alloc(PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE,
-                   0);
+    init_sql_alloc(PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE);
     m_mem_sysvar_ptr = &m_mem_sysvar;
   }
   m_mem_thd = THR_MALLOC;      /* pointer to current THD mem_root */

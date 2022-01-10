@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,8 +183,7 @@ static void set_hostname(ACL_HOST_AND_IP *host, const char *host_arg,
   Allocates the memory in the the global_acl_memory MEM_ROOT.
 */
 void init_acl_memory() {
-  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE,
-                 0);
+  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE);
 }
 
 /**
@@ -2691,7 +2690,7 @@ bool grant_reload(THD *thd, bool mdl_locked) {
       undo opertion possible in case of failure.
     */
     old_mem = move(memex);
-    init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE);
     /*
       tables[2].table i.e. procs_priv can be null if we are working with
       pre 4.1 privilage tables

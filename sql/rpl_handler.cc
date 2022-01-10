@@ -97,14 +97,12 @@ Delegate::Delegate(
 #else
   if (mysql_rwlock_init(0, &lock)) return;
 #endif
-  init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
   inited = true;
 }
 
 Delegate::~Delegate() {
   inited = false;
   mysql_rwlock_destroy(&lock);
-  memroot.Clear();
 }
 
 int Delegate::add_observer(void *observer, st_plugin_int *plugin) {

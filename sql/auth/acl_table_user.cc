@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_update.h"       /* compare_records */
 #include "sql/system_variables.h" /* System_variables */
 #include "sql/table.h"            /* TABLE, TABLE_SHARE, ... */
-#include "sql/thr_malloc.h"       /* init_sql_alloc */
 #include "sql/tztime.h"           /* Time_zone */
 #include "sql_string.h"           /* String */
 #include "template_utils.h"       /* down_cast */
@@ -1342,9 +1341,7 @@ std::string Acl_table_user_writer::get_current_credentials() {
 */
 Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ),
-      m_restrictions(new Restrictions) {
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
-}
+      m_restrictions(new Restrictions) {}
 
 /**
   Free resources before we destroy.
@@ -1352,7 +1349,6 @@ Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
 Acl_table_user_reader::~Acl_table_user_reader() {
   if (m_table_schema) delete m_table_schema;
   if (m_restrictions) delete m_restrictions;
-  m_mem_root.Clear();
 }
 
 /**
