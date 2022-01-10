@@ -3128,7 +3128,7 @@ SELECT Name FROM t2
 ANALYZE TABLE t1, t2, t3;
 --replace_column 11 10
 --eval EXPLAIN $query
---replace_regex /"filtered": "50.00"/"filtered": "10.00"/ /"read_cost": "0.12"/"read_cost": "0.13"/
+--replace_regex /"filtered": "50.00"/"filtered": "10.00"/ /"read_cost": "0.12"/"read_cost": "0.13"/ /"prefix_cost": "11.69"/"prefix_cost": "11.70"/
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1,t2,t3;
@@ -5094,7 +5094,10 @@ WHERE t1a.col_int_key IN (
   )
 );
 ANALYZE TABLE t1, t2;
-eval EXPLAIN $query;
+
+# Bug #33743582 DuplicatesWeedout test is flaky
+# eval EXPLAIN $query;
+
 --sorted_result
 eval $query;
 
@@ -7069,6 +7072,7 @@ eval explain $query;
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
 --skip_if_hypergraph  # Depends on query plan.
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 eval explain format=tree $query;
 
 eval $query;

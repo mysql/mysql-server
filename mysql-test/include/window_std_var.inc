@@ -70,6 +70,7 @@ INSERT INTO t VALUES (1,4,4);
 --echo -    Combination with GROUP BY
 --echo ----------------------------------------------------------------------
 
+--replace_numeric_round 10
 SELECT k, STD(k) OVER (ROWS UNBOUNDED PRECEDING) std,
       VARIANCE(k) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t; # simple
 --sorted_result
@@ -472,6 +473,7 @@ INSERT INTO t3 VALUES (20.1);
 INSERT INTO t3 VALUES (22.0);
 INSERT INTO t3 VALUES (23.0);
 
+--replace_numeric_round 10
 SELECT d, STD(d) OVER w std, VARIANCE(d) OVER w variance, COUNT(*) OVER w
 FROM t3 WINDOW w AS (ORDER BY d RANGE BETWEEN 2.1 PRECEDING AND 1.1 FOLLOWING);
 DROP TABLE t3;
@@ -490,10 +492,13 @@ INSERT INTO tj(j) VALUES (NULL);
 INSERT INTO tj(j) VALUES ('3.14');
 INSERT INTO tj(j) VALUES ('[1,2,3]');
 INSERT INTO tj(j) VALUES (NULL);
+--replace_numeric_round 10
 SELECT STD(j) OVER () AS JSON FROM tj;
 # Different line numbers in warnings in hypergraph optimizer.
 --disable_warnings
+--replace_numeric_round 10
 SELECT j, JSON_TYPE(j), STD(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+--replace_numeric_round 10
 SELECT j, JSON_TYPE(j), VARIANCE(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
 --enable_warnings
 --error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
@@ -501,6 +506,7 @@ SELECT j, JSON_TYPE(j), JSON_TYPE(STD(j) OVER (ORDER BY j RANGE 3 PRECEDING)) FR
 INSERT INTO tj(j) VALUES ('3.14');
 #SELECT j, JSON_TYPE(j), JSON_TYPE(VARIANCE(j) OVER (ORDER BY j ROWS 3 PRECEDING)) FROM tj;
 INSERT INTO tj(j) VALUES ('[1,2,3]');
+--replace_numeric_round 10
 SELECT j,
        JSON_TYPE(j),
        STD(CASE WHEN JSON_TYPE(j) = 'ARRAY' THEN j->"$[0]" ELSE j END)
@@ -559,6 +565,7 @@ INSERT INTO t1 VALUES
   (13,1267597312),(14,93454336),(15,6),(16,-67174400),(17,10751180),
   (18,659685376),(19,-790691840),(20,882114560),(21,1952907264);
 
+--replace_numeric_round 4
 SELECT  STDDEV(c2) OVER ( ROWS 2 PRECEDING ) AS std_deviation FROM t1;
 
 DROP TABLE t1;

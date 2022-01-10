@@ -334,17 +334,17 @@ a
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;
 EXPLAIN
--> Nested loop inner join  (cost=71.97 rows=100)
-    -> Limit/Offset: 10/8 row(s)  (cost=5.74..6.97 rows=10)
-        -> Table scan on cte1  (cost=0.14..2.75 rows=20)
-            -> Materialize union CTE cte if needed with deduplication  (cost=4.64..7.25 rows=20)
+-> Nested loop inner join (rows=100)
+    -> Limit/Offset: 10/8 row(s) (rows=10)
+        -> Table scan on cte1 (rows=20)
+            -> Materialize union CTE cte if needed with deduplication (rows=20)
                 -> Limit table size: 18 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
+                    -> Table scan on t1 (rows=10)
                 -> Limit table size: 18 unique row(s)
-                    -> Table scan on t1  (cost=1.25 rows=10)
-    -> Limit/Offset: 10/8 row(s)  (cost=5.74..6.97 rows=10)
-        -> Table scan on cte2  (cost=0.14..2.75 rows=20)
-            -> Materialize union CTE cte if needed (query plan printed elsewhere) with deduplication  (cost=4.64..7.25 rows=20)
+                    -> Table scan on t1 (rows=10)
+    -> Limit/Offset: 10/8 row(s) (rows=10)
+        -> Table scan on cte2 (rows=20)
+            -> Materialize union CTE cte if needed (query plan printed elsewhere) with deduplication (rows=20)
 
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;

@@ -931,6 +931,7 @@ let $query =
 # Verify that we get a query plan with semijoin materialization.
 # If the optimizer chooses a different strategy, consider deleting this test.
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 eval EXPLAIN FORMAT=tree $query;
 
 # Order depends on the query plan.
