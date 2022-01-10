@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1798,14 +1798,13 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id = table->file->next_insert_id;
   ulonglong insert_id_for_cur_row = 0;
-  MEM_ROOT mem_root;
   DBUG_TRACE;
 
   /* Here we are using separate MEM_ROOT as this memory should be freed once we
      exit write_record() function. This is marked as not instumented as it is
      allocated for very short time in a very specific case.
   */
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
   info->stats.records++;
   save_read_set = table->read_set;
   save_write_set = table->write_set;
@@ -2191,7 +2190,6 @@ ok_or_after_trg_err:
   if (!table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
-  mem_root.Clear();
   return trg_error;
 
 err : {
@@ -2206,7 +2204,6 @@ before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key) my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);
-  mem_root.Clear();
   return true;
 }
 

@@ -367,7 +367,6 @@ TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
 TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
                                const char *key, size_t key_length,
                                bool open_secondary) {
-  MEM_ROOT mem_root;
   TABLE_SHARE *share = nullptr;
   char *key_buff, *path_buff;
   char path[FN_REFLEN + 1];
@@ -395,7 +394,7 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
     return nullptr;
   }
 
-  init_sql_alloc(key_memory_table_share, &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  MEM_ROOT mem_root(key_memory_table_share, TABLE_ALLOC_BLOCK_SIZE);
   if (multi_alloc_root(&mem_root, &share, sizeof(*share), &key_buff, key_length,
                        &path_buff, path_length + 1, &cache_element_array,
                        table_cache_instances * sizeof(*cache_element_array),
@@ -468,7 +467,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     share->mem_root = std::move(*mem_root);
   else
     init_sql_alloc(key_memory_table_share, &share->mem_root,
-                   TABLE_ALLOC_BLOCK_SIZE, 0);
+                   TABLE_ALLOC_BLOCK_SIZE);
 
   share->table_category = TABLE_CATEGORY_TEMPORARY;
   share->tmp_table = INTERNAL_TMP_TABLE;
@@ -2864,7 +2863,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   MEM_ROOT *root;
   if (!internal_tmp) {
     root = &outparam->mem_root;
-    init_sql_alloc(key_memory_TABLE, root, TABLE_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_TABLE, root, TABLE_ALLOC_BLOCK_SIZE);
   } else
     root = &share->mem_root;
 

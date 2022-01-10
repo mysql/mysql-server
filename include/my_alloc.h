@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,10 @@
 #include "my_pointer_arithmetic.h"
 #include "mysql/psi/psi_memory.h"
 
+#if defined(MYSQL_SERVER)
+extern "C" void sql_alloc_error_handler();
+#endif
+
 /**
  * The MEM_ROOT is a simple arena, where allocations are carved out of
  * larger blocks. Using an arena over plain malloc gives you two main
@@ -88,7 +92,11 @@ struct MEM_ROOT {
   MEM_ROOT(PSI_memory_key key, size_t block_size)
       : m_block_size(block_size),
         m_orig_block_size(block_size),
-        m_psi_key(key) {}
+        m_psi_key(key) {
+#if defined(MYSQL_SERVER)
+    m_error_handler = sql_alloc_error_handler;
+#endif
+  }
 
   // MEM_ROOT is movable but not copyable.
   MEM_ROOT(const MEM_ROOT &) = delete;

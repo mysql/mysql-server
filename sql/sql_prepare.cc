@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2296,10 +2296,9 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
       flags((uint)IS_IN_USE),
       with_log(false),
       m_name(NULL_CSTR),
-      m_db(NULL_CSTR) {
-  init_sql_alloc(key_memory_prepared_statement_main_mem_root, &main_mem_root,
-                 thd_arg->variables.query_alloc_block_size,
-                 thd_arg->variables.query_prealloc_size);
+      m_db(NULL_CSTR),
+      main_mem_root(key_memory_prepared_statement_main_mem_root,
+                    thd_arg->variables.query_alloc_block_size) {
   *last_error = '\0';
 }
 
@@ -2381,7 +2380,6 @@ Prepared_statement::~Prepared_statement() {
     lex->destroy();
     delete (st_lex_local *)lex;  // TRASH memory
   }
-  main_mem_root.Clear();
 }
 
 void Prepared_statement::cleanup_stmt() {

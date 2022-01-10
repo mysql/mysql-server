@@ -689,6 +689,8 @@ THD::THD(bool enable_plugins)
       skip_gtid_rollback(false),
       is_commit_in_middle_of_statement(false),
       has_gtid_consistency_violation(false),
+      main_mem_root(key_memory_thd_main_mem_root,
+                    global_system_variables.query_alloc_block_size),
       main_da(false),
       m_parser_da(false),
       m_query_rewrite_plugin_da(false),
@@ -703,9 +705,6 @@ THD::THD(bool enable_plugins)
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
-  init_sql_alloc(key_memory_thd_main_mem_root, &main_mem_root,
-                 global_system_variables.query_alloc_block_size,
-                 global_system_variables.query_prealloc_size);
   stmt_arena = this;
   thread_stack = nullptr;
   m_catalog.str = "std";

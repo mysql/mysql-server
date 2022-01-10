@@ -4541,18 +4541,16 @@ bool Query_block::check_only_full_group_by(THD *thd) {
   bool rc = false;
 
   if (is_grouped()) {
-    MEM_ROOT root;
     /*
       "root" has very short lifetime, and should not consume much
       => not instrumented.
     */
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, &root, MEM_ROOT_BLOCK_SIZE, 0);
+    MEM_ROOT root(PSI_NOT_INSTRUMENTED, MEM_ROOT_BLOCK_SIZE);
     {
       Group_check gc(this, &root);
       rc = gc.check_query(thd);
       gc.to_opt_trace(thd);
-    }  // scope, to let any destructor run before root.Clear().
-    root.Clear();
+    }  // Scope, to let any destructor run before the MEM_ROOT DTOR.
   }
 
   if (!rc && is_distinct()) {

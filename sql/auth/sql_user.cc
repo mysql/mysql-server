@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1808,8 +1808,7 @@ bool set_and_validate_user_attributes(
         */
         acl_user->m_mfa->alter_mfa(mfa);
       } else {
-        MEM_ROOT mr;
-        init_sql_alloc(PSI_NOT_INSTRUMENTED, &mr, 256, 0);
+        MEM_ROOT mr(PSI_NOT_INSTRUMENTED, 256);
         I_multi_factor_auth *tmp = new (&mr) Multi_factor_auth_list(&mr);
         if (tmp->is_alter_allowed(thd, Str)) {
           mr.Clear();

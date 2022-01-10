@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,8 +222,6 @@ Event_queue_element_for_exec::~Event_queue_element_for_exec() {
 Event_basic::Event_basic()
     : m_schema_name(NULL_CSTR), m_event_name(NULL_CSTR), m_time_zone(nullptr) {
   DBUG_TRACE;
-  /* init memory root */
-  init_sql_alloc(key_memory_event_basic_root, &mem_root, 256, 512);
 }
 
 /*
@@ -233,10 +231,7 @@ Event_basic::Event_basic()
     Event_basic::Event_basic()
 */
 
-Event_basic::~Event_basic() {
-  DBUG_TRACE;
-  mem_root.Clear();
-}
+Event_basic::~Event_basic() { DBUG_TRACE; }
 
 /*
   Constructor

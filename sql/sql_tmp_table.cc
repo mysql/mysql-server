@@ -1634,7 +1634,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl) {
-  MEM_ROOT own_root;
   TABLE *table;
   TABLE_SHARE *share;
   Field **reg_field;
@@ -1663,7 +1662,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     unique_constraint_via_hash_field = true;
 
   /* STEP 2: Allocate memory for temptable description */
-  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  MEM_ROOT own_root(key_memory_TABLE, TABLE_ALLOC_BLOCK_SIZE);
   if (!multi_alloc_root(
           &own_root, &table, sizeof(*table), &share, sizeof(*share), &reg_field,
           sizeof(Field *) * (1 + 2), &blob_field, sizeof(uint) * 3, &keyinfo,
@@ -1867,17 +1866,18 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
   uchar *bitmaps;
   TABLE *table;
   TABLE_SHARE *share;
-  MEM_ROOT own_root, *m_root;
+  MEM_ROOT own_root{key_memory_TABLE, TABLE_ALLOC_BLOCK_SIZE};
+  MEM_ROOT *m_root;
   /*
     total_uneven_bit_length is uneven bit length for BIT fields
   */
   uint total_uneven_bit_length = 0;
 
   if (!is_virtual) {
-    init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
     m_root = &own_root;
-  } else
+  } else {
     m_root = thd->mem_root;
+  }
 
   if (!multi_alloc_root(m_root, &table, sizeof(*table), &share, sizeof(*share),
                         &reg_field, (field_count + 1) * sizeof(Field *),

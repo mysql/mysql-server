@@ -2237,10 +2237,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
 sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
   // The order is important:
   // 1. new sp_head()
-  MEM_ROOT own_root;
-
-  init_sql_alloc(key_memory_sp_head_main_root, &own_root, MEM_ROOT_BLOCK_SIZE,
-                 0);
+  MEM_ROOT own_root(key_memory_sp_head_main_root, MEM_ROOT_BLOCK_SIZE);
 
   void *rawmem = own_root.Alloc(sizeof(sp_head));
   if (!rawmem) return nullptr;

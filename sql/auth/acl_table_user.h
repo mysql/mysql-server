@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -318,7 +318,7 @@ class Acl_table_user_reader : public Acl_table {
  private:
   User_table_schema *m_table_schema = nullptr;
   unique_ptr_destroy_only<RowIterator> m_iterator;
-  MEM_ROOT m_mem_root;
+  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, ACL_ALLOC_BLOCK_SIZE};
   Restrictions *m_restrictions = nullptr;
   Json_object *m_user_application_user_metadata_json = nullptr;
 };

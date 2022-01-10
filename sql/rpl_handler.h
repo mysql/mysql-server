@@ -36,9 +36,10 @@
 #include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "sql/locks/shared_spin_lock.h"  // Shared_spin_lock
-#include "sql/sql_list.h"                // List
-#include "sql/sql_plugin.h"              // my_plugin_(un)lock
-#include "sql/sql_plugin_ref.h"          // plugin_ref
+#include "sql/psi_memory_key.h"
+#include "sql/sql_list.h"        // List
+#include "sql/sql_plugin.h"      // my_plugin_(un)lock
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class Master_info;
 class String;
@@ -219,7 +220,7 @@ class Delegate {
   */
   lock::Shared_spin_lock m_spin_lock;
   /** Memory pool to be used to allocate the observers list */
-  MEM_ROOT memroot;
+  MEM_ROOT memroot{key_memory_delegate, 1024};
   /** Flag statign whether or not this instance was initialized */
   bool inited;
   /**

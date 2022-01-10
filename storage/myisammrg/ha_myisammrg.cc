@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,15 +130,7 @@ static handler *myisammrg_create_handler(handlerton *hton, TABLE_SHARE *table,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), file(nullptr), is_cloned(false) {
-  init_sql_alloc(rg_key_memory_children, &children_mem_root, FN_REFLEN, 0);
-}
-
-/**
-  @brief Destructor
-*/
-
-ha_myisammrg::~ha_myisammrg(void) { children_mem_root.Clear(); }
+    : handler(hton, table_arg), file(nullptr), is_cloned(false) {}
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
