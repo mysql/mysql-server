@@ -461,6 +461,7 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_li
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 0)'));
 
+--replace_numeric_round 14
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'));
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
@@ -700,6 +701,7 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_li
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(5 0,20 20,100 100)'));
 
+--replace_numeric_round 13
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(110 110,-100 50)'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4.3 4.3,5.5 5.5)'));
@@ -842,6 +844,7 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycoll
 --echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
+--replace_numeric_round 14
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(0 8,100 100)'));
@@ -1016,6 +1019,7 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycoll
 --echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
+--replace_numeric_round 14
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));

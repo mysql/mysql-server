@@ -136,6 +136,7 @@ let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
  SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;
 --skip_if_hypergraph  # Depends on the query plan.
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 eval EXPLAIN FORMAT=TREE $query;
 --sorted_result
 eval $query;

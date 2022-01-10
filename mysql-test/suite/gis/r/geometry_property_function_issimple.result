@@ -197,9 +197,6 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10,0 0)'))
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,0.0001 0.000)'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,0.0001 0.000)'))
 1
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,-1e100 -1e100,0 0)'));
-ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,1e100 1e100,-1e100 -1e100,0 0)'))
-0
 #====================================================================================
 # multilinestring
 #====================================================================================
