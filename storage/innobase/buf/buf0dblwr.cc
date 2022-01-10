@@ -747,8 +747,8 @@ class Batch_segment : public Segment {
 
   /** Destructor. */
   ~Batch_segment() noexcept override {
-    ut_a(m_written.load(std::memory_order_relaxed) == 0);
-    ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
+    ut_a(m_uncompleted.load(std::memory_order_relaxed) == 0);
+    ut_a(m_batch_size == 0);
   }
 
   /** @return the batch segment ID. */
@@ -761,26 +761,33 @@ class Batch_segment : public Segment {
   /** Called on page write completion.
   @return if batch ended. */
   [[nodiscard]] bool write_complete() noexcept {
-    const auto n = m_written.fetch_add(1, std::memory_order_relaxed);
-    return n + 1 == m_batch_size.load(std::memory_order_relaxed);
+    /* We "release our reference" here, so can't access the segment after this
+    fetch_sub() unless we decreased it to 0 and handle requeuing it. */
+    const auto n = m_uncompleted.fetch_sub(1, std::memory_order_relaxed);
+    ut_ad(0 < n);
+    return n == 1;
   }
 
   /** Reset the state. */
   void reset() noexcept {
-    m_written.store(0, std::memory_order_relaxed);
-    m_batch_size.store(0, std::memory_order_relaxed);
+    /* We shouldn't reset() the batch while it's being processed. */
+    ut_ad(m_uncompleted.load(std::memory_order_relaxed) == 0);
+    m_uncompleted.store(0, std::memory_order_relaxed);
+    m_batch_size = 0;
   }
 
   /** Set the batch size.
   @param[in] size               Number of pages to write to disk. */
   void set_batch_size(uint32_t size) noexcept {
-    m_batch_size.store(size, std::memory_order_release);
+    /* We should only call set_batch_size() on new or reset()ed instance. */
+    ut_ad(m_uncompleted.load(std::memory_order_relaxed) == 0);
+    ut_ad(m_batch_size == 0);
+    m_batch_size = size;
+    m_uncompleted.store(size, std::memory_order_relaxed);
   }
 
   /** @return the batch size. */
-  uint32_t batch_size() const noexcept {
-    return m_batch_size.load(std::memory_order_acquire);
-  }
+  uint32_t batch_size() const noexcept { return m_batch_size; }
 
   /** Note that the batch has started for the double write instance.
   @param[in] dblwr              Instance for which batch has started. */
@@ -803,13 +810,36 @@ class Batch_segment : public Segment {
 
   byte m_pad1[ut::INNODB_CACHE_LINE_SIZE];
 
-  /** Size of the batch. */
-  std::atomic_int m_batch_size{};
+  /** Size of the batch.
+  Set to number of pages to be written with set_batch_size() before scheduling
+  writes to data pages.
+  Reset to zero with reset() after all IOs are completed.
+  Read only by the thread which has observed the last IO completion, the one
+  which will reset it back to zero and enqueue the segment for future reuse.
+  Accesses to this field are ordered by happens-before relation:
+  set_batch_size() sequenced-before
+    fil_io()  happens-before
+    dblwr::write_complete() entry sequenced-before
+  batch_size() sequenced-before
+  reset() sequenced-before
+    enqueue() synchronizes-with
+    dequeue() sequenced-before
+  set_batch_size() ...
+  */
+  uint32_t m_batch_size{};
 
   byte m_pad2[ut::INNODB_CACHE_LINE_SIZE];
 
-  /** Number of pages to write. */
-  std::atomic_int m_written{};
+  /** Number of page writes in the batch which are still not completed.
+  Set to equal m_batch_size by set_batch_size(), and decremented when a page
+  write is finished (either by failing/not attempting or in IO completion).
+  It serves a role of a reference counter: when it drops to zero, the segment
+  can be enqueued back to the pool of available segments.
+  Accessing a segment which has m_uncompleted == 0 is safe only from the thread
+  which knows it can not be recycled - for example because it's the thread which
+  has caused the m_uncompleted drop to 0 and will enqueue it, or it's the thread
+  which has just dequeued it, or it is handling shutdown.*/
+  std::atomic_int m_uncompleted{};
 };
 
 uint32_t Double_write::s_n_instances{};

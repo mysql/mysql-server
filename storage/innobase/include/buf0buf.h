@@ -1613,10 +1613,12 @@ class buf_page_t {
   buffer pool. Protected by block mutex */
   std::chrono::steady_clock::time_point access_time;
 
+ private:
   /** Double write instance ordinal value during writes. This is used
   by IO completion (writes) to select the double write instance.*/
   uint16_t m_dblwr_id{};
 
+ public:
   /** true if the block is in the old blocks in buf_pool->LRU_old */
   bool old;
 
