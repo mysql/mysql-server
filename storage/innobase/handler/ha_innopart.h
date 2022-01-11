@@ -694,6 +694,9 @@ private:
 	/** New partitions during ADD/REORG/... PARTITION. */
 	Altered_partitions*	m_new_partitions;
 
+	/** Can reuse the template for the previous partition. */
+	bool			m_reuse_mysql_template;
+
 	/** Clear used ins_nodes and upd_nodes. */
 	void
 	clear_ins_upd_nodes();
@@ -1331,5 +1334,9 @@ protected:
 	info_low(
 		uint	flag,
 		bool	is_analyze);
+
+	bool can_reuse_mysql_template() {
+		return(m_reuse_mysql_template);
+	}
 };
 #endif /* ha_innopart_h */

@@ -1884,3 +1884,40 @@ SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
 SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
 SET NAMES DEFAULT;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
+--echo #                FOR ES_MX AND ES_ES LOCALES
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE load_locale_format_table()
+BEGIN
+  DECLARE locale_list VARCHAR(1000) DEFAULT '
+  es_AR,es_BO,es_CL,es_CO,es_CR,es_DO,es_EC,es_ES,es_GT,es_HN,
+  es_MX,es_NI,es_PA,es_PE,es_PR,es_PY,es_SV,es_US,es_UY,es_VE';
+  SET @fmt_stmt = 'INSERT INTO locale_format VALUES
+                   (?, FORMAT(12131254123412541,2,?));';
+  PREPARE stmt FROM @fmt_stmt;
+  WHILE locale_list != '' DO
+    /* get the first locale from the list */
+    SET @locale =
+          TRIM(REPLACE((SUBSTRING_INDEX(locale_list, ',', 1)), '\n',''));
+    EXECUTE stmt USING @locale, @locale;
+    /* remove the first locale from the list */
+    IF LOCATE(',', locale_list) > 0 THEN
+      SET locale_list =
+      SUBSTRING(locale_list, LOCATE(',', locale_list) + 1);
+    ELSE
+      SET locale_list = '';
+    END IF;
+  END WHILE;
+  DEALLOCATE PREPARE stmt;
+END|
+DELIMITER ;|
+
+CREATE TABLE locale_format(locale VARCHAR(10), formatted_string VARCHAR(100));
+CALL load_locale_format_table();
+SELECT * FROM locale_format;
+DROP PROCEDURE load_locale_format_table;
+DROP TABLE locale_format;

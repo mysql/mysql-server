@@ -2600,7 +2600,6 @@ func_exit:
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list for one buffer pool instance. */
-static
 void
 buf_LRU_validate_instance(
 /*======================*/
