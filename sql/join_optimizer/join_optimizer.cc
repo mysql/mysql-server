@@ -475,8 +475,7 @@ class CostingReceiver {
                         table_map allowed_parameter_tables, int ordering_idx);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
-      OverflowBitset left_applied_sargable_join_predicates,
-      OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+      const AccessPath *left_path, const AccessPath *right_path, NodeMap left,
       NodeMap right);
   inline pair<bool, bool> AlreadyAppliedAsSargable(
       Item *condition, const AccessPath *left_path,
@@ -3249,9 +3248,34 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
  */
 bool CostingReceiver::RedundantThroughSargable(
     OverflowBitset redundant_against_sargable_predicates,
-    OverflowBitset left_applied_sargable_join_predicates,
-    OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+    const AccessPath *left_path, const AccessPath *right_path, NodeMap left,
     NodeMap right) {
+  // For a join condition to be redundant against an already applied sargable
+  // predicate, the applied predicate must somehow connect the left side and the
+  // right side. This means either:
+  //
+  // - One of the paths must be parameterized on at least one of the tables in
+  // the other path. In the example above, because t2=t3 is applied on the {t3}
+  // path, and t2 is not included in the path, the {t3} path is parameterized on
+  // t2. (It is only necessary to check if right_path is parameterized on
+  // left_path, since parameterization is always resolved by nested-loop joining
+  // in the parameter tables from the outer/left side into the parameterized
+  // path on the inner/right side.)
+  //
+  // - Or both paths are parameterized on some common table that is not part of
+  // either path. Say if {t1,t2} has sargable t1=t4 and {t3} has sargable t3=t4,
+  // then both paths are parameterized on t4, and joining {t1,t2} with {t3}
+  // along t1=t3 is redundant, given all three predicates (t1=t4, t3=t4, t1=t3)
+  // are from the same multiple equality.
+  //
+  // If the parameterization is not like that, we don't need to check any
+  // further.
+  assert(!Overlaps(left_path->parameter_tables, right));
+  if (!Overlaps(right_path->parameter_tables,
+                left | left_path->parameter_tables)) {
+    return false;
+  }
+
   const auto redundant_and_applied = [](uint64_t redundant_sargable,
                                         uint64_t left_applied,
                                         uint64_t right_applied) {
@@ -3262,8 +3286,8 @@ bool CostingReceiver::RedundantThroughSargable(
   for (size_t predicate_idx :
        OverflowBitsetBitsIn<3, decltype(redundant_and_applied)>(
            {redundant_against_sargable_predicates,
-            left_applied_sargable_join_predicates,
-            right_applied_sargable_join_predicates},
+            left_path->applied_sargable_join_predicates(),
+            right_path->applied_sargable_join_predicates()},
            redundant_and_applied)) {
     // The sargable condition must work as a join condition for this join
     // (not between tables we've already joined in). Note that the joining
@@ -3310,7 +3334,7 @@ bool CostingReceiver::RedundantThroughSargable(
   join condition (so we need not apply it as a filter).
  */
 pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
-    Item *condition, const AccessPath *left_path [[maybe_unused]],
+    Item *condition, const AccessPath *left_path,
     const AccessPath *right_path) {
   const auto it = m_graph->sargable_join_predicates.find(condition);
   if (it == m_graph->sargable_join_predicates.end()) {
@@ -3574,10 +3598,8 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
       const auto it = m_graph->sargable_join_predicates.find(condition);
       already_applied *= m_graph->predicates[it->second].selectivity;
     } else if (RedundantThroughSargable(
-                   properties.redundant_against_sargable_predicates,
-                   left_path->applied_sargable_join_predicates(),
-                   right_path->applied_sargable_join_predicates(), left,
-                   right)) {
+                   properties.redundant_against_sargable_predicates, left_path,
+                   right_path, left, right)) {
       if (m_trace != nullptr) {
         *m_trace += " - " + PrintAccessPath(*right_path, *m_graph, "") +
                     " has a sargable predicate that is redundant with our join "

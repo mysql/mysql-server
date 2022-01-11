@@ -2491,6 +2491,84 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant) {
             root->hash_join().inner->nested_loop_join().inner->type);
 }
 
+/*
+  Another case where the semi-join condition is not redundant. In this case, the
+  join condition on the outer side of the semi-join, the join condition on the
+  inner side of the semi-join and the semi-join condition are part of the same
+  multiple equality. But even so, the semi-join condition is not redundant,
+  because none of the other two join conditions references any tables on the
+  opposite side of the semi-join.
+ */
+TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE t2.x = t3.x AND t2.x IN "
+      "(SELECT t5.x FROM t4, t5 WHERE t4.x = t5.x AND t4.x <> t1.x)",
+      /*nullable=*/false);
+
+  // Add an index on t2.x to make the join predicate t2.x = t3.x sargable.
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+
+  // Add a unique index to make the join predicate t4.x = t5.x sargable.
+  Fake_TABLE *t5 = m_fake_tables["t5"];
+  t5->create_index(t5->field[0], /*column2=*/nullptr, /*unique=*/true);
+
+  // Set up table sizes so that nested loop joins with REF(t2) and EQ_REF(t5) as
+  // the innermost tables are attractive.
+  m_fake_tables["t1"]->file->stats.records = 1;
+  m_fake_tables["t2"]->file->stats.records = 1000;
+  m_fake_tables["t3"]->file->stats.records = 1;
+  m_fake_tables["t4"]->file->stats.records = 1;
+  m_fake_tables["t5"]->file->stats.records = 1000;
+
+  // Build a multiple equality from the WHERE condition:
+  // t2.x = t3.x = t4.x = t5.x
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  EXPECT_EQ(1, cond_equal->current_level.size());
+  const Item_equal *eq = cond_equal->current_level.head();
+  EXPECT_EQ(nullptr, eq->get_const());
+  EXPECT_EQ(4, eq->get_fields().size());
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::SEMI, root->nested_loop_join().join_type);
+
+  // The innermost table on the left side is a REF lookup subsuming the join
+  // condition t2.x = t3.x.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->nested_loop_join().outer->type);
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN,
+            root->nested_loop_join().outer->nested_loop_join().inner->type);
+  EXPECT_EQ(AccessPath::REF, root->nested_loop_join()
+                                 .outer->nested_loop_join()
+                                 .inner->nested_loop_join()
+                                 .inner->type);
+
+  // The semi-join condition t2.x = t5.x is not redundant, so there should be a
+  // filter for it in some form (it ends up as t3.x = t4.x due to multiple
+  // equalities).
+  ASSERT_EQ(AccessPath::FILTER, root->nested_loop_join().inner->type);
+  EXPECT_EQ("((t3.x = t4.x) and (t4.x <> t1.x))",
+            ItemToString(root->nested_loop_join().inner->filter().condition));
+
+  // The innermost table on the right side is an EQ_REF lookup subsuming the
+  // join condition t4.x = t5.x.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN,
+            root->nested_loop_join().inner->filter().child->type);
+  EXPECT_EQ(AccessPath::EQ_REF, root->nested_loop_join()
+                                    .inner->filter()
+                                    .child->nested_loop_join()
+                                    .inner->type);
+}
+
 TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
   // Mark t1.y as a blob, to make sure we need rowids for our sort.
   Mock_field_long t1_x(/*is_unsigned=*/false);
