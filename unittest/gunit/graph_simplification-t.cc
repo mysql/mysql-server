@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "my_alloc.h"
+#include "scope_guard.h"
 #include "sql/handler.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -102,7 +103,29 @@ static void AddEdge(THD *thd, RelationalExpression::Type join_type,
   graph->graph.AddEdge(left, right);
 }
 
-static void AddNodes(int num_nodes, MEM_ROOT *mem_root, JoinHypergraph *g) {
+namespace {
+
+// Helper for destroying all the Fake_TABLE objects in a JoinHypergraph.
+class DestroyNodes {
+ public:
+  explicit DestroyNodes(const JoinHypergraph *graph) : m_graph(graph) {}
+  void operator()() const {
+    for (const JoinHypergraph::Node &node : m_graph->nodes) {
+      destroy(static_cast<Fake_TABLE *>(node.table));
+    }
+  }
+
+ private:
+  const JoinHypergraph *m_graph;
+};
+
+// RAII class which destroys Fake_TABLE objects when it goes out of scope.
+using NodeGuard = Scope_guard<DestroyNodes>;
+
+}  // namespace
+
+[[nodiscard]] static NodeGuard AddNodes(int num_nodes, MEM_ROOT *mem_root,
+                                        JoinHypergraph *g) {
   for (int i = 0; i < num_nodes; ++i) {
     TABLE *table =
         new (mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true);
@@ -115,6 +138,8 @@ static void AddNodes(int num_nodes, MEM_ROOT *mem_root, JoinHypergraph *g) {
     g->nodes.push_back(JoinHypergraph::Node{table, {}, {}});
     g->graph.AddNode();
   }
+
+  return {DestroyNodes(g)};
 }
 
 TEST(GraphSimplificationTest, SimpleStar) {
@@ -125,7 +150,7 @@ TEST(GraphSimplificationTest, SimpleStar) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(4, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(4, &mem_root, &g);
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10, 0.999,
           &mem_root, &g);
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b100, 0.5,
@@ -188,7 +213,7 @@ TEST(GraphSimplificationTest, TwoCycles) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(4, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(4, &mem_root, &g);
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b1, 0b10, 0.999,
           &mem_root, &g);
   AddEdge(initializer.thd(), RelationalExpression::INNER_JOIN, 0b10, 0b100, 0.5,
@@ -237,7 +262,7 @@ TEST(GraphSimplificationTest, ExistingHyperedge) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(4, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(4, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 690;
   g.nodes[1].table->file->stats.records = 6;
   g.nodes[2].table->file->stats.records = 1;
@@ -290,7 +315,7 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(4, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(4, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 0;
   g.nodes[1].table->file->stats.records = 171;
   g.nodes[2].table->file->stats.records = 6;
@@ -346,7 +371,7 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins2) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(5, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(5, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 1;
   g.nodes[1].table->file->stats.records = 1;
   g.nodes[2].table->file->stats.records = 1;
@@ -397,7 +422,7 @@ TEST(GraphSimplificationTest, ConflictRules) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(3, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(3, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 100;
   g.nodes[1].table->file->stats.records = 10000;
   g.nodes[2].table->file->stats.records = 0;
@@ -440,7 +465,7 @@ TEST(GraphSimplificationTest, Antijoin) {
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
 
-  AddNodes(3, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(3, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 100;
   g.nodes[1].table->file->stats.records = 100;
   g.nodes[2].table->file->stats.records = 10000;
@@ -493,7 +518,7 @@ TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
    * if the third edge is involved in a cycle in the before-after graph.
    */
 
-  AddNodes(7, &mem_root, &g);
+  NodeGuard node_guard = AddNodes(7, &mem_root, &g);
   g.nodes[0].table->file->stats.records = 1500;
   g.nodes[1].table->file->stats.records = 6000;
   g.nodes[2].table->file->stats.records = 700;
@@ -581,10 +606,12 @@ TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
   EXPECT_TRUE(receiver.HasSeen(0b1111111));
 }
 
-static void CreateStarJoin(THD *thd, int graph_size, std::mt19937 *engine,
-                           MEM_ROOT *mem_root, JoinHypergraph *g) {
+[[nodiscard]] static NodeGuard CreateStarJoin(THD *thd, int graph_size,
+                                              std::mt19937 *engine,
+                                              MEM_ROOT *mem_root,
+                                              JoinHypergraph *g) {
   std::uniform_int_distribution<int> table_size(1, 10000);
-  AddNodes(graph_size, mem_root, g);
+  NodeGuard node_guard = AddNodes(graph_size, mem_root, g);
   for (int node_idx = 0; node_idx < graph_size; ++node_idx) {
     g->nodes[node_idx].table->file->stats.records = table_size(*engine);
   }
@@ -594,12 +621,16 @@ static void CreateStarJoin(THD *thd, int graph_size, std::mt19937 *engine,
     AddEdge(thd, RelationalExpression::INNER_JOIN, 0b1, NodeMap{1} << node_idx,
             selectivity(*engine), mem_root, g);
   }
+
+  return node_guard;
 }
 
-static void CreateCliqueJoin(THD *thd, int graph_size, std::mt19937 *engine,
-                             MEM_ROOT *mem_root, JoinHypergraph *g) {
+[[nodiscard]] static NodeGuard CreateCliqueJoin(THD *thd, int graph_size,
+                                                std::mt19937 *engine,
+                                                MEM_ROOT *mem_root,
+                                                JoinHypergraph *g) {
   std::uniform_int_distribution<int> table_size(1, 10000);
-  AddNodes(graph_size, mem_root, g);
+  NodeGuard node_guard = AddNodes(graph_size, mem_root, g);
   for (int node_idx = 0; node_idx < graph_size; ++node_idx) {
     g->nodes[node_idx].table->file->stats.records = table_size(*engine);
   }
@@ -611,6 +642,8 @@ static void CreateCliqueJoin(THD *thd, int graph_size, std::mt19937 *engine,
               NodeMap{1} << node2_idx, selectivity(*engine), mem_root, g);
     }
   }
+
+  return node_guard;
 }
 
 TEST(GraphSimplificationTest, UndoRedo) {
@@ -622,7 +655,8 @@ TEST(GraphSimplificationTest, UndoRedo) {
 
   MEM_ROOT mem_root;
   JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
-  CreateStarJoin(initializer.thd(), /*graph_size=*/20, &engine, &mem_root, &g);
+  NodeGuard node_guard = CreateStarJoin(initializer.thd(), /*graph_size=*/20,
+                                        &engine, &mem_root, &g);
   GraphSimplifier s(&g, &mem_root);
 
   std::uniform_int_distribution<int> back_or_forward(0, 4);
@@ -663,7 +697,8 @@ static void BM_FullySimplifyStarJoin(int graph_size, size_t num_iterations) {
     my_testing::Server_initializer initializer;
     initializer.SetUp();
 
-    CreateStarJoin(initializer.thd(), graph_size, &engine, &mem_root, &g);
+    NodeGuard node_guard =
+        CreateStarJoin(initializer.thd(), graph_size, &engine, &mem_root, &g);
 
     StartBenchmarkTiming();
     GraphSimplifier s(&g, &mem_root);
@@ -710,7 +745,8 @@ static void BM_FullySimplifyCliqueJoin(int graph_size, size_t num_iterations) {
     my_testing::Server_initializer initializer;
     initializer.SetUp();
 
-    CreateCliqueJoin(initializer.thd(), graph_size, &engine, &mem_root, &g);
+    NodeGuard node_guard =
+        CreateCliqueJoin(initializer.thd(), graph_size, &engine, &mem_root, &g);
 
     StartBenchmarkTiming();
     GraphSimplifier s(&g, &mem_root);
