@@ -239,8 +239,9 @@ int ndbxfrm_file::create(
     bool compress,
     const byte *pwd_key,
     size_t pwd_key_len,
-    int kdf_iter_count,
-    int key_cipher,          // 0 - none, 1 - cbc, 2 - xts (always no padding)
+    int kdf_iter_count,  // 0 - pwd_key is a key, >0 - pwd_key is password, use
+                         // PBKDF2 for deriving key
+    int key_cipher,      // 0 - none, 1 - cbc, 2 - xts (always no padding)
     int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
     int key_data_unit_size,  //

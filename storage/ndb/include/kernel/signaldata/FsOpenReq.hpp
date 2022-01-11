@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,10 +75,9 @@ public:
    */
   static constexpr Uint32 SignalLength = 11;
   SECTION( FILENAME = 0 );
-  SECTION( PASSWORD = 1 );
+  SECTION(ENCRYPT_KEY_MATERIAL = 1);
 
-private:
-
+ private:
   /**
    * DATA VARIABLES
    */
@@ -113,12 +112,19 @@ public:
   static constexpr Uint32 OM_WRITE_BUFFER = 0x20000;
   static constexpr Uint32 OM_READ_SIZE = 0x40000;
   static constexpr Uint32 OM_DIRECT_SYNC = 0x80000;
-  static constexpr Uint32 OM_ENCRYPT = 0x100000;
-  static constexpr Uint32 OM_PASSWORD = 0x200000;
+  static constexpr Uint32 OM_ENCRYPT_CBC = 0x100000;
+  static constexpr Uint32 OM_ENCRYPT_PASSWORD = 0x200000;
   static constexpr Uint32 OM_READ_FORWARD = 0x400000;
   static constexpr Uint32 OM_SPARSE_INIT = 0x800000;
   static constexpr Uint32 OM_ZEROS_ARE_SPARSE = 0x1000000;
-  
+  static constexpr Uint32 OM_ENCRYPT_KEY = 0x2000000;
+  static constexpr Uint32 OM_ENCRYPT_XTS = 0x4000000;
+
+  static constexpr Uint32 OM_ENCRYPT_KEY_MATERIAL_MASK =
+      OM_ENCRYPT_PASSWORD | OM_ENCRYPT_KEY;
+  static constexpr Uint32 OM_ENCRYPT_CIPHER_MASK =
+      OM_ENCRYPT_CBC | OM_ENCRYPT_XTS;
+
   enum Suffixes {
     S_DATA = 0,
     S_FRAGLOG = 1,

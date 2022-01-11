@@ -390,11 +390,12 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 #ifdef NDBFS_TDE
   /*
    * Note: All code protected by NDBFS_TDE should be removed as soon as each
-   * client block sets OM_ENCRYPT and OM_PASSWORD as it should for FSOPENREQ.
+   * client block sets OM_ENCRYPT_XTS and OM_ENCRYPT_KEY as it should for
+   * FSOPENREQ.
    *
    * To be able to test encryption of filesystem Ndbfs reads the
-   * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
-   * and a dummy OM_PASSWORD.
+   * EncryptedFileSystem configuration parameter and by itself sets
+   * OM_ENCRYPT_XTS and a dummy OM_ENCRYPT_KEY.
    */
   m_encrypt_fs = false;
   ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &m_encrypt_fs);
@@ -610,11 +611,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     ndbrequire(handle.getSection(ptr, FsOpenReq::FILENAME));
   }
   file->theFileName.set(this, userRef, fsOpenReq->fileNumber, false, ptr);
-  if (handle.m_cnt > FsOpenReq::PASSWORD)
+  if (handle.m_cnt > FsOpenReq::ENCRYPT_KEY_MATERIAL)
   {
     jam();
     SegmentedSectionPtr ptr;
-    ndbrequire(handle.getSection(ptr, FsOpenReq::PASSWORD));
+    ndbrequire(handle.getSection(ptr, FsOpenReq::ENCRYPT_KEY_MATERIAL));
     ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_password));
     copy((Uint32*)&file->m_password, ptr);
     ndbrequire(4 + file->m_password.password_length <= ptr.sz * sizeof(Uint32));
@@ -644,11 +645,12 @@ Ndbfs::execFSOPENREQ(Signal* signal)
 #ifdef NDBFS_TDE
   /*
    * Note: All code protected by NDBFS_TDE should be removed as soon as each
-   * client block sets OM_ENCRYPT and OM_PASSWORD as it should for FSOPENREQ.
+   * client block sets OM_ENCRYPT_XTS and OM_ENCRYPT_KEY as it should for
+   * FSOPENREQ.
    *
    * To be able to test encryption of filesystem Ndbfs reads the
-   * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
-   * and a dummy OM_PASSWORD.
+   * EncryptedFileSystem configuration parameter and by itself sets
+   * OM_ENCRYPT_XTS and a dummy OM_ENCRYPT_KEY.
    */
   if (m_encrypt_fs)
   {
@@ -656,38 +658,38 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 5 &&
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_DATA)
     { /* LCP data files */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size > 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size == 0);
-      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
     }
     /* TS */
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 4 &&
        FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_DF)
     { /* TS data files */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size > 0);
-      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
     }
     /* UNDO */
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 4 &&
         FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_UF)
     { /* LG undo files */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size > 0);
-      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
     }
     /* REDO */
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 1 &&
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_FRAGLOG)
     { /* redo log */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       require(fsOpenReq->fileFlags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
 #ifdef ERROR_INSERT
       if (page_size == 0)
@@ -700,16 +702,17 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       {
         if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
         require(page_size > 0);
-        fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+        fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
       }
     }
   }
-  if (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT &&
-      !(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD))
+  if ((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) ==
+          FsOpenReq::OM_ENCRYPT_XTS &&
+      (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) == 0)
   {
     strcpy(file->m_password.encryption_password, "DUMMY");
     file->m_password.password_length = 5;
-    fsOpenReq->fileFlags |= FsOpenReq::OM_PASSWORD;
+    fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
   }
 #endif
 
@@ -718,7 +721,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     jam();
     Uint32 cnt = 16; // 512k
     // Need at least two pages when initializing encrypted REDO/TS/UNDO files
-    const Uint32 min_cnt = (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT) ? 2 : 1;
+    const Uint32 min_cnt =
+        (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) ? 2 : 1;
     Ptr<GlobalPage> page_ptr;
     m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, min_cnt);
     if(cnt == 0)
@@ -780,8 +784,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   }
   if (!allow_enc)
   {
-    request->par.open.flags &=
-        ~(FsOpenReq::OM_ENCRYPT | FsOpenReq::OM_PASSWORD);
+    request->par.open.flags &= ~(FsOpenReq::OM_ENCRYPT_CIPHER_MASK |
+                                 FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK);
     file->m_password.password_length = 0;
   }
   if (!allow_odirect)

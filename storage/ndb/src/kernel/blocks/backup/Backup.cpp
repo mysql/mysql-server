@@ -6957,7 +6957,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->m_encrypted_file)
   {
-    req->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_CBC;
   }
   else
   {
@@ -7029,7 +7029,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setPartNum(req->fileNumber, 0);
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7038,9 +7038,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
         1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
@@ -7076,7 +7077,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setPartNum(req->fileNumber, 0);
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7085,9 +7086,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
         1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
@@ -7110,7 +7112,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     req->fileFlags |= FsOpenReq::OM_GZ;
   if (ptr.p->m_encrypted_file)
   {
-    req->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_CBC;
   }
   else
   {
@@ -7132,7 +7134,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::v2_setTotalParts(req->fileNumber, 0);
   }
   FsOpenReq::v2_setCount(req->fileNumber, 0);
-  if (req->fileFlags & FsOpenReq::OM_ENCRYPT)
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
   {
     LinearSectionPtr lsptr[3];
 
@@ -7141,9 +7143,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
-    req->fileFlags |= FsOpenReq::OM_PASSWORD;
-    lsptr[FsOpenReq::PASSWORD].p = (Uint32*)&ptr.p->m_encryption_password_data;
-    lsptr[FsOpenReq::PASSWORD].sz =
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
+        (Uint32*)&ptr.p->m_encryption_password_data;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
         1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
@@ -14419,7 +14422,7 @@ Backup::lcp_open_data_file(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT) == 0)
+  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -14473,7 +14476,7 @@ Backup::lcp_open_data_file_late(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT) == 0);
+  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
