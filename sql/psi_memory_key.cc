@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,6 +116,9 @@ PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_my_str_malloc;
 PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
+PSI_memory_key key_memory_persisted_variables_memroot;
+PSI_memory_key key_memory_persisted_variables_unordered_map;
+PSI_memory_key key_memory_persisted_variables_unordered_set;
 PSI_memory_key key_memory_prepared_statement_infrastructure;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
 PSI_memory_key key_memory_partitions_prune_exec;
@@ -373,7 +376,17 @@ static PSI_memory_info all_server_memory[] = {
      "Mem root for temporary objects allocated while dropping tables or the "
      "whole database."},
     {&key_memory_rm_db_mdl_reqs_root, "rm_db::mdl_reqs_root", PSI_FLAG_THREAD,
-     0, "Mem root for allocating MDL requests while dropping datbase."}};
+     0, "Mem root for allocating MDL requests while dropping datbase."},
+    {&key_memory_persisted_variables_memroot, "Persisted_variables::memroot",
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Memory allocated to process persisted variables during server start-up "
+     "and plugin/component initialization."},
+    {&key_memory_persisted_variables_unordered_map,
+     "Persisted_variables::unordered_map", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Memory allocated for in-memory maps for persisted variables"},
+    {&key_memory_persisted_variables_unordered_set,
+     "Persisted_variables::unordered_set", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Memory allocated for in-memory sets for persisted variables"}};
 
 void register_server_memory_keys() {
   const char *category = "sql";

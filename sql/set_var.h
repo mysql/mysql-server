@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,12 @@ class sys_var {
      files generation.
     */
 
-    PERSIST_AS_READ_ONLY = 0x10000
+    PERSIST_AS_READ_ONLY = 0x10000,
+    /**
+      Sensitive variable. If keyring is available, the variable will be
+      persisted in mysqld-auto.cnf in encrypted format
+    */
+    SENSITIVE = 0x20000
   };
   static const int PARSE_EARLY = 1;
   static const int PARSE_NORMAL = 2;
@@ -270,6 +275,8 @@ class sys_var {
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
   bool is_persist_readonly() const { return flags & PERSIST_AS_READ_ONLY; }
+  bool is_parse_early() const { return (m_parse_flag == PARSE_EARLY); }
+  bool is_sensitive() const { return flags & SENSITIVE; }
   /**
     Check if the variable can be set using SET_VAR hint.
 
@@ -340,6 +347,8 @@ class sys_var {
 
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
+  bool check_if_sensitive_in_context(THD *, bool suppress_errors = true) const;
+
  private:
   /**
     Like strncpy, but ensures the destination is '\0'-terminated.  Is
@@ -400,6 +409,8 @@ class sys_var {
 };
 
 enum class Suppress_not_found_error { NO, YES };
+
+enum class Force_sensitive_system_variable_access { NO, YES };
 
 /**
   Wrapper interface for all kinds of system variables.
@@ -734,6 +745,8 @@ class System_variable_tracker final {
     @param suppress_not_found_error
         Suppress or output ER_UNKNOWN_SYSTEM_VARIABLE if a dynamic variable is
         unavailable.
+    @param force_sensitive_variable_access
+        Suppress privilege check for SENSITIVE variables.
 
     @returns True if the dynamic variable is unavailable, otherwise false.
   */
@@ -742,7 +755,9 @@ class System_variable_tracker final {
       std::function<void(const System_variable_tracker &, sys_var *)> function =
           {},
       Suppress_not_found_error suppress_not_found_error =
-          Suppress_not_found_error::NO) const;
+          Suppress_not_found_error::NO,
+      Force_sensitive_system_variable_access force_sensitive_variable_access =
+          Force_sensitive_system_variable_access::NO) const;
 
   /**
     Safely pass a sys_var object to a function. Template variant.
@@ -769,6 +784,8 @@ class System_variable_tracker final {
     @param suppress_not_found_error
         Suppress or output ER_UNKNOWN_SYSTEM_VARIABLE if a dynamic variable is
         unavailable.
+    @param force_sensitive_variable_access
+        Suppress privilege check for SENSITIVE variables.
 
     @returns
       No value if the dynamic variable is unavailable, otherwise a value of
@@ -779,22 +796,28 @@ class System_variable_tracker final {
       THD *thd,
       std::function<T(const System_variable_tracker &, sys_var *)> function,
       Suppress_not_found_error suppress_not_found_error =
-          Suppress_not_found_error::NO) const {
+          Suppress_not_found_error::NO,
+      Force_sensitive_system_variable_access force_sensitive_variable_access =
+          Force_sensitive_system_variable_access::NO) const {
     T result;
     auto wrapper = [function, &result](const System_variable_tracker &t,
                                        sys_var *v) {
       result = function(t, v);  // clang-format
     };
-    return access_system_variable(thd, wrapper, suppress_not_found_error)
+    return access_system_variable(thd, wrapper, suppress_not_found_error,
+                                  force_sensitive_variable_access)
                ? std::optional<T>{}
                : std::optional<T>{result};
   }
 
-  void cache_medatata(sys_var *v) const { m_cached_show_type = v->show_type(); }
-
   SHOW_TYPE cached_show_type() const {
-    if (!m_cached_show_type.has_value()) my_abort();
-    return m_cached_show_type.value();
+    if (!m_cache.has_value()) my_abort();
+    return m_cache.value().m_cached_show_type;
+  }
+
+  bool cached_is_sensitive() const {
+    if (!m_cache.has_value()) my_abort();
+    return m_cache.value().m_cached_is_sensitive;
   }
 
   /** Number of system variable elements to preallocate. */
@@ -832,16 +855,22 @@ class System_variable_tracker final {
       THD *,
       std::function<void(const System_variable_tracker &, sys_var *)>) const;
 
-  bool visit_plugin_variable(THD *, std::function<void(sys_var *)>,
+  bool visit_plugin_variable(THD *, std::function<bool(sys_var *)>,
                              Suppress_not_found_error) const;
 
-  bool visit_component_variable(THD *, std::function<void(sys_var *)>,
+  bool visit_component_variable(THD *, std::function<bool(sys_var *)>,
                                 Suppress_not_found_error) const;
+
+  void cache_metadata(THD *thd, sys_var *v) const;
 
  private:
   Lifetime m_tag;
 
-  mutable std::optional<SHOW_TYPE> m_cached_show_type;
+  struct Cache {
+    SHOW_TYPE m_cached_show_type;
+    bool m_cached_is_sensitive;
+  };
+  mutable std::optional<Cache> m_cache;
 
   union {
     struct {
@@ -887,7 +916,7 @@ class set_var_base {
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value
-  virtual void print(const THD *thd, String *str) = 0;  ///< To self-print
+  virtual bool print(const THD *thd, String *str) = 0;  ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -900,6 +929,9 @@ class set_var_base {
     between the two phases.
   */
   virtual int light_check(THD *thd) { return (resolve(thd) || check(thd)); }
+
+  /** Used to identify if variable is sensitive or not */
+  virtual bool is_sensitive() const { return false; }
 };
 
 /**
@@ -938,7 +970,7 @@ class set_var : public set_var_base {
     @param str String buffer to append the partial assignment to.
   */
   void print_short(const THD *thd, String *str);
-  void print(const THD *, String *str) override; /* To self-print */
+  bool print(const THD *, String *str) override; /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
@@ -948,7 +980,8 @@ class set_var : public set_var_base {
     return m_var_tracker.eq_static_sys_var(Sys_optimizer_trace_ptr);
   }
 
- private:
+  bool is_sensitive() const override;
+
   void update_source_user_host_timestamp(THD *thd, sys_var *var);
 };
 
@@ -962,7 +995,7 @@ class set_var_user : public set_var_base {
   int check(THD *thd) override;
   int update(THD *thd) override;
   int light_check(THD *thd) override;
-  void print(const THD *thd, String *str) override; /* To self-print */
+  bool print(const THD *thd, String *str) override; /* To self-print */
 };
 
 class set_var_password : public set_var_base {
@@ -984,7 +1017,7 @@ class set_var_password : public set_var_base {
   int resolve(THD *) override { return 0; }
   int check(THD *thd) override;
   int update(THD *thd) override;
-  void print(const THD *thd, String *str) override; /* To self-print */
+  bool print(const THD *thd, String *str) override; /* To self-print */
   ~set_var_password() override;
 };
 
@@ -1013,7 +1046,7 @@ class set_var_collation_client : public set_var_base {
   int resolve(THD *) override { return 0; }
   int check(THD *thd) override;
   int update(THD *thd) override;
-  void print(const THD *thd, String *str) override; /* To self-print */
+  bool print(const THD *thd, String *str) override; /* To self-print */
 };
 
 /* optional things, have_* variables */

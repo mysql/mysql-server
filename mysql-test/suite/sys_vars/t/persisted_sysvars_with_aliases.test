@@ -189,13 +189,13 @@ while (!$json_sysvar_done) {
     # Variables tagged as "PERSIST_AS_READONLY" are stored in a
     # sub-document.
     if ($persist_as_readonly) {
-      --let $subsection = .mysql_server_static_options
+      --let $subsection = mysql_static_variables
     }
     if (!$persist_as_readonly) {
-      --let $subsection =
+      --let $subsection = mysql_dynamic_variables
     }
-    --let $all_names = $all_names '$.mysql_server$subsection.$name'
-    --let $all_aliases = $all_aliases '$.mysql_server$subsection.$alias'
+    --let $all_names = $all_names '$.$subsection.$name'
+    --let $all_aliases = $all_aliases '$.$subsection.$alias'
     # Collect expected list of deprecation warnings that will be given on
     # a later server restart.
     let $persist_deprecation_warnings = $persist_deprecation_warnings

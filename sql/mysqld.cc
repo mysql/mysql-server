@@ -1188,6 +1188,7 @@ bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
+bool opt_persist_sensitive_variables_in_plaintext{true};
 
 #if defined(_WIN32)
 /*
@@ -1802,6 +1803,10 @@ Gtid_table_persistor *gtid_table_persistor = nullptr;
 /* cache for persisted variables */
 static Persisted_variables_cache persisted_variables_cache;
 
+void persisted_variables_refresh_keyring_support() {
+  persisted_variables_cache.keyring_support_available();
+}
+
 void set_remaining_args(int argc, char **argv) {
   remaining_argc = argc;
   remaining_argv = argv;
@@ -2119,7 +2124,9 @@ static bool initialize_manifest_file_components() {
     like init_server_components() the word is used in bit different context
     and may mean general idea of modularity.
   */
-  g_deployed_components = new (std::nothrow) Deployed_components(my_progname);
+  assert(strlen(mysql_real_data_home) > 0);
+  g_deployed_components =
+      new (std::nothrow) Deployed_components(my_progname, mysql_real_data_home);
   if (g_deployed_components == nullptr ||
       g_deployed_components->valid() == false) {
     /*Error would have been raised by Deployed_components constructor */
@@ -4691,7 +4698,6 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
 }
 
 int init_common_variables() {
-  umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero);  // set decimal_zero constant;
   tzset();                             // Set tzname
 
@@ -6260,9 +6266,6 @@ static int init_server_components() {
   */
   tc_log = &tc_log_dummy;
 
-  /* This limits ability to configure SSL library through config options */
-  init_ssl();
-
   /*
    Each server should have one UUID. We will create it automatically, if it
    does not exist. It should be initialized before opening binlog file. Because
@@ -6915,6 +6918,121 @@ static void calculate_mysql_home_from_my_progname() {
   mysql_home_ptr = mysql_home;
 }
 
+/**
+  Helper class for loading keyring component
+  Keyring component is loaded after minimal chassis initialization.
+  At this time, home dir and plugin dir may not be initialized.
+
+  This helper class sets them temporarily by reading configurations
+  and resets them in destructor.
+*/
+class Plugin_and_data_dir_option_parser final {
+ public:
+  Plugin_and_data_dir_option_parser(int argc, char **argv)
+      : datadir_(nullptr),
+        plugindir_(nullptr),
+        save_homedir_{0},
+        save_plugindir_{0},
+        valid_(false) {
+    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr;
+    char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0},
+         local_plugindir_buffer[FN_REFLEN] = {0};
+    const char *dirs = nullptr;
+
+    my_option datadir_options[] = {
+        {"datadir", 0, "", &datadir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0,
+         0, nullptr, 0, nullptr},
+        {"plugin_dir", 0, "", &plugindir, nullptr, nullptr, GET_STR, OPT_ARG, 0,
+         0, 0, nullptr, 0, nullptr},
+        {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0,
+         0, 0, nullptr, 0, nullptr}};
+
+    /*
+      create temporary args list and pass it to handle_options.
+      We do this because we don't want to mess with the actual
+      argument list. handle_options() trims the processed parts.
+    */
+    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+    if (!(ptr =
+              (char *)alloc.Alloc(sizeof(alloc) + (argc + 1) * sizeof(char *))))
+      return;
+    memset(ptr, 0, (sizeof(char *) * (argc + 1)));
+    res = (char **)(ptr);
+    memcpy((uchar *)res, (char *)(argv), (argc) * sizeof(char *));
+
+    my_getopt_skip_unknown = true;
+    if (my_handle_options(&argc, &res, datadir_options, nullptr, nullptr,
+                          true)) {
+      my_getopt_skip_unknown = false;
+      return;
+    }
+    my_getopt_skip_unknown = false;
+
+    if (!datadir) {
+      /* mysql_real_data_home must be initialized at this point */
+      assert(mysql_real_data_home[0]);
+      /*
+        mysql_home_ptr should also be initialized at this point.
+        See calculate_mysql_home_from_my_progname() for details
+      */
+      assert(mysql_home_ptr && mysql_home_ptr[0]);
+      convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+      (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
+                         mysql_home_ptr);
+      datadir = local_datadir_buffer;
+    }
+    dirs = datadir;
+    unpack_dirname(dir, dirs);
+    datadir_ = my_strdup(PSI_INSTRUMENT_ME, dir, MYF(0));
+    memset(dir, 0, FN_REFLEN);
+
+    convert_dirname(local_plugindir_buffer,
+                    plugindir ? plugindir : get_relative_path(PLUGINDIR),
+                    NullS);
+    (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
+                       mysql_home);
+    plugindir_ = my_strdup(PSI_INSTRUMENT_ME, local_plugindir_buffer, MYF(0));
+
+    /* Backup mysql_real_data_home */
+    if (mysql_real_data_home[0])
+      memcpy(save_homedir_, mysql_real_data_home, strlen(mysql_real_data_home));
+    if (datadir_ != nullptr)
+      memcpy(mysql_real_data_home, datadir_, strlen(datadir_));
+
+    /* Backup opt_plugin_dir */
+    if (opt_plugin_dir[0])
+      memcpy(save_plugindir_, opt_plugin_dir,
+             std::min(static_cast<size_t>(FN_REFLEN), strlen(opt_plugin_dir)));
+    if (plugindir_ != nullptr)
+      memcpy(opt_plugin_dir, plugindir_, strlen(plugindir_));
+
+    valid_ = true;
+  }
+
+  ~Plugin_and_data_dir_option_parser() {
+    valid_ = false;
+    if (datadir_ != nullptr) {
+      memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
+      memcpy(mysql_real_data_home, save_homedir_, strlen(save_homedir_));
+      my_free(datadir_);
+    }
+    if (plugindir_ != nullptr) {
+      memset(opt_plugin_dir, 0, sizeof(opt_plugin_dir));
+      memcpy(opt_plugin_dir, save_plugindir_, strlen(save_plugindir_));
+      my_free(plugindir_);
+    }
+  }
+
+  bool valid() const { return valid_; }
+
+ private:
+  char *datadir_;
+  char *plugindir_;
+  char save_homedir_[FN_REFLEN + 1];
+  char save_plugindir_[FN_REFLEN + 1];
+  bool valid_;
+};
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -6970,16 +7088,18 @@ int mysqld_main(int argc, char **argv)
 
   /*
    Initialize variables cache for persisted variables, load persisted
-   config file and append read only persisted variables to command line
-   options if present.
+   config file and append parse early  read only persisted variables
+   to command line options if present.
   */
+  bool arg_separator_added = false;
   if (persisted_variables_cache.init(&argc, &argv) ||
       persisted_variables_cache.load_persist_file() ||
-      persisted_variables_cache.append_read_only_variables(&argc, &argv)) {
+      persisted_variables_cache.append_parse_early_variables(
+          &argc, &argv, arg_separator_added)) {
     flush_error_log_messages();
     return 1;
   }
-  my_getopt_use_args_separator = false;
+
   remaining_argc = argc;
   remaining_argv = argv;
 
@@ -7198,16 +7318,61 @@ int mysqld_main(int argc, char **argv)
   my_thread_global_reinit();
 #endif /* HAVE_PSI_INTERFACE */
 
+  /* This limits ability to configure SSL library through config options */
+  init_ssl();
+
+  /* Set umask as early as possible */
+  umask(((~my_umask) & 0666));
+
   /*
     Initialize Components core subsystem early on, once we have PSI, which it
     uses. This part doesn't use any more MySQL-specific functionalities but
     error logging and PFS.
   */
-  if (component_infrastructure_init()) unireg_abort(MYSQLD_ABORT_EXIT);
+  if (component_infrastructure_init()) {
+    flush_error_log_messages();
+    return 1;
+  }
+
+  {
+    /* Must be initialized early because it is required by dynamic loader */
+    files_charset_info = &my_charset_utf8_general_ci;
+    auto keyring_helper = std::make_unique<Plugin_and_data_dir_option_parser>(
+        remaining_argc, remaining_argv);
+
+    if (keyring_helper->valid() == false) {
+      flush_error_log_messages();
+      return 1;
+    }
+
+    if (initialize_manifest_file_components()) {
+      flush_error_log_messages();
+      return 1;
+    }
 
     /*
-      Initialize Performance Schema component services.
+      If keyring component was loaded through manifest file, services provided
+      by such a component should get priority over keyring plugin. That's why
+      we have to set defaults before proxy keyring services are loaded.
     */
+    set_srv_keyring_implementation_as_default();
+  }
+
+  /*
+    Append read only persisted variables to command line now.
+    Note that if arg separator is already added, it will not
+    be added again.
+  */
+  if (persisted_variables_cache.append_read_only_variables(
+          &remaining_argc, &remaining_argv, arg_separator_added, false)) {
+    flush_error_log_messages();
+    return 1;
+  }
+  my_getopt_use_args_separator = false;
+
+  /*
+    Initialize Performance Schema component services.
+  */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (!is_help_or_validate_option() && !opt_initialize) {
     register_pfs_notification_service();
@@ -7440,15 +7605,6 @@ int mysqld_main(int argc, char **argv)
            my_strerror(errbuf, sizeof(errbuf), errno));
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
-
-  if (initialize_manifest_file_components()) unireg_abort(MYSQLD_ABORT_EXIT);
-
-  /*
-    If keyring component was loaded through manifest file, services provided
-    by such a component should get priority over keyring plugin. That's why
-    we have to set defaults before proxy keyring services are loaded.
-  */
-  set_srv_keyring_implementation_as_default();
 
   /*
    The subsequent calls may take a long time : e.g. innodb log read.

@@ -143,6 +143,7 @@ constexpr const unsigned long MAX_CONNECTIONS_DEFAULT{151};
 #define PREALLOCATED sys_var::ALLOCATED +
 #define NON_PERSIST sys_var::NOTPERSIST +
 #define PERSIST_AS_READONLY sys_var::PERSIST_AS_READ_ONLY +
+#define SENSITIVE sys_var::SENSITIVE +
 
 /*
   Sys_var_bit meaning is reversed, like in

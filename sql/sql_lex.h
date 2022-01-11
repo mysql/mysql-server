@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4354,6 +4354,14 @@ struct LEX : public Query_tables_list {
   }
 
   bool set_channel_name(LEX_CSTRING name = {});
+
+ private:
+  bool rewrite_required{false};
+
+ public:
+  void set_rewrite_required() { rewrite_required = true; }
+  void reset_rewrite_required() { rewrite_required = false; }
+  bool is_rewrite_required() { return rewrite_required; }
 };
 
 /**

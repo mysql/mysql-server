@@ -49,7 +49,7 @@ CALL mtr.add_suppression("Plugin audit_log reported *");
 
 --echo # Both queries must return 101 rows.
 SELECT * FROM performance_schema.persisted_variables ORDER BY VARIABLE_NAME;
-SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED' ORDER BY VARIABLE_NAME;
 
 RESET PERSIST;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,6 +141,9 @@ extern PSI_memory_key key_memory_my_bitmap_map;
 extern PSI_memory_key key_memory_my_str_malloc;
 extern PSI_memory_key key_memory_opt_bin_logname;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
+extern PSI_memory_key key_memory_persisted_variables_memroot;
+extern PSI_memory_key key_memory_persisted_variables_unordered_map;
+extern PSI_memory_key key_memory_persisted_variables_unordered_set;
 extern PSI_memory_key key_memory_prepared_statement_infrastructure;
 extern PSI_memory_key key_memory_prepared_statement_main_mem_root;
 extern PSI_memory_key key_memory_partitions_prune_exec;

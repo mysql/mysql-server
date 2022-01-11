@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -941,4 +941,10 @@ void release_keyring_handles() {
       &keyring_lockable::internal_keyring_reader,
       &keyring_lockable::internal_keyring_load,
       &keyring_lockable::internal_keyring_writer);
+}
+
+bool keyring_status_no_error() {
+  return (
+      keyring_lockable::internal_keyring_component_status != nullptr &&
+      keyring_lockable::internal_keyring_component_status->is_initialized());
 }

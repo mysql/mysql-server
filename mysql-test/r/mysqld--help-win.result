@@ -1038,6 +1038,11 @@ The following options may be given as the first argument:
  --persist-only-admin-x509-subject[=name] 
  The client peer certificate name required to enable
  setting all system variables via SET PERSIST[_ONLY]
+ --persist-sensitive-variables-in-plaintext 
+ If set to FALSE, server will refuse to persist SENSITIVE
+ variables in plaintext and refuse to start if encrypted
+ part of persited file cannot be processed.
+ (Defaults to on; use --skip-persist-sensitive-variables-in-plaintext to disable.)
  --persisted-globals-load 
  When this option is enabled, config file mysqld-auto.cnf
  is read and applied to server, else this file is ignored
@@ -1924,6 +1929,7 @@ performance-schema-setup-objects-size -1
 performance-schema-show-processlist FALSE
 performance-schema-users-size -1
 persist-only-admin-x509-subject 
+persist-sensitive-variables-in-plaintext TRUE
 persisted-globals-load TRUE
 port ####
 port-open-timeout 0

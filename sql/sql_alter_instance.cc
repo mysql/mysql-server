@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -242,6 +242,13 @@ bool Reload_keyring::execute() {
     my_error(ER_RELOAD_KEYRING_FAILURE, MYF(0));
     return true;
   }
+
+  /*
+    Persisted variables require keyring support to
+    persist SENSITIVE varaiables in a secure manner.
+  */
+  persisted_variables_refresh_keyring_support();
+
   my_ok(m_thd);
   return false;
 }

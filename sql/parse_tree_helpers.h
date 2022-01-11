@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,4 +257,5 @@ bool check_resource_group_name_len(const LEX_CSTRING &name,
                                    Sql_condition::enum_severity_level severity);
 
 void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
+
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -11593,6 +11593,29 @@ ER_KEYRING_OKV_STANDBY_SERVER_COUNT_EXCEEDED
 ER_WARN_MIGRATION_EMPTY_SOURCE_KEYRING
   eng "Source keyring does not have any keys to migrate."
 
+ER_WARN_CANNOT_PERSIST_SENSITIVE_VARIABLES
+  eng "Cannot persist SENSITIVE system variables because keyring component support is unavailable and persist_sensitive_variables_in_plaintext is set to OFF. Please make sure that keyring services are active and required keys are available."
+
+ER_CANNOT_INTERPRET_PERSISTED_SENSITIVE_VARIABLES
+  eng "Cannot interpret persisted SENSITIVE system variables. Please make sure that keyring services are active and required keys are available."
+
+ER_PERSISTED_VARIABLES_KEYRING_SUPPORT_REQUIRED
+  eng "Keyring has to be loaded through manifest file in order to support secure storage for persisted variables"
+
+ER_PERSISTED_VARIABLES_MASTER_KEY_NOT_FOUND
+  eng "Could not find master key %s in keyring"
+
+ER_PERSISTED_VARIABLES_MASTER_KEY_CANNOT_BE_GENERATED
+  eng "A new master key %s could not be generated"
+
+ER_PERSISTED_VARIABLES_ENCRYPTION_FAILED
+  eng "Failed to encrypt %s using %s"
+
+ER_PERSISTED_VARIABLES_DECRYPTION_FAILED
+  eng "Failed to decrypt %s using %s"
+
+ER_PERSISTED_VARIABLES_LACK_KEYRING_SUPPORT
+  eng "Persisting SENSITIVE variables in encrypted form requires keyring component loaded through manifest file."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

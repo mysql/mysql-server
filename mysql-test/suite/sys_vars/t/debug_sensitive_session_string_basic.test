@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+#
+# exists as global
+#
+
+# just to show that global.debug_sensitive_session_string exists
+select @@global.debug_sensitive_session_string;
+
+select @@global.debug_sensitive_session_string into @save;
+
+--replace_column 2 #
+show global variables like 'debug_sensitive_session_string';
+
+--replace_column 2 #
+--disable_warnings
+select * from performance_schema.global_variables where variable_name="debug_sensitive_session_string";
+--enable_warnings
+
+
+set @@global.debug_sensitive_session_string="1";
+set @@global.debug_sensitive_session_string=@save;
+
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_sensitive_session_string=1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_sensitive_session_string=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_sensitive_session_string=1e1;

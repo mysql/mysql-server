@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2280,7 +2280,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
      newly installed plugin to process those options which are specific
      to this plugin.
     */
-    if (pv && pv->append_read_only_variables(&argc, &argv, true)) {
+    if (pv && pv->append_read_only_variables(&argc, &argv, false, true)) {
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       mysql_mutex_unlock(&LOCK_plugin);
       report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name.str);
@@ -2887,6 +2887,7 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock) {
 
     if (v->version <= thd->variables.dynamic_variables_version ||
         !(var = intern_find_sys_var(v->key + 1, v->name_len)) ||
+        var->check_if_sensitive_in_context(thd) ||
         !(pi = var->cast_pluginvar()) ||
         v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
       continue;

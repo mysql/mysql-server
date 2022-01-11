@@ -7992,7 +7992,7 @@ Item *get_system_variable(Parse_context *pc, enum_var_type scope,
   enum_var_type resolved_scope;
   bool written_to_binlog_flag = false;
   auto f = [thd, scope, &resolved_scope, &written_to_binlog_flag](
-               const System_variable_tracker &t, sys_var *v) -> bool {
+               const System_variable_tracker &, sys_var *v) -> bool {
     if (scope == OPT_DEFAULT) {
       if (v->check_scope(OPT_SESSION)) {
         resolved_scope = OPT_SESSION;
@@ -8011,7 +8011,6 @@ Item *get_system_variable(Parse_context *pc, enum_var_type scope,
 
     written_to_binlog_flag = v->is_written_to_binlog(resolved_scope);
     v->do_deprecated_warning(thd);
-    t.cache_medatata(v);
     return false;
   };
   System_variable_tracker var_tracker = System_variable_tracker::make_tracker(

@@ -9718,6 +9718,12 @@ ER_WARN_DEPRECATED_DATETIME_DELIMITER
 ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER
   eng "Delimiter '%s' in position %d in datetime value '%s' at row %d is superfluous and is deprecated. Please remove."
 
+ER_CANNOT_PERSIST_SENSITIVE_VARIABLES
+  eng "Cannot persist SENSITIVE system variable '%s' because keyring component support is unavailable."
+
+ER_WARN_CANNOT_SECURELY_PERSIST_SENSITIVE_VARIABLES
+  eng "SENSITIVE system variable '%s' was persisted without encryption. Consider restarting server with keyring component support to persist SENSITIVE variables securely."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

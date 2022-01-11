@@ -33,6 +33,7 @@ SELECT * FROM performance_schema.global_variables
 WHERE variable_name NOT IN
 ('rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
+AND variable_name NOT LIKE 'debug_%'
 ORDER BY variable_name;
 
 include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer ]

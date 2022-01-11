@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -451,6 +451,11 @@ struct System_variables {
     committed or rolled back from another connection.
    */
   bool xa_detach_on_prepare;
+
+  /**
+    @sa Sys_debug_sensitive_session_string
+  */
+  char *debug_sensitive_session_str;
 };
 
 /**

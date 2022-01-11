@@ -90,7 +90,7 @@ PFS_engine_table *table_persisted_variables::create(PFS_engine_table_share *) {
 ha_rows table_persisted_variables::get_row_count(void) {
   Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
   if (pv) {
-    return pv->get_persisted_variables()->size();
+    return pv->get_persisted_dynamic_variables()->size();
   } else {
     return 0;
   }

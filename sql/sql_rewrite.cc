@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,7 +358,8 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
   // We should not come through here twice for the same query.
   assert(thd->rewritten_query().length() == 0);
 
-  if (thd->lex->contains_plaintext_password) {
+  if (thd->lex->contains_plaintext_password ||
+      thd->lex->is_rewrite_required()) {
     rewrite_query(thd, type, params, rlb);
     if (rlb.length() > 0) thd->swap_rewritten_query(rlb);
     // The previous rewritten query is in rlb now, which now goes out of scope.
@@ -1186,17 +1187,21 @@ Rewriter_set::Rewriter_set(THD *thd, Consumer_type type)
   @retval        false   otherwise
 */
 bool Rewriter_set::rewrite(String &rlb) const {
+  String local_rlb;
   LEX *lex = m_thd->lex;
   List_iterator_fast<set_var_base> it(lex->var_list);
   set_var_base *var;
   bool comma = false;
 
-  rlb.append(STRING_WITH_LEN("SET "));
+  local_rlb.append(STRING_WITH_LEN("SET "));
 
   while ((var = it++)) {
-    comma_maybe(&rlb, &comma);
-    var->print(m_thd, &rlb);
+    comma_maybe(&local_rlb, &comma);
+    if (var->print(m_thd, &local_rlb) == false) {
+      return false;
+    }
   }
+  rlb.takeover(local_rlb);
   return true;
 }
 

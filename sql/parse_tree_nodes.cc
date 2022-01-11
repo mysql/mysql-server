@@ -444,10 +444,7 @@ static bool add_system_variable_assignment(THD *thd, LEX_CSTRING prefix,
                                            Item *val) {
   System_variable_tracker var_tracker = System_variable_tracker::make_tracker(
       to_string_view(prefix), to_string_view(suffix));
-  auto f = [](const System_variable_tracker &t, sys_var *v) -> void {
-    t.cache_medatata(v);
-  };
-  if (var_tracker.access_system_variable(thd, f)) {
+  if (var_tracker.access_system_variable(thd)) {
     return true;
   }
 

@@ -214,7 +214,7 @@ table_open_cache_instances	16
 thread_handling	one-thread-per-connection
 thread_stack	286720
 tls_version	TLSv1.2,TLSv1.3
-SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME
 back_log
 binlog_gtid_simple_recovery

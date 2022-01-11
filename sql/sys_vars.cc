@@ -7558,3 +7558,21 @@ static Sys_var_bool Sys_xa_detatch_on_prepare(
     HINT_UPDATEABLE SESSION_VAR(xa_detach_on_prepare), CMD_LINE(OPT_ARG),
     DEFAULT(true), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_outside_trx_outside_sf));
+
+#ifndef NDEBUG
+static Sys_var_charptr Sys_debug_sensitive_session_string(
+    "debug_sensitive_session_string",
+    "Debug variable to test sensitive session string variable.",
+    SENSITIVE SESSION_VAR(debug_sensitive_session_str), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(""));
+#endif /* NDEBUG */
+
+static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(
+    "persist_sensitive_variables_in_plaintext",
+    "If set to FALSE, server will refuse to persist SENSITIVE variables in "
+    "plaintext and refuse to start if encrypted part of persited file cannot "
+    "be processed.",
+    READ_ONLY NON_PERSIST
+        GLOBAL_VAR(opt_persist_sensitive_variables_in_plaintext),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,7 +238,8 @@ class sys_var_pluginvar : public sys_var {
                 (plugin_var_arg->flags & PLUGIN_VAR_INVISIBLE ? INVISIBLE : 0) |
                 (plugin_var_arg->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY
                      ? PERSIST_AS_READ_ONLY
-                     : 0),
+                     : 0) |
+                (plugin_var_arg->flags & PLUGIN_VAR_SENSITIVE ? SENSITIVE : 0),
             0, (plugin_var_arg->flags & PLUGIN_VAR_NOCMDOPT) ? -1 : 0,
             (plugin_var_arg->flags & PLUGIN_VAR_NOCMDARG
                  ? NO_ARG

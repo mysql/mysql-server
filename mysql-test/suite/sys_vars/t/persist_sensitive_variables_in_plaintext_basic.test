@@ -1,0 +1,24 @@
+#
+# exists as global
+#
+
+# just to show that global.persist_sensitive_variables_in_plaintext exists
+select @@global.persist_sensitive_variables_in_plaintext;
+
+--replace_column 2 #
+show global variables like 'persist_sensitive_variables_in_plaintext';
+
+--replace_column 2 #
+--disable_warnings
+select * from performance_schema.global_variables where variable_name="persist_sensitive_variables_in_plaintext";
+--enable_warnings
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.persist_sensitive_variables_in_plaintext="1";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.persist_sensitive_variables_in_plaintext=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.persist_sensitive_variables_in_plaintext=1.1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.persist_sensitive_variables_in_plaintext=1e1;
+

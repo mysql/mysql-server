@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,11 +63,12 @@ class Manifest_reader final {
     Expected format: JSON.
 
     @param [in] executable_path Executable location
-    @param [in] use_cwd    Use current working directory as base location
+    @param [in] instance_path   Location of specific instance
+                                Must have separator character at the end
   */
 
   explicit Manifest_reader(const std::string executable_path,
-                           bool use_cwd = false,
+                           const std::string instance_path,
                            std::string json_schema = manifest_version_1_0)
       : config_file_path_(),
         schema_(),
@@ -85,10 +86,10 @@ class Manifest_reader final {
     executable = executable.substr(0, ext);
 #endif  // _WIN32
     executable.append(".my");
-    if (!use_cwd)
+    if (instance_path.length() == 0)
       config_file_path_ = path + executable;
     else
-      config_file_path_ = executable;
+      config_file_path_ = instance_path + executable;
     std::ifstream file_stream(config_file_path_,
                               std::ios::in | std::ios::ate | std::ios::binary);
     if (!file_stream.is_open()) return;

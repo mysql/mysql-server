@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -698,7 +698,7 @@ System_variable_tracker::System_variable_tracker(
 
 System_variable_tracker::System_variable_tracker(
     const System_variable_tracker &x)
-    : m_tag{x.m_tag}, m_cached_show_type{x.m_cached_show_type} {
+    : m_tag{x.m_tag}, m_cache{x.m_cache} {
   switch (x.m_tag) {
     case STATIC:
       new (&m_static) decltype(m_static){x.m_static};
@@ -756,9 +756,17 @@ const char *System_variable_tracker::get_var_name() const {
 
 bool System_variable_tracker::access_system_variable(
     THD *thd, std::function<void(const System_variable_tracker &, sys_var *)> f,
-    Suppress_not_found_error suppress_not_found_error) const {
+    Suppress_not_found_error suppress_not_found_error,
+    Force_sensitive_system_variable_access force_sensitive_variable_access)
+    const {
   switch (m_tag) {
     case STATIC:
+      cache_metadata(thd, m_static.m_static_var);
+      if (force_sensitive_variable_access !=
+              Force_sensitive_system_variable_access::YES &&
+          m_static.m_static_var->check_if_sensitive_in_context(
+              thd, suppress_not_found_error == Suppress_not_found_error::YES))
+        return true;
       if (f) {
         extern sys_var *Sys_track_session_sys_vars_ptr;
         if (m_static.m_static_var == Sys_track_session_sys_vars_ptr)
@@ -768,6 +776,12 @@ bool System_variable_tracker::access_system_variable(
       }
       return false;
     case KEYCACHE:
+      cache_metadata(thd, m_keycache.m_keycache_var);
+      if (force_sensitive_variable_access !=
+              Force_sensitive_system_variable_access::YES &&
+          m_keycache.m_keycache_var->check_if_sensitive_in_context(
+              thd, suppress_not_found_error == Suppress_not_found_error::YES))
+        return true;
       if (f) {
         f(*this, m_keycache.m_keycache_var);
       }
@@ -779,12 +793,21 @@ bool System_variable_tracker::access_system_variable(
         }
         return false;
       }
-      auto wrapper = [this, f](sys_var *var) {
+      auto wrapper = [this, thd, suppress_not_found_error,
+                      force_sensitive_variable_access,
+                      f](sys_var *var) -> bool {
+        cache_metadata(thd, var);
+        if (force_sensitive_variable_access !=
+                Force_sensitive_system_variable_access::YES &&
+            var->check_if_sensitive_in_context(
+                thd, suppress_not_found_error == Suppress_not_found_error::YES))
+          return true;
         m_plugin.m_plugin_var_cache = var;
         if (f) {
           f(*this, var);
         }
         m_plugin.m_plugin_var_cache = nullptr;
+        return false;
       };
       return visit_plugin_variable(thd, wrapper, suppress_not_found_error);
     }
@@ -795,12 +818,21 @@ bool System_variable_tracker::access_system_variable(
         }
         return false;
       }
-      auto wrapper = [this, f](sys_var *var) {
+      auto wrapper = [this, thd, suppress_not_found_error,
+                      force_sensitive_variable_access,
+                      f](sys_var *var) -> bool {
+        cache_metadata(thd, var);
+        if (force_sensitive_variable_access !=
+                Force_sensitive_system_variable_access::YES &&
+            var->check_if_sensitive_in_context(
+                thd, suppress_not_found_error == Suppress_not_found_error::YES))
+          return true;
         m_component.m_component_var_cache = var;
         if (f) {
           f(*this, var);
         }
         m_component.m_component_var_cache = nullptr;
+        return false;
       };
       return visit_component_variable(thd, wrapper, suppress_not_found_error);
   }
@@ -994,8 +1026,23 @@ bool System_variable_tracker::enumerate_sys_vars_in_hash(
     collation_unordered_map<string, sys_var *> *hash,
     enum enum_var_type query_scope, bool strict,
     System_variable_tracker::Array *output) {
+  bool privileged_user = false;
+  THD *thd = current_thd;
+
+  if (thd != nullptr) {
+    privileged_user =
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"))
+            .first;
+  }
+
   for (const auto &key_and_value : *hash) {
     sys_var *sysvar = key_and_value.second;
+    /*
+      Don't show sensitive variables.
+      ToDo: Figure out a way to make it visible to privileged users
+    */
+    if (sysvar->is_sensitive() && !privileged_user) continue;
 
     if (strict) {
       /*
@@ -1123,9 +1170,10 @@ void System_variable_tracker::visit_session_track_system_variables(
 }
 
 bool System_variable_tracker::visit_plugin_variable(
-    THD *thd, std::function<void(sys_var *)> function,
+    THD *thd, std::function<bool(sys_var *)> function,
     Suppress_not_found_error suppress_not_found_error) const {
   assert(m_tag == PLUGIN);
+  assert(function);
 
   if (thd != nullptr) {
     thd->plugin_lock_recursion_depth++;
@@ -1208,20 +1256,17 @@ bool System_variable_tracker::visit_plugin_variable(
     return true;
   }
 
-  if (function != nullptr) {
-    // Safe to call a variable data/metadata access function here: a reference
-    // counter holds the plugin because of my_intern_plugin_lock(), and
-    // sys_var* is stable:
-    function(var);
-  }
-
-  return false;
+  // Safe to call a variable data/metadata access function here: a reference
+  // counter holds the plugin because of my_intern_plugin_lock(), and
+  // sys_var* is stable:
+  return function(var);
 }
 
 bool System_variable_tracker::visit_component_variable(
-    THD *thd, std::function<void(sys_var *)> function,
+    THD *thd, std::function<bool(sys_var *)> function,
     Suppress_not_found_error suppress_not_found_error) const {
   assert(m_tag == COMPONENT);
+  assert(function);
 
   if (thd != nullptr) {
     if (thd->plugin_lock_recursion_depth++ == 0) {
@@ -1243,9 +1288,8 @@ bool System_variable_tracker::visit_component_variable(
   sys_var *var = find_dynamic_system_variable(m_component.m_component_var_name);
   assert(var == nullptr || (var->cast_pluginvar() != nullptr &&
                             !var->cast_pluginvar()->is_plugin));
-  if (var != nullptr && function != nullptr) {
-    function(var);
-  }
+
+  const bool result = var == nullptr ? true : function(var);
 
   if (thd != nullptr) {
     if (--thd->system_variable_hash_lock_recursion_depth == 0)
@@ -1259,7 +1303,17 @@ bool System_variable_tracker::visit_component_variable(
       my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), get_var_name());
     return true;
   }
-  return false;
+  return result;
+}
+
+void System_variable_tracker::cache_metadata(THD *thd, sys_var *v) const {
+  if (m_cache.has_value()) {
+    return;
+  }
+  m_cache = Cache{v->show_type(), v->is_sensitive()};
+  if (v->is_sensitive()) {
+    thd->lex->set_rewrite_required();
+  }
 }
 
 /**
@@ -1333,6 +1387,36 @@ sys_var *intern_find_sys_var(const char *str, size_t length) {
         assert(err == EBUSY || err == EDEADLK);
       });
   return find_dynamic_system_variable(name);
+}
+
+bool sys_var::check_if_sensitive_in_context(THD *thd,
+                                            bool suppress_errors) const {
+  if (is_sensitive() && thd->security_context()
+                                ->has_global_grant(STRING_WITH_LEN(
+                                    "SENSITIVE_VARIABLES_OBSERVER"))
+                                .first == false) {
+    if (!suppress_errors) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SENSITIVE_VARIABLES_OBSERVER");
+    }
+    return true;
+  }
+  return false;
+}
+
+sys_var *check_find_sys_var(THD *thd, const char *str, size_t length,
+                            bool *sensitive /* = nullptr */) {
+  if (thd == nullptr) return nullptr;
+  sys_var *var = intern_find_sys_var(str, length);
+  if (var && var->is_sensitive()) {
+    if (thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"))
+            .first == false) {
+      if (sensitive != nullptr) *sensitive = true;
+      return nullptr;
+    }
+  }
+  return var;
 }
 
 /**
@@ -1747,9 +1831,13 @@ int set_var::update(THD *thd) {
 void set_var::print_short(const THD *thd, String *str) {
   str->append(m_var_tracker.get_var_name());
   str->append(STRING_WITH_LEN("="));
-  if (value)
-    value->print(thd, str, QT_ORDINARY);
-  else
+  if (value) {
+    if (m_var_tracker.cached_is_sensitive()) {
+      str->append(STRING_WITH_LEN("<REDACTED>"));
+    } else {
+      value->print(thd, str, QT_ORDINARY);
+    }
+  } else
     str->append(STRING_WITH_LEN("DEFAULT"));
 }
 
@@ -1758,8 +1846,10 @@ void set_var::print_short(const THD *thd, String *str) {
 
   @param thd Thread handle
   @param str String buffer to append the partial assignment to.
+
+  @returns status of rewritten
 */
-void set_var::print(const THD *thd, String *str) {
+bool set_var::print(const THD *thd, String *str) {
   switch (type) {
     case OPT_PERSIST:
       str->append("PERSIST ");
@@ -1778,6 +1868,16 @@ void set_var::print(const THD *thd, String *str) {
     str->append(STRING_WITH_LEN("."));
   }
   print_short(thd, str);
+  return true;
+}
+
+/**
+  Check if system variable is of type SENSITIVE
+
+  @returns If variable is sensitive or not
+*/
+bool set_var::is_sensitive() const {
+  return m_var_tracker.cached_is_sensitive();
 }
 
 /*****************************************************************************
@@ -1834,8 +1934,9 @@ int set_var_user::update(THD *thd) {
   return 0;
 }
 
-void set_var_user::print(const THD *thd, String *str) {
+bool set_var_user::print(const THD *thd, String *str) {
   user_var_item->print_assignment(thd, str, QT_ORDINARY);
+  return true;
 }
 
 /*****************************************************************************
@@ -1904,7 +2005,7 @@ int set_var_password::update(THD *thd) {
   return res;
 }
 
-void set_var_password::print(const THD *thd, String *str) {
+bool set_var_password::print(const THD *thd, String *str) {
   if (user->user.str != nullptr && user->user.length > 0) {
     str->append(STRING_WITH_LEN("PASSWORD FOR "));
     append_identifier(thd, str, user->user.str, user->user.length);
@@ -1922,6 +2023,7 @@ void set_var_password::print(const THD *thd, String *str) {
   if (user->retain_current_password) {
     str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
   }
+  return true;
 }
 
 /*****************************************************************************
@@ -1965,7 +2067,7 @@ int set_var_collation_client::update(THD *thd) {
   return 0;
 }
 
-void set_var_collation_client::print(const THD *, String *str) {
+bool set_var_collation_client::print(const THD *, String *str) {
   str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
   if (set_cs_flags & SET_CS_DEFAULT)
     str->append("DEFAULT");
@@ -1979,4 +2081,5 @@ void set_var_collation_client::print(const THD *, String *str) {
       str->append("'");
     }
   }
+  return true;
 }
