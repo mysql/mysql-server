@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,10 @@ ENDFUNCTION()
 MACRO(FIND_SYSTEM_FIDO)
   IF(APPLE)
     SET(CMAKE_REQUIRED_INCLUDES
-      "${HOMEBREW_HOME}/libfido2/include;${HOMEBREW_HOME}/openssl/include")
+      "${HOMEBREW_HOME}/include"
+      "${HOMEBREW_HOME}/libfido2/include"
+      "${HOMEBREW_HOME}/openssl@1.1/include"
+      )
   ENDIF()
 
   CHECK_INCLUDE_FILE(fido.h HAVE_FIDO_H)
