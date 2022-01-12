@@ -4031,6 +4031,12 @@ void Item_rollup_group_item::print(const THD *thd, String *str,
   str->append(')');
 }
 
+bool Item_rollup_group_item::eq(const Item *item, bool binary_cmp) const {
+  return Item_func::eq(item, binary_cmp) &&
+         min_rollup_level() == down_cast<const Item_rollup_group_item *>(item)
+                                   ->min_rollup_level();
+}
+
 longlong Item_func_length::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);

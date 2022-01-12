@@ -1244,3 +1244,13 @@ SELECT a, GROUPING(a) AS ga
   HAVING ga = 0;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33729162: Hypergraph misses rows for SELECT DISTINCT ... GROUP BY WITH ROLLUP
+--echo #
+
+CREATE TABLE t (x INTEGER);
+INSERT INTO t VALUES (NULL), (0), (1), (2), (3);
+--sorted_result
+SELECT DISTINCT x AS a, x AS b FROM t GROUP BY a, b WITH ROLLUP;
+DROP TABLE t;
