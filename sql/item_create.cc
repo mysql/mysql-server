@@ -1140,7 +1140,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
   assert((udf->type == UDFTYPE_FUNCTION) || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func = nullptr;
-  POS pos;
+  POS pos{};
 
   switch (udf->returns) {
     case STRING_RESULT:

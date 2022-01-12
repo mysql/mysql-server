@@ -3134,7 +3134,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (itemize_safe(pc, &m_column->m_default_empty_string)) return true;
   if (itemize_safe(pc, &m_column->m_default_error_string)) return true;
 
-  const CHARSET_INFO *cs;
+  const CHARSET_INFO *cs = nullptr;
   if (merge_charset_and_collation(m_type->get_charset(), m_collation, &cs))
     return true;
   if (cs == nullptr) {

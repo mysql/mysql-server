@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,14 @@ SET(REPLICATION_SOURCES
   trx_boundary_parser.cpp
   uuid.cpp
   )
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  ADD_COMPILE_FLAGS(
+    gtids/gtid.cpp
+    gtids/gtidset.cpp
+    COMPILE_FLAGS " ${HAS_MISSING_PROFILE}")
+ENDIF()
 
 # Configure for building static library
 ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})

@@ -1,5 +1,7 @@
 #cmake_minimum_required(VERSION 2.8)
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 set(VERSION "0.7.0")
 
 IF(POLICY CMP0048)

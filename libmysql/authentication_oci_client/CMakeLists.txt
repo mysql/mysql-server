@@ -1,4 +1,4 @@
-# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@ IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
   MESSAGE(STATUS "Skipping the OCI authentication client plugin.")
   RETURN()
 ENDIF()
+
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(
   authentication_oci_client
