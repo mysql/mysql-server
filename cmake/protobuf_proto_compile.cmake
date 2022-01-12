@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -211,6 +211,11 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
     STRING_APPEND(MY_PROTOBUF_FLAGS
       " -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable -Wno-undef"
     )
+
+    MY_CHECK_CXX_COMPILER_WARNING("-Wshadow-field" HAS_WARN_FLAG)
+    IF(HAS_WARN_FLAG)
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
+    ENDIF()
 
     MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
