@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,17 +208,27 @@ bool Thd_ndb::check_option(Options option) const { return (options & option); }
 void Thd_ndb::set_option(Options option) { options |= option; }
 
 /*
-  Used for every additional row operation, to update the guesstimate
-  of pending bytes to send, and to check if it is now time to flush a batch.
+  This function is called after a row operation has been added to
+  the transaction. It will update the unsent byte counter and determine if batch
+  size threshold has been exceeded.
+
+  @param row_size Estimated number of bytes that has been added to transaction.
+
+  @return true Batch size threshold has been exceeded
+
 */
+bool Thd_ndb::add_row_check_if_batch_full(uint row_size) {
+  if (m_unsent_bytes == 0) {
+    // Clear batch buffer
+    m_batch_mem_root.ClearForReuse();
+  }
 
-bool Thd_ndb::add_row_check_if_batch_full(uint size) {
-  if (m_unsent_bytes == 0) m_batch_mem_root.ClearForReuse();
+  // Increment number of unsent bytes. NOTE! The row_size is assumed to be a
+  // fairly small number, basically limited by max record size of a table
+  m_unsent_bytes += row_size;
 
-  uint unsent = m_unsent_bytes;
-  unsent += size;
-  m_unsent_bytes = unsent;
-  return unsent >= m_batch_size;
+  // Return true if unsent bytes has exceeded the batch size threshold.
+  return m_unsent_bytes >= m_batch_size;
 }
 
 bool Thd_ndb::check_trans_option(Trans_options option) const {

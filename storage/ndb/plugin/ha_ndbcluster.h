@@ -539,15 +539,13 @@ class ha_ndbcluster : public handler, public Partition_handler {
     return m_table->getColumn(m_table_map->get_partition_id_column());
   }
 
-  uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
-  uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
-
   static int get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg);
 
   int get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
   int set_blob_values(const NdbOperation *ndb_op, ptrdiff_t row_offset,
-                      const MY_BITMAP *bitmap, uint *set_count, bool batch);
+                      const MY_BITMAP *bitmap, uint *set_count,
+                      bool batch) const;
   void release_blobs_buffer();
   Uint32 setup_get_hidden_fields(NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_keyop(NdbOperation::OperationOptions *options,
@@ -690,6 +688,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
                              // handler::estimation_rows_to_insert?
   bool m_delete_cannot_batch;
   bool m_update_cannot_batch;
+  // Approximate number of bytes that need to be sent to NDB when updating a row
+  // of this table, used for determining when batch should be flushed.
   uint m_bytes_per_write;
   bool m_skip_auto_increment;
   bool m_is_bulk_delete;

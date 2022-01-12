@@ -401,7 +401,6 @@ uint ha_ndbcluster::alter_flags(uint flags) const {
 }
 
 static constexpr uint NDB_AUTO_INCREMENT_RETRIES = 100;
-#define BATCH_FLUSH_SIZE (32768)
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -1156,7 +1155,7 @@ Thd_ndb::Thd_ndb(THD *thd)
       options(0),
       trans_options(0),
       m_ddl_ctx(nullptr),
-      m_batch_mem_root(PSI_INSTRUMENT_ME, BATCH_FLUSH_SIZE / 4),
+      m_batch_mem_root(PSI_INSTRUMENT_ME, BATCH_MEM_ROOT_BLOCK_SIZE),
       global_schema_lock_trans(NULL),
       global_schema_lock_count(0),
       global_schema_lock_error(0),
@@ -1434,39 +1433,6 @@ static bool field_type_forces_var_part(enum_field_types type) {
   }
 }
 
-/*
-  Return a generic buffer that will remain valid until after next execute.
-
-  The memory is freed by the first call to add_row_check_if_batch_full_size()
-  following any execute() call. The intention is that the memory is associated
-  with one batch of operations during batched slave updates.
-
-  Note in particular that using get_buffer() / copy_row_to_buffer() separately
-  from add_row_check_if_batch_full_size() could make meory usage grow without
-  limit, and that this sequence:
-
-    execute()
-    get_buffer() / copy_row_to_buffer()
-    add_row_check_if_batch_full_size()
-    ...
-    execute()
-
-  will free the memory already at add_row_check_if_batch_full_size() time, it
-  will not remain valid until the second execute().
-*/
-uchar *ha_ndbcluster::get_buffer(Thd_ndb *thd_ndb, uint size) {
-  // Allocate buffer memory from batch MEM_ROOT
-  return (uchar *)thd_ndb->m_batch_mem_root.Alloc(size);
-}
-
-uchar *ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb,
-                                         const uchar *record) {
-  uchar *row = get_buffer(thd_ndb, table->s->stored_rec_length);
-  if (unlikely(!row)) return NULL;
-  memcpy(row, record, table->s->stored_rec_length);
-  return row;
-}
-
 /**
  * findBlobError
  * This method attempts to find an error in the hierarchy of runtime
@@ -1702,7 +1668,7 @@ int ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op,
 int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
                                    ptrdiff_t row_offset,
                                    const MY_BITMAP *bitmap, uint *set_count,
-                                   bool batch) {
+                                   bool batch) const {
   uint field_no;
   uint *blob_index, *blob_index_end;
   int res = 0;
@@ -1712,8 +1678,11 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
 
   if (table_share->blob_fields == 0) return 0;
 
-  ndb_op->getNdbTransaction()->setMaxPendingBlobWriteBytes(
-      m_thd_ndb->m_blob_write_batch_size);
+  // Note! This settings seems to be lazily assigned for every row rather than
+  // once up front when transaction is started. For many rows, it might be
+  // better to do it once.
+  m_thd_ndb->trans->setMaxPendingBlobWriteBytes(
+      m_thd_ndb->get_blob_write_batch_size());
 
   blob_index = table_share->blob_field;
   blob_index_end = blob_index + table_share->blob_fields;
@@ -1745,15 +1714,16 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
       DBUG_PRINT("value", ("set blob ptr: %p  len: %u", blob_ptr, blob_len));
       DBUG_DUMP("value", blob_ptr, std::min(blob_len, (Uint32)26));
 
-      /*
-        NdbBlob requires the data pointer to remain valid until execute() time.
-        So when batching, we need to copy the value to a temporary buffer.
-      */
       if (batch && blob_len > 0) {
-        uchar *tmp_buf = get_buffer(m_thd_ndb, blob_len);
-        if (!tmp_buf) return HA_ERR_OUT_OF_MEM;
-        memcpy(tmp_buf, blob_ptr, blob_len);
-        blob_ptr = tmp_buf;
+        /*
+          The blob data pointer is required to remain valid until execute()
+          time. So when batching, copy the blob data to batch memory.
+        */
+        uchar *blob_copy = m_thd_ndb->copy_to_batch_mem(blob_ptr, blob_len);
+        if (!blob_copy) {
+          return HA_ERR_OUT_OF_MEM;
+        }
+        blob_ptr = blob_copy;
       }
       res = ndb_blob->setValue(pointer_cast<const char *>(blob_ptr), blob_len);
       if (res != 0) ERR_RETURN(ndb_op->getNdbError());
@@ -1983,9 +1953,7 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
 
   if ((error = add_table_ndb_record(dict)) != 0) goto err;
 
-  /*
-    Approx. write size in bytes over transporter
-  */
+  // Approximate row size
   m_bytes_per_write = 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
 
   /* Open indexes */
@@ -4597,30 +4565,35 @@ int ha_ndbcluster::prepare_conflict_detection(
   ex_data.op_type = op_type;
   ex_data.reflected_operation = op_is_marked_as_reflected;
   ex_data.trans_id = transaction_id;
-  /*
-    We need to save the row data for possible conflict resolution after
-    execute().
-  */
-  if (old_data) ex_data.old_row = copy_row_to_buffer(m_thd_ndb, old_data);
-  if (old_data != NULL && ex_data.old_row == NULL) {
-    return HA_ERR_OUT_OF_MEM;
+
+  // Save the row data for possible conflict resolution after execute()
+  if (old_data) {
+    ex_data.old_row =
+        m_thd_ndb->copy_to_batch_mem(old_data, table_share->stored_rec_length);
+    if (ex_data.old_row == nullptr) {
+      return HA_ERR_OUT_OF_MEM;
+    }
   }
-  if (new_data) ex_data.new_row = copy_row_to_buffer(m_thd_ndb, new_data);
-  if (new_data != NULL && ex_data.new_row == NULL) {
-    return HA_ERR_OUT_OF_MEM;
+  if (new_data) {
+    ex_data.new_row =
+        m_thd_ndb->copy_to_batch_mem(new_data, table_share->stored_rec_length);
+    if (ex_data.new_row == nullptr) {
+      return HA_ERR_OUT_OF_MEM;
+    }
   }
 
   ex_data.bitmap_buf = NULL;
   ex_data.write_set = NULL;
   if (table->write_set) {
     /* Copy table write set */
+    // NOTE! Could copy only data here and create bitmap if there is a conflict
     ex_data.bitmap_buf =
-        (my_bitmap_map *)get_buffer(m_thd_ndb, table->s->column_bitmap_size);
-    if (ex_data.bitmap_buf == NULL) {
+        (my_bitmap_map *)m_thd_ndb->get_buffer(table->s->column_bitmap_size);
+    if (ex_data.bitmap_buf == nullptr) {
       return HA_ERR_OUT_OF_MEM;
     }
-    ex_data.write_set = (MY_BITMAP *)get_buffer(m_thd_ndb, sizeof(MY_BITMAP));
-    if (ex_data.write_set == NULL) {
+    ex_data.write_set = (MY_BITMAP *)m_thd_ndb->get_buffer(sizeof(MY_BITMAP));
+    if (ex_data.write_set == nullptr) {
       return HA_ERR_OUT_OF_MEM;
     }
     bitmap_init(ex_data.write_set, ex_data.bitmap_buf,
@@ -4628,15 +4601,16 @@ int ha_ndbcluster::prepare_conflict_detection(
     bitmap_copy(ex_data.write_set, table->write_set);
   }
 
-  uchar *ex_data_buffer = get_buffer(m_thd_ndb, sizeof(ex_data));
-  if (ex_data_buffer == NULL) {
+  // Save the control structure for possible conflict detection after execute()
+  void *ex_data_buffer =
+      m_thd_ndb->copy_to_batch_mem(&ex_data, sizeof(ex_data));
+  if (ex_data_buffer == nullptr) {
     return HA_ERR_OUT_OF_MEM;
   }
-  memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
 
-  /* Store ptr to exceptions data in operation 'customdata' ptr */
+  /* Store pointer to the copied exceptions data in operations 'customdata' */
   options->optionsPresent |= NdbOperation::OperationOptions::OO_CUSTOMDATA;
-  options->customData = (void *)ex_data_buffer;
+  options->customData = ex_data_buffer;
 
   return 0;
 }
@@ -6012,10 +5986,9 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   eventSetAnyValue(m_thd_ndb, &options);
 
-  /*
-    Poor approx. let delete ~ tabsize / 4
-  */
-  uint delete_size = 12 + (m_bytes_per_write >> 2);
+  // Approximate number of bytes that need to be sent to NDB when deleting a row
+  // of this table
+  const uint delete_size = 12 + (m_bytes_per_write >> 2);
   const bool need_flush = thd_ndb->add_row_check_if_batch_full(delete_size);
 
   if (thd->slave_thread || THDVAR(thd, deferred_constraints)) {
