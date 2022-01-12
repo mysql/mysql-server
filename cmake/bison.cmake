@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,15 @@
 
 # This should be REQUIRED, but we have to support source tarball build.
 # https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
+
+# Look for HOMEBREW bison first.
+# Note that it is *not* symlinked like most other executables.
+IF(APPLE)
+  FIND_PROGRAM(BISON_EXECUTABLE bison
+    NO_DEFAULT_PATH
+    PATHS "${HOMEBREW_HOME}/bison/bin")
+ENDIF()
+
 FIND_PACKAGE(BISON)
 
 IF(NOT BISON_FOUND)
