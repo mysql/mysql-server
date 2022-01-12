@@ -876,7 +876,7 @@ ENDIF()
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-                    COMPILE_FLAGS "-Wno-undef")
+                    COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
   IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     ADD_COMPILE_FLAGS(
