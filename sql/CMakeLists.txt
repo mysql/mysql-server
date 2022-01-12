@@ -1307,7 +1307,11 @@ SET_SOURCE_FILES_PROPERTIES(
 MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 IF(HAS_MISSING_PROFILE)
-  ADD_COMPILE_FLAGS(gen_lex_hash.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
+  ADD_COMPILE_FLAGS(
+    ../sql-common/oci/signing_key.cc
+    ../sql-common/oci/ssl.cc
+    gen_lex_hash.cc
+    COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
