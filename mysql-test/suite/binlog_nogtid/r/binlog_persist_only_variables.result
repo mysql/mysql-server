@@ -148,6 +148,9 @@ ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variab
 SET PERSIST_ONLY replica_max_allowed_packet = @@GLOBAL.replica_max_allowed_packet;
 SET PERSIST_ONLY replica_net_timeout = @@GLOBAL.replica_net_timeout;
 SET PERSIST_ONLY replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET PERSIST_ONLY replica_pending_jobs_size_max = @@GLOBAL.replica_pending_jobs_size_max;
 SET PERSIST_ONLY replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;

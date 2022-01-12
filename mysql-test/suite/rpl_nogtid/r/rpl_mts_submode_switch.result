@@ -64,6 +64,8 @@ DROP TABLE db2.t_temp;
 DROP TABLE db3.t_temp;
 DROP TABLE db4.t_temp;
 SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
@@ -79,6 +81,8 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t, slave:db1.t]
@@ -94,6 +98,8 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
 SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t, slave:db1.t]
@@ -102,6 +108,8 @@ include/diff_tables.inc [master:db3.t, slave:db3.t]
 include/diff_tables.inc [master:db4.t, slave:db4.t]
 include/stop_slave.inc
 SET GLOBAL REPLICA_PARALLEL_TYPE=DEFAULT;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 DROP DATABASE db1;
 DROP DATABASE db2;

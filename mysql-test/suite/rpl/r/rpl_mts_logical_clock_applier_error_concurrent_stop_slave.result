@@ -6,10 +6,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 CALL mtr.add_suppression('The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.');
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET @save_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @@GLOBAL.replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers = 3;
 SET @@GLOBAL.replica_transaction_retries = 0;
 SET @@GLOBAL.innodb_lock_wait_timeout = 1;
@@ -44,6 +48,8 @@ ROLLBACK;
 DROP TABLE child, parent;
 [connection slave]
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;

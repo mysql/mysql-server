@@ -321,16 +321,6 @@ let $sysvar_specs =
     $int_invalid
   },
   {
-    "name": "replica_parallel_type",
-    "alias": "slave_parallel_type",
-    $persist_as_readonly,
-    "default": "LOGICAL_CLOCK",
-    "values": ["LOGICAL_CLOCK", "'DATABASE'", "'LOGICAL_CLOCK'", 0, 1],
-    "invalid": [$enum_invalid, -1, 2],
-    "value_map": {"'LOGICAL_CLOCK'": "LOGICAL_CLOCK", "'DATABASE'": "DATABASE", "0": "DATABASE", "1": "LOGICAL_CLOCK"},
-    "skip_set_persist_only_default": 1
-  },
-  {
     "name": "replica_parallel_workers",
     "alias": "slave_parallel_workers",
     $persist_as_readonly,

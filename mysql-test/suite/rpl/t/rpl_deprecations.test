@@ -52,9 +52,13 @@ SET @@global.transaction_write_set_extraction='MURMUR32';
 SET @@session.transaction_write_set_extraction='XXHASH64';
 SET @@session.transaction_write_set_extraction='MURMUR32';
 
+# assert deprecation warning replica_parallel_type
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='DATABASE';
+
 --let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
 let $messages =
-The syntax.* is deprecated and will be removed in a future release.*
+.* is deprecated and will be removed in a future release.*
 ;
 --source include/suppress_messages.inc
 
@@ -73,72 +77,82 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 --let $i = 2
 
 while($i > 0) {
-    if ($i == 2) {
-        --let $rpl_server_parameters = --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --disconnect-slave-event-count=2 --abort-slave-event-count=1
-    }
+  if ($i == 2) {
+    --let $rpl_server_parameters = --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --disconnect-slave-event-count=2 --abort-slave-event-count=1 --replica-parallel-type=LOGICAL_CLOCK
+  }
 
-    if ($i == 1)
-    {
+  if ($i == 1)
+  {
+    # check that warnings are emited when setting persist_only as well
+    SET PERSIST_ONLY relay_log_info_repository='FILE';
+    SET PERSIST_ONLY master_info_repository='TABLE';
+    SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
+    SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+    SET PERSIST_ONLY replica_parallel_type='DATABASE';
+    SET PERSIST_ONLY replica_parallel_type='LOGICAL_CLOCK';
 
-        # check that warnings are emited when setting persist_only as well
-        SET PERSIST_ONLY relay_log_info_repository='FILE';
-        SET PERSIST_ONLY master_info_repository='TABLE';
-        SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
-        SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+    # check that warnings are emited when setting persist as well
+    SET PERSIST relay_log_info_repository='FILE';
+    SET PERSIST master_info_repository='TABLE';
+    SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
+    SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
+    SET PERSIST transaction_write_set_extraction='MURMUR32';
+    SET PERSIST transaction_write_set_extraction='XXHASH64';
+    SET PERSIST replica_parallel_type='DATABASE';
+    SET PERSIST replica_parallel_type='LOGICAL_CLOCK';
 
-        # check that warnings are emited when setting persist as well
-        SET PERSIST relay_log_info_repository='FILE';
-        SET PERSIST master_info_repository='TABLE';
-        SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
-        SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
-        SET PERSIST transaction_write_set_extraction='MURMUR32';
-        SET PERSIST transaction_write_set_extraction='XXHASH64';
+    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+    SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
+    --replace_result $rli_file RLI_FILE
+    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 
-        --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-        SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
-        --replace_result $rli_file RLI_FILE
-        --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-
-        --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
-        --let $rpl_server_parameters=
-    }
+    --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
+    --let $rpl_server_parameters=
+  }
 
   --let $rpl_omit_print_server_parameters = 2
   --let $rpl_server_number = 2
   --source include/save_error_log_position.inc
   --source include/rpl_restart_server.inc
 
-    if($i==2)
-    {
-       # Check that the warnings are logged in the Error log if the deprecated variables were passed on the command line.
-        let $error_pattern = The syntax '--master-info-repository' is deprecated and will be removed in a future release.
-        The syntax '--master-info-file' is deprecated and will be removed in a future release.
-        The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
-        The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
-        The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
-        The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
-        The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
-        The syntax '--disconnect-slave-event-count' is deprecated and will be removed in a future release.
-        The syntax '--abort-slave-event-count' is deprecated and will be removed in a future release.
-        ;
-        --source include/assert_error_log.inc
-    }
+  if($i==2)
+  {
+    # Check that the warnings are logged in the Error log if the deprecated variables were passed on the command line.
+    let $error_pattern = The syntax '--master-info-repository' is deprecated and will be removed in a future release.
+    The syntax '--master-info-file' is deprecated and will be removed in a future release.
+    The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
+    The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
+    The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
+    The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
+    The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
+    The syntax '--disconnect-slave-event-count' is deprecated and will be removed in a future release.
+    The syntax '--abort-slave-event-count' is deprecated and will be removed in a future release.
+    The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
+    ;
+    --source include/assert_error_log.inc
+  }
 
-   # Due to Bug#33388488 warnings are not logged correctly for deprecated variables persisted before restart.
-   # if ($i==1)
-   # {
-   #     # Check that the warnings are logged in the Error log if the deprecated variables were persisted before server restart.
-   #     let $error_pattern = The syntax '@@master_info_repository' is deprecated and will be removed in a future release.
-   #     The syntax '@@relay_log_info_repository' is deprecated and will be removed in a future release.
-   #     The syntax '@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-   #     The syntax '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
-   #     ;
-   #     --source include/assert_error_log.inc
-   # }
-    --dec $i
-
+  if ($i==1)
+  {
+    # Check that the warnings are logged in the Error log if the deprecated variables were persisted before server restart.
+    let $error_pattern = The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
+    The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
+    '@@relay_log_info_repository' is deprecated and will be removed in a future release.
+    '@@master_info_repository' is deprecated and will be removed in a future release.
+    '@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+    '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+    ;
+    --source include/assert_error_log.inc
+  }
+  --dec $i
 }
 # #############################################################
+
+--let $suppress_mode = ADD_SUPPRESSIONS
+let $messages =
+The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
+;
+--source include/suppress_messages.inc
 
 # revert to vanilla options
 RESET PERSIST;

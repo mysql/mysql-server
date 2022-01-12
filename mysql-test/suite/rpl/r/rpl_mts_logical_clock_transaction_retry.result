@@ -22,6 +22,8 @@ CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transa
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @saved_max_relay_log_size = @@GLOBAL.max_relay_log_size;
 SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET GLOBAL innodb_lock_wait_timeout = 1;
@@ -29,6 +31,8 @@ SET GLOBAL replica_parallel_workers = 2;
 SET GLOBAL max_relay_log_size = 4096;
 include/stop_slave_sql.inc
 SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave_sql.inc
 #
 # Case 1: slave will stop if replica_transaction_retries is 0
@@ -131,6 +135,8 @@ SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 include/stop_slave_sql.inc
 SET GLOBAL replica_parallel_type= @saved_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave_sql.inc
 [connection master]
 SET DEBUG = "-d,set_commit_parent_100";

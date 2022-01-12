@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,8 @@ enum options_mysqld {
   OPT_TRANSACTION_WRITE_SET_EXTRACTION,
   OPT_SHOW_SLAVE_AUTH_INFO_DEPRECATED,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT,
-  OPT_ABORT_SLAVE_EVENT_COUNT
+  OPT_ABORT_SLAVE_EVENT_COUNT,
+  OPT_REPLICA_PARALLEL_TYPE
 };
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

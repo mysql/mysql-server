@@ -4132,10 +4132,10 @@ static Sys_var_enum Sys_replica_parallel_type(
     "transactions can be applied in parallel using the logical timestamps "
     "computed by the source, according to "
     "binlog_transaction_dependency_tracking.",
-    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
-    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
-    ON_UPDATE(nullptr));
+    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option),
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_TYPE), mts_parallel_type_names,
+    DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);

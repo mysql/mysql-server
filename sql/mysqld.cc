@@ -10634,6 +10634,9 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_ABORT_SLAVE_EVENT_COUNT:
       push_deprecated_warn_no_replacement(nullptr, "--abort-slave-event-count");
+      break;
+    case OPT_REPLICA_PARALLEL_TYPE:
+      push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");
   }
   return false;
 }

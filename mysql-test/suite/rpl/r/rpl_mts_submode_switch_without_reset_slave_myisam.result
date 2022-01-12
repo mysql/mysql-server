@@ -13,6 +13,8 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db2.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_preserve_commit_order=0;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
@@ -22,6 +24,8 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 INSERT INTO db2.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_preserve_commit_order=1;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
@@ -31,6 +35,8 @@ SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db2.t values (1),(2),(3);
 SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_preserve_commit_order=0;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc

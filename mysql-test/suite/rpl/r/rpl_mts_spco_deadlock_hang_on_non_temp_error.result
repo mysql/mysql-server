@@ -19,8 +19,12 @@ include/stop_slave_sql.inc
 SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET GLOBAL replica_preserve_commit_order = ON;
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
 #
 # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
@@ -140,6 +144,8 @@ DROP TABLE t1, t2;
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 #
 # 4.4 Clear debug point.
