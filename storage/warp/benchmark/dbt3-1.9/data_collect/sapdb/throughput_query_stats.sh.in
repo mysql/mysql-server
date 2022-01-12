@@ -1,0 +1,140 @@
+#!/bin/sh
+
+# throughput_test_stats.sh: run throuput test and collect database and system 
+# statistics
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+# 28 Jan 2003
+
+if [ $# -lt 3 ]; then
+        echo "usage: throughput_test_stats.sh <scale_factor> <num_stream> <output_dir> [-s seed -d duration -i interval]"
+        exit
+fi
+
+scale_factor=$1
+num_stream=$2
+output_dir=$3
+
+duration=0
+interval=0
+seed=0
+shift 3
+# process the command line parameters
+while getopts ":d:i:" opt; do
+	case $opt in
+		s) seed=$OPTARG
+				;;
+		d) duration=$OPTARG
+				;;
+		i) interval=$OPTARG
+				;;
+		?) echo "Usage: $0 <scale_factor> <num_stream> [-s seed -d duration -i interval]"
+			exit ;;
+		esac
+done
+
+#if not specified, then use default value
+if [ $interval -eq 0 ] 
+then 
+	interval=60
+fi
+
+if [ $duration -eq 0 ] 
+then 
+	# give a big number here, will kill the processes at the end
+	duration=7200
+fi
+
+#if interval is larger than duration, then reduce interval by half
+while [ $interval -gt $duration ]
+do
+	let "interval = $interval/2"
+done
+
+sapdb_script_path=@TOPDIR@/scripts/sapdb
+dbdriver_sapdb_path=@TOPDIR@/dbdriver/scripts/sapdb
+datacollect_path=@TOPDIR@/data_collect
+datacollect_sapdb_path=@TOPDIR@/data_collect/sapdb
+run_path=@TOPDIR@/run
+seed_file=@TOPDIR@/run/seed
+
+#set run environment
+. $sapdb_script_path/set_run_env.sh
+
+if [ $seed -eq 0 ]; then
+	echo "running throughput query with default seed"
+	echo "`date`: generate seed0"
+	echo "seed file is $seed_file";
+	@TOPDIR@/scripts/init_seed.sh > $seed_file
+else
+	echo "running power test with seed $seed"
+	echo "seed file is $seed_file";
+	echo "$seed" > $seed_file
+fi
+
+#make output directory
+#output_dir=throughput
+mkdir -p $output_dir
+
+#clean time_statistics table
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute delete from time_statistics"
+# restart the database
+echo "stopping the database"
+$sapdb_script_path/stop_db.sh
+echo "starting the database"
+$sapdb_script_path/start_db.sh
+
+#get run configuration
+$datacollect_sapdb_path/get_config.sh $scale_factor $num_stream $output_dir
+
+#get meminfo
+cat /proc/meminfo > $output_dir/meminfo0.out
+sleep 2
+
+#start sys_stats.sh
+$datacollect_path/sys_stats.sh $interval $duration $output_dir &
+
+#calculate count
+let "count=$duration/$interval"
+if [ $count -eq 0 ]
+then
+        count=1
+fi
+
+#get one more count
+let "count=$count+1"
+#get database statistics
+$datacollect_sapdb_path/db_stats.sh $SID $output_dir $count $interval &
+
+#execute the query
+echo "run throughput query for scale factor $scale_factor perf_run_number 1 $num_stream streams"
+$dbdriver_sapdb_path/run_throughput_test.sh $scale_factor 1 $num_stream
+
+#get meminfo
+cat /proc/meminfo > $output_dir/meminfo1.out
+
+#get query time
+$datacollect_sapdb_path/q_time.sh $output_dir
+
+#calculate throutput power
+$dbdriver_sapdb_path/get_throughput.pl -p 1 -s $scale_factor -n $num_stream 2>&1 >$output_dir/calc_thruput.out
+
+#copy thruput_qs* and refresh_stream* to output
+cp $run_path/power_query.result $output_dir/
+cp $run_path/thruput_qs* $output_dir/
+cp $run_path/thruput_qs*.result $output_dir/
+cp $run_path/tmp_throughput_query*.sql $output_dir/
+cp $run_path/refresh_stream* $output_dir/
+cp $run_path/*param* $output_dir/
+
+mv $datacollect_pgsql_path/thruput.out $output_dir/
+
+ps -ef | grep -v grep | grep sar | awk '{print $2}' | xargs kill -9
+ps -ef | grep -v grep | grep iostat | awk '{print $2}' | xargs kill -9
+ps -ef | grep -v grep | grep vmstat | awk '{print $2}' | xargs kill -9
+pgrep db_stats.sh | xargs kill -9

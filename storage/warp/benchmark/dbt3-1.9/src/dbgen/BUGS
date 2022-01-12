@@ -1,0 +1,987 @@
+# @(#) BUGS 2.1.8.20@(#)
+# The following is a list of the various DBGEN/QGEN bugs that have been
+# and are being fixed. Each entry is of the form:
+# 
+#	Problem #xx: STATUS   -- MR ID and OPEN/closed
+#                        followed by a detailed explanation
+#    TYPE:            -- classification of the bug or issue
+#    SPEC FIX:        -- details of any change to the spec
+#    DBGEN FIX:       -- details of any change needed to QGEN/DBGEN
+#    ANSWER SETS:     -- any effect on answer sets
+#    WORKAROUND:      -- temporary fix, if available
+#    HELP NEEDED:     -- any work/assistance required
+#    AUDITORS NOTIFIED:  -- date auditors were notified, if appropriate
+#    OPENED AGAINST:     -- date and effected versions
+#    CLOSED IN:       -- date and fixed version
+#
+#	OPEN BUGS
+#	==========
+#	Problem #33: Parallel load doesn't work under NT
+#
+#	OPEN Feature Requests
+#	=================
+#	Problem #9:  would like to include answer set formatting in query templates
+#	Problem #37: need way to validate DBGEN without large storage requriement
+#	Problem #58: Need way to track changes from one release to the next
+#	
+#	OPEN Documentation Errors
+#	=================
+#	None
+#---------------------------------------------------------------------
+#Complete Bug List
+#==================
+Problem #1: closed
+Summary: Q10 returns no rows
+	Since orders can only be returned (l_returnflag = 'R') after they 
+	have been received, and can't be received in the future, the
+	number of permissible orders for query 10 tails off early in
+	1995. If you are lucky enough to get a parameter substitution
+	after February '95 (allowed in 2.12.3), things can go "quickly".
+SEVERITY:
+SPEC FIX: replace 2.12.3 (1) with "DATE is the first day in a
+	rundomly selected month between the first month of 1993 and the
+	last month of 1994"
+DBGEN FIX: change permisible substitution range for query 10, 
+	parameter 1
+ANSWER SETS: not effected.
+WORKAROUND: use a different seed for qgen parameter substitution
+HELP NEEDED:
+AUDITORS NOTIFIED:	
+OPENED AGAINST: 1.0
+CLOSED IN:      1.0.1 (dbgen and qgen)
+
+Problem #2: closed
+Summary: parallelism in load to gen differing data sets
+the parallel load code was based on extensible data sets; since
+	 each "extension" made an assumption of scale factor, the data
+	 could end up clustered. Further, since the RNG is
+	 self-modifying, different numbers of extension led to different
+	 final data sets.
+SEVERITY:
+SPEC FIX: none.
+DBGEN FIX: remove -E(xtensible) option and implement pure parallel
+load with a known scale factor; rebuild seed files
+ANSWER SETS: not effected. (parallelism not implemented for SF <= 1)
+WORKAROUND: don't use the parallel load (-C) option to DBGEN
+HELP NEEDED: testers needed.
+AUDITORS NOTIFIED:	yes.
+OPENED AGAINST:     1.0
+CLOSED IN:          1.0.1
+
+Problem #3: closed
+Summary: some arithmetic tends to overflow at large SF
+retailprice tends to SF/10 as SF increases. this can lead to
+	 data corruption in extendedprice and aggregate calculations
+SEVERITY:
+SPEC FIX: will need rework of 1.3 wrt retailprice calculation
+DBGEN FIX: modification to second term of rpb_routine() calcuation
+to limit contibution of second term to the maximum seen at 
+	       SF=.1
+ANSWER SETS: not effected
+WORKAROUND: code retail/extended price calculations as long long;
+build smaller data sets
+HELP NEEDED:
+AUDITORS NOTIFIED:	
+OPENED AGAINST: 1.0
+CLOSED IN:      1.0.1
+
+Problem #4: closed
+Summary: dbgen not ported to NT
+SEVERITY:
+SPEC FIX:  none
+DBGEN FIX: need to roll in changes supplied by IBM
+ANSWER SETS: not effected
+WORKAROUND: N/A
+HELP NEEDED: N/A
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.1.0
+
+Problem #5: closed
+Summary: QGEN seed init inconsistent
+A prior fix assured that parameter values were query order
+	 independent when a seed was provided on the command line. need
+	 to make this true when no seed is provided
+SEVERITY:
+SPEC FIX: none
+DBGEN FIX: rework seed init loop in qgen.c
+ANSWER SETS: not effected
+WORKAROUND: supply seeds on command line
+HELP NEEDED: none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.0.1
+
+Problem #6: closed
+Summary: command line options with abutting arguments mishandled
+SEVERITY:
+SPEC FIX:  none
+DBGEN FIX: minor fix to getopt routine in bm_utils.c
+ANSWER SETS: not effected
+WORKAROUND: separate options and arguments with a space
+HELP NEEDED: none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.0.1
+
+Problem #7: closed
+Summary: '-O f' asking for new file names twice
+SEVERITY:
+SPEC FIX:  none
+DBGEN FIX: rework of set_files() in driver.c
+ANSWER SETS: not effected
+WORKAROUND: none
+HELP NEEDED: none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.0.1
+
+Problem #8: closed
+Summary: Seed generation taking too long
+SEVERITY:
+SPEC FIX: N/A
+DBGEN FIX: implement "skip and trudge" as discussed
+ANSWER SETS:  not effected
+WORKAROUND: none
+HELP NEEDED: 
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.0.1
+
+Problem #9: OPEN
+Summary: would like to include answer set formatting in query templates
+SEVERITY: feature request
+SPEC FIX: none
+DBGEN FIX: additional flag in qgen()
+ANSWER SETS: not effected
+WORKAROUND: N/A
+HELP NEEDED: asked for reproduction info 25 Oct 95
+AUDITORS NOTIFIED:	 N/A
+OPENED AGAINST: 1.0
+CLOSED IN:
+
+Problem #10: closed
+Summary: need to re-introduce ability to do incremental, flat file builds
+SEVERITY: feature request
+SPEC FIX: none
+DBGEN FIX: add -S(tep) option to build one of many partial data sets
+ANSWER SETS: not effected
+WORKAROUND: N/A
+HELP NEEDED:
+AUDITORS NOTIFIED:	 N/A
+OPENED AGAINST: 1.0
+CLOSED IN: 1.0.1
+
+Problem #11: closed
+Summary: Row count for first delete at 10/100 is incorrect
+SEVERITY: Error
+SPEC FIX: None
+DBGEN FIX: 
+ANSWER SETS: No Effect
+WORKAROUND: hand edit of first delete file
+HELP NEEDED:
+AUDITORS NOTIFIED:	No
+OPENED AGAINST: 1.0.1
+CLOSED IN:		2.0.0 (not sure of precise release)
+CLOSED BY:      jms@gradientsystems.com
+
+Problem #12: closed
+Summary: Bad default rowcount generated for query 17
+SEVERITY: Error
+SPEC FIX: None
+DBGEN FIX: corrected rowcnt[] entries to be 1-based
+ANSWER SETS: N/A
+WORKAROUND: hand edit query or add explicit row count to template
+HELP NEEDED:
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0.0
+CLOSED IN: 1.1.0
+
+Problem #13: closed
+Summary: Bad expansion of SET_OUTPUT for Teradata
+SEVERITY: Error
+SPEC FIX: N/A
+DBGEN FIX: new macro in tpcd.h
+ANSWER SETS:  N/A
+WORKAROUND: Hand edit query or hardcode output directive in templates
+HELP NEEDED:
+AUDITORS NOTIFIED:	 N/A
+OPENED AGAINST: 1.0.1
+CLOSED IN: 1.1.0
+
+Problem #14: closed
+Summary: Badly formed range deletes
+SEVERITY: Error
+SPEC FIX: N/A
+DBGEN FIX: TBD
+ANSWER SETS:  N/A
+WORKAROUND: hand edit delete files
+HELP NEEDED: asked for reproduction info 25 Oct 95
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0.1
+CLOSED IN:		2.0.0 (not sure of precise release)
+CLOSED BY:      jms@gradientsystems.com
+
+Problem #15: closed
+Summary: in a multi-stage load, parent tables are not properly named 
+when parent and child are build simultaneously
+SEVERITY: Error
+SPEC FIX: N/A
+DBGEN FIX: reworked tdef[].name in pr_X_Y routines for master/detail
+tables
+ANSWER SETS: N/A
+WORKAROUND: Build master/detail tables separately
+HELP NEEDED:
+AUDITORS NOTIFIED:	 N/A
+OPENED AGAINST: 1.0.1
+CLOSED IN: 1.1.0
+
+Problem #16: closed
+Summary: update generation at large scale factors produced the wrong number
+of rows due to overflow of 32-bit integer
+SEVERITY: BUG
+SPEC FIX: N/A
+DBGEN FIX: corrected order of operations in row count calcuation in 
+driver.c
+ANSWER SETS:  N/A
+WORKAROUND:  use 64 bit integers
+HELP NEEDED: None
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0.1
+CLOSED IN: 1.1.0
+
+Problem #17: closed
+Summary: comment fields may be truncated when using columnar output, due to
+rounding/truncation in the length calculation
+SEVERITY: BUG
+SPEC FIX: N/A
+DBGEN FIX: add ceil() calls around all PR_VSTR() calls in print.c
+ANSWER SETS: N/A
+WORKAROUND: N/A
+HELP NEEDED: None
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.0.1
+CLOSED IN: 1.1.0
+
+Problem #18: closed
+Summary: the output format for identifier fields in columnar output is
+unneccessarily large, and is inconsistant
+SEVERITY: minor
+SPEC FIX: N/A
+DBGEN FIX: revised PR_BCD2 macro
+ANSWER SETS: N/A
+WORKAROUND: avoid columnar output, or rework macro
+HELP NEEDED: none
+AUDITORS NOTIFIED:	no
+OPENED AGAINST: 1.1.0
+OPENED BY:      jenn@torolab2.vnet.ibm.com
+CLOSED IN:      1.1.0A
+CLOSED BY:      jms@informix.com
+
+Problem #19: closed
+Summary: the case statement used to decipher substitution points in the 
+query template allowed extraneous :'s to re-initialize the 
+parameter substitution
+SEVERITY:     bug
+SPEC FIX:     N/A
+DBGEN FIX:    rework flag switch in qgen.c to explicitly call out numerics
+ANSWER SETS:  N/A
+WORKAROUND:   be sure that there are no "unknown" flags in the template
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	yes
+OPENED AGAINST: 1.0.1
+OPENED BY:     jenn@torolab2.vnet.ibm.com
+CLOSED IN:     1.1.0A
+CLOSED BY:     jms@informix.com 
+
+Problem #20: closed
+Summary: parameter substitution values were not effected by small changes 
+in seed values
+SEVERITY:     bug
+SPEC FIX:     N/A
+DBGEN FIX:    add UnifInt() calls to RNG init in qgen.c
+ANSWER SETS:  N/A
+WORKAROUND:   be sure seed values provide sufficient randomness in EQT
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	yes
+OPENED AGAINST: 1.1.0
+OPENED BY:     alain_crolotte@elsegundoca.attgis.com
+CLOSED IN:     1.1.0B
+CLOSED BY:     jms@informix.com 
+
+Problem #21: closed
+Summary: parameter logging doesn't properly handle the variable length of
+the substitution list
+SEVERITY:     bug
+SPEC FIX:     N/A
+DBGEN FIX:    assure null termination of param list and bound the output
+loop that logs parameter usage
+ANSWER SETS:  N/A
+WORKAROUND:   none
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.1.0B
+OPENED BY:     
+CLOSED IN: 1.1.0C
+CLOSED BY:     jms@informix.com 
+
+Problem #22: closed
+Summary: parameter output for Q11 can overflow default formatting at very
+large volumes
+SEVERITY:     bug
+SPEC FIX:     N/A
+DBGEN FIX:    expand format string to %11.10f
+ANSWER SETS:  N/A
+WORKAROUND:   hand code queries for large volumes
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST: 1.1.0B
+OPENED BY:     francois@ip.com
+CLOSED IN:     1.1.0C
+CLOSED BY:      jms@informix.com
+
+Problem #23: closed
+Summary: typos in variant 14c
+SEVERITY:     
+SPEC FIX:    N/A
+DBGEN FIX:   corrected query template
+ANSWER SETS: N/A
+WORKAROUND:  none
+HELP NEEDED: none
+AUDITORS NOTIFIED:	no
+OPENED AGAINST: 1.1.0B
+OPENED BY:    francois@ip.com 
+CLOSED IN:    1.1.0C
+CLOSED BY:    jms@informix.com  
+
+Problem #24: closed
+Summary: macro PR_DATE was hard-coded to print t->alpha even though a 
+target was passed in as a parameter
+SEVERITY:     minor
+SPEC FIX:     N/A
+SOURCE FIX:   re-worked macro to properly use its arguments 
+ANSWER SETS:  N/A
+WORKAROUND:   none
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	no
+OPENED AGAINST:  1.1.0A
+OPENED BY:       Robert.Lane@eng.sun.com
+CLOSED IN:       dbgen 1.1.0B
+CLOSED BY:       jms@informix.com
+
+Problem #25: closed
+Summary: typos in variant 10a
+SEVERITY:     
+SPEC FIX:    N/A
+DBGEN FIX:   corrected query template
+ANSWER SETS: N/A
+WORKAROUND:  none
+HELP NEEDED: none
+AUDITORS NOTIFIED:	no
+OPENED AGAINST: 1.1.0B
+OPENED BY:    francois@ip.com 
+CLOSED IN:    1.1.0C
+CLOSED BY:    jms@informix.com  
+
+Problem #26: closed
+Summary: the version numbers for QGEN and DBGEN do not match
+SEVERITY:     minor
+SPEC FIX:     N/A
+SOURCE FIX:   unified version numbers starting with 1.1.0C
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	no
+OPENED AGAINST:  1.1.0B (or 1.1.0C, depending)
+OPENED BY:       Robert.Lane@eng.sun.com
+CLOSED IN:       1.1.0C
+CLOSED BY:       jms@informix.com
+
+Problem #27: closed
+Summary: correcting typos in 7, 9, 13
+SEVERITY:     minor
+SPEC FIX:     N/A
+SOURCE FIX:   fixed them
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.1.0C (pre-release)
+OPENED BY:       tblank@vnet.ibm.com
+CLOSED IN:       1.1.0C
+CLOSED BY:       jms@informix.com
+
+Problem #28: closed
+Summary: Seed generation fails with SF > 1000 due to 32 bit integer
+arithmetic used to verify "divisible-ness" of data set
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   TBD
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.1.0C
+OPENED BY:       alain_colotte@elsegundoca.ncr.com
+CLOSED IN:      1.3.0 
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #29: closed
+Summary: Compile time errors on Solaris 2.5.1 and SunOS
+SEVERITY:    bug 
+SPEC FIX:     N/A
+SOURCE FIX:   Solaris fixed by renaming lineitem field from extended to
+				  eprice; SunOS problem documented in Porting.Notes
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.1.0D
+OPENED BY:       jms@informix.com
+CLOSED IN:       1.2.0
+CLOSED BY:       jms@informix.com
+
+Problem #30: closed
+Summary: Cryptic comments in dists.dss
+SEVERITY:     flaw
+SPEC FIX:     N/A
+SOURCE FIX:   Cleaned up the comments in the file
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.2.0
+OPENED BY:       francois@sizing.com
+CLOSED IN:       1.2.3 ALPHA 1
+CLOSED BY:       jms@informix.com
+
+Problem #31: closed
+Summary: Inconsistant handling of fopen() failures
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   introduced OPEN_CHECK macro (defined in dss.h)
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.2.0
+OPENED BY:       schiefer@ca.ibm.com
+CLOSED IN:       1.3.0
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #32: closed
+Summary: Path separators were hard-coded
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   introduced PATH_SEP in config.h
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.2.0
+OPENED BY:       
+CLOSED IN:       1.3.0
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #33: OPEN
+Summary: Parallel load doesn't work under NT
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   
+ANSWER SETS:  N/A
+WORKAROUND:   use -S option to build each step independently
+HELP NEEDED:  none
+AUDITORS NOTIFIED:	N/A
+OPENED AGAINST:  1.1.0
+OPENED BY:       
+CLOSED IN:       
+CLOSED BY:       
+
+Problem #34: closed
+Summary: P_NAME not properly populated
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   Corrected color selection logic in agg_str()
+ANSWER SETS:  NFI for 1.x since it effect answer sets
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.2.3
+OPENED BY:       schiefer@ca.ibm.com
+CLOSED IN:       2.0.0
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #35: closed
+Summary: mk_sparse() returning bad orderkeys
+SEVERITY:     bug
+SPEC FIX:     N/A
+SOURCE FIX:   corrected logic in mk_sparse() and bcd2_bin()
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.3.0    
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       1.3.1
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #36: closed
+Summary: a_rnd() doesn't mask properly, uses small 'alphabet'
+SEVERITY:     bug
+SPEC FIX:     Corrected 4.2.2.6 to reflect 64 character set
+SOURCE FIX:   changed mask in a_rnd() from 067 to 077
+ANSWER SETS:  NFI for 1.x since answers would be effected
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.2.3
+OPENED BY:       pek@elsegundoca.ncr.com
+CLOSED IN:       2.0.0
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #37: OPEN
+Summary: need way to validate DBGEN without large storage requriement
+SEVERITY:     Feature Request
+SPEC FIX:     N/A
+SOURCE FIX:   Provide vrf_xxx routine to generate checksums
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.2.3
+OPENED BY:       jms@gradientsystems.com
+CLOSED IN:       
+CLOSED BY:       
+
+Problem #38: closed
+Summary: need to be able to generate specific update set
+SEVERITY:     Feature Request
+SPEC FIX:     N/A
+SOURCE FIX:   Update update generation to use -S <n> option
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.3.1
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       2.0.0 (not certain of fix version)
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #39: closed
+Summary: README for dbgen is out of date
+SEVERITY:     Documentation error
+SPEC FIX:     N/A
+SOURCE FIX:   Rewrite of README
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0.6b
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       2.0.0
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #40: closed
+Summary: O_CUSTKEY is generated out of range at 10GB
+SEVERITY:     Bug
+SPEC FIX:     N/A
+SOURCE FIX:   Correction of CUST_MORTALITY calculation
+ANSWER SETS:  Unknown
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0.7
+OPENED BY:       wayne.smith@intel.com
+CLOSED IN:       2.0.0.8
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #41: closed
+Summary: V2 appears slower than V1
+SEVERITY:     Bug
+SPEC FIX:    
+SOURCE FIX:   Used NthElement() in row_stop()
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0.8
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       2.01a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #42: closed
+Summary: Dual declaration of articles causes C++ compilation error
+SEVERITY:     Bug
+SPEC FIX:     N/A
+SOURCE FIX:   Duplicate declaration removed
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0
+OPENED BY:       jpm@informix.com
+CLOSED IN:       2.0.0a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #43: closed
+Summary: Subselect wild card not consistant with spec
+SEVERITY:     Bug
+SPEC FIX:     N/A
+SOURCE FIX:   Query templates corrected
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0
+OPENED BY:       jpm@informix.com
+CLOSED IN:       2.0.0a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #44: closed
+Summary: small money values incorrect
+SEVERITY:     Bug
+SPEC FIX:     N/A
+SOURCE FIX:   reworked PR_xxx macros
+ANSWER SETS:  new answer included for Q22
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  2.0.0
+OPENED BY:       ac4@elsegundoca.ncr.com
+CLOSED IN:       1.0.1
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #45: closed
+Summary: L_ORDERKEY/O_ORDERKEY incorrect
+SEVERITY:     Bug
+SPEC FIX:     N/A
+SOURCE FIX:   corrected pointer arithmetic in print.c
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1
+OPENED BY:       jpm@informix.com
+CLOSED IN:       1.0.1a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #46: closed
+Summary: L_ORDERKEY/O_ORDERKEY incorrect
+SEVERITY:     Dup (see #45)
+SPEC FIX:     N/A
+SOURCE FIX:   N/A
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       1.0.1a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #47: closed
+Summary: QGEN parameter substitution not random
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   corrected varsub RANDOM usage to reflect seed file removal
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1
+OPENED BY:       wayne.smith@intel.com
+CLOSED IN:       1.0.1a
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #48: closed
+Summary: QGEN parameter substitution not random for Q21
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   corrected varsub to only reference nations2 distribution
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1a
+OPENED BY:       wayne.smith@intel.com
+CLOSED IN:       1.0.1b
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #49: closed
+Summary: Extraneous trailing separator in delete files 
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   special-cased the handling of deletes using PR_KEY
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1b
+OPENED BY:       wayne.smith@intel.com
+CLOSED IN:       1.0.1c
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #50: closed
+Summary: qgen not generating valid parameter log files for defaults
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   corrected params/default reference
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1
+OPENED BY:       cta@elsegundoca.ncr.com
+CLOSED IN:       1.0.1d
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #51: closed
+Summary: inconistent/invariant substitutions in Q16, Q17, Q19
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   corrected "brand" selection to make order irrelevent
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  1.0.1
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       1.0.1d
+CLOSED BY:       jms@gradientsystems.com
+
+Problem #52: closed
+Summary: qgen seeds make parameter substitutions position dependant
+	The current scheme uses an individual RNG stream for each query, and seeds
+	all streams identically. Accordingly, two queries that use the same domain
+	for the same parameter will always have the same value (e.g., q9 and q20).
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   seed the individual streams with the sequence of random 
+				  numbers produced by the global seed value
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       1.0.1a/1.1.0a (990727)
+CLOSED BY:       jms@gradientsystems.com
+CHECKED BY:      qa52
+
+Problem #53: closed
+Summary: number of lineitems in update files no longer varies
+	The RNG is not being set at the start of update generation; accordingly
+	the original data (including rowcounts) is being "regenerated"
+SEVERITY:     
+SPEC FIX:     N/A
+SOURCE FIX:   
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       jennc@ca.ibm.com
+CLOSED IN:       990810
+CLOSED BY:       jms@gradientsystems.com
+CHECKED BY:      qa53
+
+Problem #54: closed
+Summary: segmented update files fail when rows per file is small
+	A round off error could cause the wrong number of rows to be output to a
+	given update file
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   correction to driver.c and print.c to use division and modulo
+				  to produce comparably sized files regardless of divisor
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       v-larryk@microsoft.com
+CLOSED IN:       1.0.1a/1.1.0a (990727)
+CLOSED BY:       jms@gradientsystems.com (using code from larry)
+CHECKED BY:      
+
+Problem #55: closed
+Summary: -S <n> generates bad data when used with updates
+	The RNG is not being properly set
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   added the appropriate offset to the RNG, and simplified the
+				  update generation code
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       jms@gradientsystems.com
+CLOSED IN:       990816
+CLOSED BY:       jms@gradientsystems.com (using code from larry)
+CHECKED BY:      qa55
+
+Problem #56: closed
+Summary: Need way to specify dists.dss location on the command line
+SEVERITY:     FEATURE
+SPEC FIX:     N/A
+SOURCE FIX:   added -b switch to driver.c and qgen.c
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       clevine@microsoft.com
+CLOSED IN:       990830
+CLOSED BY:       jms@gradientsystems.com
+CHECKED BY:      N/A
+
+Problem #57: closed
+Summary: Need way to remove all DBGEN output unless there is an error 
+SEVERITY:     FEATURE
+SPEC FIX:     N/A
+SOURCE FIX:   added -q switch to driver.c and changed verbose if's
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       clevine@microsoft.com
+CLOSED IN:       990830
+CLOSED BY:       jms@gradientsystems.com
+CHECKED BY:      N/A
+
+Problem #00058: OPEN
+Summary: Need way to track changes from one release to the next
+SEVERITY:     FEATURE
+SPEC FIX:     N/A
+SOURCE FIX:   reintroduce and automate the CHANGES file. Require MRs for
+			  all source code changes
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  None
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990708
+OPENED BY:       mpoess@us.oracle.com
+CLOSED IN:       
+CLOSED BY:       
+CHECKED BY:     
+
+Problem #00059: closed
+Summary:      extra comma in Q2 template
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   Template corrected
+ANSWER SETS:  N/A
+WORKAROUND:   None.
+HELP NEEDED:  None.
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990830
+OPENED BY:    jpm@informix.com
+CLOSED ON:    990908
+CLOSED BY:    jms@gradientsystems.com
+CHECKED BY:   N/A
+
+
+Problem #00060: closed
+Summary:      segmented inserts/deletes creating an extra file
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   Adding in missed change from original roll-in
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990830
+OPENED BY:    larryk@microsoft.com
+CLOSED ON:    990111
+CLOSED BY:    jms@gradientsystems.com
+CHECKED BY:   N/A
+
+Problem #00061: closed
+Summary:      64-bit support under DigUnix leads to math errors
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   Calculation of dRange in rnd.c now uses double cast
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  990830
+OPENED BY:    nramesh@us.oracle.com
+CLOSED ON:    000131
+CLOSED BY:    jms@gradientsystems.com
+CHECKED BY:   N/A
+
+Problem #00062: closed
+Summary:      bad update rollover after 1000 refreshes
+    This test uses tpcH scale 0.01. We've encountered
+	an situation in which dbgen doesn't generate
+	the correct data for delete files delete.1000 and
+	above. In particular, file delete.1000 contains
+	keys to be deleted that have never been loaded.
+	Because of this problem, keys that should have been
+	deleted never are causing duplicate unique values
+	to appear in the incremental loads after we cycle
+	from the 4000th incremental update back around starting
+	again with the 1st one.
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   N/A
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  19991101
+OPENED BY:    Roger.McNicol@sybase.com
+CLOSED ON:    20000509
+CLOSED BY:    jms
+CHECKED BY:   N/A
+
+Problem #00063: closed
+Summary:      update copyright notice
+    N/A
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   N/A
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  N/A
+OPENED BY:    jms@gradientsystems.com
+CLOSED ON:    20000131
+CLOSED BY:    jms@gradientsystems.com
+CHECKED BY:   N/A
+
+Problem #00064: closed
+Summary:      permute() introduce 0 selection in [1..50] for q16
+    N/A
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   rework permute() to be 1-based
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  20000413
+OPENED BY:    lorna@permetrics.com
+CLOSED ON:    20000414
+CLOSED BY:    jms@gradientsystems.com
+CHECKED BY:   N/A
+
+Problem #00065: OPEN
+Summary:      permute correction caused dataset changes
+    initial fix for #64 caused qa failures due to data set changes. New fix
+	is limited to query parameter substitution changes and has passed qa
+SEVERITY:     BUG
+SPEC FIX:     N/A
+SOURCE FIX:   N/A
+ANSWER SETS:  N/A
+WORKAROUND:   N/A
+HELP NEEDED:  N/A
+AUDITORS NOTIFIED: N/A	
+OPENED AGAINST:  20000511
+OPENED BY:    jms
+CLOSED ON:    N/A
+CLOSED BY:    N/A
+CHECKED BY:   N/A

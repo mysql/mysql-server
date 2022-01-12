@@ -1,0 +1,43 @@
+v1.9
+
+- Fixed a couple of parameter issues with scripts.
+- Fixed the order of table names and index names when analyzing PostgreSQL
+  database statistics.
+
+v1.8
+
+- Updated scripts/pgsql/create_tables.sh.in to not build primary keys when
+  creating the tables.  Primary keys are created in
+  scripts/pgsql/create_indexes.sh.in now.
+- More cleaning up in the scripts.
+
+v1.7
+
+- Fixed release to include scripts/init_seed.sh.
+
+v1.6
+
+- Removed the builddb directory.  Subsequent releases should contain database
+  building scripts int their respective database scripts directory.
+- Removed the data_collect directory.  Subsequent releases should contain
+  database data collection scripts int their respective database scripts
+  directory.  Moved any general usage scripts into the scripts/ directory.
+- Removed the dbdriver directory.  Subsequent releases should contain database
+  driving scripts in their respective database scripts directory.
+- Reorganized the datagen queries directory into a queries/ directory.
+- Simplified the execution scripts.
+- Reorganized the tree.
+- Probably broke the scripts for SAP DB.
+- Improved configure.ac (renamed from configure.in.)
+- Removed building of dbgen from the Makefile.am until the makefile for dbgen
+  can be adapted into automake.
+- Stop calculating the power metric in perl and now in C.  It appeared that
+  perl cannot calculate the metric if the numbers got too big.
+- Renamed scripts/pgsql/get_power.pl to scripts/pgsql/get_power.sh and made it
+  use q_time.sh output to calculate the power metric.
+- Renamed scripts/pgsql/get_throughput.pl to scripts/pgsql/get_throughput.sh
+  and made it use q_time.sh output to calculate the throughput metric.
+- Improved usage for scripts/pgsql/start_db.sh.in.
+- Modified scripts/pgsql/throughput_test.sh.in so it will exit and stop the
+  test if a script fails.
+- Fixed scripts/run_workload.sh.in

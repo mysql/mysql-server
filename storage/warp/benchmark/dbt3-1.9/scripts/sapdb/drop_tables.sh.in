@@ -1,0 +1,3 @@
+#!/bin/sh
+
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt -i @TOPDIR@/scripts/sapdb/drop_tables.sql

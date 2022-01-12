@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Updating optimizer statistics..."
+
+#@VACUUMDB@ -z $SID
+@PSQL@ $SID -c "analyze supplier"
+@PSQL@ $SID -c "analyze part"
+@PSQL@ $SID -c "analyze partsupp"
+@PSQL@ $SID -c "analyze customer"
+@PSQL@ $SID -c "analyze orders"
+@PSQL@ $SID -c "analyze lineitem"
+@PSQL@ $SID -c "analyze nation"
+@PSQL@ $SID -c "analyze region"

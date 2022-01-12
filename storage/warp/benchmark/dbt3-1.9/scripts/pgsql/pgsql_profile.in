@@ -1,0 +1,18 @@
+#!/bin/sh
+
+#
+# This file is released under the terms of the Artistic License.
+# Please see the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2002 Jenny Zhang & Open Source Development Lab, Inc.
+#
+
+export SID=dbt3
+export PGDATA=/mnt/postgresql/pgdata
+
+export DEFAULT_LOAD_PARAMETERS=""
+export DEFAULT_POWER_PARAMETERS=""
+export DEFAULT_THROUGHPUT_PARAMETERS=""
+
+# Directory with tablespace mount points, if using tablespaces.
+TSDIR=/mnt/dbt3

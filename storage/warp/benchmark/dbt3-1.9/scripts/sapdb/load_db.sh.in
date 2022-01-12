@@ -1,0 +1,18 @@
+#!/bin/sh
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/supplier.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/part.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/partsupp.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/customer.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/orders.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/lineitem.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/nation.sql
+date
+repmcli -u $DBUSER,$DBUSER -d $SID -b @TOPDIR@/scripts/sapdb/region.sql
+date

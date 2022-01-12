@@ -1,0 +1,25 @@
+#!/bin/sh
+
+#
+# This file is released under the terms of the Artistic License.
+# Please see # the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2002 Jenny Zhang & Open Source Development Lab, Inc.
+#
+
+DIR=`dirname $0`
+
+DATABASE=pgsql
+
+export DSS_QUERY="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/queries/pgsql"
+export DSS_PATH="/mnt/data"
+export DSS_CONFIG="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/src/dbgen"
+export DBT3_PERL_MODULE="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/perlmodules"
+
+export DBGEN="${DSS_CONFIG}/dbgen"
+export GTIME="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/src/gtime"
+export QGEN="${DSS_CONFIG}/qgen"
+export PARSE_QUERY="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/src/parse_query"
+export POWER="/home/justin/warp/storage/warp/benchmark/dbt3-1.9/src/power"
+
+source /home/justin/warp/storage/warp/benchmark/dbt3-1.9/scripts/${DATABASE}/${DATABASE}_profile

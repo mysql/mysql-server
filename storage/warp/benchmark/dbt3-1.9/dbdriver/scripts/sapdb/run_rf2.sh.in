@@ -1,0 +1,81 @@
+#
+# run_rf2.sh: run refresh function 2
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+#
+#!/bin/sh
+
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+curr_set_file_rf1="@TOPDIR@/run/curr_set_num_rf1"
+curr_set_file_rf2="@TOPDIR@/run/curr_set_num_rf2"
+lock_file_rf1="@TOPDIR@/run/rf1.lock"
+lock_file_rf2="@TOPDIR@/run/rf2.lock"
+
+#if set_num_file_rf1 does not exist, exit since rf1 has to run before rf2
+lockfile -s 0 $lock_file_rf1
+if [ ! -f $curr_set_file_rf1 ];
+then
+        echo "please run run_rf1.sh first"
+	exit
+fi
+set_num_rf1=`cat $curr_set_file_rf1`
+rm -f $lock_file_rf1
+
+lockfile -s 0 $lock_file_rf2
+if [ ! -f $curr_set_file_rf2 ];
+then
+	echo 0 > $curr_set_file_rf2
+fi
+
+set_num=`cat $curr_set_file_rf2`
+
+let "set_num=$set_num+1"
+if [ $set_num -gt $set_num_rf1 ]
+then
+	echo "rf2 set number is greater than rf1 set number"
+	echo "please run run_rf1.sh first"
+	exit
+fi
+
+echo $set_num>$curr_set_file_rf2
+rm -f $lock_file_rf2
+
+echo "=======rf2 set: $set_num========"
+
+echo "`date`: start rf2 "
+s_time=`$GTIME`
+
+#generate load .sql
+echo "fastload table tmp_orderkey$set_num" > tmp_orderkey$set_num.sql
+echo "orderkey 1" >> tmp_orderkey$set_num.sql
+echo "infile '/tmp/delete.$set_num'" >> tmp_orderkey$set_num.sql
+
+#echo "sql_execute drop table tmp_orderkey$set_num"
+#dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute drop table tmp_orderkey$set_num"
+
+echo "sql_execute create table tmp_orderkey$set_num (orderkey fixed(10))"
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute create table tmp_orderkey$set_num (orderkey fixed(10))"
+
+echo "load tmp_orderkey$set_num"
+repmcli -u $DBUSER,$DBUSER -d $SID -b tmp_orderkey$set_num.sql
+
+echo "sql_execute delete from lineitem where l_orderkey in (select * from tmp_orderkey$set_num)"
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute delete from lineitem where l_orderkey in (select * from tmp_orderkey$set_num)"
+
+echo "sql_execute delete from orders where o_orderkey in (select * from tmp_orderkey$set_num)"
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute delete from orders where o_orderkey in (select * from tmp_orderkey$set_num)"
+
+#clean up
+echo "sql_execute drop table tmp_orderkey$set_num"
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute drop table tmp_orderkey$set_num"
+rm tmp_orderkey$set_num.sql
+
+e_time=`$GTIME`
+echo "`date`: end rf2 "
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for rf2 $diff_time"

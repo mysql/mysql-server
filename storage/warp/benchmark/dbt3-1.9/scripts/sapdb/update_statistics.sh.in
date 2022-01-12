@@ -1,0 +1,3 @@
+#!/bin/sh
+
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER -i @TOPDIR@/scripts/sapdb/update_statistics.sql

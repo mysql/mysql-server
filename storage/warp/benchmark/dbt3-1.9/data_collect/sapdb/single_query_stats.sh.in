@@ -1,0 +1,135 @@
+#!/bin/sh
+
+# query_stats.sh: run specified query and collect database and system statistics
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# History:
+# Jan-20-2003: Created by Jenny Zhang
+# July-9-2003: Rewrote so that data clllectin won't lag behind the test
+
+
+if [ $# -lt 2 ]; then
+        echo "usage: $0 <query_num> <scale_factor> [-d duration -i interval]"
+        exit
+fi
+
+query_num=$1
+scale_factor=$2
+
+duration=0
+interval=0
+shift 2
+# process the command line parameters
+while getopts ":d:i:" opt; do
+	case $opt in
+		d) duration=$OPTARG
+				;;
+		i) interval=$OPTARG
+				;;
+		?) echo "Usage: $0 <query_num> <scale_factor> [-d duration -i interval]"
+			exit ;;
+		esac
+done
+
+#if not specified, then use default value
+if [ $interval -eq 0 ] 
+then 
+	interval=60
+fi
+
+if [ $duration -eq 0 ] 
+then 
+	# default is 20 minutes, but will kill the process at the end
+	duration=1200
+fi
+
+#if interval is larger than duration, then reduce interval by half
+while [ $interval -gt $duration ]
+do
+	let "interval = $interval/2"
+done
+echo "query_num: $query_num interval: $interval duration: $duration"
+
+sapdb_script_path=@TOPDIR@/scripts/sapdb
+dbdriver_sapdb_path=@TOPDIR@/dbdriver/scripts/sapdb
+datacollect_path=@TOPDIR@/data_collect
+datacollect_sapdb_path=@TOPDIR@/data_collect/sapdb
+
+#set run environment
+. $sapdb_script_path/set_run_env.sh
+
+_o=`cat <<EOF | dbmcli -d $SID -u dbm,dbm 2>&1
+param_getvalue DATE_TIME_FORMAT
+quit
+EOF`
+_test=`echo $_o | grep ISO`
+#if DATE_TIME_FORMAT is not INTERANL
+if [ "$_test" = "" ]; then
+        echo "set date_time_format to ISO"
+        _o=`cat <<EOF | dbmcli -d $SID -u dbm,dbm 2>&1
+        param_startsession
+        param_put DATE_TIME_FORMAT ISO
+        param_checkall
+        param_commitsession
+        quit
+        EOF`
+        _test=`echo $_o | grep OK`
+        if [ "$_test" = "" ]; then
+                 echo "set parameters failed: $_o"
+                exit 1
+        fi
+fi
+
+#make output directory
+output_dir=q$query_num
+mkdir -p $output_dir
+
+# restart the database
+echo "stopping the database"
+$sapdb_script_path/stop_db.sh
+echo "starting the database"
+$sapdb_script_path/start_db.sh
+
+#get execution plan
+#can not get execution plan for 15
+if [ $query_num -eq 15 ]
+then
+        echo "$dbdriver_sapdb_path/explain_single_query.sh $scale_factor $query_num $output_dir"
+        $dbdriver_sapdb_path/explain_single_query.sh $scale_factor $query_num $output_dir
+fi
+#get meminfo
+cat /proc/meminfo > $output_dir/meminfo0.out
+sleep 2
+
+# clean time_statistics
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER "sql_execute delete from time_statistics"
+
+#start sys_stats.sh
+$datacollect_path/sys_stats.sh $interval $duration $CPUS $output_dir &
+#calculate count
+let "count=$duration/$interval"
+if [ $count -eq 0 ]
+then
+        count=1
+fi
+#get one more count
+let "count=$count+1"
+#get database statistics
+$datacollect_sapdb_path/db_stats.sh $SID $output_dir $count $interval &
+
+#execute the query
+echo "$dbdriver_sapdb_path/run_single_query.sh $scale_factor $query_num $output_dir"
+$dbdriver_sapdb_path/run_single_query.sh $scale_factor $query_num $output_dir
+
+#get meminfo
+cat /proc/meminfo > $output_dir/meminfo1.out
+
+ps -ef | grep -v grep | grep sar | awk '{print $2}' | xargs kill -9
+ps -ef | grep -v grep | grep iostat | awk '{print $2}' | xargs kill -9
+ps -ef | grep -v grep | grep vmstat | awk '{print $2}' | xargs kill -9
+pgrep db_stats.sh | xargs kill -9
+

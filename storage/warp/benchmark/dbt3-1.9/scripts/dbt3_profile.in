@@ -1,0 +1,25 @@
+#!/bin/sh
+
+#
+# This file is released under the terms of the Artistic License.
+# Please see # the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2002 Jenny Zhang & Open Source Development Lab, Inc.
+#
+
+DIR=`dirname $0`
+
+DATABASE=@DATABASE_TO_USE@
+
+export DSS_QUERY="@TOPDIR@/queries/@DATABASE_TO_USE@"
+export DSS_PATH="/mnt/data"
+export DSS_CONFIG="@TOPDIR@/src/dbgen"
+export DBT3_PERL_MODULE="@TOPDIR@/perlmodules"
+
+export DBGEN="${DSS_CONFIG}/dbgen"
+export GTIME="@TOPDIR@/src/gtime"
+export QGEN="${DSS_CONFIG}/qgen"
+export PARSE_QUERY="@TOPDIR@/src/parse_query"
+export POWER="@TOPDIR@/src/power"
+
+source @TOPDIR@/scripts/${DATABASE}/${DATABASE}_profile

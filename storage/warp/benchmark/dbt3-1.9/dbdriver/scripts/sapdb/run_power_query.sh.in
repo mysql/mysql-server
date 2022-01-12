@@ -1,0 +1,51 @@
+#
+# run_power_query.sh: run query streams in dbt3 power test
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+# June-26-2003: change DBT3_INSTALL_PATH to @TOPDIR@
+#!/bin/sh
+if [ $# -ne 2 ]; then
+        echo "Usage: ./run_power_query.sh <scale_factor> <perf_run_number>"
+        exit
+fi
+
+scale_factor=$1
+perf_run_number=$2
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+
+qgen_dir="@TOPDIR@/datagen/dbgen"
+run_dir="@TOPDIR@/run"
+seed_file="$run_dir/seed"
+query_file="$run_dir/power_query"
+tmp_query_file="$run_dir/tmp_query.sql"
+param_file="$run_dir/power_param"
+parsequery_dir="@TOPDIR@/dbdriver/utils"
+
+if [ ! -f $seed_file ];
+then
+        echo "creating seed file $seed_file, you can change the seed by modifying this file"
+	@TOPDIR@/scripts/init_seed.sh > $seed_file
+fi
+
+#generate the queries for power test
+rm $query_file
+echo "generate queries in $qgen_dir"
+$qgen_dir/qgen -c -r `cat $seed_file` -p 0 -s $scale_factor -l $param_file> $query_file
+# modify $query_file so that the commands are in one line
+$parsequery_dir/parse_query $query_file $tmp_query_file P $perf_run_number
+
+#run the queries
+echo "`date`: start power queries "
+s_time=`$GTIME`
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute insert into time_statistics (task_name, s_time, int_time) values ('PERF${perf_run_number}.POWER.QS', timestamp, $s_time)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt -i $tmp_query_file -o $run_dir/power_query.result
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute update time_statistics set e_time=timestamp where task_name='PERF${perf_run_number}.POWER.QS' and int_time=$s_time"
+e_time=`$GTIME`
+echo "`date`: end queries "
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for power queries $diff_time"

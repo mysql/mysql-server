@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#
+# This file is released under the terms of the Artistic License.
+# Please see the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2005 Jenny Zhang & Open Source Development Labs, Inc.
+#
+
+DIR=`dirname $0`
+. ${DIR}/pgsql_profile || exit 1
+
+@PSQL@ -e -d $SID -c "DROP TABLE supplier;"
+@PSQL@ -e -d $SID -c "DROP TABLE part;"
+@PSQL@ -e -d $SID -c "DROP TABLE partsupp;"
+@PSQL@ -e -d $SID -c "DROP TABLE customer;"
+@PSQL@ -e -d $SID -c "DROP TABLE orders;"
+@PSQL@ -e -d $SID -c "DROP TABLE lineitem;"
+@PSQL@ -e -d $SID -c "DROP TABLE nation;"
+@PSQL@ -e -d $SID -c "DROP TABLE region;"
+@PSQL@ -e -d $SID -c "DROP TABLE time_statistics;"
+
+exit 0

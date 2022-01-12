@@ -1,0 +1,6 @@
+If you have checked out this source tree directly from the source contronal
+managemant system, then you need to run these commands to generate the scripts
+you need:
+
+aclocal
+autoreconf --install

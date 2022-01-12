@@ -1,0 +1,2 @@
+- Figure out how to rewrite src/dbgen/Makefile.in so it'll work with automake
+  as a Makefile.am file.  Then we can 'make dist'!

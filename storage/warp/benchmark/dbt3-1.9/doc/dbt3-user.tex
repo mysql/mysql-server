@@ -1,0 +1,959 @@
+\documentclass{article}
+\usepackage{epsfig}
+%\setlength{\parindent}{0pc}
+\setlength{\parskip}{\baselineskip}
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{figure}[t]
+\centering
+%\includegraphics[scale=1]{osdl_title_logo}
+\end{figure}
+
+\centering
+\huge
+Open Source Development Labs \\
+Database Test 3 \\
+Decision Support for Ad Hoc Queries \\
+\huge
+User's Guide \\
+\large
+Version 1.5
+
+\begin{figure}[b]
+\flushleft
+\normalsize
+Open Source Development Labs, Inc. \\
+12725 SW Millikan Way, Suite 400 \\
+Beaverton, OR 97005 \\
+Phone: (503) 626-2455 \\
+Fax: (503) 626-2436 \\
+Email: info@osdl.org
+\end{figure}
+
+\end{titlepage}
+
+\noindent
+Copyright (c) 2002 by The Open Source Development Laboratory, Inc. This
+material may be distributed only subject to the terms and conditions set forth
+in the Open Publication License, v1.0 or later (the latest version is currently
+available at http://www.opencontent.org/openpub/). Distribution of
+substantively modified versions of this document is prohibited without the
+explicit permission of the copyright holder.
+
+\noindent
+Other company, product or service names may be trademarks or service marks of
+others.
+
+\noindent
+Contributors to this white paper include: \\
+\indent Jenny Zhang (OSDL) \\
+\indent Mary Edie Meredith (OSDL) \\
+\indent Mark Wong (OSDL) \\
+
+\pagebreak
+
+\section{Introduction}
+
+\noindent
+This document provides instructions on how to set up and use the
+Open Source Development Lab's Database Transaction Test 3
+(OSDL-DBT-3) kit.  This kit provides what is needed to execute a
+workload similar to the TPC-H workload using SAP DB version 7.3.0.25
+and PostgreSQL 7.4 and later.  This document describes all other
+downloads the tester need to use SAP DB and downloads necessary to
+generate the data for loading the database.  The queries in the query
+templates are tailored for SAP DB.  The tester can alter the syntax
+for other databases of the tester's desire.
+
+\section{Setup}
+
+This section covers the steps of getting and installing an SAP DB
+database and the OSDL-DBT-3 test kit source code.  Some documentation
+for PostgreSQL has been added to this document.
+
+\subsection{Getting and Installing the Files}
+
+\subsubsection{SAP DB}
+
+The OSDL-DBT-3 test kit was developed using SAP DB Version 7.3.0.25,
+however, newer versions of the 7.3.0.x database should work with the
+test kit.  Version 7.4, currently in beta on Linux systems, should
+require only minimal changes to the database parameters and possibly
+SQL syntax.  Linux binaries can be obtained from the Web at: \\
+\indent http://www.sapdb.org/tgz\_linux.htm
+
+\noindent
+Although not required for OSDL-DBT-3, the source package along with
+installation instructions can be found on the Web at: \\
+\indent http://www.sapdb.org/develop/dev\_linux.htm
+
+\noindent
+If the tester wishes to install SAP DB with rpms, and if the your
+Linux distribution supports rpm packages, they can be retrieved from
+the Web at: \\
+\indent http://www.sapdb.org/rpm\_linux.htm
+
+\noindent
+The following rpm packages are required:
+\begin{itemize}
+\item sapdb-ind-7.3.0.25-1.i386.rpm
+\item sapdb-srv-7.3.0.25-1.i386.rpm
+\end{itemize}
+
+\noindent
+In case the old versions of SAPDB are removed from the SAPDB web
+site, they can be downloaded from the ftp site using the following
+command: \\
+\begin{itemize}
+\item ftp ftp.sap.com
+\item ftp$>$ cd pub/sapdb/bin/linux
+\item ftp$>$ get sapdb-srv-7.3.0.25-1.i386.rpm
+\item ftp$>$ get sapdb-ind-7.3.0.25-1.i386.rpm
+\item ftp$>$ get sapdb-ind-7.3.0.25-1.i386.rpm
+\end{itemize}
+
+\noindent
+The SAP DB related documentation can be found at: \\
+\indent http://www.sapdb.org/sap\_db\_documentation.htm
+
+\subsubsection{OSDL-DBT-3 Test Kit Source}
+
+\noindent
+The latest stable version of the kit can be found on SourceForge
+via: \\
+\indent http://sourceforge.net/project/showfiles.php?group\_id=52479
+
+\noindent
+For complete instructions on retrieving the latest tested source from
+CVS see the Web at: \\
+\indent http://sourceforge.net/cvs/?group\_id=52479
+
+\noindent
+This is an abbreviated set of steps to download only the source
+code: \\
+\begin{itemize}
+\item cvs -d:pserver:anonymous@cvs.osdldbt.sourceforge.net:/cvsroot/osdldbt
+      login
+\item cvs -z3
+      -d:pserver:anonymous@cvs.osdldbt.sourceforge.net:/cvsroot/osdldbt
+      co dbt3
+\end{itemize}
+
+\noindent
+When prompted for a password, simply hit the enter key.  
+
+\subsubsection{DataGen}
+
+\noindent
+OSDL-DBT-3 data generation tool dbgen is based on the TPC-H DBGEN
+data generator tool.  The query stream SQL generation tool qgen is
+based on the TPC-H QGEN tool.  These are freely available and need to
+be downloaded from http://www.tpc.org/tpch/.  Look for downloads of
+DBGEN and QGEN.  Section 2.2.2 will describe how to integrate these
+downloads into the DBT-3 kit.
+
+\subsubsection{Query Templates}
+
+\noindent
+The TPC-H DBGEN tool kit includes the official query syntax for TPC-H
+queries.  The tester can substitute OSDL-DBT-3 queries with TPC-H
+queries and alter the syntax to fit other databases.  A set of query
+syntax for SAP DB is included in the kit in the directory
+dbt3/datagen/original-queries.  Some of the queries are rewritten.
+The query templates we used to run the test kit are under the
+directory dbt3/datagen/queries.
+
+\subsubsection{Setting Environment Variables}
+
+\noindent
+
+\noindent
+The following environment variables are required to be set and the
+set\_run\_env.sh under the respective database directory in scripts/
+can be used to set these variables: \\
+\begin{itemize}
+\item DBT3\_INSTALL\_PATH = directory where OSDL-DBT-3 is installed
+      (the directory where you did the cvs checkout in section 2.1.2
+      and the subdirectory dbt3.  So if you installed in the directory
+      /home/sapdb it would be set to /home/sapdb/dbt3)
+\item DSS\_PATH = directory in which to build flat files.
+\item DSS\_QUERY = \$DBT3\_INSTALL\_PATH/directory in which to find
+      query templates (usually in
+      \$DBT3\_INSTALL\_PATH/datagen/queries).
+\item DSS\_CONFIG = \$DBT3\_INSTALL\_PATH/directory in which to find
+      configuration files (usually in
+      \$DBT3\_INSTALL\_PATH/datagen/dbgen/).
+\item SID = the database instance name (usually DBT3).
+\end{itemize}
+
+\noindent
+We recommend adding these to the user's login file.  For example, in
+.bash\_profile, add the following lines: \\
+\begin{itemize} 
+\item DBT3\_INSTALL\_PATH=/home/sapdb/dbt3
+\item DSS\_PATH=/dbt3\_data
+\item DSS\_QUERY=\$DBT3\_INSTALL\_PATH/datagen/queries
+\item DSS\_CONFIG=\$DBT3\_INSTALL\_PATH/datagen/dbgen/
+\item SID=DBT3
+\end{itemize}
+
+\paragraph{SAP DB Notes}
+To run the kit with SAP DB, the user sapdb is required.  The user sapdb
+is the owner of all the files and directories.
+
+\noindent
+OSDL-DBT-3 assumes the SAP DB command line interface dbmcli is added
+to the user path.  To add the path, edit the user sapdb profile.
+Locate variable PATH definition and add: \\
+\indent /opt/sapdb/depend/bin:/opt/sapdb/indep\_prog/bin
+
+\noindent
+SAP DB uses the x\_server to handle the communications between the
+database server and clients.  X\_server has to be started at the
+beginning.  We recommend adding the following to the system boot
+process.  For example,  in /etc/rc.d/rc.local, add the following: \\
+\indent /etc/init.d/sapdb start
+
+\noindent
+If raw devices are used (which is highly recommended for optimal
+database performance),  it is a good idea to bind the raw devices in
+boot process.  For example: \\
+\indent raw   /dev/raw/raw1    /dev/rd/c0d13p1
+
+\subsubsection{Compiling the Kit}
+
+\noindent
+The entire DBT-3 kit can be compiled by running make in the top
+level directory.
+
+\subsubsection{Building the Database}
+
+\noindent
+A OpenOffice.org spreadsheet is provided to aid in sizing the
+database under the respective database directory in doc/: \\
+\indent dbt3\_sizing.sxc
+
+\noindent
+The parameter Scale Factor can be found under the Performance tab.
+The scale factor can actually be any decimal number (like 1.1 or 50)
+so that if the tester wishes,  the tester can create a database whose
+size is not one of the officially permitted scale factors.  This
+might be desirable for development purposes.  Any results should be
+advertised with the scale factor used, since the performance varies
+based on the amount of data required for processing the queries.  The
+database size is defined with reference to scale factor.  For
+example, for scale factor 1, the database size is roughly 1 GB.
+
+\noindent
+Note:  This kit does not support scale factors less than 1.  Although
+you can build a database using scale factors less than 1, the query
+generator (qgen) will not generate the proper variable values that
+correspond to scale factors less than 1.
+
+\noindent
+The data displayed under the database size tab report the expected
+size of the database, for the parameters entered, are to be used for
+the physical database layout.  The number to note is the total number
+of 8 KB pages since SAP DB uses those units in most of its
+configuration settings.  Keep in mind that additional space must be
+added to account for auxiliary structures such as indexes, temporary
+tables and 1\% for inserts.
+
+\noindent
+The tester needs to allocate space for the flat files generated by
+dbgen used to load the database.  Under the tab database size in file
+doc/dbt3\_size, one column Flat File Size is provided to calculate the
+space.  Once the database is loaded and backed up, there is no need
+to retain these flat files.  
+
+\noindent
+The tester needs to allocate a file system area large enough to backup
+the database, which is part of the database build process (a required
+part for SAP DB).  The database backup needs to be at least as large
+as the database.
+
+\subsubsection{Creating the input data files}
+
+\noindent
+The data files can be generated using the dbgen under datagen/dbgen: \\
+\indent ./dbgen -s $<$scale\_factor$>$
+
+\subsubsection{Creating the input data files}
+
+\noindent
+The ../dbt3/scripts/ directory contains a list of databases that this
+test kit supports.  Only SAP DB is currently supported and is found
+under the ../dbt3/scripts/sapdb subdirectory.  
+
+\noindent
+The tester needs to adjust some of the files in this directory to fit
+the environment.  If the tester already has a database named DBT3,
+then the tester need to change the environment variable"SID" to
+another name.
+
+\noindent
+Under each of the database directories (e.g.  ../dbt3/scripts/sapdb/)
+is a file called build\_db.sh which is used to build the database (and
+optionally to generate the input data).
+
+\paragraph{Database Creation}
+
+\paragraph{PostgreSQL}
+\noindent
+It's recommended to run the complete workload using the run\_workload.sh 
+since that also involves creating the database, but the database creation
+script for PostgreSQL will be briefly described here.
+
+\noindent
+scripts/pgsql/load\_test.sh [-f $<$scale\_factor$>$ -p '$<$database\_parameters$>$' -y $<$0/1$>$ -o $<$dir$>$]
+\begin{tabular}[c]{ll} 
+-f      & Scale factor to build. \\
+-o      & Directory to write test output into. \\
+-p      & Any PostgreSQL database parameters to use. \\
+-y      & 0 to disable oprofile [default], 1 to enable. \\
+\end{tabular}
+
+\paragraph{SAP DB}
+This script has the following usage: \\
+\indent ./build\_db.sh [-g $<$scale\_factor$>$ ]
+
+\noindent
+build\_db.sh  Performs these set up operations: \\
+\begin{itemize}
+\item If -g is given as a command line parameter, it will generate the data files
+\item Create the database
+\item Create the tables
+\item Load the database
+\item Create the indexes
+\item Update the optimizer statistics
+\item Back up the database
+\item Set database internal parameters
+\end{itemize}
+
+\noindent
+To do this build\_db.sh calls the following scripts found in the same
+directory: \\
+\begin{tabular}[c]{ll}
+./drop\_db.sh		& drops the database (for a reload) \\
+./create\_db.sh		& creates the database, devspaces, users \\
+./create\_tables.sh	& creates the tables \\
+./load\_db.sh		& loads the tables from flat files \\
+./create\_indexes.sh	& creates indexes \\
+./update\_statistics.sh	& update optimizer statistics \\
+./backup\_db.sh		& creates backup that can be used by restore\_db.sh \\
+./set\_params.sh	& set the database internal variables \\
+\end{tabular}
+
+\paragraph{Adjusting the script create\_db.sh}
+
+\noindent
+The shell script, scripts/sapdb/create\_db.sh, creates the physical
+database. The SAP DB database users dbm, dba, and dbt are created,
+with passwords the same as the user name, by create\_db.sh.  The user
+dbm is the database administrator account, dba is the utility
+account, and dbt is the user account.  The dbt account is used when
+running the programs built in the test kit, or to execute SQL using
+the dbmcli program included with SAP DB. This script also sets the
+database parameters param\_adddevspace that define the devices on
+which the database resides and the other parameters that allow the
+database to take advantage of the processors and memory on the
+system.  Before running duild\_db.sh, these lines should be tailored
+for the system.
+
+\noindent
+For creating the database, the tester needs to alter the
+create\_db.sh script to fit the number of disks and the size of the
+logs and the data files to match the scale factor as computed in
+section 2.5.1.  The directory where the System file resides is defined
+by the variable 'SYS\_DIR'.  Change this variable to fit the your
+system.  The devspaces are defined by the following statements: \\
+\indent param\_adddevspace 1 SYS \$SYS\_DIR/\$SID/\$SID\_SYS\_001 F \\
+\indent param\_adddevspace 1 DATA \$SYS\_DIR/\$SID/\$SID\_DATA\_001 F 524228 \\
+\indent param\_adddevspace 1 LOG \$SYS\_DIR\_DIR/\$SID/\$SID\_LOG\_001 F 8192 \\
+
+\noindent
+The first line defines a file system and file for locating the System
+file, which contains database metadata.  The second and third lines
+defines space (devspaces) for the data and  the log.  Although these
+lines currently put all the devspaces under one directory \$SYS\_DIR
+and point to files in a file system, a more performant configuration
+would be using raw partitions (substitute "R"  for "F"  for raw
+devices) and multiple DATA entries for multiple data files.  
+
+\noindent
+The database is automatically spread across the data files at load
+time.  It reads/writes from multiple devices simultaneously.  One
+should never use two partitions from the same physical disk device.
+
+\noindent
+If the tester uses raw devices, the tester needs to bind them first.
+For example, if the raw device is /dev/raw/raw1 on partition
+/dev/sdc1, the tester need to execute the following command as root: \\
+\indent raw /dev/raw/raw1 /dev/sdc1
+
+\noindent
+The last number of the param\_adddevspace entry (524228 and 8192)
+defines the size in 8K pages for DATA and LOG devspaces.  All DATA
+devspaces should contain  the same number of pages.  Use the database
+total page sizes computed in section 2.5.1 for the scale factor the
+tester is using, divide by the number of disks , add about 15% for
+temporary file space (the tester may need more depending on the load
+the tester achieves) and insert that number into the script.  
+
+\noindent
+The log size can remain as is, as we are using DEMO logging, which
+simply reuses the log without backing up the log.  For optimal
+performance the log device needs to be on a different physical disk
+from the DATA and SYS devspaces and needs to be a raw partition .
+
+\noindent
+An adjusted parameter set for eleven DATA devspaces on raw partitions
+might look like the following: \\
+\indent param\_adddevspace 1 SYS  /sys/\$SID/SYS\_001   F \\
+\indent param\_adddevspace 1 DATA /dev/raw/raw2 R 204800 \\
+\indent param\_adddevspace 2 DATA /dev/raw/raw3 R 204800 \\
+\indent param\_adddevspace 3 DATA /dev/raw/raw4 R 204800 \\
+\indent param\_adddevspace 4 DATA /dev/raw/raw5 R 204800 \\
+\indent param\_adddevspace 5 DATA /dev/raw/raw6 R 204800 \\
+\indent param\_adddevspace 6 DATA /dev/raw/raw7 R 204800 \\
+\indent param\_adddevspace 7 DATA /dev/raw/raw8 R 204800 \\
+\indent param\_adddevspace 8 DATA /dev/raw/raw9 R 204800 \\
+\indent param\_adddevspace 9 DATA /dev/raw/raw10 R 204800 \\
+\indent param\_adddevspace 10 DATA /dev/raw/raw11 R 204800 \\
+\indent param\_adddevspace 11 DATA /dev/raw/raw12 R 204800 \\
+\indent param\_adddevspace 1 LOG  /dev/raw/raw1 R 8192
+
+\noindent
+The create\_db.sh script calls the script ./set\_param.sh to set
+database parameters.  There are cases (the backup and restore) where
+some settings have to be adjusted.  When that happens, set\_param.sh
+is executed again to restore the database to its original settings.
+So it is very important to enter all database parameter settings in
+this file.   
+
+\noindent
+The only lines that you should touch in the set\_param.sh file are
+those that begin with "param\_put".  There are two sets of parameters
+in the file.  The first are for database load execution.  The second
+set is for the performance runs.  Normally the param\_set statements
+should be the same for both.
+
+\noindent
+The following describes those parameters you need to adjust initially
+based on your system configuration.
+
+\noindent
+When executing queries DATA\_CACHE  (8k pages of shared memory) needs
+to be as large a possible on the your system, allowing for memory for
+the database kernel and other database caches.  
+
+\noindent
+It is hard to pre-compute what the total database memory utilization
+will be, so the tester may have to experiment with DATA\_CACHE (and
+the other cache settings)  to get the optimal size.  Do not forget to
+adjust shmmax in the operating system to allow for a large shared
+memory area, and allow enough swap area if the your OS pre-allocates
+swap area for an application before allocating memory.
+
+\noindent
+Adjust the script for the number of processors on the your system by
+editing the following: \\
+\indent param\_put MAXCPU 2
+
+\noindent
+Systems with Intel processors supporting hyperthreading should use
+double the number of physical processors.
+
+\noindent
+Calculate the MAXUSERTASKS  to be a multiple of MAXCPU and to be at
+least as large as the number of streams required for the your chosen
+scale factor: \\
+\indent param\_put MAXUSERTASKS 16
+
+\paragraph{Modifying load\_db.sh}
+
+\noindent
+Currently the load\_db.sh scripts loads the tables serially rather
+than in parallel.  This takes longer, but results in the data from
+tables to be co-located on the disk (for each data devspace) as they
+are loaded one by one.  Loading in parallel is much faster, but the
+performance characteristic could be very different.  For example the
+scan of a table loaded in parallel could take longer since it would
+likely be spread across a larger area.  A serially loaded table,
+would not be interspersed with pages from other tables.  
+
+\noindent
+The tester can change the script so that it loads the tables in
+parallel by putting the load commands in background and waiting at
+the end.
+
+\paragraph{Modifying create\_indexes.sh and create\_tables.sh}
+
+\noindent
+The TPC-H specification allows only certain indexes to be created.
+The script create\_indexes.sh defines all of these indexes.  The
+testers can modify this script to improve performance.
+
+\noindent
+Note that SAP DB is somewhat unusual in that every table is built as
+a b-tree index, based on the primary key or alternatively a system
+generated key if a primary key is not specified.  With most other
+databases the tester would normally build a base table and separately
+build a unique key for the primary key column.  It can be less
+efficient to do so in SAP DB.  As the base table will be built as a
+b-tree anyway, the tester might as well make the key the primary key
+rather than a system generated key.  This approach has proven to be
+the best case for update intense activities.  However, since DBT-3 is
+query intensive, one might want to try different variations to see
+how query performance is effected.  The script create\_tables.sql 
+currently has primary key defined.
+
+\paragraph{Adjusting the script define\_medium.sh, backup\_db.sh and restore\_db.sh}
+
+\noindent
+The build script build\_db.sh will backup the database as the final
+step using the script backup\_db.sh.  Since the backup is roughly the
+size of the database, the tester need to edit  the script
+define\_medium.sh and point backup medium to the directory where the
+tester want to put the backup.  
+
+\noindent
+The tester may also need to split the backup into multiple locations
+or into smaller files for convenience.  For example, if the tester
+wants to put the backup on two directories /dbt3\_backup1 and
+/dbt3\_backup2, and the first medium has 500 8K pages, the medium
+definition should be: \\
+\indent medium\_put data1 /dbt3\_backup1/datasave1 FILE DATA 500 8 YES \\
+\indent medium\_put data2 /dbt3\_backup2/datasave2 FILE DATA 0 8 YES
+
+\noindent
+The backup commands in backup\_db.sh for two locations becomes: \\
+\indent backup\_start data1 migration \\
+\indent backup\_replace data2
+
+\noindent
+Also the tester need to change the commands in restore\_db.sh to: \\
+\indent recover\_start data1 \\
+\indent recover\_replace data2
+
+\noindent
+The incremental backup/restore is added in the scripts so that the
+database is writable after a full restore.
+
+\paragraph{Executing the script build\_db.sh}
+
+\noindent
+Assuming the tester has already: \\
+\indent generated the data files \\
+\indent have modified create\_db.sh, create\_indexes.sh, create\_tables.sh  and backup\_db.sh (and restore\_db.sh) for the your environment \\
+\indent have created the environment variables needed by the database 
+
+\noindent
+the tester is now ready to execute the database build: \\
+\indent cd .. /dbt3/sapdb/scripts \\
+\indent nohup ./build\_db.sh $>$ build\_db\_\$SID .out 2$>$\&1 \&
+
+\noindent
+If this is the first time for creating the database, ignore "database
+not found' messages during the "drop  database" phase.
+
+\noindent
+At the conclusion of the build\_db.sh script, the database should be
+left in the "warrm" state ready for query activity.  To confirm this,
+execute: \\
+\indent /opt/sapdb/depend/bin/dbmcli -d DBT3 -u dbm,dbm db\_state
+
+\noindent
+The result should be: \\
+\indent OK \\
+\indent State \\
+\indent WARM \\
+
+\paragraph{Restoring the database}
+
+\noindent
+If the database is already backed up, the tester can chose to restore
+the database using the script restore.sh.  As described in 2.5.3.5,
+the tester must check that the mediums are correctly defined in
+defime\_medium.sh.
+
+\section{Running the Test Kit}
+
+\noindent
+Before running the kit, testers should begin by creating the
+database in a way that fits their system configuration environment,
+as described in Section 2.  Part of the test will execute a database
+load step and time it, but it is best to do it first in a controlled
+manner.  Using these procedures, the tester can experiment with
+database customizations to tune load or query performance.  It is up
+to the tester to do so in a manner consistent with the TPC-H
+specifications, if that is important to the tester.
+
+\noindent
+Under dbt3/dbdriver/scripts there are several scripts that are used
+to drive the database workload.
+
+\noindent
+Testers can choose to run all the tests in OSDL-DBT-3 as well as part
+of the tests.  The following section describes how to run all the
+tests in OSDL-DBT-3.  The other scripts  are explained in section 4.
+
+\noindent
+Tester may also create several DBT-3 databases so that several scale
+factors can be tested or various implementation strategies compared.
+They will only need to change environment variables to point to the
+correct database as described in Section 2.2 prior to executing the
+test kit scripts.
+
+\subsection{Run DBT-3}
+
+\subsubsection{PostgreSQL}
+
+\noindent
+To run all three tests (load, power, throughput), execute the
+scripts/run\_workload.sh script.
+
+\noindent
+scripts/pgsql/run\_workload.sh [-f $<$scale\_factor$>$ -g -p '$<$load database parameters$>$' -q '$<$power database parameters$>$' -r '$<$throughput database parameters$>$' -y $<$0/1$>$]
+\begin{tabular}[c]{ll} 
+-e      & Flag to get EXPLAIN ANALYZE results instead of query results. \\
+-f      & Database scale factor to use, 1 by default. \\
+-g      & Build database data files. \\
+-n      & Number of streams to use, 1 by default. \\
+-o      & Flag to enable oprofile. \\
+-p      & Any PostgreSQL database parameters to use for the load test. \\
+-q      & Any PostgreSQL database parameters to use for the power test. \\
+-r      & Any PostgreSQL database parameters to use for the throughput test. \\
+-v      & Flag for verbose script output. \\
+\end{tabular}
+
+\subsubsection{SAP DB}
+
+\noindent
+To run all the tests in OSDL-DBT-3, change directory to
+\$DBT3\_INSTALL\_PATH/dbdriver/scripts and execute the command: \\
+\indent ./run\_dbt3.sh  $<$scale\_factor$>$ $<$num\_stream$>$ [seed]
+
+\noindent
+Note:  run\_dbt3.sh executes one load test and two performance tests.
+It requires that \$DBT3\_INSTALL\_PATH and \$DSS\_QUERY environment
+variables be defined as described in Section 2.2.  It also assumes
+that the input data files for the load have been previously generated
+as described in Section 2.5.2 and that \$DSS\_PATH points to the
+directory containing those input files (or links to them).
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the
+same as the one used when generating data files.
+
+\noindent
+$<$num\_stream$>$: is the number of streams in throughput test.  The
+minimum required stream count for throughput test is listed in the
+following table: \\
+\begin{tabular}[c]{ll}
+SF	& Streams \\
+1	& 2 \\
+10	& 3 \\
+30	& 4 \\
+100	& 5 \\
+300	& 6 \\
+1000	& 7 \\
+3000	& 8 \\
+10000	& 9 \\
+\end{tabular}
+
+\noindent
+[seed]: is optional.  If this parameter is specified, the run will
+use this as the seed.  Otherwise a seed is generated according to
+system time.
+
+\noindent
+Example: \\
+\indent ./run\_dbt3 1 2 \\
+\indent starts OSDL-DBT-3 run with scale factor 1, 2 streams in throughput test.  The system time is used as seed.
+
+\noindent
+Note:  It is a good idea to check the results of all queries.  If any
+report "no rows returned" then the test is invalid.  By running the
+kit first with scale factor 1, you can check the resulting output
+against those given in the TPC-H specification to be certain no bugs
+exist in the database or the kit install.  This is especially useful
+if you rewrite the SQL for any of the queries and you want to confirm
+its correctness.
+
+\noindent
+If several databases are created, the tester can change the
+environment variable \$SID to point to the database under test.  Be
+aware that the script parameter $<$scale\_factor$>$ need to be changed to
+corresponding database scale factor.
+
+\subsection{Run Sub-Test and Other Tools}
+
+\noindent
+In addition to running the whole OSDL-DBT-3, testers can run parts of
+the test.  Except for the load test, all other tests assume the
+database is built.
+
+\subsubsection{Run the Load Test}
+
+\noindent
+The load test includes building the database and all activities
+required to bring the database to the configuration that immediately
+before the beginning of the performance test.  To run the load test,
+change directory to dbdriver/scripts and execute the command: \\
+\indent ./run\_load\_test.sh  $<$scale\_factor$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the same
+as the one used when generating data files.
+
+\noindent
+Example: \\
+\indent ./run\_load\_test.sh 1 \\
+\indent builds the database of scale factor 1.
+
+\subsubsection{Run Performance Test}
+
+\noindent
+The performance test involves the power test and the throughput test.
+
+\noindent
+To run the performance test, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_perf\_test.sh  $<$scale\_factor$>$ $<$perf\_run\_number$>$ $<$num\_stream$>$
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the
+same as the one used when generating data files.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+\noindent
+$<$num\_stream$>$: is the number of streams in throughput test.  For
+details, refer to section 3.1
+
+Example: \\
+\indent ./run\_perf\_test.sh 1 1 2 \\
+\indent starts a performance test 1 with scale factor 1, 2 streams in throughput test.  
+
+\subsubsection{Run Power Test}
+
+\noindent
+The power test includes one refresh function 1, one query stream and
+one refresh function 2. 
+
+\noindent
+To run the power test, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_power\_test.sh  $<$scale\_factor$>$ $<$perf\_run\_number$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the same
+as the one used when generating data files.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+\noindent
+Example: \\
+\indent ./run\_power\_test.sh 1 1 \\
+\indent starts a power test  with scale factor 1.  
+
+\subsubsection{Run Refresh Function 1}
+
+\noindent
+To run the refresh function 1(inserts), change directory to
+dbdriver/scripts and execute the command: \\
+\indent ./run\_rf1.sh  $<$scale\_factor$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It must be the same
+as the one used when generating data files (otherwise the insert keys
+may not match those appropriate for the database).
+
+\noindent
+Example: \\
+\indent ./run\_rf1.sh 1 \\
+\indent starts refresh function 1.  If the insert data are not generated,  the insert data will be generated for scale factor 1.  
+
+\subsubsection{Run Refresh Function 2}
+
+\noindent
+To run the refresh function 2 (deletes), change directory to
+dbdriver/scripts and execute the command: \\
+\indent ./run\_rf2.sh  $<$scale\_factor$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It must be the same
+as the one used when generating data files (otherwise the keys may
+not match those in the database).
+
+\noindent
+Example: \\
+\indent ./run\_rf2.sh 1 \\
+\indent starts refresh function 2.  If the delete data are not generated,  the delete data will be generated for scale factor 1.
+
+\subsubsection{Run Query Stream for Power test}
+
+\noindent
+This script parses the query templates, generate query stream and
+executes the queries.
+
+\noindent
+To run the query stream, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_power\_query.sh  $<$scale\_factor$>$ $<$perf\_run\_number$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the same
+as the one used when generating data files.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+Example: \\
+\indent ./run\_power\_query.sh 1 1 \\
+\indent starts a query stream for the power test.  
+
+\subsubsection{Run Throughput Test}
+
+\noindent
+The throughput test executes certain number of query streams and update
+streams.
+
+\noindent
+To run the throughput test, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_throughput\_test.sh  $<$scale\_factor$>$ $<$perf\_run\_number$>$  $<$num\_stream$>$
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the same
+as the one used when generating data files.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+\noindent
+$<$num\_stream$>$: is the number of streams in throughput test.  For
+details, refer to section 3.1
+
+\noindent
+Example: \\
+\indent ./run\_throughput\_test.sh 1 1  2 \\
+\indent starts 2 parallel query streams and 2 refresh streams.
+
+\subsubsection{Run Query Stream for Throughput Test}
+
+\noindent
+This script parses the query templates, generate query stream and
+executes the queries.
+
+\noindent
+To run the query stream, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_throughput\_query.sh  $<$scale\_factor$>$ $<$perf\_run\_number$>$ $<$stream\_num$>$ 
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the
+same as the one used when generating data files.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+\noindent
+$<$stream\_num$>$: is the stream number of this query stream. Valid steam
+numbers depend on the scale factor chosen (see Section 3.1).
+
+\noindent
+Example: \\
+\indent ./run\_throughput\_query.sh 1 1 2 \\
+\indent starts the second query stream for the throughput test. 
+
+\subsubsection{Run Refresh Stream for Throughput Test}
+
+\noindent
+This script executes a pair of refresh functions by calling
+run\_rf1.sh and run\_rf2.sh.
+
+\noindent
+To run the refresh stream, change directory to dbdriver/scripts and
+execute the command: \\
+\indent ./run\_refresh\_stream.sh  $<$scale\_factor$>$  $<$stream\_num$>$ $<$perf\_run\_number$>$
+
+\noindent
+$<$scale\_factor$>$: is the scale factor of the run.  It should be the same
+as the one used when generating data files.
+
+\noindent
+$<$stream\_num$>$: is the stream number of this query stream.
+
+\noindent
+$<$perf\_run\_number$>$: is the performance run number (1 or 2).  
+
+\noindent
+Example: \\
+\indent ./run\_refresh\_stream.sh 1 2 1 \\
+\indent starts the second refresh stream for the throughput test.  
+
+\subsubsection{Test a single query.}
+
+\noindent
+Testers may need to test a change to the standard SQL for a specific
+query prior to executing the entire query set.  Query templates are
+located in the directory defined by the environment variable
+\$DSS\_QUERY.
+
+\noindent
+The queries are numbered 1 through 22 with the SQL in files named
+N.sql, where N is the query number.  These files  are generated by
+Qgen (from the TPC web site) and have substitution parameters
+indicated by a colon followed by a parameter number ( :1 for
+example).  To execute a query, these parameters are substituted for
+valid values, then the SQL is formatted to be accepted by the SAP DB
+command line tool, dbmcli.  Once you have modified a given query, say
+Query 20, cd to directory \$DBT3\_INSTALL\_PATH/dbt3/dbdriver/scripts
+then execute: \\
+\indent ./run\_single\_query.sh $<$SF$>$  20 
+
+\noindent
+where $<$SF$>$ is the scale factor you used to build the database.  The
+scale factor is very important, since only certain parameter value
+ranges are valid for any given scale factor.  The tool will search
+for the file 20.sql in  \$DSS\_QUERY, substitute appropriate
+parameters, execute the query, display the data resulting from the
+query, and return the elapsed time in seconds used to execute the
+query.
+
+\subsubsection{Change the query set.}
+
+\noindent
+The kit assumes that you have 22 queries in the directory \$DSS\_QUERY.
+If you wish to run a workload other than the official set of queries,
+you may do so, as long as you name the queries 1.sql through 22.sql.
+If you have fewer than 22 queries, create blank files for those you
+do not use, and they will be effectively ignored.  If you want to run
+more than 22 queries, you will need to patch QGEN ( see dbgen
+subdirectory from the download of DBGEN from www.tpc.org ).  
+
+\noindent
+If the tester rewrite any of the official queries, it is a good idea
+to verify the query on a database of scale factor 1.  The TPC-H
+specification has query validation results for each query.
+
+\section{Test Results}
+
+\noindent
+Under the directory \$DBT3\_INSTALL\_DIR/dbdriver/scripts, several
+scripts are provided to calculate the performance metric: \\
+\begin{itemize}
+\item q\_time.sh queries the table time\_statistics, and returns the elapsed time for each individual query or refresh function  as well as each test (for example, power test, throughput test, etc.)
+\item get\_power.sh  queries the table time\_statistics and calculates the query processing power at the chosen scale factor.  The units of Power@size are Queries per hour * Scale-Factor.  Using this script requires a complete power test.
+\item get\_throughput.sh queries the table time\_statistics and calculates the throughput numerical quantity at the chosen scale factor.  The  numerical quantity is defined as the ratio of the total number of queries executed over the length of the measurement interval.  The unit is of Throughput@size are Queries per hour * Scale-Factor.  Using this script requires a complete throughput test.
+\item get\_composite.sh calls ./get\_power.sh and ./get\_throughput.sh and calculates the composite query-per-hour performance metric.  The units of Composite Query-Per-Hour@size are Queries per hour * Scale-Factor.
+\end{itemize}
+
+\end{document}

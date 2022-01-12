@@ -1,0 +1,58 @@
+#
+# run_throughput_test: run throughput test
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+#
+#!/bin/sh
+
+if [ $# -ne 3 ]; then
+        echo "Usage: ./run_throughput_test.sh <scale_factor> <perf_run_number> <num_stream>"
+        exit
+fi
+
+scale_factor=$1
+perf_run_number=$2
+num_stream=$3
+qgen_dir="@TOPDIR@/datagen/dbgen"
+run_dir="@TOPDIR@/run"
+seed_file="$run_dir/seed"
+dbdriver_sapdb_path="@TOPDIR@/dbdriver/scripts/sapdb"
+
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+
+echo "`date`:=======throughput test $perf_run_number========"
+s_time=`$GTIME`
+echo "sql_execute insert into time_statistics (task_name, s_time, int_time) values ('PERF${perf_run_number}.THRUPUT', timestamp, $s_time)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute insert into time_statistics (task_name, s_time, int_time) values ('PERF${perf_run_number}.THRUPUT', timestamp, $s_time)"
+
+#generate the queries for throughput test
+#and start the streams
+i=1
+while [ $i -le $num_stream ] 
+do
+	echo "start throughput query of stream $i"
+	$dbdriver_sapdb_path/run_throughput_query.sh $scale_factor $perf_run_number $i> $run_dir/thruput_qs$i 2>&1 &
+	let "i=$i+1"
+done
+
+#start the refresh stream
+i=1
+while [ $i -le $num_stream ]
+do
+        echo "start throughput refresh stream stream $i"
+	$dbdriver_sapdb_path/run_refresh_stream.sh $scale_factor $i $perf_run_number > ${run_dir}/refresh_stream$i 2>&1
+        let "i=$i+1"
+done
+
+wait
+echo "sql_execute update time_statistics set e_time=timestamp where task_name='PERF${perf_run_number}.THRUPUT' and int_time=$s_time"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute update time_statistics set e_time=timestamp where task_name='PERF${perf_run_number}.THRUPUT' and int_time=$s_time"
+e_time=`$GTIME`
+echo "`date`: end throughput test run "
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for throughput test $diff_time"

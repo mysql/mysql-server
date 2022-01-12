@@ -1,0 +1,54 @@
+#
+# run_single_query.sh: run single query
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+# June-26-2003 use @TOPDIR@ instead of DBT3_INSTALL_PATH by Jenny Zhang
+#!/bin/sh
+if [ $# -ne 3 ]; then
+        echo "Usage: ./run_single_query.sh <scale_factor> <query_name> <output_dir>"
+        exit
+fi
+
+scale_factor=$1
+query_name=$2
+output_dir=$3
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+
+qgen_dir="@TOPDIR@/datagen/dbgen"
+run_dir="@TOPDIR@/run"
+seed_file="$run_dir/seed"
+query_file="$run_dir/$query_name.sql"
+tmp_query_file="$run_dir/tmp_$query_name.sql"
+param_file="$run_dir/$query_name.param"
+parsequery_sapdb_dir="@TOPDIR@/dbdriver/utils"
+
+if [ ! -f $seed_file ];
+then
+        echo "creating seed file $seed_file, you can change the seed by modifying this file"
+	@TOPDIR@/scripts/init_seed.sh > $seed_file
+fi
+
+#generate the queries for power test
+rm $query_file
+echo "generate queries in $qgen_dir"
+$qgen_dir/qgen -c -r `cat $seed_file` -s $scale_factor -l $param_file $query_name> $query_file
+# modify $query_file so that the commands are in one line
+$parsequery_sapdb_dir/parse_query $query_file $tmp_query_file S
+
+#run the queries
+echo "`date`: start queries "
+s_time=`$GTIME`
+echo "sql_execute insert into time_statistics (task_name, s_time, int_time) values ('QUERY$query_name', timestamp, $s_time)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute insert into time_statistics (task_name, s_time, int_time) values ('QUERY$query_name', timestamp, $s_time)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt -i $tmp_query_file -o $output_dir/${query_name}.result
+echo "sql_execute update time_statistics set e_time=timestamp where task_name='QUERY$query_name and int_time=$s_time'"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute update time_statistics set e_time=timestamp where task_name='QUERY$query_name' and int_time=$s_time"
+e_time=`$GTIME`
+echo "`date`: end queries "
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for queries $diff_time"

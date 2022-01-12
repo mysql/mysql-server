@@ -1,0 +1,71 @@
+#!/bin/sh
+#this script is used to build the database
+# ./build_db.sh -g <scale_factor> will generate data and build the database
+# ./build_db.sh will load the database from previously generated data files
+
+if [ $# -ne 0 ] # Script invoked with command-line args
+then
+	getopts "g" Option
+	if [ $Option != "g" ]
+		then echo "usage: $0 -g <scale_factor>" 
+		exit 1
+	else
+		if [ $# -ne 2 ]
+			then echo "usage: $0 -g <scale_factor>" 
+			exit 1
+		else
+			SF=$2
+		fi
+	fi
+
+	echo "Generating data... scale factor $SF"
+	cd @TOPDIR@/datagen/dbgen
+	date
+	@TOPDIR@/datagen/dbgen/dbgen -s $SF
+	echo "data files are generated"
+	date
+	cd @TOPDIR@/scripts/sapdb
+else
+	echo "build the database without generating the data files"
+fi
+	echo "drop db"
+	@TOPDIR@/scripts/sapdb/drop_db.sh
+	echo
+	
+	echo "create db"
+	@TOPDIR@/scripts/sapdb/create_db.sh
+	echo
+	
+	echo "create tables"
+	@TOPDIR@/scripts/sapdb/create_tables.sh
+	echo
+	
+	date
+	echo "start loading db"
+	@TOPDIR@/scripts/sapdb/load_db.sh
+	date
+	echo "loading db done"
+	
+	echo "starting to create indexes"
+	date
+	
+	date
+	echo "start creating indexes"
+	@TOPDIR@/scripts/sapdb/create_indexes.sh
+	date
+	echo "creating indexes done"
+	
+	
+	date
+	echo "start updating optimizer statistics"
+	@TOPDIR@/scripts/sapdb/update_statistics.sh
+	date
+	echo "updating optimizer statistics done"
+	
+	date
+	echo "start backup database"
+	@TOPDIR@/scripts/sapdb/backup_db.sh
+	date
+	echo "backup done"
+	
+	date

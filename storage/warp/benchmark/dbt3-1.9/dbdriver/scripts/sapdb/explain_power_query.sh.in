@@ -1,0 +1,44 @@
+#
+# run_single_query.sh: run single query
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# History: June-25-2003 Created by Jenny Zhang
+#
+#!/bin/sh
+if [ $# -lt 2 ]; then
+        echo "Usage: $0 <scale_factor> <output_dir>"
+        exit
+fi
+
+scale_factor=$1
+output_dir=$2
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+
+qgen_dir="@TOPDIR@/datagen/dbgen"
+run_dir="@TOPDIR@/run"
+seed_file="$run_dir/seed"
+query_file="$run_dir/power_plan.sql"
+tmp_query_file="$run_dir/tmp_power_plan.sql"
+param_file="$run_dir/power_plan.para"
+parsequery_pgsql_dir="@TOPDIR@/dbdriver/utils"
+
+if [ ! -f $seed_file ];
+then
+        echo "creating seed file $seed_file, you can change the seed by modifying this file"
+	@TOPDIR@/scripts/init_seed.sh > $seed_file
+fi
+
+#generate the queries for power test
+rm $query_file
+echo "generate queries in $qgen_dir"
+$qgen_dir/qgen -c -r `cat $seed_file` -p 0 -s $scale_factor -l $param_file -x > $query_file
+
+# modify $query_file so that the commands are in one line
+$parsequery_pgsql_dir/parse_query $query_file $tmp_query_file E
+
+#run the queries
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt -i $tmp_query_file -o $output_dir/power_plan.out

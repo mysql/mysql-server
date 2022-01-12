@@ -1,0 +1,30 @@
+#
+# run_load_test.sh: run dbt3 load test
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+#
+#!/bin/sh
+
+if [ $# -lt 1 ]; then
+        echo "Usage: ./run_load_test.sh <scale_factor>"
+        exit
+fi
+
+scale_factor=$1
+
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+
+#***load test
+echo "`date +'%Y-%m-%d %H:%M:%S'` start load test" 
+#get the start time
+s_time=`$GTIME`
+@TOPDIR@/scripts/sapdb/build_db.sh > build_db.log
+e_time=`$GTIME`
+echo "`date +'%Y-%m-%d %H:%M:%S'` load test end" 
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for load test $diff_time" 

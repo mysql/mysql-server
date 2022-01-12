@@ -1,0 +1,132 @@
+#
+# run_rf1.sh: run refresh function 1
+#
+# This file is released under the terms of the Artistic License.  Please see
+# the file LICENSE, included in this package, for details.
+#
+# Copyright (C) 2003 Open Source Development Lab, Inc.
+#
+# Author: Jenny Zhang
+#
+#!/bin/sh
+
+if [ $# -ne 1 ]; then
+        echo "Usage: ./run_rf1.sh <scale_factor>"
+        exit
+fi
+
+scale_factor=$1
+GTIME="@TOPDIR@/dbdriver/utils/gtime"
+curr_set_file_rf1="@TOPDIR@/run/curr_set_num_rf1"
+lock_file_rf1="@TOPDIR@/run/rf1.lock"
+min_set_file="@TOPDIR@/run/min_set_num"
+max_set_file="@TOPDIR@/run/max_set_num"
+DBGEN="@TOPDIR@/datagen/dbgen/dbgen"
+
+#if curr_set_file does not exist, we generate 12 update sets
+#create a semaphore file so that only one process can access $curr_set_file_rf1 
+lockfile -s 0 $lock_file_rf1
+if [ ! -f $curr_set_file_rf1 ];
+then
+	echo "generating update set 1 - 12"
+	$DBGEN -s $scale_factor -U 12
+	echo "1" > ${min_set_file}
+	echo "12" > ${max_set_file}
+	echo "0" > ${curr_set_file_rf1}
+fi
+rm -f $lock_file_rf1
+
+lockfile -s 0 $lock_file_rf1
+set_num=`cat $curr_set_file_rf1`
+min_set=`cat $min_set_file`
+max_set=`cat $max_set_file`
+
+let "set_num=$set_num+1"
+echo $set_num>$curr_set_file_rf1
+
+#if the current set number is larger than max_set, we need to generate new set
+if [ $set_num -gt $max_set ]
+then
+	let "min_set=$min_set+12"
+	let "max_set=$max_set+12"
+	echo "generating update set $min_set - $max_set"
+	$DBGEN -s $scale_factor -U $max_set
+	echo "$min_set" > ${min_set_file}
+	echo "$max_set" > ${max_set_file}
+fi
+rm -f $lock_file_rf1
+
+echo "=======rf1 set: $set_num========"
+
+echo "`date`: start rf1 "
+s_time=`$GTIME`
+
+#generating the load .sql
+echo "fastload table tmp_lineitem$set_num" > tmp_lineitem$set_num.sql
+echo "l_orderkey 1" >> tmp_lineitem$set_num.sql
+echo "l_partkey 2" >> tmp_lineitem$set_num.sql
+echo "l_suppkey 3" >> tmp_lineitem$set_num.sql
+echo "l_linenumber 4" >> tmp_lineitem$set_num.sql
+echo "l_quantity 5" >> tmp_lineitem$set_num.sql
+echo "l_extendedprice 6" >> tmp_lineitem$set_num.sql
+echo "l_discount 7" >> tmp_lineitem$set_num.sql
+echo "l_tax 8" >> tmp_lineitem$set_num.sql
+echo "l_returnflag 9" >> tmp_lineitem$set_num.sql
+echo "l_linestatus 10" >> tmp_lineitem$set_num.sql
+echo "l_shipdate 11" >> tmp_lineitem$set_num.sql
+echo "l_commitdate 12" >> tmp_lineitem$set_num.sql
+echo "l_receiptdate 13" >> tmp_lineitem$set_num.sql
+echo "l_shipinstruct 14" >> tmp_lineitem$set_num.sql
+echo "l_shipmode 15" >> tmp_lineitem$set_num.sql
+echo "l_comment 16" >> tmp_lineitem$set_num.sql
+echo "infile '/tmp/lineitem.tbl.u$set_num' date 'yyyy-mm-dd'" >> tmp_lineitem$set_num.sql
+
+echo "fastload table tmp_orders$set_num" > tmp_orders$set_num.sql
+echo "o_orderkey 1" >> tmp_orders$set_num.sql
+echo "o_custkey 2" >> tmp_orders$set_num.sql
+echo "o_orderstatus 3" >> tmp_orders$set_num.sql
+echo "o_totalprice 4" >> tmp_orders$set_num.sql
+echo "o_orderdate 5" >> tmp_orders$set_num.sql
+echo "o_orderpriority 6" >> tmp_orders$set_num.sql
+echo "o_clerk 7" >> tmp_orders$set_num.sql
+echo "o_shippriority 8" >> tmp_orders$set_num.sql
+echo "o_comment 9" >> tmp_orders$set_num.sql
+echo "infile '/tmp/orders.tbl.u$set_num' date 'yyyy-mm-dd'" >> tmp_orders$set_num.sql
+
+#echo "sql_execute drop table tmp_lineitem$set_num"
+#dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute drop table tmp_lineitem$set_num"
+
+echo "sql_execute create table tmp_lineitem$set_num"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute create table tmp_lineitem$set_num (l_orderkey fixed(10), l_partkey fixed(10), l_suppkey fixed(10), l_linenumber fixed(10), l_quantity fixed(12,2), l_extendedprice fixed(12,2), l_discount fixed(12,2), l_tax fixed(12,2), l_returnflag char(1), l_linestatus char(1), l_shipdate date, l_commitdate date, l_receiptdate date, l_shipinstruct char(25), l_shipmode char(10), l_comment varchar(44))"
+
+echo "load table tmp_lineitem$set_num"
+/opt/sapdb/depend/bin/repmcli -u dbt,dbt -d $SID -b tmp_lineitem$set_num.sql
+
+echo "sql_execute insert into lineitem (select * from tmp_lineitem$set_num)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute insert into lineitem (select * from tmp_lineitem$set_num)"
+
+#echo "sql_execute drop table tmp_orders$set_num"
+#dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute drop table tmp_orders$set_num"
+
+echo "sql_execute create table tmp_orders$set_num"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute create table tmp_orders$set_num (o_orderkey fixed(10), o_custkey fixed(10), o_orderstatus char(1), o_totalprice fixed(12,2), o_orderdate date, o_orderpriority char(15), o_clerk char(15), o_shippriority fixed(10), o_comment varchar(79))"
+
+echo "load table tmp_orders$set_num"
+/opt/sapdb/depend/bin/repmcli -u dbt,dbt -d $SID -b tmp_orders$set_num.sql
+
+echo "sql_execute insert into orders (select * from tmp_orders$set_num)"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute insert into orders (select * from tmp_orders$set_num)"
+
+# clean up
+echo "sql_execute drop table tmp_lineitem$set_num"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute drop table tmp_lineitem$set_num"
+
+echo "sql_execute drop table tmp_orders$set_num"
+dbmcli -d $SID -u dbm,dbm -uSQL dbt,dbt "sql_execute drop table tmp_orders$set_num"
+rm tmp_lineitem$set_num.sql
+rm tmp_orders$set_num.sql
+
+e_time=`$GTIME`
+echo "`date`: end rf1 "
+let "diff_time=$e_time-$s_time"
+echo "elapsed time for rf1 $diff_time"

@@ -1,0 +1,1 @@
+dbmcli -d $SID -u dbm,dbm -uSQL $DBUSER,$DBUSER -i @TOPDIR@/scripts/sapdb/create_indexes.sql

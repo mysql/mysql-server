@@ -9,7 +9,7 @@ CREATE TABLE supplier (
 );
 
 CREATE TABLE part (
-  p_partkey INTEGER G,
+  p_partkey INTEGER,
   p_name VARCHAR(55),
   p_mfgr CHAR(25),
   p_brand CHAR(10),
@@ -25,12 +25,11 @@ CREATE TABLE partsupp (
   ps_suppkey INTEGER,
   ps_availqty INTEGER,
   ps_supplycost REAL,
-  ps_comment VARCHAR(199),
-  G (ps_partkey, ps_suppkey)
+  ps_comment VARCHAR(199)
 );
 
 CREATE TABLE customer (
-  c_custkey INTEGER primary key,
+  c_custkey INTEGER ,
   c_name VARCHAR(25),
   c_address VARCHAR(40),
   c_nationkey INTEGER,
@@ -41,7 +40,7 @@ CREATE TABLE customer (
 );
 
 CREATE TABLE orders (
-  o_orderkey INTEGER primary key,
+  o_orderkey INTEGER ,
   o_custkey INTEGER,
   o_orderstatus CHAR(1),
   o_totalprice REAL,
@@ -53,13 +52,13 @@ CREATE TABLE orders (
 );
 
 CREATE TABLE nation (
-  n_nationkey INTEGER primary key,
+  n_nationkey INTEGER ,
   n_name CHAR(25),
   n_regionkey INTEGER,
   n_comment VARCHAR(152));
 
 CREATE TABLE region (
-  r_regionkey INTEGER primary key,
+  r_regionkey INTEGER ,
   r_name CHAR(25),
   r_comment VARCHAR(152));
 
