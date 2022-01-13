@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,8 @@ DEFINE_SERVICE_HANDLE(TA_key);
   Create a table access object.
   @sa destroy_table_access_v1_t
 
-  @param thd The current session.
+  @param thd The current session. Pass a null ptr if running from a non-MySQLd
+  thread
   @param count The maximum number of tables to access.
 
   @note The table access service will create a child session
