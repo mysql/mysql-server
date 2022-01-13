@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,7 @@ extern bool dynamic_plugins_are_initialized;
 bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
+void reset_status_by_thd();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 

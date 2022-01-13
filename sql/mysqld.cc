@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11258,6 +11258,31 @@ void refresh_status() {
     Status reset becomes not atomic, but status data is not exact anyway.
   */
   Connection_handler_manager::reset_max_used_connections();
+}
+
+class Do_THD_reset_status : public Do_THD_Impl {
+ public:
+  Do_THD_reset_status() {}
+  void operator()(THD *thd) override {
+    PSI_thread *thread = thd->get_psi();
+    if (thread != nullptr) {
+      /*
+        During this call,
+        - inspecting the THD associated with the performance schema
+          thread instrumentation,
+        - inspecting the THD status variable
+        is safe, because the call is protected
+        by Global_THD_manager::do_for_all_thd(),
+        so the THD will not be destroyed during the iteration.
+      */
+      PSI_THREAD_CALL(aggregate_thread_status)(thread);
+    }
+  }
+};
+
+void reset_status_by_thd() {
+  Do_THD_reset_status doit;
+  Global_THD_manager::get_instance()->do_for_all_thd(&doit);
 }
 
 /*****************************************************************************
