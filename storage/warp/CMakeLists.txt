@@ -72,6 +72,6 @@ MYSQL_ADD_PLUGIN(warp_udf udf.cc
 add_subdirectory("warp_rewrite")
 
 install(FILES ${FASTBIT_LIBS} ${CMAKE_BINARY_DIR}/plugin_output_directory/warp_udf.so DESTINATION ${PLUGINDIR})
-install(FILES ${CMAKE_BINARY_DIR}/lemire_sorted_simd-prefix/src/lemire_sorted_simd/libSIMDCompressionAndIntersection.a DESTINATION ${PLUGINDIR})
+#install(FILES ${CMAKE_BINARY_DIR}/lemire_sorted_simd-prefix/src/lemire_sorted_simd/libSIMDCompressionAndIntersection.a DESTINATION ${PLUGINDIR})
 
 
