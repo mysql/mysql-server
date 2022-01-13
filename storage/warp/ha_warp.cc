@@ -1502,6 +1502,8 @@ int ha_warp::rnd_init(bool) {
     push_where_clause = "1=1";
   }
 
+  //std::cerr << "push_where_clause[" << std::string(table->alias) << "]: " << push_where_clause << "\n";
+
   if(pushdown_info->base_table != NULL) {
     partitions = NULL;
     base_table = pushdown_info->base_table;
@@ -1623,9 +1625,17 @@ void exec_pushdown_join(
   //uint32_t match_count = 0;
   uint8_t filter_exec_count = 0;
   auto filter_it = fact_table_filters->begin();
-  
+  //std::cerr << "HERE !!!!\n";
   for ( filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
+    //std::cerr << "Filter for dim: " << filter_it->first->dim_alias << " col: " << filter_it->first->dim_column << "\n";
+    //std::cerr << "Getting column values for " << std::string((filter_it->first)->fact_column.c_str()) << "\n";
     auto column_vals = column_query->getQualifiedLongs((filter_it->first)->fact_column.c_str());
+    if(!column_vals) {
+      //std::cerr << "column_vals WAS NULL\n";
+      tmp_matching_rids.clear();
+      break;
+    }
+    //std::cerr << "Got " << column_vals->size() << " values from disk\n";
     uint32_t rownum =0;
     auto matching_dim_rowids = new std::set<uint64_t> ;
 
@@ -1683,7 +1693,7 @@ void exec_pushdown_join(
     #endif
 
   }
-  
+  //std::cerr << "2 HERE!!!!\n";
   if( tmp_matching_rids.size() > 0 ) {
     
     auto tmp = std::string((*part_it)->currentDataDir());
@@ -1716,10 +1726,11 @@ int ha_warp::rnd_next(uchar *buf) {
   DBUG_ENTER("ha_warp::rnd_next");
   // transaction id of the current row
   uint64_t row_trx_id = 0;
-  
+  //std::cerr << "table: " << std::string(table->alias) << " - rnd:next enter\n";
 fetch_again:  
 
   if( partitions != NULL && bitmap_merge_join_executed == false ) {
+    //std::cerr << "table: " << std::string(table->alias) << " - partitions not null\n";
     if(1) {
       
       if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
@@ -1842,6 +1853,7 @@ fetch_again:
   next_ridset:
 
   if( matching_ridset.size() > 0 ) {
+    //std::cerr << "table: " << std::string(table->alias) << " - matching ridset size >0\n";
     if(part_it == partitions->end()) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
@@ -1887,9 +1899,9 @@ fetch_again:
     }
     
   } else {
-    
+    //std::cerr << "table: " << std::string(table->alias) << " - matching_ridset is null\n";
     if(partitions != NULL && cursor == NULL) {
-     
+      //std::cerr << "table: " << std::string(table->alias) << " - bazeer";
       if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
         ++part_it;
       }
@@ -1914,12 +1926,14 @@ fetch_again:
       
       // table scan (possibly with filters) without any joins
       if(cursor == NULL) {
+        //std::cerr << "table: " << std::string(table->alias) << " - table scan start\n";
         base_table = ibis::table::create(this->share->data_dir_name);
         assert(base_table != NULL);
-               
+        //std::cerr << "table: " << std::string(table->alias) << " - table scan start - " << push_where_clause << "\n";       
         filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
         
         if(filtered_table==NULL) {
+          //std::cerr << "table: " << std::string(table->alias) << " - filtered table is null!\n";
           ++part_it;
           goto fetch_again;
         }
@@ -1929,8 +1943,10 @@ fetch_again:
   }
 
   if( !cursor ) {
+    //std::cerr << "table: " << std::string(table->alias) << " - no cursor EOF!\n";
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
+  //std::cerr << "table: " << std::string(table->alias) << " - table scan further\n";
   // will remain 10 if we hit the end of current_matching_ridset
   // otherwise is the result of the fetch.  if there is no 
   // current_matching_ridset the next row is fetched and if the
@@ -1946,10 +1962,11 @@ fetch_again:
     // if end of ridset res still = 10 here and the fetch failure
     // is handled below, objects are free'd etc..
   } else {
-      
+    //std::cerr << "table: " << std::string(table->alias) << " - table scan start 2\n";  
     // during pushdown joins the dimensions have a set of buffered rowids
     // this is a scan of one of the dimension tables (because current_matching_ridset_it )
     if( current_matching_dim_ridset != NULL ) {  
+      //std::cerr << "table: " << std::string(table->alias) << " - table scan start 3\n";
       if( current_matching_dim_ridset_it != current_matching_dim_ridset->end() ) {
         rownum = *current_matching_dim_ridset_it;
         res = cursor->fetch((*current_matching_dim_ridset_it)-1);
@@ -1958,13 +1975,14 @@ fetch_again:
         res = -1;
       }
     } else {
+      //std::cerr << "table: " << std::string(table->alias) << " - table scan start 4\n";
       res = cursor->fetch();
       ++rownum;
     }
   }
 
   if( res != 0 ) {
-    
+    //std::cerr << "table: " << std::string(table->alias) << " - table scan af: " << res << "\n";
     fetch_count = 0;
     if( partitions != NULL && fact_table_filters.size() > 0 ) {
 
@@ -1990,7 +2008,7 @@ fetch_again:
   }  
   
   ++fetch_count;
-  
+  //std::cerr << "table: " << std::string(table->alias) << " !\n";
   cursor->getColumnAsULong("r", current_rowid);
   
   cursor->getColumnAsULong("t", row_trx_id);
@@ -2455,6 +2473,11 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
     const Item *cond = table_aqp->get_condition();
     if(cond == nullptr) return 0;
 
+    auto cond2 = table_aqp->get_condition();
+    String str;
+    str.reserve(1024*1024);
+    cond2->print(current_thd, &str, QT_ORDINARY);
+    //std::cerr << "cond2: " << std::string(str.c_ptr(), str.length()) << "\n";
     // the pushdown information should already have been created in ::info
     remainder = cond_push(cond, true);
     
@@ -2466,7 +2489,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
 
     // used later to select rows from a table for bitmap index join optimzation
     pushdown_info->filter = push_where_clause;
-    
+    //std::cerr << std::string(table->alias) << " >> " << push_where_clause << "\n";
   }
   return 0;
 }
@@ -2496,6 +2519,7 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
   /* A simple comparison without conjuction or disjunction */
   if(cond->type() == Item::Type::FUNC_ITEM) {
     condition_count++;
+    
     int rc = append_column_filter(cond, where_clause);
     if(rc != 1) {
       unpushed_condition_count++;
@@ -2508,6 +2532,17 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
     List<Item> items = *(item_cond->argument_list());
     auto cnt = items.size();
     where_clause += "(";
+    if(items.size() > 1) {
+      auto i0 = (Item_cond*)(items[0]);
+      auto i1 = (Item_cond*)(items[1]);
+      auto i0ut = i0->used_tables();
+      auto i1ut = i1->used_tables();
+      if(i0ut != i1ut) {
+        where_clause += "1=1";
+        unpushed_condition_count++;
+        return cond;
+      }
+    }
     for (uint i = 0; i < cnt; ++i) {
       auto item = items.pop();
       condition_count++;
@@ -2816,9 +2851,11 @@ int ha_warp::append_column_filter(const Item *cond,
         //fixme: max_packet_length?
         str.reserve(1024*1024);
         (*arg)->print(current_thd, &str, QT_ORDINARY);
+        //std::cerr << "Found cache item: " << std::string(str.c_ptr(), str.length()) << "\n";
         if(
           memcmp("date",str.c_ptr()+9,4) == 0 || 
-          strcasestr(str.c_ptr(), "interval ")!=NULL
+          strcasestr(str.c_ptr(), "interval ") != NULL ||
+          strcasestr(str.c_ptr(), " as date") != NULL
           ) {
           auto t=(*arg)->val_temporal_by_field_type();
           build_where_clause += std::to_string(t);
