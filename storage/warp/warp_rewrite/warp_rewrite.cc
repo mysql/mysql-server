@@ -885,7 +885,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         remote_user=std::string(row[3]);
         remote_pw=std::string(row[4]);
         
-        if( row[5] != NULL && row[5] != 0 ) {
+        if( row[5] != NULL ) {
           remote_port=atoll(row[5]);
         } else {
           remote_port = 3306;
@@ -1361,8 +1361,21 @@ static int warp_rewrite_query_notify(
 
         // item func
         case Item::Type::FUNC_ITEM: 
-          std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
-          return 0;
+          
+          { String tmp;
+            tmp.reserve(1024*1024);
+            tmp.set("",0,default_charset_info);
+            field->this_item()->print(current_thd, &tmp, QT_ORDINARY);
+            if(select_lex.group_list_size() > 0) {
+              commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
+            } else {
+              commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', '";
+            }
+            commands+=escape_for_call(std::string(tmp.c_ptr(), tmp.length())) + "','" + escape_for_call(orig_alias) + "')";
+            
+          }
+          continue;
+          //return 0;
         break;
         
         // SUM or COUNT func
