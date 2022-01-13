@@ -314,7 +314,8 @@ bool Create_field::init(
     const ulonglong ull_length =
         my_strtoull(display_width_in_codepoints, nullptr, 10);
     if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH)) {
-      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
+      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
+               static_cast<unsigned long>(MAX_FIELD_BLOBLENGTH));
       return true;
     }
     m_max_display_width_in_codepoints = static_cast<size_t>(ull_length);
