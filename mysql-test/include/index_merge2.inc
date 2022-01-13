@@ -152,6 +152,12 @@ if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 10 #
 }
+if ($engine_type == MyISAM)
+{
+  # Bug#33457946: The estimated selectivity is different on 32-bit and
+  # 64-bit platforms.
+  --replace_column 11 #
+}
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 
@@ -161,6 +167,11 @@ select count(*) from t1 where
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 10 #
+}
+if ($engine_type == MyISAM) {
+  # Bug#33457946: The estimated selectivity is different on 32-bit and
+  # 64-bit platforms.
+  --replace_column 11 #
 }
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
