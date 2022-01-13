@@ -110,7 +110,8 @@ DEFINE_SERVICE_HANDLE(TA_key);
   Create a table access object.
   @sa destroy_table_access_v1_t
 
-  @param thd The current session.
+  @param thd The current session. Pass a null ptr if running from a non-MySQLd
+  thread
   @param count The maximum number of tables to access.
 
   @note The table access service will create a child session

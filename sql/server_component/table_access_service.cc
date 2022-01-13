@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -580,12 +580,20 @@ void TA_key_impl::key_copy(uchar *record) {
 
 Table_access_impl::Table_access_impl(THD *thd, size_t count)
     : m_current_count(0), m_max_count(count), m_write(false), m_in_tx(false) {
-  assert(thd != nullptr);
   m_parent_thd = thd;
 
   m_child_thd = new THD(true);
 
-  m_child_thd->copy_table_access_properties(m_parent_thd);
+  if (m_parent_thd)
+    m_child_thd->copy_table_access_properties(m_parent_thd);
+  else {
+    void *dummy_p = nullptr;
+    m_child_thd->thread_stack = (char *)&dummy_p;
+    m_child_thd->security_context()->assign_user(
+        STRING_WITH_LEN("table_access"));
+    m_child_thd->security_context()->skip_grants("", "");
+    my_thread_init();
+  }
 
   m_child_thd->real_id = my_thread_self();
   m_child_thd->set_new_thread_id();
@@ -616,7 +624,7 @@ Table_access_impl::~Table_access_impl() {
   m_child_thd->release_resources();
   m_child_thd->restore_globals();
 
-  m_parent_thd->store_globals();
+  if (m_parent_thd) m_parent_thd->store_globals();
 
   Global_THD_manager::get_instance()->remove_thd(m_child_thd);
 
@@ -624,6 +632,8 @@ Table_access_impl::~Table_access_impl() {
 
   delete[] m_table_array;
   delete[] m_table_state_array;
+
+  if (!m_parent_thd) my_thread_end();
 
   // FIXME : kill flag ?
   // FIXME : nested THD status variables ?
