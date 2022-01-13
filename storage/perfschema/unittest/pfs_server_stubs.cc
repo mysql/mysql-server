@@ -77,3 +77,5 @@ int log_message(int, ...) {
   /* Do not pollute the unit test output with annoying messages. */
   return 0;
 }
+
+void reset_status_by_thd() {}
