@@ -313,6 +313,7 @@ std::mutex parallel_join_mutex;
 // initializes or returns the pushdown information for a table used in a query
 warp_pushdown_information* get_or_create_pushdown_info(THD* thd, const char* alias, const char* data_dir_name);
 warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias);
+uint64_t get_pushdown_info_count(THD* thd);
 
 
 // used as a type of lock to provide consistent snapshots
