@@ -396,12 +396,13 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     to know about implicit grouping which may be induced by an aggregate
     function in the window's PARTITION or ORDER clause).
   */
+  const size_t fields_cnt = fields.size();
   if (m_windows.elements != 0 &&
       Window::setup_windows1(thd, this, base_ref_items, get_table_list(),
                              &fields, &m_windows))
     return true;
 
-  bool added_new_sum_funcs = false;
+  bool added_new_sum_funcs = fields.size() > fields_cnt;
 
   if (order_list.elements) {
     if (setup_order_final(thd)) return true; /* purecov: inspected */
