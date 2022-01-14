@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,6 +210,11 @@ MYSQL *Mysql_connection_options::create_connection() {
                           this->get_null_or_string(this->m_mysql_unix_port),
                           0)) {
     this->db_error(connection, "while connecting to the MySQL server");
+    mysql_close(connection);
+    return nullptr;
+  }
+
+  if (this->m_ssl_options_provider.check_connection(connection)) {
     mysql_close(connection);
     return nullptr;
   }

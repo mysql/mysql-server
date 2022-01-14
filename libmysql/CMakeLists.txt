@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -142,6 +142,9 @@ SET(CLIENT_API_FUNCTIONS
   mysql_real_connect_dns_srv
   mysql_bind_param
   mysql_plugin_get_option
+  mysql_get_ssl_session_reused
+  mysql_get_ssl_session_data
+  mysql_free_ssl_session_data
   CACHE INTERNAL "Functions exported by client API"
 )
 

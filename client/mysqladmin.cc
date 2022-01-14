@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -582,6 +582,10 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
   for (;;) {
     if (mysql_real_connect(mysql, host, user, nullptr, NullS, tcp_port,
                            unix_port, CLIENT_REMEMBER_OPTIONS)) {
+      if (ssl_client_check_post_connect_ssl_setup(
+              mysql, [](const char *err) { fprintf(stderr, "%s\n", err); }))
+        return true;
+
       mysql->reconnect = true;
       if (info) {
         fputs("\n", stderr);

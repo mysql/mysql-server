@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22574,6 +22574,139 @@ static void test_bug32915973() {
   mysql_stmt_close(stmt);
 }
 
+static void test_wl13075() {
+  int rc;
+  myheader("test_wl13075");
+
+  /* check that we're on an SSL connection */
+  const char *cipher = mysql_get_ssl_cipher(mysql);
+  DIE_UNLESS(cipher != nullptr);
+
+  /* FR1: get session data */
+  unsigned int session_len = 0;
+  void *session_data = mysql_get_ssl_session_data(mysql, 0, &session_len);
+  DIE_UNLESS(session_data != nullptr);
+  DIE_UNLESS(session_len > 0);
+
+  /* FR1.1: get null */
+  MYSQL lmysql;
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  /* test return on an unconnected mysql */
+  {
+    unsigned int slen = 0;
+    void *sdata = mysql_get_ssl_session_data(&lmysql, 0, &slen);
+    DIE_UNLESS(sdata == nullptr);
+    DIE_UNLESS(slen == 0);
+  }
+
+  /* test return on an unencrypted mysql */
+  {
+    enum mysql_ssl_mode ssl_mode_disabled = SSL_MODE_DISABLED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_disabled);
+    myquery(rc);
+  }
+
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  {
+    unsigned int slen = 0;
+    void *sdata = mysql_get_ssl_session_data(&lmysql, 0, &slen);
+    DIE_UNLESS(sdata == nullptr);
+    DIE_UNLESS(slen == 0);
+  }
+  mysql_close(&lmysql);
+
+  /* FR2: test session reuse */
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, session_data);
+  myquery(rc);
+
+  /* FR5: test if we get the same handle */
+  {
+    void *ret_ses_data = nullptr;
+    rc = mysql_get_option(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, &ret_ses_data);
+    myquery(rc);
+    DIE_UNLESS(!strcmp(reinterpret_cast<char *>(ret_ses_data),
+                       reinterpret_cast<char *>(session_data)));
+  }
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  /*
+    FR4: test mysql_get_ssl_session_reused returning true on a successful reuse
+  */
+  {
+    bool is_reused = mysql_get_ssl_session_reused(&lmysql);
+    DIE_UNLESS(is_reused);
+  }
+  mysql_close(&lmysql);
+
+  /* FR 2.1: failing to reuse a connection still works */
+  /* invalidate the session data at the server side */
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+  /* try connecting */
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  /*
+    FR4: test mysql_get_ssl_session_reused returning false on a failed reuse
+  */
+  {
+    bool is_reused = mysql_get_ssl_session_reused(&lmysql);
+    DIE_UNLESS(!is_reused);
+  }
+  mysql_close(&lmysql);
+
+  /* FR3: must free session data */
+  rc = mysql_free_ssl_session_data(mysql, session_data);
+  myquery(rc);
+
+  /* FR5: test if we get a nullptr for MYSQL_OPT_SSL_SESSION_DATA */
+  {
+    void *ret_ses_data = nullptr;
+    rc = mysql_get_option(mysql, MYSQL_OPT_SSL_SESSION_DATA, &ret_ses_data);
+    myquery(rc);
+    DIE_UNLESS(ret_ses_data == nullptr);
+  }
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22882,6 +23015,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32892045", test_bug32892045},
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
+    {"test_wl13075", test_wl13075},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

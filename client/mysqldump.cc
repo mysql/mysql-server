@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1601,6 +1601,10 @@ static int connect_to_db(char *host, char *user) {
     DB_error(&mysql_connection, "when trying to connect");
     return 1;
   }
+
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { fprintf(stderr, "%s\n", err); }))
+    return 1;
   if (mysql_get_server_version(&mysql_connection) < 40100) {
     /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset = false;

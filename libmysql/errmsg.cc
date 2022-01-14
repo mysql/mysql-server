@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,7 @@ const char *client_errors[] = {
     "Client does not recognise tracker type %d marked as mandatory by server.",
     "Invalid first argument for MYSQL_OPT_USER_PASSWORD option. Valid value "
     "should be between 1 and 3 inclusive.",
+    "Can't get session data: %s",
     ""};
 
 static const char *get_client_errmsg(int nr) {

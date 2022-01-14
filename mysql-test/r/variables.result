@@ -983,6 +983,8 @@ ssl_crl	#
 ssl_crlpath	#
 ssl_fips_mode	#
 ssl_key	#
+ssl_session_cache_mode	#
+ssl_session_cache_timeout	#
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 ssl_ca	#
@@ -993,6 +995,8 @@ ssl_crl	#
 ssl_crlpath	#
 ssl_fips_mode	#
 ssl_key	#
+ssl_session_cache_mode	#
+ssl_session_cache_timeout	#
 SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes

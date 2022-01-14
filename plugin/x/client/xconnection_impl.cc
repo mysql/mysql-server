@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -694,7 +694,7 @@ XError Connection_impl::activate_tls() {
   // When mode it set to Ssl_config::Mode_ssl_verify_ca
   // then lower layers are going to verify it
   unsigned long error{false};  // NOLINT
-  if (0 != sslconnect(m_vioSslFd, m_vio, 60, &error, nullptr)) {
+  if (0 != sslconnect(m_vioSslFd, m_vio, 60, nullptr, &error, nullptr)) {
     return get_ssl_error(error);
   }
 

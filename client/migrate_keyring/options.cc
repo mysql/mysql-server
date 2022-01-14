@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,9 @@
 #include "options.h"
 #include "utilities.h"
 
+/* TLS variables */
+#include "sslopt-vars.h"
+
 namespace options {
 
 /** MEM_ROOT for arguments */
@@ -66,6 +69,8 @@ enum migration_options {
   OPT_SSL_FIPS_MODE,
   OPT_TLS_CIPHERSUITES,
   OPT_SERVER_PUBLIC_KEY,
+  OPT_SSL_SESSION_DATA,
+  OPT_SSL_SESSION_DATA_CONTINUE_ON_FAILED_REUSE,
   /* Add new value above this */
   OPT_LAST
 };
@@ -85,8 +90,6 @@ char *Options::s_password = nullptr;
 char *Options::s_socket = nullptr;
 bool Options::s_tty_password = false;
 
-/* TLS variables */
-#include "sslopt-vars.h"
 /* Caching sha2 password variables */
 #include "caching_sha2_passwordopt-vars.h"
 
@@ -333,6 +336,10 @@ Mysql_connection::Mysql_connection(bool connect) : ok_(false), mysql(nullptr) {
               << mysql_error(mysql) << std::endl;
     return;
   }
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { log_error << err << std::endl; }))
+    return;
+
   log_info << "Successfully connected to MySQL server" << std::endl;
 
   ok_ = true;

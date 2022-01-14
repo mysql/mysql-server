@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,8 @@ static char *opt_tls_ciphersuites = nullptr;
 static char *opt_ssl_crl = nullptr;
 static char *opt_ssl_crlpath = nullptr;
 static char *opt_tls_version = nullptr;
+static bool opt_ssl_session_cache_mode = true;
+static long opt_ssl_session_cache_timeout = 300;
 
 static PolyLock_mutex lock_ssl_ctx(&LOCK_tls_ctx_options);
 
@@ -156,6 +158,24 @@ static Sys_var_charptr Sys_ssl_crlpath(
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crlpath),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_CRLPATH), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
+
+#define PFS_TRAILING_PROPERTIES                                         \
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), NULL, \
+      sys_var::PARSE_EARLY
+
+static Sys_var_bool Sys_var_opt_ssl_session_cache_mode(
+    "ssl_session_cache_mode", "Is TLS session cache enabled or not",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_session_cache_mode),
+    CMD_LINE(OPT_ARG), DEFAULT(true), PFS_TRAILING_PROPERTIES);
+
+/* 84600 is 1 day in seconds */
+static Sys_var_long Sys_var_opt_ssl_session_cache_timeout(
+    "ssl_session_cache_timeout",
+    "The timeout to expire sessions in the TLS session cache",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_session_cache_timeout),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_SESSION_CACHE_TIMEOUT),
+    VALID_RANGE(0, 84600), DEFAULT(300), BLOCK_SIZE(1),
+    PFS_TRAILING_PROPERTIES);
 
 /* Related to admin connection port */
 static Sys_var_charptr Sys_admin_ssl_ca(
@@ -323,7 +343,8 @@ static bool warn_self_signed_ca_certs(const char *ssl_ca,
 void Ssl_init_callback_server_main::read_parameters(
     OptionalString *ca, OptionalString *capath, OptionalString *version,
     OptionalString *cert, OptionalString *cipher, OptionalString *ciphersuites,
-    OptionalString *key, OptionalString *crl, OptionalString *crl_path) {
+    OptionalString *key, OptionalString *crl, OptionalString *crl_path,
+    bool *session_cache_mode, long *session_cache_timeout) {
   AutoRLock lock(&lock_ssl_ctx);
   if (ca) ca->assign(opt_ssl_ca);
   if (capath) capath->assign(opt_ssl_capath);
@@ -334,6 +355,9 @@ void Ssl_init_callback_server_main::read_parameters(
   if (key) key->assign(opt_ssl_key);
   if (crl) crl->assign(opt_ssl_crl);
   if (crl_path) crl_path->assign(opt_ssl_crlpath);
+  if (session_cache_mode) *session_cache_mode = opt_ssl_session_cache_mode;
+  if (session_cache_timeout)
+    *session_cache_timeout = opt_ssl_session_cache_timeout;
 }
 
 ssl_artifacts_status Ssl_init_callback_server_main::auto_detect_ssl() {
@@ -397,7 +421,8 @@ bool Ssl_init_callback_server_main::warn_self_signed_ca() {
 void Ssl_init_callback_server_admin::read_parameters(
     OptionalString *ca, OptionalString *capath, OptionalString *version,
     OptionalString *cert, OptionalString *cipher, OptionalString *ciphersuites,
-    OptionalString *key, OptionalString *crl, OptionalString *crl_path) {
+    OptionalString *key, OptionalString *crl, OptionalString *crl_path,
+    bool *session_cache_mode, long *session_cache_timeout) {
   AutoRLock lock(&lock_admin_ssl_ctx);
   if (ca) ca->assign(opt_admin_ssl_ca);
   if (capath) capath->assign(opt_admin_ssl_capath);
@@ -408,6 +433,9 @@ void Ssl_init_callback_server_admin::read_parameters(
   if (key) key->assign(opt_admin_ssl_key);
   if (crl) crl->assign(opt_admin_ssl_crl);
   if (crl_path) crl_path->assign(opt_admin_ssl_crlpath);
+  if (session_cache_mode) *session_cache_mode = opt_ssl_session_cache_mode;
+  if (session_cache_timeout)
+    *session_cache_timeout = opt_ssl_session_cache_timeout;
 
   if (opt_admin_ssl_ca || opt_admin_ssl_capath || opt_admin_ssl_cert ||
       opt_admin_ssl_cipher || opt_admin_tls_ciphersuites || opt_admin_ssl_key ||

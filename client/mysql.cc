@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -237,6 +237,7 @@ static char *opt_oci_config_file = nullptr;
 #include "sslopt-vars.h"
 
 const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
+static void *ssl_session_data = nullptr;
 
 /*
   completion_hash is an auxiliary feature for mysql client to complete
@@ -313,7 +314,8 @@ static int com_quit(String *str, char *), com_go(String *str, char *),
     com_prompt(String *str, char *), com_delimiter(String *str, char *),
     com_warnings(String *str, char *), com_nowarnings(String *str, char *),
     com_resetconnection(String *str, char *),
-    com_query_attributes(String *str, char *);
+    com_query_attributes(String *str, char *),
+    com_ssl_session_data_print(String *str, char *);
 static int com_shell(String *str, char *);
 
 #ifdef USE_POPEN
@@ -328,6 +330,7 @@ static const char *server_version_string(MYSQL *mysql);
 static int put_info(const char *str, INFO_TYPE info, uint error = 0,
                     const char *sql_state = nullptr);
 static int put_error(MYSQL *mysql);
+static void put_error_if_any(MYSQL *mysql);
 static void safe_put_field(const char *pos, ulong length);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
@@ -409,6 +412,8 @@ static COMMANDS commands[] = {
     {"query_attributes", 0, com_query_attributes, true,
      "Sets string parameters (name1 value1 name2 value2 ...) for the next "
      "query to pick up."},
+    {"ssl_session_data_print", 0, com_ssl_session_data_print, true,
+     "Serializes the current SSL session data to stdout or file"},
     /* Get bash-like expansion for some commands */
     {"create table", 0, nullptr, false, ""},
     {"create database", 0, nullptr, false, ""},
@@ -1456,6 +1461,7 @@ void mysql_end(int sig) {
   signal(SIGHUP, SIG_IGN);
 #endif
 
+  if (ssl_session_data) mysql_free_ssl_session_data(&mysql, ssl_session_data);
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && histfile && histfile[0]) {
@@ -4410,6 +4416,43 @@ static int com_query_attributes(String *buffer [[maybe_unused]], char *line) {
   return 0;
 }
 
+static int com_ssl_session_data_print(String *buffer [[maybe_unused]],
+                                      char *line) {
+  char msgbuf[256];
+  char *param = get_arg(line, false);
+  const char *err_text = nullptr;
+  FILE *fo = nullptr;
+  void *data = nullptr;
+
+  if (param) {
+    if (nullptr == (fo = fopen(param, "w"))) {
+      err_text = "Failed to open the output file";
+      goto end;
+    }
+  } else
+    fo = stdout;
+
+  data = mysql_get_ssl_session_data(&mysql, 0, nullptr);
+  if (!data) {
+    err_text = nullptr;
+    put_error(&mysql);
+    goto end;
+  }
+  if (0 > fputs(reinterpret_cast<char *>(data), fo)) {
+    snprintf(msgbuf, sizeof(msgbuf), "Write of session data failed: %d (%s)",
+             errno, strerror(errno));
+    err_text = &msgbuf[0];
+    goto end;
+  }
+  if (fo == stdout) fputs("\n", fo);
+
+end:
+  if (data) mysql_free_ssl_session_data(&mysql, data);
+  if (fo && fo != stdout) fclose(fo);
+  if (err_text) return put_info(err_text, INFO_ERROR);
+  return 0;
+}
+
 /*
   Gets argument from a command on the command line. If get_next_arg is
   not defined, skips the command and returns the first argument. The
@@ -4488,7 +4531,7 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
 
   mysql_init(&mysql);
   if (init_connection_options(&mysql)) {
-    (void)put_error(&mysql);
+    put_error_if_any(&mysql);
     (void)fflush(stdout);
     return ignore_errors ? -1 : 1;
   }
@@ -4573,6 +4616,18 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
   }
 #endif
 
+  if (ssl_client_check_post_connect_ssl_setup(
+          &mysql, [](const char *err) { put_info(err, INFO_ERROR); }))
+    return 1;
+
+  void *new_ssl_session_data = mysql_get_ssl_session_data(&mysql, 0, nullptr);
+  if (new_ssl_session_data != nullptr) {
+    if (ssl_session_data != nullptr)
+      mysql_free_ssl_session_data(&mysql, ssl_session_data);
+    ssl_session_data = new_ssl_session_data;
+  } else {
+    DBUG_PRINT("error", ("unable to save SSL session"));
+  }
 #ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
   if (!execute_buffer_conversion_done && status.line_buff &&
@@ -4642,6 +4697,10 @@ static bool init_connection_options(MYSQL *mysql) {
     tee_fprintf(stdout, "%s", SSL_SET_OPTIONS_ERROR);
     return true;
   }
+
+  if (ssl_session_data)
+    mysql_options(mysql, MYSQL_OPT_SSL_SESSION_DATA, ssl_session_data);
+
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 
@@ -4815,6 +4874,8 @@ static int com_status(String *buffer [[maybe_unused]],
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
   if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexadecimal\n");
+  if (mysql_get_ssl_session_reused(&mysql))
+    tee_fprintf(stdout, "SSL session reused:\ttrue\n");
 
   if ((status_str = mysql_stat(&mysql)) && !mysql_error(&mysql)[0]) {
     ulong sec;
@@ -4932,6 +4993,19 @@ static int put_info(const char *str, INFO_TYPE info_type, uint error,
 static int put_error(MYSQL *con) {
   return put_info(mysql_error(con), INFO_ERROR, mysql_errno(con),
                   mysql_sqlstate(con));
+}
+
+/**
+ Prints the SQL error, if any
+
+ Similar to @ref put_error, but prints the error only if there is any.
+
+ @param con the connection to check for errors
+*/
+static void put_error_if_any(MYSQL *con) {
+  const char *err = mysql_error(con);
+  if (err && *err)
+    put_info(err, INFO_ERROR, mysql_errno(con), mysql_sqlstate(con));
 }
 
 static void remove_cntrl(String *buffer) {

@@ -1,0 +1,91 @@
+#
+# WL#13075: Support TLS session reuse in the C API tls v1.2
+#
+# FR8.1: openssl 1.0.x behavior.
+#
+# WL#13075: Support TLS session reuse in the C API version independent part
+#
+# FR6: mysql store and retrieve sessions at connect
+include/assert_grep.inc [Checking if session was reused post-connect]
+# FR8: ssl cache limit
+SET GLOBAL ssl_session_cache_mode=off;
+ALTER INSTANCE RELOAD TLS;
+# try to see if a session ticket is sent
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME LIKE 'ssl_session%' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Ssl_session_cache_hits	0
+Ssl_session_cache_misses	0
+Ssl_session_cache_mode	OFF
+Ssl_session_cache_overflows	0
+Ssl_session_cache_size	128
+Ssl_session_cache_timeout	300
+Ssl_session_cache_timeouts	0
+Ssl_sessions_reused	0
+include/assert_grep.inc [FR8: Checking if session data file was populated]
+# store a ticket to a file
+# reuse: should fail
+ERROR: --ssl-session-data specified but the session was not reused.
+SET GLOBAL ssl_session_cache_mode=default;
+ALTER INSTANCE RELOAD TLS;
+# FR10 and FR9:  check ssl session timeout
+SET GLOBAL ssl_session_cache_timeout = 5;
+ALTER INSTANCE RELOAD TLS;
+# store session data
+# try the stored data pre- timeout
+the_server_is
+alive
+# sleep 10 secs
+# try the stored data post- timeout
+ERROR: --ssl-session-data specified but the session was not reused.
+SET GLOBAL ssl_session_cache_timeout=default;
+ALTER INSTANCE RELOAD TLS;
+# FR11: store ssl session data into a file and check format
+include/assert_grep.inc [FR11: Checking if session data file was populated]
+# openssl sess_id should be able to parse the file
+include/assert_grep.inc [Checking if session file is PEM format]
+# FR12: sesison reuse file should work
+# try mysqladmin
+mysqld is alive
+# try mysql command line
+include/assert_grep.inc [Checking if file session was reused]
+# FR7 and FR12: make sure resetting TLS invalidates the stored session data
+ALTER INSTANCE RELOAD TLS;
+# try mysql
+ERROR: --ssl-session-data specified but the session was not reused.
+# try mysqladmin
+--ssl-session-data specified but the session was not reused.
+# try mysqldump
+--ssl-session-data specified but the session was not reused.
+# try mysqlimport
+--ssl-session-data specified but the session was not reused.
+# try mysqlshow
+--ssl-session-data specified but the session was not reused.
+# try mysqlslap
+--ssl-session-data specified but the session was not reused.
+# try mysqltest
+mysqltest: --ssl-session-data specified but the session was not reused.
+# try mysqlpump
+--ssl-session-data specified but the session was not reused.
+# FR12.1: make sure --ssl-session-data-continue-on-failed-reuse works
+# try mysql
+# try mysqladmin
+# try mysqldump
+# try mysqlshow
+# try mysqlslap
+# try mysqlpump
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME LIKE 'ssl_session%' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+Ssl_session_cache_hits	0
+Ssl_session_cache_misses	0
+Ssl_session_cache_mode	SERVER
+Ssl_session_cache_overflows	0
+Ssl_session_cache_size	128
+Ssl_session_cache_timeout	300
+Ssl_session_cache_timeouts	0
+Ssl_sessions_reused	0
+# FR13: print session data to stdout
+-----BEGIN SSL SESSION PARAMETERS-----
+-----END SSL SESSION PARAMETERS-----
+# end of WL#13075: Support TLS session reuse in the C API version independent part

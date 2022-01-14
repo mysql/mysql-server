@@ -65,20 +65,18 @@ Pattern "Skipping generation of RSA key pair" found
 # Search completed.
 # 5.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
-show variables like 'ssl%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+auto_generate_certs	ON
 ssl_ca	ca.pem
-ssl_capath	
 ssl_cert	server-cert.pem
-ssl_cipher	
-ssl_crl	
-ssl_crlpath	
-ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
 sha256_password_auto_generate_rsa_keys	ON
 sha256_password_private_key_path	private_key.pem
 sha256_password_proxy_users	OFF
@@ -105,20 +103,18 @@ Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rs
 # Search completed.
 # 6.2 : System variables
 # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
-show variables like 'ssl%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+auto_generate_certs	ON
 ssl_ca	ca.pem
-ssl_capath	
 ssl_cert	server-cert.pem
-ssl_cipher	
-ssl_crl	
-ssl_crlpath	
-ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
 sha256_password_auto_generate_rsa_keys	ON
 sha256_password_private_key_path	private_key.pem
 sha256_password_proxy_users	OFF
@@ -147,20 +143,18 @@ Pattern "Auto generated RSA key files through --sha256_password_auto_generate_rs
 # Search completed.
 # 7.2 : System variables
 # No ssl variables should be set
-show variables like 'ssl%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+auto_generate_certs	ON
 ssl_ca	
-ssl_capath	
 ssl_cert	
-ssl_cipher	
-ssl_crl	
-ssl_crlpath	
-ssl_fips_mode	OFF
 ssl_key	
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
-Variable_name	Value
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
 sha256_password_auto_generate_rsa_keys	ON
 sha256_password_private_key_path	private_key.pem
 sha256_password_proxy_users	OFF

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -602,9 +602,27 @@ static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
 }
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
+#ifndef NDEBUG
+static void print_ssl_session_id(SSL_SESSION *sess, const char *action) {
+  unsigned int length;
+  const unsigned char *id = SSL_SESSION_get_id(sess, &length);
+  char tohex[1024], *w = &tohex[0];
+
+  if (id && length) {
+    for (unsigned inx = 0; inx < length && w < &tohex[1021]; inx++) {
+      sprintf(w, "%2.2X", id[inx]);
+      w += 2;
+    }
+    *w = 0;
+  } else
+    strcpy(tohex, "<empty>");
+  DBUG_PRINT("info", ("%sSSL session ID [%s]", action, tohex));
+}
+#endif  // !NDEBUG
+
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-                  ssl_handshake_func_t func, unsigned long *ssl_errno_holder,
-                  SSL **sslptr) {
+                  SSL_SESSION *ssl_session, ssl_handshake_func_t func,
+                  unsigned long *ssl_errno_holder, SSL **sslptr) {
   SSL *ssl = nullptr;
   my_socket sd = mysql_socket_getfd(vio->mysql_socket);
 
@@ -625,6 +643,21 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
       DBUG_PRINT("error", ("SSL_new failure"));
       *ssl_errno_holder = ERR_get_error();
       return 1;
+    }
+
+    if (ssl_session != nullptr) {
+#ifndef NDEBUG
+      print_ssl_session_id(ssl_session, "Setting for reuse ");
+#endif
+      if (!SSL_set_session(ssl, ssl_session)) {
+#ifndef NDEBUG
+        DBUG_PRINT("error", ("SSL_set_session failed"));
+        report_errors(ssl);
+#endif
+        ERR_clear_error();
+      } else {
+        DBUG_PRINT("info", ("reused existing session"));
+      }
     }
 
     DBUG_PRINT("info", ("ssl: %p timeout: %ld", ssl, timeout));
@@ -680,6 +713,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     *sslptr = nullptr;
     return (int)VIO_SOCKET_ERROR;
   }
+#ifndef NDEBUG
+  print_ssl_session_id(SSL_get_session(ssl), "Connected ");
+#endif
 
   /*
     Connection succeeded. Install new function handlers,
@@ -723,14 +759,17 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
               unsigned long *ssl_errno_holder) {
   DBUG_TRACE;
-  int ret = ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder, nullptr);
+  int ret =
+      ssl_do(ptr, vio, timeout, nullptr, SSL_accept, ssl_errno_holder, nullptr);
   return ret;
 }
 
 int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-               unsigned long *ssl_errno_holder, SSL **ssl) {
+               SSL_SESSION *session, unsigned long *ssl_errno_holder,
+               SSL **ssl) {
   DBUG_TRACE;
-  int ret = ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder, ssl);
+  int ret =
+      ssl_do(ptr, vio, timeout, session, SSL_connect, ssl_errno_holder, ssl);
   return ret;
 }
 

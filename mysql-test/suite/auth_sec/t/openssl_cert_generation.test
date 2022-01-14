@@ -107,7 +107,7 @@ let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_aut
 
 --echo # Ensure that server is not ssl enabled
 --error 1
---exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show variables like '%ssl%'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "SELECT 1"
 
 --echo # Ensure that sha connection is not possible in absence of certificates and keys
 connect (test_root_2,localhost,root,,,,,);
@@ -238,10 +238,13 @@ let SEARCH_PATTERN= Skipping generation of RSA key pair;
 --echo # 5.2 : System variables
 connect (test_root_4,localhost,root,,,,,);
 --echo # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
-show variables like 'ssl%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
+
 --echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 --echo # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
 
 --echo # 5.3 : SHA256_password user
 connection test_root_4;
@@ -302,10 +305,12 @@ let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_
 --echo # 6.2 : System variables
 connect (test_root_6,localhost,root,,,,,);
 --echo # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
-show variables like 'ssl%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
 --echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 --echo # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
@@ -385,10 +390,12 @@ let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_
 --echo # 7.2 : System variables
 connect (test_root_7,localhost,root,,,,,);
 --echo # No ssl variables should be set
-show variables like 'ssl%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME IN ('auto_generate_certs', 'ssl_ca', 'ssl_cert', 'ssl_key') ORDER BY 1;
 --echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 --echo # and sha256_password_public_key_path should be set.
-show variables like 'sha256%';
+SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'sha256%' ORDER BY 1;
 
 --echo # 7.3 : SSL connection
 --echo # Should not be able to connect to server using generated SSL certificates.

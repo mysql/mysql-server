@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -9594,6 +9594,10 @@ int main(int argc, char **argv) {
 
   safe_connect(&con->mysql, con->name, opt_host, opt_user, opt_pass, opt_db,
                opt_port, unix_sock);
+
+  if (ssl_client_check_post_connect_ssl_setup(
+          &con->mysql, [](const char *err) { die("%s", err); }))
+    return 0;
 
   /* Use all time until exit if no explicit 'start_timer' */
   timer_start = timer_now();

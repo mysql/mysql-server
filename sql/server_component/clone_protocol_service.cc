@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -376,7 +376,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
                                          &cipher, &ciphersuites, nullptr, &crl,
-                                         &crlpath);
+                                         &crlpath, nullptr, nullptr);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
                   ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());

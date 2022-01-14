@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,13 @@ void Mysql_connection_options::Ssl_options::create_options() {
       ->add_callback(new std::function<void(char *)>(std::bind(
           &Mysql_connection_options::Ssl_options::fips_mode_option_callback,
           this, _1)));
+  this->create_new_option(
+      &::opt_ssl_session_data, "ssl-session-data",
+      "Session data file to use to enable ssl session reuse");
+  this->create_new_option(&::opt_ssl_session_data_continue_on_failed_reuse,
+                          "ssl-session-data-continue-on-failed-reuse",
+                          "If set to ON, this option will allow connection to "
+                          "succeed even if session data cannot be reused.");
 }
 
 void Mysql_connection_options::Ssl_options::ca_option_callback(char *argument [
@@ -95,4 +102,10 @@ bool Mysql_connection_options::Ssl_options::apply_for_connection(
     return true;
   }
   return false;
+}
+
+bool Mysql_connection_options::Ssl_options::check_connection(
+    MYSQL *connection) {
+  return ssl_client_check_post_connect_ssl_setup(
+      connection, [](const char *err) { std::cerr << err << std::endl; });
 }

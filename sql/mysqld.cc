@@ -9759,6 +9759,9 @@ SHOW_VAR status_vars[] = {
     {"Uptime_since_flush_status", (char *)&show_flushstatustime, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #endif
+    {"Ssl_session_cache_timeout",
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeout, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {

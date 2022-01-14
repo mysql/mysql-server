@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2364,6 +2364,10 @@ static Exit_status safe_connect() {
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
+
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { error("%s", err); }))
+    return ERROR_STOP;
   mysql->reconnect = true;
   return OK_CONTINUE;
 }

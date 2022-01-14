@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -469,6 +469,11 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *) {
                            opt_mysql_unix_port, 0))) {
     ignore_errors = false; /* NO RETURN FROM db_error */
     db_error(mysql);
+    if (mysql) mysql_close(mysql);
+    return nullptr;
+  }
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
     if (mysql) mysql_close(mysql);
     return nullptr;
   }

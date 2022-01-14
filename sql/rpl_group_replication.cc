@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -425,7 +425,8 @@ void get_server_main_ssl_parameters(
       version;
 
   server_main_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                       &ciphersuites, &key, &crl, &crlpath);
+                                       &ciphersuites, &key, &crl, &crlpath,
+                                       nullptr, nullptr);
 
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
@@ -447,7 +448,8 @@ void get_server_admin_ssl_parameters(
       version;
 
   server_admin_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                        &ciphersuites, &key, &crl, &crlpath);
+                                        &ciphersuites, &key, &crl, &crlpath,
+                                        nullptr, nullptr);
 
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);

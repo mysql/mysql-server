@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,6 +387,12 @@ int main(int argc, char **argv) {
                              connect_flags))) {
       fprintf(stderr, "%s: Error when connecting to server: %s\n", my_progname,
               mysql_error(&mysql));
+      mysql_close(&mysql);
+      my_end(0);
+      return EXIT_FAILURE;
+    }
+    if (ssl_client_check_post_connect_ssl_setup(
+            &mysql, [](const char *err) { fprintf(stderr, "%s\n", err); })) {
       mysql_close(&mysql);
       my_end(0);
       return EXIT_FAILURE;

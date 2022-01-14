@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,11 @@ class Mysql_connection_options : public Composite_options_provider,
       Applies option values to MYSQL connection structure.
      */
     bool apply_for_connection(MYSQL *connection);
+
+    /**
+      Checks the connection for SSL validity
+    */
+    bool check_connection(MYSQL *connection);
 
    private:
     std::optional<std::string> m_ssl_mode_string;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,6 +180,8 @@ enum options_client {
   OPT_DELETE_MASTER_LOGS_DEPRECATED,
   OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED,
   OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT_DEPRECATED,
+  OPT_SSL_SESSION_DATA,
+  OPT_SSL_SESSION_DATA_CONTINUE_ON_FAILED_REUSE,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

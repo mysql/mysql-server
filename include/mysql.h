@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,7 @@ enum mysql_option {
   MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
   MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
   MYSQL_OPT_USER_PASSWORD,
+  MYSQL_OPT_SSL_SESSION_DATA
 };
 
 /**
@@ -460,6 +461,10 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
                            const char *ca, const char *capath,
                            const char *cipher);
 const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql);
+bool STDCALL mysql_get_ssl_session_reused(MYSQL *mysql);
+void *STDCALL mysql_get_ssl_session_data(MYSQL *mysql, unsigned int n_ticket,
+                                         unsigned int *out_len);
+bool STDCALL mysql_free_ssl_session_data(MYSQL *mysql, void *data);
 bool STDCALL mysql_change_user(MYSQL *mysql, const char *user,
                                const char *passwd, const char *db);
 MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
