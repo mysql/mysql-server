@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -371,29 +371,29 @@ void GRClusterMetadata::update_cluster_status(
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
       bool metadata_gr_discrepancy{false};
-      metadata_cache::ClusterStatus status = check_cluster_status(
-          cluster.members, member_status, metadata_gr_discrepancy);
+      const auto status = check_cluster_status(cluster.members, member_status,
+                                               metadata_gr_discrepancy);
       switch (status) {
-        case metadata_cache::ClusterStatus::AvailableWritable:  // we have
-                                                                // quorum,
-                                                                // good!
+        case GRClusterStatus::AvailableWritable:  // we have
+                                                  // quorum,
+                                                  // good!
           found_quorum = true;
           break;
-        case metadata_cache::ClusterStatus::AvailableReadOnly:  // have
-                                                                // quorum,
-                                                                // but only
-                                                                // RO
+        case GRClusterStatus::AvailableReadOnly:  // have
+                                                  // quorum,
+                                                  // but only
+                                                  // RO
           found_quorum = true;
           break;
-        case metadata_cache::ClusterStatus::
-            UnavailableRecovering:  // have quorum, but only with recovering
-                                    // nodes (cornercase)
+        case GRClusterStatus::UnavailableRecovering:  // have quorum, but only
+                                                      // with recovering nodes
+                                                      // (cornercase)
           log_warning(
               "quorum for cluster '%s' consists only of recovering nodes!",
               target_cluster.c_str());
           found_quorum = true;  // no point in futher search
           break;
-        case metadata_cache::ClusterStatus::Unavailable:  // we have nothing
+        case GRClusterStatus::Unavailable:  // we have nothing
           log_warning("%s is not part of quorum for cluster '%s'",
                       mi_addr.c_str(), target_cluster.c_str());
           continue;  // this server is no good, next!
@@ -436,7 +436,7 @@ void GRClusterMetadata::update_cluster_status(
   }
 }
 
-metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
+GRClusterStatus GRClusterMetadata::check_cluster_status(
     std::vector<metadata_cache::ManagedInstance> &instances,
     const std::map<std::string, GroupReplicationMember> &member_status,
     bool &metadata_gr_discrepancy) const noexcept {
@@ -456,7 +456,6 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
   // `member_status` not present in `instances`). It's O(n*m), but the CPU time
   // is negligible while keeping code simple.
 
-  using metadata_cache::ClusterStatus;
   using metadata_cache::ServerMode;
   using GR_State = GroupReplicationMember::State;
   using GR_Role = GroupReplicationMember::Role;
@@ -567,19 +566,19 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
 
   // if we don't have quorum, we don't allow any access. Some configurations
   // might allow RO access in this case, but we don't support it at the momemnt
-  if (!have_quorum) return ClusterStatus::Unavailable;
+  if (!have_quorum) return GRClusterStatus::Unavailable;
 
   // if we have quorum but no primary/secondary instances, it means the quorum
   // is composed purely of recovering nodes (this is an unlikey cornercase)
   if (!(have_primary_instance || have_secondary_instance))
-    return ClusterStatus::UnavailableRecovering;
+    return GRClusterStatus::UnavailableRecovering;
 
   // if primary node was not elected yet, we can only allow reads (typically
   // this is a temporary state shortly after a node failure, but could also be
   // more permanent)
   return have_primary_instance
-             ? ClusterStatus::AvailableWritable   // typical case
-             : ClusterStatus::AvailableReadOnly;  // primary not elected yet
+             ? GRClusterStatus::AvailableWritable   // typical case
+             : GRClusterStatus::AvailableReadOnly;  // primary not elected yet
 }
 
 void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
