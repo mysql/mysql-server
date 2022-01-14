@@ -77,13 +77,6 @@ enum class ClusterStatus {
   Unavailable
 };
 
-enum class InstanceStatus {
-  Reachable,
-  InvalidHost,  // Network connection cannot even be attempted (ie bad IP)
-  Unreachable,  // TCP connection cannot be opened
-  Unusable      // TCP connection can be opened but session can't be opened
-};
-
 /** @class metadata_error
  * Class that represents all the exceptions that are thrown while fetching the
  * metadata.
