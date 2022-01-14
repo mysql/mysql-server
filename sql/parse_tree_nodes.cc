@@ -3274,10 +3274,17 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     lex->set_ignore(true);
 
   Parse_context pc(thd, select);
-  if (contextualize_safe(&pc, &m_cmd.m_opt_fields_or_vars) ||
-      contextualize_safe(&pc, &m_cmd.m_opt_set_fields) ||
-      contextualize_safe(&pc, &m_cmd.m_opt_set_exprs))
+  if (contextualize_safe(&pc, &m_cmd.m_opt_fields_or_vars)) {
     return nullptr;
+  }
+  assert(select->parsing_place == CTX_NONE);
+  select->parsing_place = CTX_UPDATE_VALUE;
+  if (contextualize_safe(&pc, &m_cmd.m_opt_set_fields) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_exprs)) {
+    return nullptr;
+  }
+  assert(select->parsing_place == CTX_UPDATE_VALUE);
+  select->parsing_place = CTX_NONE;
 
   return &m_cmd;
 }
