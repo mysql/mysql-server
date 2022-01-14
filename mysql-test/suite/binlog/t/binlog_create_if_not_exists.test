@@ -1,0 +1,73 @@
+--echo #
+--echo # WL#14722 Support IF NOT EXISTS clause
+--echo # in CREATE PROCEDURE/FUNCTION/TRIGGER
+--echo #
+
+--source include/master-slave.inc
+
+--echo
+--echo # Create objects on source
+--echo [On Source]
+--connection master
+
+CREATE TABLE t1 (a INT);
+
+CREATE PROCEDURE IF NOT EXISTS sp1() BEGIN END;
+CREATE FUNCTION IF NOT EXISTS sf1() RETURNS INT DETERMINISTIC return 0;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--eval CREATE FUNCTION IF NOT EXISTS metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB"
+CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--echo
+--echo # Check if objects are created on replica
+--echo [On Replica]
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+
+SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
+
+--echo
+--echo # Drop objects on replica
+DROP PROCEDURE sp1;
+DROP FUNCTION sf1;
+DROP FUNCTION metaphon;
+DROP TRIGGER trg1;
+
+--echo
+--echo # Create objects with IF NOT EXISTS claus when objects already exist on source.
+--echo # These statements should re-create objects on replica
+--echo [On Source]
+--connection master
+
+CREATE PROCEDURE IF NOT EXISTS sp1() BEGIN END;
+CREATE FUNCTION IF NOT EXISTS sf1() RETURNS INT DETERMINISTIC return 0;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--eval CREATE FUNCTION IF NOT EXISTS metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB"
+CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--echo
+--echo # Check if objects are re-created on replica
+--echo [On Replica]
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+
+SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
+
+--echo
+--echo # Cleanup
+--echo [On Source]
+--connection master
+
+DROP PROCEDURE sp1;
+DROP FUNCTION sf1;
+DROP FUNCTION metaphon;
+DROP TRIGGER trg1;
+
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

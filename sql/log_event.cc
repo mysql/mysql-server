@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 
 #include "sql/log_event.h"
 
-#include "my_config.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -89,6 +89,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+
 #include <cstdint>
 #include <new>
 
@@ -3784,13 +3785,9 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
     case SQLCOM_DROP_ROLE:
     case SQLCOM_CREATE_ROLE:
     case SQLCOM_SET_PASSWORD:
-    case SQLCOM_CREATE_TRIGGER:
     case SQLCOM_DROP_TRIGGER:
     case SQLCOM_ALTER_FUNCTION:
-    case SQLCOM_CREATE_SPFUNCTION:
     case SQLCOM_DROP_FUNCTION:
-    case SQLCOM_CREATE_FUNCTION:
-    case SQLCOM_CREATE_PROCEDURE:
     case SQLCOM_DROP_PROCEDURE:
     case SQLCOM_ALTER_PROCEDURE:
     case SQLCOM_ALTER_EVENT:
@@ -3803,9 +3800,13 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
       break;
 
     case SQLCOM_CREATE_EVENT:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_CREATE_TRIGGER:
       /*
-        trx cache is *not* used if event already exists and IF NOT EXISTS clause
-        is used in the statement or if call is from the slave applier.
+        trx cache is *not* used if object already exists and IF NOT EXISTS
+        clause is used in the statement or if call is from the slave applier.
       */
       assert(using_trans_arg || thd->slave_thread ||
              (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS));

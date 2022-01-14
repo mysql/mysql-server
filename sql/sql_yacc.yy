@@ -17478,17 +17478,18 @@ trigger_follows_precedes_clause:
           ;
 
 trigger_tail:
-          TRIGGER_SYM       /* $1 */
-          sp_name           /* $2 */
-          trg_action_time   /* $3 */
-          trg_event         /* $4 */
-          ON_SYM            /* $5 */
-          table_ident       /* $6 */
-          FOR_SYM           /* $7 */
-          EACH_SYM          /* $8 */
-          ROW_SYM           /* $9 */
-          trigger_follows_precedes_clause /* $10 */
-          {                 /* $11 */
+          TRIGGER_SYM                     /* $1 */
+          opt_if_not_exists               /* $2 */
+          sp_name                         /* $3 */
+          trg_action_time                 /* $4 */
+          trg_event                       /* $5 */
+          ON_SYM                          /* $6 */
+          table_ident                     /* $7 */
+          FOR_SYM                         /* $8 */
+          EACH_SYM                        /* $9 */
+          ROW_SYM                         /* $10 */
+          trigger_follows_precedes_clause /* $11 */
+          {                               /* $12 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
@@ -17498,29 +17499,30 @@ trigger_tail:
               MYSQL_YYABORT;
             }
 
-            sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $3);
 
             if (!sp)
               MYSQL_YYABORT;
 
-            sp->m_trg_chistics.action_time= (enum enum_trigger_action_time_type) $3;
-            sp->m_trg_chistics.event= (enum enum_trigger_event_type) $4;
-            sp->m_trg_chistics.ordering_clause= $10.ordering_clause;
-            sp->m_trg_chistics.anchor_trigger_name= $10.anchor_trigger_name;
+            sp->m_trg_chistics.action_time= (enum enum_trigger_action_time_type) $4;
+            sp->m_trg_chistics.event= (enum enum_trigger_event_type) $5;
+            sp->m_trg_chistics.ordering_clause= $11.ordering_clause;
+            sp->m_trg_chistics.anchor_trigger_name= $11.anchor_trigger_name;
 
             lex->stmt_definition_begin= @1.cpp.start;
-            lex->ident.str= const_cast<char *>(@6.cpp.start);
-            lex->ident.length= @8.cpp.start - @6.cpp.start;
+            lex->create_info->options= $2 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+            lex->ident.str= const_cast<char *>(@7.cpp.start);
+            lex->ident.length= @9.cpp.start - @7.cpp.start;
 
             lex->sphead= sp;
-            lex->spname= $2;
+            lex->spname= $3;
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
-            sp->set_body_start(thd, @10.cpp.end);
+            sp->set_body_start(thd, @11.cpp.end);
           }
-          sp_proc_stmt /* $12 */
-          { /* $13 */
+          sp_proc_stmt                    /* $13 */
+          {                               /* $14 */
             THD *thd= YYTHD;
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
@@ -17537,7 +17539,7 @@ trigger_tail:
               sp_proc_stmt alternatives are not saving/restoring LEX, so
               lex->query_tables can be wiped out.
             */
-            if (!lex->query_block->add_table_to_list(thd, $6,
+            if (!lex->query_block->add_table_to_list(thd, $7,
                                                     nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,
@@ -17555,54 +17557,86 @@ trigger_tail:
 **************************************************************************/
 
 udf_tail:
-          AGGREGATE_SYM FUNCTION_SYM ident
-          RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
-          {
+          AGGREGATE_SYM         /* $1 */
+          FUNCTION_SYM          /* $2 */
+          opt_if_not_exists     /* $3 */
+          ident                 /* $4 */
+          RETURNS_SYM           /* $5 */
+          udf_type              /* $6 */
+          SONAME_SYM            /* $7 */
+          TEXT_STRING_sys       /* $8 */
+          {                     /* $9 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (is_native_function($3))
+
+            if (is_native_function($4))
             {
-              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
-                       $3.str);
+              if($3)
+              {
+                /*
+                  IF NOT EXISTS clause is unsupported when creating a UDF with
+                  the same name as a native function
+                */
+                my_error(ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION, MYF(0), $4.str);
+              }
+              else
+                my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0), $4.str);
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_CREATE_FUNCTION;
             lex->udf.type= UDFTYPE_AGGREGATE;
             lex->stmt_definition_begin= @2.cpp.start;
-            lex->udf.name = $3;
-            lex->udf.returns=(Item_result) $5;
-            lex->udf.dl=$7.str;
+            lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+            lex->udf.name = $4;
+            lex->udf.returns=(Item_result) $6;
+            lex->udf.dl=$8.str;
           }
-        | FUNCTION_SYM ident
-          RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
+        | FUNCTION_SYM          /* $1 */
+          opt_if_not_exists     /* $2 */
+          ident                 /* $3 */
+          RETURNS_SYM           /* $4 */
+          udf_type              /* $5 */
+          SONAME_SYM            /* $6 */
+          TEXT_STRING_sys       /* $7 */
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            if (is_native_function($2))
+
+            if (is_native_function($3))
             {
-              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
-                       $2.str);
+              if($2)
+              {
+                /*
+                  IF NOT EXISTS clause is unsupported when creating a UDF with
+                  the same name as a native function
+                */
+                my_error(ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION, MYF(0), $3.str);
+              }
+              else
+                my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_CREATE_FUNCTION;
             lex->udf.type= UDFTYPE_FUNCTION;
             lex->stmt_definition_begin= @1.cpp.start;
-            lex->udf.name = $2;
-            lex->udf.returns=(Item_result) $4;
-            lex->udf.dl=$6.str;
+            lex->create_info->options= $2 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+            lex->udf.name = $3;
+            lex->udf.returns=(Item_result) $5;
+            lex->udf.dl=$7.str;
           }
         ;
 
 sf_tail:
-          FUNCTION_SYM /* $1 */
-          sp_name /* $2 */
-          '(' /* $3 */
-          { /* $4 */
+          FUNCTION_SYM          /* $1 */
+          opt_if_not_exists     /* $2 */
+          sp_name               /* $3 */
+          '('                   /* $4 */
+          {                     /* $5 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
             lex->stmt_definition_begin= @1.cpp.start;
-            lex->spname= $2;
+            lex->spname= $3;
 
             if (lex->sphead)
             {
@@ -17610,31 +17644,33 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
+
             sp_head *sp= sp_start_parsing(thd, enum_sp_type::FUNCTION, lex->spname);
 
             if (!sp)
               MYSQL_YYABORT;
 
             lex->sphead= sp;
+            lex->create_info->options= $2 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
 
-            sp->m_parser_data.set_parameter_start_ptr(@3.cpp.end);
+            sp->m_parser_data.set_parameter_start_ptr(@4.cpp.end);
           }
-          sp_fdparam_list /* $5 */
-          ')' /* $6 */
-          { /* $7 */
-            Lex->sphead->m_parser_data.set_parameter_end_ptr(@6.cpp.start);
+          sp_fdparam_list       /* $6 */
+          ')'                   /* $7 */
+          {                     /* $8 */
+            Lex->sphead->m_parser_data.set_parameter_end_ptr(@7.cpp.start);
           }
-          RETURNS_SYM /* $8 */
-          type        /* $9 */
-          opt_collate /* $10 */
-          { /* $11 */
+          RETURNS_SYM           /* $9 */
+          type                  /* $10 */
+          opt_collate           /* $11 */
+          {                     /* $12 */
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            CONTEXTUALIZE($9);
-            enum_field_types field_type= $9->type;
-            const CHARSET_INFO *cs= $9->get_charset();
-            if (merge_sp_var_charset_and_collation(cs, $10, &cs))
+            CONTEXTUALIZE($10);
+            enum_field_types field_type= $10->type;
+            const CHARSET_INFO *cs= $10->get_charset();
+            if (merge_sp_var_charset_and_collation(cs, $11, &cs))
               MYSQL_YYABORT;
 
             /*
@@ -17643,18 +17679,18 @@ sf_tail:
               should be removed.
             */
             if ((field_type == MYSQL_TYPE_STRING || field_type == MYSQL_TYPE_VARCHAR)
-                && ($9->get_type_flags() & BINCMP_FLAG))
+                && ($10->get_type_flags() & BINCMP_FLAG))
             {
               my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
               MYSQL_YYABORT;
             }
 
             if (sp->m_return_field_def.init(YYTHD, "", field_type,
-                                            $9->get_length(), $9->get_dec(),
-                                            $9->get_type_flags(), NULL, NULL, &NULL_CSTR, 0,
-                                            $9->get_interval_list(),
+                                            $10->get_length(), $10->get_dec(),
+                                            $10->get_type_flags(), NULL, NULL, &NULL_CSTR, 0,
+                                            $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-                                            $10 != nullptr, $9->get_uint_geom_type(),
+                                            $11 != nullptr, $10->get_uint_geom_type(),
                                             nullptr, nullptr, {},
                                             dd::Column::enum_hidden_type::HT_VISIBLE))
             {
@@ -17667,15 +17703,15 @@ sf_tail:
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
-          sp_c_chistics /* $12 */
-          { /* $13 */
+          sp_c_chistics         /* $13 */
+          {                     /* $14 */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, yylloc.cpp.start);
           }
-          sp_proc_stmt /* $14 */
+          sp_proc_stmt          /* $15 */
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -17734,8 +17770,9 @@ sf_tail:
 
 sp_tail:
           PROCEDURE_SYM         /*$1*/
-          sp_name               /*$2*/
-          {                     /*$3*/
+          opt_if_not_exists     /*$2*/
+          sp_name               /*$3*/
+          {                     /*$4*/
             THD *thd= YYTHD;
             LEX *lex= Lex;
 
@@ -17745,38 +17782,39 @@ sp_tail:
               MYSQL_YYABORT;
             }
 
-            lex->stmt_definition_begin= @2.cpp.start;
+            lex->stmt_definition_begin= @1.cpp.start;
 
-            sp_head *sp= sp_start_parsing(thd, enum_sp_type::PROCEDURE, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::PROCEDURE, $3);
 
             if (!sp)
               MYSQL_YYABORT;
 
             lex->sphead= sp;
+            lex->create_info->options= $2 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
           }
-          '('                   /*$4*/
-          {                     /*$5*/
-            Lex->sphead->m_parser_data.set_parameter_start_ptr(@4.cpp.end);
+          '('                   /*$5*/
+          {                     /*$6*/
+            Lex->sphead->m_parser_data.set_parameter_start_ptr(@5.cpp.end);
           }
-          sp_pdparam_list       /*$6*/
-          ')'                   /*$7*/
-          {                     /*$8*/
+          sp_pdparam_list       /*$7*/
+          ')'                   /*$8*/
+          {                     /*$9*/
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
-            lex->sphead->m_parser_data.set_parameter_end_ptr(@7.cpp.start);
+            lex->sphead->m_parser_data.set_parameter_end_ptr(@8.cpp.start);
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
-          sp_c_chistics         /*$9*/
-          {                     /*$10*/
+          sp_c_chistics         /*$10*/
+          {                     /*$11*/
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
 
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, yylloc.cpp.start);
           }
-          sp_proc_stmt          /*$11*/
-          {                     /*$12*/
+          sp_proc_stmt          /*$12*/
+          {                     /*$13*/
             THD *thd= YYTHD;
             LEX *lex= Lex;
 

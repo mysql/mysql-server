@@ -39,6 +39,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/upgrade/server.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/upgrade_57/global.h"
 #include "sql/dd_sp.h"  // prepare_sp_chistics_from_dd_routine
@@ -60,8 +61,6 @@
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_lock.h"
-
-#include "sql/dd/impl/upgrade/server.h"
 
 namespace dd {
 
@@ -296,6 +295,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   sp_head *sp = nullptr;
   enum_sp_type routine_type;
   LEX_USER user_info;
+  bool dummy_is_sp_created = false;
 
   // Fetch SP/SF name, datbase name, definer and type.
   if ((sp_db = get_field(thd->mem_root,
@@ -434,7 +434,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   }
 
   // Create entry for SP/SF in DD table.
-  if (sp_create_routine(thd, sp, &user_info)) goto err;
+  if (sp_create_routine(thd, sp, &user_info, false, dummy_is_sp_created))
+    goto err;
 
   if (sp != nullptr)  // To be safe
     sp_head::destroy(sp);

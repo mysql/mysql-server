@@ -1641,12 +1641,6 @@ CREATE IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
 END;
 
---error ER_PARSE_ERROR
-CREATE PROCEDURE IF NOT EXISTS bug14702()
-BEGIN
-END;
-
-
 #
 # BUG#20953: create proc with a create view that uses local
 # vars/params should fail to create

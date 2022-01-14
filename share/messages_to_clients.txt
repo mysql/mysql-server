@@ -9724,6 +9724,15 @@ ER_CANNOT_PERSIST_SENSITIVE_VARIABLES
 ER_WARN_CANNOT_SECURELY_PERSIST_SENSITIVE_VARIABLES
   eng "SENSITIVE system variable '%s' was persisted without encryption. Consider restarting server with keyring component support to persist SENSITIVE variables securely."
 
+ER_WARN_TRG_ALREADY_EXISTS
+  eng "Trigger '%-.192s' already exists on the table '%-.192s'.'%-.192s'."
+
+ER_IF_NOT_EXISTS_UNSUPPORTED_TRG_EXISTS_ON_DIFFERENT_TABLE
+  eng "Trigger '%-.192s'.'%-.192s' already exists on a different table. The 'IF NOT EXISTS' clause is only supported for triggers associated with the same table."
+
+ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION
+  eng "This function '%-.192s' has the same name as a native function. The 'IF NOT EXISTS' clause is not supported while creating a loadable function with the same name as a native function."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

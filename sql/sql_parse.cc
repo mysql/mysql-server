@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 1999, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3844,7 +3844,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
     {
       if (check_access(thd, INSERT_ACL, "mysql", nullptr, nullptr, true, false))
         break;
-      if (!(res = mysql_create_function(thd, &lex->udf))) my_ok(thd);
+      if (!(res = mysql_create_function(
+                thd, &lex->udf,
+                lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)))
+        my_ok(thd);
       break;
     }
     case SQLCOM_CREATE_USER: {
@@ -4229,79 +4232,86 @@ int mysql_execute_command(THD *thd, bool first_level) {
       */
       thd->binlog_invoker();
 
-      if (!(res = sp_create_routine(thd, lex->sphead, thd->lex->definer))) {
-        /* only add privileges if really necessary */
+      bool sp_already_exists = false;
+      if (!(res = sp_create_routine(
+                thd, lex->sphead, thd->lex->definer,
+                thd->lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS,
+                sp_already_exists))) {
+        if (!sp_already_exists) {
+          /* only add privileges if really necessary */
 
-        Security_context security_context;
-        bool restore_backup_context = false;
-        Security_context *backup = nullptr;
-        /*
-          We're going to issue an implicit GRANT statement so we close all
-          open tables. We have to keep metadata locks as this ensures that
-          this statement is atomic against concurent FLUSH TABLES WITH READ
-          LOCK. Deadlocks which can arise due to fact that this implicit
-          statement takes metadata locks should be detected by a deadlock
-          detector in MDL subsystem and reported as errors.
+          Security_context security_context;
+          bool restore_backup_context = false;
+          Security_context *backup = nullptr;
+          /*
+            We're going to issue an implicit GRANT statement so we close all
+            open tables. We have to keep metadata locks as this ensures that
+            this statement is atomic against concurent FLUSH TABLES WITH READ
+            LOCK. Deadlocks which can arise due to fact that this implicit
+            statement takes metadata locks should be detected by a deadlock
+            detector in MDL subsystem and reported as errors.
 
-          No need to commit/rollback statement transaction, it's not started.
+            No need to commit/rollback statement transaction, it's not started.
 
-          TODO: Long-term we should either ensure that implicit GRANT statement
-                is written into binary log as a separate statement or make both
-                creation of routine and implicit GRANT parts of one fully atomic
-                statement.
-        */
-        assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
-        close_thread_tables(thd);
-        /*
-          Check if invoker exists on slave, then use invoker privilege to
-          insert routine privileges to mysql.procs_priv. If invoker is not
-          available then consider using definer.
+            TODO: Long-term we should either ensure that implicit GRANT
+            statement is written into binary log as a separate statement or make
+            both creation of routine and implicit GRANT parts of one fully
+            atomic statement.
+          */
+          assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+          close_thread_tables(thd);
+          /*
+            Check if invoker exists on slave, then use invoker privilege to
+            insert routine privileges to mysql.procs_priv. If invoker is not
+            available then consider using definer.
 
-          Check if the definer exists on slave,
-          then use definer privilege to insert routine privileges to
-          mysql.procs_priv.
+            Check if the definer exists on slave,
+            then use definer privilege to insert routine privileges to
+            mysql.procs_priv.
 
-          For current user of SQL thread has GLOBAL_ACL privilege,
-          which doesn't any check routine privileges,
-          so no routine privilege record  will insert into mysql.procs_priv.
-        */
+            For current user of SQL thread has GLOBAL_ACL privilege,
+            which doesn't any check routine privileges,
+            so no routine privilege record  will insert into mysql.procs_priv.
+          */
 
-        if (thd->slave_thread) {
-          LEX_CSTRING current_user;
-          LEX_CSTRING current_host;
-          if (thd->has_invoker()) {
-            current_host = thd->get_invoker_host();
-            current_user = thd->get_invoker_user();
-          } else {
-            current_host = lex->definer->host;
-            current_user = lex->definer->user;
+          if (thd->slave_thread) {
+            LEX_CSTRING current_user;
+            LEX_CSTRING current_host;
+            if (thd->has_invoker()) {
+              current_host = thd->get_invoker_host();
+              current_user = thd->get_invoker_user();
+            } else {
+              current_host = lex->definer->host;
+              current_user = lex->definer->user;
+            }
+            if (is_acl_user(thd, current_host.str, current_user.str)) {
+              security_context.change_security_context(
+                  thd, current_user, current_host, thd->lex->sphead->m_db.str,
+                  &backup);
+              restore_backup_context = true;
+            }
           }
-          if (is_acl_user(thd, current_host.str, current_user.str)) {
-            security_context.change_security_context(
-                thd, current_user, current_host, thd->lex->sphead->m_db.str,
-                &backup);
-            restore_backup_context = true;
+
+          if (sp_automatic_privileges && !opt_noacl &&
+              check_routine_access(
+                  thd, DEFAULT_CREATE_PROC_ACLS, lex->sphead->m_db.str, name,
+                  lex->sql_command == SQLCOM_CREATE_PROCEDURE, true)) {
+            if (sp_grant_privileges(
+                    thd, lex->sphead->m_db.str, name,
+                    lex->sql_command == SQLCOM_CREATE_PROCEDURE))
+              push_warning(thd, Sql_condition::SL_WARNING,
+                           ER_PROC_AUTO_GRANT_FAIL,
+                           ER_THD(thd, ER_PROC_AUTO_GRANT_FAIL));
+            thd->clear_error();
           }
-        }
 
-        if (sp_automatic_privileges && !opt_noacl &&
-            check_routine_access(
-                thd, DEFAULT_CREATE_PROC_ACLS, lex->sphead->m_db.str, name,
-                lex->sql_command == SQLCOM_CREATE_PROCEDURE, true)) {
-          if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
-                                  lex->sql_command == SQLCOM_CREATE_PROCEDURE))
-            push_warning(thd, Sql_condition::SL_WARNING,
-                         ER_PROC_AUTO_GRANT_FAIL,
-                         ER_THD(thd, ER_PROC_AUTO_GRANT_FAIL));
-          thd->clear_error();
-        }
-
-        /*
-          Restore current user with GLOBAL_ACL privilege of SQL thread
-        */
-        if (restore_backup_context) {
-          assert(thd->slave_thread == 1);
-          thd->security_context()->restore_security_context(thd, backup);
+          /*
+            Restore current user with GLOBAL_ACL privilege of SQL thread
+          */
+          if (restore_backup_context) {
+            assert(thd->slave_thread == 1);
+            thd->security_context()->restore_security_context(thd, backup);
+          }
         }
         my_ok(thd);
       }

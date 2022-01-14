@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@
 
 #include <assert.h>
 #include <sys/types.h>
+
 #include <string>
 #include <utility>
 
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
-
 #include "my_sqlcommand.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_global_access
@@ -106,31 +106,11 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher() {
   for (int i = 0; i < (int)TRG_EVENT_MAX; ++i)
     for (int j = 0; j < (int)TRG_ACTION_MAX; ++j) destroy(m_trigger_map[i][j]);
 }
-
-/**
-  Create trigger for table.
-
-  @param      thd   thread context
-  @param[out] binlog_create_trigger_stmt
-                    well-formed CREATE TRIGGER statement for putting into binlog
-                    (after successful execution)
-
-  @note
-    - Assumes that trigger name is fully qualified.
-    - NULL-string means the following LEX_STRING instance:
-    { str = 0; length = 0 }.
-    - In other words, definer_user and definer_host should contain
-    simultaneously NULL-strings (non-SUID/old trigger) or valid strings
-    (SUID/new trigger).
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
 bool Table_trigger_dispatcher::create_trigger(
-    THD *thd, String *binlog_create_trigger_stmt) {
+    THD *thd, String *binlog_create_trigger_stmt, bool if_not_exists,
+    bool &already_exists) {
   assert(m_subject_table);
+  assert(!already_exists);
   LEX *lex = thd->lex;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -156,13 +136,7 @@ bool Table_trigger_dispatcher::create_trigger(
           *sch_obj, lex->spname->m_name.str, &table_name))
     return true;
 
-  if (table_name != "") {
-    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
-    return true;
-  }
-
   // Make sure DEFINER clause is specified.
-
   if (!lex->definer) {
     /*
       DEFINER-clause is missing.
@@ -190,6 +164,37 @@ bool Table_trigger_dispatcher::create_trigger(
                lex->spname->m_name.str);
       return true;
     }
+  }
+
+  if (table_name != "") {
+    // Trigger with the same name already exists in this schema.
+    if (if_not_exists) {
+      /*
+        IF NOT EXISTS clause is only supported for triggers associated with the
+        same table.
+      */
+      if (my_strcasecmp(table_alias_charset, m_subject_table->s->table_name.str,
+                        table_name.c_str())) {
+        my_error(ER_IF_NOT_EXISTS_UNSUPPORTED_TRG_EXISTS_ON_DIFFERENT_TABLE,
+                 MYF(0), m_subject_table->s->db.str, lex->spname->m_name.str);
+        return true;
+      }
+
+      // Trigger with the same name already exists on the same table.
+      already_exists = true;
+
+      push_warning_printf(
+          thd, Sql_condition::SL_NOTE, ER_WARN_TRG_ALREADY_EXISTS,
+          ER_THD(thd, ER_WARN_TRG_ALREADY_EXISTS), lex->spname->m_name.str,
+          m_subject_table->s->db.str, table_name.c_str());
+
+      /* SUID trigger is only supported (DEFINER is specified by the user). */
+      return (Trigger::construct_create_trigger_stmt_with_definer(
+          thd, binlog_create_trigger_stmt, lex->definer->user,
+          lex->definer->host));
+    }
+    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
+    return true;
   }
 
   /*

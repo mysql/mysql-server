@@ -24,10 +24,9 @@
 
 #include "sql/sql_udf.h"
 
-#include "my_config.h"
-
 #include <stdio.h>
 #include <string.h>
+
 #include <iterator>
 #include <memory>
 #include <new>
@@ -40,6 +39,7 @@
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -60,6 +60,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
+#include "sql/derror.h"    // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/iterators/row_iterator.h"
@@ -597,13 +598,14 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
 
   @param thd                 THD context.
   @param udf                 Pointer to UDF function.
+  @param if_not_exists       True if 'IF NOT EXISTS' clause was specified.
 
   @note Like implementations of other DDL/DML in MySQL, this function
   relies on the caller to close the thread tables. This is done in the
   end of dispatch_command().
 */
 
-bool mysql_create_function(THD *thd, udf_func *udf) {
+bool mysql_create_function(THD *thd, udf_func *udf, bool if_not_exists) {
   bool error = true;
   void *dl = nullptr;
   int new_dl = 0;
@@ -676,8 +678,19 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
 
   mysql_rwlock_rdlock(&THR_LOCK_udf);
   if (udf_hash->count(to_string(udf->name)) != 0) {
-    my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
     mysql_rwlock_unlock(&THR_LOCK_udf);
+
+    // UDF with the same name already exists
+    if (if_not_exists) {
+      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_UDF_EXISTS,
+                          ER_THD(thd, ER_UDF_EXISTS), udf->name.str);
+      error = (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                             false) != 0);
+      if (error) error = udf_end_transaction(thd, error, nullptr, false);
+
+    } else {
+      my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
+    }
     return error;
   }
   dl = find_udf_dl(udf->dl);
