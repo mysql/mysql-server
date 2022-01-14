@@ -489,7 +489,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
   DBUG_ENTER("ha_warp::find_current_row");
   int rc = 0;
   memset(buf, 0, table->s->null_bytes);
-
+  
   // Clear BLOB data from the previous row.
   blobroot.ClearForReuse();
 
@@ -602,9 +602,11 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
               const unsigned char *old_blob;
               old_blob = blob_field->data_ptr();
               unsigned char *new_blob = new (&blobroot) unsigned char[length];
+              
               if(new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
               memcpy(new_blob, old_blob, length);
               blob_field->set_ptr(length, new_blob);
+
             }
           }
         }
@@ -683,7 +685,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
 
 err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-
+  
   DBUG_RETURN(rc);
 }
 
@@ -772,8 +774,8 @@ int ha_warp::end_bulk_insert() {
 }
 
 std::string ha_warp::get_writer_partition() {
-  ibis::partList parts;
-  int partition_count = ibis::util::gatherParts(parts, share->data_dir_name);
+  auto parts = new ibis::partList ;
+  int partition_count = ibis::util::gatherParts(*parts, share->data_dir_name);
   std::string retval;
   write_mutex.lock();
   // if there is only one partition, the table is empty and a new p0 must be created
@@ -782,7 +784,7 @@ std::string ha_warp::get_writer_partition() {
     goto done;
   }
   
-  for (auto it = parts.begin(); it < parts.end(); ++it) {
+  for (auto it = parts->begin(); it < parts->end(); ++it) {
     // skip the top level partition
     if(std::string((*it)->currentDataDir()) == std::string(share->data_dir_name)) {
       continue;
@@ -794,10 +796,11 @@ std::string ha_warp::get_writer_partition() {
     }
   }   
   
-  retval = std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts.size()-1));
+  retval = std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts->size()-1));
   done:
   write_mutex.unlock();
-  parts.clear();
+  parts->clear();
+  delete parts;
   return retval;
 }
 
@@ -807,10 +810,10 @@ void ha_warp::write_buffered_rows_to_disk() {
   std::string part_dir = get_writer_partition();
   auto part_dir_copy = strdup(part_dir.c_str());
   auto part_name = basename(part_dir_copy);
-  
   writer->write(part_dir.c_str(), part_name);
-  free(part_dir_copy);
   writer->clearData();
+  free(part_dir_copy);
+  
   delete writer;
   writer = NULL;
   
@@ -1366,9 +1369,9 @@ void ha_warp::create_writer(TABLE *table_arg) {
   writer->addColumn("t", ibis::ULONG, "WARP transaction identifier");
 
   /* This is the memory buffer for writes*/
-  writer->reserveBuffer(my_write_cache_size > my_partition_max_rows
-                            ? my_partition_max_rows
-                            : my_write_cache_size);
+  //writer->reserveBuffer(my_write_cache_size > my_partition_max_rows
+  //                          ? my_partition_max_rows
+  //                          : my_write_cache_size);
 
   /* FIXME: should be a table option and should be able to be set in size not
    * just count*/
@@ -1528,7 +1531,7 @@ int ha_warp::rnd_init(bool) {
     
   } else {
     base_table = NULL;
-    if( get_pushdown_info_count(current_thd) > 1 && (pushdown_info->is_fact_table || partition_filter_partition_name != "" )){
+    if( (get_pushdown_info_count(current_thd) > 1 && pushdown_info->is_fact_table) || partition_filter_partition_name != "" ) {
       partitions = new ibis::partList;
     
       // read all partitions unless a filter is set
@@ -2051,6 +2054,7 @@ int ha_warp::rnd_end() {
   DBUG_ENTER("ha_warp::rnd_end");
   
   blobroot.Clear();
+   
   push_where_clause = "";
   
   if(base_table) delete base_table;
@@ -2068,7 +2072,7 @@ int ha_warp::rnd_end() {
   all_dimension_merges_completed = false;
   all_jobs_completed = false;
   current_matching_ridset = NULL;
-  
+  buffer.length(0);
   DBUG_RETURN(0);
 }
 
@@ -3694,6 +3698,7 @@ int warp_upgrade_tables(uint16_t version) {
         }
         std::string logmsg = "Upgraded WARP partition %s to include transaction identifiers";
         sql_print_error(logmsg.c_str(), datadir);
+        writer->clearData();
         delete writer;
         std::string column_fname = std::string(datadir) + "/t";
         if(part->nRows() > 0) {
@@ -3856,13 +3861,13 @@ bool warp_global_data::check_state() {
     return false;
   } 
   
-  ibis::partList parts;
-  int has_warp_tables = ibis::util::gatherParts(parts, std::string(".").c_str());
+  auto parts = new ibis::partList;
+  int has_warp_tables = ibis::util::gatherParts(*parts, std::string(".").c_str());
   if(!state_exists && !commit_file_exists && has_warp_tables > 0) {
     sql_print_error("WARP tables found but database state is missing! This may be a beta 1 database. WARP can not be initialized.");
     return false;
   }
-
+  delete parts;
   return true;
 }
 
@@ -4370,6 +4375,7 @@ std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table
     }
   }
   free(schema_dir);
+  
   return table_counts;
 }
 
