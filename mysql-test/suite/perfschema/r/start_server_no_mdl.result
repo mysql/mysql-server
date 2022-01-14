@@ -120,8 +120,3 @@ select variable_value > 0 from performance_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
 variable_value > 0
 1
-FLUSH STATUS;
-select variable_value from performance_schema.global_status
-where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
-variable_value
-1
