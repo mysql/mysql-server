@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,12 +106,6 @@ static struct my_option my_long_options[] =
     "INTERNAL: angel process id",
     (uchar**) &opt_angel_pid, (uchar **) &opt_angel_pid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
-  { "connect-retries", 'r',
-    "Number of times mgmd is contacted at start. -1: eternal retries"
-    " NOTE: -r will be removed with the next release!"
-    " Use --connect-retries instead",
-    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0,
-    GET_INT, REQUIRED_ARG, 12, -1, 65535, 0, 0, 0 },
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
     (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
@@ -131,15 +125,6 @@ static void short_usage_sub(void)
 {
   ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndbd");
-}
-
-static bool get_one_option(int optid, const struct my_option *opt,
-                                     char *argument) {
-  if (optid == 'r')
-    g_eventLogger->warning(
-        "NOTE: -r option will be removed in the next release!"
-        " Use --connect-retries instead.");
-  return ndb_std_get_one_option(optid, opt, argument);
 }
 
 /**
@@ -184,9 +169,10 @@ real_main(int argc, char** argv)
     original_args.push_back(argv[i]);
   }
 
-  int ho_error;
-  if ((ho_error=opts.handle_options(get_one_option)))
+  int ho_error = opts.handle_options(ndb_std_get_one_option);
+  if (ho_error != 0) {
     exit(ho_error);
+  }
 
   if (opt_no_daemon || opt_foreground) {
     // --nodaemon or --forground implies --daemon=0
