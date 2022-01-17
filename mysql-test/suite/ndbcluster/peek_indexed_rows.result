@@ -1,0 +1,155 @@
+result_format: 2
+
+
+CREATE TABLE t1(
+  a int,
+  b varchar(31),
+  c int,
+  d int,
+  e varchar(32),
+  f varchar(33),
+  g int,
+  h varchar(34),
+  i int,
+  j varchar(35),
+  k int,
+  l varchar(36),
+  m int NOT NULL,
+  n int NOT NULL,
+  o varchar(37) NOT NULL,
+  p varchar(38) NOT NULL,
+  PRIMARY KEY(a,b,c,d) USING HASH,
+  UNIQUE unique_efgh (e,f,g,h),
+  UNIQUE unique_ijklm (i,j,k,l,m),
+  UNIQUE unique_n (n),
+  UNIQUE unique_op (o,p),
+  UNIQUE unique_using_hash (f,g,h,i,j,k,l,m,n,o,p) USING HASH
+) ENGINE ndbcluster;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+
+## Load data rows
+INSERT INTO t1 VALUES
+  (11, "BB1", 12, 13, "EEEEE1", "FFFFFF1" , 16, "HHHHHHH1", 17, "JJJJJJJJ1",
+   19, "LLLLLLLLLL1", 111, 112, "OOOOOOOOOOOOO1", "PPPPPPPPPPPPPP1");
+INSERT INTO t1 VALUES
+   (21, "BB2", 22, 23, "EEEEE2", "FFFFFF2" , 26, "HHHHHHH2", 27, "JJJJJJJJ2",
+    29, "LLLLLLLLLL2", 211, 212, "OOOOOOOOOOOOO2", "PPPPPPPPPPPPPP2");
+
+##
+## Tests for INSERT IGNORE's usage of "peek indexed rows"
+##
+## - inserting row without any duplicates work, uses peek
+INSERT IGNORE INTO t1 VALUES
+   (31, "BB3", 32, 33, "EEEEE3", "FFFFFF3" , 36, "HHHHHHH3", 37, "JJJJJJJJ3",
+    39, "LLLLLLLLLL3", 311, 312, "OOOOOOOOOOOOO3", "PPPPPPPPPPPPPP3");
+## - inserting row with same primary key fails
+INSERT IGNORE INTO t1 VALUES
+   (31, "BB3", 32, 33, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+    49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO4", "PPPPPPPPPPPPPP4");
+Warnings:
+Warning	1062	Duplicate entry '31-BB3-32-33' for key 't1.PRIMARY'
+## - inserting row with duplicate unique (e,f,g,h) fails
+INSERT IGNORE INTO t1 VALUES
+   (41, "BB4", 42, 43, "EEEEE3", "FFFFFF3" , 36, "HHHHHHH3", 47, "JJJJJJJJ4",
+    49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO4", "PPPPPPPPPPPPPP4");
+Warnings:
+Warning	1062	Duplicate entry 'EEEEE3-FFFFFF3-36-HHHHHHH3' for key 't1.unique_efgh'
+## - inserting row with duplicate unique (n) fails
+INSERT IGNORE INTO t1 VALUES
+    (41, "BB4", 42, 43, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+     49, "LLLLLLLLLL4", 411, 312, "OOOOOOOOOOOOO4", "PPPPPPPPPPPPPP4");
+Warnings:
+Warning	1062	Duplicate entry '312' for key 't1.unique_n'
+## - inserting row with duplicate unique (o,p) fails
+INSERT IGNORE INTO t1 VALUES
+    (41, "BB4", 42, 43, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+     49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO3", "PPPPPPPPPPPPPP3");
+Warnings:
+Warning	1062	Duplicate entry 'OOOOOOOOOOOOO3-PPPPPPPPPPPPPP3' for key 't1.unique_op'
+
+##
+## Tests for INSERT .. ON DUPLICATE usage of "peek indexed rows"
+##
+## - insert with same primary key, updates j
+INSERT INTO t1 VALUES
+   (31, "BB3", 32, 33, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+    49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO4", "PPPPPPPPPPPPPP4")
+   ON DUPLICATE KEY UPDATE j = "JJJJJJJJ99";
+SELECT j, "JJJJJJJJ99" as expected FROM t1
+  WHERE a = 31 AND b = "BB3" AND c = 32 AND d = 33;
+j	expected
+JJJJJJJJ99	JJJJJJJJ99
+## - insert with same unique key (o,p) updates j
+INSERT INTO t1 VALUES
+   (41, "BBB", 42, 43, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+    49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO3", "PPPPPPPPPPPPPP3")
+   ON DUPLICATE KEY UPDATE j = "JJJJJJJJ3";
+SELECT j, "JJJJJJJJ3" as expected FROM t1
+  WHERE a = 31 AND b = "BB3" AND c = 32 AND d = 33;
+j	expected
+JJJJJJJJ3	JJJJJJJJ3
+
+##
+## Tests for UPDATE IGNORE's usage of "peek indexed rows"
+##
+## - insert a fourth row for the update ignore testing
+INSERT INTO t1 VALUES
+    (91, "BB9", 92, 93, "EEEEE4", "FFFFFF4" , 46, "HHHHHHH4", 47, "JJJJJJJJ4",
+     49, "LLLLLLLLLL4", 411, 412, "OOOOOOOOOOOOO4", "PPPPPPPPPPPPPP4");
+## - updating row without any duplicates work, uses peek
+UPDATE IGNORE t1
+  SET a = 41, b = "BB4", c = 42, d = 43
+    WHERE a = 91 AND b = "BB9" AND c = 92 AND d = 93;
+## - updating row with already existing primary key fails
+UPDATE IGNORE t1
+  SET a = 31, b = "BB3", c = 32, d = 33
+    WHERE a = 41 AND b = "BB4" AND c = 42 AND d = 43;
+Warnings:
+Warning	1062	Duplicate entry '31-BB3-32-33' for key 't1.PRIMARY'
+## - updating row with duplicate unique (e,f,g,h) fails
+UPDATE IGNORE t1
+  SET e = "EEEEE1", f= "FFFFFF1" , g = 16, h = "HHHHHHH1"
+    WHERE a = 41 AND b = "BB4" AND c = 42 AND d = 43;
+Warnings:
+Warning	1062	Duplicate entry 'EEEEE1-FFFFFF1-16-HHHHHHH1' for key 't1.unique_efgh'
+## - updating row with duplicate unique (o,p) fails
+UPDATE IGNORE t1
+  SET o = "OOOOOOOOOOOOO1", p= "PPPPPPPPPPPPPP1"
+    WHERE a = 41 AND b = "BB4" AND c = 42 AND d = 43;
+Warnings:
+Warning	1062	Duplicate entry 'OOOOOOOOOOOOO1-PPPPPPPPPPPPPP1' for key 't1.unique_op'
+
+##
+## Tests for REPLACE's usage of "peek indexed rows"
+##
+## - use REPLACE to insert fifth row
+REPLACE INTO t1 VALUES
+  (51, "BB5", 52, 53, "EEEEE5", "FFFFFF5" , 56, "HHHHHHH5", 57, "JJJJJJJJ5",
+   59, "LLLLLLLLLL5", 511, 512, "OOOOOOOOOOOOO5", "PPPPPPPPPPPPPP5");
+## - duplicate primary key of fifth row, updates with values for sixth
+REPLACE INTO t1 VALUES
+  (51, "BB5", 52, 53, "EEEEE6", "FFFFFF6" , 66, "HHHHHHH6", 67, "JJJJJJJJ6",
+   69, "LLLLLLLLLL6", 611, 612, "OOOOOOOOOOOOO6", "PPPPPPPPPPPPPP6");
+SELECT j, "JJJJJJJJ6" as expected FROM t1
+  WHERE a = 51 AND b = "BB5" AND c = 52 AND d = 53;
+j	expected
+JJJJJJJJ6	JJJJJJJJ6
+## - use REPLACE of unique key (e,f,g,h)  values for sixth with fifth
+REPLACE INTO t1 VALUES
+  (51, "BB5", 52, 53, "EEEEE6", "FFFFFF6" , 66, "HHHHHHH6", 57, "JJJJJJJJ5",
+   59, "LLLLLLLLLL5", 511, 512, "OOOOOOOOOOOOO5", "PPPPPPPPPPPPPP5");
+## - check result with primary key read
+SELECT j, "JJJJJJJJ5" as expected FROM t1
+   WHERE a = 51 AND b = "BB5" AND c = 52 AND d = 53;
+j	expected
+JJJJJJJJ5	JJJJJJJJ5
+## - check result also with unique key read
+SELECT j, "JJJJJJJJ5" as expected FROM t1
+   WHERE e = "EEEEE6" AND f = "FFFFFF6" AND g = 66 AND h = "HHHHHHH6";
+j	expected
+JJJJJJJJ5	JJJJJJJJ5
+
+
+DROP TABLE t1;
+
