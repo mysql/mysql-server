@@ -503,6 +503,10 @@ void MysqlRoutingXConnection::client_recv_cmd() {
     kConClose = Mysqlx::ClientMessages::CON_CLOSE,
     kSessAuthStart = Mysqlx::ClientMessages::SESS_AUTHENTICATE_START,
     kStmtExecute = Mysqlx::ClientMessages::SQL_STMT_EXECUTE,
+    kCrudFind = Mysqlx::ClientMessages::CRUD_FIND,
+    kCrudDelete = Mysqlx::ClientMessages::CRUD_DELETE,
+    kCrudInsert = Mysqlx::ClientMessages::CRUD_INSERT,
+    kCrudUpdate = Mysqlx::ClientMessages::CRUD_UPDATE,
   };
 
   switch (Msg{msg_type}) {
@@ -517,6 +521,14 @@ void MysqlRoutingXConnection::client_recv_cmd() {
       return client_sess_auth_start();
     case Msg::kStmtExecute:
       return client_stmt_execute();
+    case Msg::kCrudFind:
+      return client_crud_find();
+    case Msg::kCrudDelete:
+      return client_crud_delete();
+    case Msg::kCrudInsert:
+      return client_crud_insert();
+    case Msg::kCrudUpdate:
+      return client_crud_update();
   }
 
   {
@@ -1863,6 +1875,264 @@ void MysqlRoutingXConnection::server_recv_stmt_execute_response_forward() {
 
 void MysqlRoutingXConnection::server_recv_stmt_execute_response_forward_last() {
   forward_server_to_client(Function::kServerRecvStmtExecuteResponseForwardLast,
+                           Function::kClientRecvCmd);
+}
+
+// crud::find
+
+void MysqlRoutingXConnection::client_crud_find() {
+  forward_client_to_server(Function::kClientCrudFind,
+                           Function::kServerRecvCrudFindResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_find_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kServerRecvCrudFindResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    kNotice = Mysqlx::ServerMessages::NOTICE,
+    kColumnMeta = Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA,
+    kRow = Mysqlx::ServerMessages::RESULTSET_ROW,
+    kFetchDone = Mysqlx::ServerMessages::RESULTSET_FETCH_DONE,
+    kStmtOk = Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
+    kError = Mysqlx::ServerMessages::ERROR,
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::kRow:
+    case Msg::kColumnMeta:
+    case Msg::kNotice:
+    case Msg::kFetchDone:
+      return server_recv_crud_find_response_forward();
+    case Msg::kError:
+    case Msg::kStmtOk:
+      return server_recv_crud_find_response_forward_last();
+  }
+
+  {
+    ensure_has_full_frame(src_channel, src_protocol);
+
+    auto &recv_buf = src_channel->recv_plain_buffer();
+    log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
+  }
+
+  std::vector<uint8_t> out_buf;
+  encode_error_packet(out_buf, ER_X_BAD_MESSAGE, "Bad Message", "HY000",
+                      Mysqlx::Error::FATAL);
+
+  return async_send_client_buffer(net::buffer(out_buf), Function::kFinish);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_find_response_forward() {
+  forward_server_to_client(Function::kServerRecvCrudFindResponseForward,
+                           Function::kServerRecvCrudFindResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_find_response_forward_last() {
+  forward_server_to_client(Function::kServerRecvCrudFindResponseForwardLast,
+                           Function::kClientRecvCmd);
+}
+
+// crud::delete
+
+void MysqlRoutingXConnection::client_crud_delete() {
+  forward_client_to_server(Function::kClientCrudDelete,
+                           Function::kServerRecvCrudDeleteResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_delete_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kServerRecvCrudDeleteResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    kStmtOk = Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
+    kNotice = Mysqlx::ServerMessages::NOTICE,
+    kError = Mysqlx::ServerMessages::ERROR,
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::kNotice:
+      return server_recv_crud_delete_response_forward();
+    case Msg::kStmtOk:
+    case Msg::kError:
+      return server_recv_crud_delete_response_forward_last();
+  }
+
+  {
+    ensure_has_full_frame(src_channel, src_protocol);
+
+    auto &recv_buf = src_channel->recv_plain_buffer();
+    log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
+  }
+
+  std::vector<uint8_t> out_buf;
+  encode_error_packet(out_buf, ER_X_BAD_MESSAGE, "Bad Message", "HY000",
+                      Mysqlx::Error::FATAL);
+
+  return async_send_client_buffer(net::buffer(out_buf), Function::kFinish);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_delete_response_forward() {
+  forward_server_to_client(Function::kServerRecvCrudDeleteResponseForward,
+                           Function::kServerRecvCrudDeleteResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_delete_response_forward_last() {
+  forward_server_to_client(Function::kServerRecvCrudDeleteResponseForwardLast,
+                           Function::kClientRecvCmd);
+}
+
+// crud::insert
+
+void MysqlRoutingXConnection::client_crud_insert() {
+  forward_client_to_server(Function::kClientCrudInsert,
+                           Function::kServerRecvCrudInsertResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_insert_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kServerRecvCrudInsertResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    kStmtOk = Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
+    kNotice = Mysqlx::ServerMessages::NOTICE,
+    kError = Mysqlx::ServerMessages::ERROR,
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::kNotice:
+      return server_recv_crud_insert_response_forward();
+    case Msg::kStmtOk:
+    case Msg::kError:
+      return server_recv_crud_insert_response_forward_last();
+  }
+
+  {
+    ensure_has_full_frame(src_channel, src_protocol);
+
+    auto &recv_buf = src_channel->recv_plain_buffer();
+    log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
+  }
+
+  std::vector<uint8_t> out_buf;
+  encode_error_packet(out_buf, ER_X_BAD_MESSAGE, "Bad Message", "HY000",
+                      Mysqlx::Error::FATAL);
+
+  return async_send_client_buffer(net::buffer(out_buf), Function::kFinish);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_insert_response_forward() {
+  forward_server_to_client(Function::kServerRecvCrudInsertResponseForward,
+                           Function::kServerRecvCrudInsertResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_insert_response_forward_last() {
+  forward_server_to_client(Function::kServerRecvCrudInsertResponseForwardLast,
+                           Function::kClientRecvCmd);
+}
+
+// crud::update
+
+void MysqlRoutingXConnection::client_crud_update() {
+  forward_client_to_server(Function::kClientCrudUpdate,
+                           Function::kServerRecvCrudUpdateResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_update_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kServerRecvCrudUpdateResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    kStmtOk = Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK,
+    kNotice = Mysqlx::ServerMessages::NOTICE,
+    kError = Mysqlx::ServerMessages::ERROR,
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::kNotice:
+      return server_recv_crud_update_response_forward();
+    case Msg::kStmtOk:
+    case Msg::kError:
+      return server_recv_crud_update_response_forward_last();
+  }
+
+  {
+    ensure_has_full_frame(src_channel, src_protocol);
+
+    auto &recv_buf = src_channel->recv_plain_buffer();
+    log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
+  }
+
+  std::vector<uint8_t> out_buf;
+  encode_error_packet(out_buf, ER_X_BAD_MESSAGE, "Bad Message", "HY000",
+                      Mysqlx::Error::FATAL);
+
+  return async_send_client_buffer(net::buffer(out_buf), Function::kFinish);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_update_response_forward() {
+  forward_server_to_client(Function::kServerRecvCrudUpdateResponseForward,
+                           Function::kServerRecvCrudUpdateResponse);
+}
+
+void MysqlRoutingXConnection::server_recv_crud_update_response_forward_last() {
+  forward_server_to_client(Function::kServerRecvCrudUpdateResponseForwardLast,
                            Function::kClientRecvCmd);
 }
 

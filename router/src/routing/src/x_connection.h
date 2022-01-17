@@ -170,6 +170,30 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvStmtExecuteResponseForward,
     kServerRecvStmtExecuteResponseForwardLast,
 
+    // crud::find
+    kClientCrudFind,
+    kServerRecvCrudFindResponse,
+    kServerRecvCrudFindResponseForward,
+    kServerRecvCrudFindResponseForwardLast,
+
+    // crud::delete
+    kClientCrudDelete,
+    kServerRecvCrudDeleteResponse,
+    kServerRecvCrudDeleteResponseForward,
+    kServerRecvCrudDeleteResponseForwardLast,
+
+    // crud::insert
+    kClientCrudInsert,
+    kServerRecvCrudInsertResponse,
+    kServerRecvCrudInsertResponseForward,
+    kServerRecvCrudInsertResponseForwardLast,
+
+    // crud::update
+    kClientCrudUpdate,
+    kServerRecvCrudUpdateResponse,
+    kServerRecvCrudUpdateResponseForward,
+    kServerRecvCrudUpdateResponseForwardLast,
+
     kConnect,
     kWaitClientClose,
     kFinish,
@@ -256,6 +280,42 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
         return server_recv_stmt_execute_response_forward();
       case Function::kServerRecvStmtExecuteResponseForwardLast:
         return server_recv_stmt_execute_response_forward_last();
+
+      case Function::kClientCrudFind:
+        return client_crud_find();
+      case Function::kServerRecvCrudFindResponse:
+        return server_recv_crud_find_response();
+      case Function::kServerRecvCrudFindResponseForward:
+        return server_recv_crud_find_response_forward();
+      case Function::kServerRecvCrudFindResponseForwardLast:
+        return server_recv_crud_find_response_forward_last();
+
+      case Function::kClientCrudDelete:
+        return client_crud_delete();
+      case Function::kServerRecvCrudDeleteResponse:
+        return server_recv_crud_delete_response();
+      case Function::kServerRecvCrudDeleteResponseForward:
+        return server_recv_crud_delete_response_forward();
+      case Function::kServerRecvCrudDeleteResponseForwardLast:
+        return server_recv_crud_delete_response_forward_last();
+
+      case Function::kClientCrudInsert:
+        return client_crud_insert();
+      case Function::kServerRecvCrudInsertResponse:
+        return server_recv_crud_insert_response();
+      case Function::kServerRecvCrudInsertResponseForward:
+        return server_recv_crud_insert_response_forward();
+      case Function::kServerRecvCrudInsertResponseForwardLast:
+        return server_recv_crud_insert_response_forward_last();
+
+      case Function::kClientCrudUpdate:
+        return client_crud_update();
+      case Function::kServerRecvCrudUpdateResponse:
+        return server_recv_crud_update_response();
+      case Function::kServerRecvCrudUpdateResponseForward:
+        return server_recv_crud_update_response_forward();
+      case Function::kServerRecvCrudUpdateResponseForwardLast:
+        return server_recv_crud_update_response_forward_last();
 
       case Function::kConnect:
         return connect();
@@ -369,6 +429,26 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
   void server_recv_stmt_execute_response();
   void server_recv_stmt_execute_response_forward();
   void server_recv_stmt_execute_response_forward_last();
+
+  void client_crud_find();
+  void server_recv_crud_find_response();
+  void server_recv_crud_find_response_forward();
+  void server_recv_crud_find_response_forward_last();
+
+  void client_crud_delete();
+  void server_recv_crud_delete_response();
+  void server_recv_crud_delete_response_forward();
+  void server_recv_crud_delete_response_forward_last();
+
+  void client_crud_insert();
+  void server_recv_crud_insert_response();
+  void server_recv_crud_insert_response_forward();
+  void server_recv_crud_insert_response_forward_last();
+
+  void client_crud_update();
+  void server_recv_crud_update_response();
+  void server_recv_crud_update_response_forward();
+  void server_recv_crud_update_response_forward_last();
 
   XProtocolState *client_protocol() {
     return dynamic_cast<XProtocolState *>(
