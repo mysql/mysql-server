@@ -42,6 +42,7 @@ ADD_LIBRARY(routing SHARED
   channel.cc
   destination_ssl_context.cc
   classic_connection.cc
+  x_connection.cc
   connection.cc
   blocked_endpoints.cc
 )

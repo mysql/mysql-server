@@ -79,9 +79,7 @@
 #include "scope_guard.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
-#if 0
-#include "x_protocol_splicer.h"
-#endif
+#include "x_connection.h"
 
 using mysql_harness::utility::string_format;
 using routing::AccessMode;
@@ -101,20 +99,15 @@ static const int kListenQueueSize{1024};
  * works for error-packets that are encoded by the Acceptor.
  */
 static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
-    BaseProtocol::Type /* protocol */, std::vector<uint8_t> &error_frame,
+    BaseProtocol::Type protocol, std::vector<uint8_t> &error_frame,
     uint32_t error_code, const std::string &msg, const std::string &sql_state) {
-#if 0
   if (protocol == BaseProtocol::Type::kClassicProtocol) {
-    return ClassicProtocolSplicerBase::encode_error_packet(
+    return MysqlRoutingClassicConnection::encode_error_packet(
         error_frame, 0, {}, error_code, msg, sql_state);
   } else {
-    return XProtocolSplicerBase::encode_error_packet(error_frame, error_code,
-                                                     msg, sql_state);
+    return MysqlRoutingXConnection::encode_error_packet(error_frame, error_code,
+                                                        msg, sql_state);
   }
-#else
-  return MysqlRoutingClassicConnection::encode_error_packet(
-      error_frame, 0, {}, error_code, msg, sql_state);
-#endif
 }
 
 MySQLRouting::MySQLRouting(
@@ -774,21 +767,18 @@ void MySQLRouting::create_connection(
       // defer the call and accept the next connection.
       net::defer(io_ctx, [new_conn_ptr]() { new_conn_ptr->async_run(); });
     } break;
-    case BaseProtocol::Type::kXProtocol:
-      std::terminate();
-#if 0
-      {
-        auto new_connection =
-            std::make_unique<MysqlRoutingXConnection<ClientProtocol>>(
-                context_, destination_name, std::move(client_socket),
-                client_endpoint, remove_callback);
-        auto *new_conn_ptr = new_connection.get();
+    case BaseProtocol::Type::kXProtocol: {
+      auto new_connection = std::make_unique<MysqlRoutingXConnection>(
+          context_, destinations(),
+          std::make_unique<BasicConnection<ClientProtocol>>(
+              std::move(client_socket), client_endpoint),
+          std::make_unique<RoutingConnection<ClientProtocol>>(client_endpoint),
+          remove_callback);
+      auto *new_conn_ptr = new_connection.get();
 
-        connection_container_.add_connection(std::move(new_connection));
-        new_conn_ptr->async_run();
-      }
-      break;
-#endif
+      connection_container_.add_connection(std::move(new_connection));
+      new_conn_ptr->async_run();
+    } break;
   }
 }
 
