@@ -2017,6 +2017,35 @@ TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
   }
 }
 
+// Tests a query which has a predicate that must be delayed until after the
+// join, and this predicate contains a subquery that may be materialized. The
+// selectivity of the delayed predicate used to be double-counted in the plans
+// that used materialization.
+TEST_F(HypergraphOptimizerTest, DelayedMaterializablePredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
+      "WHERE t2.y > ALL (SELECT 1)",
+      /*nullable=*/false);
+
+  m_fake_tables["t1"]->file->stats.records = 1000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  // Expect a FILTER node with the delayed predicate, and its row estimate
+  // should be cardinality(t1) * cardinality(t2) * selectivity(t1.x=t2.x) *
+  // selectivity(t2.y > ALL).
+  EXPECT_FLOAT_EQ(
+      1000 * 100 * COND_FILTER_EQUALITY * (1 - COND_FILTER_INEQUALITY),
+      root->num_output_rows);
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("<not>((t2.y <= <max>(select #2)))",
+            ItemToString(root->filter().condition));
+}
+
 TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM "

@@ -3048,34 +3048,25 @@ void CostingReceiver::ProposeHashJoin(
     *wrote_trace = true;
   }
 
-  {
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = join_path;
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
         left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
+        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+        &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+    new_path.ordering_state = m_orderings->ApplyFDs(m_orderings->SetOrder(0),
+                                                    new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path, "");
-  }
+                                   new_obsolete_orderings, &new_path,
+                                   materialize_subqueries ? "mat. subq." : "");
 
-  if (Overlaps(join_path.filter_predicates,
-               m_graph->materializable_predicates)) {
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
-    // Hash join destroys all ordering information (even from the left side,
-    // since we may have spill-to-disk).
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path,
-                                   "mat. subq");
+    if (!Overlaps(new_path.filter_predicates,
+                  m_graph->materializable_predicates)) {
+      break;
+    }
   }
 }
 
@@ -3540,33 +3531,35 @@ void CostingReceiver::ProposeNestedLoopJoin(
     join_path.safe_for_rowid = left_path->safe_for_rowid;
   }
 
-  {
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = join_path;
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
         left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        join_path.ordering_state, new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(
-        left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
-        &join_path, rewrite_semi_to_inner ? "dedup to inner nested loop" : "");
-  }
+        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+        &filter_fd_set);
+    new_path.ordering_state = m_orderings->ApplyFDs(new_path.ordering_state,
+                                                    new_fd_set | filter_fd_set);
 
-  if (Overlaps(join_path.filter_predicates,
-               m_graph->materializable_predicates)) {
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
-        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
-    join_path.ordering_state = m_orderings->ApplyFDs(
-        join_path.ordering_state, new_fd_set | filter_fd_set);
+    const char *description_for_trace = "";
+    if (m_trace != nullptr) {
+      if (materialize_subqueries && rewrite_semi_to_inner) {
+        description_for_trace = "dedup to inner nested loop, mat. subq";
+      } else if (rewrite_semi_to_inner) {
+        description_for_trace = "dedup to inner nested loop";
+      } else if (materialize_subqueries) {
+        description_for_trace = "mat. subq";
+      }
+    }
+
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path,
-                                   rewrite_semi_to_inner
-                                       ? "dedup to inner nested loop, mat. subq"
-                                       : "mat. subq");
+                                   new_obsolete_orderings, &new_path,
+                                   description_for_trace);
+
+    if (!Overlaps(new_path.filter_predicates,
+                  m_graph->materializable_predicates)) {
+      break;
+    }
   }
 }
 
