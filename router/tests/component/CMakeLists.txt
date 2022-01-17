@@ -57,6 +57,7 @@ FOREACH(test_file
     test_rest_mock_server.cc
     test_rest_router.cc
     test_rest_routing.cc
+    test_rest_connection_pool.cc
     test_router_configuration_errors.cc
     test_routing.cc
     test_routing_connection.cc
