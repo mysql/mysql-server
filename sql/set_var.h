@@ -851,10 +851,6 @@ class System_variable_tracker final {
   }
 
  private:
-  void visit_session_track_system_variables(
-      THD *,
-      std::function<void(const System_variable_tracker &, sys_var *)>) const;
-
   bool visit_plugin_variable(THD *, std::function<bool(sys_var *)>,
                              Suppress_not_found_error) const;
 
