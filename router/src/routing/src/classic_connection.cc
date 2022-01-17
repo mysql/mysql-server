@@ -2953,6 +2953,55 @@ void MysqlRoutingClassicConnection::cmd_statistics_response() {
                                   Function::kClientRecvCmd);
 }
 
+// ListFields
+
+void MysqlRoutingClassicConnection::cmd_list_fields() {
+  return forward_client_to_server(Function::kCmdListFields,
+                                  Function::kCmdListFieldsResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_list_fields_response_forward() {
+  return forward_server_to_client(Function::kCmdListFieldsResponseForward,
+                                  Function::kCmdListFieldsResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_list_fields_response_forward_last() {
+  return forward_server_to_client(Function::kCmdListFieldsResponseForwardLast,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_list_fields_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdListFieldsResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Error = cmd_byte<classic_protocol::message::server::Error>(),
+    Eof = cmd_byte<classic_protocol::message::server::Eof>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Eof:
+    case Msg::Error:
+      return cmd_list_fields_response_forward_last();
+  }
+
+  return cmd_list_fields_response_forward();
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -2976,7 +3025,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     Quit = cmd_byte<classic_protocol::message::client::Quit>(),
     InitSchema = cmd_byte<classic_protocol::message::client::InitSchema>(),
     Query = cmd_byte<classic_protocol::message::client::Query>(),
-    // ListFields = cmd_byte<classic_protocol::message::client::ListFields>(),
+    ListFields = cmd_byte<classic_protocol::message::client::ListFields>(),
     Reload = cmd_byte<classic_protocol::message::client::Reload>(),
     Statistics = cmd_byte<classic_protocol::message::client::Statistics>(),
     // ProcessInfo =
@@ -3012,6 +3061,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_init_schema();
     case Msg::Query:
       return cmd_query();
+    case Msg::ListFields:
+      return cmd_list_fields();
     case Msg::ChangeUser:
       return cmd_change_user();
     case Msg::Ping:

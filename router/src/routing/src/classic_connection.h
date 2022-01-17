@@ -288,6 +288,11 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kCmdChangeUserResponseContinue,
     kCmdChangeUserClientAuthContinue,
 
+    kCmdListFields,
+    kCmdListFieldsResponse,
+    kCmdListFieldsResponseForward,
+    kCmdListFieldsResponseForwardLast,
+
     kWaitClientClosed,
     kFinish,
   };
@@ -411,6 +416,16 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_statistics();
       case Function::kCmdStatisticsResponse:
         return cmd_statistics_response();
+
+      case Function::kCmdListFields:
+        return cmd_list_fields();
+      case Function::kCmdListFieldsResponse:
+        return cmd_list_fields_response();
+      case Function::kCmdListFieldsResponseForward:
+        return cmd_list_fields_response_forward();
+      case Function::kCmdListFieldsResponseForwardLast:
+        return cmd_list_fields_response_forward_last();
+
       case Function::kForwardTlsInit:
         return forward_tls_init();
       case Function::kForwardTlsClientToServer:
@@ -676,6 +691,11 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void cmd_statistics();
   void cmd_statistics_response();
+
+  void cmd_list_fields();
+  void cmd_list_fields_response();
+  void cmd_list_fields_response_forward();
+  void cmd_list_fields_response_forward_last();
 
   // something was received on the client channel.
   void client_recv_cmd();
