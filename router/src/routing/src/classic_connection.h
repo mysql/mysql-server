@@ -267,6 +267,9 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kCmdResetConnection,
     kCmdResetConnectionResponse,
 
+    kCmdKill,
+    kCmdKillResponse,
+
     kWaitClientClosed,
     kFinish,
   };
@@ -361,6 +364,10 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_reset_connection();
       case Function::kCmdResetConnectionResponse:
         return cmd_reset_connection_response();
+      case Function::kCmdKill:
+        return cmd_kill();
+      case Function::kCmdKillResponse:
+        return cmd_kill_response();
       case Function::kForwardTlsInit:
         return forward_tls_init();
       case Function::kForwardTlsClientToServer:
@@ -609,6 +616,9 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void cmd_reset_connection();
   void cmd_reset_connection_response();
+
+  void cmd_kill();
+  void cmd_kill_response();
 
   // something was received on the client channel.
   void client_recv_cmd();
