@@ -51,7 +51,7 @@
 #include "mysql/harness/net_ts/local.h"  // local::stream_protocol
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysqlrouter/basic_connection.h"
+#include "mysqlrouter/connection_base.h"
 #include "ssl_mode.h"
 
 enum class TlsContentType {

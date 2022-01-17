@@ -66,6 +66,8 @@ class Channel {
       std::vector<uint8_t, default_init_allocator<uint8_t>>;
   using Ssl = mysql_harness::Ssl;
 
+  explicit Channel(Ssl ssl) : ssl_{std::move(ssl)} {}
+
   /**
    * initialize the SSL session.
    */
@@ -290,6 +292,11 @@ class Channel {
    * @retval nullptr if channel has no SSL initialized.
    */
   SSL *ssl() const { return ssl_.get(); }
+
+  /**
+   *
+   */
+  Ssl release_ssl() { return std::exchange(ssl_, {}); }
 
  private:
   size_t want_recv_{};

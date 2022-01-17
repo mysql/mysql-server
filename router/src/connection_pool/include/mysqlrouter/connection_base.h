@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_ROUTING_BASIC_CONNECTION_INCLUDED
-#define ROUTER_ROUTING_BASIC_CONNECTION_INCLUDED
+#ifndef ROUTER_CONNECTION_POOL_CONNECTION_BASE_INCLUDED
+#define ROUTER_CONNECTION_POOL_CONNECTION_BASE_INCLUDED
 
 #include <cstdint>  // size_t
 #include <functional>

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@ usr/bin/mysqlrouter
 usr/bin/mysqlrouter_keyring
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
+usr/lib/mysqlrouter/plugin/connection_pool.so
 usr/lib/mysqlrouter/plugin/http_auth_backend.so
 usr/lib/mysqlrouter/plugin/http_auth_realm.so
 usr/lib/mysqlrouter/plugin/http_server.so
@@ -34,6 +35,7 @@ usr/lib/mysqlrouter/plugin/router_openssl.so
 usr/lib/mysqlrouter/plugin/router_protobuf.so
 usr/lib/mysqlrouter/plugin/metadata_cache.so
 usr/lib/mysqlrouter/plugin/rest_api.so
+usr/lib/mysqlrouter/plugin/rest_connection_pool.so
 usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
@@ -43,6 +45,7 @@ usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_connection_pool.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
