@@ -532,5 +532,23 @@ SHOW VARIABLES like 'session_track_state_change';
 
 connection default;
 
+--echo #
+--echo # Bug#33728209: set variable to function value cause double locking mutex & deadlock/hang
+--echo #
+
+delimiter $;
+create function f() returns longtext no sql
+begin
+  declare continue handler for sqlexception begin end;
+  replace into asd values();
+  return 'a';
+end $
+delimiter ;$
+
+set session_track_system_variables=f();
+set session_track_system_variables=DEFAULT;
+
+drop function f;
+
 --echo
 --echo # End of tests
