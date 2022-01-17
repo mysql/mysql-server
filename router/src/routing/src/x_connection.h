@@ -194,6 +194,24 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvCrudUpdateResponseForward,
     kServerRecvCrudUpdateResponseForwardLast,
 
+    // prepare::prepare
+    kClientPreparePrepare,
+    kServerRecvPreparePrepareResponse,
+    kServerRecvPreparePrepareResponseForward,
+    kServerRecvPreparePrepareResponseForwardLast,
+
+    // prepare::deallocate
+    kClientPrepareDeallocate,
+    kServerRecvPrepareDeallocateResponse,
+    kServerRecvPrepareDeallocateResponseForward,
+    kServerRecvPrepareDeallocateResponseForwardLast,
+
+    // prepare::execute
+    kClientPrepareExecute,
+    kServerRecvPrepareExecuteResponse,
+    kServerRecvPrepareExecuteResponseForward,
+    kServerRecvPrepareExecuteResponseForwardLast,
+
     kConnect,
     kWaitClientClose,
     kFinish,
@@ -316,6 +334,33 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
         return server_recv_crud_update_response_forward();
       case Function::kServerRecvCrudUpdateResponseForwardLast:
         return server_recv_crud_update_response_forward_last();
+
+      case Function::kClientPreparePrepare:
+        return client_prepare_prepare();
+      case Function::kServerRecvPreparePrepareResponse:
+        return server_recv_prepare_prepare_response();
+      case Function::kServerRecvPreparePrepareResponseForward:
+        return server_recv_prepare_prepare_response_forward();
+      case Function::kServerRecvPreparePrepareResponseForwardLast:
+        return server_recv_prepare_prepare_response_forward_last();
+
+      case Function::kClientPrepareDeallocate:
+        return client_prepare_deallocate();
+      case Function::kServerRecvPrepareDeallocateResponse:
+        return server_recv_prepare_deallocate_response();
+      case Function::kServerRecvPrepareDeallocateResponseForward:
+        return server_recv_prepare_deallocate_response_forward();
+      case Function::kServerRecvPrepareDeallocateResponseForwardLast:
+        return server_recv_prepare_deallocate_response_forward_last();
+
+      case Function::kClientPrepareExecute:
+        return client_prepare_execute();
+      case Function::kServerRecvPrepareExecuteResponse:
+        return server_recv_prepare_execute_response();
+      case Function::kServerRecvPrepareExecuteResponseForward:
+        return server_recv_prepare_execute_response_forward();
+      case Function::kServerRecvPrepareExecuteResponseForwardLast:
+        return server_recv_prepare_execute_response_forward_last();
 
       case Function::kConnect:
         return connect();
@@ -449,6 +494,21 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
   void server_recv_crud_update_response();
   void server_recv_crud_update_response_forward();
   void server_recv_crud_update_response_forward_last();
+
+  void client_prepare_prepare();
+  void server_recv_prepare_prepare_response();
+  void server_recv_prepare_prepare_response_forward();
+  void server_recv_prepare_prepare_response_forward_last();
+
+  void client_prepare_deallocate();
+  void server_recv_prepare_deallocate_response();
+  void server_recv_prepare_deallocate_response_forward();
+  void server_recv_prepare_deallocate_response_forward_last();
+
+  void client_prepare_execute();
+  void server_recv_prepare_execute_response();
+  void server_recv_prepare_execute_response_forward();
+  void server_recv_prepare_execute_response_forward_last();
 
   XProtocolState *client_protocol() {
     return dynamic_cast<XProtocolState *>(
