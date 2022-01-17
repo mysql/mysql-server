@@ -212,6 +212,18 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvPrepareExecuteResponseForward,
     kServerRecvPrepareExecuteResponseForwardLast,
 
+    // expect::open
+    kClientExpectOpen,
+    kServerRecvExpectOpenResponse,
+    kServerRecvExpectOpenResponseForward,
+    kServerRecvExpectOpenResponseForwardLast,
+
+    // expect::clsoe
+    kClientExpectClose,
+    kServerRecvExpectCloseResponse,
+    kServerRecvExpectCloseResponseForward,
+    kServerRecvExpectCloseResponseForwardLast,
+
     kConnect,
     kWaitClientClose,
     kFinish,
@@ -362,6 +374,24 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
       case Function::kServerRecvPrepareExecuteResponseForwardLast:
         return server_recv_prepare_execute_response_forward_last();
 
+      case Function::kClientExpectOpen:
+        return client_expect_open();
+      case Function::kServerRecvExpectOpenResponse:
+        return server_recv_expect_open_response();
+      case Function::kServerRecvExpectOpenResponseForward:
+        return server_recv_expect_open_response_forward();
+      case Function::kServerRecvExpectOpenResponseForwardLast:
+        return server_recv_expect_open_response_forward_last();
+
+      case Function::kClientExpectClose:
+        return client_expect_close();
+      case Function::kServerRecvExpectCloseResponse:
+        return server_recv_expect_close_response();
+      case Function::kServerRecvExpectCloseResponseForward:
+        return server_recv_expect_close_response_forward();
+      case Function::kServerRecvExpectCloseResponseForwardLast:
+        return server_recv_expect_close_response_forward_last();
+
       case Function::kConnect:
         return connect();
       case Function::kWaitClientClose:
@@ -509,6 +539,16 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
   void server_recv_prepare_execute_response();
   void server_recv_prepare_execute_response_forward();
   void server_recv_prepare_execute_response_forward_last();
+
+  void client_expect_open();
+  void server_recv_expect_open_response();
+  void server_recv_expect_open_response_forward();
+  void server_recv_expect_open_response_forward_last();
+
+  void client_expect_close();
+  void server_recv_expect_close_response();
+  void server_recv_expect_close_response_forward();
+  void server_recv_expect_close_response_forward_last();
 
   XProtocolState *client_protocol() {
     return dynamic_cast<XProtocolState *>(
