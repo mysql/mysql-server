@@ -237,6 +237,24 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
     kClientRecvCmd,
 
+    kCmdQuery,
+    kCmdQueryResponse,
+    kCmdQueryColumnCount,
+    kCmdQueryColumnMeta,
+    kCmdQueryColumnMetaForward,
+    kCmdQueryColumnMetaForwardLast,
+    kCmdQueryEndOfColumnMeta,
+    kCmdQueryRow,
+    kCmdQueryRowForward,
+    kCmdQueryRowForwardLast,
+    kCmdQueryRowForwardMoreResultsets,
+    kCmdQueryOk,
+    kCmdQueryError,
+    kCmdQueryLoadData,
+    kCmdQueryLoadDataResponse,
+    kCmdQueryLoadDataResponseForward,
+    kCmdQueryLoadDataResponseForwardLast,
+
     kCmdQuit,
     kCmdQuitResponse,
 
@@ -278,6 +296,41 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return auth_response_auth_method_switch();
       case Function::kAuthClientContinue:
         return auth_client_continue();
+
+      case Function::kCmdQuery:
+        return cmd_query();
+      case Function::kCmdQueryResponse:
+        return cmd_query_response();
+      case Function::kCmdQueryColumnCount:
+        return cmd_query_column_count();
+      case Function::kCmdQueryColumnMeta:
+        return cmd_query_column_meta();
+      case Function::kCmdQueryColumnMetaForward:
+        return cmd_query_column_meta_forward();
+      case Function::kCmdQueryColumnMetaForwardLast:
+        return cmd_query_column_meta_forward_last();
+      case Function::kCmdQueryEndOfColumnMeta:
+        return cmd_query_end_of_column_meta();
+      case Function::kCmdQueryOk:
+        return cmd_query_ok();
+      case Function::kCmdQueryError:
+        return cmd_query_error();
+      case Function::kCmdQueryLoadData:
+        return cmd_query_load_data();
+      case Function::kCmdQueryLoadDataResponse:
+        return cmd_query_load_data_response();
+      case Function::kCmdQueryLoadDataResponseForward:
+        return cmd_query_load_data_response_forward();
+      case Function::kCmdQueryLoadDataResponseForwardLast:
+        return cmd_query_load_data_response_forward_last();
+      case Function::kCmdQueryRow:
+        return cmd_query_row();
+      case Function::kCmdQueryRowForward:
+        return cmd_query_row_forward();
+      case Function::kCmdQueryRowForwardLast:
+        return cmd_query_row_forward_last();
+      case Function::kCmdQueryRowForwardMoreResultsets:
+        return cmd_query_row_forward_more_resultsets();
 
       case Function::kCmdQuit:
         return cmd_quit();
@@ -502,6 +555,24 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void auth_response_ok();
   void auth_response_error();
   void auth_response_data();
+
+  void cmd_query();
+  void cmd_query_response();
+  void cmd_query_ok();
+  void cmd_query_error();
+  void cmd_query_load_data();
+  void cmd_query_load_data_response();
+  void cmd_query_load_data_response_forward();
+  void cmd_query_load_data_response_forward_last();
+  void cmd_query_column_count();
+  void cmd_query_column_meta_forward();
+  void cmd_query_column_meta_forward_last();
+  void cmd_query_column_meta();
+  void cmd_query_end_of_column_meta();
+  void cmd_query_row();
+  void cmd_query_row_forward_last();
+  void cmd_query_row_forward();
+  void cmd_query_row_forward_more_resultsets();
 
   void cmd_quit();
   void cmd_quit_response();
