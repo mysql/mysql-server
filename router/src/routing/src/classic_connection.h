@@ -332,6 +332,20 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kCmdListFieldsResponseForward,
     kCmdListFieldsResponseForwardLast,
 
+    kCmdClone,
+    kCmdCloneResponse,
+    kCmdCloneResponseForwardOk,
+    kCmdCloneResponseForwardError,
+    kClientRecvCloneCmd,
+    kCmdCloneInit,
+    kCmdCloneInitResponse,
+    kCmdCloneInitResponseForward,
+    kCmdCloneInitResponseForwardLast,
+    kCmdCloneExit,
+    kCmdCloneExitResponse,
+    kCmdCloneExitResponseForward,
+    kCmdCloneExitResponseForwardLast,
+
     kWaitClientClosed,
     kFinish,
   };
@@ -535,6 +549,34 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
       case Function::kCmdStmtParamAppendData:
         return cmd_stmt_param_append_data();
+
+      // clone
+      case Function::kCmdClone:
+        return cmd_clone();
+      case Function::kCmdCloneResponse:
+        return cmd_clone_response();
+      case Function::kCmdCloneResponseForwardError:
+        return cmd_clone_response_forward_error();
+      case Function::kCmdCloneResponseForwardOk:
+        return cmd_clone_response_forward_ok();
+      case Function::kClientRecvCloneCmd:
+        return client_recv_clone_cmd();
+      case Function::kCmdCloneInit:
+        return cmd_clone_init();
+      case Function::kCmdCloneInitResponse:
+        return cmd_clone_init_response();
+      case Function::kCmdCloneInitResponseForward:
+        return cmd_clone_init_response_forward();
+      case Function::kCmdCloneInitResponseForwardLast:
+        return cmd_clone_init_response_forward_last();
+      case Function::kCmdCloneExit:
+        return cmd_clone_exit();
+      case Function::kCmdCloneExitResponse:
+        return cmd_clone_exit_response();
+      case Function::kCmdCloneExitResponseForward:
+        return cmd_clone_exit_response_forward();
+      case Function::kCmdCloneExitResponseForwardLast:
+        return cmd_clone_exit_response_forward_last();
 
       case Function::kForwardTlsInit:
         return forward_tls_init();
@@ -845,6 +887,21 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void cmd_list_fields_response();
   void cmd_list_fields_response_forward();
   void cmd_list_fields_response_forward_last();
+
+  void cmd_clone();
+  void cmd_clone_response();
+  void cmd_clone_response_forward_ok();
+  void cmd_clone_response_forward_error();
+  void client_recv_clone_cmd();
+
+  void cmd_clone_init();
+  void cmd_clone_init_response();
+  void cmd_clone_init_response_forward();
+  void cmd_clone_init_response_forward_last();
+  void cmd_clone_exit();
+  void cmd_clone_exit_response();
+  void cmd_clone_exit_response_forward();
+  void cmd_clone_exit_response_forward_last();
 
   // something was received on the client channel.
   void client_recv_cmd();

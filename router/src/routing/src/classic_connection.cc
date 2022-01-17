@@ -42,7 +42,9 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
+#include "mysqlrouter/classic_protocol_clone.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
+#include "mysqlrouter/classic_protocol_codec_clone.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_frame.h"
@@ -54,6 +56,9 @@
 IMPORT_LOG_FUNCTIONS()
 
 #undef DEBUG_IO
+
+// enable to add tracing for the clone-cmd-stream
+#undef DEBUG_CMD_CLONE
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
@@ -3406,6 +3411,260 @@ void MysqlRoutingClassicConnection::cmd_stmt_fetch() {
                                   Function::kCmdStmtFetchResponse);
 }
 
+void MysqlRoutingClassicConnection::cmd_clone() {
+  return forward_client_to_server(Function::kCmdClone,
+                                  Function::kCmdCloneResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdCloneResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Ok = cmd_byte<classic_protocol::message::server::Ok>(),
+    Err = cmd_byte<classic_protocol::message::server::Error>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Ok:
+      return cmd_clone_response_forward_ok();
+    case Msg::Err:
+      return cmd_clone_response_forward_error();
+  }
+
+  return recv_server_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_response_forward_error() {
+  return forward_server_to_client(Function::kCmdCloneResponseForwardError,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_response_forward_ok() {
+  return forward_server_to_client(Function::kCmdCloneResponseForwardError,
+                                  Function::kClientRecvCloneCmd);
+}
+
+#if defined(DEBUG_CMD_CLONE)
+static std::string_view clone_client_command_byte_to_string(uint8_t msg_type) {
+  using namespace classic_protocol::clone::client;
+
+  switch (CommandByte{msg_type}) {
+    case CommandByte::Init:
+      return "Init";
+    case CommandByte::Execute:
+      return "Execute";
+    case CommandByte::Exit:
+      return "Exit";
+    case CommandByte::Reinit:
+      return "Reinit";
+    case CommandByte::Ack:
+      return "Ack";
+    case CommandByte::Attach:
+      return "Attach";
+  }
+
+  return "Unknown Cmd";
+}
+#endif
+
+void MysqlRoutingClassicConnection::client_recv_clone_cmd() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->client_channel();
+  auto src_protocol = client_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_client(Function::kClientRecvCloneCmd);
+    }
+
+    return recv_client_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+#if defined(DEBUG_CMD_CLONE)
+  std::cerr << "c->s: clone::" << clone_client_command_byte_to_string(msg_type)
+            << " (" << (int)msg_type << ")\n";
+#endif
+
+  enum class Msg {
+    Init = cmd_byte<classic_protocol::clone::client::Init>(),
+    Attach = cmd_byte<classic_protocol::clone::client::Attach>(),
+    Reinit = cmd_byte<classic_protocol::clone::client::Reinit>(),
+    Execute = cmd_byte<classic_protocol::clone::client::Execute>(),
+    Ack = cmd_byte<classic_protocol::clone::client::Ack>(),
+    Exit = cmd_byte<classic_protocol::clone::client::Exit>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Init:
+    case Msg::Attach:
+    case Msg::Reinit:
+    case Msg::Execute:
+    case Msg::Ack:
+      return cmd_clone_init();
+    case Msg::Exit:
+      return cmd_clone_exit();
+  }
+
+  std::cerr << __LINE__ << ": Unknown clone-cmd: " << (int)msg_type << "\n";
+
+  return recv_client_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_init() {
+  return forward_client_to_server(Function::kCmdCloneInit,
+                                  Function::kCmdCloneInitResponse);
+}
+
+#if defined(DEBUG_CMD_CLONE)
+static std::string_view clone_server_command_byte_to_string(uint8_t msg_type) {
+  using namespace classic_protocol::clone::server;
+
+  switch (CommandByte{msg_type}) {
+    case CommandByte::Locators:
+      return "Locators";
+    case CommandByte::DataDescriptor:
+      return "DataDescriptor";
+    case CommandByte::Data:
+      return "Data";
+    case CommandByte::Config:
+      return "Config";
+    case CommandByte::Collation:
+      return "Collation";
+    case CommandByte::Plugin:
+      return "Plugin";
+    case CommandByte::PluginV2:
+      return "PluginV2";
+    case CommandByte::ConfigV3:
+      return "ConfigV3";
+    case CommandByte::Complete:
+      return "Complete";
+    case CommandByte::Error:
+      return "Error";
+  }
+
+  return "Unknown Cmd";
+}
+#endif
+
+void MysqlRoutingClassicConnection::cmd_clone_init_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    const auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdCloneInitResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+#if defined(DEBUG_CMD_CLONE)
+  std::cerr << "c<-s: clone::" << clone_server_command_byte_to_string(msg_type)
+            << " (" << (int)msg_type << ")\n";
+#endif
+
+  enum class Msg {
+    Complete = cmd_byte<classic_protocol::clone::server::Complete>(),
+    Error = cmd_byte<classic_protocol::clone::server::Error>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Complete:
+    case Msg::Error:
+      return cmd_clone_init_response_forward_last();
+    default:
+      return cmd_clone_init_response_forward();
+  }
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_init_response_forward() {
+  return forward_server_to_client(Function::kCmdCloneInitResponseForward,
+                                  Function::kCmdCloneInitResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_init_response_forward_last() {
+  return forward_server_to_client(Function::kCmdCloneInitResponseForwardLast,
+                                  Function::kClientRecvCloneCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_exit() {
+  return forward_client_to_server(Function::kCmdCloneExit,
+                                  Function::kCmdCloneExitResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_exit_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdCloneExitResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+#if defined(DEBUG_CMD_CLONE)
+  std::cerr << "c<-s: clone::" << clone_server_command_byte_to_string(msg_type)
+            << " (" << (int)msg_type << ")\n";
+#endif
+
+  enum class Msg {
+    Complete = cmd_byte<classic_protocol::clone::server::Complete>(),
+    Error = cmd_byte<classic_protocol::clone::server::Error>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Complete:
+    case Msg::Error:
+      return cmd_clone_exit_response_forward_last();
+    default:
+      return cmd_clone_exit_response_forward();
+  }
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_exit_response_forward() {
+  return forward_server_to_client(Function::kCmdCloneExitResponseForward,
+                                  Function::kCmdCloneExitResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_clone_exit_response_forward_last() {
+  return forward_server_to_client(Function::kCmdCloneExitResponseForwardLast,
+                                  Function::kClientRecvCmd);
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -3453,7 +3712,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     //     cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
     ResetConnection =
         cmd_byte<classic_protocol::message::client::ResetConnection>(),
-    // Clone = cmd_byte<classic_protocol::message::client::Clone>(),
+    Clone = cmd_byte<classic_protocol::message::client::Clone>(),
     // SubscribeGroupReplicationStream = cmd_byte<
     //     classic_protocol::message::client::SubscribeGroupReplicationStream>(),
   };
@@ -3493,6 +3752,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_stmt_reset();
     case Msg::StmtParamAppendData:
       return cmd_stmt_param_append_data();
+    case Msg::Clone:
+      return cmd_clone();
   }
 
   // unknown command
