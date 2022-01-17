@@ -2790,6 +2790,16 @@ void MysqlRoutingClassicConnection::cmd_kill() {
                                   Function::kCmdKillResponse);
 }
 
+void MysqlRoutingClassicConnection::cmd_reload_response() {
+  return forward_server_to_client(Function::kCmdReloadResponse,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_reload() {
+  return forward_client_to_server(Function::kCmdReload,
+                                  Function::kCmdReloadResponse);
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -2817,6 +2827,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     ResetConnection =
         cmd_byte<classic_protocol::message::client::ResetConnection>(),
     Kill = cmd_byte<classic_protocol::message::client::Kill>(),
+    Reload = cmd_byte<classic_protocol::message::client::Reload>(),
   };
 
   switch (Msg{msg_type}) {
@@ -2832,6 +2843,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_reset_connection();
     case Msg::Kill:
       return cmd_kill();
+    case Msg::Reload:
+      return cmd_reload();
   }
 
   // unknown command
