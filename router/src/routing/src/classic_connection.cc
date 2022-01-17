@@ -2760,6 +2760,16 @@ void MysqlRoutingClassicConnection::cmd_quit() {
                                   Function::kCmdQuitResponse);
 }
 
+void MysqlRoutingClassicConnection::cmd_init_schema_response() {
+  return forward_server_to_client(Function::kCmdInitSchemaResponse,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_init_schema() {
+  return forward_client_to_server(Function::kCmdInitSchema,
+                                  Function::kCmdInitSchemaResponse);
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -2781,6 +2791,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
 
   enum class Msg {
     Quit = cmd_byte<classic_protocol::message::client::Quit>(),
+    InitSchema = cmd_byte<classic_protocol::message::client::InitSchema>(),
     Query = cmd_byte<classic_protocol::message::client::Query>(),
     Ping = cmd_byte<classic_protocol::message::client::Ping>(),
   };
@@ -2788,6 +2799,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
   switch (Msg{msg_type}) {
     case Msg::Quit:
       return cmd_quit();
+    case Msg::InitSchema:
+      return cmd_init_schema();
     case Msg::Query:
       return cmd_query();
     case Msg::Ping:
