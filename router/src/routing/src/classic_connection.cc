@@ -2790,6 +2790,149 @@ void MysqlRoutingClassicConnection::cmd_kill() {
                                   Function::kCmdKillResponse);
 }
 
+void MysqlRoutingClassicConnection::cmd_change_user() {
+  return forward_client_to_server(Function::kCmdChangeUser,
+                                  Function::kCmdChangeUserResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_response() {
+  // ERR|OK|EOF|other
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdChangeUserResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Error = cmd_byte<classic_protocol::message::server::Error>(),
+    Ok = cmd_byte<classic_protocol::message::server::Ok>(),
+    AuthSwitchUser =
+        cmd_byte<classic_protocol::message::server::AuthMethodSwitch>(),
+    AuthContinue =
+        cmd_byte<classic_protocol::message::server::AuthMethodData>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Error:
+      return cmd_change_user_response_error();
+    case Msg::Ok:
+      return cmd_change_user_response_ok();
+    case Msg::AuthSwitchUser:
+      return cmd_change_user_response_switch_auth();
+    case Msg::AuthContinue:
+      return cmd_change_user_response_continue();
+    default: {
+      const auto &recv_buf = src_channel->recv_plain_buffer();
+
+      log_debug(
+          "received unexpected message from server after a "
+          "client::ChangeUser: %s",
+          hexify(recv_buf).c_str());
+
+      return recv_server_failed(make_error_code(std::errc::bad_message));
+    }
+  }
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_response_error() {
+  return forward_server_to_client(Function::kCmdChangeUserResponseError,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_response_ok() {
+  return forward_server_to_client(Function::kCmdChangeUserResponseOk,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_response_switch_auth() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+    return recv_server_failed(ec);
+  }
+
+  // if it fails, the next function will fail with not-enough-input
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  const auto decode_res =
+      classic_protocol::decode<classic_protocol::frame::Frame<
+          classic_protocol::message::server::AuthMethodSwitch>>(
+          net::buffer(recv_buf), src_protocol->shared_capabilities());
+  if (!decode_res) {
+    auto ec = decode_res.error();
+
+    if (ec == classic_protocol::codec_errc::not_enough_input) {
+      return async_recv_server(Function::kCmdChangeUserResponseSwitchAuth);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  auto switch_auth_msg = decode_res->second.payload();
+
+#if 0
+  std::cerr << __LINE__ << ": .. switching to " << switch_auth_msg.auth_method()
+            << "\n";
+  std::cerr << __LINE__ << ": .. auth-data "
+            << hexify(switch_auth_msg.auth_method_data()) << "\n";
+#endif
+
+  src_protocol->auth_method_name(switch_auth_msg.auth_method());
+
+  return forward_server_to_client(Function::kCmdChangeUserResponseSwitchAuth,
+                                  Function::kCmdChangeUserClientAuthContinue);
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_response_continue() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->auth_method_name() == kCachingSha2Password) {
+    // if ensure_has_full_frame fails, we'll fail later with bad_message.
+    (void)ensure_has_full_frame(src_channel, src_protocol);
+
+    auto &recv_buf = src_channel->recv_plain_buffer();
+
+    if (recv_buf.size() < 6) {
+      return recv_server_failed(make_error_code(std::errc::bad_message));
+    }
+
+    switch (recv_buf[5]) {
+      case 0x03:
+        // fast-auth-ok is followed by Ok
+        return forward_server_to_client(
+            Function::kCmdChangeUserResponseContinue,
+            Function::kCmdChangeUserResponse);
+    }
+  }
+
+  return forward_server_to_client(Function::kCmdChangeUserResponseContinue,
+                                  Function::kCmdChangeUserClientAuthContinue);
+}
+
+void MysqlRoutingClassicConnection::cmd_change_user_client_auth_continue() {
+  return forward_client_to_server(Function::kCmdChangeUserClientAuthContinue,
+                                  Function::kCmdChangeUserResponse);
+}
+
 void MysqlRoutingClassicConnection::cmd_reload_response() {
   return forward_server_to_client(Function::kCmdReloadResponse,
                                   Function::kClientRecvCmd);
@@ -2833,12 +2976,33 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     Quit = cmd_byte<classic_protocol::message::client::Quit>(),
     InitSchema = cmd_byte<classic_protocol::message::client::InitSchema>(),
     Query = cmd_byte<classic_protocol::message::client::Query>(),
-    Ping = cmd_byte<classic_protocol::message::client::Ping>(),
-    ResetConnection =
-        cmd_byte<classic_protocol::message::client::ResetConnection>(),
-    Kill = cmd_byte<classic_protocol::message::client::Kill>(),
+    // ListFields = cmd_byte<classic_protocol::message::client::ListFields>(),
     Reload = cmd_byte<classic_protocol::message::client::Reload>(),
     Statistics = cmd_byte<classic_protocol::message::client::Statistics>(),
+    // ProcessInfo =
+    // cmd_byte<classic_protocol::message::client::ProcessInfo>(),
+    Kill = cmd_byte<classic_protocol::message::client::Kill>(),
+    Ping = cmd_byte<classic_protocol::message::client::Ping>(),
+    ChangeUser = cmd_byte<classic_protocol::message::client::ChangeUser>(),
+    // BinlogDump = cmd_byte<classic_protocol::message::client::BinlogDump>(),
+    // RegisterSlave =
+    //     cmd_byte<classic_protocol::message::client::RegisterSlave>(),
+    // StmtPrepare = cmd_byte<classic_protocol::message::client::StmtPrepare>(),
+    // StmtExecute = cmd_byte<classic_protocol::message::client::StmtExecute>(),
+    // StmtParamAppendData =
+    //    cmd_byte<classic_protocol::message::client::StmtParamAppendData>(),
+    // StmtClose = cmd_byte<classic_protocol::message::client::StmtClose>(),
+    // StmtReset = cmd_byte<classic_protocol::message::client::StmtReset>(),
+    // StmtSetOption =
+    //    cmd_byte<classic_protocol::message::client::StmtSetOption>(),
+    // StmtFetch = cmd_byte<classic_protocol::message::client::StmtFetch>(),
+    // BinlogDumpGtid =
+    //     cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
+    ResetConnection =
+        cmd_byte<classic_protocol::message::client::ResetConnection>(),
+    // Clone = cmd_byte<classic_protocol::message::client::Clone>(),
+    // SubscribeGroupReplicationStream = cmd_byte<
+    //     classic_protocol::message::client::SubscribeGroupReplicationStream>(),
   };
 
   switch (Msg{msg_type}) {
@@ -2848,6 +3012,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_init_schema();
     case Msg::Query:
       return cmd_query();
+    case Msg::ChangeUser:
+      return cmd_change_user();
     case Msg::Ping:
       return cmd_ping();
     case Msg::ResetConnection:

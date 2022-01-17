@@ -220,10 +220,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kClientRecvClientGreeting,
     kClientSendServerGreetingFromServer,
     kTlsAccept,
+
     kConnect,
+
     kClientRecvSecondClientGreeting,
+
     kTlsConnectInit,
     kTlsConnect,
+
     kForwardTlsInit,
     kForwardTlsClientToServer,
     kForwardTlsServerToClient,
@@ -275,6 +279,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
     kCmdStatistics,
     kCmdStatisticsResponse,
+
+    kCmdChangeUser,
+    kCmdChangeUserResponse,
+    kCmdChangeUserResponseOk,
+    kCmdChangeUserResponseError,
+    kCmdChangeUserResponseSwitchAuth,
+    kCmdChangeUserResponseContinue,
+    kCmdChangeUserClientAuthContinue,
 
     kWaitClientClosed,
     kFinish,
@@ -374,10 +386,27 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_kill();
       case Function::kCmdKillResponse:
         return cmd_kill_response();
+
+      case Function::kCmdChangeUser:
+        return cmd_change_user();
+      case Function::kCmdChangeUserResponse:
+        return cmd_change_user_response();
+      case Function::kCmdChangeUserResponseOk:
+        return cmd_change_user_response_ok();
+      case Function::kCmdChangeUserResponseError:
+        return cmd_change_user_response_error();
+      case Function::kCmdChangeUserResponseSwitchAuth:
+        return cmd_change_user_response_switch_auth();
+      case Function::kCmdChangeUserResponseContinue:
+        return cmd_change_user_response_continue();
+      case Function::kCmdChangeUserClientAuthContinue:
+        return cmd_change_user_client_auth_continue();
+
       case Function::kCmdReload:
         return cmd_reload();
       case Function::kCmdReloadResponse:
         return cmd_reload_response();
+
       case Function::kCmdStatistics:
         return cmd_statistics();
       case Function::kCmdStatisticsResponse:
@@ -633,6 +662,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void cmd_kill();
   void cmd_kill_response();
+
+  void cmd_change_user();
+  void cmd_change_user_response();
+  void cmd_change_user_response_ok();
+  void cmd_change_user_response_error();
+  void cmd_change_user_response_switch_auth();
+  void cmd_change_user_response_continue();
+  void cmd_change_user_client_auth_continue();
 
   void cmd_reload();
   void cmd_reload_response();
