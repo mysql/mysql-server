@@ -260,6 +260,18 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvCursorCloseResponseForward,
     kServerRecvCursorCloseResponseForwardLast,
 
+    // session::close
+    kClientSessionClose,
+    kServerRecvSessionCloseResponse,
+    kServerRecvSessionCloseResponseForward,
+    kServerRecvSessionCloseResponseForwardLast,
+
+    // session::reset
+    kClientSessionReset,
+    kServerRecvSessionResetResponse,
+    kServerRecvSessionResetResponseForward,
+    kServerRecvSessionResetResponseForwardLast,
+
     kConnect,
     kWaitClientClose,
     kFinish,
@@ -482,6 +494,24 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
       case Function::kServerRecvCursorCloseResponseForwardLast:
         return server_recv_cursor_close_response_forward_last();
 
+      case Function::kClientSessionClose:
+        return client_session_close();
+      case Function::kServerRecvSessionCloseResponse:
+        return server_recv_session_close_response();
+      case Function::kServerRecvSessionCloseResponseForward:
+        return server_recv_session_close_response_forward();
+      case Function::kServerRecvSessionCloseResponseForwardLast:
+        return server_recv_session_close_response_forward_last();
+
+      case Function::kClientSessionReset:
+        return client_session_reset();
+      case Function::kServerRecvSessionResetResponse:
+        return server_recv_session_reset_response();
+      case Function::kServerRecvSessionResetResponseForward:
+        return server_recv_session_reset_response_forward();
+      case Function::kServerRecvSessionResetResponseForwardLast:
+        return server_recv_session_reset_response_forward_last();
+
       case Function::kConnect:
         return connect();
       case Function::kWaitClientClose:
@@ -669,6 +699,16 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
   void server_recv_cursor_close_response();
   void server_recv_cursor_close_response_forward();
   void server_recv_cursor_close_response_forward_last();
+
+  void client_session_close();
+  void server_recv_session_close_response();
+  void server_recv_session_close_response_forward();
+  void server_recv_session_close_response_forward_last();
+
+  void client_session_reset();
+  void server_recv_session_reset_response();
+  void server_recv_session_reset_response_forward();
+  void server_recv_session_reset_response_forward_last();
 
   XProtocolState *client_protocol() {
     return dynamic_cast<XProtocolState *>(
