@@ -3002,6 +3002,410 @@ void MysqlRoutingClassicConnection::cmd_list_fields_response() {
   return cmd_list_fields_response_forward();
 }
 
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_ok() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+    return recv_server_failed(ec);
+  }
+
+  // if it fails, the next function will fail with not-enough-input
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  const auto decode_res =
+      classic_protocol::decode<classic_protocol::frame::Frame<
+          classic_protocol::message::server::StmtPrepareOk>>(
+          net::buffer(recv_buf), src_protocol->shared_capabilities());
+  if (!decode_res) {
+    auto ec = decode_res.error();
+
+    if (ec == classic_protocol::codec_errc::not_enough_input) {
+      return async_recv_server(Function::kCmdStmtPrepareResponseOk);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  auto stmt_prep_ok = decode_res->second.payload();
+
+  if (stmt_prep_ok.with_metadata()) {
+    src_protocol->columns_left = stmt_prep_ok.column_count();
+    src_protocol->params_left = stmt_prep_ok.param_count();
+  } else {
+    src_protocol->columns_left = 0;
+    src_protocol->params_left = 0;
+  }
+
+  return forward_server_to_client(Function::kCmdStmtPrepareResponseOk,
+                                  Function::kCmdStmtPrepareResponseCheckParam);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_check_param() {
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->params_left > 0) {
+    if (--src_protocol->params_left == 0) {
+      return cmd_stmt_prepare_response_forward_param_last();
+    } else {
+      return cmd_stmt_prepare_response_forward_param();
+    }
+  }
+
+  return cmd_stmt_prepare_response_check_column();
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_forward_param() {
+  return forward_server_to_client(Function::kCmdStmtPrepareResponseForwardParam,
+                                  Function::kCmdStmtPrepareResponseCheckParam);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_prepare_response_forward_param_last() {
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardParamLast,
+      Function::kCmdStmtPrepareResponseForwardEndOfParams);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_prepare_response_forward_end_of_params() {
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->shared_capabilities().test(
+          classic_protocol::capabilities::pos::
+              text_result_with_session_tracking)) {
+    // no end-of-columns packet.
+    return cmd_stmt_prepare_response_check_column();
+  }
+
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardEndOfParams,
+      Function::kCmdStmtPrepareResponseCheckColumn);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_check_column() {
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->columns_left > 0) {
+    if (--src_protocol->columns_left == 0) {
+      return cmd_stmt_prepare_response_forward_column_last();
+    } else {
+      return cmd_stmt_prepare_response_forward_column();
+    }
+  }
+
+  // nothing to forward, wait for the client again.
+  client_recv_cmd();
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_forward_column() {
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardColumn,
+      Function::kCmdStmtPrepareResponseCheckColumn);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_prepare_response_forward_column_last() {
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardColumnLast,
+      Function::kCmdStmtPrepareResponseForwardEndOfColumns);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_prepare_response_forward_end_of_columns() {
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->shared_capabilities().test(
+          classic_protocol::capabilities::pos::
+              text_result_with_session_tracking)) {
+    // no end-of-columns packet.
+    return call_next_function(Function::kClientRecvCmd);
+  }
+
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardEndOfColumns,
+      Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response_error() {
+  return forward_server_to_client(Function::kCmdStmtPrepareResponseError,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare_response() {
+  // ERR|OK|EOF|other
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdStmtPrepareResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Error = cmd_byte<classic_protocol::message::server::Error>(),
+    Ok = cmd_byte<classic_protocol::message::server::StmtPrepareOk>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Error:
+      return cmd_stmt_prepare_response_error();
+    case Msg::Ok:
+      return cmd_stmt_prepare_response_ok();
+  }
+
+  return recv_server_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_prepare() {
+  return forward_client_to_server(Function::kCmdStmtPrepare,
+                                  Function::kCmdStmtPrepareResponse);
+}
+
+// StmtExecute
+//
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_ok() {
+  return forward_server_to_client(Function::kCmdStmtExecuteResponseOk,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_error() {
+  return forward_server_to_client(Function::kCmdStmtExecuteResponseError,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_column_count() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  // if it fails, the next function will fail with not-enough-input
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  auto column_count_res = decode_column_count(net::buffer(recv_buf));
+  if (!column_count_res) {
+    auto ec = column_count_res.error();
+
+    if (ec == classic_protocol::codec_errc::not_enough_input) {
+      return async_recv_server(Function::kCmdStmtExecuteResponseColumnCount);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  src_protocol->columns_left = column_count_res.value();
+
+  forward_server_to_client(Function::kCmdStmtExecuteResponseColumnCount,
+                           Function::kCmdStmtExecuteResponseCheckColumn);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_check_column() {
+  auto src_protocol = server_protocol();
+
+  if (--src_protocol->columns_left == 0) {
+    cmd_stmt_execute_response_forward_column_last();
+  } else {
+    cmd_stmt_execute_response_forward_column();
+  }
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_forward_column() {
+  return forward_server_to_client(
+      Function::kCmdStmtExecuteResponseForwardColumn,
+      Function::kCmdStmtExecuteResponseCheckColumn);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_execute_response_forward_column_last() {
+  return forward_server_to_client(
+      Function::kCmdStmtExecuteResponseForwardColumnLast,
+      Function::kCmdStmtExecuteResponseForwardEndOfColumns);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_execute_response_forward_end_of_columns() {
+  auto src_protocol = server_protocol();
+
+  if (src_protocol->shared_capabilities().test(
+          classic_protocol::capabilities::pos::
+              text_result_with_session_tracking)) {
+    // no end-of-columns packet.
+    return call_next_function(Function::kCmdStmtExecuteResponseCheckRow);
+  }
+
+  return forward_server_to_client(
+      Function::kCmdStmtPrepareResponseForwardEndOfColumns,
+      Function::kCmdStmtExecuteResponseCheckRow);
+}
+
+void MysqlRoutingClassicConnection::
+    cmd_stmt_execute_response_forward_end_of_rows() {
+  return forward_server_to_client(
+      Function::kCmdStmtExecuteResponseForwardEndOfRows,
+      Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_forward_row() {
+  return forward_server_to_client(Function::kCmdStmtExecuteResponseForwardRow,
+                                  Function::kCmdStmtExecuteResponseCheckRow);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response_check_row() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdStmtExecuteResponseCheckRow);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Row = 0x00,
+    Eof = cmd_byte<classic_protocol::message::server::Eof>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Eof:
+      return cmd_stmt_execute_response_forward_end_of_rows();
+    case Msg::Row:
+      return cmd_stmt_execute_response_forward_row();
+  }
+
+  return recv_server_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute_response() {
+  // ERR|OK|EOF|other
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdStmtExecuteResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Error = cmd_byte<classic_protocol::message::server::Error>(),
+    Ok = cmd_byte<classic_protocol::message::server::Ok>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Error:
+      return cmd_stmt_execute_response_error();
+    case Msg::Ok:
+      return cmd_stmt_execute_response_ok();
+  }
+
+  return cmd_stmt_execute_response_column_count();
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_execute() {
+  return forward_client_to_server(Function::kCmdStmtExecute,
+                                  Function::kCmdStmtExecuteResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_set_option_response() {
+  return forward_server_to_client(Function::kCmdStmtSetOptionResponse,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_set_option() {
+  return forward_client_to_server(Function::kCmdStmtSetOption,
+                                  Function::kCmdStmtSetOptionResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_reset_response() {
+  return forward_server_to_client(Function::kCmdStmtResetResponse,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_reset() {
+  return forward_client_to_server(Function::kCmdStmtReset,
+                                  Function::kCmdStmtResetResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_close() {
+  return forward_client_to_server(Function::kCmdStmtClose,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_param_append_data() {
+  return forward_client_to_server(Function::kCmdStmtParamAppendData,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_fetch_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdStmtExecuteResponseCheckRow);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Row = 0x00,
+    Eof = cmd_byte<classic_protocol::message::server::Eof>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Eof:
+      return cmd_stmt_execute_response_forward_end_of_rows();
+    case Msg::Row:
+      return cmd_stmt_execute_response_forward_row();
+  }
+
+  return recv_server_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::cmd_stmt_fetch() {
+  return forward_client_to_server(Function::kCmdStmtFetch,
+                                  Function::kCmdStmtFetchResponse);
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -3036,15 +3440,15 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     // BinlogDump = cmd_byte<classic_protocol::message::client::BinlogDump>(),
     // RegisterSlave =
     //     cmd_byte<classic_protocol::message::client::RegisterSlave>(),
-    // StmtPrepare = cmd_byte<classic_protocol::message::client::StmtPrepare>(),
-    // StmtExecute = cmd_byte<classic_protocol::message::client::StmtExecute>(),
-    // StmtParamAppendData =
-    //    cmd_byte<classic_protocol::message::client::StmtParamAppendData>(),
-    // StmtClose = cmd_byte<classic_protocol::message::client::StmtClose>(),
-    // StmtReset = cmd_byte<classic_protocol::message::client::StmtReset>(),
-    // StmtSetOption =
-    //    cmd_byte<classic_protocol::message::client::StmtSetOption>(),
-    // StmtFetch = cmd_byte<classic_protocol::message::client::StmtFetch>(),
+    StmtPrepare = cmd_byte<classic_protocol::message::client::StmtPrepare>(),
+    StmtExecute = cmd_byte<classic_protocol::message::client::StmtExecute>(),
+    StmtParamAppendData =
+        cmd_byte<classic_protocol::message::client::StmtParamAppendData>(),
+    StmtClose = cmd_byte<classic_protocol::message::client::StmtClose>(),
+    StmtReset = cmd_byte<classic_protocol::message::client::StmtReset>(),
+    StmtSetOption =
+        cmd_byte<classic_protocol::message::client::StmtSetOption>(),
+    StmtFetch = cmd_byte<classic_protocol::message::client::StmtFetch>(),
     // BinlogDumpGtid =
     //     cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
     ResetConnection =
@@ -3075,6 +3479,20 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_reload();
     case Msg::Statistics:
       return cmd_statistics();
+    case Msg::StmtPrepare:
+      return cmd_stmt_prepare();
+    case Msg::StmtExecute:
+      return cmd_stmt_execute();
+    case Msg::StmtClose:
+      return cmd_stmt_close();
+    case Msg::StmtFetch:
+      return cmd_stmt_fetch();
+    case Msg::StmtSetOption:
+      return cmd_stmt_set_option();
+    case Msg::StmtReset:
+      return cmd_stmt_reset();
+    case Msg::StmtParamAppendData:
+      return cmd_stmt_param_append_data();
   }
 
   // unknown command

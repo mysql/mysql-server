@@ -288,6 +288,45 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kCmdChangeUserResponseContinue,
     kCmdChangeUserClientAuthContinue,
 
+    kCmdStmtPrepare,
+    kCmdStmtPrepareResponse,
+    kCmdStmtPrepareResponseOk,
+    kCmdStmtPrepareResponseError,
+    kCmdStmtPrepareResponseCheckParam,
+    kCmdStmtPrepareResponseForwardParam,
+    kCmdStmtPrepareResponseForwardParamLast,
+    kCmdStmtPrepareResponseForwardEndOfParams,
+    kCmdStmtPrepareResponseCheckColumn,
+    kCmdStmtPrepareResponseForwardColumn,
+    kCmdStmtPrepareResponseForwardColumnLast,
+    kCmdStmtPrepareResponseForwardEndOfColumns,
+
+    kCmdStmtExecute,
+    kCmdStmtExecuteResponse,
+    kCmdStmtExecuteResponseOk,
+    kCmdStmtExecuteResponseError,
+    kCmdStmtExecuteResponseCheckColumn,
+    kCmdStmtExecuteResponseColumnCount,
+    kCmdStmtExecuteResponseForwardColumn,
+    kCmdStmtExecuteResponseForwardColumnLast,
+    kCmdStmtExecuteResponseForwardEndOfColumns,
+    kCmdStmtExecuteResponseCheckRow,
+    kCmdStmtExecuteResponseForwardRow,
+    kCmdStmtExecuteResponseForwardEndOfRows,
+
+    kCmdStmtSetOption,
+    kCmdStmtSetOptionResponse,
+
+    kCmdStmtFetch,
+    kCmdStmtFetchResponse,
+
+    kCmdStmtClose,
+
+    kCmdStmtReset,
+    kCmdStmtResetResponse,
+
+    kCmdStmtParamAppendData,
+
     kCmdListFields,
     kCmdListFieldsResponse,
     kCmdListFieldsResponseForward,
@@ -382,7 +421,7 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
       case Function::kCmdInitSchemaResponse:
         return cmd_init_schema_response();
 
-      // reset connection 
+      // reset connection
       case Function::kCmdResetConnection:
         return cmd_reset_connection();
       case Function::kCmdResetConnectionResponse:
@@ -425,6 +464,77 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_list_fields_response_forward();
       case Function::kCmdListFieldsResponseForwardLast:
         return cmd_list_fields_response_forward_last();
+
+      case Function::kCmdStmtPrepare:
+        return cmd_stmt_prepare();
+      case Function::kCmdStmtPrepareResponse:
+        return cmd_stmt_prepare_response();
+      case Function::kCmdStmtPrepareResponseOk:
+        return cmd_stmt_prepare_response_ok();
+      case Function::kCmdStmtPrepareResponseError:
+        return cmd_stmt_prepare_response_error();
+      case Function::kCmdStmtPrepareResponseCheckColumn:
+        return cmd_stmt_prepare_response_check_column();
+      case Function::kCmdStmtPrepareResponseForwardColumn:
+        return cmd_stmt_prepare_response_forward_column();
+      case Function::kCmdStmtPrepareResponseForwardColumnLast:
+        return cmd_stmt_prepare_response_forward_column_last();
+      case Function::kCmdStmtPrepareResponseForwardEndOfColumns:
+        return cmd_stmt_prepare_response_forward_end_of_columns();
+      case Function::kCmdStmtPrepareResponseCheckParam:
+        return cmd_stmt_prepare_response_check_param();
+      case Function::kCmdStmtPrepareResponseForwardParam:
+        return cmd_stmt_prepare_response_forward_param();
+      case Function::kCmdStmtPrepareResponseForwardParamLast:
+        return cmd_stmt_prepare_response_forward_param_last();
+      case Function::kCmdStmtPrepareResponseForwardEndOfParams:
+        return cmd_stmt_prepare_response_forward_end_of_params();
+
+      case Function::kCmdStmtExecute:
+        return cmd_stmt_execute();
+      case Function::kCmdStmtExecuteResponse:
+        return cmd_stmt_execute_response();
+      case Function::kCmdStmtExecuteResponseOk:
+        return cmd_stmt_execute_response_ok();
+      case Function::kCmdStmtExecuteResponseError:
+        return cmd_stmt_execute_response_error();
+      case Function::kCmdStmtExecuteResponseColumnCount:
+        return cmd_stmt_execute_response_column_count();
+      case Function::kCmdStmtExecuteResponseCheckColumn:
+        return cmd_stmt_execute_response_check_column();
+      case Function::kCmdStmtExecuteResponseForwardColumn:
+        return cmd_stmt_execute_response_forward_column();
+      case Function::kCmdStmtExecuteResponseForwardColumnLast:
+        return cmd_stmt_execute_response_forward_column_last();
+      case Function::kCmdStmtExecuteResponseForwardEndOfColumns:
+        return cmd_stmt_execute_response_forward_end_of_columns();
+      case Function::kCmdStmtExecuteResponseCheckRow:
+        return cmd_stmt_execute_response_check_row();
+      case Function::kCmdStmtExecuteResponseForwardRow:
+        return cmd_stmt_execute_response_forward_row();
+      case Function::kCmdStmtExecuteResponseForwardEndOfRows:
+        return cmd_stmt_execute_response_forward_end_of_rows();
+
+      case Function::kCmdStmtSetOption:
+        return cmd_stmt_set_option();
+      case Function::kCmdStmtSetOptionResponse:
+        return cmd_stmt_set_option_response();
+
+      case Function::kCmdStmtClose:
+        return cmd_stmt_close();
+
+      case Function::kCmdStmtFetch:
+        return cmd_stmt_fetch();
+      case Function::kCmdStmtFetchResponse:
+        return cmd_stmt_fetch_response();
+
+      case Function::kCmdStmtReset:
+        return cmd_stmt_reset();
+      case Function::kCmdStmtResetResponse:
+        return cmd_stmt_reset_response();
+
+      case Function::kCmdStmtParamAppendData:
+        return cmd_stmt_param_append_data();
 
       case Function::kForwardTlsInit:
         return forward_tls_init();
@@ -691,6 +801,45 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void cmd_statistics();
   void cmd_statistics_response();
+
+  void cmd_stmt_prepare();
+  void cmd_stmt_prepare_response();
+  void cmd_stmt_prepare_response_ok();
+  void cmd_stmt_prepare_response_check_param();
+  void cmd_stmt_prepare_response_forward_param();
+  void cmd_stmt_prepare_response_forward_param_last();
+  void cmd_stmt_prepare_response_forward_end_of_params();
+  void cmd_stmt_prepare_response_check_column();
+  void cmd_stmt_prepare_response_forward_column();
+  void cmd_stmt_prepare_response_forward_column_last();
+  void cmd_stmt_prepare_response_forward_end_of_columns();
+  void cmd_stmt_prepare_response_error();
+
+  void cmd_stmt_execute();
+  void cmd_stmt_execute_response();
+  void cmd_stmt_execute_response_ok();
+  void cmd_stmt_execute_response_error();
+  void cmd_stmt_execute_response_column_count();
+  void cmd_stmt_execute_response_check_column();
+  void cmd_stmt_execute_response_forward_column();
+  void cmd_stmt_execute_response_forward_column_last();
+  void cmd_stmt_execute_response_forward_end_of_columns();
+  void cmd_stmt_execute_response_check_row();
+  void cmd_stmt_execute_response_forward_row();
+  void cmd_stmt_execute_response_forward_end_of_rows();
+
+  void cmd_stmt_set_option();
+  void cmd_stmt_set_option_response();
+
+  void cmd_stmt_reset();
+  void cmd_stmt_reset_response();
+
+  void cmd_stmt_close();
+
+  void cmd_stmt_param_append_data();
+
+  void cmd_stmt_fetch();
+  void cmd_stmt_fetch_response();
 
   void cmd_list_fields();
   void cmd_list_fields_response();
