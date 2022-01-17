@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,27 +22,42 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "context.h"
+#ifndef ROUTING_INITIAL_CONNECTION_ATTRIBUTES_INCLUDED
+#define ROUTING_INITIAL_CONNECTION_ATTRIBUTES_INCLUDED
 
-#include <cstring>
-#include <memory>
-#include <mutex>
+#include <string>
+#include <utility>  // pair
+#include <vector>
 
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/local.h"
-#include "mysqlrouter/routing.h"
-#include "protocol/base_protocol.h"
+#include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
+#include "mysql/harness/net_ts/local.h"     // local::stream_protocol
 
-IMPORT_LOG_FUNCTIONS()
-
-void MySQLRoutingContext::increase_info_active_routes() {
-  ++info_active_routes_;
+/**
+ * TCP/IP socket related connection attributes.
+ *
+ * - client-ip (IPv4 and IPv6)
+ * - client-port
+ */
+inline std::vector<std::pair<std::string, std::string>>
+initial_connection_attributes(const net::ip::tcp::endpoint &ep) {
+  return {
+      {"_client_ip", ep.address().to_string()},
+      {"_client_port", std::to_string(ep.port())},
+  };
 }
 
-void MySQLRoutingContext::decrease_info_active_routes() {
-  --info_active_routes_;
+#ifdef NET_TS_HAS_UNIX_SOCKET
+/**
+ * UNIX domain socket related connection attributes.
+ *
+ * - client-socket
+ */
+inline std::vector<std::pair<std::string, std::string>>
+initial_connection_attributes(const local::stream_protocol::endpoint &ep) {
+  return {
+      {"_client_socket", ep.path()},
+  };
 }
+#endif
 
-void MySQLRoutingContext::increase_info_handled_routes() {
-  ++info_handled_routes_;
-}
+#endif

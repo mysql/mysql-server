@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,27 +22,30 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "context.h"
+#ifndef MYSQL_HARNESS_TLS_TYPES_INCLUDED
+#define MYSQL_HARNESS_TLS_TYPES_INCLUDED
 
-#include <cstring>
+#ifdef _WIN32
+// include winsock2.h before openssl/ssl.h
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #include <memory>
-#include <mutex>
 
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/local.h"
-#include "mysqlrouter/routing.h"
-#include "protocol/base_protocol.h"
+#include <openssl/ssl.h>
 
-IMPORT_LOG_FUNCTIONS()
+namespace mysql_harness {
+namespace impl {
+class Deleter_SSL {
+ public:
+  void operator()(SSL *v) { SSL_free(v); }
+};
+}  // namespace impl
 
-void MySQLRoutingContext::increase_info_active_routes() {
-  ++info_active_routes_;
-}
+using Ssl = std::unique_ptr<SSL, mysql_harness::impl::Deleter_SSL>;
 
-void MySQLRoutingContext::decrease_info_active_routes() {
-  --info_active_routes_;
-}
+}  // namespace mysql_harness
 
-void MySQLRoutingContext::increase_info_handled_routes() {
-  ++info_handled_routes_;
-}
+#endif

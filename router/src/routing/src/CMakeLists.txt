@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,10 +40,10 @@ ADD_LIBRARY(routing SHARED
   routing_component.cc
   routing_common_unreachable_destinations.cc
   channel.cc
-  basic_protocol_splicer.cc
-  classic_protocol_splicer.cc
-  x_protocol_splicer.cc
   destination_ssl_context.cc
+  classic_connection.cc
+  connection.cc
+  blocked_endpoints.cc
 )
 TARGET_LINK_LIBRARIES(routing
   PUBLIC

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ uint16_t MySQLRoutingAPI::get_bind_port() const {
 }
 
 std::vector<std::string> MySQLRoutingAPI::get_blocked_client_hosts() const {
-  return r_->get_context().get_blocked_client_hosts();
+  return r_->get_context().blocked_endpoints().get_blocked_client_hosts();
 }
 
 std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include <sys/stat.h>  // chmod
 #endif
 
+#include "classic_connection.h"
 #include "connection.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
@@ -52,6 +53,7 @@
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/executor.h"  // defer
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
@@ -70,12 +72,16 @@
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // to_string
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
 #include "scope_guard.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
+#if 0
+#include "x_protocol_splicer.h"
+#endif
 
 using mysql_harness::utility::string_format;
 using routing::AccessMode;
@@ -95,15 +101,20 @@ static const int kListenQueueSize{1024};
  * works for error-packets that are encoded by the Acceptor.
  */
 static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
-    BaseProtocol::Type protocol, std::vector<uint8_t> &error_frame,
+    BaseProtocol::Type /* protocol */, std::vector<uint8_t> &error_frame,
     uint32_t error_code, const std::string &msg, const std::string &sql_state) {
+#if 0
   if (protocol == BaseProtocol::Type::kClassicProtocol) {
-    return ClassicProtocolSplicer::encode_error_packet(
+    return ClassicProtocolSplicerBase::encode_error_packet(
         error_frame, 0, {}, error_code, msg, sql_state);
   } else {
-    return XProtocolSplicer::encode_error_packet(error_frame, error_code, msg,
-                                                 sql_state);
+    return XProtocolSplicerBase::encode_error_packet(error_frame, error_code,
+                                                     msg, sql_state);
   }
+#else
+  return MysqlRoutingClassicConnection::encode_error_packet(
+      error_frame, 0, {}, error_code, msg, sql_state);
+#endif
 }
 
 MySQLRouting::MySQLRouting(
@@ -202,75 +213,6 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-class ConnectorBase {
- public:
-  enum class State {
-    INIT,
-    INIT_DESTINATION,
-    RESOLVE,
-    INIT_ENDPOINT,
-    CONNECT,
-    CONNECT_FINISH,
-    CONNECTED,
-    NEXT_ENDPOINT,
-    NEXT_DESTINATION,
-    DONE,
-    ERROR,
-  };
-
-  void state(State next_state);
-
-  State state() const { return state_; }
-
- private:
-  State state_{State::INIT};
-};
-
-std::ostream &operator<<(std::ostream &os, const ConnectorBase::State &state) {
-  using State = ConnectorBase::State;
-  switch (state) {
-    case State::INIT:
-      os << "INIT";
-      break;
-    case State::INIT_DESTINATION:
-      os << "INIT_DESTINATION";
-      break;
-    case State::RESOLVE:
-      os << "RESOLVE";
-      break;
-    case State::INIT_ENDPOINT:
-      os << "INIT_ENDPOINT";
-      break;
-    case State::CONNECT:
-      os << "CONNECT";
-      break;
-    case State::CONNECT_FINISH:
-      os << "CONNECT_FINISH";
-      break;
-    case State::CONNECTED:
-      os << "CONNECTED";
-      break;
-    case State::NEXT_ENDPOINT:
-      os << "NEXT_ENDPOINT";
-      break;
-    case State::NEXT_DESTINATION:
-      os << "NEXT_DESTINATION";
-      break;
-    case State::DONE:
-      os << "DONE";
-      break;
-    case State::ERROR:
-      os << "ERROR";
-      break;
-  }
-  return os;
-}
-
-void ConnectorBase::state(State next_state) {
-  // log_debug("state: -> %s", mysqlrouter::to_string(next_state).c_str());
-  state_ = next_state;
-}
-
 /**
  * a simple move-only type to track ownership.
  */
@@ -301,531 +243,6 @@ class Owner {
   bool owns_{true};
 };
 
-/**
- * interrupts a socket that waits.
- */
-class SocketInterrupter {
- public:
-  using protocol_type = net::ip::tcp;
-  using socket_type = typename protocol_type::socket;
-
-  SocketInterrupter(socket_type &sock) : sock_{sock} {}
-
-  void operator()(std::error_code ec) {
-    if (ec) {
-      if (ec != std::errc::operation_canceled) {
-        // only operation_canceled is expected here.
-        log_error("failed to wait for timeout: %s", ec.message().c_str());
-      }
-
-      // the timeout was cancelled.
-      return;
-    }
-
-    const auto res = sock_.cancel();
-    if (!res) {
-      // canceling the waiting socket is expected to always
-      // succeed.
-      log_error("canceling socket-wait failed: %s",
-                res.error().message().c_str());
-    }
-  }
-
- private:
-  socket_type &sock_;
-};
-
-/**
- * tries to connect to one of many backends.
- */
-template <class ClientProtocol>
-class Connector : public ConnectorBase {
- public:
-  using client_protocol_type = ClientProtocol;
-  using client_socket_type = typename client_protocol_type::socket;
-  using client_endpoint_type = typename client_protocol_type::endpoint;
-
-  using server_protocol_type = net::ip::tcp;
-
-  Connector(MySQLRouting *r, client_socket_type client_sock,
-            client_endpoint_type client_endpoint,
-            SocketContainer<client_protocol_type> &client_sock_container,
-            SocketContainer<server_protocol_type> &server_sock_container,
-            WaitableMonitor<uint64_t> &pending_connections_counter)
-      : r_{r},
-        client_sock_{client_sock_container.push_back(std::move(client_sock))},
-        client_endpoint_{std::move(client_endpoint)},
-        client_sock_container_{client_sock_container},
-        io_ctx_{client_sock_.get_executor().context()},
-        resolver_{io_ctx_},
-        server_sock_{server_sock_container.emplace_back(io_ctx_)},
-        server_connect_timer_{io_ctx_},
-        server_sock_container_{server_sock_container},
-        pending_connections_counter_{pending_connections_counter},
-        destinations_{r_->destinations()->destinations()} {
-    pending_connections_counter_([](auto &cnt) { cnt++; });
-  }
-
-  Connector(const Connector &) = delete;
-  Connector &operator=(const Connector &) = delete;
-
-  Connector(Connector &&rhs) = default;
-  Connector &operator=(Connector &&rhs) = default;
-
-  ~Connector() {
-    // if the Connector leaves without handing the socket to the
-    // MySQLConnection, remove it from the connection container
-    if (client_sock_still_owned_) {
-      client_sock_container_.release(client_sock_);
-      server_sock_container_.release(server_sock_);
-      pending_connections_counter_.serialize_with_cv([](auto &cnt, auto &cv) {
-        cnt--;
-        if (cnt == 0) cv.notify_all();
-      });
-    }
-  }
-
-  void operator()(std::error_code ec) {
-    if (ec) {
-      using clock_type = typename decltype(server_connect_timer_)::clock_type;
-      const bool expired = server_connect_timer_.expiry() <= clock_type::now();
-
-      if (ec != std::errc::operation_canceled) {
-        // operation-canceled is the only expected error-code. Log all other
-        // cases.
-        log_error("[%s] Failed connecting: %s",
-                  r_->get_context().get_name().c_str(), ec.message().c_str());
-        return;
-      } else if (state() == State::CONNECT_FINISH && expired) {
-        // cancelled while waiting for connect() to finish.
-        //
-        // if its expiry is not set, the connect-timeout fired and
-        // cancelled by connect-timeout
-        state(connect_failed(make_error_code(std::errc::timed_out)));
-      } else {
-        // all other cases are other calls of .cancel() while waiting and should
-        // be handled with destructing the connector.
-        return;
-      }
-    }
-
-    while (true) {
-#if 0
-      if (client_sock_still_owned_) {
-        log_debug("fd=%d state: %s", client_sock_.native_handle(),
-                  mysqlrouter::to_string(state()).c_str());
-      }
-#endif
-      switch (state()) {
-        case State::INIT:
-          state(init());
-          break;
-        case State::INIT_DESTINATION:
-          state(init_destination());
-          break;
-        case State::RESOLVE:
-          state(resolve());
-          break;
-        case State::INIT_ENDPOINT:
-          state(init_endpoint());
-          break;
-        case State::CONNECT:
-          state(connect());
-
-          if (state() == State::CONNECT_FINISH) {
-            server_connect_timer_.expires_after(
-                r_->get_destination_connect_timeout());
-            server_connect_timer_.async_wait(SocketInterrupter(server_sock_));
-
-            server_sock_.async_wait(net::socket_base::wait_write,
-                                    std::move(*this));
-            return;
-          }
-          break;
-        case State::CONNECT_FINISH:
-          server_connect_timer_.cancel();
-          state(connect_finish());
-          break;
-        case State::CONNECTED:
-          state(connected());
-          break;
-        case State::NEXT_ENDPOINT:
-          state(next_endpoint());
-          break;
-        case State::NEXT_DESTINATION:
-          state(next_destination());
-          break;
-        case State::ERROR:
-          state(error());
-          break;
-        case State::DONE:
-          return;
-      }
-    }
-  }
-
- private:
-  State init() {
-    client_sock_.native_non_blocking(true);
-    if (std::is_same<client_protocol_type, net::ip::tcp>::value) {
-      client_sock_.set_option(net::ip::tcp::no_delay{true});
-    }
-
-    return State::INIT_DESTINATION;
-  }
-
-  State resolve() {
-    const auto &destination = *destinations_it_;
-
-    if (!destination->good()) {
-      return State::NEXT_DESTINATION;
-    }
-
-    const auto resolve_res = resolver_.resolve(
-        destination->hostname(), std::to_string(destination->port()));
-
-    if (!resolve_res) {
-      destination->connect_status(resolve_res.error());
-
-      log_warning("%d: resolve() failed: %s", __LINE__,
-                  resolve_res.error().message().c_str());
-      return State::NEXT_DESTINATION;
-    }
-
-    endpoints_ = resolve_res.value();
-
-    return State::INIT_ENDPOINT;
-  }
-
-  State init_endpoint() {
-    endpoints_it_ = endpoints_.begin();
-
-    return State::CONNECT;
-  }
-
-  State connect() {
-    // close socket if it is already open
-    server_sock_.close();
-
-    auto endpoint = *endpoints_it_;
-
-    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-      log_debug("fd=%d: trying %s:%s (%s)", client_sock_.native_handle(),
-                endpoint.host_name().c_str(), endpoint.service_name().c_str(),
-                mysqlrouter::to_string(endpoint.endpoint()).c_str());
-    }
-    server_endpoint_ = endpoint.endpoint();
-
-    const int socket_flags {
-#if defined(SOCK_NONBLOCK)
-      // linux|freebsd|sol11.4 allows to set NONBLOCK as part of the socket()
-      // call to safe the extra syscall
-      SOCK_NONBLOCK
-#endif
-    };
-
-    auto open_res =
-        server_sock_.open(server_endpoint_.protocol(), socket_flags);
-    if (!open_res) {
-      if (open_res.error() == make_error_code(std::errc::too_many_files_open)) {
-        log_warning(
-            "%d: opening connection failed due to max-open-files "
-            "reached: "
-            "%s",
-            __LINE__, open_res.error().message().c_str());
-      } else {
-        log_warning("%d: socket() failed: %s", __LINE__,
-                    open_res.error().message().c_str());
-      }
-      return State::ERROR;
-    }
-    const auto non_block_res = server_sock_.native_non_blocking(true);
-    if (!non_block_res) {
-      log_warning("%d: native_non_blocking() failed: %s", __LINE__,
-                  non_block_res.error().message().c_str());
-      return State::ERROR;
-    }
-
-    server_sock_.set_option(net::ip::tcp::no_delay{true});
-
-    std::string src_addr_str;
-    // src_addr_str = "192.168.178.78";
-    if (!src_addr_str.empty()) {
-      const auto src_addr_res = net::ip::make_address_v4(src_addr_str.c_str());
-      if (!src_addr_res) {
-        log_warning("%d: building src-address from '%s' failed: %s", __LINE__,
-                    src_addr_str.c_str(),
-                    src_addr_res.error().message().c_str());
-        return State::ERROR;
-      }
-
-#if defined(IP_BIND_ADDRESS_NO_PORT)
-      // linux 4.2 introduced IP_BIND_ADDRESS_NO_PORT to delay assigning a
-      // source-port until connect()
-      net::socket_option::integer<IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT> sockopt;
-
-      const auto setsockopt_res = server_sock_.set_option(sockopt);
-      if (!setsockopt_res) {
-        // if the glibc supports IP_BIND_ADDRESS_NO_PORT, but the kernel
-        // doesn't: ignore it.
-        if (setsockopt_res.error() !=
-            make_error_code(std::errc::invalid_argument)) {
-          log_warning(
-              "%d: setsockopt(IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT) "
-              "failed: "
-              "%s",
-              __LINE__, setsockopt_res.error().message().c_str());
-        }
-        return State::ERROR;
-      }
-#endif
-
-      const auto bind_res = server_sock_.bind(net::ip::tcp::endpoint(
-          src_addr_res.value_or(net::ip::address_v4{}), 0));
-      if (!bind_res) {
-        log_warning("%d: setting src-address %s failed: %s", __LINE__,
-                    src_addr_str.c_str(), bind_res.error().message().c_str());
-        return State::ERROR;
-      }
-    }
-
-    const auto connect_res = server_sock_.connect(server_endpoint_);
-    if (!connect_res) {
-      const auto &ec = connect_res.error();
-      if (ec == make_error_condition(std::errc::operation_in_progress) ||
-          ec == make_error_condition(std::errc::operation_would_block)) {
-        // connect in progress, wait for completion.
-        return State::CONNECT_FINISH;
-      } else {
-        return connect_failed(ec);
-      }
-    }
-
-    return State::CONNECTED;
-  }
-
-  State connect_finish() {
-    net::socket_base::error sock_err;
-    const auto getopt_res = server_sock_.get_option(sock_err);
-
-    if (!getopt_res) {
-      return connect_failed(getopt_res.error());
-    }
-
-    if (sock_err.value() != 0) {
-      return connect_failed({
-        sock_err.value(),
-#if defined(_WIN32)
-            std::system_category()
-#else
-            std::generic_category()
-#endif
-      });
-    }
-
-    return State::CONNECTED;
-  }
-
-  State connected() {
-    if (!client_sock_still_owned_) throw std::invalid_argument("assert");
-
-    // move the ownership of the client socket from the connector-container to
-    // the connection
-    client_sock_still_owned_.release();
-
-    // keep the connector-container locked until the socket is added to the
-    // container for active connections to alive a race between
-    //
-    // 1. plugin thread trying to shutdown
-    // 2. connector-container gets empty
-    // 3. plugin thread sees connectors and connections being empty and shuts
-    // down
-    // 4. create_connection tries to add connection to
-    // active-connection-container
-
-    client_sock_container_.run([this]() {
-      const auto &destination = *destinations_it_;
-
-      r_->create_connection<client_protocol_type, server_protocol_type>(
-          destination->id(),  //
-          client_sock_container_.release_unlocked(client_sock_),
-          client_endpoint_,  //
-          server_sock_container_.release(server_sock_), server_endpoint_);
-      pending_connections_counter_.serialize_with_cv([](auto &cnt, auto &cv) {
-        cnt--;
-        if (cnt == 0) cv.notify_all();
-      });
-    });
-
-    return State::DONE;
-  }
-
-  State next_endpoint() {
-    std::advance(endpoints_it_, 1);
-
-    if (endpoints_it_ != endpoints_.end()) {
-      return State::CONNECT;
-    } else {
-      auto &destination = *destinations_it_;
-      // report back the connect status to the destination
-      destination->connect_status(last_ec_);
-      if (last_ec_ != std::error_code{}) {
-        log_debug("[%s] fd=%d add destination '%s:%d' to quarantine",
-                  r_->get_context().get_name().c_str(),
-                  client_sock_.native_handle(), destination->hostname().c_str(),
-                  destination->port());
-        r_->get_context().shared_quarantine().update(
-            {destination->hostname(), destination->port()});
-      }
-
-      return State::NEXT_DESTINATION;
-    }
-  }
-
-  State next_destination() {
-    bool is_quarantined{false};
-    do {
-      std::advance(destinations_it_, 1);
-      const auto &destination = *destinations_it_;
-      if (destinations_it_ != std::end(destinations_)) {
-        is_quarantined = r_->get_context().shared_quarantine().is_quarantined(
-            {destinations_it_->get()->hostname(),
-             destinations_it_->get()->port()});
-        if (is_quarantined) {
-          log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
-                    r_->get_context().get_name().c_str(),
-                    client_sock_.native_handle(),
-                    destination->hostname().c_str(), destination->port());
-        }
-      }
-    } while (destinations_it_ != destinations_.end() && is_quarantined);
-
-    if (destinations_it_ != destinations_.end()) {
-      // next destination
-      return State::RESOLVE;
-    } else {
-      auto refresh_res =
-          r_->destinations()->refresh_destinations(destinations_);
-      if (refresh_res) {
-        destinations_ = std::move(refresh_res.value());
-        return State::INIT_DESTINATION;
-      } else {
-        log_debug("[%s] fd=%d no destinations available",
-                  r_->get_context().get_name().c_str(),
-                  client_sock_.native_handle());
-        // we couldn't connect to any of the destinations. Give up.
-        r_->stop_socket_acceptors();
-        return State::ERROR;
-      }
-    }
-  }
-
-  State init_destination() {
-    // setup first destination
-    destinations_it_ = destinations_.begin();
-
-    if (destinations_it_ != destinations_.end()) {
-      const auto &destination = *destinations_it_;
-      const auto is_quarantined =
-          r_->get_context().shared_quarantine().is_quarantined(
-              {destination->hostname(), destination->port()});
-      if (is_quarantined) {
-        log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
-                  r_->get_context().get_name().c_str(),
-                  client_sock_.native_handle(), destination->hostname().c_str(),
-                  destination->port());
-      }
-      return is_quarantined ? State::NEXT_DESTINATION : State::RESOLVE;
-    } else {
-      // no backends
-      log_warning("%d: no connectable destinations :(", __LINE__);
-      return State::ERROR;
-    }
-  }
-
-  State error() {
-    std::vector<uint8_t> error_frame;
-
-    const auto encode_res = encode_initial_error_packet(
-        r_->get_context().get_protocol(), error_frame, 2003,
-        "Can't connect to remote MySQL server for client connected to '" +
-            r_->get_context().get_bind_address().str() + "'",
-        "HY000");
-
-    if (!encode_res) {
-      log_debug(
-          "[%s] fd=%d encode error: %s", r_->get_context().get_name().c_str(),
-          client_sock_.native_handle(), encode_res.error().message().c_str());
-    } else {
-      auto write_res = net::write(client_sock_, net::buffer(error_frame));
-      if (!write_res) {
-        log_debug(
-            "[%s] fd=%d write error: %s", r_->get_context().get_name().c_str(),
-            client_sock_.native_handle(), write_res.error().message().c_str());
-      }
-    }
-
-    // note: tests as checking for this message
-    log_warning(
-        "Can't connect to remote MySQL server for client connected to '%s'",
-        r_->get_context().get_bind_address().str().c_str());
-    return State::DONE;
-  }
-
- public:
-  void async_run() {
-#if 0
-    std::vector<std::string> dests;
-    for (const auto &dest : destinations_) {
-      dests.emplace_back(dest->hostname() + ":" + std::to_string(dest->port()));
-    }
-
-    log_debug("destinations: %s", mysql_harness::join(dests, ", ").c_str());
-#endif
-
-    // this looks like a no op as the socket should be writable already, but
-    // leads to moving the Connector into its io-thread which makes the
-    // acceptor thread faster
-    client_sock_.async_wait(net::socket_base::wait_write, std::move(*this));
-  }
-
- private:
-  State connect_failed(const std::error_code &ec) {
-    log_debug("fd=%d: connecting to '%s' failed: %s (%s). Trying next endpoint",
-              server_sock_.native_handle(),
-              mysqlrouter::to_string(server_endpoint_).c_str(),
-              ec.message().c_str(), mysqlrouter::to_string(ec).c_str());
-
-    last_ec_ = ec;
-
-    // try the next endpoint
-    return State::NEXT_ENDPOINT;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os,
-                                  Connector<ClientProtocol>::State &state);
-  MySQLRouting *r_;
-  client_socket_type &client_sock_;
-  client_endpoint_type client_endpoint_;
-  SocketContainer<client_protocol_type> &client_sock_container_;
-  Owner client_sock_still_owned_;
-
-  net::io_context &io_ctx_;
-  net::ip::tcp::resolver resolver_;
-  server_protocol_type::socket &server_sock_;
-  server_protocol_type::endpoint server_endpoint_;
-  net::steady_timer server_connect_timer_;
-  SocketContainer<server_protocol_type> &server_sock_container_;
-  WaitableMonitor<uint64_t> &pending_connections_counter_;
-
-  Destinations destinations_;
-  Destinations::iterator destinations_it_;
-  net::ip::tcp::resolver::results_type endpoints_;
-  net::ip::tcp::resolver::results_type::iterator endpoints_it_;
-
-  std::error_code last_ec_;
-};
-
 template <class Protocol>
 class Acceptor {
  public:
@@ -839,19 +256,13 @@ class Acceptor {
   Acceptor(MySQLRouting *r, std::list<IoThread> &io_threads,
            acceptor_socket_type &acceptor_socket,
            const acceptor_endpoint_type &acceptor_endpoint,
-           SocketContainer<client_protocol_type> &client_sock_container,
-           SocketContainer<server_protocol_type> &server_sock_container,
-           WaitableMonitor<Nothing> &waitable,
-           WaitableMonitor<uint64_t> &pending_connections_counter)
+           WaitableMonitor<Nothing> &waitable)
       : r_(r),
         io_threads_{io_threads},
         acceptor_socket_(acceptor_socket),
         acceptor_endpoint_{acceptor_endpoint},
-        client_sock_container_{client_sock_container},
-        server_sock_container_{server_sock_container},
         cur_io_thread_{io_threads_.begin()},
         waitable_{waitable},
-        pending_connections_counter_{pending_connections_counter},
         debug_is_logged_{
             log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)} {}
 
@@ -990,7 +401,7 @@ class Acceptor {
             }
           }
 
-          if (r_->get_context().is_blocked<client_protocol_type>(
+          if (r_->get_context().blocked_endpoints().is_blocked(
                   client_endpoint)) {
             const std::string msg = "Too many connection errors from " +
                                     mysqlrouter::to_string(client_endpoint);
@@ -1067,10 +478,11 @@ class Acceptor {
                             current_total_connections, max_total_connections);
               }
             } else {
-              Connector<client_protocol_type>(
-                  r_, std::move(sock), client_endpoint, client_sock_container_,
-                  server_sock_container_, pending_connections_counter_)
-                  .async_run();
+              if (std::is_same_v<Protocol, net::ip::tcp>) {
+                sock.set_option(net::ip::tcp::no_delay{true});
+              }
+              r_->create_connection<client_protocol_type>(std::move(sock),
+                                                          client_endpoint);
             }
           }
         } else if (sock_res.error() ==
@@ -1107,13 +519,9 @@ class Acceptor {
 
   acceptor_socket_type &acceptor_socket_;
   const acceptor_endpoint_type &acceptor_endpoint_;
-  SocketContainer<client_protocol_type> &client_sock_container_;
-  SocketContainer<server_protocol_type> &server_sock_container_;
 
   std::list<IoThread>::iterator cur_io_thread_;
   WaitableMonitor<Nothing> &waitable_;
-
-  WaitableMonitor<uint64_t> &pending_connections_counter_;
 
   bool debug_is_logged_{};
 
@@ -1249,26 +657,6 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
 
-  // close client sockets which aren't connected to a backend yet
-  tcp_connector_container_.disconnect_all();
-  server_sock_container_.disconnect_all();
-
-#if !defined(_WIN32)
-  unix_socket_connector_container_.disconnect_all();
-#endif
-
-  // wait for connectors to stop
-  while (!tcp_connector_container_.empty()
-#if !defined(_WIN32)
-         || !unix_socket_connector_container_.empty()
-#endif
-  ) {
-    std::this_thread::sleep_for(100ms);
-  }
-
-  // Wait for all connections that are being established
-  pending_connections_counter_.wait([](const auto &cnt) { return cnt == 0; });
-
   // disconnect all connections
   disconnect_all();
 
@@ -1314,10 +702,8 @@ MySQLRouting::start_accepting_connections() {
       tcp_socket().native_non_blocking(true);
       tcp_socket().async_wait(
           net::socket_base::wait_read,
-          Acceptor<net::ip::tcp>(
-              this, io_threads, tcp_socket(), service_tcp_endpoint_,
-              tcp_connector_container_, server_sock_container_,
-              acceptor_waitable_, pending_connections_counter_));
+          Acceptor<net::ip::tcp>(this, io_threads, tcp_socket(),
+                                 service_tcp_endpoint_, acceptor_waitable_));
     }
 #if !defined(_WIN32)
     if (service_named_socket_.is_open()) {
@@ -1326,8 +712,7 @@ MySQLRouting::start_accepting_connections() {
           net::socket_base::wait_read,
           Acceptor<local::stream_protocol>(
               this, io_threads, service_named_socket_, service_named_endpoint_,
-              unix_socket_connector_container_, server_sock_container_,
-              acceptor_waitable_, pending_connections_counter_));
+              acceptor_waitable_));
     }
 #endif
   }
@@ -1362,26 +747,49 @@ void MySQLRouting::stop_socket_acceptors() {
   });
 }
 
-template <class ClientProtocol, class ServerProtocol>
+template <class ClientProtocol>
 void MySQLRouting::create_connection(
-    const std::string &destination_name,
     typename ClientProtocol::socket client_socket,
-    const typename ClientProtocol::endpoint &client_endpoint,
-    typename ServerProtocol::socket server_socket,
-    const typename ServerProtocol::endpoint &server_endpoint) {
+    const typename ClientProtocol::endpoint &client_endpoint) {
   auto remove_callback = [this](MySQLRoutingConnectionBase *connection) {
+    connection->context().decrease_info_active_routes();
+
     connection_container_.remove_connection(connection);
   };
 
-  auto new_connection =
-      std::make_unique<MySQLRoutingConnection<ClientProtocol, ServerProtocol>>(
-          context_, destination_name, std::move(client_socket), client_endpoint,
-          std::move(server_socket), server_endpoint, remove_callback);
+  net::io_context &io_ctx = client_socket.get_executor().context();
 
-  auto *new_conn_ptr = new_connection.get();
+  switch (context_.get_protocol()) {
+    case BaseProtocol::Type::kClassicProtocol: {
+      auto new_connection = std::make_unique<MysqlRoutingClassicConnection>(
+          context_, destinations(),
+          std::make_unique<BasicConnection<ClientProtocol>>(
+              std::move(client_socket), client_endpoint),
+          std::make_unique<RoutingConnection<ClientProtocol>>(client_endpoint),
+          remove_callback);
+      auto *new_conn_ptr = new_connection.get();
 
-  connection_container_.add_connection(std::move(new_connection));
-  new_conn_ptr->async_run();
+      connection_container_.add_connection(std::move(new_connection));
+
+      // defer the call and accept the next connection.
+      net::defer(io_ctx, [new_conn_ptr]() { new_conn_ptr->async_run(); });
+    } break;
+    case BaseProtocol::Type::kXProtocol:
+      std::terminate();
+#if 0
+      {
+        auto new_connection =
+            std::make_unique<MysqlRoutingXConnection<ClientProtocol>>(
+                context_, destination_name, std::move(client_socket),
+                client_endpoint, remove_callback);
+        auto *new_conn_ptr = new_connection.get();
+
+        connection_container_.add_connection(std::move(new_connection));
+        new_conn_ptr->async_run();
+      }
+      break;
+#endif
+  }
 }
 
 // throws std::runtime_error

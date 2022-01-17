@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -227,19 +227,13 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    * create new connection to MySQL Server than can handle client's
    * traffic and adds it to connection container.
    *
-   * @param destination_id identifier of the destination connected to
    * @param client_socket socket used to transfer data to/from client
    * @param client_endpoint endpoint of client
-   * @param server_socket socket used to transfer data to/from server
-   * @param server_endpoint endpoint of server
    */
-  template <class ClientProtocol, class ServerProtocol>
+  template <class ClientProtocol>
   void create_connection(
-      const std::string &destination_id,
       typename ClientProtocol::socket client_socket,
-      const typename ClientProtocol::endpoint &client_endpoint,
-      typename ServerProtocol::socket server_socket,
-      const typename ServerProtocol::endpoint &server_endpoint);
+      const typename ClientProtocol::endpoint &client_endpoint);
 
   routing::RoutingStrategy get_routing_strategy() const override;
 
@@ -343,16 +337,11 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief Socket descriptor of the TCP service */
   net::ip::tcp::acceptor service_tcp_;
   net::ip::tcp::endpoint service_tcp_endpoint_;
-  SocketContainer<net::ip::tcp> tcp_connector_container_;
-
-  // container for sockets while the Connector runs.
-  SocketContainer<net::ip::tcp> server_sock_container_;
 
 #if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */
   local::stream_protocol::acceptor service_named_socket_;
   local::stream_protocol::endpoint service_named_endpoint_;
-  SocketContainer<local::stream_protocol> unix_socket_connector_container_;
 #endif
 
   /** @brief used to unregister from subscription on allowed nodes changes */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,13 @@
 #include <cstdint>  // size_t
 #include <functional>
 #include <memory>
-#include <sstream>
 
+#include "basic_protocol_splicer.h"
 #include "context.h"
+#include "destination.h"  // RouteDestination
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/timer.h"
 #include "mysql/harness/stdx/monitor.h"
-#include "protocol_splicer.h"
 
 class MySQLRoutingConnectionBase {
  public:
@@ -124,6 +126,8 @@ class MySQLRoutingConnectionBase {
 
   void disassociate() { remove_callback_(this); }
 
+  void connected();
+
  protected:
   /** @brief wrapper for common data used by all routing threads */
   MySQLRoutingContext &context_;
@@ -133,115 +137,115 @@ class MySQLRoutingConnectionBase {
   Monitor<Stats> stats_{{}};
 };
 
-template <class ClientProtocol, class ServerProtocol>
-class Splicer;
-
-/**
- * @brief MySQLRoutingConnection represents a connection to MYSQL Server.
- *
- * The MySQLRoutingConnection wraps thread that handles traffic from one
- * socket to another.
- *
- * When instance of MySQLRoutingConnection object is created, remove callback
- * is passed, which is called when connection thread completes.
- */
-template <class ClientProtocol, class ServerProtocol>
-class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
+class ConnectorBase {
  public:
-  using client_protocol_type = ClientProtocol;
-  using server_protocol_type = ServerProtocol;
+  using server_protocol_type = net::ip::tcp;
 
-  /**
-   * @brief Creates and initializes connection object. It doesn't create
-   *        new thread of execution. In order to create new thread of
-   *        execution call start().
-   *
-   * @param context wrapper for common data used by all connection threads
-   * @param destination_id identifier of the destination connected to
-   * @param client_socket socket used to send/receive data to/from client
-   * @param client_endpoint address of the socket used to send/receive data
-   * to/from client
-   * @param server_socket socket used to send/receive data to/from server
-   * @param server_endpoint IP address and TCP port of MySQL Server
-   * @param remove_callback called when thread finishes its execution to
-   * remove associated MySQLRoutingConnection from container. It must be
-   * called at the very end of thread execution
-   */
-  MySQLRoutingConnection(
-      MySQLRoutingContext &context, std::string destination_id,
-      typename ClientProtocol::socket client_socket,
-      typename ClientProtocol::endpoint client_endpoint,
-      typename ServerProtocol::socket server_socket,
-      typename ServerProtocol::endpoint server_endpoint,
-      std::function<void(MySQLRoutingConnectionBase *)> remove_callback)
-      : MySQLRoutingConnectionBase{context, remove_callback},
-        destination_id_{std::move(destination_id)},
-        client_socket_{std::move(client_socket)},
-        client_endpoint_{std::move(client_endpoint)},
-        server_socket_{std::move(server_socket)},
-        server_endpoint_{std::move(server_endpoint)} {}
+  ConnectorBase(net::io_context &io_ctx, RouteDestination *route_destination)
+      : io_ctx_{io_ctx},
+        route_destination_{route_destination},
+        destinations_{route_destination_->destinations()},
+        destinations_it_{destinations_.begin()} {}
 
-  std::string get_destination_id() const override { return destination_id_; }
+  enum class Function {
+    kInitDestination,
+    kConnectFinish,
+  };
 
-  std::string get_client_address() const override {
-    std::ostringstream oss;
-    oss << client_endpoint_;
-    return oss.str();
+  server_protocol_type::socket &socket() { return server_sock_; }
+  server_protocol_type::endpoint &endpoint() { return server_endpoint_; }
+
+  net::steady_timer &timer() { return connect_timer_; }
+
+  void connect_timed_out(bool v) { connect_timed_out_ = v; }
+
+  bool connect_timed_out() const { return connect_timed_out_; }
+
+  std::string destination_id() const { return destination_id_; }
+
+  void on_connect_failure(
+      std::function<void(std::string, uint16_t, std::error_code)> func) {
+    on_connect_failure_ = std::move(func);
   }
 
-  std::string get_server_address() const override {
-    std::ostringstream oss;
-    oss << server_endpoint_;
-    return oss.str();
+  void on_is_destination_good(std::function<bool(std::string, uint16_t)> func) {
+    on_is_destination_good_ = std::move(func);
   }
 
-  void connected() {
-    const auto now = clock_type::now();
-    stats_([now](Stats &stats) { stats.connected_to_server = now; });
+  bool is_destination_good(const std::string &hostname, uint16_t port) const {
+    if (on_is_destination_good_) return on_is_destination_good_(hostname, port);
 
-    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-      log_debug("[%s] fd=%d connected %s -> %s as fd=%d",
-                context().get_name().c_str(), client_socket().native_handle(),
-                get_client_address().c_str(), get_server_address().c_str(),
-                server_socket().native_handle());
-    }
-
-    context().increase_info_active_routes();
-    context().increase_info_handled_routes();
+    return true;
   }
 
-  void disconnect() override { client_socket_.cancel(); }
+ protected:
+  stdx::expected<void, std::error_code> resolve();
+  stdx::expected<void, std::error_code> init_destination();
+  stdx::expected<void, std::error_code> init_endpoint();
+  stdx::expected<void, std::error_code> next_endpoint();
+  stdx::expected<void, std::error_code> next_destination();
+  stdx::expected<void, std::error_code> connect_init();
+  stdx::expected<void, std::error_code> try_connect();
+  stdx::expected<void, std::error_code> connect_finish();
+  stdx::expected<void, std::error_code> connected();
+  stdx::expected<void, std::error_code> connect_failed(std::error_code ec);
 
-  void async_run() {
-    std::make_shared<Splicer<ClientProtocol, ServerProtocol>>(
-        this, context_.get_net_buffer_length())
-        ->async_run();
-  }
+  net::io_context &io_ctx_;
 
-  typename client_protocol_type::socket &client_socket() {
-    return client_socket_;
-  }
+  net::ip::tcp::resolver resolver_{io_ctx_};
+  server_protocol_type::socket server_sock_{io_ctx_};
+  server_protocol_type::endpoint server_endpoint_;
 
-  typename client_protocol_type::endpoint client_endpoint() const {
-    return client_endpoint_;
-  }
+  RouteDestination *route_destination_;
+  Destinations destinations_;
+  Destinations::iterator destinations_it_;
+  net::ip::tcp::resolver::results_type endpoints_;
+  net::ip::tcp::resolver::results_type::iterator endpoints_it_;
 
-  typename server_protocol_type::socket &server_socket() {
-    return server_socket_;
-  }
+  std::error_code last_ec_{
+      make_error_code(std::errc::no_such_file_or_directory)};
 
-  typename server_protocol_type::endpoint server_endpoint() const {
-    return server_endpoint_;
-  }
+  Function func_{Function::kInitDestination};
 
- private:
+  net::steady_timer connect_timer_{io_ctx_};
+
+  bool connect_timed_out_{false};
   std::string destination_id_;
 
-  typename client_protocol_type::socket client_socket_;
-  typename client_protocol_type::endpoint client_endpoint_;
+  std::function<void(std::string, uint16_t, std::error_code)>
+      on_connect_failure_;
+  std::function<bool(std::string, uint16_t)> on_is_destination_good_;
+};
 
-  typename server_protocol_type::socket server_socket_;
-  typename server_protocol_type::endpoint server_endpoint_;
+template <class ConnectionType>
+class Connector : public ConnectorBase {
+ public:
+  using ConnectorBase::ConnectorBase;
+
+  stdx::expected<ConnectionType, std::error_code> connect() {
+    switch (func_) {
+      case Function::kInitDestination: {
+        auto init_res = init_destination();
+        if (!init_res) return init_res.get_unexpected();
+
+      } break;
+      case Function::kConnectFinish: {
+        auto connect_res = connect_finish();
+        if (!connect_res) return connect_res.get_unexpected();
+
+      } break;
+    }
+
+    if (destination_id().empty()) {
+      {
+        auto connect_res = try_connect();
+        if (!connect_res) return connect_res.get_unexpected();
+      }
+    }
+
+    return {std::in_place, std::make_unique<TcpConnection>(
+                               std::move(socket()), std::move(endpoint()))};
+  }
 };
 
 #endif /* ROUTING_CONNECTION_INCLUDED */
