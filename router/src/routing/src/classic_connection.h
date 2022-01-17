@@ -346,6 +346,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kCmdCloneExitResponseForward,
     kCmdCloneExitResponseForwardLast,
 
+    kCmdBinlogDump,
+    kCmdBinlogDumpGtid,
+    kCmdBinlogDumpResponse,
+    kCmdBinlogDumpResponseForward,
+    kCmdBinlogDumpResponseForwardLast,
+    kCmdRegisterReplica,
+    kCmdRegisterReplicaResponse,
+
     kWaitClientClosed,
     kFinish,
   };
@@ -577,6 +585,23 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_clone_exit_response_forward();
       case Function::kCmdCloneExitResponseForwardLast:
         return cmd_clone_exit_response_forward_last();
+
+      // binlog
+      case Function::kCmdBinlogDump:
+        return cmd_binlog_dump();
+      case Function::kCmdBinlogDumpGtid:
+        return cmd_binlog_dump_gtid();
+      case Function::kCmdBinlogDumpResponse:
+        return cmd_binlog_dump_response();
+      case Function::kCmdBinlogDumpResponseForward:
+        return cmd_binlog_dump_response_forward();
+      case Function::kCmdBinlogDumpResponseForwardLast:
+        return cmd_binlog_dump_response_forward_last();
+
+      case Function::kCmdRegisterReplica:
+        return cmd_register_replica();
+      case Function::kCmdRegisterReplicaResponse:
+        return cmd_register_replica_response();
 
       case Function::kForwardTlsInit:
         return forward_tls_init();
@@ -902,6 +927,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void cmd_clone_exit_response();
   void cmd_clone_exit_response_forward();
   void cmd_clone_exit_response_forward_last();
+
+  void cmd_binlog_dump();
+  void cmd_binlog_dump_gtid();
+  void cmd_binlog_dump_response();
+  void cmd_binlog_dump_response_forward();
+  void cmd_binlog_dump_response_forward_last();
+  void cmd_register_replica();
+  void cmd_register_replica_response();
 
   // something was received on the client channel.
   void client_recv_cmd();

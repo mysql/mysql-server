@@ -3665,6 +3665,68 @@ void MysqlRoutingClassicConnection::cmd_clone_exit_response_forward_last() {
                                   Function::kClientRecvCmd);
 }
 
+void MysqlRoutingClassicConnection::cmd_binlog_dump() {
+  forward_client_to_server(Function::kCmdBinlogDump,
+                           Function::kCmdBinlogDumpResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_binlog_dump_gtid() {
+  forward_client_to_server(Function::kCmdBinlogDumpGtid,
+                           Function::kCmdBinlogDumpResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_register_replica() {
+  forward_client_to_server(Function::kCmdRegisterReplica,
+                           Function::kCmdRegisterReplicaResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_register_replica_response() {
+  forward_server_to_client(Function::kCmdRegisterReplicaResponse,
+                           Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_binlog_dump_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kCmdBinlogDumpResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    Err = cmd_byte<classic_protocol::message::server::Error>(),
+    Eof = cmd_byte<classic_protocol::message::server::Eof>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::Err:
+    case Msg::Eof:
+      return cmd_binlog_dump_response_forward_last();
+    default:
+      return cmd_binlog_dump_response_forward();
+  }
+}
+
+void MysqlRoutingClassicConnection::cmd_binlog_dump_response_forward() {
+  forward_server_to_client(Function::kCmdBinlogDumpResponseForward,
+                           Function::kCmdBinlogDumpResponse);
+}
+
+void MysqlRoutingClassicConnection::cmd_binlog_dump_response_forward_last() {
+  forward_server_to_client(Function::kCmdBinlogDumpResponseForwardLast,
+                           Function::kClientRecvCmd);
+}
+
 // something was received on the client channel.
 void MysqlRoutingClassicConnection::client_recv_cmd() {
   auto *socket_splicer = this->socket_splicer();
@@ -3696,9 +3758,9 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     Kill = cmd_byte<classic_protocol::message::client::Kill>(),
     Ping = cmd_byte<classic_protocol::message::client::Ping>(),
     ChangeUser = cmd_byte<classic_protocol::message::client::ChangeUser>(),
-    // BinlogDump = cmd_byte<classic_protocol::message::client::BinlogDump>(),
-    // RegisterSlave =
-    //     cmd_byte<classic_protocol::message::client::RegisterSlave>(),
+    BinlogDump = cmd_byte<classic_protocol::message::client::BinlogDump>(),
+    RegisterReplica =
+        cmd_byte<classic_protocol::message::client::RegisterReplica>(),
     StmtPrepare = cmd_byte<classic_protocol::message::client::StmtPrepare>(),
     StmtExecute = cmd_byte<classic_protocol::message::client::StmtExecute>(),
     StmtParamAppendData =
@@ -3708,8 +3770,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
     StmtSetOption =
         cmd_byte<classic_protocol::message::client::StmtSetOption>(),
     StmtFetch = cmd_byte<classic_protocol::message::client::StmtFetch>(),
-    // BinlogDumpGtid =
-    //     cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
+    BinlogDumpGtid =
+        cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
     ResetConnection =
         cmd_byte<classic_protocol::message::client::ResetConnection>(),
     Clone = cmd_byte<classic_protocol::message::client::Clone>(),
@@ -3754,6 +3816,12 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_stmt_param_append_data();
     case Msg::Clone:
       return cmd_clone();
+    case Msg::BinlogDump:
+      return cmd_binlog_dump();
+    case Msg::BinlogDumpGtid:
+      return cmd_binlog_dump_gtid();
+    case Msg::RegisterReplica:
+      return cmd_register_replica();
   }
 
   // unknown command
