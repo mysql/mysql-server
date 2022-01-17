@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ ENDFUNCTION()
 #
 # add a test for mysqlrouter project
 #
-# - adds dependency to the mysqlrouter_all target
+# - adds dependency to the mysqlrouter_all target (except 'integration' tests)
 # - adjusts runtime library search path for the build
 # - adds ASAN/LSAN suppressions
 #
@@ -120,7 +120,10 @@ FUNCTION(_ADD_TEST_FILE FILE)
     ${FILE} ${TEST_EXTRA_SOURCES}
     ADD_TEST ${test_name})
 
-  ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
+  # don't add integration tests dependency on mysqld to 'mysqlrouter_all'
+  IF (NOT (TEST_MODULE STREQUAL "integration"))
+    ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
+  ENDIF()
 
   FOREACH(libtarget ${TEST_LIB_DEPENDS})
     #add_dependencies(${test_target} ${libtarget})
