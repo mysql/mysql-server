@@ -2743,6 +2743,16 @@ void MysqlRoutingClassicConnection::cmd_query() {
                                   Function::kCmdQueryResponse);
 }
 
+void MysqlRoutingClassicConnection::cmd_ping_response() {
+  return forward_server_to_client(Function::kCmdPingResponse,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::cmd_ping() {
+  return forward_client_to_server(Function::kCmdPing,
+                                  Function::kCmdPingResponse);
+}
+
 void MysqlRoutingClassicConnection::cmd_quit_response() { finish(); }
 
 void MysqlRoutingClassicConnection::cmd_quit() {
@@ -2772,6 +2782,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
   enum class Msg {
     Quit = cmd_byte<classic_protocol::message::client::Quit>(),
     Query = cmd_byte<classic_protocol::message::client::Query>(),
+    Ping = cmd_byte<classic_protocol::message::client::Ping>(),
   };
 
   switch (Msg{msg_type}) {
@@ -2779,6 +2790,8 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_quit();
     case Msg::Query:
       return cmd_query();
+    case Msg::Ping:
+      return cmd_ping();
   }
 
   // unknown command

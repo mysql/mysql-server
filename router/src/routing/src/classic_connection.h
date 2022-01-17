@@ -237,6 +237,9 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
     kClientRecvCmd,
 
+    kCmdPing,
+    kCmdPingResponse,
+
     kCmdQuery,
     kCmdQueryResponse,
     kCmdQueryColumnCount,
@@ -336,6 +339,11 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return cmd_quit();
       case Function::kCmdQuitResponse:
         return cmd_quit_response();
+
+      case Function::kCmdPing:
+        return cmd_ping();
+      case Function::kCmdPingResponse:
+        return cmd_ping_response();
 
       case Function::kForwardTlsInit:
         return forward_tls_init();
@@ -573,6 +581,9 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void cmd_query_row_forward_last();
   void cmd_query_row_forward();
   void cmd_query_row_forward_more_resultsets();
+
+  void cmd_ping();
+  void cmd_ping_response();
 
   void cmd_quit();
   void cmd_quit_response();
