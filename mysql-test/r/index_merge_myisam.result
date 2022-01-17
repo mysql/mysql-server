@@ -559,10 +559,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
--> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (cost=19.91 rows=29)
-    -> Intersect rows sorted by row ID  (cost=19.91 rows=29)
-        -> Index range scan on t1 using cola over (cola = 'foo')  (cost=4.91 rows=504)
-        -> Index range scan on t1 using colb over (colb = 'bar')  (cost=4.91 rows=504)
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=29)
+    -> Intersect rows sorted by row ID  (rows=29)
+        -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
+        -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1289,7 +1289,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	10,10	NULL	2	81.20	Using intersect(i1,i2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	10,10	NULL	2	#	Using intersect(i1,i2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key2a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key2b` is null))
 select count(*) from t1 where
@@ -1299,7 +1299,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	i1,i3	i1,i3	10,10	NULL	2	81.20	Using intersect(i1,i3); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	i1,i3	i1,i3	10,10	NULL	2	#	Using intersect(i1,i3); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key3a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key3b` is null))
 select count(*) from t1 where
