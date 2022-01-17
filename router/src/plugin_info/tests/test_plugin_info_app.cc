@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -303,25 +303,25 @@ TEST_P(PluginInfoAppTestReadInfo, ReadInfo) {
 }
 
 const Plugin_data router_plugins[]{
-    Plugin_data{"routing",
-                "Routing MySQL connections between MySQL clients/connectors "
-                "and servers",
-                "0.0.1", R"(
+    {"routing",
+     "Routing MySQL connections between MySQL clients/connectors "
+     "and servers",
+     "0.0.1", R"(
         "logger",
         "router_protobuf",
         "router_openssl",
-        "io"
+        "io",
+        "connection_pool"
     )",
-                ""},
-    Plugin_data{
-        "metadata_cache",
-        "Metadata Cache, managing information fetched from the Metadata Server",
-        "0.0.1", R"(
+     ""},
+    {"metadata_cache",
+     "Metadata Cache, managing information fetched from the Metadata Server",
+     "0.0.1", R"(
         "logger",
         "router_protobuf"
     )",
-        ""},
-    Plugin_data{"keepalive", "Keepalive Plugin", "0.0.1", "", ""},
+     ""},
+    {"keepalive", "Keepalive Plugin", "0.0.1", "", ""},
 };
 
 INSTANTIATE_TEST_SUITE_P(CheckReadInfo, PluginInfoAppTestReadInfo,

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@ FOREACH(test_file
     test_component_test_framework.cc
     test_config.cc
     test_config_overwrites.cc
+    test_connection_pool.cc
     test_gr_notifications.cc
     test_http_server.cc
     test_logging.cc
@@ -56,6 +57,7 @@ FOREACH(test_file
     test_rest_mock_server.cc
     test_rest_router.cc
     test_rest_routing.cc
+    test_rest_connection_pool.cc
     test_router_configuration_errors.cc
     test_routing.cc
     test_routing_connection.cc

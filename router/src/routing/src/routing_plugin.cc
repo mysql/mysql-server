@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -449,11 +449,12 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   io_context_work_guards.clear();
 }
 
-static const std::array<const char *, 4> required = {{
+static const std::array<const char *, 5> required = {{
     "logger",
     "router_protobuf",
     "router_openssl",
     "io",
+    "connection_pool",
 }};
 
 mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
