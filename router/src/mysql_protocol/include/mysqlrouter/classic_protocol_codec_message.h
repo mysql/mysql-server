@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2818,6 +2818,26 @@ class Codec<message::client::ChangeUser>
 
  private:
   const value_type v_;
+};
+
+/**
+ * codec for client's Clone command.
+ *
+ * response: server::Ok or server::Error
+ */
+template <>
+class Codec<message::client::Clone>
+    : public CodecSimpleCommand<Codec<message::client::Clone>,
+                                message::client::Clone> {
+ public:
+  using value_type = message::client::Clone;
+  using __base = CodecSimpleCommand<Codec<value_type>, value_type>;
+
+  constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Clone);
+  }
 };
 
 }  // namespace classic_protocol

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1012,7 +1012,15 @@ inline bool operator==(const AuthMethodData &a, const AuthMethodData &b) {
   return a.auth_method_data() == b.auth_method_data();
 }
 
+// switch to Clone Protocol.
+//
+// response: server::Ok -> clone protocol
+// response: server::Error
+//
+// no content
+class Clone {};
 }  // namespace client
+
 }  // namespace message
 }  // namespace classic_protocol
 
