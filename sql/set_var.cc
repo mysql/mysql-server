@@ -768,11 +768,7 @@ bool System_variable_tracker::access_system_variable(
               thd, suppress_not_found_error == Suppress_not_found_error::YES))
         return true;
       if (f) {
-        extern sys_var *Sys_track_session_sys_vars_ptr;
-        if (m_static.m_static_var == Sys_track_session_sys_vars_ptr)
-          visit_session_track_system_variables(thd, f);
-        else
-          f(*this, m_static.m_static_var);
+        f(*this, m_static.m_static_var);
       }
       return false;
     case KEYCACHE:
@@ -1130,43 +1126,6 @@ bool System_variable_tracker::enumerate_sys_vars(
         });
 
   return false;
-}
-
-void System_variable_tracker::visit_session_track_system_variables(
-    THD *thd,
-    std::function<void(const System_variable_tracker &, sys_var *)> f) const {
-  assert(m_tag == STATIC);
-  extern sys_var *Sys_track_session_sys_vars_ptr;
-  if (m_static.m_static_var != Sys_track_session_sys_vars_ptr)
-    assert(false);  // should never happen
-  if (f == nullptr) {
-    return;
-  }
-  if (thd != nullptr) {
-    if (thd->plugin_lock_recursion_depth++ == 0) {
-      /*
-        Historically, we acquire LOCK_plugin *before*
-        LOCK_system_variables_hash, so, we are not allowed to "upgrade" an
-        existent LOCK_system_variables_hash
-        to LOCK_plugin. Thus, even if LOCK_plugin is not needed at some point
-        where we're acquiring LOCK_system_variables_hash, we still have to
-        hold LOCK_plugin because of possible indirect visit_plugin_variable()
-        call. So, let lock LOCK_plugin "in advance":
-      */
-      mysql_mutex_lock(&LOCK_plugin);
-    }
-    if (thd->system_variable_hash_lock_recursion_depth++ == 0)
-      mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  }
-
-  f(*this, m_static.m_static_var);
-
-  if (thd != nullptr) {
-    if (--thd->system_variable_hash_lock_recursion_depth == 0)
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-    if (--thd->plugin_lock_recursion_depth == 0)
-      mysql_mutex_unlock(&LOCK_plugin);
-  }
 }
 
 bool System_variable_tracker::visit_plugin_variable(
