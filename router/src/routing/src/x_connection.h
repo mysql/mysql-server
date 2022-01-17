@@ -242,6 +242,24 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvCrudDropViewResponseForward,
     kServerRecvCrudDropViewResponseForwardLast,
 
+    // cursor::open
+    kClientCursorOpen,
+    kServerRecvCursorOpenResponse,
+    kServerRecvCursorOpenResponseForward,
+    kServerRecvCursorOpenResponseForwardLast,
+
+    // cursor::fetch
+    kClientCursorFetch,
+    kServerRecvCursorFetchResponse,
+    kServerRecvCursorFetchResponseForward,
+    kServerRecvCursorFetchResponseForwardLast,
+
+    // cursor::close
+    kClientCursorClose,
+    kServerRecvCursorCloseResponse,
+    kServerRecvCursorCloseResponseForward,
+    kServerRecvCursorCloseResponseForwardLast,
+
     kConnect,
     kWaitClientClose,
     kFinish,
@@ -437,6 +455,33 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
       case Function::kServerRecvCrudDropViewResponseForwardLast:
         return server_recv_crud_drop_view_response_forward_last();
 
+      case Function::kClientCursorOpen:
+        return client_cursor_open();
+      case Function::kServerRecvCursorOpenResponse:
+        return server_recv_cursor_open_response();
+      case Function::kServerRecvCursorOpenResponseForward:
+        return server_recv_cursor_open_response_forward();
+      case Function::kServerRecvCursorOpenResponseForwardLast:
+        return server_recv_cursor_open_response_forward_last();
+
+      case Function::kClientCursorFetch:
+        return client_cursor_fetch();
+      case Function::kServerRecvCursorFetchResponse:
+        return server_recv_cursor_fetch_response();
+      case Function::kServerRecvCursorFetchResponseForward:
+        return server_recv_cursor_fetch_response_forward();
+      case Function::kServerRecvCursorFetchResponseForwardLast:
+        return server_recv_cursor_fetch_response_forward_last();
+
+      case Function::kClientCursorClose:
+        return client_cursor_close();
+      case Function::kServerRecvCursorCloseResponse:
+        return server_recv_cursor_close_response();
+      case Function::kServerRecvCursorCloseResponseForward:
+        return server_recv_cursor_close_response_forward();
+      case Function::kServerRecvCursorCloseResponseForwardLast:
+        return server_recv_cursor_close_response_forward_last();
+
       case Function::kConnect:
         return connect();
       case Function::kWaitClientClose:
@@ -609,6 +654,21 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
   void server_recv_crud_drop_view_response();
   void server_recv_crud_drop_view_response_forward();
   void server_recv_crud_drop_view_response_forward_last();
+
+  void client_cursor_open();
+  void server_recv_cursor_open_response();
+  void server_recv_cursor_open_response_forward();
+  void server_recv_cursor_open_response_forward_last();
+
+  void client_cursor_fetch();
+  void server_recv_cursor_fetch_response();
+  void server_recv_cursor_fetch_response_forward();
+  void server_recv_cursor_fetch_response_forward_last();
+
+  void client_cursor_close();
+  void server_recv_cursor_close_response();
+  void server_recv_cursor_close_response_forward();
+  void server_recv_cursor_close_response_forward_last();
 
   XProtocolState *client_protocol() {
     return dynamic_cast<XProtocolState *>(
