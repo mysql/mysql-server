@@ -85,6 +85,7 @@ ADD_ROUTER_TEST_FILE(
     test-helpers
     mysqlxclient_lite
     mysqlxmessages_lite
+    connection_pool
     ${PROTOBUF_LITE_LIBRARY}
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src

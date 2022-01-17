@@ -304,6 +304,17 @@ class TlsSwitchableConnection {
         channel_{std::make_unique<Channel>()},
         protocol_{std::move(state)} {}
 
+  TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
+                          std::unique_ptr<RoutingConnectionBase> routing_conn,
+                          TlsSwitchable tls_switchable,
+                          std::unique_ptr<Channel> channel,
+                          std::unique_ptr<ProtocolStateBase> state)
+      : conn_{std::move(conn)},
+        routing_conn_{std::move(routing_conn)},
+        tls_switchable_{std::move(tls_switchable)},
+        channel_{std::move(channel)},
+        protocol_{std::move(state)} {}
+
   [[nodiscard]] std::vector<std::pair<std::string, std::string>>
   initial_connection_attributes() const {
     return routing_conn_->initial_connection_attributes();
@@ -409,6 +420,8 @@ class TlsSwitchableConnection {
   [[nodiscard]] const ProtocolStateBase *protocol() const {
     return protocol_.get();
   }
+
+  std::unique_ptr<ConnectionBase> &connection() { return conn_; }
 
  private:
   // tcp/unix-socket

@@ -55,6 +55,7 @@ TARGET_LINK_LIBRARIES(routing
   router_mysqlxmessages
   ${PROTOBUF_LITE_LIBRARY}
   metadata_cache
+  connection_pool
   )
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(routing

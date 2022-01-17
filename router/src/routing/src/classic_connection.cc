@@ -33,7 +33,7 @@
 
 #include "basic_protocol_splicer.h"
 #include "channel.h"  // Channel, ClassicProtocolState
-#include "errmsg.h"   // mysql error-codes
+#include "errmsg.h"   // mysql-client error-codes
 #include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/buffer.h"
@@ -49,8 +49,11 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_frame.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "mysqlrouter/connection_pool.h"
+#include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/utils.h"  // to_string
+#include "router/src/routing/src/basic_protocol_splicer.h"
 #include "ssl_mode.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -312,6 +315,21 @@ static bool server_ssl_mode_is_satisfied(
     classic_protocol::capabilities::value_type server_capabilities) {
   if ((server_ssl_mode == SslMode::kRequired) &&
       !server_capabilities.test(classic_protocol::capabilities::pos::ssl)) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool client_compress_is_satisfied(
+    classic_protocol::capabilities::value_type client_capabilities,
+    classic_protocol::capabilities::value_type shared_capabilities) {
+  // client enabled "zlib-compress" without checking the server's caps.
+  //
+  // fail the connect.
+  if (client_capabilities.test(classic_protocol::capabilities::pos::compress) &&
+      !shared_capabilities.test(
+          classic_protocol::capabilities::pos::compress)) {
     return false;
   }
 
@@ -1279,6 +1297,261 @@ void MysqlRoutingClassicConnection::client_send_server_greeting_from_server() {
   }
 }
 
+/**
+ * receive the server's response to change_user_for_resue().
+ *
+ * expects response:
+ * - AuthMethodSwitch
+ * - Ok
+ * - Error
+ *
+ * similar to ::auth_response()
+ */
+void MysqlRoutingClassicConnection::server_recv_change_user_response() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  auto read_res = ensure_has_msg_prefix(src_channel, src_protocol);
+  if (!read_res) {
+    auto ec = read_res.error();
+
+    if (ec == TlsErrc::kWantRead) {
+      return async_recv_server(Function::kServerRecvChangeUserResponse);
+    }
+
+    return recv_server_failed(ec);
+  }
+
+  const uint8_t msg_type = src_protocol->current_msg_type().value();
+
+  enum class Msg {
+    AuthMethodSwitch =
+        cmd_byte<classic_protocol::message::server::AuthMethodSwitch>(),
+    Error = cmd_byte<classic_protocol::message::server::Error>(),
+    Ok = cmd_byte<classic_protocol::message::server::Ok>(),
+  };
+
+  switch (Msg{msg_type}) {
+    case Msg::AuthMethodSwitch:
+      return server_recv_change_user_response_auth_method_switch();
+    case Msg::Error:
+      return server_recv_change_user_response_error();
+    case Msg::Ok:
+      return server_recv_change_user_response_ok();
+  }
+
+  // get as much data of the current frame from the recv-buffers to log it.
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  // if there is another packet, dump its payload for now.
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  log_debug(
+      "received unexpected message from server after a client::ChangeUser: "
+      "%s",
+      hexify(recv_buf).c_str());
+
+  return recv_server_failed(make_error_code(std::errc::bad_message));
+}
+
+void MysqlRoutingClassicConnection::
+    server_recv_change_user_response_auth_method_switch() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  // if it fails, the next function will fail with not-enough-input
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  auto decode_res = classic_protocol::decode<classic_protocol::frame::Frame<
+      classic_protocol::message::server::AuthMethodSwitch>>(
+      net::buffer(recv_buf), src_protocol->server_capabilities());
+  if (!decode_res) {
+    log_debug(
+        "decoding message from server failed after a client::ChangeUser: "
+        "%s\n%s",
+        hexify(recv_buf).c_str(), decode_res.error().message().c_str());
+
+    return recv_server_failed(make_error_code(std::errc::bad_message));
+  }
+
+  auto msg = decode_res.value().second.payload();
+
+  src_protocol->auth_method_name(msg.auth_method());
+
+  return forward_server_to_client(
+      Function::kServerRecvChangeUserResponseAuthMethodSwitch,
+      Function::kAuthClientContinue);
+}
+
+void MysqlRoutingClassicConnection::server_recv_change_user_response_ok() {
+  // change user succeeded right away.
+  return forward_server_to_client(Function::kServerRecvChangeUserResponseOk,
+                                  Function::kClientRecvCmd);
+}
+
+void MysqlRoutingClassicConnection::server_recv_change_user_response_error() {
+  // change user fail.
+  return forward_server_to_client(Function::kServerRecvChangeUserResponseError,
+                                  Function::kClientRecvCmd);
+}
+
+static classic_protocol::message::client::ChangeUser change_user_for_reuse(
+    Channel *src_channel, ClassicProtocolState *src_protocol,
+    [[maybe_unused]] ClassicProtocolState *dst_protocol,
+    std::vector<std::pair<std::string, std::string>>
+        initial_connection_attributes) {
+  harness_assert(src_protocol->client_greeting().has_value());
+
+  auto client_greeting = src_protocol->client_greeting().value();
+
+  const auto append_attrs_res =
+      classic_proto_decode_and_add_connection_attributes(
+          client_greeting,
+          vector_splice(initial_connection_attributes,
+                        client_ssl_connection_attributes(src_channel->ssl())));
+  if (!append_attrs_res) {
+    auto ec = append_attrs_res.error();
+    // if decode/append fails forward the attributes as is. The server should
+    // fail too.
+    //
+    log_warning("%d: decoding connection attributes failed [ignored]: (%s) ",
+                __LINE__, ec.message().c_str());
+  }
+
+#if 0
+  std::cerr << __LINE__ << ": "
+            << src_protocol->server_greeting().value().auth_method_name()
+            << "\n";
+  std::cerr << __LINE__ << ": "
+            << dst_protocol->server_greeting().value().auth_method_name()
+            << "\n";
+  std::cerr << __LINE__ << ": " << client_greeting.auth_method_name() << "\n";
+  std::cerr << __LINE__ << ": " << hexify(client_greeting.auth_method_data())
+            << "\n";
+#endif
+
+  if (src_protocol->server_greeting().has_value()) {
+    auto server_greeting = src_protocol->server_greeting().value();
+
+    // the client sent an empty password. Can be reused.
+    if (server_greeting.auth_method_name() == kCachingSha2Password &&
+        client_greeting.auth_method_name() == kCachingSha2Password &&
+        client_greeting.auth_method_data() == "\x00"s) {
+      return {
+          client_greeting.username(),          // username
+          client_greeting.auth_method_data(),  // auth_method_data
+          client_greeting.schema(),            // schema
+          client_greeting.collation(),         // collation
+          client_greeting.auth_method_name(),  // auth_method_name
+          client_greeting.attributes(),        // attributes
+      };
+    }
+  }
+
+  return {
+      client_greeting.username(),    // username
+      "",                            // auth_method_data
+      client_greeting.schema(),      // schema
+      client_greeting.collation(),   // collation
+      "switch_me_if_you_can",        // auth_method_name
+      client_greeting.attributes(),  // attributes
+  };
+}
+
+void MysqlRoutingClassicConnection::server_send_change_user() {
+  auto *socket_splicer = this->socket_splicer();
+  auto &src_conn = socket_splicer->client_conn();
+  auto src_channel = socket_splicer->client_channel();
+  auto src_protocol = client_protocol();
+
+  auto dst_channel = socket_splicer->server_channel();
+  auto dst_protocol = server_protocol();
+
+  auto change_user_msg =
+      change_user_for_reuse(src_channel, src_protocol, dst_protocol,
+                            src_conn.initial_connection_attributes());
+#if 0
+  std::cerr << __LINE__ << ": username: " << change_user_msg.username() << "\n"
+            << ".. schema: " << change_user_msg.schema() << "\n"
+            << ".. auth-method-name: " << change_user_msg.auth_method_name()
+            << "\n"
+            << ".. auth-method-data: "
+            << hexify(change_user_msg.auth_method_data()) << "\n"
+      //
+      ;
+#endif
+
+  std::vector<uint8_t> frame;
+  auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+      classic_protocol::message::client::ChangeUser>>(
+      {0, change_user_msg},                 // frame
+      dst_protocol->shared_capabilities(),  // caps
+      net::dynamic_buffer(frame));
+
+  if (!encode_res) {
+    const auto ec = encode_res.error();
+
+    log_debug("encoding client::ChangeUser failed: %s", ec.message().c_str());
+
+    return recv_client_failed(ec);
+  }
+
+  dst_channel->write_plain(net::buffer(frame));
+  dst_channel->flush_to_send_buf();
+
+  return async_send_server(Function::kServerRecvChangeUserResponse);
+}
+
+static TlsSwitchableConnection make_connection_from_pooled(
+    PooledClassicConnection &&other) {
+  return {std::move(other.connection()),
+          nullptr,  // routing_conn
+          {SslMode::kPreferred, {}},
+          std::make_unique<Channel>(std::move(other.ssl())),
+          std::make_unique<ClassicProtocolState>(other.server_capabilities(),
+                                                 other.client_capabilities())};
+}
+
+std::optional<PooledClassicConnection>
+MysqlRoutingClassicConnection::try_pop_pooled_connection(
+    const net::ip::tcp::endpoint &ep) {
+  if (!greeting_from_router_) return {};
+
+  auto &pools = ConnectionPoolComponent::get_instance();
+
+  if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
+    // pop the first connection from the pool that matches our requirements
+    //
+    // - endpoint
+    // - capabilities
+
+    auto client_caps = client_protocol()->shared_capabilities();
+
+    client_caps.reset(classic_protocol::capabilities::pos::ssl)
+        .reset(classic_protocol::capabilities::pos::compress)
+        .reset(classic_protocol::capabilities::pos::compress_zstd);
+
+    return pool->pop_if([client_caps, ep = mysqlrouter::to_string(ep),
+                         my_executor = connector().socket().get_executor()](
+                            const auto &pooled_conn) {
+      auto pooled_caps = pooled_conn.shared_capabilities();
+
+      pooled_caps.reset(classic_protocol::capabilities::pos::ssl)
+          .reset(classic_protocol::capabilities::pos::compress)
+          .reset(classic_protocol::capabilities::pos::compress_zstd);
+
+      return (pooled_conn.endpoint() == ep && client_caps == pooled_caps &&
+              pooled_conn.connection()->io_ctx().get_executor() == my_executor);
+    });
+  }
+
+  return {};
+}
+
 void MysqlRoutingClassicConnection::connect() {
   auto &connector = this->connector();
 
@@ -1326,6 +1599,14 @@ void MysqlRoutingClassicConnection::connect() {
       MySQLRoutingComponent::get_instance()
           .api(context().get_id())
           .stop_socket_acceptors();
+    } else if (ec == make_error_condition(std::errc::too_many_files_open) ||
+               ec == make_error_condition(
+                         std::errc::too_many_files_open_in_system)) {
+      // release file-descriptors on the connection pool when out-of-fds is
+      // noticed.
+      //
+      // don't retry as router may run into an infinite loop.
+      ConnectionPoolComponent::get_instance().clear();
     }
 
     log_fatal_error_code("connecting to backend failed", ec);
@@ -1354,13 +1635,27 @@ void MysqlRoutingClassicConnection::connect() {
     return async_send_client_and_finish();
   }
 
-  this->socket_splicer()->server_conn().assign_connection(
-      std::move(connect_res.value()));
+  auto server_connection = std::move(connect_res.value());
 
-  // TODO(jkneschk): use read_buffer_buffer_size here.
-  this->socket_splicer()->server_channel()->recv_buffer().reserve(16 * 1024);
+  if (server_connection.is_authenticated()) {
+    // connection is from pool.
+    this->socket_splicer()->server_conn() =
+        make_connection_from_pooled(std::move(server_connection));
 
-  return server_recv_server_greeting_from_server();
+    this->socket_splicer()->server_channel()->recv_buffer().reserve(
+        context().get_net_buffer_length());
+
+    return server_send_change_user();
+  } else {
+    // connection is fresh.
+    this->socket_splicer()->server_conn().assign_connection(
+        std::move(server_connection.connection()));
+
+    this->socket_splicer()->server_channel()->recv_buffer().reserve(
+        context().get_net_buffer_length());
+
+    return server_recv_server_greeting_from_server();
+  }
 }
 
 /**
@@ -2023,6 +2318,7 @@ void MysqlRoutingClassicConnection::client_recv_second_client_greeting() {
   (void)ensure_has_full_frame(src_channel, src_protocol);
 
   auto &recv_buf = src_channel->recv_plain_buffer();
+
   auto decode_res = classic_protocol::decode<classic_protocol::frame::Frame<
       classic_protocol::message::client::Greeting>>(
       net::buffer(recv_buf), src_protocol->server_capabilities());
@@ -2047,18 +2343,48 @@ void MysqlRoutingClassicConnection::client_recv_second_client_greeting() {
   if (!authentication_method_is_supported(
           client_greeting_msg.auth_method_name())) {
     discard_current_msg(src_channel, src_protocol);
-    std::vector<uint8_t> frame;
-    encode_error_packet(
-        frame, ++src_protocol->seq_id(), src_protocol->shared_capabilities(),
-        CR_AUTH_PLUGIN_CANNOT_LOAD,
-        "Authentication method " + client_greeting_msg.auth_method_name() +
-            " is not supported",
-        "HY000");
 
-    src_channel->write(net::buffer(frame));
-    src_channel->flush_to_send_buf();
+    ++src_protocol->seq_id();
+
+    const auto send_res = send_error_packet(
+        src_channel, src_protocol,
+        {CR_AUTH_PLUGIN_CANNOT_LOAD,
+         "Authentication method " + client_greeting_msg.auth_method_name() +
+             " is not supported",
+         "HY000"});
+
+    if (!send_res) {
+      auto ec = send_res.error();
+
+      log_fatal_error_code("sending error failed", ec);
+
+      return send_client_failed(ec);
+    }
 
     return async_send_client(Function::kFinish);
+  }
+
+  // fail connection from buggy clients that set the compress-cap without
+  // checking if the server's capabilities.
+  if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
+                                    src_protocol->shared_capabilities())) {
+    discard_current_msg(src_channel, src_protocol);
+
+    ++src_protocol->seq_id();
+
+    const auto send_res =
+        send_error_packet(src_channel, src_protocol,
+                          {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+                           "Compression not supported by router."});
+    if (!send_res) {
+      auto ec = send_res.error();
+
+      log_fatal_error_code("sending error failed", ec);
+
+      return send_client_failed(ec);
+    }
+
+    return async_send_client_and_finish();
   }
 
   if (dst_protocol->server_greeting().has_value()) {
@@ -2760,9 +3086,41 @@ void MysqlRoutingClassicConnection::cmd_ping() {
 
 void MysqlRoutingClassicConnection::cmd_quit_response() { finish(); }
 
+PooledClassicConnection make_pooled_connection(
+    TlsSwitchableConnection &&other) {
+  auto *classic_protocol_state =
+      dynamic_cast<ClassicProtocolState *>(other.protocol());
+  return {std::move(other.connection()), other.channel()->release_ssl(),
+          classic_protocol_state->server_capabilities(),
+          classic_protocol_state->client_capabilities()
+
+  };
+}
+
 void MysqlRoutingClassicConnection::cmd_quit() {
-  return forward_client_to_server(Function::kCmdQuit,
-                                  Function::kCmdQuitResponse);
+  // move the connection to the pool.
+  //
+  // the pool will either close it or keep it alive.
+  auto &pools = ConnectionPoolComponent::get_instance();
+
+  if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
+    pool->add(make_pooled_connection(std::exchange(
+        socket_splicer()->server_conn(),
+        TlsSwitchableConnection{
+            nullptr, nullptr, socket_splicer()->server_conn().tls_switchable(),
+            std::make_unique<ClassicProtocolState>()})));
+
+    // client's expect the server to close first.
+    //
+    // close the sending side and wait until the client closed its side too.
+    (void)socket_splicer()->client_conn().shutdown(
+        net::socket_base::shutdown_send);
+
+    async_wait_client_closed();
+  } else {
+    return forward_client_to_server(Function::kCmdQuit,
+                                    Function::kCmdQuitResponse);
+  }
 }
 
 void MysqlRoutingClassicConnection::cmd_init_schema_response() {

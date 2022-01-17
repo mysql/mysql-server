@@ -49,10 +49,16 @@ class CONNECTION_POOL_EXPORT PooledConnection {
   using Ssl = mysql_harness::Ssl;
 
   PooledConnection(std::unique_ptr<ConnectionBase> conn)
-      : conn_{std::move(conn)}, ssl_{}, is_authenticated_{false} {}
+      : conn_{std::move(conn)},
+        ssl_{},
+        is_authenticated_{false},
+        endpoint_{conn_->endpoint()} {}
 
   PooledConnection(std::unique_ptr<ConnectionBase> conn, Ssl ssl)
-      : conn_{std::move(conn)}, ssl_{std::move(ssl)}, is_authenticated_{true} {}
+      : conn_{std::move(conn)},
+        ssl_{std::move(ssl)},
+        is_authenticated_{true},
+        endpoint_{conn_->endpoint()} {}
 
   /**
    * access to conn_.
@@ -99,6 +105,8 @@ class CONNECTION_POOL_EXPORT PooledConnection {
    */
   bool is_authenticated() const { return is_authenticated_; }
 
+  std::string endpoint() const { return endpoint_; }
+
  private:
   /**
    * wait for idle timeout.
@@ -125,6 +133,8 @@ class CONNECTION_POOL_EXPORT PooledConnection {
   net::steady_timer idle_timer_{conn_->io_ctx()};  // timer for async_idle()
 
   bool is_authenticated_{false};
+
+  std::string endpoint_;
 };
 
 class CONNECTION_POOL_EXPORT PooledClassicConnection : public PooledConnection {

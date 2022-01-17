@@ -29,6 +29,7 @@
 #include <cstdint>  // size_t
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "basic_protocol_splicer.h"
 #include "context.h"
@@ -237,6 +238,7 @@ class Connector : public ConnectorBase {
     }
 
     if (destination_id().empty()) {
+      // stops at 'connect_init()
       {
         auto connect_res = try_connect();
         if (!connect_res) return connect_res.get_unexpected();
@@ -246,6 +248,56 @@ class Connector : public ConnectorBase {
     return {std::in_place, std::make_unique<TcpConnection>(
                                std::move(socket()), std::move(endpoint()))};
   }
+};
+
+template <class ConnectionType>
+class PooledConnector : public ConnectorBase {
+ public:
+  using pool_lookup_cb = std::function<std::optional<ConnectionType>(
+      const server_protocol_type::endpoint &ep)>;
+
+  PooledConnector(net::io_context &io_ctx, RouteDestination *route_destination,
+                  pool_lookup_cb pool_lookup)
+      : ConnectorBase{io_ctx, route_destination},
+        pool_lookup_{std::move(pool_lookup)} {}
+
+  stdx::expected<ConnectionType, std::error_code> connect() {
+    switch (func_) {
+      case Function::kInitDestination: {
+        auto init_res = init_destination();
+        if (!init_res) return init_res.get_unexpected();
+
+      } break;
+      case Function::kConnectFinish: {
+        auto connect_res = connect_finish();
+        if (!connect_res) return connect_res.get_unexpected();
+
+      } break;
+    }
+
+    if (destination_id().empty()) {
+      // stops at 'connect_init()
+      if (auto pool_res = probe_pool()) {
+        // return the pooled connection.
+        return std::move(pool_res.value());
+      }
+
+      {
+        auto connect_res = try_connect();
+        if (!connect_res) return connect_res.get_unexpected();
+      }
+    }
+
+    return {std::in_place, std::make_unique<TcpConnection>(
+                               std::move(socket()), std::move(endpoint()))};
+  }
+
+ private:
+  std::optional<ConnectionType> probe_pool() {
+    return pool_lookup_(server_endpoint_);
+  }
+
+  pool_lookup_cb pool_lookup_;
 };
 
 #endif /* ROUTING_CONNECTION_INCLUDED */

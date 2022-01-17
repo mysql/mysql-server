@@ -31,6 +31,7 @@
 
 #include "channel.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
+#include "mysqlrouter/connection_pool.h"
 
 /**
  * protocol state of a classic protocol connection.
@@ -128,7 +129,20 @@ class ClassicProtocolState : public ProtocolStateBase {
 
 class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
  public:
-  using connector_type = Connector<std::unique_ptr<ConnectionBase>>;
+  using connector_type = PooledConnector<PooledClassicConnection>;
+
+  /**
+   * try to pop a connection from the connection pool.
+   *
+   * called by the Pooled Connector.
+   *
+   * @param ep endpoint the connection is targeted for.
+   *
+   * @return if the optional has a value, a classic-connection that is open.
+   */
+
+  std::optional<PooledClassicConnection> try_pop_pooled_connection(
+      const net::ip::tcp::endpoint &ep);
 
   MysqlRoutingClassicConnection(
       MySQLRoutingContext &context, RouteDestination *route_destination,
@@ -136,7 +150,10 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
       std::unique_ptr<RoutingConnectionBase> client_routing_connection,
       std::function<void(MySQLRoutingConnectionBase *)> remove_callback)
       : MySQLRoutingConnectionBase{context, std::move(remove_callback)},
-        connector_{client_connection->io_ctx(), route_destination},
+        connector_{client_connection->io_ctx(), route_destination,
+                   [this](const net::ip::tcp::endpoint &ep) {
+                     return try_pop_pooled_connection(ep);
+                   }},
         socket_splicer_{std::make_unique<ProtocolSplicerBase>(
             TlsSwitchableConnection{
                 std::move(client_connection),
@@ -222,6 +239,11 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     kTlsAccept,
 
     kConnect,
+
+    kServerRecvChangeUserResponse,
+    kServerRecvChangeUserResponseOk,
+    kServerRecvChangeUserResponseError,
+    kServerRecvChangeUserResponseAuthMethodSwitch,
 
     kClientRecvSecondClientGreeting,
 
@@ -370,6 +392,16 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
         return async_wait_client_closed();
       case Function::kClientRecvCmd:
         return client_recv_cmd();
+
+      case Function::kServerRecvChangeUserResponse:
+        return server_recv_change_user_response();
+      case Function::kServerRecvChangeUserResponseError:
+        return server_recv_change_user_response_error();
+      case Function::kServerRecvChangeUserResponseOk:
+        return server_recv_change_user_response_ok();
+      case Function::kServerRecvChangeUserResponseAuthMethodSwitch:
+        return server_recv_change_user_response_auth_method_switch();
+
       case Function::kClientRecvClientGreeting:
         return client_recv_client_greeting();
       case Function::kClientRecvSecondClientGreeting:
@@ -651,6 +683,12 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   void server_recv_server_greeting_greeting();
 
   void connect();
+
+  void server_send_change_user();
+  void server_recv_change_user_response();
+  void server_recv_change_user_response_error();
+  void server_recv_change_user_response_ok();
+  void server_recv_change_user_response_auth_method_switch();
 
   /**
    * server-greeting.
