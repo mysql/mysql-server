@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/flags.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 
 namespace classic_protocol {
@@ -1020,8 +1021,129 @@ inline bool operator==(const AuthMethodData &a, const AuthMethodData &b) {
 // no content
 class Clone {};
 }  // namespace client
-
 }  // namespace message
 }  // namespace classic_protocol
+
+namespace classic_protocol::message::client::impl {
+class BinlogDump {
+ public:
+  // flags of message::client::BinlogDump
+  enum class Flags : uint16_t {
+    non_blocking = 1 << 0,
+  };
+};
+}  // namespace classic_protocol::message::client::impl
+
+namespace stdx {
+// enable flag-ops for BinlogDump::Flags
+template <>
+struct is_flags<classic_protocol::message::client::impl::BinlogDump::Flags>
+    : std::true_type {};
+}  // namespace stdx
+
+namespace classic_protocol::message::client {
+class BinlogDump {
+ public:
+  using Flags = typename impl::BinlogDump::Flags;
+
+  BinlogDump(stdx::flags<Flags> flags, uint32_t server_id, std::string filename,
+             uint32_t position)
+      : position_{position},
+        flags_{flags},
+        server_id_{server_id},
+        filename_{std::move(filename)} {}
+
+  [[nodiscard]] stdx::flags<Flags> flags() const { return flags_; }
+  [[nodiscard]] uint32_t server_id() const { return server_id_; }
+  [[nodiscard]] std::string filename() const { return filename_; }
+  [[nodiscard]] uint64_t position() const { return position_; }
+
+ private:
+  uint32_t position_;
+  stdx::flags<Flags> flags_;
+  uint32_t server_id_;
+  std::string filename_;
+};
+}  // namespace classic_protocol::message::client
+
+namespace classic_protocol::message::client::impl {
+class BinlogDumpGtid {
+ public:
+  // flags of message::client::BinlogDumpGtid
+  enum class Flags : uint16_t {
+    non_blocking = 1 << 0,
+    through_position = 1 << 1,
+    through_gtid = 1 << 2,
+  };
+};
+}  // namespace classic_protocol::message::client::impl
+
+namespace stdx {
+// enable flag-ops for BinlogDumpGtid::Flags
+template <>
+struct is_flags<classic_protocol::message::client::impl::BinlogDumpGtid::Flags>
+    : std::true_type {};
+}  // namespace stdx
+
+namespace classic_protocol::message::client {
+
+class BinlogDumpGtid {
+ public:
+  using Flags = typename impl::BinlogDumpGtid::Flags;
+
+  BinlogDumpGtid(stdx::flags<Flags> flags, uint32_t server_id,
+                 std::string filename, uint64_t position, std::string sids)
+      : flags_{flags},
+        server_id_{server_id},
+        filename_{std::move(filename)},
+        position_{position},
+        sids_{std::move(sids)} {}
+
+  [[nodiscard]] stdx::flags<Flags> flags() const { return flags_; }
+  [[nodiscard]] uint32_t server_id() const { return server_id_; }
+  [[nodiscard]] std::string filename() const { return filename_; }
+  [[nodiscard]] uint64_t position() const { return position_; }
+  [[nodiscard]] std::string sids() const { return sids_; }
+
+ private:
+  stdx::flags<Flags> flags_;
+  uint32_t server_id_;
+  std::string filename_;
+  uint64_t position_;
+  std::string sids_;
+};
+
+class RegisterReplica {
+ public:
+  RegisterReplica(uint32_t server_id, std::string hostname,
+                  std::string username, std::string password, uint16_t port,
+                  uint32_t replication_rank, uint32_t master_id)
+      : server_id_{server_id},
+        hostname_{std::move(hostname)},
+        username_{std::move(username)},
+        password_{std::move(password)},
+        port_{port},
+        replication_rank_{replication_rank},
+        master_id_{master_id} {}
+
+  [[nodiscard]] uint32_t server_id() const { return server_id_; }
+  [[nodiscard]] std::string hostname() const { return hostname_; }
+  [[nodiscard]] std::string username() const { return username_; }
+  [[nodiscard]] std::string password() const { return password_; }
+  [[nodiscard]] uint16_t port() const { return port_; }
+  [[nodiscard]] uint32_t replication_rank() const { return replication_rank_; }
+  [[nodiscard]] uint32_t master_id() const { return master_id_; }
+
+ private:
+  uint32_t server_id_;
+  std::string hostname_;
+  std::string username_;
+  std::string password_;
+  uint16_t port_;
+  uint32_t replication_rank_;
+  uint32_t master_id_;
+};
+
+}  // namespace classic_protocol::message::client
 
 #endif
