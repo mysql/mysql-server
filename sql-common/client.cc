@@ -7606,8 +7606,13 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
 
       /* TODO: Make LOAD DATA LOCAL INFILE asynchronous. */
       if ((length = cli_safe_read(mysql, nullptr)) == packet_error || error) {
-        net_async->async_read_query_result_status =
-            NET_ASYNC_READ_QUERY_RESULT_IDLE;
+        /*
+          When processing of LOAD DATA fails, server sends an error packet,
+          which is handled here, for async connections.
+        */
+        if (NET_ASYNC_DATA(net) != nullptr)
+          net_async->async_read_query_result_status =
+              NET_ASYNC_READ_QUERY_RESULT_IDLE;
         async_context->async_op_status = ASYNC_OP_UNSET;
         async_context->async_query_state = QUERY_IDLE;
         async_context->async_query_length = 0;
