@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -4990,7 +4990,11 @@ ha_innobase::index_type(
 {
 	dict_index_t*	index = innobase_get_index(keynr);
 
-	if (index && index->type & DICT_FTS) {
+	if (index == NULL) {
+		return("NONE");
+	}
+
+	if (index->type & DICT_FTS) {
 		return("FULLTEXT");
 	} else if (dict_index_is_spatial(index)) {
 		return("SPATIAL");
