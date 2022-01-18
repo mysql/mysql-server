@@ -516,7 +516,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       assert(!thd->is_error());
       thd->inc_examined_row_count(1);
 
-      if (qep_tab.condition() != nullptr) {
+      /*if (qep_tab.condition() != nullptr) {
         const bool skip_record = qep_tab.condition()->val_int() == 0;
         if (thd->is_error()) {
           error = 1;
@@ -527,7 +527,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           table->file->unlock_row();
           continue;
         }
-      }
+      }*/
 
       assert(!thd->is_error());
       if (has_before_triggers &&
