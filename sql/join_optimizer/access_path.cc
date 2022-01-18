@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1091,6 +1091,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       }
       case AccessPath::DELETE_ROWS: {
         const auto &param = path->delete_rows();
+        SetUpTablesForDelete(thd, join);
         if (job.children.is_null()) {
           SetupJobsForChildren(mem_root, param.child, join,
                                eligible_for_batch_mode, &job, &todo);

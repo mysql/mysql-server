@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_REF_ROW_ITERATORS_H_
 #define SQL_ITERATORS_REF_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +210,7 @@ class DynamicRangeIterator final : public TableRowIterator {
 
   /**
     Read set to be used when range optimizer picks covering index. This
-    read set is same as what filter_gcol_for_dynamic_ranage_scan()
+    read set is same as what filter_gcol_for_dynamic_range_scan()
     sets up after filtering out the base columns for virtually generated
     columns from the original table read set. By filtering out the base
     columns, it avoids addition of unneeded columns for hash join/BKA.
@@ -272,7 +272,7 @@ class PushedJoinRefIterator final : public TableRowIterator {
   This is used when predicates have been pushed down into an IN subquery
   and then created ref accesses, but said predicates should not be checked for
   a NULL value (so we need to revert to table scans). See
-  QEP_TAB::pick_table_access_method() for a more thorough explanation.
+  QEP_TAB::access_path() for a more thorough explanation.
  */
 class AlternativeIterator final : public RowIterator {
  public:

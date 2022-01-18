@@ -954,3 +954,29 @@ SELECT * FROM t3;
 SELECT * FROM t4;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#33722819: recent regression: crash/corruption with gcols
+--echo #               and multitable delete...
+--echo #
+
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c TIMESTAMP GENERATED ALWAYS AS (65),
+  UNIQUE KEY (a, b),
+  UNIQUE KEY (c, a)
+);
+
+INSERT IGNORE INTO t(a, b) VALUES (1, 1), (2, 2);
+
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+--sorted_result
+SELECT * FROM t;
+# Different number of warnings with the hypergraph optimizer.
+--disable_warnings
+DELETE IGNORE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+--enable_warnings
+SELECT * FROM t;
+DROP TABLE t;

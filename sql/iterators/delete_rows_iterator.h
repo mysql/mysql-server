@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_DELETE_ROWS_ITERATOR_H_
 #define SQL_ITERATORS_DELETE_ROWS_ITERATOR_H_
 
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,5 +91,13 @@ class DeleteRowsIterator final : public RowIterator {
   /// Perform all the delayed deletes for the given table.
   bool DoDelayedDeletesFromTable(TABLE *table);
 };
+
+/// Sets various flags in the TABLE and handler objects associated with the
+/// target tables of a DELETE statement, in order to make them ready to be
+/// deleted from.
+///
+/// @param thd   The session object.
+/// @param join  The top-level JOIN object of the DELETE operation.
+void SetUpTablesForDelete(THD *thd, JOIN *join);
 
 #endif  // SQL_ITERATORS_DELETE_ROWS_ITERATOR_H_

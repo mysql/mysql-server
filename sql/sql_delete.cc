@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,8 +294,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     IGNORE keyword within federated storage engine. If federated engine is
     removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
     HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from
-    delete_from_single_table(), Query_result_delete::optimize() and
-    Query_result_delete::cleanup().
+    delete_from_single_table(), DeleteRowsIterator::Init() and
+    handler::ha_reset().
   */
   if (lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
@@ -947,7 +947,14 @@ DeleteRowsIterator::DeleteRowsIterator(
         m_tables_with_after_triggers |= tr->map();
       }
     }
+  }
+}
 
+void SetUpTablesForDelete(THD *thd, JOIN *join) {
+  for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    if (!tr->is_deleted()) continue;
+    TABLE *table = tr->table;
     table->covering_keys.clear_all();
     table->prepare_for_position();
     table->mark_columns_needed_for_delete(thd);

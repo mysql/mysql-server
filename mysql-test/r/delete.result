@@ -927,3 +927,34 @@ a	b
 101	2
 3	-1
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#33722819: recent regression: crash/corruption with gcols
+#               and multitable delete...
+#
+CREATE TABLE t (
+a INT,
+b INT,
+c TIMESTAMP GENERATED ALWAYS AS (65),
+UNIQUE KEY (a, b),
+UNIQUE KEY (c, a)
+);
+INSERT IGNORE INTO t(a, b) VALUES (1, 1), (2, 2);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'c' at row 2
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+ERROR 22007: Incorrect datetime value: '65' for column 'c' at row 1
+SELECT * FROM t;
+a	b	c
+1	1	0000-00-00 00:00:00
+2	2	0000-00-00 00:00:00
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 1
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 2
+Warnings:
+DELETE IGNORE d2 FROM t AS d1, t AS d2 WHERE d1.a > d2.a;
+SELECT * FROM t;
+a	b	c
+2	2	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '65' for column 'c' at row 1
+DROP TABLE t;
