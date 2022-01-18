@@ -119,7 +119,7 @@ static MYSQL_SYSVAR_ULONGLONG(
   "The maximum number of rows in a Fastbit partition.  An entire partition must fit in the cache.",
   NULL,
   NULL,
-  1000000,
+  10000000,
   64000,
   1ULL<<63,
   0
@@ -145,7 +145,7 @@ static MYSQL_SYSVAR_ULONGLONG(
   "Fastbit file cache size",
   NULL,
   NULL,
-  200000,
+  1000000,
   32000,
   1ULL<<63,
   0
@@ -566,7 +566,11 @@ bool warp_is_trx_open(uint64_t trx_id);
 
 std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table_dir);
 const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts, std::unordered_map<std::string, bool> query_tables = {});
-
+uint64_t get_least_row_count(std::unordered_map<const char*, uint64_t>* table_counts);
+bool has_empty_table(std::unordered_map<const char*, uint64_t>* table_counts);
+//If any table is empty or limit 0 then abort the scan
+bool abort_query = false;
+bool full_partition_scan = false;
 warp_trx* warp_get_trx(handlerton* hton, THD* thd);
 
 //This is the handler where the majority of the work is done.  Handles

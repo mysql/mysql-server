@@ -438,7 +438,7 @@ static int free_share(WARP_SHARE *share) {
     my_free(share);
   }
   mysql_mutex_unlock(&warp_mutex);
-
+  
   DBUG_RETURN(result_code);
 }
 
@@ -799,7 +799,11 @@ std::string ha_warp::get_writer_partition() {
   retval = std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts->size()-1));
   done:
   write_mutex.unlock();
-  parts->clear();
+  
+  for(auto it=parts->begin();it!=parts->end();++it) {
+    delete *it;
+    *it=NULL;
+  }
   delete parts;
   return retval;
 }
@@ -896,7 +900,6 @@ int ha_warp::write_row(uchar *buf) {
 // scans this verion of the row will not be visible to this or 
 // newer transactions and will be visible to older transactions.
 int ha_warp::update_row(const uchar *, uchar *new_data) {
-  
   DBUG_ENTER("ha_warp::update_row");
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
@@ -917,10 +920,10 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   
   int retval = write_row(new_data);
   if(retval == 0) {
-  // only log the delete and create the history lock 
-  // if the write completed successfully.  The EX_LOCK
-  // will still be held so the update can be retried
-  // without having to lock the row again. 
+    // only log the delete and create the history lock 
+    // if the write completed successfully.  The EX_LOCK
+    // will still be held so the update can be retried
+    // without having to lock the row again. 
     current_trx->write_delete_log_rowid(deleted_rowid);
     
     warp_state->create_lock(deleted_rowid, current_trx, LOCK_HISTORY);
@@ -985,14 +988,14 @@ WARP_SHARE* ha_warp::get_warp_share() {
 */
 int ha_warp::info(uint) {
   DBUG_ENTER("ha_warp::info");
+  std::unordered_map<std::string, bool> query_tables;
   close_in_extra = true;
   
-  std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
-  
+  auto table_counts = get_table_counts_in_schema(share->data_dir_name);
+
   auto thd = current_thd;
   auto cur_table = thd->open_tables;
-
-  std::unordered_map<std::string, bool> query_tables;
+  
   while(cur_table != NULL) {
     auto handler = (ha_warp*)(cur_table->file);
     auto other_share = handler->get_warp_share();
@@ -1001,6 +1004,7 @@ int ha_warp::info(uint) {
   }
   
   const char* table_with_most_rows = get_table_with_most_rows(&table_counts, query_tables);
+  uint64_t least_row_count = get_least_row_count(&table_counts);
   assert(table_with_most_rows != NULL);
   bool is_fact_table = false;
 
@@ -1010,7 +1014,7 @@ int ha_warp::info(uint) {
   if(strstr(share->data_dir_name, table_with_most_rows) != NULL) {
     is_fact_table = true;
     if(THDVAR(table->in_use, adjust_table_stats_for_joins)) {
-      stats.records = 2;
+      stats.records = least_row_count+2;
     }
   } 
 
@@ -1458,7 +1462,7 @@ int ha_warp::rnd_init(bool) {
   fetch_count = 0;
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
   char* partition_filter = THDVAR(table->in_use, partition_filter);
- 
+  full_partition_scan = false;
   /* extract/use the partition filter if provided*/
   uint partition_filter_len = strlen(partition_filter);
   partition_filter_alias = "";
@@ -1546,7 +1550,10 @@ int ha_warp::rnd_init(bool) {
         part_it = partitions->begin();
       }
     } else {
-      partitions = NULL;
+      partitions = new ibis::partList;
+      full_partition_scan = true;
+      ibis::util::gatherParts(*partitions, share->data_dir_name, true);
+      part_it = partitions->begin();
     }
   }
 
@@ -1722,89 +1729,85 @@ int ha_warp::rnd_next(uchar *buf) {
   // transaction id of the current row
   uint64_t row_trx_id = 0;
 fetch_again:  
-
-  if( partitions != NULL && bitmap_merge_join_executed == false ) {
-    if(1) {
-      
-      if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
-        ++part_it;
+  
+  if( !full_partition_scan && partitions != NULL && bitmap_merge_join_executed == false ) {
+    if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
+      ++part_it;
+    }
+  
+    while( part_it != partitions->end() ) {        
+      //verify that the partition is valid / not empty
+      base_table = ibis::table::create((*part_it)->currentDataDir());
+      rownum = 0;
+      if(!base_table) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
-    
-      while( part_it != partitions->end() ) {        
-        //verify that the partition is valid / not empty
-        base_table = ibis::table::create((*part_it)->currentDataDir());
-        rownum = 0;
-        if(!base_table) {
-          DBUG_RETURN(HA_ERR_END_OF_FILE);
-        }
-        
-        delete base_table;
-        base_table = NULL;
-        filtered_table = NULL;
-        
-        auto column_query = new ibis::query((const char*)(0), (*part_it), (const char*)(0));
-        if( push_where_clause == "" ) {
-          push_where_clause = "1=1";
-        }
-        
-        column_query->addConditions(push_where_clause.c_str());
-        column_query->evaluate();
-        if( column_query->getNumHits() != 0 ) {
-          // nothing happens if this function is called more than once during query evaluation
-          // but it must be executed at least once when parallel hash join is being used
-          bitmap_merge_join();
-          
-          // this is zero if join optimization is not being used
-          if(fact_table_filters.size() == 0) {
-          
-            if( push_where_clause == "" ) {
-              push_where_clause = "1=1";
-            }
-            
-          } else {
-          
-            if( matching_ridset.size() == 0 ) {
-              for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
-                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
-              }
-            }  
-            
-            while(1) {
-              parallel_join_mutex.lock();
-              auto tmp = running_join_threads;
-              parallel_join_mutex.unlock();
-              
-              if(tmp >= THDVAR(table->in_use, max_degree_of_parallelism) ) {
-                
-                struct timespec sleep_time;
-                struct timespec remaining_time;
-                sleep_time.tv_sec = (time_t)0;
-                sleep_time.tv_nsec = 100000000L; // sleep a millisecond
-                
-                nanosleep(&sleep_time, &remaining_time);
-                continue;
-              } 
-              
-              parallel_join_mutex.lock();
-              ++running_join_threads;
-              
-              parallel_join_mutex.unlock();
-              std::thread(exec_pushdown_join,column_query, part_it, &fact_table_filters, &matching_ridset, &running_join_threads, &parallel_join_mutex, &running_dimension_merges, &dimension_merge_mutex).detach();
-              break;
-
-            }  
-          }
-        } 
-        ++part_it;
-      } // jobs for joining all the partitions involved in the query have been scheduled   
       
-      part_it = partitions->begin();
-      current_matching_ridset = NULL;
-    } 
+      delete base_table;
+      base_table = NULL;
+      filtered_table = NULL;
+      
+      auto column_query = new ibis::query((const char*)(0), (*part_it), (const char*)(0));
+      if( push_where_clause == "" ) {
+        push_where_clause = "1=1";
+      }
+      
+      column_query->addConditions(push_where_clause.c_str());
+      column_query->evaluate();
+      if( column_query->getNumHits() != 0 ) {
+        // nothing happens if this function is called more than once during query evaluation
+        // but it must be executed at least once when parallel hash join is being used
+        bitmap_merge_join();
+        
+        // this is zero if join optimization is not being used
+        if(fact_table_filters.size() == 0) {
+        
+          if( push_where_clause == "" ) {
+            push_where_clause = "1=1";
+          }
+          
+        } else {
+        
+          if( matching_ridset.size() == 0 ) {
+            for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
+              matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
+            }
+          }  
+          
+          while(1) {
+            parallel_join_mutex.lock();
+            auto tmp = running_join_threads;
+            parallel_join_mutex.unlock();
+            
+            if(tmp >= THDVAR(table->in_use, max_degree_of_parallelism) ) {
+              
+              struct timespec sleep_time;
+              struct timespec remaining_time;
+              sleep_time.tv_sec = (time_t)0;
+              sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+              
+              nanosleep(&sleep_time, &remaining_time);
+              continue;
+            } 
+            
+            parallel_join_mutex.lock();
+            ++running_join_threads;
+            
+            parallel_join_mutex.unlock();
+            std::thread(exec_pushdown_join,column_query, part_it, &fact_table_filters, &matching_ridset, &running_join_threads, &parallel_join_mutex, &running_dimension_merges, &dimension_merge_mutex).detach();
+            break;
+
+          }  
+        }
+      } 
+      ++part_it;
+      
+    } // jobs for joining all the partitions involved in the query have been scheduled   
     
+    part_it = partitions->begin();
+    current_matching_ridset = NULL;
   } 
   
-
   // wait for scheduled join to complete
   while(all_jobs_completed == false) {
     parallel_join_mutex.lock();
@@ -1812,6 +1815,7 @@ fetch_again:
       parallel_join_mutex.unlock();
       // next time the mutex won't be held!
       all_jobs_completed = true;
+      rownum = 0;
       break;
     }
     
@@ -1891,45 +1895,30 @@ fetch_again:
     }
     
   } else {
-    if(partitions != NULL && cursor == NULL) {
+    
+    // table scan (possibly with filters) without any joins
+    if(cursor == NULL) {
       if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
+      
         ++part_it;
+        if(part_it == partitions->end()) {
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
+        }
       }
       
-      if(part_it == partitions->end()) {
-        DBUG_RETURN(-1);
-      }
-
       base_table = ibis::table::create((*part_it)->currentDataDir());
-      assert(base_table);
-      
+      assert(base_table != NULL);
       
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-      
-      if(!filtered_table) {
-        ++part_it;
-        goto fetch_again;
+      if(filtered_table==NULL) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
-      cursor = filtered_table->createCursor();
       
-    } else {  
-      
-      // table scan (possibly with filters) without any joins
-      if(cursor == NULL) {
-        base_table = ibis::table::create(this->share->data_dir_name);
-        assert(base_table != NULL);
-        
-        filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-        
-        if(filtered_table==NULL) {
-          ++part_it;
-          goto fetch_again;
-        }
-        cursor = filtered_table->createCursor();  
-      }
-    }
+      cursor = filtered_table->createCursor();  
+      rownum = 0;
+    } 
   }
-
+  
   if( !cursor ) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
@@ -1941,6 +1930,7 @@ fetch_again:
   int res = 10;
   
   if(matching_ridset.size() >0 ) {
+    
     if(current_matching_ridset_it != current_matching_ridset->end()) {
       rownum = (*current_matching_ridset_it);
       res = cursor->fetch(rownum-1);
@@ -1949,6 +1939,7 @@ fetch_again:
     // if end of ridset res still = 10 here and the fetch failure
     // is handled below, objects are free'd etc..
   } else {
+    
     // during pushdown joins the dimensions have a set of buffered rowids
     // this is a scan of one of the dimension tables (because current_matching_ridset_it )
     if( current_matching_dim_ridset != NULL ) {  
@@ -1964,7 +1955,7 @@ fetch_again:
       ++rownum;
     }
   }
-
+  
   if( res != 0 ) {
     fetch_count = 0;
     if( partitions != NULL && fact_table_filters.size() > 0 ) {
@@ -1980,10 +1971,25 @@ fetch_again:
       ++part_it;
       goto next_ridset;
     }
-   
+       
     if(current_matching_dim_ridset != NULL) {
       delete current_matching_dim_ridset;
       current_matching_dim_ridset = NULL;
+    }
+    
+    if(partitions != NULL) {
+      ++part_it;
+      if(part_it == partitions->end()) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE); 
+      }
+      delete cursor;
+      cursor = NULL;
+      delete filtered_table;
+      filtered_table=NULL;
+      delete base_table;
+      base_table=NULL;
+      
+      goto fetch_again;
     }
        
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -2009,7 +2015,7 @@ fetch_again:
   if(!is_trx_visible) {
     goto fetch_again;
   }
-  
+  //std::cerr << "trx_id: " << row_trx_id << " is visible\n";
   // if the row would be visible due to row_trx_id it might not
   // be visible if it has been changed in a future transaction.
   // because the delete_rows bitmap has bits possibly committed
@@ -2018,7 +2024,7 @@ fetch_again:
   if(!is_row_visible_to_read(current_rowid)) {
     goto fetch_again;
   }
-  
+  //std::cerr << "rowid: " << current_rowid << " is visible to read\n";
   // Lock rows during a read if requested
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   int lock_taken = 0;
@@ -2052,7 +2058,6 @@ fetch_again:
 */
 int ha_warp::rnd_end() {
   DBUG_ENTER("ha_warp::rnd_end");
-  
   blobroot.Clear();
    
   push_where_clause = "";
@@ -2060,7 +2065,13 @@ int ha_warp::rnd_end() {
   if(base_table) delete base_table;
   if(cursor) delete cursor;
   if(filtered_table) delete filtered_table;
-  if(partitions) delete partitions;
+  if(partitions) {
+    for(auto it=partitions->begin();it!=partitions->end();++it) {
+      delete *it;
+      *it=NULL;
+    } 
+    delete partitions;
+  }
   base_table = NULL;
   filtered_table = NULL;
   cursor = NULL;
@@ -2087,6 +2098,7 @@ int ha_warp::rnd_end() {
 */
 void ha_warp::position(const uchar *) {
   DBUG_ENTER("ha_warp::position");
+  std::cerr << "[position] store rownum:" << rownum << "\n";
   my_store_ptr(ref, ref_length, rownum);
   DBUG_VOID_RETURN;
 }
@@ -2097,11 +2109,15 @@ void ha_warp::position(const uchar *) {
 int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_ENTER("ha_warp::rnd_pos");
+  std::cerr << "[rnd_pos] enter\n";
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   auto current_rownum = my_get_ptr(pos, ref_length);
+  std::cerr << "[rnd_pos] current_rownum = " << current_rownum << "\n";
+  rownum = current_rownum;
   cursor->fetch(current_rownum);
   rc = find_current_row(buf, cursor);
   cursor->getColumnAsULong("r", current_rowid);
+  std::cerr << "rownum:" << rownum << " rowid:" << current_rowid << "\n";
   DBUG_RETURN(rc);
 }
 
@@ -2442,6 +2458,7 @@ int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
  * @return Possible error code, '0' if no errors.
  */
 int ha_warp::engine_push(AQP::Table_access *table_aqp) {
+  
   push_where_clause="";
   const Item *remainder = NULL;
   //push_where_clause = "";
@@ -2455,7 +2472,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
   if(thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     const Item *cond = table_aqp->get_condition();
     if(cond == nullptr) return 0;
-
+        
     auto cond2 = table_aqp->get_condition();
     String str;
     str.reserve(1024*1024);
@@ -2483,6 +2500,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
    This code is called from ha_warp::engine_push in 8.0.20+
 */
 const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
+  
   static int depth=0;
   static int unpushed_condition_count = 0;
   static int condition_count = 0;
@@ -2516,13 +2534,22 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
     if(items.size() > 1) {
       auto i0 = (Item_cond*)(items[0]);
       auto i1 = (Item_cond*)(items[1]);
+      String str;
+      str.reserve(1024*1024);
+      i0->print(current_thd, &str, QT_ORDINARY);
+      std::cerr << "Arg0: " << std::string(str.c_ptr(),str.length()) << "\n";
+      str.length(0);
+      i1->print(current_thd, &str, QT_ORDINARY);
+      std::cerr << "Arg1: " << std::string(str.c_ptr(),str.length()) << "\n";
       auto i0ut = i0->used_tables();
       auto i1ut = i1->used_tables();
-      if(i0ut != i1ut) {
-        where_clause += "1=1";
-        unpushed_condition_count++;
-        return cond;
-      }
+      std::cerr << "Arg0 used_tables:" << i0ut << "\n";
+      std::cerr << "Arg1 used_tables:" << i1ut << "\n";
+      //if(i0ut != i1ut) {
+      //  where_clause += "1=1";
+      //  unpushed_condition_count++;
+      //  return cond;
+      //}
     }
     for (uint i = 0; i < cnt; ++i) {
       auto item = items.pop();
@@ -4341,6 +4368,8 @@ warp_global_data::~warp_global_data() {
     sql_print_error("Could not close bitmap %s", delete_bitmap->get_fname().c_str());
     assert(false);
   }
+  delete delete_bitmap;
+  delete_bitmap=NULL;
   write();
   fclose(fp);
   
@@ -4373,7 +4402,9 @@ std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table
       table_counts.emplace(part->currentDataDir(), tbl->nRows());
       delete tbl;
     }
+    
   }
+  
   free(schema_dir);
   
   return table_counts;
@@ -4398,7 +4429,20 @@ const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* 
   return table_with_max_cnt;
 }
 
+// return the path to the table with the most rows in the database
+uint64_t get_least_row_count(std::unordered_map<const char*, uint64_t>* table_counts) {
+  uint64_t min_cnt = -1ULL;
+  
+  for(auto it = table_counts->begin(); it != table_counts->end(); it++) {
+    if(it->second <= min_cnt) {
+      min_cnt = it->second;
+    }
+  }
+  return min_cnt;
+}
+
 uint64_t get_pushdown_info_count(THD* thd) {
+
   pushdown_mtx.lock();
   if(pd_info.empty()) { 
     pushdown_mtx.unlock();
