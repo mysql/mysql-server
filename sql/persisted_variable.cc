@@ -948,9 +948,6 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
     During server startup before server components are initialized
     current_thd is NULL thus instantiate new temporary THD.
     After server has started we have current_thd so make use of current_thd.
-    TODO(gleb): this is not true (any more?), the function is called during
-    server startup a bit too late so current_thd neither NULL nor
-    current_thd->is_bootstrap_system_thread().
   */
   if (current_thd) {
     thd = current_thd;
@@ -978,6 +975,9 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
 #endif
     new_thd = true;
     alloc_and_copy_thd_dynamic_variables(thd, !plugin_options);
+  }
+  if (plugin_options) {
+    assert(!new_thd);
   }
   /*
    locking is not needed as this function is executed only during server
@@ -1128,65 +1128,43 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
       There are currently 4 groups of code paths to call the current
       function Persisted_variables_cache::set_persisted_options():
 
-      1. Directly from mysqld_main() with plugin_options=false.
-         Since plugin_options is false, we should not care about LOCK_plugin and
-         LOCK_system_variables_hash.
+      1. Directly from mysqld_main().
 
-      2. Indirectly from mysqld_main() with plugin_options=true:
+         There is only one thread ATM (current_thd == nullptr), so locks aren't
+         necessary and we suppress them using the Is_single_thread::YES flag.
+
+      2. Indirectly from mysqld_main():
            mysqld_main() ->
              init_server_components() ->
                plugin_register_builtin_and_init_core_se() ->
                  update_persisted_plugin_sysvars()
 
-         plugin_option is true here, but we still don't have to care about
-         LOCK_plugin and LOCK_system_variables_hash since this is a
-         single-threaded environment: current_thd == nullptr.
+         Ditto: Is_single_thread::YES.
 
-      3. Indirectly from mysql_install_plugin() with plugin_options=true:
+      3. Indirectly from mysql_install_plugin():
            mysql_install_plugin() ->
              update_persisted_plugin_sysvars()
 
-         plugin_option is true here, but sql_plugin.cc always acquire
-         LOCK_plugin and LOCK_system_variables_hash before calling method,
-         so we should not try to re-acquire them recursively in
-         Persisted_variables_cache::set_persisted_options().
+         sql_plugin.cc always acquire LOCK_system_variables_hash and
+         LOCK_plugin for us before calling method,
+         so, we suppress double locks with Is_already_locked::YES.
 
-      4. Directly from mysql_component_sys_variable_imp::register_variable()
-         with plugin_options=true.
+      4. Directly from mysql_component_sys_variable_imp::register_variable().
+
          mysql_component_sys_variable_imp::register_variable() holds
-         LOCK_plugin and LOCK_system_variables_hash for us.
+         LOCK_plugin and LOCK_system_variables_hash for us, so,
+         we suppress double locks with Is_already_locked::YES.
 
-      Thus, set_persisted_options() don't have to care about LOCK_plugin and
-      LOCK_system_variables_hash.
-
-      OTOH, the caller may execute set_persisted_options():
-
-      A. in a single-threaded environment: no THD object, no locks have been
-         acquired, and we don't have to acquire any extra locks.
-
-      B. in a concurrent environments: locks have acquired for us by the caller,
-         current_thd is not nullptr, but
-         current_thd->plugin_lock_recursion_depth and
-         current_thd->system_variable_hash_lock_recursion_depth are
-         unset (i.e. set to zero) because of the nature of callers.
-
-      So, the current function
-      Persisted_variables_cache::set_persisted_options() should never acquire
-      neither LOCK_plugin nor LOCK_system_variables_hash, but, nevertheless
-      whether they are locked or not, to prevent recursive locks in
-      System_variable_tracker::.access_system_variable(), we have to
-      increment/decrement THD::plugin_lock_recursion_depth and
-      THD::system_variable_hash_lock_recursion_depth here:
+       Note: Is_single_thread::YES implies Is_already_locked::YES,
+       so, Is_already_locked is "YES" here unconditionally.
     */
-    thd->plugin_lock_recursion_depth++;
-    thd->system_variable_hash_lock_recursion_depth++;
     std::optional<bool> sv_status =
         System_variable_tracker::make_tracker(var_name)
             .access_system_variable<bool>(
                 thd, f, Suppress_not_found_error::YES,
-                Force_sensitive_system_variable_access::YES);
-    thd->system_variable_hash_lock_recursion_depth--;
-    thd->plugin_lock_recursion_depth--;
+                Force_sensitive_system_variable_access::YES,
+                Is_already_locked::YES,
+                new_thd ? Is_single_thread::YES : Is_single_thread::NO);
 
     if (!sv_status.has_value()) {  // not found
       /*
@@ -1742,6 +1720,7 @@ void Persisted_variables_cache::load_aliases() {
         }
       };
   lock();
+  if (current_thd != nullptr) mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
   for (auto iter : var_set) {
@@ -2160,6 +2139,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
 
     // If the variable has an alias, erase that too.
     std::string alias_name;
+    mysql_mutex_assert_not_owner(&LOCK_plugin);
     mysql_rwlock_rdlock(&LOCK_system_variables_hash);
     { alias_name = get_variable_alias(name); }
     mysql_rwlock_unlock(&LOCK_system_variables_hash);

@@ -194,9 +194,6 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
-int lock_plugin_data();
-int unlock_plugin_data();
-
 bool end_transaction(THD *thd, bool error);
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,7 @@ int mysql_add_sysvar(sys_var *var) {
   assert(var->cast_pluginvar() != nullptr);
   /* A write lock should be held on LOCK_system_variables_hash */
   /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   if (!get_dynamic_system_variable_hash()
            ->emplace(to_string(var->name), var)
@@ -359,11 +360,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     if (mysqld_server_started) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
       if (pv != nullptr) {
-        mysql_mutex_lock(&LOCK_plugin);
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+        mysql_mutex_lock(&LOCK_plugin);
         bool error = pv->set_persisted_options(true);
-        mysql_rwlock_unlock(&LOCK_system_variables_hash);
         mysql_mutex_unlock(&LOCK_plugin);
+        mysql_rwlock_unlock(&LOCK_system_variables_hash);
         if (error)
           LogErr(ERROR_LEVEL,
                  ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT,
@@ -488,6 +489,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
         com_sys_var_name.append(component_name) ||
         com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
       return true;  // OOM
+    if (current_thd != nullptr) {
+      // During shutdown we have no THD, and we have already done
+      // mysql_mutex_destroy(&LOCK_plugin);
+      mysql_mutex_assert_not_owner(&LOCK_plugin);
+    }
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
     sys_var *sysvar = nullptr;

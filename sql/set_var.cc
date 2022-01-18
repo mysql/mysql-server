@@ -120,7 +120,8 @@ bool get_sysvar_source(const char *name, uint length,
 
   bool ret = false;
 
-  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
   sysvar = find_or_nullptr(*get_dynamic_system_variable_hash(), str);
   if (sysvar == nullptr) {
@@ -626,6 +627,8 @@ static void merge_names(char *to, size_t capacity, std::string_view from1,
   }
 }
 
+thread_local int System_variable_tracker::m_hash_lock_recursion_depth{0};
+
 System_variable_tracker::System_variable_tracker(Static, sys_var *var)
     : m_tag{STATIC}, m_static{var} {
   assert(var != nullptr);
@@ -757,8 +760,9 @@ const char *System_variable_tracker::get_var_name() const {
 bool System_variable_tracker::access_system_variable(
     THD *thd, std::function<void(const System_variable_tracker &, sys_var *)> f,
     Suppress_not_found_error suppress_not_found_error,
-    Force_sensitive_system_variable_access force_sensitive_variable_access)
-    const {
+    Force_sensitive_system_variable_access force_sensitive_variable_access,
+    Is_already_locked is_already_locked,
+    Is_single_thread is_single_thread) const {
   switch (m_tag) {
     case STATIC:
       cache_metadata(thd, m_static.m_static_var);
@@ -805,7 +809,8 @@ bool System_variable_tracker::access_system_variable(
         m_plugin.m_plugin_var_cache = nullptr;
         return false;
       };
-      return visit_plugin_variable(thd, wrapper, suppress_not_found_error);
+      return visit_plugin_variable(thd, wrapper, suppress_not_found_error,
+                                   is_already_locked, is_single_thread);
     }
     case COMPONENT:
       if (m_component.m_component_var_cache != nullptr) {
@@ -830,7 +835,8 @@ bool System_variable_tracker::access_system_variable(
         m_component.m_component_var_cache = nullptr;
         return false;
       };
-      return visit_component_variable(thd, wrapper, suppress_not_found_error);
+      return visit_component_variable(thd, wrapper, suppress_not_found_error,
+                                      is_already_locked, is_single_thread);
   }
   my_abort();  // to make compiler happy
 }
@@ -1130,59 +1136,65 @@ bool System_variable_tracker::enumerate_sys_vars(
 
 bool System_variable_tracker::visit_plugin_variable(
     THD *thd, std::function<bool(sys_var *)> function,
-    Suppress_not_found_error suppress_not_found_error) const {
+    Suppress_not_found_error suppress_not_found_error,
+    Is_already_locked is_already_locked,
+    Is_single_thread is_single_thread) const {
   assert(m_tag == PLUGIN);
   assert(function);
 
   if (thd != nullptr) {
-    thd->plugin_lock_recursion_depth++;
-    thd->system_variable_hash_lock_recursion_depth++;
+    m_hash_lock_recursion_depth++;
   }
-  const bool force_plugin_lock =
-      thd != nullptr && thd->plugin_lock_recursion_depth == 1;
-  const bool force_hash_lock =
-      thd != nullptr && thd->system_variable_hash_lock_recursion_depth == 1;
+  const bool force_hash_lock = thd != nullptr &&
+                               m_hash_lock_recursion_depth == 1 &&
+                               is_already_locked == Is_already_locked::NO &&
+                               is_single_thread == Is_single_thread::NO;
 
-  if (force_plugin_lock) {
-    mysql_mutex_lock(&LOCK_plugin);
-  }
   if (force_hash_lock) {
+    mysql_mutex_assert_not_owner(&LOCK_plugin);
     mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   }
   sys_var *var =
       find_dynamic_system_variable(std::string{m_plugin.m_plugin_var_name});
-  if (force_hash_lock) {
-    // Safe to unlock: we hold LOCK_plugin anyway, so sys_var* is stable:
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  if (var != nullptr) {
+    sys_var_pluginvar *pi = var->cast_pluginvar();
+    assert(pi != nullptr && pi->is_plugin);
+    /*
+      pi->plugin is NULL if:
 
-    if (var != nullptr) {
-      sys_var_pluginvar *pi = var->cast_pluginvar();
-      assert(pi != nullptr && pi->is_plugin);
-      /*
-        pi->plugin is NULL if:
+      A. we calling this function from the INSTALL PLUGIN statement executor
 
-        A. we calling this function from the INSTALL PLUGIN statement executor
+      or
 
-        or
+      B. we are loading a bunch of plugins from the mysql.plugin table,
+         and plugin objects aren't allocated yet but their dynamic system
+         variables are registered in the dictionary
 
-        B. we are loading a bunch of plugins from the mysql.plugin table,
-           and plugin objects aren't allocated yet but their dynamic system
-           variables are registered in the dictionary
+      or
 
-        or
+      C. var is not a plugin-registered variable but a component-registered
+      one (should not happen here)
 
-        C. var is not a plugin-registered variable but a component-registered
-        one (should not happen here)
+      so, an internal locking by intern_plugin_lock() is not
+      needed/impossible.
 
-        so, an internal locking by intern_plugin_lock() is not
-        needed/impossible.
+      Otherwise call intern_plugin_lock() and check the current state of the
+      plugin for PLUGIN_IS_READY:
+    */
+    if (pi->plugin != nullptr) {
+      LEX *lex = thd ? thd->lex : nullptr;
 
-        Otherwise call intern_plugin_lock() and check the current state of the
-        plugin for PLUGIN_IS_READY:
-      */
-      if (pi->plugin != nullptr) {
-        LEX *lex = thd ? thd->lex : nullptr;
+      const bool force_plugin_lock =
+          thd != nullptr && is_already_locked == Is_already_locked::NO &&
+          is_single_thread == Is_single_thread::NO;
+
+      if (force_plugin_lock) {
+        mysql_mutex_lock(&LOCK_plugin);
+      }
+      if (is_single_thread == Is_single_thread::NO) {
         extern plugin_ref intern_plugin_lock(LEX *, plugin_ref);
+        extern void intern_plugin_unlock(LEX *, plugin_ref);
+
         plugin_ref plugin =
             intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin));
 
@@ -1191,22 +1203,26 @@ bool System_variable_tracker::visit_plugin_variable(
         } else if (!(plugin_state(plugin) & PLUGIN_IS_READY)) {
           /* initialization not completed */
           var = nullptr;
-          extern void intern_plugin_unlock(LEX *, plugin_ref);
-          intern_plugin_unlock(lex, plugin);
         }
-      }
-    }
 
-    if (force_plugin_lock) {
-      // Safe to unlock: thd is NULL, or a reference counter holds the plugin
-      // because of my_intern_plugin_lock()
-      mysql_mutex_unlock(&LOCK_plugin);
+        // Always unlock it, even if init fails.
+        intern_plugin_unlock(lex, plugin);
+      }
+      if (force_plugin_lock) {
+        // Safe to unlock: thd is NULL, or a reference counter holds the plugin
+        // because of my_intern_plugin_lock()
+        mysql_mutex_unlock(&LOCK_plugin);
+      }
     }
   }
 
+  if (force_hash_lock) {
+    // Safe to unlock: we hold LOCK_plugin anyway, so sys_var* is stable:
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  }
+
   if (thd != nullptr) {
-    thd->system_variable_hash_lock_recursion_depth--;
-    thd->plugin_lock_recursion_depth--;
+    m_hash_lock_recursion_depth--;
   }
 
   if (var == nullptr) {
@@ -1223,25 +1239,24 @@ bool System_variable_tracker::visit_plugin_variable(
 
 bool System_variable_tracker::visit_component_variable(
     THD *thd, std::function<bool(sys_var *)> function,
-    Suppress_not_found_error suppress_not_found_error) const {
+    Suppress_not_found_error suppress_not_found_error,
+    Is_already_locked is_already_locked,
+    Is_single_thread is_single_thread) const {
   assert(m_tag == COMPONENT);
   assert(function);
 
   if (thd != nullptr) {
-    if (thd->plugin_lock_recursion_depth++ == 0) {
-      /*
-        Historically, we acquire LOCK_plugin *before*
-        LOCK_system_variables_hash, so, we are not allowed to "upgrade" an
-        existent LOCK_system_variables_hash
-        to LOCK_plugin. Thus, even if LOCK_plugin is not needed at some point
-        where we're acquiring LOCK_system_variables_hash, we still have to
-        hold LOCK_plugin because of possible indirect visit_plugin_variable()
-        call. So, let lock LOCK_plugin "in advance":
-      */
-      mysql_mutex_lock(&LOCK_plugin);
-    }
-    if (thd->system_variable_hash_lock_recursion_depth++ == 0)
-      mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+    m_hash_lock_recursion_depth++;
+  }
+
+  const bool force_hash_lock = thd != nullptr &&
+                               m_hash_lock_recursion_depth == 1 &&
+                               is_already_locked == Is_already_locked::NO &&
+                               is_single_thread == Is_single_thread::NO;
+
+  if (force_hash_lock) {
+    mysql_mutex_assert_not_owner(&LOCK_plugin);
+    mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   }
 
   sys_var *var = find_dynamic_system_variable(m_component.m_component_var_name);
@@ -1250,11 +1265,11 @@ bool System_variable_tracker::visit_component_variable(
 
   const bool result = var == nullptr ? true : function(var);
 
+  if (force_hash_lock) {
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  }
   if (thd != nullptr) {
-    if (--thd->system_variable_hash_lock_recursion_depth == 0)
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-    if (--thd->plugin_lock_recursion_depth == 0)
-      mysql_mutex_unlock(&LOCK_plugin);
+    m_hash_lock_recursion_depth--;
   }
 
   if (var == nullptr) {
@@ -1308,12 +1323,6 @@ sys_var *find_static_system_variable(const std::string &name) {
   @note  Requires an external lock on LOCK_system_variable_hash.
 */
 sys_var *find_dynamic_system_variable(const std::string &name) {
-#if !defined(NDEBUG) && !defined(_WIN32)
-  if (current_thd && !current_thd->for_debug_only_is_set_persist_options) {
-    int err = pthread_rwlock_trywrlock(&LOCK_system_variables_hash.m_rwlock);
-    assert(err == EBUSY || err == EDEADLK);
-  }
-#endif
   sys_var *var = find_or_nullptr(*dynamic_system_variable_hash, name);
   return var == nullptr || var->not_visible() ? nullptr : var;
 }
