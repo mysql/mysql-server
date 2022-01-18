@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,21 +38,39 @@ namespace segfault_unittest {
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
 
-MATCHER_P3(ContainsRangeOfOccurances, n, m, str, "") {
-  size_t pos = arg.find(str);
+size_t get_number_of_occurrences(std::string hay, std::string needle) {
+  size_t pos = hay.find(needle);
   size_t count = 0;
   if (pos != std::string::npos) {
     for (;;) {
       count++;
-      const auto new_pos = arg.substr(pos + 1).find(str);
+      const auto new_pos = hay.substr(pos + 1).find(needle);
       if (new_pos == std::string::npos) {
         break;
       }
       pos += 1 + new_pos;
     }
   }
+  return count;
+}
+
+MATCHER_P3(ContainsRangeOfOccurrences, n, m, str, "") {
+  const auto count = get_number_of_occurrences(arg, str);
   *result_listener << "where the actual count found is " << count;
   return n <= static_cast<int>(count) && static_cast<int>(count) <= m;
+}
+static bool contains_cached_result;
+MATCHER_P3(ContainsRangeOfOccurrencesCached, n, m, str, "") {
+  const auto count = get_number_of_occurrences(arg, str);
+  std::cout << "ContainsRangeOfOccurrencesCached(" << n << ", " << m
+            << ") seen " << count << " occurrences and ";
+  if (n <= static_cast<int>(count) && static_cast<int>(count) <= m) {
+    contains_cached_result = true;
+    std::cout << "matched." << std::endl;
+  } else {
+    std::cout << "did not match." << std::endl;
+  }
+  return true;
 }
 
 class FatalSignalDeathTest : public ::testing::Test {
@@ -73,21 +91,21 @@ class FatalSignalDeathTest : public ::testing::Test {
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
   EXPECT_DEATH_IF_SUPPORTED(
-      abort(), ContainsRangeOfOccurances(1, 1, " UTC - mysqld got exception"));
+      abort(), ContainsRangeOfOccurrences(1, 1, " UTC - mysqld got exception"));
 #else
   EXPECT_DEATH_IF_SUPPORTED(
-      abort(), ContainsRangeOfOccurances(1, 1, " UTC - mysqld got signal 6"));
+      abort(), ContainsRangeOfOccurrences(1, 1, " UTC - mysqld got signal 6"));
 #endif
 }
 
 TEST_F(FatalSignalDeathTest, CrashOnMyAbort) {
   EXPECT_DEATH_IF_SUPPORTED(
-      my_abort(), ContainsRangeOfOccurances(1, 1, expected_backtrace_string));
+      my_abort(), ContainsRangeOfOccurrences(1, 1, expected_backtrace_string));
 }
 TEST_F(FatalSignalDeathTest, CrashOnTerminate) {
   EXPECT_DEATH_IF_SUPPORTED(
       std::terminate(),
-      ContainsRangeOfOccurances(1, 1, expected_backtrace_string));
+      ContainsRangeOfOccurrences(1, 1, expected_backtrace_string));
 }
 
 static void test_parallel_crash() {
@@ -115,9 +133,13 @@ static void test_parallel_crash() {
 }
 
 TEST_F(FatalSignalDeathTest, CrashOnParallelAbort) {
-  EXPECT_DEATH_IF_SUPPORTED(
-      test_parallel_crash(),
-      ContainsRangeOfOccurances(2, 10, expected_backtrace_string));
+  contains_cached_result = false;
+  for (size_t count = 0; count < 1000 && !contains_cached_result; ++count) {
+    EXPECT_DEATH_IF_SUPPORTED(
+        test_parallel_crash(),
+        ContainsRangeOfOccurrencesCached(2, 10, expected_backtrace_string));
+  }
+  EXPECT_TRUE(contains_cached_result);
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
@@ -144,7 +166,7 @@ TEST_F(FatalSignalDeathTest, Segfault) {
   int *pint = nullptr;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
-   And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
+   And on Mac OsX we can get SIGILL == 4 (but only in optimized mode).
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
 #endif
