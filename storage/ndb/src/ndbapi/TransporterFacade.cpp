@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1141,7 +1141,7 @@ void TransporterFacade::threadMainSend(void)
   }
 
   m_socket_server.startServer();
-  raise_thread_prio();
+  raise_thread_prio(theSendThread);
 
   NDB_TICKS lastActivityCheck = NdbTick_getCurrentTicks();
   while(!theStopSend)
@@ -1235,9 +1235,15 @@ class ReceiveThreadClient : public trp_client
   ~ReceiveThreadClient() override;
   void trp_deliver_signal(const NdbApiSignal *,
                           const LinearSectionPtr ptr[3]) override;
+  enum {
+    ACTIVE,      // Is the preferred receiver
+    DEACTIVATE,  // Intermediate state going from ACTIVE -> SNOOZE
+    SNOOZE       // Prefer any other trp_client as receiver
+  } m_state;
 };
 
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
+  : m_state(SNOOZE)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
   m_is_receiver_thread = true;
@@ -1420,9 +1426,9 @@ TransporterFacade::get_recv_thread_activation_threshold() const
  * On Windows it sets the thread priority to THREAD_PRIORITY_HIGHEST.
  */
 bool
-TransporterFacade::raise_thread_prio()
+TransporterFacade::raise_thread_prio(NdbThread *thread)
 {
-  int ret_code = NdbThread_SetThreadPrio(theReceiveThread, 9);
+  int ret_code = NdbThread_SetThreadPrio(thread, 9);
   return (ret_code == 0) ? true : false;
 }
 
@@ -1447,7 +1453,6 @@ static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 */
 void TransporterFacade::threadMainReceive(void)
 {
-  bool stay_active = false;
   NDB_TICKS lastCheck = NdbTick_getCurrentTicks();
   NDB_TICKS receive_activation_time;
   init_cpu_usage(lastCheck);
@@ -1460,7 +1465,7 @@ void TransporterFacade::threadMainReceive(void)
   theTransporterRegistry->startReceiving();
   recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
-  const bool raised_thread_prio = raise_thread_prio();
+  const bool raised_thread_prio = raise_thread_prio(theReceiveThread);
   while(!theStopReceive)
   {
     const NDB_TICKS currTime = NdbTick_getCurrentTicks();
@@ -1475,16 +1480,14 @@ void TransporterFacade::threadMainReceive(void)
      * NOTE: We set this flag without mutex, which could result in
      * a 'check' to be missed now and then. 
      */
-    Uint64 expired_time_in_micros =
-      NdbTick_Elapsed(lastCheck,currTime).microSec();
-    if (expired_time_in_micros >= Uint64(100000))
+    if (unlikely(NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100))
     {
       m_check_connections = true;
       lastCheck = currTime;
       check_cpu_usage(currTime);
     }
    
-    if (!stay_active)
+    if (recv_client->m_state != ReceiveThreadClient::ACTIVE)
     {
       /*
          We only activate as receiver thread if
@@ -1494,20 +1497,14 @@ void TransporterFacade::threadMainReceive(void)
       */
       if (m_num_active_clients > min_active_clients_recv_thread)
       {
-        stay_active = true;            //Activate as receiver thread
+        recv_client->m_state = ReceiveThreadClient::ACTIVE;
         m_num_active_clients = 0;
         receive_activation_time = currTime;
       }
       else
       {
-        if (m_check_connections)
-        {
-          recv_client->prepare_poll();
-          do_poll(recv_client,0);
-          recv_client->complete_poll();
-        }
-        NdbSleep_MilliSleep(100);
-        continue;
+        // The recv_client will 'SNOOZE' in the poll queue.
+        recv_client->m_state = ReceiveThreadClient::SNOOZE;
       }
     }
     else
@@ -1525,7 +1522,7 @@ void TransporterFacade::threadMainReceive(void)
         if (m_num_active_clients < (min_active_clients_recv_thread / 2))
         {
           /* Go back to not have an active receive thread */
-          stay_active = false;
+          recv_client->m_state = ReceiveThreadClient::DEACTIVATE;
         }
         m_num_active_clients = 0; /* Reset active clients for next timeslot */
         unlock_poll_mutex();
@@ -1547,12 +1544,13 @@ void TransporterFacade::threadMainReceive(void)
      * as this means that we have a better chance of handling the
      * offered load than any other thread has.
      */
-    const bool stay_poll_owner = stay_active &&
-                                 ((min_active_clients_recv_thread == 0) ||
-                                  raised_thread_prio);
+    const bool stay_poll_owner =
+        recv_client->m_state == ReceiveThreadClient::ACTIVE &&
+        raised_thread_prio;
 
     /* Don't poll for 10ms if receive thread is deactivating */
-    const Uint32 max_wait = (stay_active) ? 10 : 0;
+    const Uint32 max_wait =
+        (recv_client->m_state == ReceiveThreadClient::DEACTIVATE) ? 0 : 10;
 
     recv_client->prepare_poll();
     do_poll(recv_client, max_wait, stay_poll_owner);
@@ -3136,8 +3134,8 @@ TransporterFacade::mapRefToIdx(Uint32 reference) const
  * Propose a client to become new poll owner if
  * no one is currently assigned.
  *
- * Prefer the receiver thread if it is waiting in the
- * poll_queue, else pick the 'last' in the poll_queue.
+ * Prefer the receiver thread if it is waiting in the poll_queue and is
+ * in ACTIVE state, else pick the 'last' in the poll_queue.
  *
  * The suggested poll owner will race with any other clients
  * not yet 'WAITING' to become poll owner. (If any such arrives.)
@@ -3162,13 +3160,20 @@ TransporterFacade::propose_poll_owner()
     }
 
     /**
-     * Prefer receiver thread as new poll owner *candidate*,
-     * else pick the last client in the poll queue,
+     * Prefer an ACTIVE receiver thread as the new poll owner *candidate*.
+     * Else pick the last client in the poll queue, not being the recv_client
      */
-    trp_client* const new_owner = 
-        (recv_client && recv_client->m_poll.m_poll_queue)
-           ? recv_client 
-           : m_poll_queue_tail;
+    trp_client* const new_owner =
+      // Prefer recv_client if in ACTIVE state
+      (recv_client && recv_client->m_poll.m_poll_queue &&
+       recv_client->m_state == ReceiveThreadClient::ACTIVE)
+         ? recv_client
+         // Avoid the recv_client as it is not ACTIVE
+         : (m_poll_queue_tail == recv_client &&
+            m_poll_queue_tail->m_poll.m_prev != nullptr)
+             // 'tail' is the recv_client, prefer another
+             ? m_poll_queue_tail->m_poll.m_prev
+             : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock

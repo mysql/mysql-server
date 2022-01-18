@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@ struct ndb_mgm_configuration;
 
 class Ndb;
 class NdbApiSignal;
+class ReceiveThreadClient;
 class trp_client;
 
 extern "C" {
@@ -356,8 +357,8 @@ private:
   NdbMutex *m_wakeup_thread_mutex;
   NdbCondition *m_wakeup_thread_cond;
 
-  trp_client* recv_client;
-  bool raise_thread_prio();
+  ReceiveThreadClient* recv_client;
+  bool raise_thread_prio(NdbThread *thread);
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
