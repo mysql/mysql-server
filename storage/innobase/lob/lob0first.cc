@@ -287,26 +287,36 @@ void first_page_t::free_all_data_pages() {
   flst_base_node_t *flst = index_list();
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
+  const page_no_t first_page_no = get_page_no();
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
+    cur_entry.free_data_page(first_page_no);
 
-    page_no_t page_no = cur_entry.get_page_no();
+    flst_base_node_t *vers = cur_entry.get_versions_list();
+    fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
 
-    if (page_no != get_page_no() && page_no != FIL_NULL) {
-      data_page_t data_page(&local_mtr, m_index);
-      data_page.load_x(page_no);
-      data_page.dealloc();
-      cur_entry.set_page_no(FIL_NULL);
+    while (!fil_addr_is_null(ver_loc)) {
+      flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
+      index_entry_t vers_entry(ver_node, &local_mtr, m_index);
+      vers_entry.free_data_page(first_page_no);
+      ver_loc = vers_entry.get_next();
+
+      ut_ad(!local_mtr.conflicts_with(m_mtr));
+      restart_mtr(&local_mtr);
+      node = addr2ptr_x(node_loc, &local_mtr);
+      cur_entry.reset(node);
     }
-
+    cur_entry.set_versions_null();
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
     ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
-
+  flst_init(flst, &local_mtr);
+  byte *free_lst = free_list();
+  flst_init(free_lst, &local_mtr);
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 }
@@ -469,10 +479,18 @@ void first_page_t::destroy() {
 void first_page_t::make_empty() {
   free_all_data_pages();
   free_all_index_pages();
-  byte *free_lst = free_list();
-  byte *index_lst = index_list();
-  flst_init(index_lst, m_mtr);
-  flst_init(free_lst, m_mtr);
+}
+
+flst_node_t *first_page_t::addr2ptr_x(const fil_addr_t &addr,
+                                      mtr_t *mtr) const {
+  const space_id_t space = dict_index_get_space(m_index);
+  const page_size_t page_size = dict_table_page_size(m_index->table);
+  buf_block_t *block = nullptr;
+  flst_node_t *result =
+      fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr, &block);
+  const page_type_t type = block->get_page_type();
+  ut_a(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
+  return result;
 }
 
 }  // namespace lob

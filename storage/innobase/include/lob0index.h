@@ -398,6 +398,14 @@ struct index_entry_t {
 
   void remove(flst_base_node_t *bnode) { flst_remove(bnode, m_node, m_mtr); }
 
+  /** Free the data page pointed to by this index entry. The data page is
+  available at offset OFFSET_PAGE_NO.  After the page is freed, mark it as
+  FIL_NULL.  No other fields are modified.  If the index entry points to the
+  first page number of the LOB or if it is FIL_NULL, then this function is a
+  no-op.
+  @param[in]  first_page_no  the first page number of the LOB. */
+  void free_data_page(const page_no_t first_page_no);
+
  private:
   /** Move the version base node from current entry to the given entry.
   @param[in]    to_entry        The index entry to which the version

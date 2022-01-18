@@ -519,6 +519,9 @@ size_t z_first_page_t::free_all_data_pages() {
     ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  flst_init(flst, &local_mtr);
+  flst_base_node_t *free_flst = free_list();
+  flst_init(free_flst, &local_mtr);
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 
@@ -630,6 +633,8 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       restart_mtr(&local_mtr);
     }
   }
+  flst_init(frag_lst, &local_mtr);
+  flst_init(free_frag_lst, &local_mtr);
 
   ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
@@ -685,14 +690,6 @@ size_t z_first_page_t::make_empty() {
   n_pages_freed += free_all_frag_pages();
   n_pages_freed += free_all_frag_node_pages();
   n_pages_freed += free_all_index_pages();
-  flst_base_node_t *flst = free_list();
-  flst_init(flst, m_mtr);
-  flst_base_node_t *ilst = index_list();
-  flst_init(ilst, m_mtr);
-  flst_base_node_t *free_frag_lst = free_frag_list();
-  flst_init(free_frag_lst, m_mtr);
-  flst_base_node_t *frag_lst = frag_list();
-  flst_init(frag_lst, m_mtr);
   return (n_pages_freed);
 }
 
