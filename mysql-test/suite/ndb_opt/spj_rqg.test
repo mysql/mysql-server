@@ -3055,6 +3055,32 @@ eval $query;
 set optimizer_switch='batched_key_access=default';
 
 
+--echo ##################
+--echo #
+--echo # Bug#33670002: Pushed outer join fails:
+--echo #   Error 4829 'FirstInner/Upper has to be an ancestor or a sibling'
+--echo #
+--echo ##################
+# The mandatory 'ancestor' dependencies between join nests was not
+# correctly propogated to upper nest levels.
+let $query=
+SELECT
+  table2.pk, table1.pk, table3.pk, table5.pk, table4.pk
+FROM (v AS table2
+  STRAIGHT_JOIN u AS table1 ON table1.col_int_key = table2.col_int)
+  LEFT JOIN m AS table3
+    LEFT JOIN (u AS table5
+      STRAIGHT_JOIN n AS table4 ON table4.col_int_key = table5.col_int_key)
+    ON table3.col_int_unique = table5.col_int_key
+  ON table1.col_int = table3.col_int AND
+     table2.col_int_unique = table3.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 

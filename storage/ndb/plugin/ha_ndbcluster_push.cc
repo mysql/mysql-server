@@ -1973,6 +1973,11 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
         depend_parents.add(first);
       }
     }
+    /**
+     * The uppermost table referred by the keys decides the 'span'
+     * of join nests we depends upon.
+     */
+    const int first_key_parent = depend_parents.first_table(root_no);
 
     /**
      * Previous childs might already have enforced some ancestors to be
@@ -1984,13 +1989,14 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     /**
      * Same goes for nest-level dependencies: The 'first' in each nest
      * may enforce ancestor dependencies on the members of the nest.
-     * If this table is the 'first' itself, it is embedded within the
-     * nest controlled by the 'first_upper'.
+     * Add enforcement of these upto the 'first' parent referred by
+     * the 'key_parents[]'.
      */
-    if (table.m_first_inner < tab_no)
-      depend_parents.add(m_tables[table.m_first_inner].m_ancestors);
-    else if (table.m_first_upper > 0)
-      depend_parents.add(m_tables[table.m_first_upper].m_ancestors);
+    int first_in_nest = table.m_first_inner;
+    while (first_key_parent < first_in_nest) {
+      depend_parents.add(m_tables[first_in_nest].m_ancestors);
+      first_in_nest = m_tables[first_in_nest].m_first_upper;
+    }
 
     /**
      * All 'depend_parents' has to be fulfilled, starting from the 'last',
@@ -2438,8 +2444,7 @@ int ndb_pushed_builder_ctx::build_query() {
           upper_nest.intersect(m_join_scope);
           if (!upper_nest.is_clear_all()) {
             // There is an upper nest which we outer join with
-            const uint real_first_upper =
-                upper_nest.first_table(m_tables[tab_no].m_first_upper);
+            const uint real_first_upper = upper_nest.first_table(first_upper);
             options.setUpperJoin(m_tables[real_first_upper].m_op);
           }
         }
