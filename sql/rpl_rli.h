@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "lex_string.h"
@@ -2408,7 +2409,8 @@ class Applier_security_context_guard {
     @return true if the privileges are included in the security context and
             false, otherwise.
    */
-  bool has_access(std::initializer_list<std::string> extra_privileges) const;
+  bool has_access(
+      std::initializer_list<std::string_view> extra_privileges) const;
 
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges

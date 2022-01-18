@@ -2596,7 +2596,9 @@ static bool fts_optimize_new_table(
     slot = static_cast<fts_slot_t *>(ib_vector_push(tables, nullptr));
   }
 
-  *slot = {};
+  // Wee need to initialize a temporary to work around a gcc12 bug.
+  fts_slot_t tmp{};
+  *slot = tmp;
 
   slot->table_id = table_id;
   slot->state = FTS_STATE_LOADED;
