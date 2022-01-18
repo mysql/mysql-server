@@ -190,6 +190,11 @@ SET NEW.a1 = NULL;
 --error ER_BAD_NULL_ERROR
 UPDATE t1, t2 SET t1.a1 = 1 , t2.a1 = 2;
 SELECT * FROM t1;
+# Any changes made to t2 before the error is raised will not be rolled
+# back, since MyISAM is not transactional. How much has been modified
+# in t2 depends on the query plan, and the hypergraph optimizer
+# chooses a different join order than the old optimizer.
+--skip_if_hypergraph
 SELECT * FROM t2;
 
 DROP TRIGGER t1_bu;

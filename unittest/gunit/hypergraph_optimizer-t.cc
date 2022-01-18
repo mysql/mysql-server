@@ -70,6 +70,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
+#include "sql/visible_fields.h"
 #include "template_utils.h"
 #include "temptable/mock_field_varstring.h"
 #include "unittest/gunit/base_mock_field.h"
@@ -243,8 +244,9 @@ static void ResolveQueryBlock(
     ResolveFieldToFakeTable(*cur_group->item, *fake_tables);
   }
 
-  // Set up necessary context for single-table delete.
-  if (thd->lex->sql_command == SQLCOM_DELETE) {
+  // Set up necessary context for UPDATE and single-table DELETE.
+  if (thd->lex->sql_command == SQLCOM_DELETE ||
+      thd->lex->sql_command == SQLCOM_UPDATE_MULTI) {
     assert(query_block->context.table_list == nullptr);
     assert(query_block->context.first_name_resolution_table == nullptr);
     query_block->context.table_list =
@@ -253,6 +255,34 @@ static void ResolveQueryBlock(
   }
 
   query_block->prepare(thd, nullptr);
+
+  // Mark deleted and updated tables.
+  switch (thd->lex->sql_command) {
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+           tl = tl->next_leaf) {
+        if (tl->updating) {
+          tl->set_deleted();
+        }
+      }
+      break;
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI: {
+      table_map update_tables = 0;
+      for (Item *item : query_block->visible_fields()) {
+        update_tables |= item->used_tables();
+      }
+      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+           tl = tl->next_leaf) {
+        if (Overlaps(tl->map(), update_tables)) {
+          tl->set_updated();
+        }
+      }
+    } break;
+    default:
+      break;
+  }
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
   query_block->join = new (thd->mem_root) JOIN(thd, query_block);
@@ -4623,6 +4653,48 @@ TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromIndexMerge) {
 
   query_block->cleanup(m_thd, /*full=*/true);
 }
+
+TEST_F(HypergraphOptimizerTest, UpdatePreferImmediate) {
+  // Update one table (t1), but read from one additional table (t2).
+  Query_block *query_block =
+      ParseAndResolve("UPDATE t1, t2 SET t1.x = t1.x + 1 WHERE t1.x = t2.x",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  // Add indexes so that a nested loop join with an index lookup on the inner
+  // side is preferred. Make t1 slightly larger, so that the join order (t2, t1)
+  // is considered cheaper than (t1, t2) before the cost of buffered updates is
+  // taken into consideration.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->file->stats.records = 110000;
+  t1->file->stats.data_file_length = 1.1e6;
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], nullptr, /*unique=*/true);
+  t2->file->stats.records = 100000;
+  t2->file->stats.data_file_length = 1.0e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_EQ(AccessPath::UPDATE_ROWS, root->type);
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->update_rows().child->type);
+  const auto &nested_loop_join = root->update_rows().child->nested_loop_join();
+
+  // Even though joining (t2, t1) is cheaper, it should choose the order (t1,
+  // t2) to allow immediate update of t1, which gives a lower total cost for
+  // the update operation.
+  EXPECT_EQ(t1->pos_in_table_list->map(), root->update_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, nested_loop_join.outer->type);
+  EXPECT_STREQ("t1", nested_loop_join.outer->table_scan().table->alias);
+  ASSERT_EQ(AccessPath::EQ_REF, nested_loop_join.inner->type);
+  EXPECT_STREQ("t2", nested_loop_join.inner->eq_ref().table->alias);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

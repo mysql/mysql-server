@@ -23,17 +23,20 @@
 #include "sql/join_optimizer/join_optimizer.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
-#include <array>
 #include <bitset>
 #include <initializer_list>
-#include <iterator>
+#include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -44,7 +47,9 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -68,11 +73,11 @@
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/graph_simplification.h"
+#include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/node_map.h"
-#include "sql/join_optimizer/online_cycle_finder.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -84,9 +89,11 @@
 #include "sql/mem_root_array.h"
 #include "sql/opt_costmodel.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/partition_info.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
@@ -102,6 +109,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_partition.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
@@ -111,10 +119,6 @@
 #include "sql/uniques.h"
 #include "sql/window.h"
 #include "template_utils.h"
-
-namespace hypergraph {
-struct Hyperedge;
-}  // namespace hypergraph
 
 using hypergraph::Hyperedge;
 using hypergraph::Node;
@@ -593,6 +597,18 @@ Item_func_match *GetSargableFullTextPredicate(const Predicate &predicate) {
       assert(false);
       return nullptr;
   }
+}
+
+/// Is the current statement a DELETE statement?
+bool IsDeleteStatement(const THD *thd) {
+  return thd->lex->sql_command == SQLCOM_DELETE ||
+         thd->lex->sql_command == SQLCOM_DELETE_MULTI;
+}
+
+/// Is the current statement a DELETE statement?
+bool IsUpdateStatement(const THD *thd) {
+  return thd->lex->sql_command == SQLCOM_UPDATE ||
+         thd->lex->sql_command == SQLCOM_UPDATE_MULTI;
 }
 
 void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
@@ -1370,6 +1386,11 @@ bool CostingReceiver::FindIndexRangeScans(
 
     if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
       path.immediate_update_delete_table = node_idx;
+      // Don't allow immediate update of the key that is being scanned.
+      if (IsUpdateStatement(m_thd) &&
+          uses_index_on_fields(&path, table->write_set)) {
+        path.immediate_update_delete_table = -1;
+      }
     }
 
     bool contains_subqueries = false;  // Filled on the first iteration below.
@@ -1604,6 +1625,11 @@ void CostingReceiver::ProposeIndexMerge(
 
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     imerge_path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of any keys being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        uses_index_on_fields(&imerge_path, table->write_set)) {
+      imerge_path.immediate_update_delete_table = -1;
+    }
   }
 
   // Find out which ordering we would follow, if any. We nominally sort
@@ -1977,6 +2003,19 @@ bool CostingReceiver::ProposeRefAccess(
 
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // Disallow immediate update on the key being looked up for REF_OR_NULL and
+    // REF. It might be safe to update the key on which the REF lookup is
+    // performed, but we follow the lead of the old optimizer and don't try it,
+    // since we don't know how the engine behaves if doing an index lookup on a
+    // changing index.
+    //
+    // EQ_REF should be safe, though. I has at most one matching row, with a
+    // constant lookup value as this is the first table. So this row won't be
+    // seen a second time; the iterator won't even try a second read.
+    if (path.type != AccessPath::EQ_REF && IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForIndex(
@@ -2069,6 +2108,15 @@ bool CostingReceiver::ProposeTableScan(
   path.cost_before_filter = path.cost = cost;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // This is a table scan, but it might be using the clustered key under the
+    // cover. If so, don't allow immediate update if it's modifying the
+    // primary key.
+    if (IsUpdateStatement(m_thd) &&
+        Overlaps(table->file->ha_table_flags(), HA_PRIMARY_KEY_IN_READ_INDEX) &&
+        !table->s->is_missing_primary_key() &&
+        is_key_used(table, table->s->primary_key, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   // See if this is an information schema table that must be filled in before
@@ -2217,6 +2265,11 @@ bool CostingReceiver::ProposeIndexScan(
   path.cost_before_filter = path.cost = cost;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of the key that is being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
@@ -2479,6 +2532,11 @@ bool CostingReceiver::ProposeFullTextIndexScan(
   path->ordering_state = ordering_state;
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     path->immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of the key that is being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path->immediate_update_delete_table = -1;
+    }
   }
 
   ProposeAccessPathForIndex(
@@ -2970,6 +3028,12 @@ void CostingReceiver::ProposeHashJoin(
   // to update or delete. The same applies to rows from the outer side, if the
   // hash join spills to disk, so we need to store row IDs for both sides.
   if (Overlaps(m_update_delete_target_nodes, left | right)) {
+    if (m_thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+        m_thd->lex->sql_command == SQLCOM_UPDATE) {
+      // TODO(khatlen): Consider enabling hash join for UPDATE too. Must
+      // probably disable semi-consistent reads in that case.
+      return;
+    }
     FindTablesToGetRowidFor(&join_path);
   }
 
@@ -4539,48 +4603,158 @@ bool CreateTemporaryTableForFullTextFunctions(
 }
 
 /**
+  Is this DELETE target table a candidate for being deleted from immediately,
+  while scanning the result of the join? It only checks if it is a candidate for
+  immediate delete. Whether it actually ends up being deleted from immediately,
+  depends on the plan that is chosen.
+ */
+bool IsImmediateDeleteCandidate(const TABLE_LIST *table_ref,
+                                const Query_block *query_block) {
+  assert(table_ref->is_deleted());
+
+  // Cannot delete from the table immediately if it's joined with itself.
+  if (unique_table(table_ref, query_block->leaf_tables,
+                   /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  return true;
+}
+
+/// Adds all fields of "table" that are referenced from "item" to
+/// table->tmp_set.
+void AddFieldsToTmpSet(Item *item, TABLE *table) {
+  item->walk(&Item::add_field_to_set_processor, enum_walk::SUBQUERY_POSTFIX,
+             pointer_cast<uchar *>(table));
+}
+
+/**
+  Is this UPDATE target table a candidate for being updated immediately, while
+  scanning the result of the join? It only checks if it is a candidate for
+  immediate update. Whether it actually ends up being updated immediately,
+  depends on the plan that is chosen.
+ */
+bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
+                                const JoinHypergraph &graph,
+                                table_map target_tables) {
+  assert(table_ref->is_updated());
+  assert(Overlaps(table_ref->map(), target_tables));
+  assert(table_ref->table == graph.nodes[node_idx].table);
+
+  // Cannot update the table immediately if it's joined with itself.
+  if (unique_table(table_ref, graph.query_block()->leaf_tables,
+                   /*check_alias=*/false) != nullptr) {
+    return false;
+  }
+
+  TABLE *const table = table_ref->table;
+
+  // Cannot update the table immediately if it modifies a partitioning column,
+  // as that could move the row to another partition so that it is seen more
+  // than once.
+  if (table->part_info != nullptr &&
+      table->part_info->num_partitions_used() > 1 &&
+      partition_key_modified(table, table->write_set)) {
+    return false;
+  }
+
+  // If there are at least two tables to update, t1 and t2, t1 being before t2
+  // in the plan, we need to collect all fields of t1 which influence the
+  // selection of rows from t2. If those fields are also updated, it will not be
+  // possible to update t1 on the fly.
+  if (!IsSingleBitSet(target_tables)) {
+    assert(bitmap_is_clear_all(&table->tmp_set));
+    auto restore_tmp_set =
+        create_scope_guard([table]() { bitmap_clear_all(&table->tmp_set); });
+
+    // Mark referenced fields in the join conditions in all the simple edges
+    // involving this table.
+    for (unsigned edge_idx : graph.graph.nodes[node_idx].simple_edges) {
+      const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
+      for (Item *condition : expr->join_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+      for (Item_func_eq *condition : expr->equijoin_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+    }
+
+    // Mark referenced fields in the join conditions in all the complex edges
+    // involving this table.
+    for (unsigned edge_idx : graph.graph.nodes[node_idx].complex_edges) {
+      const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
+      for (Item *condition : expr->join_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+      for (Item_func_eq *condition : expr->equijoin_conditions) {
+        AddFieldsToTmpSet(condition, table);
+      }
+    }
+
+    // And mark referenced fields in join conditions that are left in the WHERE
+    // clause (typically degenerate join conditions stemming from single-table
+    // filters that can't be pushed down due to pseudo-table bits in
+    // used_tables()).
+    for (unsigned i = 0; i < graph.num_where_predicates; ++i) {
+      const Predicate &predicate = graph.predicates[i];
+      if (IsProperSubset(TableBitmap(node_idx), predicate.used_nodes)) {
+        AddFieldsToTmpSet(predicate.condition, table);
+      }
+    }
+
+    if (bitmap_is_overlapping(&table->tmp_set, table->write_set)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
   Finds all the target tables of an UPDATE or DELETE statement. It additionally
   disables covering index scans on the target tables, since ha_update_row() and
   ha_delete_row() can only be called on scans reading the full row.
-
-  @param thd The session object.
-  @param query_block The query block.
-  @param[out] target_tables The set of tables modified by this statement.
-  @param[out] immediate_candidates The subset of target tables that are
-    candidates for immediate update/delete. That is, tables that can be updated
-    or deleted from while scanning the result of the join, with no need to store
-    row IDs in temporary tables for delayed update/delete after all the rows
-    from the join have been processed. These are candidates only; the actual
-    tables to update while scanning, if any, will be chosen based on cost during
-    planning.
  */
-void FindUpdateDeleteTargetTables(const THD *thd, Query_block *query_block,
-                                  table_map *target_tables,
-                                  table_map *immediate_candidates) {
-  switch (thd->lex->sql_command) {
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_DELETE:
-    case SQLCOM_UPDATE_MULTI:
-    case SQLCOM_UPDATE:
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-           tl = tl->next_leaf) {
-        if (tl->updating) {
-          *target_tables |= tl->map();
-          if (unique_table(tl, query_block->leaf_tables,
-                           /*check_alias=*/false) == nullptr) {
-            *immediate_candidates |= tl->map();
-          }
-
-          // Target tables of DELETE and UPDATE need the full row, so disable
-          // covering index scans.
-          tl->table->no_keyread = true;
-          tl->table->covering_keys.clear_all();
-        }
-      }
-      break;
-    default:
-      break;
+table_map FindUpdateDeleteTargetTables(const Query_block *query_block) {
+  table_map target_tables = 0;
+  for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+       tl = tl->next_leaf) {
+    if (tl->is_updated() || tl->is_deleted()) {
+      target_tables |= tl->map();
+      // Target tables of DELETE and UPDATE need the full row, so disable
+      // covering index scans.
+      tl->table->no_keyread = true;
+      tl->table->covering_keys.clear_all();
+    }
   }
+  assert(target_tables != 0);
+  return target_tables;
+}
+
+/**
+  Finds all of the target tables of an UPDATE or DELETE statement that are
+  candidates from being updated or deleted from immediately while scanning the
+  results of the join, without need to buffer the row IDs in a temporary table
+  for delayed update/delete after the join has completed. These are candidates
+  only; the actual tables to update while scanning, if any, will be chosen based
+  on cost during planning.
+ */
+table_map FindImmediateUpdateDeleteCandidates(const JoinHypergraph &graph,
+                                              table_map target_tables,
+                                              bool is_delete) {
+  table_map candidates = 0;
+  for (unsigned node_idx = 0; node_idx < graph.nodes.size(); ++node_idx) {
+    const JoinHypergraph::Node &node = graph.nodes[node_idx];
+    const TABLE_LIST *tl = node.table->pos_in_table_list;
+    if (Overlaps(tl->map(), target_tables)) {
+      if (is_delete ? IsImmediateDeleteCandidate(tl, graph.query_block())
+                    : IsImmediateUpdateCandidate(tl, node_idx, graph,
+                                                 target_tables)) {
+        candidates |= tl->map();
+      }
+    }
+  }
+  return candidates;
 }
 
 // Returns a map containing the node indexes of all tables referenced by a
@@ -5736,11 +5910,18 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   graph.materializable_predicates = std::move(materializable_predicates);
 
+  const bool is_topmost_query_block =
+      query_block->outer_query_block() == nullptr;
+  const bool is_delete = is_topmost_query_block && IsDeleteStatement(thd);
+  const bool is_update = is_topmost_query_block && IsUpdateStatement(thd);
+
   table_map update_delete_target_tables = 0;
   table_map immediate_update_delete_candidates = 0;
-  FindUpdateDeleteTargetTables(thd, join->query_block,
-                               &update_delete_target_tables,
-                               &immediate_update_delete_candidates);
+  if (is_delete || is_update) {
+    update_delete_target_tables = FindUpdateDeleteTargetTables(query_block);
+    immediate_update_delete_candidates = FindImmediateUpdateDeleteCandidates(
+        graph, update_delete_target_tables, is_delete);
+  }
 
   NodeMap fulltext_tables = 0;
   uint64_t sargable_fulltext_predicates = 0;
@@ -6120,11 +6301,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     root_candidates = std::move(new_root_candidates);
   }
 
-  // Add a DELETE_ROWS access path if this is the topmost query block of
-  // a DELETE statement.
-  if ((thd->lex->sql_command == SQLCOM_DELETE_MULTI ||
-       thd->lex->sql_command == SQLCOM_DELETE) &&
-      query_block->outer_query_block() == nullptr) {
+  // Add a DELETE_ROWS or UPDATE_ROWS access path if this is the topmost query
+  // block of a DELETE statement or an UPDATE statement.
+  if (is_delete) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       table_map immediate_tables = 0;
@@ -6136,6 +6315,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           thd, root_path, update_delete_target_tables, immediate_tables);
       EstimateDeleteRowsCost(delete_path);
       receiver.ProposeAccessPath(delete_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
+    }
+    root_candidates = std::move(new_root_candidates);
+  } else if (is_update) {
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      table_map immediate_tables = 0;
+      if (root_path->immediate_update_delete_table != -1) {
+        immediate_tables = graph.nodes[root_path->immediate_update_delete_table]
+                               .table->pos_in_table_list->map();
+      }
+      AccessPath *update_path = NewUpdateRowsAccessPath(
+          thd, root_path, update_delete_target_tables, immediate_tables);
+      EstimateUpdateRowsCost(update_path);
+      receiver.ProposeAccessPath(update_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
@@ -6164,8 +6358,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // Materialize the result if a top-level query block has the SQL_BUFFER_RESULT
   // option, and the chosen root path isn't already a materialization path.
   if (query_block->active_options() & OPTION_BUFFER_RESULT &&
-      query_block->outer_query_block() == nullptr &&
-      !IsMaterializationPath(root_path)) {
+      is_topmost_query_block && !IsMaterializationPath(root_path)) {
     if (trace != nullptr) {
       *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }

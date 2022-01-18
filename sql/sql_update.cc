@@ -67,6 +67,7 @@
 #include "sql/iterators/timing_iterator.h"
 #include "sql/iterators/update_rows_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
 #include "sql/locked_tables_list.h"
@@ -1197,8 +1198,24 @@ static TABLE *GetOutermostTable(const JOIN *join) {
   // The old optimizer can usually find it in the access path too, except if the
   // outermost table is a const table, since const tables may not be visible in
   // the access path tree.
-  assert(join->qep_tab != nullptr);
-  return join->qep_tab[0].table();
+  if (!join->thd->lex->using_hypergraph_optimizer) {
+    assert(join->qep_tab != nullptr);
+    return join->qep_tab[0].table();
+  }
+
+  // This assumes WalkTablesUnderAccessPath() walks depth-first and
+  // left-to-right, so that it finds the leftmost table first.
+  TABLE *found_table = nullptr;
+  WalkTablesUnderAccessPath(
+      join->root_access_path(),
+      [&found_table](TABLE *table) {
+        if (found_table == nullptr) {
+          found_table = table;
+        }
+        return found_table != nullptr;
+      },
+      /*include_pruned_tables=*/true);
+  return found_table;
 }
 
 /**
