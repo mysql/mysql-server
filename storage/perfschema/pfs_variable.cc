@@ -91,6 +91,8 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   assert(!m_initialized);
   m_query_scope = scope;
 
+  extern mysql_mutex_t LOCK_plugin;
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(m_current_thd, "acquired_LOCK_system_variables_hash");
 

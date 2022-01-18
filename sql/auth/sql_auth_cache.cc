@@ -28,6 +28,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
+#include "mutex_lock.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1641,7 +1642,7 @@ static void validate_user_plugin_records() {
   DBUG_TRACE;
   if (!validate_user_plugins) return;
 
-  lock_plugin_data();
+  MUTEX_LOCK(plugin_lock, &LOCK_plugin);
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
        ++acl_user) {
     struct st_plugin_int *plugin;
@@ -1669,7 +1670,6 @@ static void validate_user_plugin_records() {
       }
     }
   }
-  unlock_plugin_data();
 }
 
 /**
