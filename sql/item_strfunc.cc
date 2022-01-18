@@ -4397,7 +4397,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   if (p->exists("encrypt_type")) {
     p->get("encrypt_type", &encrypt_type);
   } else {
-    encrypt_type = "N";
+    encrypt_type = dd::String_type("N");
   }
 
   // Show ENCRYPTION clause only if we have a encrypted table

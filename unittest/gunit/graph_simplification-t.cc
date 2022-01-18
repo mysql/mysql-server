@@ -131,8 +131,8 @@ using NodeGuard = Scope_guard<DestroyNodes>;
         new (mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true);
     table->file->stats.records = 1000;
 
-    char *alias = mem_root->ArrayAlloc<char>(10);
-    snprintf(alias, 10, "t%d", i + 1);
+    char *alias = mem_root->ArrayAlloc<char>(20);
+    snprintf(alias, 20, "t%d", i + 1);
     table->alias = alias;
 
     g->nodes.push_back(JoinHypergraph::Node{table, {}, {}});
