@@ -358,7 +358,7 @@ private:
   NdbCondition *m_wakeup_thread_cond;
 
   ReceiveThreadClient* recv_client;
-  bool raise_thread_prio();
+  bool raise_thread_prio(NdbThread *thread);
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
