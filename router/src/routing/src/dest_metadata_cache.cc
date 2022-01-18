@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -462,7 +462,7 @@ class MetadataCacheDestination : public Destination {
 // the first round of destinations didn't succeed.
 //
 // try to fallback.
-stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
+std::optional<Destinations> DestMetadataCacheGroup::refresh_destinations(
     const Destinations &previous_dests) {
   if (cache_api_->cluster_type() == mysqlrouter::ClusterType::RS_V2) {
     // ReplicaSet
@@ -483,11 +483,11 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
              "previous destinations MUST be primary destinations");
 
       if (previous_dests.empty()) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       if (!previous_dests.is_primary_destination()) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       // if connecting to the primary failed differentiate between:
@@ -506,7 +506,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
 
       if (primary_member->last_error_code() ==
           make_error_condition(std::errc::timed_out)) {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
 
       if (cache_api_->wait_primary_failover(primary_member->server_uuid(),
@@ -516,7 +516,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
     }
   }
 
-  return stdx::make_unexpected();
+  return std::nullopt;
 }
 
 void DestMetadataCacheGroup::advance(size_t n) {

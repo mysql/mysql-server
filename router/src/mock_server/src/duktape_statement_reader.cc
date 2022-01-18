@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -581,7 +581,7 @@ struct DuktapeStatementReader::Pimpl {
         duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
         while (duk_next(ctx, -1, 1)) {
           if (duk_is_null(ctx, -1)) {
-            row_values.emplace_back(stdx::make_unexpected());
+            row_values.emplace_back(std::nullopt);
           } else {
             row_values.emplace_back(duk_to_string(ctx, -1));
           }
@@ -932,13 +932,13 @@ stdx::expected<DuktapeStatementReader::handshake_data, ErrorResponse>
 DuktapeStatementReader::handshake() {
   auto *ctx = pimpl_->ctx;
 
-  stdx::expected<ErrorResponse, void> error{stdx::make_unexpected()};
+  std::optional<ErrorResponse> error;
 
-  stdx::expected<std::string, void> username{stdx::make_unexpected()};
-  stdx::expected<std::string, void> password{stdx::make_unexpected()};
+  std::optional<std::string> username;
+  std::optional<std::string> password;
   bool cert_required{false};
-  stdx::expected<std::string, void> cert_issuer{stdx::make_unexpected()};
-  stdx::expected<std::string, void> cert_subject{stdx::make_unexpected()};
+  std::optional<std::string> cert_issuer;
+  std::optional<std::string> cert_subject;
 
   std::error_code ec{};
 

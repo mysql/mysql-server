@@ -64,23 +64,23 @@ class ClassicProtocolState : public ProtocolStateBase {
     return server_caps_ & client_caps_;
   }
 
-  stdx::expected<classic_protocol::message::client::Greeting, void>
-  client_greeting() const {
+  std::optional<classic_protocol::message::client::Greeting> client_greeting()
+      const {
     return client_greeting_;
   }
 
   void client_greeting(
-      stdx::expected<classic_protocol::message::client::Greeting, void> msg) {
+      std::optional<classic_protocol::message::client::Greeting> msg) {
     client_greeting_ = std::move(msg);
   }
 
-  stdx::expected<classic_protocol::message::server::Greeting, void>
-  server_greeting() const {
+  std::optional<classic_protocol::message::server::Greeting> server_greeting()
+      const {
     return server_greeting_;
   }
 
   void server_greeting(
-      stdx::expected<classic_protocol::message::server::Greeting, void> msg) {
+      std::optional<classic_protocol::message::server::Greeting> msg) {
     server_greeting_ = std::move(msg);
   }
 
@@ -114,10 +114,8 @@ class ClassicProtocolState : public ProtocolStateBase {
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
 
-  stdx::expected<classic_protocol::message::client::Greeting, void>
-      client_greeting_{stdx::make_unexpected()};
-  stdx::expected<classic_protocol::message::server::Greeting, void>
-      server_greeting_{stdx::make_unexpected()};
+  std::optional<classic_protocol::message::client::Greeting> client_greeting_{};
+  std::optional<classic_protocol::message::server::Greeting> server_greeting_{};
 
   std::optional<FrameInfo> current_frame_{};
   std::optional<uint8_t> msg_type_{};

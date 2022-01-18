@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,14 @@
 #ifndef MYSQLD_MOCK_STATEMENT_READER_INCLUDED
 #define MYSQLD_MOCK_STATEMENT_READER_INCLUDED
 
-#include <openssl/bio.h>
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <openssl/bio.h>
 
 #include "my_compiler.h"
 #include "mysql/harness/net_ts/buffer.h"
@@ -53,7 +55,7 @@ namespace server_mock {
 /** @brief Vector for keeping has_value|string representation of the values
  *         of the single row (ordered by column)
  **/
-using RowValueType = std::vector<stdx::expected<std::string, void>>;
+using RowValueType = std::vector<std::optional<std::string>>;
 
 /** @brief Keeps result data for single SQL statement that returns
  *         resultset.
@@ -344,13 +346,13 @@ class ProtocolBase {
 class StatementReaderBase {
  public:
   struct handshake_data {
-    stdx::expected<ErrorResponse, void> error;
+    std::optional<ErrorResponse> error;
 
-    stdx::expected<std::string, void> username;
-    stdx::expected<std::string, void> password;
+    std::optional<std::string> username;
+    std::optional<std::string> password;
     bool cert_required{false};
-    stdx::expected<std::string, void> cert_subject;
-    stdx::expected<std::string, void> cert_issuer;
+    std::optional<std::string> cert_subject;
+    std::optional<std::string> cert_issuer;
   };
 
   /** @brief Returns the data about the next statement from the

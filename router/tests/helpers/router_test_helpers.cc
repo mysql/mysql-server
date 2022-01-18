@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -511,7 +511,7 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
 // Wait for the nth occurence of the log_regex in the log_file with the timeout
 // If it's found returns the full line containing the log_regex
 // If the timeout has been reached returns unexpected
-static stdx::expected<std::string, void> wait_log_line(
+static std::optional<std::string> wait_log_line(
     const std::string &log_file, const std::string &log_regex,
     const unsigned n_occurence = 1,
     const std::chrono::milliseconds timeout = 1s) {
@@ -531,20 +531,20 @@ static stdx::expected<std::string, void> wait_log_line(
 
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
-      return stdx::make_unexpected();
+      return std::nullopt;
     }
     std::this_thread::sleep_for(kStep);
   } while (true);
 }
 
-stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
 get_log_timestamp(const std::string &log_file, const std::string &log_regex,
                   const unsigned occurence,
                   const std::chrono::milliseconds timeout) {
   // first wait for the nth occurence of the pattern
   const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
   if (!log_line) {
-    return log_line.get_unexpected();
+    return std::nullopt;
   }
 
   const std::string log_line_str = log_line.value();
@@ -552,7 +552,7 @@ get_log_timestamp(const std::string &log_file, const std::string &log_regex,
   // 2020-06-09 03:53:26.027 foo bar
   if (!pattern_found(log_line_str,
                      "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*")) {
-    return stdx::make_unexpected();
+    return std::nullopt;
   }
 
   // extract the timestamp prefix and convert to the duration

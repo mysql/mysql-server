@@ -1079,7 +1079,7 @@ class Codec<message::server::Row>
       // field may other be a Null or a VarString
       auto null_res = accu.template try_step<wire::Null>();
       if (null_res) {
-        fields.emplace_back(stdx::unexpected<void>());
+        fields.emplace_back(std::nullopt);
       } else {
         auto field_res = accu.template step<wire::VarString>();
         if (!field_res) return stdx::make_unexpected(field_res.error());
@@ -1281,7 +1281,7 @@ class Codec<message::server::StmtRow>
 
         values.push_back(value_res->value());
       } else {
-        values.emplace_back(stdx::make_unexpected());
+        values.emplace_back(std::nullopt);
       }
     }
 
@@ -2009,7 +2009,7 @@ class Codec<message::client::StmtExecute>
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     std::vector<classic_protocol::field_type::value_type> types;
-    std::vector<stdx::expected<std::string, void>> values;
+    std::vector<std::optional<std::string>> values;
 
     if (new_params_bound_res->value()) {
       const auto nullbits = std::move(nullbits_res->value());
@@ -2083,12 +2083,13 @@ class Codec<message::client::StmtExecute>
           }
           auto value_res =
               accu.template step<wire::String>(field_size_res.value());
-          if (!accu.result())
+          if (!accu.result()) {
             return stdx::make_unexpected(accu.result().error());
+          }
 
           values.push_back(value_res->value());
         } else {
-          values.emplace_back(stdx::make_unexpected());
+          values.emplace_back(std::nullopt);
         }
       }
     }

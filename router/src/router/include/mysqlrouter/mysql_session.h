@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -399,12 +399,12 @@ class ROUTER_LIB_EXPORT MySQLSession {
    * @retval false if option is not known.
    */
   template <class GettableMysqlOption>
-  stdx::expected<void, void> get_option(GettableMysqlOption &opt) {
+  bool get_option(GettableMysqlOption &opt) {
     if (0 != mysql_get_option(connection_, opt.option(), opt.data())) {
-      return stdx::make_unexpected();
+      return false;
     }
 
-    return {};
+    return true;
   }
 
   virtual void connect(const std::string &host, unsigned int port,

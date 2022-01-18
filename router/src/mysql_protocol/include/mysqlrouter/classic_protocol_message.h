@@ -26,6 +26,7 @@
 #define MYSQL_ROUTER_CLASSIC_PROTOCOL_MESSAGE_H_
 
 #include <cstddef>  // uint8_t
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -373,7 +374,7 @@ inline bool operator==(const ColumnMeta &a, const ColumnMeta &b) {
  */
 class Row {
  public:
-  using value_type = stdx::expected<std::string, void>;
+  using value_type = std::optional<std::string>;
   using const_iterator = typename std::vector<value_type>::const_iterator;
 
   Row(std::vector<value_type> fields) : fields_{std::move(fields)} {}
@@ -843,7 +844,7 @@ inline bool operator==(const StmtParamAppendData &a,
  */
 class StmtExecute {
  public:
-  using value_type = stdx::expected<std::string, void>;
+  using value_type = std::optional<std::string>;
 
   /**
    * construct a ExecuteStmt message.

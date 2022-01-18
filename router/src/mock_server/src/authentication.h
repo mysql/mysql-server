@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,17 +25,16 @@
 #ifndef MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 #define MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 
+#include <optional>
 #include <string_view>
 #include <vector>
-
-#include "mysql/harness/stdx/expected.h"
 
 class MySQLNativePassword {
  public:
   static constexpr char name[] = "mysql_native_password";
 
   // client-side scrambling of the password
-  static stdx::expected<std::vector<uint8_t>, void> scramble(
+  static std::optional<std::vector<uint8_t>> scramble(
       std::string_view nonce, std::string_view password);
 };
 
@@ -44,7 +43,7 @@ class CachingSha2Password {
   static constexpr char name[] = "caching_sha2_password";
 
   // client-side scrambling of the password
-  static stdx::expected<std::vector<uint8_t>, void> scramble(
+  static std::optional<std::vector<uint8_t>> scramble(
       std::string_view nonce, std::string_view password);
 };
 
@@ -53,7 +52,7 @@ class ClearTextPassword {
   static constexpr char name[] = "mysql_clear_password";
 
   // client-side scrambling of the password
-  static stdx::expected<std::vector<uint8_t>, void> scramble(
+  static std::optional<std::vector<uint8_t>> scramble(
       std::string_view nonce, std::string_view password);
 };
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -245,11 +245,10 @@ bool add_line_to_config_file(const std::string &config_path,
  * @param timeout number of milliseconds we are going to wait for the log_regex
  * to occur at expected position
  *
- * @retval if log_regex is found at expected position return the timestamp of
+ * @returns if log_regex is found at expected position return the timestamp of
  * this log
- * @retval unexpected otherwise
  */
-stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+std::optional<std::chrono::time_point<std::chrono::system_clock>>
 get_log_timestamp(
     const std::string &log_file, const std::string &log_regex,
     const unsigned occurence = 1,
