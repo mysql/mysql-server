@@ -1453,9 +1453,6 @@ THD::~THD() {
     my_free(m_token_array);
   }
 
-  assert(plugin_lock_recursion_depth == 0);
-  assert(system_variable_hash_lock_recursion_depth == 0);
-
   m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
   assert(mem_cnt == &thd_cnt_noop);
 }

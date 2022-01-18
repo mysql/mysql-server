@@ -412,6 +412,10 @@ enum class Suppress_not_found_error { NO, YES };
 
 enum class Force_sensitive_system_variable_access { NO, YES };
 
+enum class Is_already_locked { NO, YES };
+
+enum class Is_single_thread { NO, YES };
+
 /**
   Wrapper interface for all kinds of system variables.
 
@@ -712,13 +716,22 @@ class System_variable_tracker final {
           return false  // success
         }
         if system variable is plugin-registered one {
+          if need to hold LOCK_system_variables_hash {
+            acquire read-only LOCK_system_variables_hash
+          }
           if need to hold LOCK_plugin {
             acquire LOCK_plugin, unlock on exit
           }
-          if need to hold LOCK_system_variables_hash {
-            acquire read-only LOCK_system_variables_hash, unlock on exit
-          }
           find sys_var
+          if found {
+            intern_plugin_lock
+          }
+          if this function acquired LOCK_plugin {
+            release LOCK_plugin
+          }
+          if this function acquired LOCK_system_variables_hash {
+            release LOCK_system_variables_hash
+          }
           if not found or plugin is not in the PLUGIN_IS_READY state {
             return true  // error: variable not found or
           }
@@ -747,6 +760,10 @@ class System_variable_tracker final {
         unavailable.
     @param force_sensitive_variable_access
         Suppress privilege check for SENSITIVE variables.
+    @param is_already_locked
+        YES means LOCK_system_variables_hash has already been taken.
+    @param is_single_thread
+        YES means we are called from mysqld_main, during bootstrap.
 
     @returns True if the dynamic variable is unavailable, otherwise false.
   */
@@ -757,7 +774,9 @@ class System_variable_tracker final {
       Suppress_not_found_error suppress_not_found_error =
           Suppress_not_found_error::NO,
       Force_sensitive_system_variable_access force_sensitive_variable_access =
-          Force_sensitive_system_variable_access::NO) const;
+          Force_sensitive_system_variable_access::NO,
+      Is_already_locked is_already_locked = Is_already_locked::NO,
+      Is_single_thread is_single_thread = Is_single_thread::NO) const;
 
   /**
     Safely pass a sys_var object to a function. Template variant.
@@ -786,6 +805,10 @@ class System_variable_tracker final {
         unavailable.
     @param force_sensitive_variable_access
         Suppress privilege check for SENSITIVE variables.
+    @param is_already_locked
+        YES means LOCK_system_variables_hash has already been taken.
+    @param is_single_thread
+        YES means we are called from mysqld_main, during bootstrap.
 
     @returns
       No value if the dynamic variable is unavailable, otherwise a value of
@@ -798,14 +821,17 @@ class System_variable_tracker final {
       Suppress_not_found_error suppress_not_found_error =
           Suppress_not_found_error::NO,
       Force_sensitive_system_variable_access force_sensitive_variable_access =
-          Force_sensitive_system_variable_access::NO) const {
+          Force_sensitive_system_variable_access::NO,
+      Is_already_locked is_already_locked = Is_already_locked::NO,
+      Is_single_thread is_single_thread = Is_single_thread::NO) const {
     T result;
     auto wrapper = [function, &result](const System_variable_tracker &t,
                                        sys_var *v) {
       result = function(t, v);  // clang-format
     };
     return access_system_variable(thd, wrapper, suppress_not_found_error,
-                                  force_sensitive_variable_access)
+                                  force_sensitive_variable_access,
+                                  is_already_locked, is_single_thread)
                ? std::optional<T>{}
                : std::optional<T>{result};
   }
@@ -852,10 +878,12 @@ class System_variable_tracker final {
 
  private:
   bool visit_plugin_variable(THD *, std::function<bool(sys_var *)>,
-                             Suppress_not_found_error) const;
+                             Suppress_not_found_error, Is_already_locked,
+                             Is_single_thread) const;
 
   bool visit_component_variable(THD *, std::function<bool(sys_var *)>,
-                                Suppress_not_found_error) const;
+                                Suppress_not_found_error, Is_already_locked,
+                                Is_single_thread) const;
 
   void cache_metadata(THD *thd, sys_var *v) const;
 
@@ -867,6 +895,12 @@ class System_variable_tracker final {
     bool m_cached_is_sensitive;
   };
   mutable std::optional<Cache> m_cache;
+
+  /**
+    A non-zero value suppresses LOCK_system_variables_hash guards in
+    System_variable_tracker::access_system_variable
+  */
+  thread_local static int m_hash_lock_recursion_depth;
 
   union {
     struct {
@@ -1066,9 +1100,6 @@ collation_unordered_map<std::string, sys_var *>
 
 extern bool get_sysvar_source(const char *name, uint length,
                               enum enum_variable_source *source);
-
-void lock_plugin_mutex();
-void unlock_plugin_mutex();
 
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();

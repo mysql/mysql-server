@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -468,7 +468,6 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
     THD *thd, LEX_STRING var_list, bool throw_error,
     const CHARSET_INFO *char_set, bool session_created) {
   const char *separator = ",";
-  char *token, *lasts = nullptr; /* strtok_r */
 
   if (!var_list.str) {
     variables_list = nullptr;
@@ -488,63 +487,81 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
     }
   }
 
-  token = my_strtok_r(variables_list, separator, &lasts);
-
-  track_all = false;
-  /*
-    If Lock to the plugin mutex is not acquired here itself, it results
-    in having to acquire it multiple times in System_variable_tracker for each
-    token value. Hence the mutex is handled here to avoid a performance
-    overhead.
-
-    TODO(gleb): why acquire locks on `!thd`?
-  */
-  struct RAII {
-    RAII(THD *thd, bool session_created)
-        : thd{thd},
-          acquire_plugin_lock{
-              thd == nullptr ||
-              (session_created && thd->plugin_lock_recursion_depth == 0)} {
-      if (!acquire_plugin_lock) {
-        return;
+  bool needs_system_variable_hash_lock = false;
+  bool needs_plugin_lock = false;
+  if (thd == nullptr || session_created) {
+    for (char *lasts, *token = my_strtok_r(variables_list, separator, &lasts);
+         token != nullptr; token = my_strtok_r(nullptr, separator, &lasts)) {
+      LEX_STRING var{token, strlen(token)};
+      /* Remove leading/trailing whitespace. */
+      trim_whitespace(char_set, &var);
+      if (var.length == 0) {
+        continue;
       }
-      lock_plugin_mutex();
-      if (thd != nullptr) {
-        thd->plugin_lock_recursion_depth = 1;
+      switch (System_variable_tracker::make_tracker(to_string_view(var))
+                  .lifetime()) {
+        case System_variable_tracker::PLUGIN:
+          needs_plugin_lock = true;
+          needs_system_variable_hash_lock = true;
+          break;
+        case System_variable_tracker::COMPONENT:
+          needs_system_variable_hash_lock = true;
+          break;
+        default:
+          break;
+      }
+      if (needs_plugin_lock && needs_system_variable_hash_lock) {
+        break;
+      }
+    }
+  }
+  strncpy(variables_list, var_list.str, var_list.length);
+
+  struct RAII {
+    RAII(bool needs_system_variable_hash_lock, bool needs_plugin_lock)
+        : m_needs_system_variable_hash_lock{needs_system_variable_hash_lock},
+          m_needs_plugin_lock{needs_plugin_lock} {
+      extern mysql_mutex_t LOCK_plugin;
+      extern mysql_rwlock_t LOCK_system_variables_hash;
+      if (m_needs_system_variable_hash_lock) {
+        mysql_mutex_assert_not_owner(&LOCK_plugin);
+        mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+      }
+      if (m_needs_plugin_lock) {
+        mysql_mutex_lock(&LOCK_plugin);
       }
     }
     ~RAII() {
-      if (!acquire_plugin_lock) {
-        return;
+      if (m_needs_plugin_lock) {
+        extern mysql_mutex_t LOCK_plugin;
+        mysql_mutex_unlock(&LOCK_plugin);
       }
-      unlock_plugin_mutex();
-      if (thd != nullptr) {
-        assert(thd->plugin_lock_recursion_depth == 1);
-        thd->plugin_lock_recursion_depth = 0;
+      if (m_needs_system_variable_hash_lock) {
+        extern mysql_rwlock_t LOCK_system_variables_hash;
+        mysql_rwlock_unlock(&LOCK_system_variables_hash);
       }
     }
+    const bool m_needs_system_variable_hash_lock;
+    const bool m_needs_plugin_lock;
+  } raii{needs_system_variable_hash_lock, needs_plugin_lock};
 
-   private:
-    THD *const thd;
-    const bool acquire_plugin_lock;
-  } raii{thd, session_created};
+  track_all = false;
 
-  while (token) {
-    LEX_STRING var;
-    var.str = token;
-    var.length = strlen(token);
-
+  for (char *lasts, *token = my_strtok_r(variables_list, separator, &lasts);
+       token != nullptr; token = my_strtok_r(nullptr, separator, &lasts)) {
+    LEX_STRING var{token, strlen(token)};
     /* Remove leading/trailing whitespace. */
     trim_whitespace(char_set, &var);
+    if (var.length == 0) {
+      continue;
+    }
 
     if (!thd || session_created) {
-      /*
-        Pass thd=nullptr to access_system_variable() not to acquire
-        LOCK_plugin and LOCK_system_variables_hash twice.
-      */
       if (!System_variable_tracker::make_tracker(to_string_view(var))
-               .access_system_variable(thd, {},
-                                       Suppress_not_found_error::YES)) {
+               .access_system_variable(
+                   thd, {}, Suppress_not_found_error::YES,
+                   Force_sensitive_system_variable_access::NO,
+                   Is_already_locked::YES)) {
         if (insert(nullptr, to_lex_cstring(var)) == true) {
           return true;  // Error inserting into the hash.
         }
@@ -561,8 +578,6 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
         return true;  // Error inserting into the hash.
       }
     }
-
-    token = my_strtok_r(nullptr, separator, &lasts);
   }
 
   return false;

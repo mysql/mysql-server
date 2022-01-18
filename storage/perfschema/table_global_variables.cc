@@ -91,6 +91,7 @@ PFS_engine_table *table_global_variables::create(PFS_engine_table_share *) {
 
 ha_rows table_global_variables::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   ha_rows system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);

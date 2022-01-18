@@ -1195,16 +1195,6 @@ class THD : public MDL_context_owner,
   */
   mysql_mutex_t LOCK_thd_sysvar;
 
-  /**
-    A non-zero value suppresses LOCK_plugin guards in
-    System_variable_tracker::access_system_variable
-  */
-  int plugin_lock_recursion_depth{0};
-  /**
-    A non-zero value suppresses LOCK_system_variables_hash guards in
-    System_variable_tracker::access_system_variable
-  */
-  int system_variable_hash_lock_recursion_depth{0};
 #ifndef NDEBUG
   bool for_debug_only_is_set_persist_options{false};
 #endif
