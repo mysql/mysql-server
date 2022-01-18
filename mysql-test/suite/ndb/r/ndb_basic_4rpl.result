@@ -101,6 +101,8 @@ Ndb_conflict_fn_epoch2_trans	#
 Ndb_conflict_fn_epoch_trans	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
+Ndb_conflict_fn_max_del_win_ins	#
+Ndb_conflict_fn_max_ins	#
 Ndb_conflict_fn_old	#
 Ndb_conflict_last_conflict_epoch	#
 Ndb_conflict_last_stable_epoch	#

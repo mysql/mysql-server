@@ -1362,7 +1362,8 @@ NdbOperation::handleOperationOptions (const OperationType type,
     if (! ((type == ReadRequest)   ||
            (type == ReadExclusive) ||
            (type == UpdateRequest) ||
-           (type == DeleteRequest)))
+           (type == DeleteRequest) ||
+           (type == WriteRequest)))
       /* NdbInterpretedCode not supported for operation type */
       return 4539;
     

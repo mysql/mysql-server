@@ -1,0 +1,140 @@
+#
+# Test engine native conflict resolution for
+# NDB$MAX_INS algorithm for UPDATE and DELETE operations
+#
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--disable_query_log
+--connection master
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+create table `test`.`t1$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   d varchar(9) not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+--enable_query_log
+
+--echo *** Test 1 ********************************************************
+--echo * test native NDB\$MAX_INS() conflict resolution
+--echo * test with both allowed "conflict column" types, uint32 and uint64
+--echo *******************************************************************
+--connection master
+set @save_luaw = @@global.ndb_log_update_as_write;
+set @save_luo = @@global.ndb_log_updated_only;
+set global ndb_log_update_as_write=0;
+set global ndb_log_updated_only=0;
+# Option 0 for binlog_type means use server defaults, above.
+insert into mysql.ndb_replication values ("test", "t1", 0, 0, "NDB$MAX_INS(X)");
+--let col_type = int unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 2 ********************************************************
+--echo * test native NDB\$MAX_INS() conflict resolution
+--echo * test with both allowed "conflict column" types, uint32 and uint64
+--echo *******************************************************************
+--connection master
+--let col_type = bigint unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 3 ********************************************************
+--echo * test native NDB\$MAX_INS() conflict resolution
+--echo * test that setting binlog update option via table works equally well
+--echo *******************************************************************
+--connection master
+set global ndb_log_update_as_write=1;
+set global ndb_log_updated_only=1;
+update mysql.ndb_replication set binlog_type=7; # Full, Use Update
+--let col_type = bigint unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 4 ***********************************************************
+--echo * test behaviour with updates logged as writes, but all columns present
+--echo * Should succeed since the NDB\$MAX_INS() supports conflict detection
+--echo * and resolution for INSERTS.
+--echo * ********************************************************************
+--connection master
+update mysql.ndb_replication set binlog_type=3;  # Full, Use Write
+--let col_type = int unsigned
+--source suite/ndb_rpl/t/ndb_rpl_conflict_1.inc
+
+--echo *** Test 5 ***********************************************************
+--echo * test that missing timestamp column in after-image for update, or
+--echo * test before image for delete results in slave stopping
+--echo **********************************************************************
+--connection master
+update mysql.ndb_replication set binlog_type=6; # Updated only, Use Update
+
+create table t1 (a int, b varchar(32), X bigint unsigned, d varchar(9), primary key (a, d)) engine ndb;
+
+insert into t1 values (1, "Master row 1 at X=1", 1, "1:1");
+insert into t1 values (2, "Master row 2 at X=1", 1, "2:1");
+insert into t1 values (3, "Master row 3 at X=1", 1, "3:1");
+
+--sync_slave_with_master
+
+--connection master
+--echo Show update missing timestamp column causes slave failure
+
+update t1 set b='Blah' where a=1 and d="1:1";
+
+--connection slave
+# Add suppressions to avoid MTR complaints...
+call mtr.add_suppression(".*missing info necessary for conflict detection.*");
+call mtr.add_suppression(".Could not execute.*rows event on table.*");
+call mtr.add_suppression(".*error 1610.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+--echo Wait for slave to choke on that event.
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+
+# Recover sync
+--source include/stop_slave_io.inc
+RESET REPLICA;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+--connection master
+--echo Show delete missing timestamp column (in before image) causes
+--echo slave failure
+
+delete from t1 where a=3 and d="3:1";
+
+--connection slave
+--echo Wait for slave to choke on that event.
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+
+# Recover sync
+--source include/stop_slave_io.inc
+RESET REPLICA;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+--connection master
+drop table t1;
+
+--echo *** test cleanup
+set global ndb_log_update_as_write= @save_luaw;
+set global ndb_log_updated_only = @save_luo;
+--disable_query_log
+--connection master
+drop table mysql.ndb_replication;
+drop table `test`.`t1$EX`;
+--sync_slave_with_master
+--enable_query_log
+
+--source include/rpl_end.inc

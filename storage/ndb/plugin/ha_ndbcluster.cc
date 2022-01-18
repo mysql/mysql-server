@@ -4453,15 +4453,13 @@ int ha_ndbcluster::prepare_conflict_detection(
     return ER_SLAVE_CORRUPT_EVENT;
   }
 
-  /**
-   * Normally, update and delete have an attached program executed against
-   * the existing row content.  Insert (and NdbApi write) do not.
-   * Insert cannot as there is no pre-existing row to examine (and therefore
-   * no non prepare-time deterministic decisions to make).
-   * NdbApi Write technically could if the row already existed, but this is
-   * not currently supported by NdbApi.
-   */
-  bool prepare_interpreted_program = (op_type != WRITE_ROW);
+  bool prepare_interpreted_program = false;
+  if (op_type != WRITE_ROW) {
+    prepare_interpreted_program = true;
+  } else if (conflict_fn->flags & CF_USE_INTERP_WRITE) {
+    prepare_interpreted_program = true;
+    avoid_ndbapi_write = false;
+  }
 
   if (conflict_fn->flags & CF_REFLECT_SEC_OPS) {
     /* This conflict function reflects secondary ops at the Primary */
@@ -4529,8 +4527,7 @@ int ha_ndbcluster::prepare_conflict_detection(
   }
 
   /*
-     Prepare interpreted code for operation (update + delete only) according
-     to algorithm used
+     Prepare interpreted code for operation according to algorithm used
   */
   if (prepare_interpreted_program) {
     res = conflict_fn->prep_func(m_share->m_cfn_share, op_type, m_ndb_record,
@@ -4554,7 +4551,7 @@ int ha_ndbcluster::prepare_conflict_detection(
           m_share->key_string());
       return ER_SLAVE_CORRUPT_EVENT;
     }
-  }  // if (op_type != WRITE_ROW)
+  }
 
   g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
 
@@ -5024,15 +5021,16 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
   bool avoidNdbApiWriteOp = false; /* ndb_write_row defaults to write */
+  Uint32 buffer[MAX_CONFLICT_INTERPRETED_PROG_SIZE];
+  NdbInterpretedCode code(m_table, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
   /* Conflict resolution in slave thread */
   if (thd->slave_thread) {
     bool conflict_handled = false;
-
     if (unlikely((error = prepare_conflict_detection(
                       WRITE_ROW, key_rec, m_ndb_record, NULL, /* old_data */
                       record,                                 /* new_data */
-                      table->write_set, trans, NULL,          /* code */
+                      table->write_set, trans, &code,         /* code */
                       &options, conflict_handled, avoidNdbApiWriteOp))))
       return error;
 
@@ -5058,7 +5056,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
       user_cols_written_bitmap = NULL;
       mask = NULL;
     }
-    /* TODO : Add conflict detection etc when interpreted write supported */
+
     op = trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                            (char *)record, mask, poptions,
                            sizeof(NdbOperation::OperationOptions));

@@ -2650,13 +2650,57 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto update_error;
     }
   }
-  
-  if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
-                                       req_struct->attrinfo_len)) < 0))
+
+  if (unlikely(req_struct->interpreted_exec))
   {
     jam();
-    terrorCode = Uint32(-res);
-    goto update_error;
+
+    /* Interpreted insert only processes the finalUpdate section */
+    const Uint32 RinitReadLen= cinBuffer[0];
+    const Uint32 RexecRegionLen= cinBuffer[1];
+    const Uint32 RfinalUpdateLen= cinBuffer[2];
+    //const Uint32 RfinalRLen= cinBuffer[3];
+    //const Uint32 RsubLen= cinBuffer[4];
+
+    const Uint32 offset = 5 + RinitReadLen + RexecRegionLen;
+    req_struct->log_size = 0;
+
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[offset],
+                                         RfinalUpdateLen)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
+
+    /**
+     * Send normal format AttrInfo back to LQH for
+     * propagation
+     */
+    req_struct->log_size = RfinalUpdateLen;
+    MEMCOPY_NO_WORDS(&clogMemBuffer[0],
+                     &cinBuffer[offset],
+                     RfinalUpdateLen);
+
+    if (unlikely(sendLogAttrinfo(signal,
+                                 req_struct,
+                                 RfinalUpdateLen,
+                                 regOperPtr.p) != 0))
+    {
+      jam();
+      goto update_error;
+    }
+  }
+  else
+  {
+    /* Normal insert */
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
+                                         req_struct->attrinfo_len)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
   }
 
   if (ERROR_INSERTED(4017))

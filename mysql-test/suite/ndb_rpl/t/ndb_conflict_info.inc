@@ -4,6 +4,8 @@
 let $resmax=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX", r,1);
 let $resold=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD", r, 1);
 let $resmaxdelwin=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN", r, 1);
+let $resmaxins=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_ins AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_INS", r, 1);
+let $resmaxdelwinins=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win_ins AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN_INS", r, 1);
 let $resepoch=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH",r,1);
 let $resepoch2=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch2 AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH2",r,1);
 let $resdeldel=query_get_value(SELECT VARIABLE_VALUE-@init_ndb_epoch_delete_delete AS r FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_EPOCH_DELETE_DELETE_COUNT",r,1);
@@ -31,6 +33,14 @@ if ($resepoch2)
 if ($resdeldel)
 {
   --eval select $resdeldel as ndb_epoch_delete_delete
+}
+if ($resmaxins)
+{
+  --eval select $resmaxins as ndb_conflict_fn_max_ins
+}
+if ($resmaxdelwinins)
+{
+  --eval select $resmaxdelwinins as ndb_conflict_fn_max_del_win_ins
 }
 
 
