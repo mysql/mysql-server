@@ -150,7 +150,9 @@ static MYSQL_SYSVAR_ULONGLONG(
   1ULL<<63,
   0
 );
-
+bool is_update = false;
+std::vector<uint32_t> update_column_set;
+std::vector<uint32_t> nullable_column_set;
 /*
 static MYSQL_SYSVAR_ULONGLONG(
   lock_wait_timeout,
@@ -183,8 +185,6 @@ static MYSQL_THDVAR_BOOL(adjust_table_stats_for_joins, PLUGIN_VAR_NOCMDARG,
 static MYSQL_THDVAR_ULONG(max_degree_of_parallelism, PLUGIN_VAR_RQCMDARG,
                           "Maximum number of threads which can be used for join optimization",
                           nullptr, nullptr, std::thread::hardware_concurrency(), 1, std::thread::hardware_concurrency() * 4, 0);
-
-std::mutex memory_mtx;
 
 SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(partition_max_rows),
@@ -610,7 +610,7 @@ class ha_warp : public handler {
   void write_buffered_rows_to_disk();
   void foreground_write();
   int append_column_filter(const Item* cond, std::string& push_where_clause); 
-  static void maintain_indexes(char* datadir, TABLE* table);
+  static void maintain_indexes(const char* datadir);
   void open_deleted_bitmap(int lock_mode = LOCK_SH);
   void close_deleted_bitmap();
   bool is_deleted(uint64_t rowid);

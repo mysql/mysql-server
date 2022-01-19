@@ -160,7 +160,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(3);
+  ibis::util::setVerboseLevel(4);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -442,10 +442,7 @@ static int free_share(WARP_SHARE *share) {
   DBUG_RETURN(result_code);
 }
 
-/*
-  Populates the comma separarted list of all the columns that need to be read
-  from the storage engine for this query.
-*/
+
 int ha_warp::set_column_set() {
   DBUG_ENTER("ha_warp::set_column_set");
   column_set = "";
@@ -477,10 +474,22 @@ int ha_warp::set_column_set() {
   */
   column_set += "r,t";
 
+  update_column_set.clear();
+  nullable_column_set.clear();
+  count=0;
+  for (Field **field = table->field; *field; field++) {
+    if(bitmap_is_set(table->write_set, (*field)->field_index())) { 
+      update_column_set.push_back((*field)->field_index());
+    }
+    if((*field)->is_nullable()) {
+        nullable_column_set.push_back(1);
+    } else {
+       nullable_column_set.push_back(0);
+    }
+  }
 
   DBUG_RETURN(count + 1);
 }
-
 
 /* store the binary data for each returned value into the MySQL buffer
    using field->store()
@@ -685,7 +694,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
 
 err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-  
+  //std::cerr << "Found row for rownum " << rownum << " rowid " << current_rowid << "\n";
   DBUG_RETURN(rc);
 }
 
@@ -753,10 +762,16 @@ int ha_warp::open(const char *name, int, uint, const dd::Table *) {
 */
 int ha_warp::close(void) {
   DBUG_ENTER("ha_warp::close");
-  if(writer) delete writer;
+  if(writer) {
+    writer->clearData();
+    delete writer;
+  } 
   writer = NULL;
+  if(cursor) delete cursor;
   cursor = NULL;
+  if(filtered_table) delete filtered_table;
   filtered_table = NULL;
+  if(base_table) delete base_table;
   base_table = NULL;
 
   DBUG_RETURN(free_share(share));
@@ -770,6 +785,7 @@ int ha_warp::end_bulk_insert() {
     /* foreground write actually because it is not executed in a different `thread */
     write_buffered_rows_to_disk();
   }
+
   return 0;
 }
 
@@ -900,6 +916,9 @@ int ha_warp::write_row(uchar *buf) {
 // scans this verion of the row will not be visible to this or 
 // newer transactions and will be visible to older transactions.
 int ha_warp::update_row(const uchar *, uchar *new_data) {
+  is_update=true;
+  set_column_set();
+  
   DBUG_ENTER("ha_warp::update_row");
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
@@ -917,8 +936,8 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   // if the write fails (for example due to duplicate key then
   // the statement will be rolled back and the deleted row 
   // will be 
-  
   int retval = write_row(new_data);
+  
   if(retval == 0) {
     // only log the delete and create the history lock 
     // if the write completed successfully.  The EX_LOCK
@@ -930,7 +949,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   }
   
   ha_statistic_increment(&System_status_var::ha_update_count);
-  
+  is_update=false;
   DBUG_RETURN(retval);
 }
 
@@ -945,6 +964,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
 */
 int ha_warp::delete_row(const uchar *) {
   DBUG_ENTER("ha_warp::delete_row");
+  
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
   int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
@@ -954,6 +974,7 @@ int ha_warp::delete_row(const uchar *) {
   }
   warp_state->create_lock(current_rowid, current_trx, LOCK_HISTORY);
   current_trx->write_delete_log_rowid(current_rowid);
+  
   ha_statistic_increment(&System_status_var::ha_delete_count);
   stats.records--;
   DBUG_RETURN(0);
@@ -1102,14 +1123,20 @@ void index_builder(ibis::table* tbl, const char* cname, const char* comment) {
 /* Fastbit will normally maintain the indexes automatically, but if the type
    of bitmap index is to be set manually, the comment on the field will be
    taken into account. */
-void ha_warp::maintain_indexes(char *datadir, TABLE *table) {
-  return;
-
+void ha_warp::maintain_indexes(const char *datadir) {
+  ibis::table::stringArray columns;
+  int count=0;
+  for(auto it=update_column_set.begin();it!=update_column_set.end();++it) {
+    columns.push_back(("c" + std::to_string(*it)).c_str());
+    if(nullable_column_set[count] == 1) {
+      columns.push_back(("n" + std::to_string(*it)).c_str());
+    }
+    
+    ++count;
+  }
   auto base_table = ibis::mensa::create(datadir);
-  std::vector<std::thread> index_build_threads;
-  
+  base_table->buildIndexes(columns);
   delete (base_table);
-  return;
 }
 
 /* The ::extra function is called a bunch of times before and after various
@@ -1556,7 +1583,7 @@ int ha_warp::rnd_init(bool) {
       part_it = partitions->begin();
     }
   }
-
+  
   DBUG_RETURN(0);
 }
 
@@ -1726,6 +1753,7 @@ void exec_pushdown_join(
 
 int ha_warp::rnd_next(uchar *buf) {
   DBUG_ENTER("ha_warp::rnd_next");
+  
   // transaction id of the current row
   uint64_t row_trx_id = 0;
 fetch_again:  
@@ -1908,8 +1936,8 @@ fetch_again:
       
       base_table = ibis::table::create((*part_it)->currentDataDir());
       assert(base_table != NULL);
-      
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+      
       if(filtered_table==NULL) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
@@ -1928,7 +1956,6 @@ fetch_again:
   // current_matching_ridset the next row is fetched and if the
   // end of the resultset is reached, res will end up non-zero 
   int res = 10;
-  
   if(matching_ridset.size() >0 ) {
     
     if(current_matching_ridset_it != current_matching_ridset->end()) {
@@ -2024,6 +2051,7 @@ fetch_again:
   if(!is_row_visible_to_read(current_rowid)) {
     goto fetch_again;
   }
+  
   //std::cerr << "rowid: " << current_rowid << " is visible to read\n";
   // Lock rows during a read if requested
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
@@ -2058,13 +2086,15 @@ fetch_again:
 */
 int ha_warp::rnd_end() {
   DBUG_ENTER("ha_warp::rnd_end");
+  
   blobroot.Clear();
    
   push_where_clause = "";
-  
-  if(base_table) delete base_table;
+    
   if(cursor) delete cursor;
   if(filtered_table) delete filtered_table;
+  if(base_table) delete base_table;
+
   if(partitions) {
     for(auto it=partitions->begin();it!=partitions->end();++it) {
       delete *it;
@@ -2472,7 +2502,8 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
   if(thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     const Item *cond = table_aqp->get_condition();
     if(cond == nullptr) return 0;
-        
+   //AQP::enum_access_type type = table_aqp->get_access_type();
+    
     auto cond2 = table_aqp->get_condition();
     String str;
     str.reserve(1024*1024);
@@ -4385,8 +4416,10 @@ std::string ha_warp::explain_extra() const {
 
 // get the number of rows in all the tables in the current schema
 std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table_dir) {
-  std::unordered_map<const char*, uint64_t> table_counts;
+  static std::unordered_map<const char*, uint64_t> table_counts;
   ibis::partList parts;
+  if(!table_counts.empty()) return table_counts;
+
   char* schema_dir = strdup(table_dir);
   schema_dir = dirname(schema_dir);
   ibis::util::gatherParts(parts, schema_dir, true);
@@ -4413,7 +4446,8 @@ std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table
 // return the path to the table with the most rows in the database
 const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts, std::unordered_map<std::string, bool> query_tables) {
   uint64_t max_cnt = 0;
-  const char* table_with_max_cnt = NULL;
+  static const char* table_with_max_cnt = NULL;
+  if(table_with_max_cnt != NULL) return table_with_max_cnt;
 
   for(auto it = table_counts->begin(); it != table_counts->end(); it++) {
     auto it2=query_tables.find(std::string(it->first));
@@ -4431,7 +4465,10 @@ const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* 
 
 // return the path to the table with the most rows in the database
 uint64_t get_least_row_count(std::unordered_map<const char*, uint64_t>* table_counts) {
-  uint64_t min_cnt = -1ULL;
+  static uint64_t min_cnt = -1ULL;
+  if(min_cnt < -1ULL) {
+    return min_cnt;
+  }
   
   for(auto it = table_counts->begin(); it != table_counts->end(); it++) {
     if(it->second <= min_cnt) {
