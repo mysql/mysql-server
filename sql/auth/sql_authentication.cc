@@ -4156,6 +4156,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       We must set the flag after all required roles are activated.
     */
     set_system_user_flag(thd);
+    // Update the flag in THD based on if the user is granted CONNECTION_ADMIN
+    // privilege
+    set_connection_admin_flag(thd);
   }
   ret = 0;
 end:

@@ -829,6 +829,7 @@ THD::THD(bool enable_plugins)
   debug_binlog_xid_last.reset();
 #endif
   set_system_user(false);
+  set_connection_admin(false);
   mem_cnt = &thd_cnt_noop;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4576,10 +4576,18 @@ class THD : public MDL_context_owner,
     Flag that indicates if the user of current session has SYSTEM_USER privilege
   */
   std::atomic<bool> m_is_system_user;
+  /**
+    Flag that indicates if the user of current session has CONNECTION_ADMIN
+    privilege
+  */
+  std::atomic<bool> m_is_connection_admin;
 
  public:
   bool is_system_user();
   void set_system_user(bool system_user_flag);
+
+  bool is_connection_admin();
+  void set_connection_admin(bool connection_admin_flag);
 
  public:
   Transactional_ddl_context m_transactional_ddl{this};
@@ -4697,9 +4705,29 @@ inline void THD::set_system_user(bool system_user_flag) {
 }
 
 /**
+  Returns if the user of the session has the CONNECTION_ADMIN privilege or not.
+
+  @retval true  User has CONNECTION_ADMIN privilege
+  @retval false Otherwise
+*/
+inline bool THD::is_connection_admin() {
+  return m_is_connection_admin.load(std::memory_order_seq_cst);
+}
+
+/**
+  Sets the connection_admin flag atomically for the current session.
+
+  @param [in] connection_admin_flag  boolean flag that indicates value to set.
+*/
+inline void THD::set_connection_admin(bool connection_admin_flag) {
+  m_is_connection_admin.store(connection_admin_flag, std::memory_order_seq_cst);
+}
+
+/**
   Returns true if xa transactions are detached as part of executing XA PREPARE.
 */
 inline bool is_xa_tran_detached_on_prepare(const THD *thd) {
   return thd->variables.xa_detach_on_prepare;
 }
+
 #endif /* SQL_CLASS_INCLUDED */

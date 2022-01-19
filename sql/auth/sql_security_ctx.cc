@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -183,10 +183,11 @@ void Security_context::skip_grants(const char *user /*= "skip-grants user"*/,
 
   /*
     If the security context is tied upto to the THD object and it is
-    current security context in THD then set the flag to true.
+    current security context in THD then set the flags to true.
   */
   if (m_thd && m_thd->security_context() == this) {
     m_thd->set_system_user(true);
+    m_thd->set_connection_admin(true);
   }
 }
 

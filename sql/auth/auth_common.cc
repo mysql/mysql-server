@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "my_alloc.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
+#include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
@@ -40,6 +41,7 @@
 namespace consts {
 const std::string mysql("mysql");
 const std::string system_user("SYSTEM_USER");
+const std::string connection_admin("CONNECTION_ADMIN");
 }  // namespace consts
 
 bool User_table_schema_factory::is_old_user_table_schema(TABLE *table) {
@@ -168,4 +170,29 @@ void set_system_user_flag(THD *thd,
     thd->set_system_user(sctx->has_global_grant(consts::system_user.c_str(),
                                                 consts::system_user.length())
                              .first);
+}
+
+/**
+  Set the connection_admin flag in the THD. Probe the security context for the
+  CONNECTION_ADMIN or SUPER dynamic privilege only if it has not been changed
+  from original security context in the THD. If the original security context
+  does not have CONNECTION_ADMIN or SUPER privlege then reset the flag in the
+  THD, otherwise set it.
+
+  @param [in, out]  thd Thead handle
+  @param [in] check_for_main_security_ctx If this flag value is true then we
+                                          toggle value in THD only if current
+                                          security context is same as main
+                                          security context.
+*/
+void set_connection_admin_flag(THD *thd,
+                               bool check_for_main_security_ctx /*= false*/) {
+  assert(thd);
+  Security_context *sctx = thd->security_context();
+  if (check_for_main_security_ctx == false || sctx == &thd->m_main_security_ctx)
+    thd->set_connection_admin(
+        sctx->has_global_grant(consts::connection_admin.c_str(),
+                               consts::connection_admin.length())
+            .first ||
+        sctx->check_access(SUPER_ACL));
 }

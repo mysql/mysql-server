@@ -69,6 +69,7 @@ class LEX_GRANT_AS;
 namespace consts {
 extern const std::string mysql;
 extern const std::string system_user;
+extern const std::string connection_admin;
 }  // namespace consts
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
@@ -1049,6 +1050,8 @@ class Grant_temporary_static_privileges
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 bool is_partial_revoke_exists(THD *thd);
 void set_system_user_flag(THD *thd, bool check_for_main_security_ctx = false);
+void set_connection_admin_flag(THD *thd,
+                               bool check_for_main_security_ctx = false);
 
 /**
   Storage container for default auth ids. Default roles are only weakly

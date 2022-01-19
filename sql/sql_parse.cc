@@ -6409,6 +6409,7 @@ class Kill_non_super_conn : public Do_THD_Impl {
  private:
   /* THD of connected client. */
   THD *m_client_thd;
+  bool m_is_client_regular_user;
 
  public:
   Kill_non_super_conn(THD *thd) : m_client_thd(thd) {
@@ -6416,12 +6417,12 @@ class Kill_non_super_conn : public Do_THD_Impl {
            m_client_thd->security_context()
                ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
                .first);
+    m_is_client_regular_user = !m_client_thd->is_system_user();
   }
 
   void operator()(THD *thd_to_kill) override {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    Security_context *sctx = thd_to_kill->security_context();
     /* Kill only if non-privileged thread and non slave thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
@@ -6429,12 +6430,15 @@ class Kill_non_super_conn : public Do_THD_Impl {
        assigned to this thread and it turns out it is not privileged user
        thread, the authentication for this thread will fail and the thread will
        be terminated.
+       Additionally, client with SYSTEM_VARIABLES_ADMIN but not SYSTEM_USER
+       privilege is not allowed to kill threads having SYSTEM_USER,
+       but not CONNECTION_ADMIN privilege.
     */
-    if (sctx->has_account_assigned() &&
-        !(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+    const bool has_higher_privilege =
+        m_is_client_regular_user && thd_to_kill->is_system_user();
+    if (!thd_to_kill->is_connection_admin() &&
         thd_to_kill->killed != THD::KILL_CONNECTION &&
-        !thd_to_kill->slave_thread)
+        !thd_to_kill->slave_thread && !has_higher_privilege)
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);

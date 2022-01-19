@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2135,9 +2135,12 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
     Update the flag in THD if invoker has SYSTEM_USER privilege not if the
     definer user has that privilege.
+    Do the same for the CONNECTION_ADMIN user privilege flag.
   */
-  if (!ret) set_system_user_flag(thd, true);
-
+  if (!ret) {
+    set_system_user_flag(thd, true);
+    set_connection_admin_flag(thd, true);
+  }
   return ret;
 }
 

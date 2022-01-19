@@ -1043,10 +1043,15 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     In case the definer user has SYSTEM_USER privilege then make THD
     non-killable through the users who do not have SYSTEM_USER privilege,
     OR vice-versa.
-    Note - Do not forget to reset the flag after the saved security context is
-           restored.
+    Recalculate the connection_admin flag state as well (CONNECTION_ADMIN
+    privilege).
+    Note - Do not forget to reset the flags after the saved security
+    context is restored.
   */
-  if (save_sctx) set_system_user_flag(thd);
+  if (save_sctx) {
+    set_system_user_flag(thd);
+    set_connection_admin_flag(thd);
+  }
 
   if (check_access(thd, EVENT_ACL, m_schema_name.str, nullptr, nullptr, false,
                    false)) {
@@ -1173,8 +1178,9 @@ end:
 
   if (save_sctx) {
     event_sctx.restore_security_context(thd, save_sctx);
-    /* Restore the original value in THD */
+    /* Restore the original values in THD */
     set_system_user_flag(thd);
+    set_connection_admin_flag(thd);
   }
 
   thd->lex->cleanup(thd, true);

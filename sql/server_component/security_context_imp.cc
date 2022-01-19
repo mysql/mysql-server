@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,9 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
 
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
+      // Update the flag in THD based on if the user is granted CONNECTION_ADMIN
+      // privilege
+      set_connection_admin_flag(thd);
     }
     return false;
   } catch (...) {
@@ -183,11 +186,14 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
 
     /*
       If it is not a new security context then update the
-      system_user flag in its referenced THD.
+      system_user and connection_admin flags in its referenced THD.
     */
     Security_context *sctx = reinterpret_cast<Security_context *>(ctx);
     THD *sctx_thd = sctx->get_thd();
-    if (sctx_thd) set_system_user_flag(sctx_thd);
+    if (sctx_thd) {
+      set_system_user_flag(sctx_thd);
+      set_connection_admin_flag(sctx_thd);
+    }
 
     if (tmp_thd) {
       destroy_internal_thd(tmp_thd);
