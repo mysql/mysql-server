@@ -3253,6 +3253,20 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
+static bool update_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
+                                   set_var *var){
+  const bool current_auto_statistics =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
+  const bool want_auto_statistics =
+      var->save_result.ulonglong_value & OPTIMIZER_SWITCH_AUTO_STATISTICS;
+
+  if(!current_auto_statistics && want_auto_statistics){
+    thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+    return false;
+  }
+  return false;
+}
+
 static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
                                    set_var *var) {
   const bool current_hypergraph_optimizer =
@@ -3333,7 +3347,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     "{on, off, default},",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(update_optimizer_switch));
 
 static PolyLock_mutex PLock_global_conn_mem_limit(&LOCK_global_conn_mem_limit);
 
