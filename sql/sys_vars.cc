@@ -3314,6 +3314,7 @@ static const char *optimizer_switch_names[] = {
     "prefer_ordering_index",
     "hypergraph_optimizer",  // Deliberately not documented below.
     "derived_condition_pushdown",
+    "auto_statistics",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3327,8 +3328,9 @@ static Sys_var_flagset Sys_optimizer_switch(
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
     " subquery_to_derived, prefer_ordering_index,"
-    " derived_condition_pushdown} and val is one of "
-    "{on, off, default}",
+    " derived_condition_pushdown,"
+    " auto_statistics } and val is one of "
+    "{on, off, default},",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
