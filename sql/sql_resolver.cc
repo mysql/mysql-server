@@ -118,7 +118,7 @@ static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = nullptr);
 static Item *create_rollup_switcher(THD *thd, Query_block *query_block,
-                                    Item *item, int send_group_parts);
+                                    Item_sum *item, int send_group_parts);
 static bool fulltext_uses_rollup_column(const Query_block *query_block);
 
 /**
@@ -489,15 +489,17 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     uint send_group_parts = group_list_size();
     for (auto it = fields.begin(); it != fields.end(); ++it) {
       Item *item = *it;
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          down_cast<Item_sum *>(item)->aggr_query_block == this &&
-          !is_rollup_sum_wrapper(item)) {
-        // split_sum_func2 created a new aggregate function item,
-        // so we need to update it for rollup.
-        Item *new_item =
-            create_rollup_switcher(thd, this, item, send_group_parts);
-        if (new_item == nullptr) return true;
-        *it = new_item;
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item()) {
+        Item_sum *item_sum = down_cast<Item_sum *>(item);
+        if (item_sum->aggr_query_block == this &&
+            !item_sum->is_rollup_sum_wrapper()) {
+          // split_sum_func2 created a new aggregate function item,
+          // so we need to update it for rollup.
+          Item *new_item =
+              create_rollup_switcher(thd, this, item_sum, send_group_parts);
+          if (new_item == nullptr) return true;
+          *it = new_item;
+        }
       }
     }
   }
@@ -4947,10 +4949,10 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
   return item;
 }
 
-Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item *item,
+Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item_sum *item,
                              int send_group_parts) {
   assert(!item->m_is_window_function);
-  assert(!is_rollup_sum_wrapper(item));
+  assert(!item->is_rollup_sum_wrapper());
 
   List<Item> alternatives;
   alternatives.push_back(item);
@@ -4989,11 +4991,13 @@ bool Query_block::resolve_rollup(THD *thd) {
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *item = *it;
     Item *new_item;
-    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        down_cast<Item_sum *>(item)->aggr_query_block == this) {
+    if (Item_sum * item_sum; item->type() == Item::SUM_FUNC_ITEM &&
+                             !item->const_item() &&
+                             (item_sum = down_cast<Item_sum *>(item),
+                              item_sum->aggr_query_block == this)) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
-      new_item = create_rollup_switcher(thd, this, item, send_group_parts);
+      new_item = create_rollup_switcher(thd, this, item_sum, send_group_parts);
     } else {
       new_item = resolve_rollup_item(thd, item);
     }
@@ -5022,13 +5026,14 @@ bool Query_block::resolve_rollup(THD *thd) {
                                 (order_item = *order->item)->check_cols(1)));
     if (ret) return true; /* Wrong field. */
 
-    if (order_item->type() == Item::SUM_FUNC_ITEM &&
-        !order_item->const_item() &&
-        down_cast<Item_sum *>(order_item)->aggr_query_block == this) {
+    if (Item_sum * item_sum; order_item->type() == Item::SUM_FUNC_ITEM &&
+                             !order_item->const_item() &&
+                             (item_sum = down_cast<Item_sum *>(order_item),
+                              item_sum->aggr_query_block == this)) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
       *order->item =
-          create_rollup_switcher(thd, this, order_item, send_group_parts);
+          create_rollup_switcher(thd, this, item_sum, send_group_parts);
     } else {
       *order->item = resolve_rollup_item(thd, order_item);
     }

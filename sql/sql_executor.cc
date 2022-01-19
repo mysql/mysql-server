@@ -333,12 +333,6 @@ bool is_rollup_group_wrapper(Item *item) {
              Item_func::ROLLUP_GROUP_ITEM_FUNC;
 }
 
-bool is_rollup_sum_wrapper(Item *item) {
-  return item->type() == Item::SUM_FUNC_ITEM &&
-         down_cast<Item_sum *>(item)->real_sum_func() ==
-             Item_sum::ROLLUP_SUM_SWITCHER_FUNC;
-}
-
 Item *unwrap_rollup_group(Item *item) {
   if (is_rollup_group_wrapper(item)) {
     return down_cast<Item_rollup_group_item *>(item)->inner_item();

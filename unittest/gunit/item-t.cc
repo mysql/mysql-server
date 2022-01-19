@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
+#include "sql/item_sum.h"
 #include "sql/item_timefunc.h"
 #include "sql/json_dom.h"
 #include "sql/my_decimal.h"
@@ -54,6 +55,7 @@
 #include "sql/tztime.h"
 #include "sql_string.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
@@ -378,6 +380,28 @@ TEST_F(ItemTest, ItemEqual) {
 
   EXPECT_FALSE(item_equal->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_equal->val_int());
+}
+
+TEST_F(ItemTest, ItemRollupSwitcher) {
+  Mock_field_long f_field1(true);
+  Item_field *field1 = new Item_field(&f_field1);
+  POS p;
+  Item_sum_sum *agg1 = new Item_sum_sum(p, field1, false, nullptr);
+  Item_sum_sum *agg2 = new Item_sum_sum(p, field1, false, nullptr);
+
+  List<Item> li1;
+  li1.push_back(agg1);
+  Item_rollup_sum_switcher *sw1 = new Item_rollup_sum_switcher(&li1);
+  List<Item> li2;
+  li2.push_back(agg2);
+  Item_rollup_sum_switcher *sw2 = new Item_rollup_sum_switcher(&li2);
+  EXPECT_TRUE(agg1->eq(agg2, false));
+  EXPECT_TRUE(agg1->eq(sw2, false));
+  EXPECT_TRUE(sw1->eq(sw2, false));
+  EXPECT_TRUE(sw1->eq(agg2, false));
+
+  EXPECT_FALSE(agg1->is_rollup_sum_wrapper());
+  EXPECT_TRUE(sw1->is_rollup_sum_wrapper());
 }
 
 TEST_F(ItemTest, ItemEqualEq) {
