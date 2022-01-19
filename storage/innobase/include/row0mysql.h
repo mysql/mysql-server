@@ -307,7 +307,7 @@ void row_mysql_unfreeze_data_dictionary(trx_t *trx); /*!< in/out: transaction */
 
 /** Creates a table for MySQL. On success the in-memory table could be
 kept in non-LRU list while on failure the 'table' object will be freed.
-@param[in]      table           table definition(will be freed, or on
+@param[in,out]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]      compression     compression algorithm to use, can be nullptr
 @param[in]      create_info     HA_CREATE_INFO object
@@ -315,7 +315,7 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]      heap            temp memory heap or nullptr
 @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_create_table_for_mysql(
-    dict_table_t *table, const char *compression,
+    dict_table_t *&table, const char *compression,
     const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap);
 
 /** Does an index creation operation for MySQL. TODO: currently failure

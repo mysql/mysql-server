@@ -4754,7 +4754,7 @@ template <typename Table>
         my_error(HA_ERR_TABLE_EXIST, MYF(0), altered_table->s->table_name.str);
         goto new_clustered_failed;
       case DB_UNSUPPORTED:
-        my_error(ER_UNSUPPORTED_EXTENSION, MYF(0), ctx->new_table->name.m_name);
+        my_error(ER_UNSUPPORTED_EXTENSION, MYF(0), new_table_name);
         goto new_clustered_failed;
       case DB_IO_NO_PUNCH_HOLE_FS:
         my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),

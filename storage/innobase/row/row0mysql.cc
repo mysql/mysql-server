@@ -2716,7 +2716,8 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+dberr_t row_create_table_for_mysql(dict_table_t *&table,
+                                   const char *compression,
                                    const HA_CREATE_INFO *create_info,
                                    trx_t *trx, mem_heap_t *heap) {
   dberr_t err;
@@ -2726,6 +2727,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   DBUG_EXECUTE_IF("ib_create_table_fail_at_start_of_row_create_table_for_mysql",
                   {
                     dict_mem_table_free(table);
+                    table = nullptr;
 
                     trx->op_info = "";
 
@@ -2748,33 +2750,35 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   /* Assign table id and build table space. */
   err = dict_build_table_def(table, create_info, trx);
   if (err != DB_SUCCESS) {
-    trx->error_state = err;
-    goto error_handling;
+    trx->error_state = DB_SUCCESS;
+    trx->op_info = "";
+    trx->dict_operation = TRX_DICT_OP_NONE;
+    dict_mem_table_free(table);
+    table = nullptr;
+    return err;
   }
 
-  if (err == DB_SUCCESS) {
-    bool free_heap = false;
-    if (heap == nullptr) {
-      free_heap = true;
-      heap = mem_heap_create(512, UT_LOCATION_HERE);
-    }
+  bool free_heap = false;
+  if (heap == nullptr) {
+    free_heap = true;
+    heap = mem_heap_create(512, UT_LOCATION_HERE);
+  }
 
-    dict_table_add_system_columns(table, heap);
+  dict_table_add_system_columns(table, heap);
 
-    dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, false);
-    dict_sys_mutex_exit();
+  dict_sys_mutex_enter();
+  dict_table_add_to_cache(table, false);
+  dict_sys_mutex_exit();
 
-    /* During upgrade, etc., the log_ddl may haven't been
-    initialized and we don't need to write DDL logs too.
-    This can only happen for CREATE TABLE. */
-    if (log_ddl != nullptr) {
-      err = log_ddl->write_remove_cache_log(trx, table);
-    }
+  /* During upgrade, etc., the log_ddl may haven't been
+  initialized and we don't need to write DDL logs too.
+  This can only happen for CREATE TABLE. */
+  if (log_ddl != nullptr) {
+    err = log_ddl->write_remove_cache_log(trx, table);
+  }
 
-    if (free_heap) {
-      mem_heap_free(heap);
-    }
+  if (free_heap) {
+    mem_heap_free(heap);
   }
 
   if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
@@ -2812,14 +2816,16 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
       settings. */
     }
   }
-error_handling:
   switch (err) {
     case DB_SUCCESS:
     case DB_IO_NO_PUNCH_HOLE_FS:
       break;
 
+    case DB_ERROR:
     case DB_OUT_OF_FILE_SPACE:
     case DB_TOO_MANY_CONCURRENT_TRXS:
+    case DB_UNSUPPORTED:
+    case DB_DUPLICATE_KEY:
 
       if (err == DB_OUT_OF_FILE_SPACE) {
         ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
@@ -2839,16 +2845,14 @@ error_handling:
         dict_sys_mutex_exit();
       } else {
         dict_mem_table_free(table);
+        table = nullptr;
       }
-
       break;
 
-    case DB_UNSUPPORTED:
-    case DB_DUPLICATE_KEY:
-    case DB_TABLESPACE_EXISTS:
     default:
       trx->error_state = DB_SUCCESS;
       dict_mem_table_free(table);
+      table = nullptr;
       break;
   }
 
