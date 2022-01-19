@@ -901,8 +901,8 @@ class PFS_internal_schema_access : public ACL_internal_schema_access {
 
   ~PFS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 
   const ACL_internal_table_access *lookup(const char *name) const override;
 };
@@ -946,7 +946,8 @@ static bool allow_drop_schema_privilege() {
 }
 
 ACL_internal_access_result PFS_internal_schema_access::check(ulong want_access,
-                                                             ulong *) const {
+                                                             ulong *,
+                                                             bool) const {
   const ulong always_forbidden =
       CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
       EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
@@ -1031,26 +1032,42 @@ static bool allow_drop_table_privilege() {
 
 PFS_readonly_acl pfs_readonly_acl;
 
-ACL_internal_access_result PFS_readonly_acl::check(ulong want_access,
-                                                   ulong *) const {
+ACL_internal_access_result PFS_readonly_acl::check(
+    ulong want_access, ulong *granted_access,
+    bool any_combination_will_do) const {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
                                  CREATE_ACL | DROP_ACL | REFERENCES_ACL |
                                  INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL |
                                  SHOW_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
 
-  if (unlikely(want_access & always_forbidden)) {
-    return ACL_INTERNAL_ACCESS_DENIED;
-  }
+  ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
-  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  ulong want_forbidden = want_access & always_forbidden;
+
+  ulong want_allowable = want_access & can_be_allowed;
+
+  if (any_combination_will_do) {
+    if (want_allowable != 0) {
+      *granted_access = want_allowable;
+      return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+    }
+
+    return ACL_INTERNAL_ACCESS_DENIED;
+  } else {
+    if (want_forbidden != 0) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
+
+    return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  }
 }
 
 PFS_readonly_world_acl pfs_readonly_world_acl;
 
 ACL_internal_access_result PFS_readonly_world_acl::check(
-    ulong want_access, ulong *save_priv) const {
+    ulong want_access, ulong *save_priv, bool any_combination_will_do) const {
   ACL_internal_access_result res =
-      PFS_readonly_acl::check(want_access, save_priv);
+      PFS_readonly_acl::check(want_access, save_priv, any_combination_will_do);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
@@ -1060,58 +1077,61 @@ ACL_internal_access_result PFS_readonly_world_acl::check(
 PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
 
 ACL_internal_access_result PFS_readonly_processlist_acl::check(
-    ulong want_access, ulong *save_priv) const {
+    ulong want_access, ulong *save_priv, bool any_combination_will_do) const {
   ACL_internal_access_result res =
-      PFS_readonly_acl::check(want_access, save_priv);
+      PFS_readonly_acl::check(want_access, save_priv, any_combination_will_do);
 
-  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
-    THD *thd = current_thd;
-    if (thd != nullptr) {
-      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
-          thd->lex->sql_command == SQLCOM_SELECT) {
-        /*
-          For compatibility with the historical
-          SHOW PROCESSLIST command,
-          SHOW PROCESSLIST does not require a
-          SELECT privilege on table performance_schema.processlist,
-          when rewriting the query using table processlist.
-        */
-        return ACL_INTERNAL_ACCESS_GRANTED;
-      }
-    }
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access & SELECT_ACL)) {
+    return ACL_INTERNAL_ACCESS_GRANTED;
   }
-
   return res;
 }
 
 PFS_truncatable_acl pfs_truncatable_acl;
 
-ACL_internal_access_result PFS_truncatable_acl::check(ulong want_access,
-                                                      ulong *) const {
+ACL_internal_access_result PFS_truncatable_acl::check(
+    ulong want_access, ulong *granted_access,
+    bool any_combination_will_do) const {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
                                  CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
-  if (unlikely(want_access & always_forbidden)) {
-    return ACL_INTERNAL_ACCESS_DENIED;
-  }
+  ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+
+  ulong want_allowable = want_access & can_be_allowed;
+
+  ulong want_forbidden = want_access & always_forbidden;
 
   if (want_access & DROP_ACL) {
     if (!allow_drop_table_privilege()) {
-      return ACL_INTERNAL_ACCESS_DENIED;
+      want_forbidden |= DROP_ACL;
+      want_allowable &= ~DROP_ACL;
     }
   }
 
-  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  if (any_combination_will_do) {
+    if (want_allowable != 0) {
+      *granted_access = want_allowable;
+      return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+    }
+
+    return ACL_INTERNAL_ACCESS_DENIED;
+  } else {
+    if (want_forbidden != 0) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
+
+    return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  }
 }
 
 PFS_truncatable_world_acl pfs_truncatable_world_acl;
 
 ACL_internal_access_result PFS_truncatable_world_acl::check(
-    ulong want_access, ulong *save_priv) const {
-  ACL_internal_access_result res =
-      PFS_truncatable_acl::check(want_access, save_priv);
+    ulong want_access, ulong *save_priv, bool any_combination_will_do) const {
+  ACL_internal_access_result res = PFS_truncatable_acl::check(
+      want_access, save_priv, any_combination_will_do);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
@@ -1120,44 +1140,78 @@ ACL_internal_access_result PFS_truncatable_world_acl::check(
 
 PFS_updatable_acl pfs_updatable_acl;
 
-ACL_internal_access_result PFS_updatable_acl::check(ulong want_access,
-                                                    ulong *) const {
+ACL_internal_access_result PFS_updatable_acl::check(
+    ulong want_access, ulong *granted_access,
+    bool any_combination_will_do) const {
   const ulong always_forbidden =
       INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
       INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden)) {
-    return ACL_INTERNAL_ACCESS_DENIED;
-  }
+  ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
-  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  ulong want_forbidden = want_access & always_forbidden;
+
+  ulong want_allowable = want_access & can_be_allowed;
+
+  if (any_combination_will_do) {
+    if (want_allowable != 0) {
+      *granted_access = want_allowable;
+      return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+    }
+
+    return ACL_INTERNAL_ACCESS_DENIED;
+  } else {
+    if (want_forbidden != 0) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
+
+    return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  }
 }
 
 PFS_editable_acl pfs_editable_acl;
 
-ACL_internal_access_result PFS_editable_acl::check(ulong want_access,
-                                                   ulong *) const {
+ACL_internal_access_result PFS_editable_acl::check(
+    ulong want_access, ulong *granted_access,
+    bool any_combination_will_do) const {
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden)) {
-    return ACL_INTERNAL_ACCESS_DENIED;
-  }
+  ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+
+  ulong want_forbidden = want_access & always_forbidden;
+
+  ulong want_allowable = want_access & can_be_allowed;
 
   if (want_access & DROP_ACL) {
     if (!allow_drop_table_privilege()) {
-      return ACL_INTERNAL_ACCESS_DENIED;
+      want_forbidden |= DROP_ACL;
+      want_allowable &= ~DROP_ACL;
     }
   }
 
-  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  if (any_combination_will_do) {
+    if (want_allowable != 0) {
+      *granted_access = want_allowable;
+      return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+    }
+
+    return ACL_INTERNAL_ACCESS_DENIED;
+  } else {
+    if (want_forbidden != 0) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
+
+    return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+  }
 }
 
 PFS_unknown_acl pfs_unknown_acl;
 
-ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
-                                                  ulong *) const {
+ACL_internal_access_result PFS_unknown_acl::check(
+    ulong want_access, ulong *granted_access,
+    bool any_combination_will_do) const {
   /*
     Only enforce ACL_INTERNAL_ACCESS_DENIED
     for operations that can create unwanted SQL objects
@@ -1167,26 +1221,41 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden)) {
+  ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+
+  ulong want_forbidden = want_access & always_forbidden;
+
+  ulong want_allowable = want_access & can_be_allowed;
+
+  if (any_combination_will_do) {
+    if (want_allowable != 0) {
+      *granted_access = want_allowable;
+      return ACL_INTERNAL_ACCESS_CHECK_GRANT;
+    }
+
     return ACL_INTERNAL_ACCESS_DENIED;
+  } else {
+    if (want_forbidden != 0) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
+
+    /*
+      About SELECT_ACL:
+      There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
+      on performance_schema.*) tables that do not exist anyway.
+      When SELECT_ACL is granted on performance_schema.* or *.*,
+      SELECT * from performance_schema.wrong_table
+      will fail with a more understandable ER_NO_SUCH_TABLE error,
+      instead of ER_TABLEACCESS_DENIED_ERROR.
+      The same goes for other DML (INSERT_ACL | UPDATE_ACL | DELETE_ACL),
+      for ease of use: error messages will be less surprising.
+
+      About DROP_ACL:
+      "Unknown" tables are not supposed to be here,
+      so allowing DROP_ACL to make cleanup possible.
+    */
+    return ACL_INTERNAL_ACCESS_CHECK_GRANT;
   }
-
-  /*
-    About SELECT_ACL:
-    There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
-    on performance_schema.*) tables that do not exist anyway.
-    When SELECT_ACL is granted on performance_schema.* or *.*,
-    SELECT * from performance_schema.wrong_table
-    will fail with a more understandable ER_NO_SUCH_TABLE error,
-    instead of ER_TABLEACCESS_DENIED_ERROR.
-    The same goes for other DML (INSERT_ACL | UPDATE_ACL | DELETE_ACL),
-    for ease of use: error messages will be less surprising.
-
-    About DROP_ACL:
-    "Unknown" tables are not supposed to be here,
-    so allowing DROP_ACL to make cleanup possible.
-  */
-  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
 /*

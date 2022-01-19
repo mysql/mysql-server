@@ -21,6 +21,7 @@ mysqlshow: [Warning] Using a password on the command line interface can be insec
 |     Databases      |
 +--------------------+
 | information_schema |
+| performance_schema |
 | test               |
 +--------------------+
 DROP USER u1@localhost;

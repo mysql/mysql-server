@@ -8615,6 +8615,9 @@ longlong Item_func_can_access_database::val_int() {
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return 1;
 
+  // Skip PERFORMANCE_SCHEMA database
+  if (is_perfschema_db(schema_name_ptr->ptr())) return 1;
+
   if (lower_case_table_names == 2) {
     /*
       ACL code assumes that in l-c-t-n > 0 modes schema name passed to it

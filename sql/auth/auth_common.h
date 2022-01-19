@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,8 @@ class ACL_internal_table_access {
     to save_priv.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
+    @param any_combination_will_do true if it's enough to have any privilege
+    for any combination of the table columns.
     @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
     @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
@@ -120,8 +122,9 @@ class ACL_internal_table_access {
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.
   */
-  virtual ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const = 0;
+  virtual ACL_internal_access_result check(
+      ulong want_access, ulong *save_priv,
+      bool any_combination_will_do) const = 0;
 };
 
 /**
@@ -144,6 +147,8 @@ class ACL_internal_schema_access {
     Check access to an internal schema.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
+    @param any_combination_will_do true if it's enough to have any privilege
+    for any combination of the table columns.
     @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
     @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
@@ -153,8 +158,9 @@ class ACL_internal_schema_access {
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.
   */
-  virtual ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const = 0;
+  virtual ACL_internal_access_result check(
+      ulong want_access, ulong *save_priv,
+      bool any_combination_will_do) const = 0;
 
   /**
     Search for per table ACL access rules by table name.
@@ -185,8 +191,8 @@ class IS_internal_schema_access : public ACL_internal_schema_access {
 
   ~IS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 
   const ACL_internal_table_access *lookup(const char *name) const override;
 };

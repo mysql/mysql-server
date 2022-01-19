@@ -1,0 +1,46 @@
+# Create a test user
+CREATE USER test@localhost;
+
+#Connect to the database as the test user
+connect (con1, localhost, test, , );
+
+#see if world-only tables are visible
+SELECT table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA='performance_schema' ORDER BY table_name;
+
+#go back to the default connection
+--connection default
+
+#cond_instances will check for PFS_readonly_acl::check
+GRANT SELECT ON performance_schema.cond_instances TO test@localhost;
+
+#setup_consumers will check for PFS_updatable_acl::check
+GRANT SELECT ON performance_schema.setup_consumers TO test@localhost;
+
+#accounts will check for PFS_truncatable_acl::check
+GRANT SELECT ON performance_schema.accounts TO test@localhost;
+
+#setup_objects will check for PFS_editable_acl::check
+GRANT SELECT ON performance_schema.setup_objects TO test@localhost;
+
+#again connect to the database as test user
+--connection con1
+
+#see if both world-only, and above mentioned tables are visible to the test user
+SELECT table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA='performance_schema' ORDER BY table_name;
+
+# Make sure visible tables have visible columns
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA='performance_schema'
+  AND TABLE_NAME IN ('accounts', 'cond_instances', 'setup_consumers',
+    'setup_objects', 'processlist', 'global_status')
+  ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME;
+
+#go back to the default connection
+--connection default
+
+#revoke the privileges
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM test@localhost;
+
+#drop the user, clean up done
+DROP USER test@localhost;

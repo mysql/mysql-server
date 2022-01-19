@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1669,8 +1669,9 @@ const ACL_internal_table_access *get_cached_table_access(
   return grant_internal_info->m_table_access;
 }
 
-ACL_internal_access_result IS_internal_schema_access::check(
-    ulong want_access, ulong *save_priv) const {
+ACL_internal_access_result IS_internal_schema_access::check(ulong want_access,
+                                                            ulong *save_priv,
+                                                            bool) const {
   want_access &= ~SELECT_ACL;
 
   /*
@@ -2169,7 +2170,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       const ACL_internal_schema_access *access;
       access = get_cached_schema_access(grant_internal_info, db);
       if (access) {
-        switch (access->check(want_access, save_priv)) {
+        switch (access->check(want_access, save_priv, false)) {
           case ACL_INTERNAL_ACCESS_GRANTED:
             /*
               All the privileges requested have been granted internally.
@@ -3717,7 +3718,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         &t_ref->grant.m_internal, db_name, t_ref->get_table_name());
 
     if (access) {
-      switch (access->check(orig_want_access, &t_ref->grant.privilege)) {
+      switch (access->check(orig_want_access, &t_ref->grant.privilege,
+                            any_combination_will_do)) {
         case ACL_INTERNAL_ACCESS_GRANTED:
           /*
              Grant all access to the table to skip column checks.
@@ -5926,7 +5928,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
       get_cached_schema_access(&tbl->grant.m_internal, tbl->db);
   if (schema_access) {
     ulong dummy = 0;
-    switch (schema_access->check(LOCK_TABLES_ACL, &dummy)) {
+    switch (schema_access->check(LOCK_TABLES_ACL, &dummy, false)) {
       case ACL_INTERNAL_ACCESS_DENIED:
         *fake_lock_tables_acl = true;
         [[fallthrough]];
@@ -5937,7 +5939,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
         const ACL_internal_table_access *table_access = get_cached_table_access(
             &tbl->grant.m_internal, tbl->db, tbl->table_name);
         if (table_access) {
-          switch (table_access->check(LOCK_TABLES_ACL, &dummy)) {
+          switch (table_access->check(LOCK_TABLES_ACL, &dummy, false)) {
             case ACL_INTERNAL_ACCESS_DENIED:
               *fake_lock_tables_acl = true;
               [[fallthrough]];

@@ -58,6 +58,7 @@ show databases;
 Database
 information_schema
 mysqltest_1
+performance_schema
 test
 grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest_1'

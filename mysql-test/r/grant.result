@@ -2432,6 +2432,7 @@ GRANT USAGE ON *.* TO `untrusted`@`localhost`
 SHOW DATABASES;
 Database
 information_schema
+performance_schema
 test
 # Both statements below should fail with the same error.
 # They used to give different errors, thereby
