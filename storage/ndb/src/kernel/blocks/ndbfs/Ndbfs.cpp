@@ -688,21 +688,21 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 1 &&
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_FRAGLOG)
     { /* redo log */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
       require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       require(fsOpenReq->fileFlags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
 #ifdef ERROR_INSERT
       if (page_size == 0)
       {
+        require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
         // CMVMI creates many concurrent files in testLimits -n NdbfsBulkOpe T1
         if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       }
       else
 #endif
       {
+        require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
         if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
         require(page_size > 0);
-        fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
       }
     }
   }
