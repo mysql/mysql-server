@@ -3263,7 +3263,7 @@ static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
   const bool current_auto_statistics =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
   const bool want_auto_statistics =
-      thd->save_result.ulonglong_value & OPTIMIZER_SWITCH_AUTO_STATISTICS;
+      var->save_result.ulonglong_value & OPTIMIZER_SWITCH_AUTO_STATISTICS;
 
   if((current_auto_statistics && !want_hypergraph_optimizer) || (want_auto_statistics && !current_hypergraph_optimizer)){
     // Warn that hypergraph needs to be on for auto statistics to work
