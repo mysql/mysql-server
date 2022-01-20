@@ -34,17 +34,6 @@
 
 #define JAM_FILE_ID 385
 
-/*
- * Note: All code protected by NDBFS_TDE should be removed as soon as each
- * client block sets OM_ENCRYPT_XTS and OM_ENCRYPT_KEY as it should for
- * FSOPENREQ.
- *
- * To be able to test encryption of filesystem Ndbfs reads the
- * EncryptedFileSystem configuration parameter and by itself sets
- * OM_ENCRYPT_XTS and a dummy OM_ENCRYPT_KEY.
- */
-#define NDBFS_TDE
-
 class AsyncIoThread;
 class FsReadWriteReq;
 struct FsRef;
@@ -156,18 +145,6 @@ private:
    */
   Uint32 m_active_bound_threads_cnt;
 
-#ifdef NDBFS_TDE
-  /*
-   * Note: All code protected by NDBFS_TDE should be removed as soon as each
-   * client block sets OM_ENCRYPT_XTS and OM_ENCRYPT_KEY as it should for
-   * FSOPENREQ.
-   *
-   * To be able to test encryption of filesystem Ndbfs reads the
-   * EncryptedFileSystem configuration parameter and by itself sets
-   * OM_ENCRYPT_XTS and a dummy OM_ENCRYPT_KEY.
-   */
-  Uint32 m_encrypt_fs;
-#endif
 public:
   const BaseString& get_base_path(Uint32 no) const;
 };
