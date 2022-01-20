@@ -25,3 +25,5 @@ ndb.ndb_bushy_joins: Bug#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
 ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
 
 ndb.ndb_wait_until_ready @darwin: Bug #28995754 TEST FAILURE NDB.NDB_WAIT_UNTIL_READY ON PB2
+
+ndb.clusterj: Bug#33760236 ClusterJ test fails when cross compiled in Java 11 for Java 8
