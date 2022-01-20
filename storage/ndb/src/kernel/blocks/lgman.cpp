@@ -1616,6 +1616,11 @@ Lgman::open_file(Signal* signal,
   default:
     ndbabort();
   }
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
   Uint64 size = (Uint64)file_ptr.p->m_file_size * (Uint64)File_formats::NDB_PAGE_SIZE;

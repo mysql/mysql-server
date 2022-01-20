@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,6 +325,7 @@ private:
   Uint32 m_end_lcp_senderdata;
   bool m_node_restart_ongoing;
   bool m_dropped_undo_log;
+  bool c_encrypted_filesystem;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
