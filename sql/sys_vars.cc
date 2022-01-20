@@ -3265,7 +3265,7 @@ static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
   const bool want_auto_statistics =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
 
-  if((current_auto_statistics && !want_hypergraph_optimizer) || (!want_auto_statistics && current_hypergraph_optimizer)){
+  if((current_auto_statistics && !want_hypergraph_optimizer) || (want_auto_statistics && !current_hypergraph_optimizer)){
     // Warn that hypergraph needs to be on for auto statistics to work
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
                 ER_THD(thd, ER_WARN_HYPERGRAPH_AUTO_STATISTICS));
