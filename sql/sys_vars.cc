@@ -3276,7 +3276,7 @@ static bool update_optimizer_switch(sys_var *, THD *thd, enum_var_type){
 #endif
   }else {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                 ER_THD(thd, "Test"));
+                 ER_THD(thd, ER_REGEX_NUMBER_TOO_BIG));
   }
   return false;
 }
