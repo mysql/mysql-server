@@ -3253,31 +3253,6 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
-static bool update_optimizer_switch(sys_var *, THD *thd, enum_var_type){
-  const bool current_auto_statistics =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
-  const bool current_hypergraph_optimizer = 
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
-
-  if(current_auto_statistics && !current_hypergraph_optimizer){
-#ifdef WITH_HYPERGRAPH_OPTIMIZER
-    // Allow, with a warning.
-    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                 ER_THD(thd, ER_WARN_HYPERGRAPH_AUTO_STATISTICS));
-
-    // Set hypergraph optimizer on
-    thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
-    return false;
-#else
-    // Disallow; the hypergraph optimizer is not ready for production yet.
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "use in non-debug builds");
-    return true;
-#endif
-  }
-  return false;
-}
-
 static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
                                    set_var *var) {
   const bool current_hypergraph_optimizer =
@@ -3287,11 +3262,13 @@ static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
 
   const bool current_auto_statistics =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
+  const bool want_auto_statistics =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
 
-  if(current_auto_statistics && !want_hypergraph_optimizer){
+  if((current_auto_statistics && !want_hypergraph_optimizer) || (!want_auto_statistics && current_hypergraph_optimizer)){
     // Warn that hypergraph needs to be on for auto statistics to work
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                ER_THD(thd, ER_WARN_HYPERGRAPH_AUTO_STATISTICS_OFF));
+                ER_THD(thd, ER_WARN_HYPERGRAPH_AUTO_STATISTICS));
   }
 
   if (current_hypergraph_optimizer && !want_hypergraph_optimizer) {
@@ -3367,7 +3344,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     "{on, off, default},",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(update_optimizer_switch));
+    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
 
 static PolyLock_mutex PLock_global_conn_mem_limit(&LOCK_global_conn_mem_limit);
 

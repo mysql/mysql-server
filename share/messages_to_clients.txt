@@ -9424,9 +9424,6 @@ ER_INVALID_CAST
   eng "Cannot cast value to %s."
 
 ER_WARN_HYPERGRAPH_AUTO_STATISTICS
-  eng "The hypergraph optimizer is automatically set when using auto_statistics."
-
-ER_WARN_HYPERGRAPH_AUTO_STATISTICS_OFF
   eng "The auto statistics feature will not be available unless the hypergraph optimizer is enabled."
 
 ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
