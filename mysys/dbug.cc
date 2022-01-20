@@ -2129,14 +2129,20 @@ void _db_flush_() {
 #ifndef _WIN32
 
 #ifdef HAVE_GCOV
+#if defined(__GNUC__) && __GNUC__ >= 11
+extern "C" void __gcov_dump();
+static void dump_gcov_data() { __gcov_dump(); }
+#else
 extern "C" void __gcov_flush();
+static void dump_gcov_data() { __gcov_flush(); }
+#endif
 #endif
 
 void _db_flush_gcov_() {
 #ifdef HAVE_GCOV
   // Gcov will assert() if we try to flush in parallel.
   native_mutex_lock(&THR_LOCK_gcov);
-  __gcov_flush();
+  dump_gcov_data();
   native_mutex_unlock(&THR_LOCK_gcov);
 #endif
 }

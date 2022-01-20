@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,15 @@ IF(NOT FASTCOV_EXECUTABLE OR
   RETURN()
 ENDIF()
 
-FIND_PROGRAM(GCOV_EXECUTABLE NAMES gcov-9 gcov)
+IF(ALTERNATIVE_GCC)
+  GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
+  MESSAGE(STATUS "Looking for gcov in ${GCC_B_PREFIX}")
+  FIND_PROGRAM(GCOV_EXECUTABLE gcov
+    NO_DEFAULT_PATH
+    PATHS "${GCC_B_PREFIX}")
+ENDIF()
+
+FIND_PROGRAM(GCOV_EXECUTABLE NAMES gcov)
 IF(NOT GCOV_EXECUTABLE)
   MESSAGE(FATAL_ERROR "gcov not found")
 ENDIF()
