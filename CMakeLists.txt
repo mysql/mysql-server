@@ -1801,6 +1801,30 @@ MYSQL_CHECK_RAPIDJSON()
 MYSQL_CHECK_FIDO()
 MYSQL_CHECK_FIDO_DLLS()
 
+IF(APPLE)
+  IF(EXISTS ${HOMEBREW_HOME}/boost)
+    FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+      IF(WITH_${SYSTEM_LIB} STREQUAL "system")
+        MESSAGE(FATAL_ERROR
+          "WITH_${SYSTEM_LIB}=system is not compatible with Homebrew boost\n"
+          "MySQL depends on ${BOOST_PACKAGE_NAME} with a set of patches.\n"
+          "Including system headers from ${HOMEBREW_HOME} will break the build.\n"
+          "Please use WITH_${SYSTEM_LIB}=bundled\n"
+          "or do 'brew uninstall boost'"
+          )
+      ENDIF()
+    ENDFOREACH()
+  ENDIF()
+  # Ensure that we look in /usr/local/include or /opt/homebre/include
+  FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+    IF(WITH_${SYSTEM_LIB} STREQUAL "system")
+      GET_FILENAME_COMPONENT(HOMEBREW_BASE ${HOMEBREW_HOME} DIRECTORY)
+      INCLUDE_DIRECTORIES(SYSTEM ${HOMEBREW_BASE}/include)
+      BREAK()
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
 IF(WITH_AUTHENTICATION_FIDO OR WITH_AUTHENTICATION_CLIENT_PLUGINS)
   IF(WITH_FIDO STREQUAL "system" AND
     NOT WITH_SSL STREQUAL "system")
