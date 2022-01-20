@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@ ENDFOREACH()
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 # Check BISON_VERSION and set BISON_FLAGS_WARNINGS
 FIND_PACKAGE(BISON REQUIRED)
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
