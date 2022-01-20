@@ -3260,7 +3260,21 @@ static bool update_optimizer_switch(sys_var *, THD *thd, enum_var_type){
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
   if(current_auto_statistics && !current_hypergraph_optimizer){
+#ifdef WITH_HYPERGRAPH_OPTIMIZER
+    // Allow, with a warning.
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                 ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL), 
+                 "Hypergraph optimizer is automatically turned on when using auto statistics");
+
+    // Set hypergraph optimizer on
     thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+    return false;
+#else
+    // Disallow; the hypergraph optimizer is not ready for production yet.
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "use in non-debug builds");
+    return true;
+#endif
   }
   return false;
 }
