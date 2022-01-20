@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9461,7 +9461,7 @@ CHARSET_INFO my_charset_euckr_korean_ci = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state      */
     "euckr",                        /* cs name    */
-    "euckr_korean_ci",              /* name */
+    "euckr_korean_ci",              /* m_coll_name */
     "EUC-KR Korean",                /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
@@ -9496,7 +9496,7 @@ CHARSET_INFO my_charset_euckr_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "euckr",                        /* cs name    */
-    "euckr_bin",                    /* name */
+    "euckr_bin",                    /* m_coll_name */
     "EUC-KR Korean",                /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

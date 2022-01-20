@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20427,7 +20427,7 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* number        */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state         */
     "gb18030",                                       /* cs name       */
-    "gb18030_chinese_ci",                            /* name          */
+    "gb18030_chinese_ci",                            /* m_coll_name   */
     "China National Standard GB18030",               /* comment       */
     nullptr,                                         /* tailoring     */
     nullptr,                                         /* coll_param    */
@@ -20462,7 +20462,7 @@ CHARSET_INFO my_charset_gb18030_bin = {
     0,                                 /* number        */
     MY_CS_COMPILED | MY_CS_BINSORT,    /* state         */
     "gb18030",                         /* cs name       */
-    "gb18030_bin",                     /* name          */
+    "gb18030_bin",                     /* m_coll_name   */
     "China National Standard GB18030", /* comment       */
     nullptr,                           /* tailoring     */
     nullptr,                           /* coll_param    */

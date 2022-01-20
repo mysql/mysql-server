@@ -96,15 +96,15 @@ extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, const uchar *p2,
 @retval true    if the charset is cjk
 @retval false   if not. */
 static inline bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
-  if (strcmp(cs->name, "gb2312_chinese_ci") == 0 ||
-      strcmp(cs->name, "gbk_chinese_ci") == 0 ||
-      strcmp(cs->name, "big5_chinese_ci") == 0 ||
-      strcmp(cs->name, "gb18030_chinese_ci") == 0 ||
-      strcmp(cs->name, "ujis_japanese_ci") == 0 ||
-      strcmp(cs->name, "sjis_japanese_ci") == 0 ||
-      strcmp(cs->name, "cp932_japanese_ci") == 0 ||
-      strcmp(cs->name, "eucjpms_japanese_ci") == 0 ||
-      strcmp(cs->name, "euckr_korean_ci") == 0) {
+  if (strcmp(cs->m_coll_name, "gb2312_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "gbk_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "big5_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "gb18030_chinese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "ujis_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "sjis_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "cp932_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "eucjpms_japanese_ci") == 0 ||
+      strcmp(cs->m_coll_name, "euckr_korean_ci") == 0) {
     return (true);
   } else {
     return (false);

@@ -2451,7 +2451,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 
 MyISAM file:         MYSQLD_DATADIR/test/t1
 Record format:       Packed
-Character set:       utf8_general_ci (33)
+Collation:           utf8_general_ci (33)
 Data records:                    0  Deleted blocks:                 0
 Recordlength:                   94
 

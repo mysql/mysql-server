@@ -194,7 +194,7 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
   pctx->current_col = 0;
@@ -586,7 +586,7 @@ static void dump_cs_info(const CHARSET_INFO *cs) {
 
   WRITE_VAL("\t\t[meta][charset result] number: %d\n", cs->number);
   WRITE_VAL("\t\t[meta][charset result] name: %s\n", cs->csname);
-  WRITE_VAL("\t\t[meta][charset result] collation: %s\n", cs->name);
+  WRITE_VAL("\t\t[meta][charset result] collation: %s\n", cs->m_coll_name);
   WRITE_VAL("\t\t[meta][charset result] sort order: %s\n", cs->sort_order);
 }
 

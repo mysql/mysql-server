@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -676,7 +676,7 @@ static bool print_json_table_column_type(const Field *field, String *str) {
     // character set.
     if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
         (str->append(STRING_WITH_LEN(" collate ")) ||
-         str->append(field->charset()->name)))
+         str->append(field->charset()->m_coll_name)))
       return true;
   }
   return false;

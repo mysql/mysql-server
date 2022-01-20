@@ -825,11 +825,12 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                          et->m_creation_ctx->get_client_cs());
   const char *csname = et->m_creation_ctx->get_client_cs()->csname;
   protocol->store_string(csname, strlen(csname), system_charset_info);
-  protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
-                         strlen(et->m_creation_ctx->get_connection_cl()->name),
-                         system_charset_info);
-  protocol->store_string(et->m_creation_ctx->get_db_cl()->name,
-                         strlen(et->m_creation_ctx->get_db_cl()->name),
+  protocol->store_string(
+      et->m_creation_ctx->get_connection_cl()->m_coll_name,
+      strlen(et->m_creation_ctx->get_connection_cl()->m_coll_name),
+      system_charset_info);
+  protocol->store_string(et->m_creation_ctx->get_db_cl()->m_coll_name,
+                         strlen(et->m_creation_ctx->get_db_cl()->m_coll_name),
                          system_charset_info);
 
   if (protocol->end_row()) return true;

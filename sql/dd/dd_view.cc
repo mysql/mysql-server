@@ -657,8 +657,9 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   // Get view_connection_cl_name. Note that this is the collation name.
   collation = dd_get_mysql_charset(view_obj.connection_collation_id());
   assert(collation);
-  view->view_connection_cl_name.length = strlen(collation->name);
-  view->view_connection_cl_name.str = strdup_root(mem_root, collation->name);
+  view->view_connection_cl_name.length = strlen(collation->m_coll_name);
+  view->view_connection_cl_name.str =
+      strdup_root(mem_root, collation->m_coll_name);
 
   if (!(view->definer.user.str && view->definer.host.str &&  // OOM
         view->view_body_utf8.str && view->select_stmt.str &&

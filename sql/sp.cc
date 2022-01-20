@@ -1443,10 +1443,10 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   protocol->store(cs_info->csname, system_charset_info);
   // connection_collation
   cs_info = dd_get_mysql_charset(routine->connection_collation_id());
-  protocol->store(cs_info->name, system_charset_info);
+  protocol->store(cs_info->m_coll_name, system_charset_info);
   // database_collation
   cs_info = dd_get_mysql_charset(routine->schema_collation_id());
-  protocol->store(cs_info->name, system_charset_info);
+  protocol->store(cs_info->m_coll_name, system_charset_info);
 
   bool err_status = protocol->end_row();
 
@@ -2655,7 +2655,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         if (cs->escape_with_backslash_is_dangerous) buf.append(' ');
         append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");
-        buf.append(item->collation.collation->name);
+        buf.append(item->collation.collation->m_coll_name);
         buf.append('\'');
         str->copy(buf);
 

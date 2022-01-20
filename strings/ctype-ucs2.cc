@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1419,7 +1419,7 @@ CHARSET_INFO my_charset_utf16_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "utf16",             /* cs name    */
-    "utf16_general_ci",  /* name         */
+    "utf16_general_ci",  /* m_coll_name  */
     "UTF-16 Unicode",    /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -1455,7 +1455,7 @@ CHARSET_INFO my_charset_utf16_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "utf16",             /* cs name      */
-    "utf16_bin",         /* name         */
+    "utf16_bin",         /* m_coll_name  */
     "UTF-16 Unicode",    /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -1575,7 +1575,7 @@ CHARSET_INFO my_charset_utf16le_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "utf16le",            /* cs name    */
-    "utf16le_general_ci", /* name         */
+    "utf16le_general_ci", /* m_coll_name  */
     "UTF-16LE Unicode",   /* comment      */
     nullptr,              /* tailoring    */
     nullptr,              /* coll_param   */
@@ -1611,7 +1611,7 @@ CHARSET_INFO my_charset_utf16le_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "utf16le",           /* cs name      */
-    "utf16le_bin",       /* name         */
+    "utf16le_bin",       /* m_coll_name  */
     "UTF-16LE Unicode",  /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -2349,7 +2349,7 @@ CHARSET_INFO my_charset_utf32_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_UNICODE_SUPPLEMENT | MY_CS_NONASCII,
     "utf32",             /* cs name    */
-    "utf32_general_ci",  /* name         */
+    "utf32_general_ci",  /* m_coll_name  */
     "UTF-32 Unicode",    /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -2385,7 +2385,7 @@ CHARSET_INFO my_charset_utf32_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "utf32",             /* cs name    */
-    "utf32_bin",         /* name         */
+    "utf32_bin",         /* m_coll_name  */
     "UTF-32 Unicode",    /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -2884,7 +2884,7 @@ CHARSET_INFO my_charset_ucs2_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,
     "ucs2",              /* cs name    */
-    "ucs2_general_ci",   /* name         */
+    "ucs2_general_ci",   /* m_coll_name  */
     "UCS-2 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -2920,7 +2920,7 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_NONASCII,         /* state */
     "ucs2",                     /* cs name          */
-    "ucs2_general_mysql500_ci", /* name             */
+    "ucs2_general_mysql500_ci", /* m_coll_name      */
     "UCS-2 Unicode",            /* comment          */
     nullptr,                    /* tailoring        */
     nullptr,                    /* coll_param       */
@@ -2955,7 +2955,7 @@ CHARSET_INFO my_charset_ucs2_bin = {
     0, /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_UNICODE | MY_CS_NONASCII,
     "ucs2",              /* cs name    */
-    "ucs2_bin",          /* name         */
+    "ucs2_bin",          /* m_coll_name  */
     "UCS-2 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */

@@ -204,11 +204,13 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   if (lex_string_strmake(&subject_table->mem_root, &client_cs_name,
                          thd->charset()->csname,
                          strlen(thd->charset()->csname)) ||
-      lex_string_strmake(&subject_table->mem_root, &connection_cl_name,
-                         thd->variables.collation_connection->name,
-                         strlen(thd->variables.collation_connection->name)) ||
+      lex_string_strmake(
+          &subject_table->mem_root, &connection_cl_name,
+          thd->variables.collation_connection->m_coll_name,
+          strlen(thd->variables.collation_connection->m_coll_name)) ||
       lex_string_strmake(&subject_table->mem_root, &db_cl_name,
-                         default_db_cl->name, strlen(default_db_cl->name)))
+                         default_db_cl->m_coll_name,
+                         strlen(default_db_cl->m_coll_name)))
     return nullptr;
 
   // Copy trigger name into the proper mem-root.

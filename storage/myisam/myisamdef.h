@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ struct MI_STATE_INFO {
     uchar unique_key_parts[2];  /* Key parts + unique parts */
     uchar keys;                 /* number of keys in file */
     uchar uniques;              /* number of UNIQUE definitions */
-    uchar language;             /* Language for indexes */
+    uchar language;             /* Language (collation) for indexes */
     uchar max_block_size_index; /* max keyblock size */
     uchar fulltext_keys;
     uchar not_used; /* To align to 8 */

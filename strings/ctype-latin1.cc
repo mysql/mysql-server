@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,7 +370,7 @@ CHARSET_INFO my_charset_latin1 = {
     0,                              /* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state */
     "latin1",                       /* cs name    */
-    "latin1_swedish_ci",            /* name      */
+    "latin1_swedish_ci",            /* m_coll_name */
     "cp1252 West European",         /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
@@ -638,7 +638,7 @@ CHARSET_INFO my_charset_latin1_german2_ci = {
     0,                               /* number    */
     MY_CS_COMPILED | MY_CS_STRNXFRM, /* state     */
     "latin1",                        /* cs name    */
-    "latin1_german2_ci",             /* name      */
+    "latin1_german2_ci",             /* m_coll_name */
     "cp1252 West European",          /* comment   */
     nullptr,                         /* tailoring */
     nullptr,                         /* coll_param */
@@ -673,7 +673,7 @@ CHARSET_INFO my_charset_latin1_bin = {
     0,                              /* number    */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "latin1",                       /* cs name    */
-    "latin1_bin",                   /* name      */
+    "latin1_bin",                   /* m_coll_name */
     "cp1252 West European",         /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,7 +500,8 @@ bool init_compiled_charsets(myf flags [[maybe_unused]]) {
   add_compiled_collation(&my_charset_utf32_vietnamese_ci);
 
   /* Copy compiled charsets */
-  for (cs = compiled_charsets; cs->name; cs++) add_compiled_collation(cs);
+  for (cs = compiled_charsets; cs->m_coll_name; cs++)
+    add_compiled_collation(cs);
 
   return false;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1062,11 +1062,11 @@ void store_predefined_tablespace_metadata(THD *thd) {
 }
 
 bool create_dd_schema(THD *thd) {
-  return dd::execute_query(thd,
-                           dd::String_type("CREATE SCHEMA ") +
-                               dd::String_type(MYSQL_SCHEMA_NAME.str) +
-                               dd::String_type(" DEFAULT COLLATE ") +
-                               dd::String_type(default_charset_info->name)) ||
+  return dd::execute_query(
+             thd, dd::String_type("CREATE SCHEMA ") +
+                      dd::String_type(MYSQL_SCHEMA_NAME.str) +
+                      dd::String_type(" DEFAULT COLLATE ") +
+                      dd::String_type(default_charset_info->m_coll_name)) ||
          dd::execute_query(thd, dd::String_type("USE ") +
                                     dd::String_type(MYSQL_SCHEMA_NAME.str));
 }

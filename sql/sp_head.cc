@@ -1972,7 +1972,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
     result->append(m_return_field_def.charset->csname);
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
-      result->append(m_return_field_def.charset->name);
+      result->append(m_return_field_def.charset->m_coll_name);
     }
   }
 

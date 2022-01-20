@@ -1242,7 +1242,7 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
     if (!db_cl) return 1;
 
     fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-            quoted_db_name, db_cl->csname, db_cl->name, delimiter);
+            quoted_db_name, db_cl->csname, db_cl->m_coll_name, delimiter);
 
     *db_cl_altered = 1;
 
@@ -1264,7 +1264,7 @@ static int restore_db_collation(FILE *sql_file, const char *db_name,
   if (!db_cl) return 1;
 
   fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-          quoted_db_name, db_cl->csname, db_cl->name, delimiter);
+          quoted_db_name, db_cl->csname, db_cl->m_coll_name, delimiter);
 
   return 0;
 }
@@ -3718,7 +3718,7 @@ static void dump_table(char *table, char *db) {
     dynstr_append_checked(&query_string, " /*!50138 CHARACTER SET ");
     dynstr_append_checked(&query_string,
                           default_charset == mysql_universal_client_charset
-                              ? my_charset_bin.name
+                              ? my_charset_bin.m_coll_name
                               : /* backward compatibility */
                               default_charset);
     dynstr_append_checked(&query_string, " */");

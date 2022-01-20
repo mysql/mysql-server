@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2339,7 +2339,7 @@ void test_strnxfrmlen(CHARSET_INFO *cs) {
 
   fprintf(stderr,
           "Longest character in '%s': U+%04lX, %d bytes (strnxfrm_len=%d)\n",
-          cs->name, longest.second, static_cast<int>(longest.first),
+          cs->m_coll_name, longest.second, static_cast<int>(longest.first),
           static_cast<int>(max_len));
 }
 
@@ -2351,8 +2351,8 @@ TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters) {
 
   for (CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
-      SCOPED_TRACE(cs->name);
-      test_strnxfrmlen(init_collation(cs->name));
+      SCOPED_TRACE(cs->m_coll_name);
+      test_strnxfrmlen(init_collation(cs->m_coll_name));
     }
   }
 }
@@ -2651,7 +2651,7 @@ TEST(StrmxfrmHashTest, HashStability) {
 
   for (CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
-      init_collation(cs->name);
+      init_collation(cs->m_coll_name);
 
       char buf[4096];
       uint errors;
@@ -2668,16 +2668,17 @@ TEST(StrmxfrmHashTest, HashStability) {
       // into “expected” above.
       if (false) {
         printf("    {\"%s\", {{0x%016" PRIx64 "LL, 0x%" PRIx64 "LL}}},\n",
-               cs->name, nr1, nr2);
+               cs->m_coll_name, nr1, nr2);
         continue;
       }
 
-      ASSERT_EQ(1, expected.count(cs->name))
-          << "Character set " << cs->name << " is missing in the database";
-      SCOPED_TRACE(cs->name);
+      ASSERT_EQ(1, expected.count(cs->m_coll_name))
+          << "Character set " << cs->m_coll_name
+          << " is missing in the database";
+      SCOPED_TRACE(cs->m_coll_name);
 
-      EXPECT_EQ(expected[cs->name].hash_value.first, nr1);
-      EXPECT_EQ(expected[cs->name].hash_value.second, nr2);
+      EXPECT_EQ(expected[cs->m_coll_name].hash_value.first, nr1);
+      EXPECT_EQ(expected[cs->m_coll_name].hash_value.second, nr2);
     }
   }
 }

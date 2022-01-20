@@ -2077,7 +2077,7 @@ bool set_var_collation_client::print(const THD *, String *str) {
     str->append("'");
     if (set_cs_flags & SET_CS_COLLATE) {
       str->append(" COLLATE '");
-      str->append(collation_connection->name);
+      str->append(collation_connection->m_coll_name);
       str->append("'");
     }
   }
