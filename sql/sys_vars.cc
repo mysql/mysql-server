@@ -3274,9 +3274,6 @@ static bool update_optimizer_switch(sys_var *, THD *thd, enum_var_type){
              "use in non-debug builds");
     return true;
 #endif
-  }else {
-    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                 ER_THD(thd, ER_REGEX_NUMBER_TOO_BIG));
   }
   return false;
 }
@@ -3303,6 +3300,8 @@ static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
     // This is so that mtr --hypergraph should not be easily cancelled in the
     // middle of a test, unless the test explicitly meant it.
     if (var->value == nullptr) {
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                ER_THD(thd, ER_REGEX_NUMBER_TOO_BIG));
       var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
     }
   } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
