@@ -225,8 +225,8 @@ bool PT_set_names::contextualize(Parse_context *pc) {
       opt_charset ? opt_charset : global_system_variables.character_set_client;
   if (opt_collation != nullptr) {
     if (!my_charset_same(cs2, opt_collation)) {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), opt_collation->name,
-               cs2->csname);
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+               opt_collation->m_coll_name, cs2->csname);
       return true;
     }
     cs3 = opt_collation;
@@ -2684,7 +2684,7 @@ bool PT_alter_table_convert_to_charset::contextualize(
   const CHARSET_INFO *const collation = m_collation ? m_collation : cs;
 
   if (!my_charset_same(cs, collation)) {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), collation->name,
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), collation->m_coll_name,
              cs->csname);
     return true;
   }

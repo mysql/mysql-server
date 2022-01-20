@@ -75,7 +75,7 @@ static int sql_start_result_metadata(void *, uint, uint,
   DBUG_ENTER("sql_start_result_metadata");
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
   DBUG_RETURN(false);
 }
 

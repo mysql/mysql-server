@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -362,7 +362,7 @@ struct CHARSET_INFO {
   uint binary_number;
   uint state;
   const char *csname;
-  const char *name;
+  const char *m_coll_name;
   const char *comment;
   const char *tailoring;
   struct Coll_param *coll_param;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -397,8 +397,8 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   if (!opt_character_set_client_handshake ||
       !(cs = get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
-                     global_system_variables.character_set_client->name,
-                     cs->name)) {
+                     global_system_variables.character_set_client->m_coll_name,
+                     cs->m_coll_name)) {
     if (!is_supported_parser_charset(
             global_system_variables.character_set_client)) {
       /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */

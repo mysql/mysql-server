@@ -6561,7 +6561,7 @@ int User_var_log_event::pack_info(Protocol *protocol) {
         } else {
           char *p = strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
           p = str_to_hex(p, val, val_len);
-          p = strxmov(p, " COLLATE ", cs->name, NullS);
+          p = strxmov(p, " COLLATE ", cs->m_coll_name, NullS);
           event_len = p - buf;
         }
         break;
@@ -6748,7 +6748,7 @@ void User_var_log_event::print(FILE *,
           my_b_printf(head, ":=???%s\n", print_event_info->delimiter);
         else
           my_b_printf(head, ":=_%s %s COLLATE `%s`%s\n", cs->csname, hex_str,
-                      cs->name, print_event_info->delimiter);
+                      cs->m_coll_name, print_event_info->delimiter);
         my_free(hex_str);
       } break;
       case ROW_RESULT:
@@ -11699,7 +11699,7 @@ void Table_map_log_event::print_columns(
     // Print column character set, except in text columns with binary collation
     if (cs != nullptr &&
         (is_enum_or_set_type(real_type) || cs->number != my_charset_bin.number))
-      my_b_printf(file, " CHARSET %s COLLATE %s", cs->csname, cs->name);
+      my_b_printf(file, " CHARSET %s COLLATE %s", cs->csname, cs->m_coll_name);
 
     // If column is invisible then print 'INVISIBLE'.
     if (column_visibility_it != fields.m_column_visibility.end()) {

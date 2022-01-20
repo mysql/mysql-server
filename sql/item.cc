@@ -2422,16 +2422,17 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
 /******************************/
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname) {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0), c1.collation->name,
-           c1.derivation_name(), c2.collation->name, c2.derivation_name(),
-           fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0), c1.collation->m_coll_name,
+           c1.derivation_name(), c2.collation->m_coll_name,
+           c2.derivation_name(), fname);
 }
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, DTCollation &c3,
                               const char *fname) {
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS, MYF(0), c1.collation->name,
-           c1.derivation_name(), c2.collation->name, c2.derivation_name(),
-           c3.collation->name, c3.derivation_name(), fname);
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS, MYF(0), c1.collation->m_coll_name,
+           c1.derivation_name(), c2.collation->m_coll_name,
+           c2.derivation_name(), c3.collation->m_coll_name,
+           c3.derivation_name(), fname);
 }
 
 static void my_coll_agg_error(Item **args, uint count, const char *fname,
@@ -4497,8 +4498,8 @@ bool Item_param::convert_value() {
             return true;
           if (errors > 0) {
             my_error(ER_IMPOSSIBLE_STRING_CONVERSION, MYF(0),
-                     m_collation_source->name, m_collation_actual->name,
-                     "parameter");
+                     m_collation_source->m_coll_name,
+                     m_collation_actual->m_coll_name, "parameter");
             return true;
           }
           if (str_value.copy(convert_buffer)) return true;

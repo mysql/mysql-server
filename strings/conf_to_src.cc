@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,8 @@ static int get_charset_number(const char *charset_name) {
   CHARSET_INFO *cs;
   for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
        cs++) {
-    if (cs->name && !strcmp(cs->name, charset_name)) return cs->number;
+    if (cs->m_coll_name && !strcmp(cs->m_coll_name, charset_name))
+      return cs->number;
   }
   return 0;
 }
@@ -102,7 +103,7 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
 
   if (from->csname) to->csname = strdup(from->csname);
 
-  if (from->name) to->name = strdup(from->name);
+  if (from->m_coll_name) to->m_coll_name = strdup(from->m_coll_name);
 
   if (from->ctype) to->ctype = mdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE);
   if (from->to_lower)
@@ -128,18 +129,19 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
 static bool simple_cs_is_full(CHARSET_INFO *cs) {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
            cs->to_lower) &&
-          (cs->number && cs->name &&
+          (cs->number && cs->m_coll_name &&
            (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
 static int add_collation(CHARSET_INFO *cs) {
-  if (cs->name && (cs->number || (cs->number = get_charset_number(cs->name)))) {
+  if (cs->m_coll_name &&
+      (cs->number || (cs->number = get_charset_number(cs->m_coll_name)))) {
     if (!(all_charsets[cs->number].state & MY_CS_COMPILED)) {
       simple_cs_copy_data(&all_charsets[cs->number], cs);
     }
 
     cs->number = 0;
-    cs->name = nullptr;
+    cs->m_coll_name = nullptr;
     cs->state = 0;
     cs->sort_order = nullptr;
     cs->state = 0;
@@ -205,22 +207,28 @@ static void dispcset(FILE *f, CHARSET_INFO *cs) {
           my_charset_is_8bit_pure_ascii(cs) ? "|MY_CS_PUREASCII" : "",
           !my_charset_is_ascii_compatible(cs) ? "|MY_CS_NONASCII" : "");
 
-  if (cs->name) {
+  if (cs->m_coll_name) {
     fprintf(f, "  \"%s\",                     /* cset name     */\n",
             cs->csname);
-    fprintf(f, "  \"%s\",                     /* coll name     */\n", cs->name);
+    fprintf(f, "  \"%s\",                     /* coll name     */\n",
+            cs->m_coll_name);
     fprintf(f, "  \"\",                       /* comment       */\n");
     fprintf(f, "  NULL,                       /* tailoring     */\n");
     fprintf(f, "  NULL,                       /* coll_param    */\n");
-    fprintf(f, "  ctype_%s,                   /* ctype         */\n", cs->name);
-    fprintf(f, "  to_lower_%s,                /* lower         */\n", cs->name);
-    fprintf(f, "  to_upper_%s,                /* upper         */\n", cs->name);
+    fprintf(f, "  ctype_%s,                   /* ctype         */\n",
+            cs->m_coll_name);
+    fprintf(f, "  to_lower_%s,                /* lower         */\n",
+            cs->m_coll_name);
+    fprintf(f, "  to_upper_%s,                /* upper         */\n",
+            cs->m_coll_name);
     if (cs->sort_order)
-      fprintf(f, "  sort_order_%s,            /* sort_order    */\n", cs->name);
+      fprintf(f, "  sort_order_%s,            /* sort_order    */\n",
+              cs->m_coll_name);
     else
       fprintf(f, "  NULL,                     /* sort_order    */\n");
     fprintf(f, "  NULL,                       /* uca           */\n");
-    fprintf(f, "  to_uni_%s,                  /* to_uni        */\n", cs->name);
+    fprintf(f, "  to_uni_%s,                  /* to_uni        */\n",
+            cs->m_coll_name);
   } else {
     fprintf(f, "  NULL,                       /* cset name     */\n");
     fprintf(f, "  NULL,                       /* coll name     */\n");
@@ -312,15 +320,16 @@ int main(int argc, char **argv [[maybe_unused]]) {
   for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
        cs++) {
     if (simple_cs_is_full(cs)) {
-      print_array(f, cs->name, "ctype", cs->ctype, MY_CS_CTYPE_TABLE_SIZE);
-      print_array(f, cs->name, "to_lower", cs->to_lower,
+      print_array(f, cs->m_coll_name, "ctype", cs->ctype,
+                  MY_CS_CTYPE_TABLE_SIZE);
+      print_array(f, cs->m_coll_name, "to_lower", cs->to_lower,
                   MY_CS_TO_LOWER_TABLE_SIZE);
-      print_array(f, cs->name, "to_upper", cs->to_upper,
+      print_array(f, cs->m_coll_name, "to_upper", cs->to_upper,
                   MY_CS_TO_UPPER_TABLE_SIZE);
       if (cs->sort_order)
-        print_array(f, cs->name, "sort_order", cs->sort_order,
+        print_array(f, cs->m_coll_name, "sort_order", cs->sort_order,
                     MY_CS_SORT_ORDER_TABLE_SIZE);
-      print_array16(f, cs->name, "to_uni", cs->tab_to_uni,
+      print_array16(f, cs->m_coll_name, "to_uni", cs->tab_to_uni,
                     MY_CS_TO_UNI_TABLE_SIZE);
       fprintf(f, "\n");
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,11 +137,11 @@ bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
   if (dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + actual_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(
           thd, dd::String_type("CREATE SCHEMA ") + *target_table_schema_name +
                    dd::String_type(" DEFAULT COLLATE '") +
-                   dd::String_type(default_charset_info->name) + "'") ||
+                   dd::String_type(default_charset_info->m_coll_name) + "'") ||
       dd::execute_query(thd,
                         dd::String_type("USE ") + *target_table_schema_name)) {
     return true;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1199,8 +1199,8 @@ static void descript(MI_CHECK *param, MI_INFO *info, char *name) {
     puts("Packed");
   else
     puts("Fixed length");
-  printf("Character set:       %s (%d)\n",
-         get_charset_name(share->state.header.language),
+  printf("Collation:           %s (%d)\n",
+         get_collation_name(share->state.header.language),
          share->state.header.language);
 
   if (param->testflag & T_VERBOSE) {

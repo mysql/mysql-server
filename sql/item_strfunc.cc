@@ -899,7 +899,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
     const CHARSET_INFO *cs = statement_string->charset();
     if (!is_supported_parser_charset(cs)) {
       my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
-               cs->name);
+               cs->m_coll_name);
       return error_str();
     }
     if (parse(thd, args[0], statement_string)) return error_str();
@@ -935,7 +935,7 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
   const CHARSET_INFO *cs = statement_string->charset();
   if (!is_supported_parser_charset(cs)) {
     my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
-             cs->name);
+             cs->m_coll_name);
     return error_str();
   }
   if (parse(thd, args[0], statement_string)) return error_str();
@@ -3024,8 +3024,8 @@ String *Item_func_collation::val_str(String *str) {
   const CHARSET_INFO *cs = args[0]->charset_for_protocol();
 
   null_value = false;
-  str->copy(cs->name, strlen(cs->name), &my_charset_latin1, collation.collation,
-            &dummy_errors);
+  str->copy(cs->m_coll_name, strlen(cs->m_coll_name), &my_charset_latin1,
+            collation.collation, &dummy_errors);
   return str;
 }
 

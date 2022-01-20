@@ -1838,7 +1838,7 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
     }
     warn_on_deprecated_charset(
         thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
-        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->name);
+        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->m_coll_name);
   }
   return false;
 }
@@ -1850,7 +1850,7 @@ namespace {
 struct Get_name {
   explicit Get_name(const CHARSET_INFO *ci) : m_ci(ci) {}
   const uchar *get_name() const {
-    return pointer_cast<const uchar *>(m_ci->name);
+    return pointer_cast<const uchar *>(m_ci->m_coll_name);
   }
   const CHARSET_INFO *m_ci;
 };
@@ -7111,7 +7111,7 @@ static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
       cs == &my_charset_utf8mb4_general_ci)
     return false;
 
-  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
+  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->m_coll_name);
   return true;
 }
 

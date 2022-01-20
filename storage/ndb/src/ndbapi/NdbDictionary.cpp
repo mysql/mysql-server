@@ -3801,7 +3801,7 @@ NdbDictionary::printColumnTypeDescription(NdbOut& out,
                                           const NdbDictionary::Column& col)
 {
   const CHARSET_INFO *cs = col.getCharset();
-  const char *csname = cs ? cs->name : "?";
+  const char *csname = cs ? cs->m_coll_name : "?";
 
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:

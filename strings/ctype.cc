@@ -554,7 +554,7 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
       i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_COLNAME:
-      i->cs.name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
+      i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
       break;
     case _CS_CSNAME:
       // Replace "utf8" with "utf8mb3" for external character sets.

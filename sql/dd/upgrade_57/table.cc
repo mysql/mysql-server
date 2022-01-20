@@ -380,10 +380,11 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
     lex_string_set(
         &default_connection_cl_name,
-        const_cast<char *>(thd->variables.collation_connection->name));
+        const_cast<char *>(thd->variables.collation_connection->m_coll_name));
 
-    lex_string_set(&default_db_cl_name,
-                   const_cast<char *>(thd->variables.collation_database->name));
+    lex_string_set(
+        &default_db_cl_name,
+        const_cast<char *>(thd->variables.collation_database->m_coll_name));
   }
 
   LEX_CSTRING db_name_str = {db_name, strlen(db_name)};
@@ -1008,14 +1009,14 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
   if (invalid_ctx) {
     cs = system_charset_info;
     size_t cs_length = strlen(cs->csname);
-    size_t length = strlen(cs->name);
+    size_t length = strlen(cs->m_coll_name);
 
     table_list.view_client_cs_name.str =
         strmake_root(mem_root, cs->csname, cs_length);
     table_list.view_client_cs_name.length = cs_length;
 
     table_list.view_connection_cl_name.str =
-        strmake_root(mem_root, cs->name, length);
+        strmake_root(mem_root, cs->m_coll_name, length);
     table_list.view_connection_cl_name.length = length;
 
     if (table_list.view_client_cs_name.str == nullptr ||

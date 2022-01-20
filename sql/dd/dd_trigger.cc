@@ -325,10 +325,11 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
     LEX_CSTRING client_cs_name, connection_cl_name, db_cl_name, trigger_name;
     const char *csname = client_cs->csname;
     if (lex_string_strmake(mem_root, &client_cs_name, csname, strlen(csname)) ||
-        lex_string_strmake(mem_root, &connection_cl_name, connection_cs->name,
-                           strlen(connection_cs->name)) ||
-        lex_string_strmake(mem_root, &db_cl_name, schema_cs->name,
-                           strlen(schema_cs->name)) ||
+        lex_string_strmake(mem_root, &connection_cl_name,
+                           connection_cs->m_coll_name,
+                           strlen(connection_cs->m_coll_name)) ||
+        lex_string_strmake(mem_root, &db_cl_name, schema_cs->m_coll_name,
+                           strlen(schema_cs->m_coll_name)) ||
         lex_string_strmake(mem_root, &trigger_name, trigger->name().c_str(),
                            trigger->name().length()))
       return true;

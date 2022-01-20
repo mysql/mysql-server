@@ -968,7 +968,7 @@ void STDCALL mysql_get_character_set_info(MYSQL *mysql,
   csinfo->number = mysql->charset->number;
   csinfo->state = mysql->charset->state;
   csinfo->csname = mysql->charset->csname;
-  csinfo->name = mysql->charset->name;
+  csinfo->name = mysql->charset->m_coll_name;
   csinfo->comment = mysql->charset->comment;
   csinfo->mbminlen = mysql->charset->mbminlen;
   csinfo->mbmaxlen = mysql->charset->mbmaxlen;

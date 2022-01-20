@@ -5785,7 +5785,7 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     0, /* number       */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8mb3",           /* cs name      */
-    "utf8_general_ci",   /* name         */
+    "utf8_general_ci",   /* m_coll_name  */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -5820,7 +5820,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     0, /* number       */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE | MY_CS_LOWER_SORT,
     "utf8mb3",           /* cs name      */
-    "utf8_tolower_ci",   /* name         */
+    "utf8_tolower_ci",   /* m_coll_name  */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -5855,7 +5855,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     0,                                               /* number           */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state            */
     "utf8mb3",                                       /* cs name          */
-    "utf8_general_mysql500_ci",                      /* name             */
+    "utf8_general_mysql500_ci",                      /* m_coll_name      */
     "UTF-8 Unicode",                                 /* comment          */
     nullptr,                                         /* tailoring        */
     nullptr,                                         /* coll_param       */
@@ -5890,7 +5890,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     0, /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8mb3",           /* cs name      */
-    "utf8_bin",          /* name         */
+    "utf8_bin",          /* m_coll_name  */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -7048,7 +7048,7 @@ CHARSET_INFO my_charset_filename = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_HIDDEN | MY_CS_NONASCII,
     "filename",          /* cs name      */
-    "filename",          /* name         */
+    "filename",          /* m_coll_name  */
     "",                  /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
@@ -7810,7 +7810,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_UNICODE_SUPPLEMENT, /* state  */
     MY_UTF8MB4,                   /* cs name      */
-    MY_UTF8MB4_GENERAL_CI,        /* name       */
+    MY_UTF8MB4_GENERAL_CI,        /* m_coll_name  */
     "UTF-8 Unicode",              /* comment      */
     nullptr,                      /* tailoring    */
     nullptr,                      /* coll_param   */
@@ -7846,7 +7846,7 @@ CHARSET_INFO my_charset_utf8mb4_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE |
         MY_CS_UNICODE_SUPPLEMENT, /* state  */
     MY_UTF8MB4,                   /* cs name      */
-    MY_UTF8MB4_BIN,               /* name         */
+    MY_UTF8MB4_BIN,               /* m_coll_name  */
     "UTF-8 Unicode",              /* comment      */
     nullptr,                      /* tailoring    */
     nullptr,                      /* coll_param   */

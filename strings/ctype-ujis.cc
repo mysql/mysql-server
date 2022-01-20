@@ -1,5 +1,5 @@
 /* Copyright (c) 2002, tommy@valley.ne.jp
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -35823,7 +35823,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci = {
     0,                              /* number       */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state        */
     "ujis",                         /* cs name    */
-    "ujis_japanese_ci",             /* name         */
+    "ujis_japanese_ci",             /* m_coll_name  */
     "EUC-JP Japanese",              /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */
@@ -35858,7 +35858,7 @@ CHARSET_INFO my_charset_ujis_bin = {
     0,                              /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "ujis",                         /* cs name    */
-    "ujis_bin",                     /* name         */
+    "ujis_bin",                     /* m_coll_name  */
     "EUC-JP Japanese",              /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */

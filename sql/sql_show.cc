@@ -1223,8 +1223,9 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
 
-    protocol->store(table_list->view_creation_ctx->get_connection_cl()->name,
-                    system_charset_info);
+    protocol->store(
+        table_list->view_creation_ctx->get_connection_cl()->m_coll_name,
+        system_charset_info);
   } else
     protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 
@@ -1332,7 +1333,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     if (!(create.default_table_charset->state & MY_CS_PRIMARY) ||
         create.default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       buffer.append(STRING_WITH_LEN(" COLLATE "));
-      buffer.append(create.default_table_charset->name);
+      buffer.append(create.default_table_charset->m_coll_name);
     }
     buffer.append(STRING_WITH_LEN(" */"));
   }
@@ -1992,7 +1993,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
           (field->charset() == &my_charset_utf8mb4_0900_ai_ci &&
            share->table_charset != &my_charset_utf8mb4_0900_ai_ci)) {
         packet->append(STRING_WITH_LEN(" COLLATE "));
-        packet->append(field->charset()->name);
+        packet->append(field->charset()->m_coll_name);
       }
     }
 
@@ -2309,7 +2310,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         if (!(share->table_charset->state & MY_CS_PRIMARY) ||
             share->table_charset == &my_charset_utf8mb4_0900_ai_ci) {
           packet->append(STRING_WITH_LEN(" COLLATE="));
-          packet->append(table->s->table_charset->name);
+          packet->append(table->s->table_charset->m_coll_name);
         }
       }
     }
@@ -3840,7 +3841,8 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     // COLLATION_NAME
     if (field->has_charset()) {
       table->field[TMP_TABLE_COLUMNS_COLLATION_NAME]->store(
-          field->charset()->name, strlen(field->charset()->name), cs);
+          field->charset()->m_coll_name, strlen(field->charset()->m_coll_name),
+          cs);
       table->field[TMP_TABLE_COLUMNS_COLLATION_NAME]->set_notnull();
     }
 

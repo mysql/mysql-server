@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ DEFINE_BOOL_METHOD(mysql_connection_attributes_iterator_imp::get,
 
       if (!isParsingSuccessful) return true;
 
-      *client_charset = thd->variables.character_set_client->name;
+      *client_charset = thd->variables.character_set_client->m_coll_name;
 
       return false;  // Success
     } else

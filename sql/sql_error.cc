@@ -1021,21 +1021,22 @@ void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
                                   const char *option) {
   if (my_charset_same(collation, &my_charset_utf8_general_ci)) {
     if (option == nullptr)
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_UTF8MB3_COLLATION,
-          ER_THD(thd, ER_WARN_DEPRECATED_UTF8MB3_COLLATION), collation->name);
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_UTF8MB3_COLLATION,
+                          ER_THD(thd, ER_WARN_DEPRECATED_UTF8MB3_COLLATION),
+                          collation->m_coll_name);
     else
       LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_UTF8MB3_COLLATION_OPTION, option,
-             collation->name);
+             collation->m_coll_name);
   } else if (is_deprecated(collation->csname)) {
     if (option == nullptr)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_COLLATION,
                           ER_THD(thd, ER_WARN_DEPRECATED_COLLATION),
-                          collation->name, collation->csname, "utf8mb4");
+                          collation->m_coll_name, collation->csname, "utf8mb4");
     else
       LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_COLLATION_OPTION, option,
-             collation->name, collation->csname, "utf8mb4");
+             collation->m_coll_name, collation->csname, "utf8mb4");
   }
 }
 

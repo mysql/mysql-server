@@ -9824,7 +9824,7 @@ static void usage(void) {
             default_character_set_name, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
-    default_collation_name = default_charset_info->name;
+    default_collation_name = default_charset_info->m_coll_name;
   if (is_help_or_validate_option() || opt_verbose) {
     my_progname = my_progname + dirname_length(my_progname);
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -571,7 +571,7 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
+  out << cs->m_coll_name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
   return out;
 }
 
@@ -614,7 +614,7 @@ getcs(const Par& par)
         // not work == endless loop in Chs::Chs
         // by default these are not compiled in 7.0...
         // but in 7.2 they are...so testOIbasic always fails in 7.2
-        if (strncmp(cs->name, "utf32_", sizeof("utf32_") - 1) == 0)
+        if (strncmp(cs->m_coll_name, "utf32_", sizeof("utf32_") - 1) == 0)
           continue;
 
         // prefer complex charsets
@@ -623,7 +623,7 @@ getcs(const Par& par)
       }
     }
   }
-  ndbout << "Use charset: " << cs->name << endl;
+  ndbout << "Use charset: " << cs->m_coll_name << endl;
   if (cslist[cs->number] == 0)
     cslist[cs->number] = new Chs(cs);
   return cslist[cs->number];
@@ -753,19 +753,19 @@ operator<<(NdbOut& out, const Col& col)
   case Col::Char:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " char(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " char(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   case Col::Varchar:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " varchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " varchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   case Col::Longvarchar:
     {
       CHARSET_INFO* cs = col.m_chs->m_cs;
-      out << " longvarchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->name << ")";
+      out << " longvarchar(" << col.m_length << "*" << cs->mbmaxlen << ";" << cs->m_coll_name << ")";
     }
     break;
   default:
