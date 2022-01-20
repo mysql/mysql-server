@@ -1628,6 +1628,16 @@ Lgman::open_file(Signal* signal,
   req->file_size_lo = (Uint32)(size & 0xFFFFFFFF);
   req->auto_sync_size = 0;
 
+  if ((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) != 0)
+  {
+    ndbrequire(handle->m_cnt == 1);
+    ndbrequire(import(handle->m_ptr[FsOpenReq::ENCRYPT_KEY_MATERIAL],
+                      (const Uint32*)&FsOpenReq::DUMMY_KEY,
+                      FsOpenReq::DUMMY_KEY.get_needed_words()));
+    handle->m_cnt++;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+  }
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
 }

@@ -667,7 +667,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
        FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_DF)
     { /* TS data files */
       require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
+      require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size > 0);
     }
@@ -676,7 +676,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
         FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_UF)
     { /* LG undo files */
       require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
+      require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size > 0);
     }
