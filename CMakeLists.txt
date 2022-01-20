@@ -1783,6 +1783,14 @@ IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
   MYSQL_CHECK_PROTOBUF_DLLS()
 ENDIF()
+
+IF(NOT WITHOUT_SERVER)
+  # Check BISON_VERSION and set BISON_FLAGS_WARNINGS
+  # Do it here, before any other cmake file does FIND_PACKAGE(BISON REQUIRED)
+  # so that our search for custom bison installations can run first.
+  INCLUDE(bison)
+ENDIF()
+
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
 MYSQL_CHECK_CURL_DLLS()

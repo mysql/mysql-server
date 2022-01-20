@@ -1236,9 +1236,7 @@ INSTALL_DEBUG_TARGET(mysqld
   RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
 )
 
-# Check BISON_VERSION and set BISON_FLAGS_WARNINGS
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
-
+# We have already included cmake/bison.cmake, and done FIND_PACKAGE(BISON)
 IF(BISON_FOUND)
   SET(USE_BISON_RESULTS_FROM_MAKE_DIST_DEFAULT OFF)
 ELSE()
