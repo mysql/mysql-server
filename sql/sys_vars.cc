@@ -3256,10 +3256,10 @@ export void update_parser_max_mem_size() {
 static bool update_optimizer_switch(sys_var *, THD *thd, enum_var_type){
   const bool current_auto_statistics =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_AUTO_STATISTICS);
-  const bool want_auto_statistics =
-      var->save_result.ulonglong_value & OPTIMIZER_SWITCH_AUTO_STATISTICS;
+  const bool current_hypergraph_optimizer = 
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-  if(!current_auto_statistics && want_auto_statistics){
+  if(current_auto_statistics && !current_hypergraph_optimizer){
     thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
   }
   return false;
