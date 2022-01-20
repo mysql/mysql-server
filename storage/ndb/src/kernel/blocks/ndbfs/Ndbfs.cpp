@@ -658,11 +658,10 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 5 &&
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_DATA)
     { /* LCP data files */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
+      require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
       require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size > 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size == 0);
-      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
     }
     /* TS */
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 4 &&

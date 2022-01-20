@@ -14394,6 +14394,12 @@ Backup::lcp_open_data_file(Signal* signal,
     req->fileFlags |= FsOpenReq::OM_DIRECT;
   }
 
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
   req->page_size = 0;
@@ -14422,7 +14428,6 @@ Backup::lcp_open_data_file(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -14448,6 +14453,12 @@ Backup::lcp_open_data_file_late(Signal* signal,
   if (c_defaults.m_o_direct)
   {
     req->fileFlags |= FsOpenReq::OM_DIRECT;
+  }
+
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
   }
 
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
@@ -14476,7 +14487,6 @@ Backup::lcp_open_data_file_late(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
-  ndbrequire((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == 0);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
