@@ -1,0 +1,11 @@
+# Run crunch update
+#
+--source sb_init.inc
+
+let $bench_name = $MYSQL_TEST_DIR/suite/ndbcrunch/cruncher.lua;
+let $bench_tables = 1;
+--source sb_run.inc
+
+--source sb_cleanup.inc
+
+--source replicate_mysqld2.inc

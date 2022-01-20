@@ -44,6 +44,12 @@ if (-f $mycnf) {
       next;
     }
 
+    # Hardcode second to not be used as well
+    if ($mysqld->name() eq 'mysqld.2.crunch') {
+      print "# - skip also " . $mysqld->name() . "\n";
+      next;
+    }
+
     push(@opt_ports, $mysqld->value('port'));
     push(@opt_sockets, $mysqld->value('socket'));
   }
@@ -122,6 +128,8 @@ push(@args, "--time=$opt_time");
 push(@args, "--auto_inc=$opt_autoinc");
 push(@args, "--rand-type=$rand_type");
 push(@args, "--create-secondary=$opt_secondary_index");
+
+push(@args, @ARGV);
 
 print_header("Prepare");
 bench($opt_bench_name, "prepare", @args);
