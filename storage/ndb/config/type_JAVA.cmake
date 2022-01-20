@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ MACRO(SET_JAVA_NDB_VERSION)
   SET(JAVA_NDB_VERSION
     "${NDB_VERSION_MAJOR}.${NDB_VERSION_MINOR}.${NDB_VERSION_BUILD}")
   IF(NDB_VERSION_STATUS)
-    SET(JAVA_NDB_VERSION "${JAVA_NDB_VERSION}.${NDB_VERSION_STATUS}")
+    SET(JAVA_NDB_VERSION "${JAVA_NDB_VERSION}${NDB_VERSION_STATUS}")
   ENDIF()
 
   # MESSAGE(STATUS "JAVA_NDB_VERSION: ${JAVA_NDB_VERSION}")
