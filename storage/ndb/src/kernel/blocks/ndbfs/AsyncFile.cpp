@@ -250,11 +250,10 @@ AsyncFile::openReq(Request * request)
 
   //
   {
-    int pwd_len = use_enc ? m_password.password_length : 0;
-    ndb_openssl_evp::byte* pwd = use_enc
-                                     ? reinterpret_cast<ndb_openssl_evp::byte*>(
-                                           m_password.encryption_password)
-                                     : nullptr;
+    const int pwd_len = use_enc ? m_key_material.length : 0;
+    ndb_openssl_evp::byte* pwd =
+        use_enc ? reinterpret_cast<ndb_openssl_evp::byte*>(m_key_material.data)
+                : nullptr;
     int rc;
     if (created)
     {

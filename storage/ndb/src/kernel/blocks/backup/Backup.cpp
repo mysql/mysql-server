@@ -4286,14 +4286,13 @@ Backup::execINCL_NODEREQ(Signal* signal)
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
-Uint32
-Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
+Uint32 Backup::validateEncryptionPassword(const EncryptionKeyMaterial* epd)
 {
   Uint32 allowedASCIIRanges[][2] = {{32, 32}, {35, 35}, {38, 38}, {40, 91},
                                     {93, 93}, {95, 95}, {97, 126}};
   Uint32 numElem = sizeof(allowedASCIIRanges) / (2* sizeof(Uint32));
 
-  Uint32 epdLength = epd->password_length;
+  Uint32 epdLength = epd->length;
   if (epdLength > MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH)
   {
     return BackupRef::EncryptionPasswordTooLong;
@@ -4302,7 +4301,6 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
   {
     return BackupRef::EncryptionPasswordZeroLength;
   }
-  ndbrequire(epd->encryption_password[epdLength] == '\0');
 
   for (Uint32 i = 0; i < epdLength; i++)
   {
@@ -4312,8 +4310,7 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
       Uint32 low = allowedASCIIRanges[j][0];
       Uint32 high = allowedASCIIRanges[j][1];
 
-      if (((Uint32)epd->encryption_password[i] >= low) &&
-          ((Uint32)epd->encryption_password[i] <= high))
+      if (((Uint32)epd->data[i] >= low) && ((Uint32)epd->data[i] <= high))
       {
         charMatch = true;
 	break;
@@ -4390,7 +4387,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
   const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
   const Uint32 input_backupId = signal->getLength() > 3 ? req->inputBackupId : 0;
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   bool encrypted_file = false;
 
   if (flags & BackupReq::ENCRYPTED_BACKUP)
@@ -4400,11 +4397,11 @@ Backup::execBACKUP_REQ(Signal* signal)
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
     ndbrequire(handle.getSection(ptr, 0));
-    ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
+    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(EncryptionKeyMaterial));
     copy((Uint32*)&epd, ptr);
-    ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+    ndbrequire(epd.get_needed_words() <= ptr.sz);
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-    g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+    g_eventLogger->debug("Encryption password:%*s", epd.length, epd.data);
 #endif
     releaseSections(handle);
     encrypted_file = true;
@@ -4481,7 +4478,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->m_encrypted_file = encrypted_file;
   if (flags & BackupReq::ENCRYPTED_BACKUP)
   {
-    ndbrequire(ptr.p->m_encryption_password_data.password_length>0);
+    ndbrequire(ptr.p->m_encryption_password_data.length > 0);
   }
 
   Uint32 node = ptr.p->nodes.find_first();
@@ -4870,7 +4867,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
     if (ptr.p->m_encrypted_file)
     {
       lsptr[1].p = (Uint32*)&ptr.p->m_encryption_password_data;
-      lsptr[1].sz = sizeof(ptr.p->m_encryption_password_data)/4;
+      lsptr[1].sz = ptr.p->m_encryption_password_data.get_needed_words();
       cnt++;
     }
     sendSignal(ref, GSN_DEFINE_BACKUP_REQ, signal,
@@ -6424,7 +6421,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 senderVersion =
       getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
 
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   bool encrypted_file = false;
   if (signal->getNoOfSections() >= 1)
   {
@@ -6438,11 +6435,11 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     if (signal->getNoOfSections() >=2 || handle.m_cnt >= 2)
     {
       ndbrequire(handle.getSection(ptr, 1));
-      ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
+      ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(EncryptionKeyMaterial));
       copy((Uint32*)&epd, ptr);
-      ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+      ndbrequire(epd.get_needed_words() <= ptr.sz);
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-      g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+      g_eventLogger->debug("Encryption password:%*s", epd.length, epd.data);
 #endif
       encrypted_file = true;
     }
@@ -7042,7 +7039,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
         (Uint32*)&ptr.p->m_encryption_password_data;
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);
@@ -7090,7 +7087,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
         (Uint32*)&ptr.p->m_encryption_password_data;
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);
@@ -7147,7 +7144,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p =
         (Uint32*)&ptr.p->m_encryption_password_data;
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
-        1 + ndb_ceil_div(ptr.p->m_encryption_password_data.password_length, 4U);
+        ptr.p->m_encryption_password_data.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal,
                FsOpenReq::SignalLength, JBA, lsptr, 2);

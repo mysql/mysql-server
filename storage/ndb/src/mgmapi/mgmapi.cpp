@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2913,7 +2913,7 @@ ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
           DBUG_RETURN(-1);
         }
       }
-      args.put("encryption_password", encryption_password);
+      args.put("encryption_password", {encryption_password, password_length});
       args.put("password_length", password_length);
     }
     else

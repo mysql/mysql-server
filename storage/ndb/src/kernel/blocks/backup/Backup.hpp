@@ -211,10 +211,9 @@ private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
-  Uint32 validateEncryptionPassword(const EncryptionPasswordData* epd);
+  Uint32 validateEncryptionPassword(const EncryptionKeyMaterial* epd);
 
-
-public:
+ public:
   struct Node {
     Uint32 nodeId;
     Uint32 alive;
@@ -920,7 +919,7 @@ public:
     }
 
     bool m_encrypted_file;
-    EncryptionPasswordData m_encryption_password_data;
+    EncryptionKeyMaterial m_encryption_password_data;
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;

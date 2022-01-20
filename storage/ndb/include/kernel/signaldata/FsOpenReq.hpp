@@ -25,10 +25,25 @@
 #ifndef FS_OPEN_REQ_H
 #define FS_OPEN_REQ_H
 
+#include "util/ndb_math.h"
 #include "SignalData.hpp"
 
 #define JAM_FILE_ID 148
 
+struct EncryptionKeyMaterial
+{
+  static constexpr Uint32 MAX_LENGTH = 512;
+  static_assert(MAX_LENGTH >= MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4);
+
+  Uint32 length = 0;
+  alignas(Uint32) unsigned char data[MAX_LENGTH];
+
+  Uint32 get_needed_words() const
+  {
+    return ndb_ceil_div<Uint32>(sizeof(length) + length, 4);
+  }
+};
+static_assert(sizeof(EncryptionKeyMaterial) % 4 == 0);
 
 /**
  * 
@@ -76,6 +91,8 @@ public:
   static constexpr Uint32 SignalLength = 11;
   SECTION( FILENAME = 0 );
   SECTION(ENCRYPT_KEY_MATERIAL = 1);
+
+  static constexpr EncryptionKeyMaterial DUMMY_KEY = {5, "DUMMY"};
 
  private:
   /**

@@ -616,14 +616,13 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     jam();
     SegmentedSectionPtr ptr;
     ndbrequire(handle.getSection(ptr, FsOpenReq::ENCRYPT_KEY_MATERIAL));
-    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_password));
-    copy((Uint32*)&file->m_password, ptr);
-    ndbrequire(4 + file->m_password.password_length <= ptr.sz * sizeof(Uint32));
-    file->m_password.encryption_password[file->m_password.password_length] = 0;
+    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_key_material));
+    copy((Uint32*)&file->m_key_material, ptr);
+    ndbrequire(file->m_key_material.get_needed_words() <= ptr.sz);
   }
   else
   {
-    file->m_password.password_length = 0;
+    file->m_key_material.length = 0;
   }
   releaseSections(handle);
   
@@ -707,8 +706,10 @@ Ndbfs::execFSOPENREQ(Signal* signal)
           FsOpenReq::OM_ENCRYPT_XTS &&
       (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) == 0)
   {
-    strcpy(file->m_password.encryption_password, "DUMMY");
-    file->m_password.password_length = 5;
+    file->m_key_material.length = FsOpenReq::DUMMY_KEY.length;
+    memcpy(file->m_key_material.data,
+           FsOpenReq::DUMMY_KEY.data,
+           FsOpenReq::DUMMY_KEY.length);
     fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
   }
 #endif
@@ -783,7 +784,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   {
     request->par.open.flags &= ~(FsOpenReq::OM_ENCRYPT_CIPHER_MASK |
                                  FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK);
-    file->m_password.password_length = 0;
+    file->m_key_material.length = 0;
   }
   if (!allow_odirect)
   {
