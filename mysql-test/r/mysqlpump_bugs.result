@@ -90,7 +90,7 @@ Warning	4095	Delimiter '\n' in position 10 in datetime value '0000-00-00
 DROP DATABASE B32340208;
 SET sql_mode = DEFAULT;
 #
-# Bug #33688141 mysqlpump crashes in regards to 'std::logic_error'
+# Bug #33688141 mysqlpump exits in regards to 'std::logic_error'
 #
 # Expect log that proves the client clean exit
 Pattern "Dump process encountered error and will not continue." found
