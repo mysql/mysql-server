@@ -658,7 +658,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_DATA)
     { /* LCP data files */
       require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_XTS));
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
+      require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       if (page_size > 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
       require(page_size == 0);
     }
@@ -684,7 +684,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 1 &&
         FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_FRAGLOG)
     { /* redo log */
-      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
+      require((fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT_KEY));
       require(fsOpenReq->fileFlags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
 #ifdef ERROR_INSERT
       if (page_size == 0)
