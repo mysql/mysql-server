@@ -6,6 +6,7 @@
 ##########################################################################
 
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 let $is_debug = 1;
 
 SET SESSION debug= '+d,show_dropped_column';
