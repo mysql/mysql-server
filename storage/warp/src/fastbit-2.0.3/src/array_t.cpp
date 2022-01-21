@@ -1694,7 +1694,7 @@ ibis::array_t<T>::insert(typename ibis::array_t<T>::iterator p,
         }
     }
     else {      // need new memory, copy-and-swap
-        const difference_type nold = (m_begin > 0 && m_end > m_begin ?
+        const difference_type nold = (m_begin != 0 && m_end > m_begin ?
                                       m_end - m_begin : 0);
         size_t nnew = static_cast<size_t>(nold + (nold>=n ? nold : n));
         if (nnew > 0x7FFFFFFFU) {
