@@ -356,7 +356,7 @@ int ha_warp::encode_quote(uchar *) {
   assert(current_trx != NULL);
   buffer.append(",");
   buffer.append(std::to_string(current_trx->trx_id).c_str());
-
+  //std::cerr << std::string(buffer.c_ptr());
   return (buffer.length());
 }
 
@@ -449,7 +449,7 @@ int ha_warp::set_column_set() {
 
   int count = 0;
   for (Field **field = table->field; *field; field++) {
-    if(bitmap_is_set(table->read_set, (*field)->field_index())) {
+    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE || current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI) {
       ++count;
 
       /* this column must be read from disk */
@@ -498,24 +498,19 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
   DBUG_ENTER("ha_warp::find_current_row");
   int rc = 0;
   memset(buf, 0, table->s->null_bytes);
-  
+  //std::cerr << "find_current_row [enter]\n";
   // Clear BLOB data from the previous row.
   blobroot.ClearForReuse();
 
   /* Avoid asserts in ::store() for columns that are not going to be updated */
   my_bitmap_map *org_bitmap(dbug_tmp_use_all_columns(table, table->write_set));
-
+  
   /* Read all columns when a table is opened for update */
   
-  /* First step: gather stats about the table and the resultset.
-     These are needed to size the NULL bitmap for the row and to
-     properly format that bitmap.  DYNAMIC rows resultsets (those
-     that contain variable length fields) reserve an extra bit in
-     the NULL bitmap...
-  */
+
   for (Field **field = table->field; *field; field++) {
     buffer.length(0);
-    if(bitmap_is_set(table->read_set, (*field)->field_index())) {
+    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE ||  current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI ) {
       
       bool is_unsigned = (*field)->all_flags() & UNSIGNED_FLAG;
       std::string cname = "c" + std::to_string((*field)->field_index());
@@ -561,14 +556,17 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         } break;
 
         case MYSQL_TYPE_LONG: {
+          //std::cerr << "Fetching field " << cname << ":";
           if(is_unsigned) {
             uint32_t tmp = 0;
             rc = cursor->getColumnAsUInt(cname.c_str(), tmp);
             rc = (*field)->store(tmp, true);
+            //std::cerr << tmp << "\n";
           } else {
             int32_t tmp = 0;
             rc = cursor->getColumnAsInt(cname.c_str(), tmp);
             rc = (*field)->store(tmp, false);
+            //std::cerr << tmp << "\n";
           }
         } break;
 
@@ -917,8 +915,6 @@ int ha_warp::write_row(uchar *buf) {
 // newer transactions and will be visible to older transactions.
 int ha_warp::update_row(const uchar *, uchar *new_data) {
   is_update=true;
-  set_column_set();
-  
   DBUG_ENTER("ha_warp::update_row");
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
@@ -932,7 +928,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   // current_rowid will be changed by write_row so save the 
   // value now
   uint64_t deleted_rowid = current_rowid;
-
+  
   // if the write fails (for example due to duplicate key then
   // the statement will be rolled back and the deleted row 
   // will be 
@@ -2128,8 +2124,7 @@ int ha_warp::rnd_end() {
 */
 void ha_warp::position(const uchar *) {
   DBUG_ENTER("ha_warp::position");
-  std::cerr << "[position] store rownum:" << rownum << "\n";
-  my_store_ptr(ref, ref_length, rownum);
+  my_store_ptr(ref, ref_length, current_rowid);
   DBUG_VOID_RETURN;
 }
 
@@ -2139,15 +2134,21 @@ void ha_warp::position(const uchar *) {
 int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_ENTER("ha_warp::rnd_pos");
-  std::cerr << "[rnd_pos] enter\n";
+  
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
-  auto current_rownum = my_get_ptr(pos, ref_length);
-  std::cerr << "[rnd_pos] current_rownum = " << current_rownum << "\n";
-  rownum = current_rownum;
-  cursor->fetch(current_rownum);
+  current_rowid = my_get_ptr(pos, ref_length);
+  base_table = ibis::mensa::create(share->data_dir_name);
+  filtered_table = base_table->select(column_set.c_str(), ("r=" + std::to_string(current_rowid)).c_str());
+  cursor = filtered_table->createCursor();
+  
   rc = find_current_row(buf, cursor);
-  cursor->getColumnAsULong("r", current_rowid);
-  std::cerr << "rownum:" << rownum << " rowid:" << current_rowid << "\n";
+   
+  delete cursor;
+  delete filtered_table;
+  delete base_table;
+  cursor = NULL;
+  filtered_table = NULL;
+  base_table = NULL;
   DBUG_RETURN(rc);
 }
 
@@ -2562,26 +2563,7 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
     List<Item> items = *(item_cond->argument_list());
     auto cnt = items.size();
     where_clause += "(";
-    if(items.size() > 1) {
-      auto i0 = (Item_cond*)(items[0]);
-      auto i1 = (Item_cond*)(items[1]);
-      String str;
-      str.reserve(1024*1024);
-      i0->print(current_thd, &str, QT_ORDINARY);
-      std::cerr << "Arg0: " << std::string(str.c_ptr(),str.length()) << "\n";
-      str.length(0);
-      i1->print(current_thd, &str, QT_ORDINARY);
-      std::cerr << "Arg1: " << std::string(str.c_ptr(),str.length()) << "\n";
-      auto i0ut = i0->used_tables();
-      auto i1ut = i1->used_tables();
-      std::cerr << "Arg0 used_tables:" << i0ut << "\n";
-      std::cerr << "Arg1 used_tables:" << i1ut << "\n";
-      //if(i0ut != i1ut) {
-      //  where_clause += "1=1";
-      //  unpushed_condition_count++;
-      //  return cond;
-      //}
-    }
+    
     for (uint i = 0; i < cnt; ++i) {
       auto item = items.pop();
       condition_count++;
@@ -2711,6 +2693,7 @@ int ha_warp::append_column_filter(const Item *cond,
        down right now, this just computes the structures for it to
        happen when a scan is initiated.
     */
+    //FIXME: FIX TPCH QUERY HERE
     if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM &&
         arg[0]->type() == arg[1]->type()
     ) {
