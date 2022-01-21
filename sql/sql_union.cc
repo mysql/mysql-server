@@ -257,12 +257,6 @@ class Query_result_union_direct final : public Query_result_union {
     // Should never be called.
     my_abort();
   }
-  bool optimize() override {
-    if (optimized) return false;
-    optimized = true;
-
-    return result->optimize();
-  }
   bool start_execution(THD *thd) override {
     if (execution_started) return false;
     execution_started = true;

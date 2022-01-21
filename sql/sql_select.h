@@ -858,8 +858,6 @@ class store_key_hash_item final : public store_key {
   enum store_key_result copy_inner() override;
 };
 
-bool error_if_full_join(JOIN *join);
-
 // Statement timeout function(s)
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);

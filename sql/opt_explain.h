@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,10 +157,6 @@ class Query_result_explain final : public Query_result_send {
   bool start_execution(THD *thd) override {
     return Query_result_send::start_execution(thd) ||
            interceptor->start_execution(thd);
-  }
-
-  bool optimize() override {
-    return Query_result_send::optimize() || interceptor->optimize();
   }
 
   void cleanup(THD *thd) override {

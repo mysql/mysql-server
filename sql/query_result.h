@@ -96,14 +96,6 @@ class Query_result {
   }
 
   /**
-    Optimize the result processing of a query expression, applicable to
-    data change operation (not simple select queries).
-
-    @returns false if success, true if error
-  */
-  virtual bool optimize() { return false; }
-
-  /**
     Prepare for execution of the query expression or DML statement.
 
     Generally, this will have an implementation only for outer-most

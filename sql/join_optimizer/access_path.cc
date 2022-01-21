@@ -49,6 +49,7 @@
 #include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_update.h"
 #include "sql/table.h"
 
 #include <vector>
@@ -1121,6 +1122,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       case AccessPath::UPDATE_ROWS: {
         const auto &param = path->update_rows();
         if (job.children.is_null()) {
+          // Do the final setup for UPDATE before the child iterators are
+          // created.
+          if (FinalizeOptimizationForUpdate(join)) {
+            return nullptr;
+          }
           SetupJobsForChildren(mem_root, param.child, join,
                                eligible_for_batch_mode, &job, &todo);
           continue;

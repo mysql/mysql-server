@@ -89,6 +89,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
+#include "sql/sql_delete.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
@@ -1187,6 +1188,16 @@ static table_map get_table_map(const mem_root_deque<Item *> &items) {
   return map;
 }
 
+/// Returns the outermost (leftmost) table of a join.
+static TABLE *GetOutermostTable(const JOIN *join) {
+  // The hypergraph optimizer will need to get the table from the access path.
+  // The old optimizer can usually find it in the access path too, except if the
+  // outermost table is a const table, since const tables may not be visible in
+  // the access path tree.
+  assert(join->qep_tab != nullptr);
+  return join->qep_tab[0].table();
+}
+
 /**
   If one row is updated through two different aliases and the first
   update physically moves the row, the second update will error
@@ -1925,12 +1936,7 @@ static void CollectColumnsReferencedInJoinConditions(
   assert(bitmap_is_clear_all(&table->tmp_set));
 
   for (uint i = 1; i < join->tables; ++i) {
-    const QEP_shared_owner *tab;
-    if (join->qep_tab != nullptr) {
-      tab = &join->qep_tab[i];
-    } else {
-      tab = join->best_ref[i];
-    }
+    const QEP_TAB *const tab = &join->qep_tab[i];
     if (!tab->position()) continue;
     if (tab->condition())
       tab->condition()->walk(&Item::add_field_to_set_processor,
@@ -1988,8 +1994,9 @@ static void CollectColumnsReferencedInJoinConditions(
   @returns true if it is safe to update on the fly.
 */
 
-static bool safe_update_on_fly(QEP_shared_owner *join_tab,
-                               TABLE_LIST *table_ref, TABLE_LIST *all_tables) {
+static bool safe_update_on_fly(const QEP_TAB *join_tab,
+                               const TABLE_LIST *table_ref,
+                               TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
 
   // Check that the table is not joined to itself:
@@ -2164,20 +2171,22 @@ bool Query_result_update::optimize() {
   // Skip remaining optimization if no plan is generated
   if (select->join->zero_result_cause) return false;
 
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      error_if_full_join(join))
+  if (!thd->lex->is_explain() && CheckSqlSafeUpdate(thd, join)) {
     return true;
+  }
 
-  // TODO(khatlen): Get all this from the access path.
-  main_table = join->best_ref[0]->table();
-  table_to_update = nullptr;
+  main_table = GetOutermostTable(join);
+  assert(main_table != nullptr);
+
+  AccessPath *root_path = join->root_access_path();
+  assert(root_path->type == AccessPath::UPDATE_ROWS);
   const table_map immediate_update_tables =
-      GetImmediateUpdateTable(join, update_tables->next_local == nullptr);
+      root_path->update_rows().immediate_tables;
   if (immediate_update_tables != 0) {
     assert(immediate_update_tables == main_table->pos_in_table_list->map());
     table_to_update = main_table;
+  } else {
+    table_to_update = nullptr;
   }
 
   if (prepare_partial_update(&thd->opt_trace, *fields, *values))
@@ -2943,19 +2952,11 @@ table_map GetImmediateUpdateTable(const JOIN *join, bool single_target) {
   assert(!join->thd->lex->using_hypergraph_optimizer);
 
   // In some cases, rows may be updated immediately as they are read from the
-  // outermost table in the join. Look it up in qep_tab or best_ref, depending
-  // on which is available (we could be called in different stages after the
-  // join order is determined).
-  QEP_shared_owner *first_table;
-  TABLE_LIST *first_table_ref;
-  if (join->qep_tab != nullptr) {
-    first_table = &join->qep_tab[0];
-    first_table_ref = join->qep_tab[0].table_ref;
-  } else {
-    ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-    first_table = join->best_ref[0];
-    first_table_ref = join->best_ref[0]->table_ref;
-  }
+  // outermost table in the join.
+  assert(join->qep_tab != nullptr);
+  assert(join->tables > 0);
+  const QEP_TAB *const first_table = &join->qep_tab[0];
+  const TABLE_LIST *const first_table_ref = first_table->table_ref;
 
   if (!first_table_ref->is_updated()) {
     return 0;
@@ -2979,4 +2980,9 @@ table_map GetImmediateUpdateTable(const JOIN *join, bool single_target) {
   bitmap_clear_all(&first_table_ref->table->tmp_set);
 
   return can_update_on_the_fly ? first_table_ref->map() : 0;
+}
+
+bool FinalizeOptimizationForUpdate(JOIN *join) {
+  return down_cast<Query_result_update *>(join->query_block->query_result())
+      ->optimize();
 }

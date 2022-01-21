@@ -968,11 +968,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
     if (finalize_table_conditions()) return true;
   }
 
-  if (query_block->query_result()->optimize()) {
-    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
-    return true;  // error == -1
-  }
-
   if (make_join_readinfo(this, no_jbuf_after))
     return true; /* purecov: inspected */
 
@@ -1033,11 +1028,6 @@ setup_subq_exit:
     sense.
   */
   child_subquery_can_materialize = true;
-
-  if (query_block->query_result()->optimize()) {
-    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
-    return true;
-  }
 
   trace_steps.end();  // because all steps are done
   Opt_trace_object(trace, "empty_result").add_alnum("cause", zero_result_cause);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,5 +72,12 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
 /// created. The hypergraph optimizer does not use this function, as it makes
 /// the decision about immediate delete *during* planning, not after planning.
 table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables);
+
+/// Checks if the sql_safe_updates option is enabled, and raises an error and
+/// returns true if the statement is likely to delete or update a large number
+/// of rows. Specifically, it raises an error if there is a full table scan or
+/// full index scan of one of the tables deleted from, and there is no LIMIT
+/// clause.
+bool CheckSqlSafeUpdate(THD *thd, const JOIN *join);
 
 #endif /* SQL_DELETE_INCLUDED */

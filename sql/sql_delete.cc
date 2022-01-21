@@ -963,12 +963,7 @@ void SetUpTablesForDelete(THD *thd, JOIN *join) {
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
-/// Performs some extra checks if the sql_safe_updates option is enabled, and
-/// raises an error (and returns true) if the statement is likely to delete a
-/// large number of rows. Specifically, it raises an error if there is a full
-/// table scan or full index scan of one of the tables deleted from, and there
-/// is no LIMIT clause.
-static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
+bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
   if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
     return false;
   }

@@ -3267,45 +3267,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
   return false;
 }
 
-/**
-  Give error if we some tables are done with a full join.
-
-  This is used by multi_table_update and multi_table_delete when running
-  in safe mode.
-
-  @param join		Join condition
-
-  @retval
-    0	ok
-  @retval
-    1	Error (full join used)
-*/
-
-bool error_if_full_join(JOIN *join) {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-  for (uint i = 0; i < join->primary_tables; i++) {
-    JOIN_TAB *const tab = join->best_ref[i];
-    THD *thd = join->thd;
-
-    /*
-      Safe update error isn't returned if:
-      1) It is  an EXPLAIN statement OR
-      2) Table is not the target.
-
-      Append the first warning (if any) to the error message. Allows the user
-      to understand why index access couldn't be chosen.
-    */
-
-    if (!thd->lex->is_explain() && tab->table()->pos_in_table_list->updating &&
-        tab->type() == JT_ALL) {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
-               thd->get_stmt_da()->get_first_condition_message());
-      return true;
-    }
-  }
-  return false;
-}
-
 void JOIN_TAB::set_table(TABLE *t) {
   if (t != nullptr) t->reginfo.join_tab = this;
   m_qs->set_table(t);

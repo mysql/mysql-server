@@ -127,7 +127,7 @@ class Query_result_update final : public Query_result_interceptor {
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
-  bool optimize() override;
+  bool optimize();
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool do_updates(THD *thd);
@@ -187,5 +187,12 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 ///                      one target table.
 /// @return Map of tables to update while scanning.
 table_map GetImmediateUpdateTable(const JOIN *join, bool single_target);
+
+/// Makes the TABLE and handler objects ready for being used in an UPDATE
+/// statement. Called at the beginning of each execution.
+///
+/// @param join  The top-level JOIN object of the UPDATE operation.
+/// @return true on error.
+bool FinalizeOptimizationForUpdate(JOIN *join);
 
 #endif /* SQL_UPDATE_INCLUDED */
