@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             parse_mask.cpp
             ProcessInfo.cpp
             OwnProcessInfo.cpp
+            Checksum.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
