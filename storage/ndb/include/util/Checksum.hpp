@@ -117,7 +117,7 @@ computeXorChecksum(const Uint32 *const buf, const size_t words, Uint32 sum = 0)
 #if defined(__GNUC__)
 #pragma GCC push_options
 // Specifying 'unroll and vectorize', improve GCC generated code by ~8x.
-#pragma GCC optimize("unroll-loops","tree-loop-vectorize")
+#pragma GCC optimize("unroll-loops","tree-vectorize")
 #endif
 
 /**
