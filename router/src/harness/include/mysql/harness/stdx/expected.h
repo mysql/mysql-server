@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,16 +90,10 @@ class unexpected {
   error_type error_;
 };
 
-// if E is void, we need no storage, but we need the wrapper
-template <>
-class unexpected<void> {};
-
 template <typename E>
 constexpr auto make_unexpected(E &&e) -> unexpected<std::decay_t<E>> {
   return unexpected<std::decay_t<E>>(std::forward<E>(e));
 }
-
-constexpr auto make_unexpected() { return unexpected<void>{}; }
 
 namespace base {
 template <class T, class E>
@@ -168,54 +162,6 @@ union storage_t {
  private:
   value_type value_;
   error_type error_;
-};
-
-template <class T>
-union storage_t<T, void> {
-  using value_type = T;
-  using error_type = void;
-
-  storage_t() {}   // NOLINT(modernize-use-equals-default)
-  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
-
-  template <bool B = std::is_default_constructible<T>::value,
-            std::enable_if_t<B> * = nullptr>
-  void construct_value() {
-    new (&value_) value_type();
-  }
-
-  template <bool B = std::is_copy_constructible<T>::value,
-            std::enable_if_t<B> * = nullptr>
-  void construct_value(value_type const &e) {
-    new (&value_) value_type(e);
-  }
-
-  template <bool B = std::is_move_constructible<T>::value,
-            std::enable_if_t<B> * = nullptr>
-  void construct_value(value_type &&e) {
-    new (&value_) value_type(std::move(e));
-  }
-
-  // enable inplace construction of value_type, if the T supports it
-  template <class... Args,
-            typename std::enable_if_t<
-                std::is_constructible<T, Args &&...>::value, void *> = nullptr>
-  void construct_value(std::in_place_t, Args &&... args) {
-    new (&value_) value_type(std::forward<Args>(args)...);
-  }
-
-  void destruct_value() { value_.~value_type(); }
-
-  constexpr const value_type &value() const & { return value_; }
-  constexpr const value_type &&value() const && { return std::move(value_); }
-  value_type &value() & { return value_; }
-  constexpr value_type &&value() && { return std::move(value_); }
-
-  const value_type *value_ptr() const { return &value_; }
-  value_type *value_ptr() { return &value_; }
-
- private:
-  value_type value_;
 };
 
 /**
@@ -404,11 +350,11 @@ using or_ = std::disjunction<B...>;
 template <class T, class E>
 using select_ctor_base =
     ctor_base<(and_<or_<std::is_void<T>, std::is_copy_constructible<T>>,
-                    or_<std::is_void<E>, std::is_copy_constructible<E>>>::value
+                    std::is_copy_constructible<E>>::value
                    ? member_policy::copy
                    : member_policy::none) |
               (and_<or_<std::is_void<T>, std::is_move_constructible<T>>,
-                    or_<std::is_void<E>, std::is_move_constructible<E>>>::value
+                    std::is_move_constructible<E>>::value
                    ? member_policy::move
                    : member_policy::none)>;
 
@@ -419,10 +365,10 @@ using select_ctor_base =
 // (move-constructible and move-assignable) or void
 template <class T, class E>
 using select_assign_base = assign_base<
-    (and_<or_<std::is_void<T>,
-              and_<std::is_copy_constructible<T>, std::is_copy_assignable<T>>>,
-          or_<std::is_void<E>, and_<std::is_copy_constructible<E>,
-                                    std::is_copy_assignable<E>>>>::value
+    (and_<
+         or_<std::is_void<T>,
+             and_<std::is_copy_constructible<T>, std::is_copy_assignable<T>>>,
+         and_<std::is_copy_constructible<E>, std::is_copy_assignable<E>>>::value
          ? member_policy::copy
          : member_policy::none) |
     (or_<std::is_void<T>,
@@ -749,215 +695,12 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
   base::storage_t<void, E> storage_;
 };
 
-template <class T>
-class ExpectedImpl<T, void> : public ExpectedImplBase {
- public:
-  using value_type = T;
-  using error_type = void;
-  using unexpected_type = unexpected<error_type>;
-
-  template <bool B = std::is_default_constructible<T>::value,
-            std::enable_if_t<B> * = nullptr>
-  constexpr ExpectedImpl() : ExpectedImplBase{true} {
-    storage_.construct_value();
-  }
-
-  constexpr ExpectedImpl(const value_type &v) : ExpectedImplBase{true} {
-    storage_.construct_value(v);
-  }
-  constexpr ExpectedImpl(value_type &&v) : ExpectedImplBase{true} {
-    storage_.construct_value(std::move(v));
-  }
-
-  // enable inplace construction of value_type, if the T supports it
-  template <class... Args, typename std::enable_if_t<std::is_constructible<
-                               T, Args &&...>::value> * = nullptr>
-  constexpr ExpectedImpl(std::in_place_t, Args &&... args)
-      : ExpectedImplBase{true} {
-    storage_.construct_value(std::in_place, std::forward<Args>(args)...);
-  }
-
-  constexpr ExpectedImpl(const ExpectedImpl &other)
-      : ExpectedImplBase{other.has_value()} {
-    if (has_value()) {
-      storage_.construct_value(other.storage_.value());
-    }
-  }
-
-  constexpr ExpectedImpl(ExpectedImpl &&other) noexcept(
-      std::is_nothrow_move_constructible<T>::value)
-      : ExpectedImplBase{other.has_value()} {
-    if (has_value()) {
-      storage_.construct_value(std::move(other.storage_.value()));
-    }
-  }
-
-  constexpr ExpectedImpl(const unexpected_type &) : ExpectedImplBase{false} {}
-
-  constexpr ExpectedImpl(unexpected_type &&) : ExpectedImplBase{false} {}
-
-  ExpectedImpl &operator=(ExpectedImpl const &other) {
-    ExpectedImpl(other).swap(*this);
-
-    return *this;
-  }
-
-  ExpectedImpl &operator=(ExpectedImpl &&other) {
-    ExpectedImpl(std::move(other)).swap(*this);
-
-    return *this;
-  }
-
-  // destruct
-  ~ExpectedImpl() {
-    if (has_value()) {
-      storage_.destruct_value();
-    }
-  }
-
-  //
-  template <class U = T>
-  typename std::enable_if_t<
-#if defined(__cpp_lib_is_swappable)
-      std::is_swappable<U>::value &&
-#endif
-      std::is_move_constructible<U>::value>
-  swap(ExpectedImpl &other) noexcept(
-      std::is_nothrow_move_constructible<T>::value
-#if defined(__cpp_lib_is_swappable)
-          &&std::is_nothrow_swappable<T &>::value
-#endif
-  ) {
-    using std::swap;
-
-    if (bool(*this) && bool(other)) {
-      swap(storage_.value(), other.storage_.value());
-    } else if (!bool(*this) && !bool(other)) {
-      // no storage for error
-    } else if (bool(*this) && !bool(other)) {
-      other.storage_.construct_value(std::move(storage_.value()));
-      // storage_.destruct_value();
-
-      swap(static_cast<ExpectedImplBase &>(*this),
-           static_cast<ExpectedImplBase &>(other));
-    } else if (!bool(*this) && bool(other)) {
-      other.swap(*this);
-    }
-  }
-
-  // value accessors
-
-  constexpr const value_type &value() const & { return storage_.value(); }
-  constexpr const value_type &&value() const && {
-    return std::move(storage_.value());
-  }
-  value_type &value() & { return storage_.value(); }
-  value_type &&value() && { return std::move(storage_.value()); }
-
-  // uncheck value access
-  value_type &operator*() & {
-    RESO_ASSUME(has_value());
-
-    return storage_.value();
-  }
-  constexpr const value_type &operator*() const & {
-    RESO_ASSUME(has_value());
-
-    return storage_.value();
-  }
-
-  value_type *operator->() {
-    RESO_ASSUME(has_value());
-
-    return storage_.value_ptr();
-  }
-  constexpr const value_type *operator->() const {
-    RESO_ASSUME(has_value());
-
-    return storage_.value_ptr();
-  }
-
-  template <class U>
-  constexpr value_type value_or(U &&v) const & {
-    static_assert(std::is_copy_constructible<T>::value &&
-                      std::is_convertible<U &&, T>::value,
-                  "T must be copy-constructible and convertible from U&&");
-
-    return has_value() ? **this : static_cast<T>(std::forward<U>(v));
-  }
-
-  template <class U>
-  constexpr value_type value_or(U &&v) && {
-    static_assert(std::is_move_constructible<T>::value &&
-                      std::is_convertible<U &&, T>::value,
-                  "T must be move-constructible and convertible from U&&");
-
-    return has_value() ? std::move(**this) : static_cast<T>(std::forward<U>(v));
-  }
-
-  constexpr unexpected_type get_unexpected() const { return make_unexpected(); }
-
- private:
-  base::storage_t<value_type, error_type> storage_;
-};
-
-// specialization for T=void, E=void
-template <>
-class ExpectedImpl<void, void> : public ExpectedImplBase {
- public:
-  using value_type = void;
-  using error_type = void;
-  using unexpected_type = unexpected<void>;
-
-  ExpectedImpl() : ExpectedImplBase{true} {}
-
-  constexpr ExpectedImpl(const ExpectedImpl &other)
-      : ExpectedImplBase{other.has_value()} {}
-
-  constexpr ExpectedImpl(ExpectedImpl &&other) noexcept
-      : ExpectedImplBase{other.has_value()} {}
-
-  ExpectedImpl &operator=(ExpectedImpl const &other) {
-    ExpectedImpl(other).swap(*this);
-
-    return *this;
-  }
-
-  ExpectedImpl &operator=(ExpectedImpl &&other) {
-    ExpectedImpl(std::move(other)).swap(*this);
-
-    return *this;
-  }
-
-  constexpr ExpectedImpl(const unexpected<error_type> &)
-      : ExpectedImplBase{false} {}
-
-  constexpr ExpectedImpl(unexpected<error_type> &&) : ExpectedImplBase{false} {}
-
-  // swap
-  void swap(ExpectedImpl &other) noexcept {
-    using std::swap;
-
-    if (bool(*this) && bool(other)) {
-      // both types have void value, nothing to swap
-    } else if (!bool(*this) && !bool(other)) {
-      // nothing to swap
-    } else if (bool(*this) && !bool(other)) {
-      swap(static_cast<ExpectedImplBase &>(*this),
-           static_cast<ExpectedImplBase &>(other));
-    } else if (!bool(*this) && bool(other)) {
-      other.swap(*this);
-    }
-  }
-
-  constexpr unexpected_type get_unexpected() const { return make_unexpected(); }
-};
-
 template <class T, class E>
 class expected : public ExpectedImpl<T, E>,
                  private base::select_assign_base<T, E>,
                  private base::select_ctor_base<T, E> {
  public:
+  static_assert(!std::is_void<E>::value, "E must not be void");
   static_assert(!std::is_reference<T>::value, "T must not be a reference");
   static_assert(!std::is_same<T, std::remove_cv<std::in_place_t>>::value,
                 "T must not be std::in_place_t");
@@ -974,12 +717,6 @@ inline bool operator==(const unexpected<E1> &a, const unexpected<E2> &b) {
   return a.value() == b.value();
 }
 
-template <>
-inline bool operator==(const unexpected<void> & /* a */,
-                       const unexpected<void> & /* b */) {
-  return true;
-}
-
 template <class E1, class E2>
 inline bool operator!=(const unexpected<E1> &a, const unexpected<E2> &b) {
   return !(a == b);
@@ -993,34 +730,13 @@ inline bool operator==(const expected<T1, E1> &a, const expected<T2, E2> &b) {
   return *a == *b;
 }
 
-template <class T1, class T2>
-inline
-    typename std::enable_if_t<base::and_<base::not_<std::is_void<T1>>,
-                                         base::not_<std::is_void<T2>>>::value,
-                              bool>
-    operator==(const expected<T1, void> &a, const expected<T2, void> &b) {
-  if (a.has_value() != b.has_value()) return false;
-
-  if (!a.has_value()) return true;
-  return *a == *b;
-}
-
 template <class E1, class E2>
-inline
-    typename std::enable_if_t<base::and_<base::not_<std::is_void<E1>>,
-                                         base::not_<std::is_void<E2>>>::value,
-                              bool>
-    operator==(const expected<void, E1> &a, const expected<void, E2> &b) {
+inline bool operator==(const expected<void, E1> &a,
+                       const expected<void, E2> &b) {
   if (a.has_value() != b.has_value()) return false;
 
   if (!a.has_value()) return a.error() == b.error();
   return true;
-}
-
-template <>
-inline bool operator==<void, void, void, void>(const expected<void, void> &a,
-                                               const expected<void, void> &b) {
-  return a.has_value() == b.has_value();
 }
 
 template <class T1, class E1, class T2, class E2>

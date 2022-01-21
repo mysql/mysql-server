@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <list>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -304,7 +305,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @returns new destinations, if there are any.
    */
-  virtual stdx::expected<Destinations, void> refresh_destinations(
+  virtual std::optional<Destinations> refresh_destinations(
       const Destinations &dests);
 
   /**

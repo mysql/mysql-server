@@ -491,13 +491,13 @@ class MysqlClient {
    * @retval false if option is not known.
    */
   template <class GettableMysqlOption>
-  stdx::expected<void, void> get_option(GettableMysqlOption &opt) {
+  bool get_option(GettableMysqlOption &opt) {
     auto m = m_.get();
     if (0 != mysql_get_option(m, opt.option(), opt.data())) {
-      return stdx::make_unexpected();
+      return false;
     }
 
-    return {};
+    return true;
   }
 
   class Statement {

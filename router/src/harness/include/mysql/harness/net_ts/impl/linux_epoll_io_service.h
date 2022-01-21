@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #ifdef HAVE_EPOLL
 #include <mutex>
+#include <optional>
 #include <system_error>
 #include <unordered_map>
 
@@ -362,7 +363,7 @@ class linux_epoll_io_service : public IoServiceBase {
       return {};
     }
 
-    stdx::expected<int32_t, void> interest(native_handle_type fd) const {
+    std::optional<int32_t> interest(native_handle_type fd) const {
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(b.mtx_);
@@ -371,7 +372,7 @@ class linux_epoll_io_service : public IoServiceBase {
       if (it != b.interest_.end()) {
         return it->second;
       } else {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
     }
 
@@ -426,7 +427,7 @@ class linux_epoll_io_service : public IoServiceBase {
    *
    * @returns fd-interest as bitmask of raw EPOLL* flags
    */
-  stdx::expected<int32_t, void> interest(native_handle_type fd) const {
+  std::optional<int32_t> interest(native_handle_type fd) const {
     return registered_events_.interest(fd);
   }
 
