@@ -70,7 +70,7 @@ template <class T>
 T xorChecksum(const T *const buf, const size_t words, T sum)
 {
   T tmp = 0;
-  for (auto ptr{buf}; ptr < (buf + words); ++ptr) {
+  for (const T *ptr = buf; ptr < (buf + words); ++ptr) {
     tmp ^= *ptr;
   }
   return sum ^ tmp;
@@ -134,7 +134,7 @@ computeXorChecksum(const Uint32 *const buf, const size_t words,
   Uint32 tmp0 = 0;
   Uint32 tmp1 = 0;
   const Uint32 middle = words / 2;
-  for (auto ptr{buf}; ptr < (buf + middle); ++ptr) {
+  for (const Uint32 *ptr = buf; ptr < (buf + middle); ++ptr) {
     // Use two seperate 'Xor-streams'
     tmp0 ^= *ptr;
     tmp1 ^= *(ptr+middle);
