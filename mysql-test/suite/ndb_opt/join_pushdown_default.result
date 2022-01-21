@@ -7595,6 +7595,84 @@ where t1.a=1 and t1.d=1;
 a	b	c	d	a	b	c	d	a	b	c	d
 1	1	1	1	1	1	1	1	1	1	1	1
 drop table t1;
+##################
+#
+# Bug#33669039 Stale rows returned from SPJ API,
+#              hit assert(key_cmp_if_same(...)) in debug build
+#
+##################
+create table t (
+pk int primary key,
+a int,
+b int,
+c int,
+d int
+) engine = ndbcluster;
+insert into t values (0,0,0,0,0);
+insert into t values (1,1,1,1,1);
+insert into t values (2,2,2,2,2);
+insert into t values (3,3,3,3,3);
+insert into t values (4,4,4,4,4);
+insert into t values (5,5,5,5,5);
+insert into t values (6,6,6,6,6);
+insert into t values (7,-1,7,7,7);
+insert into t values (8,8,8,8,8);
+insert into t values (9,9,9,9,9);
+insert into t values (10,10,10,10,10);
+insert into t values (11,11,11,11,11);
+insert into t values (12,12,12,12,12);
+insert into t values (13,13,13,13,13);
+insert into t values (14,14,14,14,14);
+insert into t values (15,15,15,15,15);
+explain format=tree select t1.pk, t2.pk, t3.pk, t4.pk, t5.pk
+from t as t1
+left join (
+t as t2
+straight_join t as t3 on t3.pk = t2.b
+) on t2.pk = t1.a
+left join (
+t as t4
+straight_join t as t5
+) on t4.pk = t1.c and t5.pk = t3.d;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on t1, activating pushed join of 5 tables
+        -> Nested loop inner join
+            -> Single-row index lookup on t2 using PRIMARY (pk=t1.a), child of t1 in pushed join
+            -> Single-row index lookup on t3 using PRIMARY (pk=t2.b), child of t2 in pushed join
+    -> Nested loop inner join
+        -> Single-row index lookup on t4 using PRIMARY (pk=t1.c), child of t3 in pushed join
+        -> Single-row index lookup on t5 using PRIMARY (pk=t3.d), child of t3 in pushed join
+
+select t1.pk, t2.pk, t3.pk, t4.pk, t5.pk
+from t as t1
+left join (
+t as t2
+straight_join t as t3 on t3.pk = t2.b
+) on t2.pk = t1.a
+left join (
+t as t4
+straight_join t as t5
+) on t4.pk = t1.c and t5.pk = t3.d;
+pk	pk	pk	pk	pk
+0	0	0	0	0
+1	1	1	1	1
+10	10	10	10	10
+11	11	11	11	11
+12	12	12	12	12
+13	13	13	13	13
+14	14	14	14	14
+15	15	15	15	15
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+6	6	6	6	6
+7	NULL	NULL	NULL	NULL
+8	8	8	8	8
+9	9	9	9	9
+drop table t;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new
