@@ -1,3 +1,6 @@
+# One of the tests requires Perl Expect module, not present on Windows
+--source include/not_windows.inc
+
 --echo #
 --echo # Bug#23102944: MYSQLPUMP LEAKS MEMORY IN CASE OF ERRORS.
 --echo #
