@@ -5693,6 +5693,76 @@ eval $query union $query;
 
 drop table t1;
 
+--echo ##################
+--echo #
+--echo # Bug#33669039 Stale rows returned from SPJ API,
+--echo #              hit assert(key_cmp_if_same(...)) in debug build
+--echo #
+--echo ##################
+
+create table t (
+pk int primary key,
+a int,
+b int,
+c int,
+d int
+) engine = ndbcluster;
+
+
+##############################
+# The inserted rows, in combination with query,
+# will do a self-join between all rows, except
+# the row where pk=7, containing a=-1
+insert into t values (0,0,0,0,0);
+insert into t values (1,1,1,1,1);
+insert into t values (2,2,2,2,2);
+insert into t values (3,3,3,3,3);
+insert into t values (4,4,4,4,4);
+insert into t values (5,5,5,5,5);
+insert into t values (6,6,6,6,6);
+insert into t values (7,-1,7,7,7);
+insert into t values (8,8,8,8,8);
+insert into t values (9,9,9,9,9);
+insert into t values (10,10,10,10,10);
+insert into t values (11,11,11,11,11);
+insert into t values (12,12,12,12,12);
+insert into t values (13,13,13,13,13);
+insert into t values (14,14,14,14,14);
+insert into t values (15,15,15,15,15);
+
+
+##############################
+# The query below has the join nests t1 oj (t2,t3) oj (t4,t5). In addition
+# There are join condition dependencies between the (t4,t5) nests, and t3
+# in the other outer-nest.
+# When the iterator executor evaluate the join for the row with pk=7 it
+# will not find any t2 rows where t2.pk = t1.a. This will also conclude
+# with a 'non match' for the nest (t2,t3)... *without* a new t3 row needed
+# to be read.
+# The iterator executor will then continue with trying to find matches
+# for the (t4,t5) nest. This nest will have join dependencies on t3, which
+# now has an old (invalid) 'current row' as read from t3 was skipped in the
+# previous step.
+#
+let $query=
+select t1.pk, t2.pk, t3.pk, t4.pk, t5.pk
+from t as t1
+  left join (
+    t as t2
+      straight_join t as t3 on t3.pk = t2.b
+  ) on t2.pk = t1.a
+  left join (
+    t as t4
+      straight_join t as t5
+  ) on t4.pk = t1.c and t5.pk = t3.d;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+drop table t;
+
 ########################################
 # Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
