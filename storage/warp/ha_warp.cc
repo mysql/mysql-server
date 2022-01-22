@@ -2683,7 +2683,28 @@ int ha_warp::append_column_filter(const Item *cond,
     }
 
     Item **arg = tmp->arguments();
-
+    //This is a fix for queries that have CONST filters on more than one table conjoined in an AND or an OR
+    //when this happens, the field item will have a different alias from the table we are currently working
+    //on (table->alias).  
+    //For example, a TPC-H query contains the following:
+    //and and ( (n1.n_name = 'JORDAN' and n2.n_name = 'BRAZIL') or (n1.n_name = 'BRAZIL' and n2.n_name = 'JORDAN') )                         
+    //notice that there are AND conditions that compare constants in diffrent tables.
+    for(size_t arg_num = 0; arg_num < tmp->arg_count-1; ++arg_num) {
+      // if a field item refers to another field, then this is a join, and it is handled below in JOIN PUSHDOWN
+      if( ( arg[arg_num]->type() == Item::Type::FIELD_ITEM && arg[arg_num+1]->type() != Item::Type::FIELD_ITEM ) )  {
+        
+        if(arg[arg_num]->used_tables() == 0) continue;
+        
+        auto str = ItemToString(arg[arg_num]);
+        std::cerr << str << "| ";
+        const char* dot_pos = strstr(str.c_str(), ".");
+        auto alias=str.substr(0, dot_pos - str.c_str());
+        
+        if(std::string(table->alias) != alias) {
+          return 0;
+        }
+      }
+    }
     /* JOIN PUSHDOWN
        ***********************************************************
        This detects where two fields are compared to each other in
@@ -2693,7 +2714,7 @@ int ha_warp::append_column_filter(const Item *cond,
        down right now, this just computes the structures for it to
        happen when a scan is initiated.
     */
-    //FIXME: FIX TPCH QUERY HERE
+    
     if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM &&
         arg[0]->type() == arg[1]->type()
     ) {
