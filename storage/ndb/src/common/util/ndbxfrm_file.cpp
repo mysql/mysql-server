@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -856,13 +856,11 @@ int ndbxfrm_file::write_transformed_pages(off_t data_pos,
   int nb = m_file->write_pos(in->cbegin(), in->size(), file_pos);
   if (nb == -1)
   {
-    REQUIRE(false);
     return -1;
   }
   in->advance(nb);
   if (!in->empty())
   {
-    REQUIRE(false);
     return -1;
   }
   return 0;
