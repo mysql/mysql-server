@@ -890,6 +890,9 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         } else {
           remote_port = 3306;
         }
+	if(remote_port == 0) {
+	  remote_port = 3306;
+	}
 
         //std::cerr << "remote deets\n host:" << remote_host << " db:" << remote_db << " user:" << remote_user << " pw:" << remote_pw << "\n";
       }
