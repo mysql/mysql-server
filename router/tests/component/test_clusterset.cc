@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -702,6 +702,9 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
   EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s))
       << router.get_full_logfile();
 
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[1].nodes[0].http_port, 2));
+
   SCOPED_TRACE(
       "// Make the connections to both RW and RO ports, both should fail");
 
@@ -737,10 +740,7 @@ INSTANTIATE_TEST_SUITE_P(
             "00000000-0000-0000-0000-0000000000G1", 0, 0,
             "ERROR.* Could not find target_cluster "
             "'00000000-0000-0000-0000-0000000000G1' in the metadata"},
-        // [@TS_R9_1/7]
-        TargetClusterTestParams{"", 0, 0,
-                                "Target cluster for router_id=1 not set, using "
-                                "'primary' as a target cluster"},
+
         // [@TS_R9_1/8]
         TargetClusterTestParams{"0", 0, 0,
                                 "ERROR.* Could not find target_cluster "
@@ -750,6 +750,39 @@ INSTANTIATE_TEST_SUITE_P(
             "'00000000-0000-0000-0000-0000000000g1'", 0, 0,
             "ERROR.* Could not find target_cluster "
             "''00000000-0000-0000-0000-0000000000g1'' in the metadata"}));
+
+/**
+ * @test Checks that if the `target_cluster` for the Router is empty in the
+ * metadata the warning is logged and the Router accepts the connections
+ * using primary cluster as a default.
+ * [@TS_R9_1/7]
+ */
+TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
+  create_clusterset(view_id, /*target_cluster_id*/ 0, /*primary_cluster_id*/ 0,
+                    "metadata_clusterset.js",
+                    /*router_options*/ R"({"target_cluster" : "" })");
+
+  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
+  auto &router = launch_router(EXIT_SUCCESS, -1s);
+
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Target cluster for router_id=1 not set, using "
+                                "'primary' as a target cluster",
+                                2s))
+      << router.get_full_logfile();
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[1].nodes[0].http_port, 2));
+
+  SCOPED_TRACE(
+      "// Make the connections to both RW and RO ports, both should be ok");
+  make_new_connection_ok(
+      router_port_rw,
+      clusterset_data_.clusters[0].nodes[kRWNodeId].classic_port);
+  make_new_connection_ok(
+      router_port_ro,
+      clusterset_data_.clusters[0].nodes[kRONodeId].classic_port);
+}
 
 /**
  * @test Check that the Router correctly follows primary Cluster when it is its
