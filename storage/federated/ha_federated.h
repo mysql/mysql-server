@@ -132,7 +132,7 @@ class ha_federated : public handler {
 
  public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_federated() override {}
+  ~ha_federated() override = default;
   /* The name that will be used for display purposes */
   const char *table_type() const override { return "FEDERATED"; }
   /*
@@ -176,8 +176,8 @@ class ha_federated : public handler {
   uint max_supported_key_length() const override {
     return FEDERATED_MAX_KEY_LENGTH;
   }
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                     [[maybe_unused]]) const override {
     return FEDERATED_MAX_KEY_LENGTH;
   }
   /*
@@ -277,4 +277,5 @@ class ha_federated : public handler {
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
   int reset(void) override;
+  int rnd_pos_by_record(uchar *record) override;
 };

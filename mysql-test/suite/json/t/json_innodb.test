@@ -183,7 +183,10 @@ DROP TABLE insert_select_21104470;
 # The group identifier may be any of the items that compare equal
 CREATE TABLE t(a INT PRIMARY KEY);
 INSERT INTO t VALUES (1), (2), (3), (4), (5);
+# Different warnings in the hypergraph join optimizer.
+--disable_warnings
 SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
+--enable_warnings
 SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
 FROM t GROUP BY je WITH ROLLUP;
 SELECT JSON_EXTRACT(NULL, '$.a') AS je, COUNT(DISTINCT a)

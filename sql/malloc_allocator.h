@@ -80,17 +80,16 @@ class Malloc_allocator {
   explicit Malloc_allocator(PSI_memory_key key) : m_key(key) {}
 
   template <class U>
-  Malloc_allocator(const Malloc_allocator<U> &other MY_ATTRIBUTE((unused)))
+  Malloc_allocator(const Malloc_allocator<U> &other [[maybe_unused]])
       : m_key(other.psi_key()) {}
 
   template <class U>
-  Malloc_allocator &operator=(
-      const Malloc_allocator<U> &other MY_ATTRIBUTE((unused))) {
+  Malloc_allocator &operator=(const Malloc_allocator<U> &other
+                              [[maybe_unused]]) {
     assert(m_key == other.psi_key());  // Don't swap key.
   }
 
-  pointer allocate(size_type n,
-                   const_pointer hint MY_ATTRIBUTE((unused)) = nullptr) {
+  pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
     if (n == 0) return nullptr;
     if (n > max_size()) throw std::bad_alloc();
 

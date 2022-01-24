@@ -50,12 +50,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "lock0types.h"
 
+#include "ddl0ddl.h"
 #include "dict0sdi-decompress.h"
 #include "dict0sdi.h"
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
@@ -157,7 +157,7 @@ struct ib_key_col_t {
 struct ib_table_def_t;
 
 /** InnoDB index schema used during index creation */
-struct ib_index_def_t {
+struct ib_Index_defn {
   mem_heap_t *heap; /*!< Heap used to build this and all
                     its columns in the list */
 
@@ -219,8 +219,7 @@ operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 /** Check whether the InnoDB persistent cursor is positioned.
  @return IB_true if positioned */
-UNIV_INLINE
-ib_bool_t ib_btr_cursor_is_positioned(
+static inline ib_bool_t ib_btr_cursor_is_positioned(
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
   return (pcur->is_positioned());
@@ -246,8 +245,7 @@ static dict_table_t *ib_lookup_table_by_name(
  time calls srv_active_wake_master_thread. This function should be used
  when a single database operation may introduce a small need for
  server utility activity, like checkpointing. */
-UNIV_INLINE
-void ib_wake_master_thread(void) {
+static inline void ib_wake_master_thread(void) {
   static ulint ib_signal_counter = 0;
 
   ++ib_signal_counter;
@@ -367,7 +365,7 @@ static ib_err_t ib_read_tuple(
     if (rec_offs_nth_extern(offsets, i)) {
       const page_size_t page_size(dict_table_page_size(index->table));
 
-      /** Passing nullptr to the transaction object.  This
+      /* Passing nullptr to the transaction object.  This
       means that partial update of LOB is not supported
       via this interface.*/
       data = lob::btr_rec_copy_externally_stored_field(
@@ -514,7 +512,7 @@ ib_err_t ib_trx_start(
 
   trx_start_if_not_started(trx, read_write);
 
-  trx->isolation_level = ib_trx_level;
+  trx->isolation_level = static_cast<trx_t::isolation_level_t>(ib_trx_level);
 
   /* FIXME: This is a place holder, we should add an arg that comes
   from the client. */
@@ -559,7 +557,8 @@ ib_u32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
 ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx) /*!< in: transaction */
 {
   trx_t *trx = (trx_t *)ib_trx;
-  return (static_cast<ib_u64_t>(trx->start_time));
+  return static_cast<ib_u64_t>(std::chrono::system_clock::to_time_t(
+      trx->start_time.load(std::memory_order_relaxed)));
 }
 /** Release the resources of the transaction.
  @return DB_SUCCESS or err code */
@@ -791,9 +790,9 @@ ib_err_t ib_cursor_open_index_using_name(
   table = cursor->prebuilt->table;
   ut_a(table != nullptr);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table->acquire();
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* The first index is always the cluster index. */
   index = table->first_index();
@@ -847,7 +846,8 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
   trx_t *trx = static_cast<trx_t *>(ib_trx);
   MDL_ticket *mdl = nullptr;
 
-  normalized_name = static_cast<char *>(ut_malloc_nokey(ut_strlen(name) + 1));
+  normalized_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, ut_strlen(name) + 1));
   ib_normalize_table_name(normalized_name, name);
 
   ut_ad(ib_trx != nullptr);
@@ -860,7 +860,7 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
     table = ib_lookup_table_by_name(normalized_name);
   }
 
-  ut_free(normalized_name);
+  ut::free(normalized_name);
   normalized_name = nullptr;
 
   /* It can happen that another thread has created the table but
@@ -1000,8 +1000,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
 
 /** Run the insert query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_insert_row_with_lock_retry(
+static inline ib_err_t ib_insert_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: insert query graph */
     ins_node_t *node,     /*!< in: insert node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1188,8 +1187,8 @@ ib_err_t ib_cursor_insert_row(
 
 /** Gets pointer to a prebuilt update vector used in updates.
  @return update vector */
-UNIV_INLINE
-upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
+static inline upd_t *ib_update_vector_create(
+    ib_cursor_t *cursor) /*!< in: current cursor */
 {
   trx_t *trx = cursor->prebuilt->trx;
   mem_heap_t *heap = cursor->query_heap;
@@ -1307,8 +1306,7 @@ static ib_err_t ib_calc_diff(
 
 /** Run the update query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_update_row_with_lock_retry(
+static inline ib_err_t ib_update_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: Update query graph */
     upd_node_t *node,     /*!< in: Update node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1354,8 +1352,7 @@ ib_err_t ib_update_row_with_lock_retry(
 
 /** Does an update or delete of a row.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_execute_update_query_graph(
+static inline ib_err_t ib_execute_update_query_graph(
     ib_cursor_t *cursor, /*!< in: Cursor instance */
     btr_pcur_t *pcur)    /*!< in: Btree persistent cursor */
 {
@@ -1662,8 +1659,7 @@ ib_err_t ib_cursor_read_row(
 
 /** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_cursor_position(
+static inline ib_err_t ib_cursor_position(
     ib_cursor_t *cursor, /*!< in: InnoDB cursor instance */
     ib_srch_mode_t mode) /*!< in: Search mode */
 {
@@ -1674,7 +1670,8 @@ ib_err_t ib_cursor_position(
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
   }
-  buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
   prebuilt->clear_search_tuples();
 
   /* We want to position at one of the ends, row_search_for_mysql()
@@ -1683,7 +1680,7 @@ ib_err_t ib_cursor_position(
   err = static_cast<ib_err_t>(row_search_for_mysql(
       buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
 
-  ut_free(buf);
+  ut::free(buf);
 
   return (err);
 }
@@ -1756,7 +1753,8 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
 
   prebuilt->innodb_api_rec = nullptr;
 
-  buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
 
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
@@ -1765,7 +1763,7 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
       row_search_for_mysql(buf, static_cast<page_cur_mode_t>(ib_srch_mode),
                            prebuilt, cursor->match_mode, direction));
 
-  ut_free(buf);
+  ut::free(buf);
 
   return (err);
 }
@@ -1782,9 +1780,9 @@ void ib_cursor_set_match_mode(
 
 /** Get the dfield instance for the column in the tuple.
  @return dfield instance in tuple */
-UNIV_INLINE
-dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
-                            ulint col_no)      /*!< in: col no. in tuple */
+static inline dfield_t *ib_col_get_dfield(
+    ib_tuple_t *tuple, /*!< in: tuple instance */
+    ulint col_no)      /*!< in: col no. in tuple */
 {
   dfield_t *dfield;
 
@@ -1795,8 +1793,8 @@ dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
 
 /** Predicate to check whether a column type contains variable length data.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_col_is_capped(const dtype_t *dtype) /*!< in: column type */
+static inline ib_err_t ib_col_is_capped(
+    const dtype_t *dtype) /*!< in: column type */
 {
   return (static_cast<ib_err_t>((dtype_get_mtype(dtype) == DATA_VARCHAR ||
                                  dtype_get_mtype(dtype) == DATA_CHAR ||
@@ -2010,8 +2008,7 @@ ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
 
 /** Copy a column value from the tuple.
  @return bytes copied or IB_SQL_NULL */
-UNIV_INLINE
-ib_ulint_t ib_col_copy_value_low(
+static inline ib_ulint_t ib_col_copy_value_low(
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
     ib_ulint_t i,    /*!< in: column index in tuple */
     void *dst,       /*!< out: copied data value */
@@ -2111,8 +2108,8 @@ ib_ulint_t ib_col_copy_value(
 
 /** Get the InnoDB column attribute from the internal column precise type.
  @return precise type in api format */
-UNIV_INLINE
-ib_col_attr_t ib_col_get_attr(ulint prtype) /*!< in: column definition */
+static inline ib_col_attr_t ib_col_get_attr(
+    ulint prtype) /*!< in: column definition */
 {
   ib_col_attr_t attr = IB_COL_NONE;
 
@@ -2167,8 +2164,7 @@ const char *ib_get_idx_field_name(
 
 /** Get a column type, length and attributes from the tuple.
  @return len of column data */
-UNIV_INLINE
-ib_ulint_t ib_col_get_meta_low(
+static inline ib_ulint_t ib_col_get_meta_low(
     ib_tpl_t ib_tpl,            /*!< in: tuple instance */
     ib_ulint_t i,               /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
@@ -2198,11 +2194,11 @@ ib_ulint_t ib_col_get_meta_low(
 }
 
 /** Read a signed int 8 bit column from an InnoDB tuple. */
-UNIV_INLINE
-ib_err_t ib_tuple_check_int(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                            ib_ulint_t i,    /*!< in: column number */
-                            ib_bool_t usign, /*!< in: true if unsigned */
-                            ulint size)      /*!< in: size of integer */
+static inline ib_err_t ib_tuple_check_int(
+    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+    ib_ulint_t i,    /*!< in: column number */
+    ib_bool_t usign, /*!< in: true if unsigned */
+    ulint size)      /*!< in: size of integer */
 {
   ib_col_meta_t ib_col_meta;
 
@@ -3373,8 +3369,8 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
   ut_ad(*sdi_len < UINT32_MAX);
   uint32_t uncompressed_sdi_len;
   uint32_t compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
-  byte *compressed_sdi =
-      static_cast<byte *>(ut_malloc_nokey(compressed_sdi_len));
+  byte *compressed_sdi = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, compressed_sdi_len));
 
   err = ib_sdi_get(tablespace_id, &sk, compressed_sdi, &compressed_sdi_len,
                    &uncompressed_sdi_len, trx);

@@ -1,0 +1,239 @@
+include/only_with_option.inc [GLOBAL.replica_transaction_retries > 2]
+#
+# 1. Create source-replica topology
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+SET GLOBAL innodb_lock_wait_timeout = 2;
+SET GLOBAL slave_rows_search_algorithms = 'INDEX_SCAN,HASH_SCAN';
+CALL mtr.add_suppression("Slave SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
+CALL mtr.add_suppression("Slave SQL for channel.*The slave coordinator and worker threads are stopped.*");
+# 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with
+#    index), HASH_SCAN(with two non-unique index), HASH_SCAN(with out
+#    index), TABLE_SCAN]
+#
+# 2.0 Configure source and replica
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10, 10), (20, 20);
+include/sync_slave_sql_with_master.inc
+#
+# 2.1 Stop replica
+include/stop_slave.inc
+#
+# 2.2 Execute DELETE transaction on source
+[connection master]
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+#
+# 2.3 Begin SELECT ... FOR UPDATE on replica
+[connection slave]
+BEGIN;
+SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+a	b
+20	20
+#
+# 2.4 Start replica from another connection
+[connection slave1]
+include/start_slave.inc
+#
+# 2.5 Wait until the applier retries:'count_transactions_retries' will be
+#    incremented
+[connection slave]
+#
+# 2.6 Commit SELECT ... FOR UPDATE on replica
+COMMIT;
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	INDEX_SCAN
+#
+# 2.7 Restart replica applier
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 2.0 Configure source and replica
+[connection master]
+CREATE TABLE t1 (a INT, b INT, key(a)) ENGINE=innodb;
+INSERT INTO t1 VALUES (10, 10), (20, 20);
+include/sync_slave_sql_with_master.inc
+#
+# 2.1 Stop replica
+include/stop_slave.inc
+#
+# 2.2 Execute DELETE transaction on source
+[connection master]
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+#
+# 2.3 Begin SELECT ... FOR UPDATE on replica
+[connection slave]
+BEGIN;
+SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+a	b
+20	20
+#
+# 2.4 Start replica from another connection
+[connection slave1]
+include/start_slave.inc
+#
+# 2.5 Wait until the applier retries:'count_transactions_retries' will be
+#    incremented
+[connection slave]
+#
+# 2.6 Commit SELECT ... FOR UPDATE on replica
+COMMIT;
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	HASH_SCAN
+#
+# 2.7 Restart replica applier
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 2.0 Configure source and replica
+[connection master]
+CREATE TABLE t1 (a INT, b INT, KEY(a), KEY(b)) ENGINE=innodb;
+INSERT INTO t1 VALUES (10, 10), (10, 20), (10, 30), (20, 10), (20, 20);
+include/sync_slave_sql_with_master.inc
+#
+# 2.1 Stop replica
+include/stop_slave.inc
+#
+# 2.2 Execute DELETE transaction on source
+[connection master]
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+#
+# 2.3 Begin SELECT ... FOR UPDATE on replica
+[connection slave]
+BEGIN;
+SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+a	b
+10	20
+20	20
+#
+# 2.4 Start replica from another connection
+[connection slave1]
+include/start_slave.inc
+#
+# 2.5 Wait until the applier retries:'count_transactions_retries' will be
+#    incremented
+[connection slave]
+#
+# 2.6 Commit SELECT ... FOR UPDATE on replica
+COMMIT;
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	HASH_SCAN
+#
+# 2.7 Restart replica applier
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 2.0 Configure source and replica
+[connection master]
+CREATE TABLE t1 (a INT, b INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10, 10), (20, 20);
+include/sync_slave_sql_with_master.inc
+#
+# 2.1 Stop replica
+include/stop_slave.inc
+#
+# 2.2 Execute DELETE transaction on source
+[connection master]
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+#
+# 2.3 Begin SELECT ... FOR UPDATE on replica
+[connection slave]
+BEGIN;
+SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+a	b
+20	20
+#
+# 2.4 Start replica from another connection
+[connection slave1]
+include/start_slave.inc
+#
+# 2.5 Wait until the applier retries:'count_transactions_retries' will be
+#    incremented
+[connection slave]
+#
+# 2.6 Commit SELECT ... FOR UPDATE on replica
+COMMIT;
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	HASH_SCAN
+#
+# 2.7 Restart replica applier
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 2.0 Configure source and replica
+[connection master]
+CREATE TABLE t1 (a INT, b INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10, 10), (20, 20);
+include/sync_slave_sql_with_master.inc
+#
+# 2.1 Stop replica
+include/stop_slave.inc
+#
+# 2.2 Execute DELETE transaction on source
+[connection master]
+BEGIN;
+DELETE FROM t1;
+COMMIT;
+#
+# 2.3 Begin SELECT ... FOR UPDATE on replica
+[connection slave]
+SET GLOBAL slave_rows_search_algorithms = 'TABLE_SCAN';
+BEGIN;
+SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+a	b
+20	20
+#
+# 2.4 Start replica from another connection
+[connection slave1]
+include/start_slave.inc
+#
+# 2.5 Wait until the applier retries:'count_transactions_retries' will be
+#    incremented
+[connection slave]
+#
+# 2.6 Commit SELECT ... FOR UPDATE on replica
+COMMIT;
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+Variable_name	Value
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
+#
+# 2.7 Restart replica applier
+include/stop_slave_sql.inc
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 3. Clean up
+[connection slave]
+SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
+SET GLOBAL slave_rows_search_algorithms = "SLAVE_ROWS_SEARCH_ALGORITHMS";
+include/rpl_end.inc

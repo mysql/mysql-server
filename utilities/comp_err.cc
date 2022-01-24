@@ -1375,8 +1375,8 @@ static struct languages *parse_charset_string(char *str) {
 /* Read options */
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
-                           char *argument MY_ATTRIBUTE((unused))) {
+                           const struct my_option *opt [[maybe_unused]],
+                           char *argument [[maybe_unused]]) {
   DBUG_TRACE;
   switch (optid) {
     case 'V':

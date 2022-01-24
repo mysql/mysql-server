@@ -326,8 +326,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 */
 
 bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
-                     bool use_async_io MY_ATTRIBUTE((unused)),
-                     bool clear_cache) {
+                     bool use_async_io [[maybe_unused]], bool clear_cache) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
                        info, type, (ulong)seek_offset, (int)clear_cache));
@@ -1049,7 +1048,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   */
   while (write_length) {
     size_t copy_length = std::min(write_length, write_cache->buffer_length);
-    int MY_ATTRIBUTE((unused)) rc;
+    [[maybe_unused]] int rc;
 
     rc = lock_io_cache(write_cache, write_cache->pos_in_file);
     /* The writing thread does always have the lock when it awakes. */

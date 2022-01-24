@@ -610,6 +610,9 @@ ib_err_t innodb_api_search(
   if (item) {
     memset(item, 0, sizeof(*item));
   }
+  if (r_tpl) {
+    *r_tpl = NULL;
+  }
 
   /* If srch_use_idx is set to META_USE_SECONDARY, we will use the
   secondary index to find the record first */
@@ -673,13 +676,18 @@ ib_err_t innodb_api_search(
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->start, range_key->start_len,
                                        NULL, true);
-
+    if (err != DB_SUCCESS) {
+      goto func_exit;
+    }
     err = innodb_api_setup_field_value(cmp_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->end, range_key->end_len, NULL,
                                        true);
   } else {
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        key, len, NULL, true);
+  }
+  if (err != DB_SUCCESS) {
+    goto func_exit;
   }
 
   if (!range_key) {
@@ -691,6 +699,9 @@ ib_err_t innodb_api_search(
     err = innodb_api_setup_field_value(key_tpl, 0, &col_info[CONTAINER_KEY],
                                        range_key->end, range_key->end_len, NULL,
                                        true);
+    if (err != DB_SUCCESS) {
+      goto func_exit;
+    }
     /* Range search for < (less than) */
     if (!cursor_data->range) {
       innodb_cb_cursor_first(srch_crsr);
@@ -710,9 +721,6 @@ ib_err_t innodb_api_search(
   }
 
   if (err != DB_SUCCESS) {
-    if (r_tpl) {
-      *r_tpl = NULL;
-    }
     goto func_exit;
   }
 
@@ -737,9 +745,6 @@ ib_err_t innodb_api_search(
         &(cursor_data->row_buf_used));
 
     if (err != DB_SUCCESS) {
-      if (r_tpl) {
-        *r_tpl = NULL;
-      }
       goto func_exit;
     }
 

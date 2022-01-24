@@ -48,7 +48,7 @@
 
 class Partitioned_rwlock {
  public:
-  Partitioned_rwlock() {}
+  Partitioned_rwlock() = default;
 
   /**
     @param parts    Number of partitions.
@@ -58,7 +58,7 @@ class Partitioned_rwlock {
   bool init(uint parts
 #ifdef HAVE_PSI_INTERFACE
             ,
-            PSI_rwlock_key psi_key MY_ATTRIBUTE((unused))
+            PSI_rwlock_key psi_key [[maybe_unused]]
 #endif
   ) {
     m_parts = parts;

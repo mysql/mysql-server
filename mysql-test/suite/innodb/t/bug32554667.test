@@ -1,0 +1,24 @@
+create table ts(a int primary key, b int, c int, d int, index(b,c));
+
+insert into ts
+values(1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(5,5,5,5),(6,6,6,6),(7,7,7,7),(8
+,8,8,8),(9,9,9,9);
+
+ANALYZE TABLE ts;
+
+--let $i=0
+while($i<2){
+	SELECT @@optimizer_switch LIKE '%index_condition_pushdown=on%';
+	explain select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+	SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+	begin;
+	select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+        --skip_if_hypergraph  # Does not use index range scan yet. TODO: Enable it after WL#14806.
+	select INDEX_NAME,LOCK_TYPE,LOCK_MODE,LOCK_STATUS,LOCK_DATA from performance_schema.data_locks;
+	commit;
+	SET @@optimizer_switch='index_condition_pushdown=off';
+	--inc $i
+}
+
+DROP TABLE ts;
+

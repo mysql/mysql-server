@@ -30,6 +30,7 @@
 #include <DebuggerNames.hpp>
 #include <NdbTick.h>
 #include <NdbEnv.h>
+#include <EventLogger.hpp>
 
 #ifdef VM_TRACE_TIME
 static char* mytime()
@@ -187,8 +188,9 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
       if (bno == 0)
       {
         // Could not find any block with matching name
-        ndbout_c("Could not turn on signal logging for unknown block '%s'",
-                 blocks[i]);
+        g_eventLogger->info(
+            "Could not turn on signal logging for unknown block '%s'",
+            blocks[i]);
         continue;
       }
       cnt += log(SLM_ON, bno, logMode);

@@ -55,7 +55,7 @@ class PFS_index_users_by_user : public PFS_index_users {
  public:
   PFS_index_users_by_user() : PFS_index_users(&m_key), m_key("USER") {}
 
-  ~PFS_index_users_by_user() override {}
+  ~PFS_index_users_by_user() override = default;
 
   bool match(PFS_user *pfs) override;
 
@@ -80,7 +80,7 @@ class table_users : public cursor_by_user {
   table_users();
 
  public:
-  ~table_users() override {}
+  ~table_users() override = default;
 
   int index_init(uint idx, bool sorted) override;
 

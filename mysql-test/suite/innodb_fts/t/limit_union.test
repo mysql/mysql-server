@@ -18,11 +18,21 @@ INSERT INTO articles (title,body) VALUES
 	('MySQL Security','When configured properly, MySQL ...');
 
 --echo # Query involves Ranking
+--skip_if_hypergraph  # Non-deterministic result (LIMIT without ORDER BY).
+                      # The old optimizer chooses an ordered index scan here,
+                      # and returns the highest-ranking match. (For legacy
+                      # reasons: The documentation used to promise ordering
+                      # if the WHERE clause contained a natural langugage
+                      # query. The promise wasn't always kept.) The hypergraph
+                      # optimizer does not request an ordered scan.
 SELECT * FROM articles
 	WHERE MATCH (title,body)
 	AGAINST ('MySQL' IN NATURAL LANGUAGE MODE) LIMIT 1;
 
 --echo # Without optimization
+# Disabling the fts_union_limit optimization means that InnoDB ignores
+# the no_ranking and limit hints, and returns the rows in order. So we
+# get the highest-ranking document.
 SET DEBUG = '+d,fts_union_limit_off';
 SELECT * FROM articles
 	WHERE MATCH (title,body)
@@ -30,11 +40,17 @@ SELECT * FROM articles
 SET DEBUG = '-d,fts_union_limit_off';
 
 --echo # Query involves No Ranking and fts_union operations
+# The optimizer gives a hint that ranking of the results is not
+# necessary, and a random matching document, not necessarily the
+# highest-ranking one, is returned.
 SELECT * FROM articles
 	WHERE MATCH (title,body)
 	AGAINST ('MySQL' IN BOOLEAN MODE) limit 1;
 
 --echo # Without optimization
+# The no_ranking hint is ignored when the optimization is disabled, so
+# InnoDB performs ranking of the results and returns the
+# highest-ranking one.
 SET DEBUG = '+d,fts_union_limit_off';
 SELECT * FROM articles
 	WHERE MATCH (title,body)

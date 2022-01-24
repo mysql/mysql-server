@@ -33,7 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef sync0policy_h
 #define sync0policy_h
 
-#include "os0thread.h"
+#include <string>
+#include <thread>
+
 #include "srv0mon.h"
 #include "sync0types.h"
 #include "univ.i"
@@ -131,7 +133,7 @@ class MutexDebug {
   }
 
   /* Destructor */
-  virtual ~MutexDebug() {}
+  virtual ~MutexDebug() = default;
 
   /** Mutex is being destroyed. */
   void destroy() UNIV_NOTHROW {
@@ -194,7 +196,7 @@ class MutexDebug {
 template <typename Mutex>
 struct NoPolicy {
   /** Default constructor. */
-  NoPolicy() {}
+  NoPolicy() = default;
 
   void init(const Mutex &, latch_id_t, const char *, uint32_t) UNIV_NOTHROW {}
   void destroy() UNIV_NOTHROW {}
@@ -226,7 +228,7 @@ struct GenericPolicy
   }
 
   /** Destructor */
-  ~GenericPolicy() {}
+  ~GenericPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
@@ -322,7 +324,7 @@ struct GenericPolicy
   latch_id_t m_id;
 };
 
-/** Track agregate metrics policy, used by the page mutex. There are just
+/** Track aggregate metrics policy, used by the page mutex. There are just
 too many of them to count individually. */
 template <typename Mutex>
 class BlockMutexPolicy
@@ -346,7 +348,7 @@ class BlockMutexPolicy
   }
 
   /** Destructor */
-  ~BlockMutexPolicy() {}
+  ~BlockMutexPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.

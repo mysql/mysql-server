@@ -3,15 +3,15 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
+# Adding debug point 'remove_replica_load_file_before_write' to @@GLOBAL.debug
 create table t1(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 start transaction;
 insert into t1(b) values (1);
 insert into t1(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 commit;
-call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
-call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
+call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --replica-load-tmpdir");
+call mtr.add_suppression("The MySQL server is running with the --replica-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
 include/wait_for_slave_sql_error.inc [errno=29, 13, 1290]
 drop table t1;
 include/sync_slave_io_with_master.inc
@@ -25,5 +25,5 @@ call mtr.add_suppression("Slave SQL for channel '': .*Error .Can.t get stat of.*
 call mtr.add_suppression("Slave.*: File.* not found.*");
 call mtr.add_suppression("Slave.*: .*Error .File.* not found.* Error_code: MY-000029");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-SET @@GLOBAL.DEBUG = '';
+# Removing debug point 'remove_replica_load_file_before_write' from @@GLOBAL.debug
 include/rpl_end.inc

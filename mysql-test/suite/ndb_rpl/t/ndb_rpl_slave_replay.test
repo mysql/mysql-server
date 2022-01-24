@@ -303,7 +303,7 @@ delete from test.t1;
 
 set @old_debug = @@global.debug;
 set global debug="";
-set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+set global debug="+d,ndb_replica_fail_marking_epoch_committed";
 show variables like 'debug';
 
 --connection master

@@ -126,7 +126,13 @@ include/assert.inc [5th binary log is not encrypted on master]
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 ERROR HY000: Cannot rotate binary log master key when 'binlog-encryption' is off.
 RESET PERSIST;
+[connection master]
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET GLOBAL binlog_encryption= OFF;
+[connection slave]
+SET GLOBAL keyring_operations= ON;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

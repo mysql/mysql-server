@@ -1,7 +1,9 @@
 DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
 drop view if exists v1;
 drop database if exists client_test_db;
+mtr.asserted_test_suppressions                     OK
 mtr.global_suppressions                            OK
+mtr.test_ignored_global_suppressions               OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
@@ -25,6 +27,8 @@ mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.replication_asynchronous_connection_failover OK
 mysql.replication_asynchronous_connection_failover_managed OK
+mysql.replication_group_configuration_version      OK
+mysql.replication_group_member_actions             OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -41,7 +45,13 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 sys.sys_config                                     OK
+mtr.asserted_test_suppressions
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mtr.global_suppressions
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mtr.test_ignored_global_suppressions
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mtr.test_suppressions
@@ -114,6 +124,12 @@ status   : OK
 mysql.replication_asynchronous_connection_failover_managed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.replication_group_configuration_version
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.replication_group_member_actions
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -180,6 +196,8 @@ mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.replication_asynchronous_connection_failover OK
 mysql.replication_asynchronous_connection_failover_managed OK
+mysql.replication_group_configuration_version      OK
+mysql.replication_group_member_actions             OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -260,6 +278,12 @@ mysql.replication_asynchronous_connection_failover
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.replication_asynchronous_connection_failover_managed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.replication_group_configuration_version
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.replication_group_member_actions
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.role_edges

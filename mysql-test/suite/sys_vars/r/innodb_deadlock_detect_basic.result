@@ -46,6 +46,7 @@ ERROR 42000: Variable 'innodb_deadlock_detect' can't be set to the value of '2'
 set global innodb_deadlock_detect='AUTO';
 ERROR 42000: Variable 'innodb_deadlock_detect' can't be set to the value of 'AUTO'
 set global innodb_deadlock_detect=-3;
+ERROR 42000: Variable 'innodb_deadlock_detect' can't be set to the value of '-3'
 select @@global.innodb_deadlock_detect;
 @@global.innodb_deadlock_detect
 1

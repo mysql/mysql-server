@@ -31,13 +31,13 @@
 #include <utility>
 #include <vector>
 
-#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"  // murmur3_32
+#include "my_xxhash.h"   // IWYU pragma: keep
 #include "mysql_com.h"
 #include "sql/field.h"  // Field
 #include "sql/json_binary.h"
@@ -555,7 +555,7 @@ static bool generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
   return false;
 }
 
-bool add_pke(TABLE *table, THD *thd, uchar *record) {
+bool add_pke(TABLE *table, THD *thd, const uchar *record) {
   DBUG_TRACE;
   assert(record == table->record[0] || record == table->record[1]);
   /*

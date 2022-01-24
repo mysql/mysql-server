@@ -1,0 +1,17 @@
+--source include/load_sysvars.inc
+
+SET @start_value = @@innodb_segment_reserve_factor;
+SELECT @start_value;
+
+SET GLOBAL innodb_segment_reserve_factor=default;
+SELECT @@innodb_segment_reserve_factor;
+SET GLOBAL innodb_segment_reserve_factor = 0.0;
+SELECT @@innodb_segment_reserve_factor;
+SET GLOBAL innodb_segment_reserve_factor = 0.1;
+SELECT @@innodb_segment_reserve_factor;
+SET GLOBAL innodb_segment_reserve_factor = 0.5;
+SELECT @@innodb_segment_reserve_factor;
+
+SET GLOBAL innodb_segment_reserve_factor = @start_value;
+SELECT @@innodb_segment_reserve_factor;
+

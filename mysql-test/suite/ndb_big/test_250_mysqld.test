@@ -1,0 +1,61 @@
+#
+# This test uses a configuration with
+#  250 MySQL Servers
+#  1 Management server
+#  2 Data nodes
+#
+# Running this test requires a fairly large machine. It
+# also uses quite a lot of ports for all the started processes
+# and to avoid port conflicts the X plugin is disabled in order
+# to allow using also those ports
+#
+# NOTE! Currently mtr.pl need to be started with --no-check-testcases
+# which time-out otherwise, also the "shutdown step" step is taking
+# long time so using --shutdown-timeout=0 and --no-warnings is
+# recommended.
+#
+#  $> mtr.pl test_250_mysqld --no-check-testcases \
+#       --shutdown-timeout=0 --no-warnings
+#
+# The test can also be used just for starting a cluster:
+#  $1> mtr.pl ndb_big.test_250_mysqld --start
+#
+#  $2> mysql --defaults-file=bld/mysql-test/var/my.cnf
+#
+#
+--source include/not_parallel.inc
+--source include/have_ndb.inc
+
+# Total number of nodes
+SELECT COUNT(*) as Nodes_in_cluster FROM ndbinfo.processes;
+
+# Total number of MySQL Servers
+SELECT COUNT(*) as MySQL_Servers FROM ndbinfo.processes
+  WHERE process_name = 'mysqld';
+
+#
+# The very basic test
+# - showing table can be created in the storage engine NDB
+# - read and write the table
+#
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+
+INSERT INTO t1 VALUES (1, "MySQL Server with NDB");
+INSERT INTO t1 (a, b) VALUES (11, "Barrier effect");
+INSERT INTO t1 (a, b) VALUES
+  (12, "The third row"),
+  (37, "And of course number 37");
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+REPLACE t1 (a, b) VALUES (12, "Another layer");
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+SELECT b FROM t1 WHERE b LIKE "MySQL%";
+DELETE FROM t1 ORDER BY b DESC;
+DROP TABLE t1;
+

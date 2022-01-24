@@ -1,0 +1,60 @@
+###############################################################################
+# Validate that member actions are triggered on group bootstrap.
+#
+# Test:
+#   0. This test requires one server.
+#   1. Disable the action `mysql_disable_super_read_only_if_primary`,
+#      validate that after bootstrap a group in single-primary
+#      mode, the primary is read-only.
+#   2. Cleanup
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Disable the action `mysql_disable_super_read_only_if_primary`,
+--echo #    validate that after bootstrap a group in single-primary
+--echo #    mode, the primary is read-only.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+--let $skip_wait_for_disabled_read_only= 1
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The super_read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_spm_skip_disable_super_read_bootstrap
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= The member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "1" will be run.
+--let $assert_count= 0
+--let $assert_text= Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/group_replication_end.inc

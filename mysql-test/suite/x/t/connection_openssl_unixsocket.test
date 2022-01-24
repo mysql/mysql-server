@@ -1,5 +1,4 @@
 --source include/not_windows.inc
---source include/not_have_tlsv13.inc
 
 --let $INCREMENT=1
 --let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'

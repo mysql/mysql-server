@@ -32,6 +32,8 @@
 #include <GlobalSignalNumbers.h>
 #include <signaldata/SignalDataPrint.hpp>
 
+#include <EventLogger.hpp>
+
 static const char *            localSignalNames[MAX_GSN+1];
 static SignalDataPrintFunction localPrintFunctions[MAX_GSN+1];
 static const char *            localBlockNames[NO_OF_BLOCKS]; 
@@ -49,10 +51,10 @@ initSignalNames(const char * dst[], const GsnName src[], unsigned short len){
     
     if(dst[gsn] != 0 && name != 0){
       if(strcmp(dst[gsn], name) != 0){
-	fprintf(stderr, 
-		"Multiple definition of signal name for gsn: %d (%s, %s)\n", 
-		gsn, dst[gsn], name);
-	exit(0);
+        g_eventLogger->info(
+            "Multiple definition of signal name for gsn: %d (%s, %s)", gsn,
+            dst[gsn], name);
+        exit(0);
       }
     }
     dst[gsn] = name;
@@ -74,10 +76,9 @@ initSignalPrinters(SignalDataPrintFunction dst[],
     
     if(dst[gsn] != 0 && fun != 0){
       if(dst[gsn] != fun){
-	fprintf(stderr, 
-		"Multiple definition of signal print function for gsn: %d\n", 
-		gsn);
-	exit(0);
+        g_eventLogger->info(
+            "Multiple definition of signal print function for gsn: %d", gsn);
+        exit(0);
       }
     }
     dst[gsn] = fun;
@@ -100,9 +101,8 @@ initBlockNames(const char * dst[],
        index >= NO_OF_BLOCKS || // Too large
        dst[index] != 0)         // Already occupied
     {
-      fprintf(stderr, 
-	      "Invalid block name definition: %d %s\n",
-	      src[i].number, src[i].name);
+      g_eventLogger->info("Invalid block name definition: %d %s", src[i].number,
+                          src[i].name);
       exit(0);
     }
     dst[index] = src[i].name;

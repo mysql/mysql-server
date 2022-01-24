@@ -1,0 +1,52 @@
+--source include/load_sysvars.inc
+
+SELECT @@global.global_connection_memory_tracking;
+SELECT @@session.global_connection_memory_tracking;
+
+SET @@global.global_connection_memory_tracking = ON;
+SELECT @@global.global_connection_memory_tracking;
+
+SET @@session.global_connection_memory_tracking = ON;
+SELECT @@session.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.global_connection_memory_tracking = -5666777;
+SELECT @@global.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@session.global_connection_memory_tracking = -5666777;
+SELECT @@session.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.global_connection_memory_tracking = -1;
+SELECT @@global.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@session.global_connection_memory_tracking = -1;
+SELECT @@session.global_connection_memory_tracking;
+
+SET @@global.global_connection_memory_tracking = OFF;
+SELECT @@global.global_connection_memory_tracking;
+
+SET @@session.global_connection_memory_tracking = OFF;
+SELECT @@session.global_connection_memory_tracking;
+
+SET @@global.global_connection_memory_tracking = default;
+SET @@session.global_connection_memory_tracking = default;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.global_connection_memory_tracking = NULL;
+SELECT @@global.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+#SET @@session.global_connection_memory_tracking = NULL;
+#SELECT @@session.global_connection_memory_tracking;
+
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.global_connection_memory_tracking = 'foo';
+SELECT @@global.global_connection_memory_tracking;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@session.global_connection_memory_tracking = 'foo';
+SELECT @@session.global_connection_memory_tracking;

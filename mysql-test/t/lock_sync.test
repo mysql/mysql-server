@@ -346,8 +346,6 @@ let $statement= call p1((select i + 5 from t1 where i = 1));
 let $restore_table= t2;
 --source include/check_concurrent_insert.inc
 
-# Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
---disable_testcase BUG#0000
 --echo #
 --echo # 2.2 CREATE TABLE with a subquery.
 --echo #
@@ -362,7 +360,6 @@ let $statement= create table t0 select j from t2 where j in (select i from t1);
 let $restore_table= ;
 --source include/check_no_concurrent_insert.inc
 drop table t0;
---enable_testcase
 
 --echo #
 --echo # 2.3 DELETE with a subquery.
@@ -938,7 +935,7 @@ CREATE EVENT e2 ON SCHEDULE EVERY 5 HOUR DO SELECT 2;
 
 --echo # Connection con1
 connect(con1, localhost, root);
-SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
+SET DEBUG_SYNC="before_lock_dictionary_tables_takes_lock SIGNAL drop WAIT_FOR query";
 --echo # Sending:
 --send DROP EVENT e1;
 
@@ -1128,10 +1125,8 @@ DROP TABLES t1, t2;
 --disable_connect_log
 
 
-# Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
---disable_testcase BUG#0000
 --echo #
---echo #Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE 
+--echo #Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE
 --echo #              ALTER TABLE T MAY DEADLOCK
 
 CREATE TABLE t1 (fld1 INT) ENGINE=InnoDB;
@@ -1179,7 +1174,6 @@ DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
 --disconnect con2
 --disconnect con1
---enable_testcase
 
 
 # Check that all connections opened by test cases in this file are really

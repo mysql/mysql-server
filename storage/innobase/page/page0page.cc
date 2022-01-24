@@ -256,9 +256,8 @@ byte *page_mem_alloc_heap(
 @param[in]	mtr		Mini-transaction handle
 @param[in]	comp		TRUE=compact page format
 @param[in]	page_type	Page type */
-UNIV_INLINE
-void page_create_write_log(buf_frame_t *frame, mtr_t *mtr, ibool comp,
-                           page_type_t page_type) {
+static inline void page_create_write_log(buf_frame_t *frame, mtr_t *mtr,
+                                         ibool comp, page_type_t page_type) {
   mlog_id_t type;
 
   switch (page_type) {
@@ -500,7 +499,7 @@ void page_copy_rec_list_end_no_locks(
     offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED, &heap);
     ins_rec = page_cur_insert_rec_low(cur2, index, cur1_rec, offsets, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
-      ib::fatal(ER_IB_MSG_862)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_862)
           << "Rec offset " << page_offset(rec) << ", cur1 offset "
           << page_offset(page_cur_get_rec(&cur1)) << ", cur2 offset "
           << page_offset(cur2);
@@ -797,8 +796,7 @@ rec_t *page_copy_rec_list_start(
 }
 
 /** Writes a log record of a record list end or start deletion. */
-UNIV_INLINE
-void page_delete_rec_list_write_log(
+static inline void page_delete_rec_list_write_log(
     rec_t *rec,          /*!< in: record on page */
     dict_index_t *index, /*!< in: record descriptor */
     mlog_id_t type,      /*!< in: operation type:
@@ -1223,8 +1221,7 @@ ibool page_move_rec_list_start(
 /** Used to delete n slots from the directory. This function updates
  also n_owned fields in the records, so that the first slot after
  the deleted ones inherits the records of the deleted slots. */
-UNIV_INLINE
-void page_dir_delete_slot(
+static inline void page_dir_delete_slot(
     page_t *page,             /*!< in/out: the index page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     ulint slot_no)            /*!< in: slot to be deleted */
@@ -1268,8 +1265,7 @@ void page_dir_delete_slot(
 /** Used to add n slots to the directory. Does not set the record pointers
  in the added slots or update n_owned values: this is the responsibility
  of the caller. */
-UNIV_INLINE
-void page_dir_add_slot(
+static inline void page_dir_add_slot(
     page_t *page,             /*!< in/out: the index page */
     page_zip_des_t *page_zip, /*!< in/out: comprssed page, or NULL */
     ulint start)              /*!< in: the slot above which the new slots
@@ -1741,13 +1737,15 @@ void page_check_dir(const page_t *page) /*!< in: index page */
   supremum_offs = mach_read_from_2(page_dir_get_nth_slot(page, n_slots - 1));
 
   if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
-    ib::fatal(ER_IB_MSG_867) << "Page directory corruption: infimum not"
-                                " pointed to";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_867)
+        << "Page directory corruption: infimum not"
+           " pointed to";
   }
 
   if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
-    ib::fatal(ER_IB_MSG_868) << "Page directory corruption: supremum not"
-                                " pointed to";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_868)
+        << "Page directory corruption: supremum not"
+           " pointed to";
   }
 }
 #endif /* UNIV_DEBUG */
@@ -2180,13 +2178,13 @@ ibool page_validate(
     trx_id_t max_trx_id = page_get_max_trx_id(page);
     /* This will be 0 during recv_apply_hashed_log_recs(TRUE),
     because the transaction system has not been initialized yet */
-    trx_id_t sys_max_trx_id = trx_sys_get_max_trx_id();
+    trx_id_t sys_next_trx_id_or_no = trx_sys_get_next_trx_id_or_no();
 
     if (max_trx_id == 0 ||
-        (sys_max_trx_id != 0 && max_trx_id > sys_max_trx_id)) {
+        (sys_next_trx_id_or_no != 0 && max_trx_id >= sys_next_trx_id_or_no)) {
       ib::error(ER_IB_MSG_898)
           << "PAGE_MAX_TRX_ID out of bounds: " << max_trx_id << ", "
-          << sys_max_trx_id;
+          << sys_next_trx_id_or_no;
       goto func_exit2;
     }
   }

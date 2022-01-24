@@ -1,0 +1,371 @@
+create table t1 (
+a1 int unsigned not null,
+b1 int unsigned not null,
+c1 int unsigned not null,
+primary key (a1),
+index b1x (b1),
+index c1x (c1)
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (
+a2 int unsigned not null,
+b2 int unsigned not null,
+c2 int unsigned not null,
+primary key (a2),
+index b2x (b2),
+index c2x (c2)
+) engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+Variable_name	Value
+ndb_index_stat_enable	OFF
+Variable_name	Value
+ndb_index_stat_enable	OFF
+# ndb_index_stat_enable - after
+Variable_name	Value
+ndb_index_stat_enable	ON
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+Variable_name	Value
+ndb_index_stat_enable	ON
+Variable_name	Value
+ndb_index_stat_enable	ON
+# ndb_index_stat_enable - after
+Variable_name	Value
+ndb_index_stat_enable	OFF
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+# must use b1x
+explain select * from t1
+where b1 = 5 and c1 = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Using pushed condition (`test`.`t1`.`c1` = 5)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = 5))
+# must use c2x
+explain select * from t2
+where b2 = 5 and c2 = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Using pushed condition (`test`.`t2`.`b2` = 5)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t2`.`b2` = 5))
+# must use b1x, c2x
+explain select * from t1, t2
+where c1 = c2 and b1 = 5 and b2 = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1; Using pushed condition (`test`.`t2`.`b2` = 5)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b2` = 5) and (`test`.`t1`.`b1` = 5) and (`test`.`t2`.`c2` = `test`.`t1`.`c1`))
+# must use c2x, b1x
+explain select * from t1, t2
+where b1 = b2 and c1 = 5 and c2 = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1; Using pushed condition (`test`.`t1`.`c1` = 5)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = `test`.`t2`.`b2`))
+# must use t1, c2x
+explain select * from t1, t2
+where c1 = c2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c1x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c2` = `test`.`t1`.`c1`)
+# must use t2, b1x
+explain select * from t1, t2
+where b1 = b2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	b2x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`b1` = `test`.`t2`.`b2`)
+# should NOT say: Using index for group-by
+explain select distinct (a1) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1`
+# must say: Using index for group by
+explain select distinct (b1) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	b1x	b1x	4	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`b1` AS `b1` from `test`.`t1`
+# must say: Using index for group by
+explain select distinct (c1) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	c1x	c1x	4	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1`
+drop table t1, t2;
+create table t1 (a1 int, b1 int, primary key(b1), key(a1)) engine=ndbcluster partition by key() partitions 1;
+create table t2 (b2 int, c2 int, primary key(b2,c2)) engine=ndbcluster partition by key() partitions 1;
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+# table t1 is only for forcing record by key count for table t2 that should be near 50 (not 1)
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+explain select * from t1, t2 where b2 = b1 and a1 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ref	PRIMARY,a1	a1	5	const	#	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0	ref	PRIMARY	PRIMARY	4	test.t1.b1	#	100.00	Child of 't1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a1` = 1) and (`test`.`t2`.`b2` = `test`.`t1`.`b1`))
+drop table t1, t2;
+CREATE TABLE t1(
+K INT NOT NULL AUTO_INCREMENT,
+I INT,
+J INT,
+L INT,
+PRIMARY KEY(K),
+KEY(I,J),
+KEY(L)
+) ENGINE=ndbcluster
+partition by key (K) partitions 1;
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+select i, count(*) from t1 group by 1 order by 1;
+i	count(*)
+0	256
+1	256
+2	256
+3	256
+4	256
+5	256
+6	256
+7	256
+8	256
+9	256
+select l, count(*) from t1 group by 1 order by 1;
+l	count(*)
+0	256
+1	256
+2	256
+3	256
+4	256
+5	256
+6	256
+7	256
+8	256
+9	256
+explain SELECT count(*) as Count FROM t1 WHERE I = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ref	I	I	5	const	256	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `Count` from `test`.`t1` where (`test`.`t1`.`I` = 5)
+SELECT count(*) as Count FROM t1 WHERE I = 5;
+Count
+256
+explain SELECT count(*) as Count FROM t1 WHERE L = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ref	L	L	5	const	256	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `Count` from `test`.`t1` where (`test`.`t1`.`L` = 5)
+SELECT count(*) as Count FROM t1 WHERE L = 5;
+Count
+256
+drop table t1;
+#
+# Bug#28714864: Creating a table with unsupported index length crashes the data nodes
+#
+#setup
+create table t1(
+a int auto_increment primary key,
+b varchar(3053),
+c varchar(3056),
+d varchar(3072),
+col1 varchar(762) not null,
+col2 varchar(762) not null,
+col3 varchar(762) not null,
+col4 varchar(762) not null
+) engine ndb charset latin1;
+# populate enough rows to generate index stats
+# create index on b - it has the maximum key size supported by ndb index stat
+create index idxb on t1(b);
+drop index idxb on t1;
+# create index on c - it has a key size unsupported by ndb index stat
+# a warning should be returned
+create index idxc on t1(c);
+Warnings:
+Warning	1296	Specified key 'idxc' was too long (max = 3056 bytes); statistics will not be generated
+# create index on d - it has the maximum key size allowed by mysql(3072)
+# but the key size is unsupported by ndb index stat
+# a warning should be returned
+create index idxd on t1(d);
+Warnings:
+Warning	1296	Specified key 'idxd' was too long (max = 3056 bytes); statistics will not be generated
+# create index on col1..col4 - it has the maximum key size supported by ndb index stat
+create index idxcol on t1(col1, col2, col3, col4);
+drop index idxcol on t1;
+#cleanup
+drop table t1;

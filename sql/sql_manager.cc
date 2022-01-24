@@ -59,7 +59,7 @@ mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
 extern "C" {
-static void *handle_manager(void *arg MY_ATTRIBUTE((unused))) {
+static void *handle_manager(void *arg [[maybe_unused]]) {
   int error = 0;
   struct timespec abstime;
   bool reset_flush_time = true;

@@ -136,7 +136,7 @@ class Resource_group {
     for (auto pfs_thread_id : m_pfs_thread_id_set) control_func(pfs_thread_id);
   }
 
-  ~Resource_group() {}
+  ~Resource_group() = default;
 
  private:
   /**

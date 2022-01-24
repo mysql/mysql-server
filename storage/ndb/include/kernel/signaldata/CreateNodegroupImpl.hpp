@@ -41,7 +41,7 @@ struct CreateNodegroupImplReq {
    */
   friend bool printCREATE_NODEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 6 + MAX_REPLICAS );
+  static constexpr Uint32 SignalLength = 6 + MAX_REPLICAS;
 
   enum {
     RT_PARSE    = 0x1,
@@ -73,7 +73,7 @@ struct CreateNodegroupImplRef {
    */
   friend bool printCREATE_NODEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -93,7 +93,7 @@ struct CreateNodegroupImplConf {
    */
   friend bool printCREATE_NODEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 senderRef;

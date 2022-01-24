@@ -66,7 +66,7 @@ class PFS_index_mutex_instances : public PFS_engine_index {
  public:
   PFS_index_mutex_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_mutex_instances() override {}
+  ~PFS_index_mutex_instances() override = default;
 
   virtual bool match(PFS_mutex *pfs) = 0;
 };
@@ -76,7 +76,7 @@ class PFS_index_mutex_instances_by_instance : public PFS_index_mutex_instances {
   PFS_index_mutex_instances_by_instance()
       : PFS_index_mutex_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_mutex_instances_by_instance() override {}
+  ~PFS_index_mutex_instances_by_instance() override = default;
 
   bool match(PFS_mutex *pfs) override;
 
@@ -89,7 +89,7 @@ class PFS_index_mutex_instances_by_name : public PFS_index_mutex_instances {
   PFS_index_mutex_instances_by_name()
       : PFS_index_mutex_instances(&m_key), m_key("NAME") {}
 
-  ~PFS_index_mutex_instances_by_name() override {}
+  ~PFS_index_mutex_instances_by_name() override = default;
 
   bool match(PFS_mutex *pfs) override;
 
@@ -103,7 +103,7 @@ class PFS_index_mutex_instances_by_thread_id
   PFS_index_mutex_instances_by_thread_id()
       : PFS_index_mutex_instances(&m_key), m_key("LOCKED_BY_THREAD_ID") {}
 
-  ~PFS_index_mutex_instances_by_thread_id() override {}
+  ~PFS_index_mutex_instances_by_thread_id() override = default;
 
   bool match(PFS_mutex *pfs) override;
 
@@ -133,7 +133,7 @@ class table_mutex_instances : public PFS_engine_table {
   table_mutex_instances();
 
  public:
-  ~table_mutex_instances() override {}
+  ~table_mutex_instances() override = default;
 
  protected:
   int make_row(PFS_mutex *pfs);
@@ -173,7 +173,7 @@ class PFS_index_rwlock_instances : public PFS_engine_index {
  public:
   PFS_index_rwlock_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_rwlock_instances() override {}
+  ~PFS_index_rwlock_instances() override = default;
 
   virtual bool match(PFS_rwlock *pfs) = 0;
 };
@@ -184,7 +184,7 @@ class PFS_index_rwlock_instances_by_instance
   PFS_index_rwlock_instances_by_instance()
       : PFS_index_rwlock_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_rwlock_instances_by_instance() override {}
+  ~PFS_index_rwlock_instances_by_instance() override = default;
 
   bool match(PFS_rwlock *pfs) override;
 
@@ -197,7 +197,7 @@ class PFS_index_rwlock_instances_by_name : public PFS_index_rwlock_instances {
   PFS_index_rwlock_instances_by_name()
       : PFS_index_rwlock_instances(&m_key), m_key("NAME") {}
 
-  ~PFS_index_rwlock_instances_by_name() override {}
+  ~PFS_index_rwlock_instances_by_name() override = default;
 
   bool match(PFS_rwlock *pfs) override;
 
@@ -212,7 +212,7 @@ class PFS_index_rwlock_instances_by_thread_id
       : PFS_index_rwlock_instances(&m_key),
         m_key("WRITE_LOCKED_BY_THREAD_ID") {}
 
-  ~PFS_index_rwlock_instances_by_thread_id() override {}
+  ~PFS_index_rwlock_instances_by_thread_id() override = default;
 
   bool match(PFS_rwlock *pfs) override;
 
@@ -242,7 +242,7 @@ class table_rwlock_instances : public PFS_engine_table {
   table_rwlock_instances();
 
  public:
-  ~table_rwlock_instances() override {}
+  ~table_rwlock_instances() override = default;
 
  protected:
   int make_row(PFS_rwlock *pfs);
@@ -276,7 +276,7 @@ class PFS_index_cond_instances : public PFS_engine_index {
  public:
   PFS_index_cond_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_cond_instances() override {}
+  ~PFS_index_cond_instances() override = default;
 
   virtual bool match(PFS_cond *pfs) = 0;
 };
@@ -286,7 +286,7 @@ class PFS_index_cond_instances_by_instance : public PFS_index_cond_instances {
   PFS_index_cond_instances_by_instance()
       : PFS_index_cond_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_cond_instances_by_instance() override {}
+  ~PFS_index_cond_instances_by_instance() override = default;
 
   bool match(PFS_cond *pfs) override;
 
@@ -299,7 +299,7 @@ class PFS_index_cond_instances_by_name : public PFS_index_cond_instances {
   PFS_index_cond_instances_by_name()
       : PFS_index_cond_instances(&m_key), m_key("NAME") {}
 
-  ~PFS_index_cond_instances_by_name() override {}
+  ~PFS_index_cond_instances_by_name() override = default;
 
   bool match(PFS_cond *pfs) override;
 
@@ -329,7 +329,7 @@ class table_cond_instances : public PFS_engine_table {
   table_cond_instances();
 
  public:
-  ~table_cond_instances() override {}
+  ~table_cond_instances() override = default;
 
  protected:
   int make_row(PFS_cond *pfs);

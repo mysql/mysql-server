@@ -47,7 +47,7 @@ class Tablespace_file : virtual public Weak_object {
   typedef tables::Tablespace_files DD_table;
 
  public:
-  ~Tablespace_file() override {}
+  ~Tablespace_file() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.

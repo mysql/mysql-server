@@ -21,6 +21,7 @@ SET SESSION sql_log_bin= 0;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
@@ -50,6 +51,9 @@ SET SESSION sql_log_bin= 0;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET @group_replication_recovery_reconnect_interval_saved= @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -144,4 +148,7 @@ SET SESSION sql_log_bin= 1;
 [connection server3]
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_saved;
 SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
 include/group_replication_end.inc

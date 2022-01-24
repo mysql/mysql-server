@@ -67,8 +67,8 @@ Created 12/14/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define malloc(A)	ut_malloc_nokey(A)
-#define free(A)		ut_free(A)
+#define malloc(A)	ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, A)
+#define free(A)		ut::free(A)
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 

@@ -46,7 +46,7 @@ SET PERSIST_ONLY secure_file_priv = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY skip_networking = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
+SET PERSIST_ONLY replica_load_tmpdir = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY socket = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result

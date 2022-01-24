@@ -1,0 +1,90 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode on server1 and server2.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The 'slave applier' thread of channel 'ch1' will error out as this server is a group secondary.");
+call mtr.add_suppression("The 'slave IO' thread of channel 'ch1' will error out as this server is a group secondary.");
+call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Slave I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Plugin group_replication reported: 'Can't start slave IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
+SET SESSION sql_log_bin= 1;
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 2. Configure and start a failover channel on server1 that
+#    replicates from server3.
+[connection server3]
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 3. Validate server1 and server2 configuration.
+[connection server1]
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc [Verify channel ch1 SQL_THREAD is ON]
+include/assert.inc [Verify replica_monitor thread is running]
+[connection server2]
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is OFF]
+include/assert.inc [Verify channel ch1 SQL_THREAD is OFF]
+include/assert.inc [Verify replica_monitor thread is not running]
+
+############################################################
+# 4. Server1 will restart and rejoin the group as secondary.
+[connection server1]
+# restart:--group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-start-on-boot=1 --skip-slave-start=0
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 5. Validate server1 and server2 configuration.
+[connection server1]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+[connection server2]
+include/gr_assert_primary_member.inc
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc [Verify channel ch1 SQL_THREAD is ON]
+include/assert.inc [Verify replica_monitor thread is running]
+
+############################################################
+# 6. Clean up.
+[connection server1]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server2]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

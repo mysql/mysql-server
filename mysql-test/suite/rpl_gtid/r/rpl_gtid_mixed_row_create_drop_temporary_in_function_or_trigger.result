@@ -25,8 +25,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
@@ -301,8 +299,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
@@ -569,8 +565,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
@@ -834,8 +828,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
@@ -1102,8 +1094,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -1379,8 +1369,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -1662,8 +1650,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -1945,8 +1931,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT func1();
 func1()
 0
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN

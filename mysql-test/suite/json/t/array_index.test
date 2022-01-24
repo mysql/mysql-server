@@ -1137,6 +1137,7 @@ drop table t;
 CREATE TABLE t1 (pk INT primary key, col_jsonn JSON, INDEX
 mv_idx((CAST(col_jsonn->'$[0][*]' AS BINARY(10) ARRAY))));
 CREATE TABLE t2 (pk INT primary key, col_jsonn JSON);
+--skip_if_hypergraph  # Does not evaluate the condition during optimization.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_OVERLAPS( '0' , t1. col_jsonn-> '$[0][*]' ) FROM t1 LEFT JOIN t2
 ON t1.pk = JSON_OVERLAPS( 'OJNRaUr' , JSON_ARRAY( 'Q' , 'qX' ) ) WHERE t2 .
@@ -1372,6 +1373,524 @@ SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
 --sorted_result
 SELECT * FROM t WHERE 3 MEMBER OF (vc);
+
+DROP TABLE t;
+
+--echo # Bug#33275457: Fix multi-valued index
+
+CREATE TABLE t1 (
+  f1 VARCHAR(50) NOT NULL PRIMARY KEY,
+  f2 JSON NOT NULL,
+  INDEX idx2 ( (CAST(f2 AS CHAR(50) ARRAY)) )
+);
+
+CREATE VIEW v1 AS
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids;
+
+INSERT INTO t1 VALUES ('foo', '["aa", "bb"]'), ('bar', '["xx", "yy"]');
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+EXPLAIN
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+      json_overlaps(f2, '["yy", "zz"]') AND
+      f1 = 'bar';
+
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+
+# need more rows, or cost based optimizer chooses full table scan
+INSERT INTO t1 VALUES
+ ('k1', '["v1"]'), ('k2', '["v2"]'), ('k3', '["v3"]'),
+ ('k4', '["v4"]'), ('k5', '["v5"]'), ('k6', '["v6"]'),
+ ('k7', '["v7"]'), ('k8', '["v8"]'), ('k9', '["v9"]');
+
+ANALYZE TABLE t1;
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF(f2) OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+ PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF(f2);
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+ PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+      f1 = 'bar';
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33343948: Multi-valued index ranges are printed as binary
+--echo #
+
+CREATE TABLE t(doc JSON,
+               KEY ((CAST(doc->'$[*].name' AS CHAR(3) ARRAY))),
+               KEY ((CAST(doc->'$[*].date' AS DATE ARRAY))));
+
+INSERT INTO t VALUES (
+'[{"name": "abc", "date": "2021-01-01"}, {"name": "def", "date": "2021-01-02"},
+  {"name": "ghi", "date": "2021-01-03"}, {"name": "jkl", "date": "2021-01-04"}]'
+);
+
+ANALYZE TABLE t;
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
 
 DROP TABLE t;
 

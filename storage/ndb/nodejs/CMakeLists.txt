@@ -26,7 +26,7 @@
 
 SET(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
-SET(NODE_VERSION 12.20.1)
+SET(NODE_VERSION 12.22.6)
 
 IF(NDB_NODEJS_EXTRAS_PATH)
   SET(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})
@@ -134,12 +134,22 @@ FOREACH(warning
     "unused-parameter"
     "undef"
     "undefined-reinterpret-cast"
+    "odr"
+    "lto-type-mismatch"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
     STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
   ENDIF()
 ENDFOREACH()
+
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+  # It's tricky to check alloc-size-larger-than warning in
+  # MY_CHECK_CXX_COMPILER_WARNING(). Handle it differently
+  # as done in sql/CMakeLists.txt
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-alloc-size-larger-than")
+ENDIF()
+
 
 ADD_LIBRARY(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 
@@ -151,8 +161,6 @@ IF(APPLE)
   SET(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
 ELSEIF(WIN32)
   SET(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
-ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  SET(FINAL_LINK_FLAGS "-z muldefs")
 ENDIF()
 
 SET_TARGET_PROPERTIES(ndb_adapter PROPERTIES

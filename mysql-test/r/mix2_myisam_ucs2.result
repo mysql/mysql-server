@@ -6,6 +6,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 create table t2 (
 a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
@@ -33,14 +35,41 @@ insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
 insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
@@ -77,6 +106,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 create table t2 (
 a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
@@ -104,14 +135,41 @@ insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
 insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
@@ -148,6 +206,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 create table t2 (
 a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
@@ -175,14 +235,41 @@ insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
 insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
@@ -219,6 +306,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 create table t2 (
 a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
@@ -238,12 +327,33 @@ insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
 insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
@@ -281,6 +391,8 @@ ind enum('0','1','2') NOT NULL default '0',
 string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=MyISAM DEFAULT CHARSET=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('1', ''),('2', '');
 INSERT INTO t2 VALUES ('1', ''),('2', '');
 SELECT hex(ind),hex(string1) FROM t1 ORDER BY string1;
@@ -304,6 +416,8 @@ ind set('0','1','2') NOT NULL default '0',
 string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=MyISAM DEFAULT CHARSET=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('1', ''),('2', '');
 INSERT INTO t2 VALUES ('1', ''),('2', '');
 SELECT hex(ind),hex(string1) FROM t1 ORDER BY string1;
@@ -327,6 +441,8 @@ ind bit not null,
 string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=MyISAM DEFAULT CHARSET=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values(0,''),(1,'');
 insert into t2 values(0,''),(1,'');
 select hex(ind),hex(string1) from t1 order by string1;
@@ -351,6 +467,8 @@ drop table t2;
 create table t2 (
 a int, b char(10), filler char(10), primary key(a, b(2))
 ) character set ucs2 engine = MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t2 values (1,'abcdefg','one');
 insert into t2 values (2,'ijkilmn','two');
 insert into t2 values (3, 'qrstuvw','three');

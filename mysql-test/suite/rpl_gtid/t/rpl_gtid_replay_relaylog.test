@@ -17,8 +17,6 @@
 #
 ############################################################################
 --source include/have_debug.inc
-# This test is not need against MTS setup
---source include/not_mts_slave_parallel_workers.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
@@ -32,7 +30,7 @@ SET @save_debug=@@global.debug;
 # Step 1: Stop I/O thread after reading GTID_LOG_EVENT
 # This will leave the relaylog in incomplete state(i.e., it ends
 # with GTID_LOG_EVENT)
-SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_gtid_log_event';
 
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES (2);

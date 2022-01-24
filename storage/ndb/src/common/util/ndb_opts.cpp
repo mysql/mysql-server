@@ -150,8 +150,8 @@ bool ndb_is_load_default_arg_separator(const char* arg)
     be skipped when processing the argv array
    */
   if (my_getopt_is_args_separator(arg))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 static Ndb_opts * registeredNdbOpts;

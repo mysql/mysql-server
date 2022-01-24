@@ -5584,7 +5584,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, EXISTS (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
@@ -5645,7 +5645,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,exists(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,exists(/* select#2 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
 FROM t1;
@@ -6739,3 +6739,52 @@ call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
 summary
 Created XX views in the `I_S` database
 DROP DATABASE I_S;
+# Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+CREATE VIEW v AS SELECT INSERT('a', 1, 1, YEAR(UNHEX('w'))) AS c;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select insert('a',1,1,year(unhex('w'))) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1411	Incorrect string value: ''w'' for function unhex
+DROP VIEW v;
+#
+# Bug #32854203: DUMP/RESTORE FAILS WITH NESTED VIEWS HAVING ROLLUP OVER DISTINCT GROUPS
+#
+CREATE VIEW v2 AS SELECT 1 AS c;
+CREATE VIEW v1 AS SELECT 4711 AS a, COUNT(DISTINCT c) FROM v2 GROUP BY a WITH ROLLUP;
+DROP VIEW v2;
+CREATE VIEW v2 AS SELECT 1 AS c;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 4711 AS `a`,count(distinct `v2`.`c`) AS `COUNT(DISTINCT c)` from `v2` group by `a` with rollup	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v1, v2;
+#
+# BUG#30909064 Explain neglects db part of identifier after create view
+#
+CREATE TABLE t1 (
+pk INT,
+col_int_key INT,
+col_int_nokey INT,
+col_varchar_key VARCHAR(10),
+col_varchar_nokey VARCHAR(10),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+CREATE VIEW v1 AS
+SELECT alias1.col_int_nokey AS field1,
+(SELECT alias2.col_int_key
+FROM t1 AS alias2
+WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+) AS field2
+FROM t1 AS alias1;
+DROP VIEW v1;
+EXPLAIN SELECT pk AS foo, col_int_key AS bar FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `foo`,`test`.`t1`.`col_int_key` AS `bar` from `test`.`t1`
+DROP TABLE t1;

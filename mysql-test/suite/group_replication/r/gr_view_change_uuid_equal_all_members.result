@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Define two uuid for use on view_change_uuid
+
+############################################################
+# 2. Bootstrap group with VIEW_CHANGE_UUID
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 3. To change view_change_uuid group replication shall be
+#    stopped
+SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+ERROR HY000: The group_replication_view_change_uuid cannot be changed when Group Replication is running
+
+############################################################
+# 4. A member only can join if it has same view_change_uuid
+#    that is defined on group
+[connection server2]
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression(".*The member is configured with a group_replication_view_change_uuid option value .* different from the group .*. The member will now exit the group.");
+SET SESSION sql_log_bin=1;
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+SET GLOBAL group_replication_group_name = "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [group_replication_view_change_uuid from joiner different from group]
+
+############################################################
+# 5. Server 2 configured with view_change_uuid of group
+#    can join
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+include/start_group_replication.inc
+
+############################################################
+# 6. Confirm both server have same GTID.EXECUTED from all
+#    the views logged
+include/assert.inc [GTID_EXECUTED must only contain view changes]
+[connection server1]
+include/assert.inc [GTID_EXECUTED must only contain view changes]
+
+############################################################
+# 7. Cleanup
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+include/group_replication_end.inc

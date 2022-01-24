@@ -34,15 +34,7 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *
  * @param cluster_type type of the cluster the metadata cache object will
  * represent (GR or ReplicaSet)
- * @param user The user name used to authenticate to the metadata server.
- * @param password The password used to authenticate to the metadata server.
- * @param connect_timeout The time after which trying to connect to the
- *                        metadata server should timeout.
- * @param read_timeout The time after which read from metadata server should
- *                     timeout.
- * @param connection_attempts The number of times a connection to the metadata
- *                            server must be attempted, when a connection
- *                            attempt fails.
+ * @param session_config Metadata MySQL session configuration
  * @param ssl_options SSL related options to be used for connection
  * @param use_cluster_notifications Flag indicating if the metadata cache
  *                                  should use cluster notifications as an
@@ -52,18 +44,19 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *                for ReplicaSet cluster)
  */
 std::shared_ptr<MetaData> get_instance(
-    const mysqlrouter::ClusterType cluster_type, const std::string &user,
-    const std::string &password, int connect_timeout, int read_timeout,
-    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+    const mysqlrouter::ClusterType cluster_type,
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, const unsigned view_id) {
-  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
-    meta_data.reset(new ARClusterMetadata(user, password, connect_timeout,
-                                          read_timeout, connection_attempts,
-                                          ssl_options, view_id));
-  } else {
-    meta_data.reset(new GRClusterMetadata(
-        user, password, connect_timeout, read_timeout, connection_attempts,
-        ssl_options, use_cluster_notifications));
+  switch (cluster_type) {
+    case mysqlrouter::ClusterType::RS_V2:
+      meta_data.reset(
+          new ARClusterMetadata(session_config, ssl_options, view_id));
+      break;
+    default:
+      meta_data.reset(new GRClusterMetadata(session_config, ssl_options,
+                                            use_cluster_notifications));
   }
+
   return meta_data;
 }

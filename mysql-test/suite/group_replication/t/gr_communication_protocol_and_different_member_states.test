@@ -31,6 +31,7 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 # Will be used to recover server2 later on.
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -43,8 +44,8 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-# Will be used to hide the version of the server later on.
---let $mysql_version= `SELECT SUBSTRING_INDEX(VERSION(), '-', 1)`
+# Will be used to hide the result of `group_replication_get_communication_protocol` later on.
+--let $gr_communication_protocol_version= `SELECT group_replication_get_communication_protocol()`
 
 --echo ###############################################################################
 --echo #  2. Check that it is *not* possible to modify the communication_protocol value via an ONLINE member when some other member is in RECOVERING state.
@@ -81,6 +82,7 @@ SELECT group_replication_set_communication_protocol("5.7.14");
 --echo #  4. Check that it is possible to query the communication_protocol value via an ONLINE member when some other members are in RECOVERING state.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+--replace_result $gr_communication_protocol_version GR_COMMUNICATION_PROTOCOL_VERSION
 SELECT group_replication_get_communication_protocol();
 
 --echo ###############################################################################
@@ -132,6 +134,7 @@ SELECT group_replication_set_communication_protocol("5.7.14");
 
 --echo ###############################################################################
 --echo #  7. Check that it is possible to query the communication_protocol value via an ONLINE member when a minority of members are UNREACHABLE.
+--replace_result $gr_communication_protocol_version GR_COMMUNICATION_PROTOCOL_VERSION
 SELECT group_replication_get_communication_protocol();
 
 --echo ###############################################################################

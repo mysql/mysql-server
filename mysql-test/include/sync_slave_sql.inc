@@ -3,7 +3,7 @@
 # This file does the same as the built-in command sync_with_master,
 # but more flexible. In particular:
 #  - Can use a custom timeout.
-#  - Can use WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS instead of MASTER_POS_WAIT.
+#  - Can use WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS instead of SOURCE_POS_WAIT.
 #  - The position can be set by the user, it is not restricted to
 #    save_master_pos
 #
@@ -124,9 +124,13 @@ if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
   {
-    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)
+    --echo debug: SOURCE_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)
   }
-  --let $_sss_result= `SELECT MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
+  --let $_sss_source_pos_wait_function = SOURCE_POS_WAIT
+  if ($use_source_pos_wait_alias) {
+    --let $_sss_source_pos_wait_function = MASTER_POS_WAIT
+  }
+  --let $_sss_result= `SELECT $_sss_source_pos_wait_function('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
 }
 
 if ($_sss_result == '')

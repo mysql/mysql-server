@@ -14,3 +14,8 @@ CREATE UNIQUE INDEX test_index ON performance_schema.events_waits_summary_by_ins
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.events_waits_summary_by_instance;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_waits_summary_by_instance;
+
+DROP TABLE test.create_select;

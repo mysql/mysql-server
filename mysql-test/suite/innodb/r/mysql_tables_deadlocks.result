@@ -82,6 +82,14 @@ Preparing deadlock scenario for mysql.replication_asynchronous_connection_failov
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
+Preparing deadlock scenario for mysql.replication_group_configuration_version
+ROLLBACK;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+Preparing deadlock scenario for mysql.replication_group_member_actions
+ROLLBACK;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
 Preparing deadlock scenario for mysql.server_cost
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction

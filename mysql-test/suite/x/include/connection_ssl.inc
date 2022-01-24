@@ -234,9 +234,11 @@ EOF
 
 
 --write_file $MYSQL_TMP_DIR/mysqlx-status.xpl
--->sql
-SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
--->endsql
+-->import assert_status_variable.macro
+SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
+
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	DHE-RSA-AES256-SHA;
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	AES256-SHA;
 EOF
 
 ############################################################################
@@ -286,7 +288,7 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 let $MYSQLXTEST=$MYSQLXTEST $USE_SOCKET;
 let $MYSQLXTEST_VERIFY_SSL=
    $MYSQLXTEST
-	--tls-version=TLSv1
+	--tls-version=TLSv1.2
 	--file=$MYSQL_TMP_DIR/verify-ssl-connection-info.xpl
 	--ssl-mode=REQUIRED
 	--quiet;

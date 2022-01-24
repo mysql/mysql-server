@@ -86,16 +86,15 @@ The caller must hold the LRU list and buf_page_get_mutex() mutexes.
 @param[in]	zip	true if should remove also the compressed page of
                         an uncompressed page
 @return true if freed, false otherwise. */
-bool buf_LRU_free_page(buf_page_t *bpage, bool zip)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_LRU_free_page(buf_page_t *bpage, bool zip);
 
 /** Try to free a replaceable block.
 @param[in,out]	buf_pool	buffer pool instance
 @param[in]	scan_all	scan whole LRU list if ture, otherwise scan
                                 only BUF_LRU_SEARCH_SCAN_THRESHOLD blocks
 @return true if found and freed */
-bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool, bool scan_all)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool,
+                                               bool scan_all);
 
 /** Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
@@ -127,8 +126,7 @@ we put it to free list to be used.
   * same as iteration 1 but sleep 10ms
 @param[in,out]	buf_pool	buffer pool instance
 @return the free control block, in state BUF_BLOCK_READY_FOR_USE */
-buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool);
 
 /** Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
@@ -197,6 +195,10 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
  @return true */
 ibool buf_LRU_validate(void);
 
+/** Validates the LRU list for one buffer pool instance.
+@param[in]	buf_pool	buffer pool instance */
+void buf_LRU_validate_instance(buf_pool_t *buf_pool);
+
 using Space_References = std::map<struct fil_space_t *, size_t>;
 
 /** Counts number of pages that are still in the LRU  for each space instance
@@ -234,7 +236,7 @@ The minimum must exceed
 
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
-extern uint buf_LRU_old_threshold_ms;
+std::chrono::milliseconds get_buf_LRU_old_threshold();
 /** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.

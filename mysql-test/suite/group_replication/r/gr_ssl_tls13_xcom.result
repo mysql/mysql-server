@@ -1,0 +1,144 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 0. Configure members to use encryption and save defaults.
+[connection server1]
+SET @tls_version_save= @@GLOBAL.tls_version;
+SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
+[connection server2]
+SET @tls_version_save= @@GLOBAL.tls_version;
+SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. 2 members group with OpenSSL 1.1.1
+#    No --tls-ciphersuites
+#    No --tls-version
+#    Outcome: group will work.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+
+############################################################
+# 2. 2 members group with OpenSSL 1.1.1
+#    No --tls-ciphersuites
+#    server1: --tls-version='TLSv1.2,TLSv1.3'
+#    server2: --tls-version='TLSv1.2'
+#    Outcome: group will work.
+[connection server1]
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.tls_version= 'TLSv1.2';
+ALTER INSTANCE RELOAD TLS;
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+
+############################################################
+# 3. 2 members group with OpenSSL 1.1.1
+#    No --tls-ciphersuites
+#    server1: --tls-version='TLSv1.3'
+#    server2: --tls-version='TLSv1.2'
+#    Outcome: group will not work.
+[connection server1]
+SET @@GLOBAL.tls_version= 'TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.tls_version= 'TLSv1.2';
+ALTER INSTANCE RELOAD TLS;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server1]
+include/stop_group_replication.inc
+
+############################################################
+# 4. 2 members group with OpenSSL 1.1.1
+#    No --tls-ciphersuites
+#    server1: --tls-version='TLSv1.3'
+#    server2: --tls-version='TLSv1.3'
+#    Outcome: group will work.
+[connection server1]
+SET @@GLOBAL.tls_version= 'TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.tls_version= 'TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+
+############################################################
+# 5. 2 members group with OpenSSL 1.1.1
+#    --tls-ciphersuites='TLS_AES_256_GCM_SHA384'
+#    server1: --tls-version='TLSv1.2,TLSv1.3'
+#    server2: --tls-version='TLSv1.2,TLSv1.3'
+#    Outcome: group will work.
+[connection server1]
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384';
+ALTER INSTANCE RELOAD TLS;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384';
+ALTER INSTANCE RELOAD TLS;
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+
+############################################################
+# 6. 2 members group with OpenSSL 1.1.1
+#    --tls-ciphersuites= '', which will disable all ciphers.
+#    No --tls-version
+#    Outcome: group will not work.
+[connection server1]
+SET @@GLOBAL.tls_ciphersuites= '';
+ALTER INSTANCE RELOAD TLS;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+Pattern found.
+
+############################################################
+# 7. Clean up.
+[connection server1]
+SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
+SET @@GLOBAL.tls_version= @tls_version_save;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
+ALTER INSTANCE RELOAD TLS;
+[connection server2]
+SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
+SET @@GLOBAL.tls_version= @tls_version_save;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
+ALTER INSTANCE RELOAD TLS;
+include/group_replication_end.inc

@@ -48,8 +48,8 @@ struct DiGetNodesConf {
    */
   friend class Dbdih;
 
-  STATIC_CONST( SignalLength = 4 + MAX_REPLICAS );
-  STATIC_CONST( REORG_MOVING = 0x80000000);
+  static constexpr Uint32 SignalLength = 4 + MAX_REPLICAS;
+  static constexpr Uint32 REORG_MOVING = 0x80000000;
 
   Uint32 zero;
   Uint32 fragId;
@@ -73,8 +73,8 @@ class DiGetNodesReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 6 + (sizeof(void*) / sizeof(Uint32)) );
-  STATIC_CONST(MAX_DIGETNODESREQS = 16);
+  static constexpr Uint32 SignalLength = 6 + (sizeof(void*) / sizeof(Uint32));
+  static constexpr Uint32 MAX_DIGETNODESREQS = 16;
 private:
   Uint32 tableId;
   Uint32 hashValue;

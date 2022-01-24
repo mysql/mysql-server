@@ -38,7 +38,6 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
-extern EventLogger* g_eventLogger;
 
 void
 TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned line,
@@ -71,8 +70,9 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
     Uint32 threshold;
     Logger::LoggerLevel severity;
     EventLogger::EventTextFunction textF;
-    EventLoggerBase::event_lookup(NDB_LE_TransporterError,
-                                  cat, threshold, severity, textF);
+    if (EventLoggerBase::event_lookup(NDB_LE_TransporterError,
+                                      cat, threshold, severity, textF) != 0)
+      goto log_it;
     Uint32 TE_words[3] = {0, remoteNodeId, (Uint32) errorCode};
     g_eventLogger->getText(msg + offs, sz - offs, textF, TE_words, 3);
     nb = strlen(msg + offs);

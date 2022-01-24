@@ -24,8 +24,11 @@ pk16 BINARY(192) NOT NULL DEFAULT 0,
 data VARBINARY(10294) NOT NULL,
 PRIMARY KEY(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16))
 ENGINE ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 INSERT INTO t (pk01, data) VALUES (REPEAT(' ', 192), REPEAT('.', 10294));
 SELECT LENGTH(pk01), CRC32(pk01), LENGTH(data), CRC32(data) FROM t;
 LENGTH(pk01)	CRC32(pk01)	LENGTH(data)	CRC32(data)

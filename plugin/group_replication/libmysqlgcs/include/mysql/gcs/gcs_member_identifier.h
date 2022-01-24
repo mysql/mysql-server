@@ -52,7 +52,7 @@ class Gcs_member_identifier {
   Gcs_member_identifier &operator=(const Gcs_member_identifier &) = default;
   Gcs_member_identifier &operator=(Gcs_member_identifier &&) = default;
 
-  virtual ~Gcs_member_identifier() {}
+  virtual ~Gcs_member_identifier() = default;
 
   /**
     @return the member identifier

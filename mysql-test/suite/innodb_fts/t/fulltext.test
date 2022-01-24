@@ -29,12 +29,16 @@ select * from t1 where MATCH(a,b) AGAINST ("only");
 
 # query expansion
 
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # IN NATURAL LANGUAGE MODE
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 --error 1064
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
@@ -56,11 +60,14 @@ explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 explain select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
@@ -330,7 +337,9 @@ DROP TABLE t1;
 --character_set latin1
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
 insert into t1 (s) values ('pära para para'),('para para para');
+--sorted_result
 select * from t1 where match(s) against('para' in boolean mode);
+--sorted_result
 select * from t1 where match(s) against('par*' in boolean mode);
 DROP TABLE t1;
 
@@ -423,7 +432,9 @@ ANALYZE TABLE t1;
 -- enable_result_log
 PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
 
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
@@ -682,3 +693,19 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#33041720: REDUNDANT CALL TO INIT_FTFUNCS() IN MULTI-TABLE DELETE
+--echo #
+
+# This test case does not show a problem. It just adds test coverage
+# of multi-table DELETE statements that use full-text search.
+
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER, x VARCHAR(10), FULLTEXT(x));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1, 'abc'), (2, 'xyz'), (3, 'abc def'), (4, NULL);
+DELETE t1 FROM t1, t2 WHERE t1.id = t2.id AND MATCH (t2.x) AGAINST ('abc');
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1, t2;

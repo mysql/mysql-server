@@ -1,6 +1,7 @@
 # * Wait_for_status_variable
 # * Assert_status_variable
 # * Assert_received_notices
+# * Assert_set_like_status_variable
 # * Assert_client_message_count
 
 -->macro Wait_for_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
@@ -35,6 +36,14 @@ noquiet;
 -->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
 -->endmacro
 
+-->macro Assert_set_like_status_variable  %VARIABLE_NAME%  %DELIMITER%	%EXPECTED_VALUE%
+quiet;
+-->stmtsql  select  FIND_IN_SET("%EXPECTED_VALUE%", REPLACE(VARIABLE_VALUE,"%DELIMITER%",","))>0 as Value from performance_schema.session_status where VARIABLE_NAME like '%VARIABLE_NAME%';
+-->recvtovar %RESULT% Value
+-->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq 1	%RESULT%
+noquiet;
+-->endmacro
 
 -->macro Assert_session_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->stmtsql SHOW SESSION VARIABLES LIKE '%VARIABLE_NAME%';

@@ -1,0 +1,52 @@
+create table t1 (
+a int primary key,
+b int,
+c int,
+key t1x1 (b),
+key t1x2 (c)
+) engine=ndb
+partition by key (a) partitions 1;
+insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
+Waiting for the index stats to be updated
+Index stats updated
+select count(*) from t1 where b = 1;
+count(*)
+2
+select count(*) from t1 where c = 1;
+count(*)
+4
+show status like 'ndb_index_stat_cache%';
+Variable_name	Value
+Ndb_index_stat_cache_query	81
+Ndb_index_stat_cache_clean	0
+# restart cluster --initial
+# wait for mysqld
+set global ndb_dbg_check_shares=1;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (
+a int primary key,
+b int,
+c int,
+key t1x1 (b),
+key t1x2 (c)
+) engine=ndb
+partition by key (a) partitions 1;
+insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
+Waiting for the index stats to be updated
+Index stats updated
+Check if events were detected in the other MySQL Server as well
+events_detected
+YES
+select count(*) from t1 where b = 1;
+count(*)
+2
+select count(*) from t1 where c = 1;
+count(*)
+4
+show status like 'ndb_index_stat_cache%';
+Variable_name	Value
+Ndb_index_stat_cache_query	81
+Ndb_index_stat_cache_clean	0
+drop table t1;

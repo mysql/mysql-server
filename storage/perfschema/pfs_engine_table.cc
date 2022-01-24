@@ -897,9 +897,9 @@ void PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share) {
 /** Implementation of internal ACL checks, for the performance schema. */
 class PFS_internal_schema_access : public ACL_internal_schema_access {
  public:
-  PFS_internal_schema_access() {}
+  PFS_internal_schema_access() = default;
 
-  ~PFS_internal_schema_access() override {}
+  ~PFS_internal_schema_access() override = default;
 
   ACL_internal_access_result check(ulong want_access,
                                    ulong *save_priv) const override;
@@ -1270,7 +1270,7 @@ enum ha_rkey_function PFS_key_reader::read_ulonglong(
 enum ha_rkey_function PFS_key_reader::read_timestamp(
     enum ha_rkey_function find_flag, bool &isnull, ulonglong *value, uint dec) {
   size_t data_size = 4 + ((size_t)((dec + 1) / 2));
-  struct timeval tm;
+  my_timeval tm;
 
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     assert(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
@@ -1284,7 +1284,8 @@ enum ha_rkey_function PFS_key_reader::read_timestamp(
       m_remaining_key_len -= HA_KEY_NULL_LENGTH;
     }
     my_timestamp_from_binary(&tm, m_remaining_key, dec);
-    ulonglong data = (((ulonglong)tm.tv_sec) * 1000000ULL) + tm.tv_usec;
+    ulonglong data =
+        static_cast<ulonglong>(tm.m_tv_sec) * 1000000ULL + tm.m_tv_usec;
     m_remaining_key += data_size;
     m_remaining_key_len -= (uint)data_size;
     m_parts_found++;
@@ -1298,7 +1299,7 @@ enum ha_rkey_function PFS_key_reader::read_timestamp(
 
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity MY_ATTRIBUTE((unused))) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
@@ -1350,7 +1351,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
 
 enum ha_rkey_function PFS_key_reader::read_text_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity MY_ATTRIBUTE((unused))) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:

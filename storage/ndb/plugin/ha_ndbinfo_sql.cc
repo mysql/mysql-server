@@ -325,6 +325,9 @@ struct view {
     {"ndbinfo", "hwinfo",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$hwinfo`"},
+    {"ndbinfo", "index_stats",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$index_stats`"},
     {"ndbinfo", "locks_per_fragment",
      "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
      "types.type_name AS type, table_id, node_id, block_instance, "
@@ -663,11 +666,11 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$blocks",
-                   "block_number INT UNSIGNED, "
+                   "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "block_name VARCHAR(512)",
                },
                {"ndbinfo", "ndb$config_params",
-                "param_number INT UNSIGNED, "
+                "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
                 "param_name VARCHAR(512), "
                 "param_description VARCHAR(512), "
                 "param_type VARCHAR(512), "
@@ -679,7 +682,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dblqh_tcconnect_state",
-                   "state_int_value INT UNSIGNED, "
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "state_name VARCHAR(256), "
                    "state_friendly_name VARCHAR(256), "
                    "state_description VARCHAR(256)",
@@ -687,7 +690,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dbtc_apiconnect_state",
-                   "state_int_value INT UNSIGNED, "
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "state_name VARCHAR(256), "
                    "state_friendly_name VARCHAR(256), "
                    "state_description VARCHAR(256)",
@@ -695,7 +698,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dict_obj_types",
-                   "type_id INT UNSIGNED, "
+                   "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "type_name VARCHAR(512)",
                },
                {
@@ -705,6 +708,13 @@ struct lookup {
                    "error_description VARCHAR(512), "
                    "error_status VARCHAR(512), "
                    "error_classification VARCHAR(512)",
+               },
+               {
+                   "ndbinfo",
+                   "ndb$index_stats",
+                   "index_id INT UNSIGNED, "
+                   "index_version INT UNSIGNED, "
+                   "sample_version INT UNSIGNED",
                }};
 
 size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);

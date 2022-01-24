@@ -7,7 +7,7 @@
 --source include/have_binlog_format_row.inc
 
 #
-# Test 1: Make sure that MASTER_POS_WAIT return with success
+# Test 1: Make sure that SOURCE_POS_WAIT return with success
 # only when the full compressed transaction is applied, otherwise
 # returns an error
 #
@@ -35,12 +35,12 @@ COMMIT;
 --source include/rpl_connection_slave.inc
 
 # wait for the applier to block on the lock
---let $wait_condition = SELECT count(*) = 1 FROM performance_schema.threads WHERE processlist_state = "Waiting for table metadata lock" AND name IN ('thread/sql/slave_sql', "thread/sql/slave_worker")
+--let $wait_condition = SELECT count(*) = 1 FROM performance_schema.threads WHERE processlist_state = "Waiting for table metadata lock" AND name IN ('thread/sql/replica_sql', "thread/sql/replica_worker")
 --source include/wait_condition.inc
 
-# assert that MASTER_POS_WAIT exits with error
---let $res= `SELECT MASTER_POS_WAIT("$binlog_file", $binlog_pos, 1)`
---let $assert_text= MASTER_POS_WAIT returns -1 if the timeout has been exceeded.
+# assert that SOURCE_POS_WAIT exits with error
+--let $res= `SELECT SOURCE_POS_WAIT("$binlog_file", $binlog_pos, 1)`
+--let $assert_text= SOURCE_POS_WAIT returns -1 if the timeout has been exceeded.
 --let $assert_cond= $res = -1
 --source include/assert.inc
 
@@ -55,8 +55,8 @@ COMMIT;
 # unlock and assert that now tables have the same values
 UNLOCK TABLE;
 
---let $res= `SELECT MASTER_POS_WAIT("$binlog_file", $binlog_pos, 5)`
---let $assert_text= MASTER_POS_WAIT succeeds.
+--let $res= `SELECT SOURCE_POS_WAIT("$binlog_file", $binlog_pos, 5)`
+--let $assert_text= SOURCE_POS_WAIT succeeds.
 --let $assert_cond= $res <> -1
 --source include/assert.inc
 

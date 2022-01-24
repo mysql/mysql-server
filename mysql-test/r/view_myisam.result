@@ -52,15 +52,15 @@ Warnings:
 Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1 ;
 a	b
-10002	NULL
 10	NULL
 1000	NULL
+10002	NULL
 select * from t2 ;
 a	b
-1000	2000
-10	NULL
-2000	NULL
 0	NULL
+10	NULL
+1000	2000
+2000	NULL
 delete from v3;
 ERROR HY000: Can not delete from join view 'test.v3'
 delete v3,t1 from v3,t1;

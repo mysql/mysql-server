@@ -68,7 +68,7 @@ while ($iteration>0)
   --exec /bin/bash $script
 
   --echo # Step-3: Wait till dump thread transfer is completed.
-  let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
+  let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Source has sent%';
   --source include/wait_condition.inc
 
   --echo # Step-4: copy binary log file that is downloaded till now before

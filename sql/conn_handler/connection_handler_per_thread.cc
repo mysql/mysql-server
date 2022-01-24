@@ -247,7 +247,7 @@ static void *handle_connection(void *arg) {
   Connection_handler_manager *handler_manager =
       Connection_handler_manager::get_instance();
   Channel_info *channel_info = static_cast<Channel_info *>(arg);
-  bool pthread_reused MY_ATTRIBUTE((unused)) = false;
+  bool pthread_reused [[maybe_unused]] = false;
 
   if (my_thread_init()) {
     connection_errors_internal++;
@@ -276,6 +276,7 @@ static void *handle_connection(void *arg) {
         and attach it to this running pthread.
       */
       PSI_thread *psi = PSI_THREAD_CALL(new_thread)(key_thread_one_connection,
+                                                    0 /* no sequence number */,
                                                     thd, thd->thread_id());
       PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);

@@ -104,7 +104,7 @@ Delegate::Delegate(
 Delegate::~Delegate() {
   inited = false;
   mysql_rwlock_destroy(&lock);
-  free_root(&memroot, MYF(0));
+  memroot.Clear();
 }
 
 int Delegate::add_observer(void *observer, st_plugin_int *plugin) {
@@ -205,11 +205,9 @@ void Delegate::update_plugin_ref_count() {
   int intern_value = m_configured_lock_type.load();
 
   if (intern_value == DELEGATE_SPIN_LOCK && opt_value == DELEGATE_OS_LOCK) {
-    for (std::map<plugin_ref, size_t>::iterator ref =
-             m_acquired_references.begin();
-         ref != m_acquired_references.end(); ++ref) {
-      for (size_t count = ref->second; count != 0; --count)
-        plugin_unlock(NULL, ref->first);
+    for (auto ref : m_acquired_references) {
+      for (size_t count = ref.second; count != 0; --count)
+        plugin_unlock(NULL, ref.first);
     }
     m_acquired_references.clear();
   } else if (intern_value == DELEGATE_OS_LOCK &&
@@ -392,6 +390,15 @@ int delegates_init() {
   return 0;
 }
 
+void delegates_shutdown() {
+  if (opt_replication_optimize_for_static_plugin_config) {
+    opt_replication_optimize_for_static_plugin_config = false;
+    delegates_acquire_locks();
+    delegates_update_lock_type();
+    delegates_release_locks();
+  }
+}
+
 void delegates_destroy() {
   if (transaction_delegate) transaction_delegate->~Trans_delegate();
   if (binlog_storage_delegate)
@@ -408,32 +415,26 @@ static void delegates_update_plugin_ref_count() {
   if (binlog_storage_delegate)
     binlog_storage_delegate->update_plugin_ref_count();
   if (server_state_delegate) server_state_delegate->update_plugin_ref_count();
-#ifdef HAVE_REPLICATION
   if (binlog_transmit_delegate)
     binlog_transmit_delegate->update_plugin_ref_count();
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->update_plugin_ref_count();
-#endif /* HAVE_REPLICATION */
 }
 
 void delegates_acquire_locks() {
   if (transaction_delegate) transaction_delegate->write_lock();
   if (binlog_storage_delegate) binlog_storage_delegate->write_lock();
   if (server_state_delegate) server_state_delegate->write_lock();
-#ifdef HAVE_REPLICATION
   if (binlog_transmit_delegate) binlog_transmit_delegate->write_lock();
   if (binlog_relay_io_delegate) binlog_relay_io_delegate->write_lock();
-#endif /* HAVE_REPLICATION */
 }
 
 void delegates_release_locks() {
   if (transaction_delegate) transaction_delegate->unlock();
   if (binlog_storage_delegate) binlog_storage_delegate->unlock();
   if (server_state_delegate) server_state_delegate->unlock();
-#ifdef HAVE_REPLICATION
   if (binlog_transmit_delegate) binlog_transmit_delegate->unlock();
   if (binlog_relay_io_delegate) binlog_relay_io_delegate->unlock();
-#endif /* HAVE_REPLICATION */
 }
 
 void delegates_update_lock_type() {
@@ -442,10 +443,8 @@ void delegates_update_lock_type() {
   if (transaction_delegate) transaction_delegate->update_lock_type();
   if (binlog_storage_delegate) binlog_storage_delegate->update_lock_type();
   if (server_state_delegate) server_state_delegate->update_lock_type();
-#ifdef HAVE_REPLICATION
   if (binlog_transmit_delegate) binlog_transmit_delegate->update_lock_type();
   if (binlog_relay_io_delegate) binlog_relay_io_delegate->update_lock_type();
-#endif /* HAVE_REPLICATION */
 }
 
 /*
@@ -1101,6 +1100,8 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
   param->port = mi->port;
   param->master_log_name = const_cast<char *>(mi->get_master_log_name());
   param->master_log_pos = mi->get_master_log_pos();
+  param->source_connection_auto_failover =
+      mi->is_source_connection_auto_failover();
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi) {
@@ -1280,6 +1281,39 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
   return binlog_relay_io_delegate->remove_observer(observer);
 }
 
+static bool is_show_status(enum_sql_command sql_command) {
+  switch (sql_command) {
+    case SQLCOM_SHOW_VARIABLES:
+    case SQLCOM_SHOW_STATUS:
+    case SQLCOM_SHOW_ENGINE_LOGS:
+    case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_MUTEX:
+    case SQLCOM_SHOW_PROCESSLIST:
+    case SQLCOM_SHOW_MASTER_STAT:
+    case SQLCOM_SHOW_SLAVE_STAT:
+    case SQLCOM_SHOW_CHARSETS:
+    case SQLCOM_SHOW_COLLATIONS:
+    case SQLCOM_SHOW_BINLOGS:
+    case SQLCOM_SHOW_OPEN_TABLES:
+    case SQLCOM_SHOW_SLAVE_HOSTS:
+    case SQLCOM_SHOW_BINLOG_EVENTS:
+    case SQLCOM_SHOW_WARNS:
+    case SQLCOM_SHOW_ERRORS:
+    case SQLCOM_SHOW_STORAGE_ENGINES:
+    case SQLCOM_SHOW_PRIVILEGES:
+    case SQLCOM_SHOW_STATUS_PROC:
+    case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_PLUGINS:
+    case SQLCOM_SHOW_EVENTS:
+    case SQLCOM_SHOW_PROFILE:
+    case SQLCOM_SHOW_PROFILES:
+    case SQLCOM_SHOW_RELAYLOG_EVENTS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   DBUG_TRACE;
   LEX *lex = thd->lex;
@@ -1294,12 +1328,10 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     return 0;
   }
 
-  bool is_show = ((sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
-                  (sql_command != SQLCOM_BINLOG_BASE64_EVENT)) ||
-                 (sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+  bool is_show = is_show_status(sql_command);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
-  bool is_query_block = (sql_command == SQLCOM_SELECT);
-  bool is_do = (sql_command == SQLCOM_DO);
+  bool is_query_block =
+      (sql_command == SQLCOM_SELECT || sql_command == SQLCOM_DO);
   bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
   bool is_use = (sql_command == SQLCOM_CHANGE_DB);
   bool is_stop_gr = (sql_command == SQLCOM_STOP_GROUP_REPLICATION);
@@ -1307,8 +1339,8 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   bool is_reset_persist =
       (sql_command == SQLCOM_RESET && lex->option_type == OPT_PERSIST);
 
-  if ((is_set || is_do || is_show || is_empty || is_use || is_stop_gr ||
-       is_shutdown || is_reset_persist) &&
+  if ((is_set || is_show || is_empty || is_use || is_stop_gr || is_shutdown ||
+       is_reset_persist) &&
       !lex->uses_stored_routines()) {
     return 0;
   }
@@ -1316,7 +1348,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   if (is_query_block) {
     bool is_udf = false;
 
-    // if select is an udf function
+    // If SELECT or DO is a UDF
     Query_block *query_block_elem = lex->unit->first_query_block();
     while (query_block_elem != nullptr) {
       for (Item *item : query_block_elem->visible_fields()) {
@@ -1331,7 +1363,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     }
 
     if (!is_udf && all_tables == nullptr) {
-      // SELECT that don't use tables and isn't a UDF
+      // SELECT or DO that don't use tables and isn't a UDF
       hold_command = false;
     }
 

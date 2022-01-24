@@ -1,0 +1,23 @@
+--source include/have_ndb.inc
+
+#
+# Test that the mysql.ndb_apply_status table has been created properly.
+# The table is used by MySQL Cluster replication to keep a record
+# of the operations that have been replicated from the source to the replica.
+#
+# The table is created by the ndbcluster plugin while connecting to NDB.
+
+#
+# Check that the mysql.ndb_apply_status table exist
+#
+select TABLE_SCHEMA, TABLE_NAME from information_schema.tables
+  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_apply_status';
+
+#
+# Check that mysql.ndb_apply_status table contains the expected columns
+# and data types
+#
+select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, CHARACTER_SET_NAME,
+       COLUMN_DEFAULT, IS_NULLABLE from information_schema.columns
+  where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_apply_status'
+  order by ORDINAL_POSITION;

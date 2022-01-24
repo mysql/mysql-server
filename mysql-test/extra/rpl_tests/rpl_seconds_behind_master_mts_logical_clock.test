@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that Seconds_Behind_Master is calculated correctly on a
-# Multi-threaded Slave when slave_parallel_type = 'LOGICAL_CLOCK'.
+# Multi-threaded Slave when replica_parallel_type = 'LOGICAL_CLOCK'.
 # The test covers these scenarios:
 #
 # 1) With two workers, check if Seconds_Behind_Master is calculated
@@ -68,7 +68,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 
 # Sleep on slave so we were at least 3 seconds behind the master
 --sleep 3
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
@@ -86,7 +86,7 @@ connection master;
 
 let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Now both workers have completed. Thus Seconds_Behind_Master shoud be equal to 0.
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
@@ -150,7 +150,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 # Sleep for 2 seconds so Seconds_Behind_Master was at least 2
 --sleep 2
 
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
@@ -168,7 +168,7 @@ UNLOCK TABLES;
 # All workers should be done by now.
 let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $assert_text= Seconds_Behind_Master must be 0;
@@ -245,7 +245,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 
 # Wait for 2 seconds so Second_Behind_Master is at least 2
 --sleep 2
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
@@ -274,7 +274,7 @@ let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
@@ -296,7 +296,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 
 --sleep 1
 
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $stop= `SELECT UNIX_TIMESTAMP()`;
@@ -317,7 +317,7 @@ let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 # Seconds_Behind_Master
 
 --sleep 1
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $assert_text= Seconds_Behind_Master must be 0;

@@ -2904,26 +2904,26 @@ ER_CANT_FIND_UDF
         swe "Kan inte ladda funktionen '%-.192s'"
         ukr "Не можу завантажити функцію '%-.192s'"
 ER_CANT_INITIALIZE_UDF
-        cze "Nemohu inicializovat funkci '%-.192s'; %-.80s"
-        dan "Kan ikke starte funktionen '%-.192s'; %-.80s"
-        nla "Kan functie '%-.192s' niet initialiseren; %-.80s"
-        eng "Can't initialize function '%-.192s'; %-.80s"
-        est "Ei suuda algväärtustada funktsiooni '%-.192s'; %-.80s"
-        fre "Impossible d'initialiser la fonction '%-.192s'; %-.80s"
-        ger "Kann Funktion '%-.192s' nicht initialisieren: %-.80s"
-        greek "Δεν είναι δυνατή η έναρξη της συνάρτησης '%-.192s'; %-.80s"
-        hun "A(z) '%-.192s' fuggveny nem inicializalhato; %-.80s"
-        ita "Impossibile inizializzare la funzione '%-.192s'; %-.80s"
-        jpn "関数 '%-.192s' を初期化できません。; %-.80s"
-        kor "'%-.192s' 함수를 초기화 하지 못했습니다.; %-.80s"
-        por "Não pode inicializar a função '%-.192s' - '%-.80s'"
-        rum "Nu pot initializa functia '%-.192s'; %-.80s"
-        rus "Невозможно инициализировать функцию '%-.192s'; %-.80s"
-        serbian "Ne mogu da inicijalizujem funkciju '%-.192s'; %-.80s"
-        slo "Nemôžem inicializovať funkciu '%-.192s'; %-.80s"
-        spa "No puedo inicializar función '%-.192s'; %-.80s"
-        swe "Kan inte initialisera funktionen '%-.192s'; '%-.80s'"
-        ukr "Не можу ініціалізувати функцію '%-.192s'; %-.80s"
+        cze "Nemohu inicializovat funkci '%-.192s'; %-.192s"
+        dan "Kan ikke starte funktionen '%-.192s'; %-.192s"
+        nla "Kan functie '%-.192s' niet initialiseren; %-.192s"
+        eng "Can't initialize function '%-.192s'; %-.192s"
+        est "Ei suuda algväärtustada funktsiooni '%-.192s'; %-.192s"
+        fre "Impossible d'initialiser la fonction '%-.192s'; %-.192s"
+        ger "Kann Funktion '%-.192s' nicht initialisieren: %-.192s"
+        greek "Δεν είναι δυνατή η έναρξη της συνάρτησης '%-.192s'; %-.192s"
+        hun "A(z) '%-.192s' fuggveny nem inicializalhato; %-.192s"
+        ita "Impossibile inizializzare la funzione '%-.192s'; %-.192s"
+        jpn "関数 '%-.192s' を初期化できません。; %-.192s"
+        kor "'%-.192s' 함수를 초기화 하지 못했습니다.; %-.192s"
+        por "Não pode inicializar a função '%-.192s' - '%-.192s'"
+        rum "Nu pot initializa functia '%-.192s'; %-.192s"
+        rus "Невозможно инициализировать функцию '%-.192s'; %-.192s"
+        serbian "Ne mogu da inicijalizujem funkciju '%-.192s'; %-.192s"
+        slo "Nemôžem inicializovať funkciu '%-.192s'; %-.192s"
+        spa "No puedo inicializar función '%-.192s'; %-.192s"
+        swe "Kan inte initialisera funktionen '%-.192s'; '%-.192s'"
+        ukr "Не можу ініціалізувати функцію '%-.192s'; %-.192s"
 ER_UDF_NO_PATHS
         cze "Pro sdílenou knihovnu nejsou povoleny cesty"
         dan "Angivelse af sti ikke tilladt for delt bibliotek"
@@ -5037,11 +5037,11 @@ ER_BAD_SLAVE_UNTIL_COND
         por "Parâmetro ou combinação de parâmetros errado para START SLAVE UNTIL"
         spa "Parametro equivocado o combinación de parametros para START SLAVE UNTIL"
 ER_MISSING_SKIP_SLAVE
-        eng "It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart"
-        ger "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn ein Slave-Server unerwartet neu startet"
-        jpn "START SLAVE UNTIL で段階的にレプリケーションを行う際には、--skip-slave-start オプションを使うことを推奨します。使わない場合、スレーブのmysqldが不慮の再起動をすると問題が発生します。"
-        por "É recomendado para rodar com --skip-slave-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo"
-        spa "Es recomendado rodar con --skip-slave-start cuando haciendo replicación step-by-step con START SLAVE UNTIL, a menos que usted no esté seguro en caso de inesperada reinicialización del mysqld slave"
+        eng "It is recommended to use --skip-replica-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart"
+        ger "Es wird empfohlen, mit --skip-replica-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn ein Slave-Server unerwartet neu startet"
+        jpn "START SLAVE UNTIL で段階的にレプリケーションを行う際には、--skip-replica-start オプションを使うことを推奨します。使わない場合、スレーブのmysqldが不慮の再起動をすると問題が発生します。"
+        por "É recomendado para rodar com --skip-replica-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo"
+        spa "Es recomendado rodar con --skip-replica-start cuando haciendo replicación step-by-step con START SLAVE UNTIL, a menos que usted no esté seguro en caso de inesperada reinicialización del mysqld slave"
 ER_UNTIL_COND_IGNORED
         eng "SQL thread is not to be started so UNTIL options are ignored"
         ger "SQL-Thread soll nicht gestartet werden. Daher werden UNTIL-Optionen ignoriert"
@@ -5973,8 +5973,8 @@ OBSOLETE_ER_BINLOG_ROW_WRONG_TABLE_DEF
         eng "Table definition on master and slave does not match: %s"
         ger "Tabellendefinition auf Master und Slave stimmt nicht überein: %s"
 OBSOLETE_ER_BINLOG_ROW_RBR_TO_SBR
-        eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
-        ger "Slave, die mit --log-slave-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
+        eng "Slave running with --log-replica-updates must use row-based binary logging to be able to replicate row-based binary log events"
+        ger "Slave, die mit --log-replica-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
 ER_EVENT_ALREADY_EXISTS
         eng "Event '%-.192s' already exists"
         ger "Event '%-.192s' existiert bereits"
@@ -6527,7 +6527,7 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
   eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
 
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
-  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
+  eng "The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout."
 
 ER_STMT_CACHE_FULL
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
@@ -6779,7 +6779,7 @@ ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON."
 
 OBSOLETE_ER_GTID_MODE_REQUIRES_BINLOG
-  eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE or OFF_PERMISSIVE requires --log-bin and --log-slave-updates."
+  eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE or OFF_PERMISSIVE requires --log-bin and --log-replica-updates."
 
 ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
   eng "@@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF."
@@ -7020,8 +7020,8 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
   eng "Fulltext index creation requires a lock"
 
-OBSOLETE_ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
-  eng "sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
+OBSOLETE_ER_SQL_REPLICA_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+  eng "sql_replica_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
 
 ER_DUP_UNKNOWN_IN_INDEX 23000
   cze "Zdvojený klíč (číslo klíče '%-.192s')"
@@ -7063,7 +7063,7 @@ ER_ROW_IN_WRONG_PARTITION
   swe "Hittade en rad i fel partition %s"
 
 ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
-  eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of slave_pending_jobs_size_max."
+  eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of replica_pending_jobs_size_max."
 
 OBSOLETE_ER_INNODB_NO_FT_USES_PARSER
   eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
@@ -7160,7 +7160,7 @@ ER_FILE_CORRUPT
   eng "File %s is corrupted"
 
 ER_ERROR_ON_MASTER
-  eng "Query partially completed on the master (error on master: %d) and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; START SLAVE;. Query:'%s'"
+  eng "Query partially completed on the master (error on master: %d) and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1; START SLAVE;. Query:'%s'"
 
 OBSOLETE_ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
@@ -7223,7 +7223,7 @@ ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '%s' first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
-  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
+  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0."
 
 ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
   eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
@@ -7247,10 +7247,10 @@ ER_AGGREGATE_ORDER_NON_AGG_QUERY
   eng "Expression #%u of ORDER BY contains aggregate function and applies to the result of a non-aggregated query"
 
 ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
-  eng "Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the slave after fixing any failed threads, you should fix this worker as well."
+  eng "Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the slave after fixing any failed threads, you should fix this worker as well."
 
-ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
-  eng "slave_preserve_commit_order is not supported %s."
+ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
+  eng "replica_preserve_commit_order is not supported %s."
 
 ER_SERVER_OFFLINE_MODE
   eng "The server is currently in offline mode"
@@ -7417,7 +7417,7 @@ ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '%s' first."
 
 ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
-  eng "When sql_slave_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_slave_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_slave_skip_counter."
+  eng "When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter."
 
 # When using this error message, use the ER_WRONG_FIELD_WITH_GROUP error code.
 ER_WRONG_FIELD_WITH_GROUP_V2
@@ -7700,7 +7700,7 @@ ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
   eng "Cannot create index on virtual column whose base column has foreign constraint."
 
 ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE
-  eng "Please do not modify the %s table with an XA transaction. This is an internal system table used to store GTIDs for committed transactions. Although modifying it can lead to an inconsistent GTID state, if neccessary you can modify it with a non-XA transaction."
+  eng "Please do not modify the %s table with an XA transaction. This is an internal system table used to store GTIDs for committed transactions. Although modifying it can lead to an inconsistent GTID state, if necessary you can modify it with a non-XA transaction."
 
 ER_LOCK_REFUSED_BY_ENGINE
   eng "Lock acquisition refused by storage engine."
@@ -8644,7 +8644,7 @@ ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
   eng "Changing @@session.binlog_format is disallowed when the session has open temporary table(s). You could wait until these temporary table(s) are dropped and try again."
 
 ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
-  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again"
+  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again"
 
 ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
   eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again."
@@ -9441,7 +9441,7 @@ ER_DA_ERROR_LOG_MULTIPLE_FILTERS
 ER_DA_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
-ER_USER_REFERENCED_AS_DEFINER  
+ER_USER_REFERENCED_AS_DEFINER
   eng "User %.256s is referenced as a definer account in %s."
 
 ER_CANNOT_USER_REFERENCED_AS_DEFINER
@@ -9475,8 +9475,8 @@ ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
 ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
   eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON."
 
-ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
-  eng "The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF."
+ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
+  eng "The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF."
 
 ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID
   eng "Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation."
@@ -9540,6 +9540,166 @@ ER_SDI_GET_KEYS_INVALID_TABLESPACE
 
 ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
   eng "Value too long setting SOURCE_COMPRESSION_ALGORITHMS option to a %d chars long string for channel '%.192s'."
+
+OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI
+  eng "A deprecated TLS version %s is enabled for channel %s. Please use TLSv1.2 or higher."
+
+ER_CANT_USE_SAME_UUID_AS_VIEW_CHANGE_UUID
+  eng "CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_view_change_uuid."
+
+ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID
+  eng "Replication '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_view_change_uuid"
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE
+  eng "Unable to retrieve group_replication_view_change_uuid variable during server checks on replication operations."
+
+ER_WARN_ADUIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS
+  eng "Both audit_log_max_size and audit_log_prune_seconds are set to non-zero. audit_log_max_size takes precedence and audit_log_prune_seconds is ignored"
+
+ER_WARN_ADUIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE
+  eng "audit_log_rotate_on_size is not granular enough for the value of audit_log_max_size supplied. Should be at least %d times smaller."
+
+ER_KERBEROS_CREATE_USER
+  eng "Create/Alter user has failed, Configured user realm as authentication string is empty, Please make sure to configure authentication string as user realm."
+
+ER_INSTALL_PLUGIN_CONFLICT_CLIENT
+  eng "Cannot install the %.192s plugin when the %.192s plugin is installed."
+
+ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED
+  eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
+
+ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
+  eng "The until clause SQL_AFTER_MTS_GAPS is being used for channel '%.192s' when GTID_MODE = ON and SOURCE_AUTO_POSITION=1 meaning the server did not compute internally what gaps may exist in the relay log transaction execution. To close any execution gaps use either the SQL_BEFORE_GTIDS or SQL_AFTER_GTIDS until clause."
+
+ER_INVALID_ASSIGNMENT_TARGET 42000
+  eng "Invalid target for assignment in INSERT or UPDATE statement '%.192s'."
+
+ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
+   eng "This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary."
+
+ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION
+  eng "Unable to propagate the SOURCE_CONNECTION_AUTO_FAILOVER value for channel '%s' to group replication members. Please retry the operation."
+
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
+ER_INVALID_MFA_PLUGIN_SPECIFIED
+  eng "Invalid plugin \"%s\" specified as %d factor during \"%s\"."D
+
+ER_IDENTIFIED_BY_UNSUPPORTED
+  eng "IDENTIFIED BY clause during \"%s\" not supported for plugin \"%s\"."
+
+ER_INVALID_PLUGIN_FOR_REGISTRATION
+  eng "This operation is not supported for plugin \"%s\"."
+
+ER_PLUGIN_REQUIRES_REGISTRATION
+  eng "Authentication plugin requires registration. Please refer ALTER USER syntax or set --fido-register-factor command line option to do registration."
+
+ER_MFA_METHOD_EXISTS
+  eng "%d factor authentication method exists. Please do ALTER USER... DROP %d factor before doing this operation OR do ALTER USER... MODIFY %d factor... to modify existing %d factor authentication method."
+
+ER_MFA_METHOD_NOT_EXISTS
+  eng "%d factor authentication method doesn't exist. Please do ALTER USER... ADD %d factor... before doing this operation."
+
+ER_AUTHENTICATION_POLICY_MISMATCH
+  eng "%d factor authentication method does not match against authentication policy. Please refer @@authentication_policy system variable."
+
+ER_PLUGIN_REGISTRATION_DONE
+  eng "The registration for %d factor authentication method is already completed. You cannot perform registration multiple times."
+
+ER_INVALID_USER_FOR_REGISTRATION
+  eng "The registration operation is not allowed for user '%s'@'%s'. The operation can only be performed in user's own session."
+
+ER_USER_REGISTRATION_FAILED
+  eng "Authentication plugin's registration failed."
+
+ER_MFA_METHODS_INVALID_ORDER
+  eng "%d factor authentication method should be added before %d factor authentication method."
+
+ER_MFA_METHODS_IDENTICAL
+  eng "Authentication factor should be different."
+
+ER_INVALID_MFA_OPERATIONS_FOR_PASSWORDLESS_USER
+  eng "The operation \"%s\" cannot be performed for user '%s'@'%s' configured to connect without a password."
+
+ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
+  eng "GTID_ONLY cannot be enabled for replication channel '%.192s'. You need GTID_MODE = ON, SOURCE_AUTO_POSITION = 1 and REQUIRE_ROW_FORMAT = 1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_REQ_ROW_FORMAT_WITH_GTID_ONLY
+  eng "REQUIRE_ROW_FORMAT cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POSITION_WITH_GTID_ONLY
+  eng "SOURCE_AUTO_POSITION cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS
+  eng "When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS
+  eng "When disabling SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid."
+
+ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON
+  eng "When configuring a group replication channel you must do it when GTID_MODE = ON."
+
+ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
+  eng "Replication cannot start%.192s with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON."
+
+ER_WARN_C_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS
+  eng "The replication positions relative to the source may be out-of-date on channel '%.192s', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values."
+
+ER_DA_SSL_FIPS_MODE_ERROR
+  eng "SSL fips mode error: %s"
+
+ER_VALUE_OUT_OF_RANGE
+  eng "%s=%llu is outside the valid range [%llu,%llu]. %llu will be used."
+
+ER_FULLTEXT_WITH_ROLLUP
+  eng "MATCH does not support ROLLUP columns."
+
+ER_REGEXP_MISSING_RESOURCE
+  eng "Missing locale resource in regular expression library."
+
+ER_WARN_REGEXP_USING_DEFAULT
+  eng "Regular expression library used default (root) locale."
+
+ER_REGEXP_MISSING_FILE
+  eng "Missing data file in regular expression library."
+
+ER_WARN_DEPRECATED_COLLATION
+  eng "'%-.64s' is a collation of the deprecated character set %s. Please consider using %s with an appropriate collation instead."
+
+ER_CONCURRENT_PROCEDURE_USAGE
+  eng "The %s was called when there was already another concurrent call to this procedure. No action was taken. Wait for other calls to %s to finish before retrying."
+
+ER_DA_GLOBAL_CONN_LIMIT
+  eng "Connection closed. Global connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
+ER_DA_CONN_LIMIT
+  eng "Connection closed. Connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE_INSTANT
+  eng "Need to rebuild the table to change column type"
+
+ER_WARN_SF_UDF_NAME_COLLISION
+  eng "This function '%-.192s' has the same name as a loadable function (UDF). To invoke the stored function, it is necessary to qualify it with the schema name."
+
+ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+  eng "Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock."
+
+ER_TOO_MANY_WINDOWS
+  eng "Too many windows in SELECT: %d. Maximum allowed is %d. Use named windows to share windows between window functions."
+
+ER_MYSQLBACKUP_CLIENT_MSG
+  eng "%s"
+
+ER_COMMENT_CONTAINS_INVALID_STRING
+  eng "Comment for %s '%s' contains an invalid %s character string: '%.64s'."
+
+ER_DEFINITION_CONTAINS_INVALID_STRING
+  eng "Definition of %s '%-.192s.%-.192s' contains an invalid %s character string: '%.64s'."
+
+ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
+  eng "Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
+
 
 #
 #  End of 8.0 error messages (server-to-client).

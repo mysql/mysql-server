@@ -19,16 +19,16 @@ a	b
 2	3
 include/check_slave_no_error.inc
 include/check_slave_is_running.inc
-Slave Binlog contains all ops as log_slave_updates is on
+Slave Binlog contains all ops as log_replica_updates is on
 show variables like 'server_id';
 Variable_name	Value
 server_id	2
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	ON
+log_replica_updates	ON
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int key, b int) ENGINE=ndb
@@ -50,16 +50,16 @@ a	b
 1	2
 2	3
 include/check_slave_is_running.inc
-Master Binlog contains only Master ops as log_slave_updates is off
+Master Binlog contains only Master ops as log_replica_updates is off
 show variables like 'server_id';
 Variable_name	Value
 server_id	1
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN

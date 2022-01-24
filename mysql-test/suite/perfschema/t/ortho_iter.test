@@ -1,8 +1,3 @@
-# Performance schema tests generally depend on specific query plans
-# and behavior, and much of the perfschema suite is therefore disabled
-# if the hypergraph optimizer is active.
---source include/not_hypergraph.inc
-
 # Tests for PERFORMANCE_SCHEMA
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
@@ -57,7 +52,8 @@ begin
   declare pfs_cursor CURSOR FOR
     select table_name from information_schema.tables
       where table_schema= 'performance_schema'
-      and table_name like "%_by_event_name%";
+      and table_name like "%_by_event_name%"
+      order by table_name;
 
   declare continue handler for sqlstate '02000'
     set done = 1;

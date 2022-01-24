@@ -1,0 +1,11 @@
+!include suite/ndb_opt/my.cnf
+
+[cluster_config]
+# Reduce delay to ensure that the stats are updated frequently
+IndexStatUpdateDelay=1
+
+[mysqld.1.1]
+log-bin=mysqld-bin
+
+[mysqld.2.1]
+log-bin=mysqld-bin

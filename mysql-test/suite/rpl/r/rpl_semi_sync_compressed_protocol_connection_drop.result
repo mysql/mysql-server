@@ -1,0 +1,40 @@
+include/save_error_log_position.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== 1. Setup semi-sync replication on source and replica ====
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+SET GLOBAL rpl_semi_sync_source_enabled = 1;
+SET GLOBAL rpl_semi_sync_source_timeout = 10000;
+[connection slave]
+include/stop_slave.inc
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+include/start_slave.inc
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(id int, number int);
+CREATE TABLE t2 like t1;
+==== 2. Execute insert transactions ====
+INSERT INTO t1 values (1, 2);
+INSERT INTO t2 values (2, 1);
+==== 3. Assert that we don't hit any error ====
+include/assert_error_log.inc [server: 1, pattern: NONE]
+==== 4. Cleanup ====
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE db1;
+CALL mtr.add_suppression("Got an error reading communication packets*");
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL rpl_semi_sync_replica_enabled = OFF;
+include/start_slave.inc
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+[connection master]
+SET GLOBAL rpl_semi_sync_source_enabled = OFF;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+[connection slave]
+include/rpl_end.inc

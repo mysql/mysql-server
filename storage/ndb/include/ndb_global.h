@@ -22,6 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+/*
+ * !! DO NOT ADD ANYTHING TO THIS FILE !!
+ *
+ * Header files should be included in source files that needs them.
+ * That is, follow IWYU (include-what-you-use).
+ *
+ * New symbols should be added in other relevant header files.
+ */
+
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
@@ -35,15 +44,6 @@
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
-/* Legacy definitions. */
-#ifndef TRUE
-#define TRUE true
-#define FALSE false
 #endif
 
 /*
@@ -81,7 +81,6 @@
 
 #ifdef _WIN32
 #define DIR_SEPARATOR "\\"
-#include <my_systime.h>
 #else
 #define DIR_SEPARATOR "/"
 #endif
@@ -114,30 +113,8 @@
 #endif
 #include "m_string.h"
 
-#ifndef NDB_REMOVE_BZERO
-/*
-  Make it possible to use bzero in NDB although
-  MySQL headers redefines it to an invalid symbol
-*/
-#ifdef bzero
-#undef bzero
-#endif
-
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif
-
-#if !defined(bzero) && !defined(HAVE_BZERO)
-#define bzero(A,B) memset((A),0,(B))
-#endif
-#endif
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
-#endif
-
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
 #endif
 
 #ifdef HAVE_FCNTL_H
@@ -163,12 +140,6 @@
 #endif
 
 static const char table_name_separator =  '/';
-
-#if defined(_AIX) || defined(WIN32) || defined(NDB_VC98)
-#define STATIC_CONST(x) enum { x }
-#else
-#define STATIC_CONST(x) static const Uint32 x
-#endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -242,13 +213,6 @@ extern "C" {
 #if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
-#endif
-
-#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
-  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
-#else
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
 #endif
 
 /**

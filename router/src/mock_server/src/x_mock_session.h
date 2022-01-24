@@ -32,6 +32,7 @@
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql_server_mock.h"
 #include "router/src/mock_server/src/mock_session.h"
+#include "router/src/mock_server/src/statement_reader.h"
 #include "x_protocol_decoder.h"
 #include "x_protocol_encoder.h"
 
@@ -41,30 +42,33 @@ class MySQLXProtocol : public ProtocolBase {
  public:
   using ProtocolBase::ProtocolBase;
 
+  stdx::expected<size_t, std::error_code> decode_frame(
+      std::vector<uint8_t> &payload);
+
   stdx::expected<std::tuple<uint8_t, size_t>, std::error_code> recv_header(
       const net::const_buffer &buf);
 
-  std::unique_ptr<xcl::XProtocol::Message> recv_single_message(
-      xcl::XProtocol::Client_message_type_id *out_msg_id);
+  stdx::expected<std::pair<xcl::XProtocol::Client_message_type_id,
+                           std::unique_ptr<xcl::XProtocol::Message>>,
+                 std::error_code>
+  decode_single_message(const std::vector<uint8_t> &payload);
 
   // throws std::system_error
-  void send_error(const uint16_t error_code, const std::string &error_msg,
-                  const std::string &sql_state = "HY000") override;
+  void encode_error(const ErrorResponse &msg) override;
 
   // throws std::system_error
-  void send_ok(const uint64_t affected_rows = 0,
-               const uint64_t last_insert_id = 0,
-               const uint16_t server_status = 0,
-               const uint16_t warning_count = 0) override;
+  void encode_ok(const uint64_t affected_rows = 0,
+                 const uint64_t last_insert_id = 0,
+                 const uint16_t server_status = 0,
+                 const uint16_t warning_count = 0) override;
 
   // throws std::system_error
-  void send_resultset(const ResultsetResponse &response,
-                      const std::chrono::microseconds delay_ms) override;
+  void encode_resultset(const ResultsetResponse &response) override;
 
-  void send_message(const xcl::XProtocol::Server_message_type_id msg_id,
-                    const xcl::XProtocol::Message &msg);
+  void encode_message(const xcl::XProtocol::Server_message_type_id msg_id,
+                      const xcl::XProtocol::Message &msg);
 
-  void send_async_notice(const AsyncNotice &async_notice);
+  void encode_async_notice(const AsyncNotice &async_notice);
 
   Mysqlx::Notice::Frame notice_frame;
   stdx::expected<std::unique_ptr<xcl::XProtocol::Message>, std::string>
@@ -80,41 +84,56 @@ class MySQLXProtocol : public ProtocolBase {
 
 class MySQLServerMockSessionX : public MySQLServerMockSession {
  public:
+  using clock_type = std::chrono::steady_clock;
+
   MySQLServerMockSessionX(
-      MySQLXProtocol *protocol,
+      MySQLXProtocol protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
       const bool debug_mode, bool with_tls);
 
-  /**
-   * process the handshake of the current connection.
-   *
-   * @throws std::system_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  bool process_handshake() override;
+  void run() override;
+
+  void cancel() override { protocol_.cancel(); }
 
   /**
-   * process the statements of the current connection.
+   * encode all async notices.
    *
-   * @pre connection must be authenticated with process_handshake() first
+   * @param start_time start time
    *
-   * @throws std::system_error, std::runtime_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
+   * @retval true one or more notice was added
+   * @retval false no notice encoded.
    */
-  bool process_statements() override;
+  bool encode_due_async_notices(const clock_type::time_point &start_time);
 
-  void send_due_async_notices(
-      const std::chrono::time_point<std::chrono::system_clock> &start_time);
+  /**
+   * expiry of the notice.
+   *
+   * @return when the next notice needs to be sent.
+   * @retval {} if no expiry
+   */
+  clock_type::time_point notice_expiry() const;
 
  private:
+  void greeting();
+  void handshake();
+  void idle();
+  void finish();
+  void notices();
+
+  void send_response_then_handshake();
+  void send_response_then_first_idle();
+  void send_response_then_idle();
+  void send_response_then_disconnect();
+  void send_notice_then_notices();
+
   std::vector<AsyncNotice> async_notices_;
-  MySQLXProtocol *protocol_;
+  MySQLXProtocol protocol_;
 
   bool with_tls_{false};
+
+  clock_type::time_point start_time_{};
+
+  net::steady_timer notice_timer_{protocol_.io_context()};
 };
 
 }  // namespace server_mock

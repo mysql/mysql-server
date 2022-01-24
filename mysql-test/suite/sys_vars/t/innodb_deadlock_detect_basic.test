@@ -40,6 +40,7 @@ set global innodb_deadlock_detect=1e1;
 set global innodb_deadlock_detect=2;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_deadlock_detect='AUTO';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_deadlock_detect=-3;
 select @@global.innodb_deadlock_detect;
 

@@ -4304,7 +4304,7 @@ left outer join t3 as t2 on t2.d3 = t1.a3
 left outer join t3 as t3 on t3.a3 = t2.d3
 where t1.d3 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	d3	d3	5	const	1	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	d3	d3	5	const	3	100.00	Using where
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	d3	d3	5	test.t1.a3	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
@@ -4632,7 +4632,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	9	test.x.b3,const	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select straight_join `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`d3` = <cache>(NULL)))
+Note	1003	/* select#1 */ select straight_join `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`d3` = NULL))
 prepare stmt1 from
 'select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
@@ -7240,7 +7240,7 @@ select * from t as a left join t as b
 on a.k is null and a.uq=b.uq;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	b	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	b	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using pushed condition <cache>((`test`.`a`.`k` is null)); Using join buffer (hash join)
 Warnings:
 Note	1003	Can't push table 'b' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`a`.`k` AS `k`,`test`.`a`.`uq` AS `uq`,`test`.`b`.`k` AS `k`,`test`.`b`.`uq` AS `uq` from `test`.`t` `a` left join `test`.`t` `b` on(((`test`.`b`.`uq` = `test`.`a`.`uq`) and (`test`.`a`.`k` is null))) where true
@@ -8563,6 +8563,124 @@ join t1 as t4s2 on t4s2.a = t3s2.b
 );
 count(*)
 64
+explain
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+straight_join t1 as t2 on t2.a = t1.c
+straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c,d	PRIMARY	4	test.t1.c	1	100.00	Parent of 2 pushed join@1; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) NO_BKA(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+straight_join t1 as t2 on t2.a = t1.c
+straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
+a	a	a
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	2
+1	1	2
+1	2	2
+1	2	3
+2	2	2
+2	2	3
+2	3	1
+2	3	2
+2	3	3
+2	3	3
+2	4	1
+2	4	4
+3	1	1
+3	1	1
+3	1	2
+3	2	2
+3	2	3
+3	3	1
+3	3	1
+3	3	2
+3	3	2
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+4	1	1
+4	1	1
+4	1	2
+4	4	1
+4	4	1
+4	4	4
+4	4	4
+explain
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+straight_join t1 as t2 on t2.a = t1.c
+straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,d	PRIMARY	4	test.t1.c	1	100.00	Parent of 2 pushed join@1; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) NO_BKA(`t3`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`c`))
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+straight_join t1 as t2 on t2.a = t1.c
+straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
+a	a	a
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	2	2
+1	2	2
+1	2	2
+2	2	2
+2	2	2
+2	2	2
+2	3	3
+2	3	3
+2	3	3
+2	3	3
+2	4	4
+2	4	4
+2	4	4
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+3	2	2
+3	2	2
+3	2	2
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+3	3	3
+4	1	1
+4	1	1
+4	1	1
+4	1	1
+4	4	4
+4	4	4
+4	4	4
+4	4	4
+4	4	4
+4	4	4
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -8735,9 +8853,94 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	24
-Ndb_pushed_queries_defined	4
+Ndb_pushed_queries_defined	8
 Ndb_pushed_queries_dropped	0
 Ndb_sorted_scan_count	16
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
+CREATE TABLE f (
+col_int_key int DEFAULT NULL
+) ENGINE=ndbcluster;
+CREATE TABLE p (
+col_int int DEFAULT NULL,
+col_int_unique int DEFAULT NULL,
+UNIQUE KEY ix1 (col_int,col_int_unique) USING HASH
+) ENGINE=ndbcluster;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into f values (1),(NULL);
+insert into p values (NULL,1);
+explain format=tree SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
+AND table4.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Inner hash join (table4.col_int_unique = table2.col_int_key)  ()
+    -> Table scan on table4, with pushed condition: (table4.col_int is null)  ()
+    -> Hash
+        -> Table scan on table2  ()
+
+Warnings:
+Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+1	NULL	1
+explain format=tree SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
+AND table4.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  ()
+    -> Multi-range index lookup on table4 using ix1 (col_int=1, col_int_unique=table2.col_int_key)
+
+Warnings:
+Note	1003	Cannot push table 'table4' as child of table 'table2'. Doing so would prevent using join buffer for table 'table4'.
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain format=tree SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Nested loop inner join  ()
+    -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  ()
+    -> Filter: (table4.col_int <=> table2.col_int_key)  ()
+        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key), child of table2 in pushed join  ()
+
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain format=tree SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique <=> table2.col_int_key;
+EXPLAIN
+-> Nested loop inner join  ()
+    -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  ()
+    -> Filter: (table4.col_int_unique <=> table2.col_int_key)  ()
+        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key), child of table2 in pushed join  ()
+
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique <=> table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain format=tree SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  ()
+    -> Multi-range index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key)
+
+Warnings:
+Note	1003	Cannot push table 'table4' as child of table 'table2'. Doing so would prevent using join buffer for table 'table4'.
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+DROP TABLE f,p;
 set @@global.optimizer_switch=default;

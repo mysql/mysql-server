@@ -159,7 +159,6 @@ class NdbTransaction
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
-  friend class ha_ndbcluster;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
 #endif
@@ -943,6 +942,18 @@ public:
    */
   void setMaxPendingBlobReadBytes(Uint32 bytes);
   void setMaxPendingBlobWriteBytes(Uint32 bytes);
+
+  /*
+   * Release completed operations and queries.
+   *
+   * NOTE! Only applications which reads/write blobs fully and does not keep
+   * blobs open/active over execute can safely use this function to release
+   * completed.
+   */
+  void releaseCompletedOpsAndQueries() {
+    releaseCompletedOperations();
+    releaseCompletedQueries();
+  }
 
 private:						
   /**

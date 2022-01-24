@@ -18,8 +18,6 @@
 # This test is very unstable when using windows because support for high
 # precision timestamps in this platform is not as good as in unix
 --source include/not_windows.inc
-# There is a specific test for mts
---source include/not_mts_slave_parallel_workers.inc
 --source include/have_debug.inc
 
 --let $rpl_skip_start_slave= 1

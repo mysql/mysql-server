@@ -16,7 +16,9 @@ include/assert_grep.inc [Start slave message found in log contains applier user 
 #      user info
 # -----------------------------------------------------------------------
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=FALSE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=FALSE]
 include/wait_for_slave_to_start.inc
 include/assert_grep.inc [Start slave message with user info found twice in log, after restart]
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
 include/rpl_end.inc

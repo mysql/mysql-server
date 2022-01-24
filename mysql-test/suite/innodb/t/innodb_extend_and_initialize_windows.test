@@ -17,3 +17,9 @@ select @@global.innodb_extend_and_initialize;
 let $restart_parameters = restart: --innodb-extend-and-initialize=FALSE;
 --source include/restart_mysqld.inc
 select @@global.innodb_extend_and_initialize;
+
+# Clean up
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+
+RESET PERSIST innodb_extend_and_initialize;

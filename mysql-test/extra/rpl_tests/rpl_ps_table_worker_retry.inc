@@ -105,10 +105,10 @@ if ($is_mts) {
 
 # backup the original value of the variables
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 
 # set the variables needed for this test
-SET GLOBAL slave_transaction_retries = 10;
+SET GLOBAL replica_transaction_retries = 10;
 SET GLOBAL innodb_lock_wait_timeout = 2;
 
 --let $debug_point = rpl_ps_tables_worker_retry
@@ -323,8 +323,8 @@ ROLLBACK;
 --let $assert_cond = "$new_last_applied_trx_errts" = "$last_applied_trx_errts"
 --source include/assert.inc
 
---let $slave_trx_retries = `SELECT @@GLOBAL.slave_transaction_retries`
---let $assert_text = APPLYING_TRANSACTION_RETRIES_COUNT is the same as slave_transaction_retries
+--let $slave_trx_retries = `SELECT @@GLOBAL.replica_transaction_retries`
+--let $assert_text = APPLYING_TRANSACTION_RETRIES_COUNT is the same as replica_transaction_retries
 --let $assert_cond = "$applying_trx_retries_count" = "$slave_trx_retries"
 --source include/assert.inc
 
@@ -347,7 +347,7 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 
 --let $rpl_skip_sync = 1
 --source include/rpl_end.inc

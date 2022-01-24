@@ -9,7 +9,7 @@ let $engine_type= InnoDB;
 disable_query_log;
 connection master;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
-call mtr.add_suppression("Semi-sync master .* waiting for slave reply");
+call mtr.add_suppression("Semi-sync master .* waiting for replica reply");
 call mtr.add_suppression("Read semi-sync reply");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 call mtr.add_suppression(".*Got an error reading communication packets.*");
@@ -21,12 +21,12 @@ enable_query_log;
 
 connection master;
 disable_query_log;
-let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
+let $value = query_get_value(show variables like 'rpl_semi_sync_source_enabled', Value, 1);
 if ($value == No such row)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-    SET GLOBAL rpl_semi_sync_master_enabled = 1;
+    eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+    SET GLOBAL rpl_semi_sync_source_enabled = 1;
     set sql_log_bin=1;
 }
 enable_query_log;
@@ -35,12 +35,12 @@ connection slave;
 source include/stop_slave.inc;
 
 disable_query_log;
-let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
+let $value= query_get_value(show variables like 'rpl_semi_sync_replica_enabled', Value, 1);
 if ($value == No such row)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
-    SET GLOBAL rpl_semi_sync_slave_enabled = 1;
+    eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+    SET GLOBAL rpl_semi_sync_replica_enabled = 1;
     set sql_log_bin=1;
 }
 enable_query_log;
@@ -97,11 +97,11 @@ connection slave;
 source include/stop_slave.inc;
 
 disable_warnings;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 
 connection master;
 source include/stop_dump_threads.inc;
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_warnings;
 
 connection slave;

@@ -34,14 +34,13 @@ ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(test)
 
 IF(HAVE_JDK)
-
-  INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
-
-  INCLUDE_DIRECTORIES(utils
-                      jtie)
-
-  ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
-
+  ADD_CONVENIENCE_LIBRARY(ndbjtie
+    ndbjtie_lib.cpp
+    INCLUDE_DIRECTORIES
+    ${JNI_INCLUDE_DIRS}
+    jtie
+    utils
+    )
 ENDIF(HAVE_JDK)
 
 # the NdbJTie Java API

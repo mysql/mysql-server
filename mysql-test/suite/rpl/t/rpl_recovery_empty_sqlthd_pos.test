@@ -35,6 +35,7 @@
 --source include/force_restart.inc
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
@@ -55,7 +56,7 @@ source include/sync_slave_io_with_master.inc;
 # Restart the slave server
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 1
---let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
+--let $rpl_server_parameters=--skip_replica_start=FALSE --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
 # With bug sql thread will not be able to start it will fail with error 1007

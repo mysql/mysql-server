@@ -19,11 +19,11 @@ col1 int unsigned not null primary key,
 col3 varchar(15000),
 col4 varchar(14991))
 charset=latin1 engine=ndbcluster;
-ERROR HY000: Can't create table 't3_too_large_for_ndb'
+ERROR HY000: Can't create table 't3_too_large_for_ndb' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 738 'Record too big' from NDB
-Error	1005	Can't create table 't3_too_large_for_ndb'
+Error	1005	Can't create table 't3_too_large_for_ndb' (use SHOW WARNINGS for more info).
 CREATE TABLE t4_too_large_for_mysql(
 col1 int unsigned not null primary key,
 col3 varchar(35000),

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 
 #include "btr0sea.h"
+#include "ddl0ddl.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -66,7 +67,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0mysql.h"
 #include "row0pread.h"
 #include "row0row.h"
@@ -103,7 +103,8 @@ struct row_mysql_drop_t {
 ALTER TABLE in MySQL requires that the table handler can drop the
 table in background when there are no queries to it any
 more.  Protected by row_drop_list_mutex. */
-static UT_LIST_BASE_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
+static UT_LIST_BASE_NODE_T(row_mysql_drop_t,
+                           row_mysql_drop_list) row_mysql_drop_list;
 
 /** Mutex protecting the background table drop list. */
 static ib_mutex_t row_drop_list_mutex;
@@ -123,13 +124,13 @@ static ibool row_add_table_to_background_drop_list(
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */
 void row_wait_for_background_drop_list_empty() {
-  bool empty = false;
-  while (!empty) {
-    mutex_enter(&row_drop_list_mutex);
-    empty = (UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
-    mutex_exit(&row_drop_list_mutex);
+  while (UT_LIST_GET_LEN(row_mysql_drop_list) > 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+  /* At this point we know the drops were already processed without a need for
+  the mutex. The length is acquiring memory released in
+  row_drop_tables_for_mysql_in_background on UT_LIST_REMOVE, which is after
+  the drop processing is done. */
 }
 #endif /* UNIV_DEBUG */
 
@@ -669,7 +670,7 @@ handle_new_error:
         trx_rollback_to_savepoint(trx, nullptr);
         break;
       }
-    /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -724,7 +725,7 @@ handle_new_error:
       break;
 
     case DB_MUST_GET_MORE_FILE_SPACE:
-      ib::fatal(ER_IB_MSG_972)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_972)
           << "The database cannot continue operation because"
              " of lack of space. You must add a new data file"
              " to my.cnf and restart the database.";
@@ -749,7 +750,7 @@ handle_new_error:
              " foreign constraints and try again";
       break;
     default:
-      ib::fatal(ER_IB_MSG_975)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_975)
           << "Unknown error code " << err << ": " << ut_strerr(err);
   }
 
@@ -940,7 +941,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   btr_pcur_reset(prebuilt->pcur);
   btr_pcur_reset(prebuilt->clust_pcur);
 
-  ut_free(prebuilt->mysql_template);
+  ut::free(prebuilt->mysql_template);
 
   if (prebuilt->ins_graph) {
     que_graph_free_recursive(prebuilt->ins_graph);
@@ -980,7 +981,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
       ptr += 4;
     }
 
-    ut_free(base);
+    ut::free(base);
   }
 
   if (prebuilt->rtr_info) {
@@ -1092,8 +1093,8 @@ static dtuple_t *row_get_prebuilt_insert_row(
 
 /** Updates the table modification counter and calculates new estimates
  for table and index statistics if necessary. */
-UNIV_INLINE
-void row_update_statistics_if_needed(dict_table_t *table) /*!< in: table */
+static inline void row_update_statistics_if_needed(
+    dict_table_t *table) /*!< in: table */
 {
   ib_uint64_t counter;
   ib_uint64_t n_rows;
@@ -1124,7 +1125,7 @@ void row_update_statistics_if_needed(dict_table_t *table) /*!< in: table */
   a counter table which is very small and updated very often. */
 
   if (counter > 16 + n_rows / 16 /* 6.25% */) {
-    ut_ad(!mutex_own(&dict_sys->mutex));
+    ut_ad(!dict_sys_mutex_own());
     /* this will reset table->stat_modified_counter to 0 */
     dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT);
   }
@@ -1759,7 +1760,7 @@ upd_node_t *row_create_update_node_for_mysql(
 
   node->update_n_fields = table->get_n_cols();
 
-  UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+  UT_LIST_INIT(node->columns);
 
   node->has_clust_rec_x_lock = TRUE;
   node->cmpl_info = 0;
@@ -1892,7 +1893,7 @@ static void init_fts_doc_id_for_ref(
 /* A functor for decrementing counters. */
 class ib_dec_counter {
  public:
-  ib_dec_counter() {}
+  ib_dec_counter() = default;
 
   void operator()(upd_node_t *node) {
     ut_ad(node->table->n_foreign_key_checks_running > 0);
@@ -1954,7 +1955,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   return (DB_SUCCESS);
 }
 
-typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
+typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -1967,7 +1968,7 @@ just in case update action following delete fails.
 @return error code or DB_SUCCESS */
 static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
                                                  cursors_t &delete_entries,
-                                                 bool restore_delete) {
+                                                 const bool restore_delete) {
   mtr_t mtr;
   dict_table_t *table = node->table;
   mem_heap_t *heap = node->heap;
@@ -1977,9 +1978,10 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
   mtr_start(&mtr);
   dict_disable_redo_if_temporary(table, &mtr);
 
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS && !restore_delete;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS || restore_delete) {
+      break;
+    }
     entry = row_build_index_entry(node->row, node->ext, index, heap);
 
     btr_pcur_t pcur;
@@ -2095,9 +2097,10 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
   /* Step-3: Check if UPDATE can lead to DUPLICATE key violation.
   If yes, then avoid executing it and return error. Only after ensuring
   that UPDATE is safe execute it as we can't rollback. */
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS) {
+      break;
+    }
     entry = row_build_index_entry(node->upd_row, node->upd_ext, index, heap);
 
     if (index->is_clustered()) {
@@ -2116,9 +2119,10 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
   }
 
   /* Step-4: It is now safe to execute update if there is no error */
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS) {
+      break;
+    }
     entry = row_build_index_entry(node->upd_row, node->upd_ext, index, heap);
 
     if (index->is_clustered()) {
@@ -2189,8 +2193,7 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
 
     dict_table_t *table = prebuilt->table;
 
-    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : table->indexes) {
       key_changed = row_upd_changes_ord_field_binary(
           index, node->update, thr, node->upd_row, node->upd_ext, nullptr);
 
@@ -2464,8 +2467,7 @@ void row_delete_all_rows(dict_table_t *table) {
   /* Step-1: Now truncate all the indexes and re-create them.
   Note: This is ddl action even though delete all rows is
   DML action. Any error during this action is ir-reversible. */
-  for (index = UT_LIST_GET_FIRST(table->indexes); index != nullptr;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
     ut_ad(index->space == table->space);
     const page_id_t root(index->space, index->page);
     btr_free(root, page_size);
@@ -2481,53 +2483,30 @@ void row_delete_all_rows(dict_table_t *table) {
   }
 }
 
-/** This can only be used when this session is using a READ COMMITTED or READ
-UNCOMMITTED isolation level.  Before calling this function
-row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
-the information which new record locks really were set. This function removes
-a newly set clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
-the latest clustered index record lock we set.
-
-@param[in,out]	prebuilt		prebuilt struct in MySQL handle
-@param[in]	has_latches_on_recs	TRUE if called so that we have the
-                                        latches on the records under pcur
-                                        and clust_pcur, and we do not need
-                                        to reposition the cursors. */
-void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
-  btr_pcur_t *pcur = prebuilt->pcur;
-  btr_pcur_t *clust_pcur = prebuilt->clust_pcur;
-  trx_t *trx = prebuilt->trx;
-
-  ut_ad(prebuilt != nullptr);
+void row_prebuilt_t::try_unlock(bool has_latches_on_recs) {
   ut_ad(trx != nullptr);
-  ut_ad(trx->allow_semi_consistent());
 
-  if (dict_index_is_spatial(prebuilt->index)) {
+  if (dict_index_is_spatial(index)) {
     return;
   }
 
   trx->op_info = "unlock_row";
 
-  if (std::count(prebuilt->new_rec_lock,
-                 prebuilt->new_rec_lock + row_prebuilt_t::LOCK_COUNT, true)) {
-    const rec_t *rec;
-    dict_index_t *index;
-    trx_id_t rec_trx_id;
+  if (0 < new_rec_locks_count()) {
+    ut_ad(trx->releases_non_matching_rows());
+    ut_ad(select_lock_type != LOCK_NONE);
+    ut_ad(!table->is_intrinsic());
+
     mtr_t mtr;
-
     mtr_start(&mtr);
+    if (new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
+      /* Restore the cursor position and find the record */
 
-    /* Restore the cursor position and find the record */
-
-    if (!has_latches_on_recs) {
-      btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr);
+      if (!has_latches_on_recs) {
+        btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr);
+      }
     }
-
-    rec = btr_pcur_get_rec(pcur);
-    index = btr_pcur_get_btr_cur(pcur)->index;
-
-    if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
+    if (new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
       /* Restore the cursor position and find the record
       in the clustered index. */
 
@@ -2535,56 +2514,48 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
         btr_pcur_restore_position(BTR_SEARCH_LEAF, clust_pcur, &mtr);
       }
 
-      rec = btr_pcur_get_rec(clust_pcur);
-      index = btr_pcur_get_btr_cur(clust_pcur)->index;
+      ut_ad(btr_pcur_get_btr_cur(clust_pcur)->index->is_clustered());
     }
 
-    if (!index->is_clustered()) {
-      /* This is not a clustered index record.  We
-      do not know how to unlock the record. */
-      goto no_unlock;
-    }
-
-    /* If the record has been modified by this
-    transaction, do not unlock it. */
-
-    if (index->trx_id_offset) {
-      rec_trx_id = trx_read_trx_id(rec + index->trx_id_offset);
-    } else {
-      mem_heap_t *heap = nullptr;
-      ulint offsets_[REC_OFFS_NORMAL_SIZE];
-      ulint *offsets = offsets_;
-
-      rec_offs_init(offsets_);
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-
-      rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
-
-      if (UNIV_LIKELY_NULL(heap)) {
-        mem_heap_free(heap);
+    /* If the record has been modified by this transaction, we shouldn't unlock
+    it. In general we should not remove locks acquired during previous queries
+    of the same transaction. It's a bit difficult to verify this rule holds for
+    secondary indexes, as records in them do not track the TRX_ID which modified
+    them. Therefore we verify only clustered index only, that whenever we've
+    modified the row, then we are not trying to unlock it. This property should
+    be ensured by setting the new_rec_lock[i] to true only when a new lock
+    struct was created, which in turn means that no existing lock could be
+    reused, which in turn means we haven't had any X-lock before, which in turn
+    implies we hadn't have modified the record yet. */
+#ifdef UNIV_DEBUG
+    {
+      const btr_pcur_t *const the_pcur =
+          new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR] ? clust_pcur : pcur;
+      const dict_index_t *const index = btr_pcur_get_btr_cur(the_pcur)->index;
+      if (index->is_clustered()) {
+        const rec_t *const rec = btr_pcur_get_rec(the_pcur);
+        const trx_id_t rec_trx_id =
+            index->trx_id_offset
+                ? trx_read_trx_id(rec + index->trx_id_offset)
+                : row_get_rec_trx_id(rec, index,
+                                     Rec_offsets().compute(rec, index));
+        ut_ad(rec_trx_id != trx->id);
       }
     }
+#endif
+    /* We did not update the record: unlock it */
 
-    if (rec_trx_id != trx->id) {
-      /* We did not update the record: unlock it */
-
-      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
-        rec = btr_pcur_get_rec(pcur);
-
-        lock_rec_unlock(
-            trx, btr_pcur_get_block(pcur), rec,
-            static_cast<enum lock_mode>(prebuilt->select_lock_type));
-      }
-
-      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
-        rec = btr_pcur_get_rec(clust_pcur);
-
-        lock_rec_unlock(
-            trx, btr_pcur_get_block(clust_pcur), rec,
-            static_cast<enum lock_mode>(prebuilt->select_lock_type));
-      }
+    if (new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
+      lock_rec_unlock(trx, btr_pcur_get_block(pcur), btr_pcur_get_rec(pcur),
+                      static_cast<enum lock_mode>(select_lock_type));
     }
-  no_unlock:
+
+    if (new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
+      lock_rec_unlock(trx, btr_pcur_get_block(clust_pcur),
+                      btr_pcur_get_rec(clust_pcur),
+                      static_cast<enum lock_mode>(select_lock_type));
+    }
+
     mtr_commit(&mtr);
   }
 
@@ -2735,7 +2706,7 @@ void row_mysql_lock_data_dictionary_func(trx_t *trx, const char *file,
   rw_lock_x_lock_inline(dict_operation_lock, 0, file, line);
   trx->dict_operation_lock_mode = RW_X_LATCH;
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 }
 
 /** Unlocks the data dictionary exclusive lock. */
@@ -2746,7 +2717,7 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   /* Serialize data dictionary operations with dictionary mutex:
   no deadlocks can occur then in these operations */
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   rw_lock_x_unlock(dict_operation_lock);
 
   trx->dict_operation_lock_mode = 0;
@@ -2758,7 +2729,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   mem_heap_t *heap;
   dberr_t err;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   DBUG_EXECUTE_IF("ib_create_table_fail_at_start_of_row_create_table_for_mysql",
                   {
@@ -2794,9 +2765,9 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
 
     dict_table_add_system_columns(table, heap);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, false, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     /* During upgrade, etc., the log_ddl may haven't been
     initialized and we don't need to write DDL logs too.
@@ -2861,13 +2832,13 @@ error_handling:
 
       /* Still do it here so that the table can always be freed */
       if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
 
         dd_table_close(table, nullptr, nullptr, true);
 
         dict_table_remove_from_cache(table);
 
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
       } else {
         dict_mem_table_free(table);
       }
@@ -3016,9 +2987,9 @@ dberr_t row_create_index_for_mysql(
     err = dict_create_index_tree_in_mem(index, trx);
 
     if (err != DB_SUCCESS && !table->is_intrinsic()) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       dict_index_remove_from_cache(table, index);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
   }
 
@@ -3038,8 +3009,8 @@ error_handling:
   trx->op_info = "";
   trx->dict_operation = TRX_DICT_OP_NONE;
 
-  ut_free(table_name);
-  ut_free(index_name);
+  ut::free(table_name);
+  ut::free(index_name);
 
   return (err);
 }
@@ -3060,7 +3031,7 @@ dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   trx->op_info = "adding foreign keys";
 
@@ -3181,7 +3152,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3223,7 +3194,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3235,6 +3206,9 @@ loop:
 already_dropped:
   mutex_enter(&row_drop_list_mutex);
 
+  /* This can't be moved earlier, as row_wait_for_background_drop_list_empty()
+  expects the item be removed from list only after the drop processing is
+  completed.*/
   UT_LIST_REMOVE(row_mysql_drop_list, drop);
 
   MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
@@ -3243,30 +3217,13 @@ already_dropped:
                           << ut_get_name(nullptr, drop->table_name)
                           << " in background drop queue.",
 
-      ut_free(drop->table_name);
+      ut::free(drop->table_name);
 
-  ut_free(drop);
+  ut::free(drop);
 
   mutex_exit(&row_drop_list_mutex);
 
   goto loop;
-}
-
-/** Get the background drop list length. NOTE: the caller must own the
- drop list mutex!
- @return how many tables in list */
-ulint row_get_background_drop_list_len_low(void) {
-  ulint len;
-
-  mutex_enter(&row_drop_list_mutex);
-
-  ut_a(row_mysql_drop_list_inited);
-
-  len = UT_LIST_GET_LEN(row_mysql_drop_list);
-
-  mutex_exit(&row_drop_list_mutex);
-
-  return (len);
 }
 
 /** If a table is not yet in the drop list, adds the table to the list of tables
@@ -3281,15 +3238,12 @@ static ibool row_add_table_to_background_drop_list(
   /* WL6049, remove after WL6049. */
   ut_ad(0);
 
-  row_mysql_drop_t *drop;
-
   mutex_enter(&row_drop_list_mutex);
 
   ut_a(row_mysql_drop_list_inited);
 
   /* Look if the table already is in the drop list */
-  for (drop = UT_LIST_GET_FIRST(row_mysql_drop_list); drop != nullptr;
-       drop = UT_LIST_GET_NEXT(row_mysql_drop_list, drop)) {
+  for (auto drop : row_mysql_drop_list) {
     if (strcmp(drop->table_name, name) == 0) {
       /* Already in the list */
 
@@ -3299,8 +3253,8 @@ static ibool row_add_table_to_background_drop_list(
     }
   }
 
-  drop = static_cast<row_mysql_drop_t *>(
-      ut_malloc_nokey(sizeof(row_mysql_drop_t)));
+  auto drop = static_cast<row_mysql_drop_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(row_mysql_drop_t)));
 
   drop->table_name = mem_strdup(name);
 
@@ -3477,13 +3431,13 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
   /* For SDI tables, acquire exclusive MDL and set sdi_table->ibd_file_missing
   to true. Purge on SDI table acquire shared MDL & also check for missing
   flag. */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   MDL_ticket *sdi_mdl = nullptr;
   err = dd_sdi_acquire_exclusive_mdl(trx->mysql_thd, table->space, &sdi_mdl);
   if (err != DB_SUCCESS) {
     return (err);
   }
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Play safe and remove all insert buffer entries, though we should
   have removed them already when DISCARD TABLESPACE was called */
@@ -3525,8 +3479,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
 
       /* Reset the root page numbers. */
 
-      for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+      for (auto index : table->indexes) {
         index->page = FIL_NULL;
         index->space = FIL_NULL;
       }
@@ -3680,9 +3633,9 @@ run_again:
 @param[in,out]	aux_vec		Fts aux table name vector
 @param[in,out]	trx		Transaction handle
 @return error code or DB_SUCCESS */
-UNIV_INLINE
-dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
-                                      aux_name_vec_t *aux_vec, trx_t *trx) {
+static inline dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
+                                                    aux_name_vec_t *aux_vec,
+                                                    trx_t *trx) {
   /* Drop ancillary FTS tables */
   if (dict_table_has_fts_index(table) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
@@ -3715,8 +3668,8 @@ dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
 @param[in,out]	table		Table cache entry
 @param[in,out]	trx		Transaction handle
 @return error code or DB_SUCCESS */
-UNIV_INLINE
-dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
+static inline dberr_t row_drop_table_from_cache(dict_table_t *table,
+                                                trx_t *trx) {
   /* Remove the pointer to this table object from the list
   of modified tables by the transaction because the object
   is going to be destroyed below. */
@@ -3726,8 +3679,7 @@ dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
     btr_drop_ahi_for_table(table);
     dict_table_remove_from_cache(table);
   } else {
-    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-         index != nullptr; index = UT_LIST_GET_FIRST(table->indexes)) {
+    while (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes)) {
       rw_lock_free(&index->lock);
 
       UT_LIST_REMOVE(table->indexes, index);
@@ -3754,7 +3706,8 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   if (!fil_space_exists_in_mem(space_id, nullptr, true, false)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
-      ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;
+      ib::info(ER_IB_MSG_989)
+          << "Removed datafile=" << filepath << ", space_id=" << space_id;
 
     } else {
       ib::info(ER_IB_MSG_990)
@@ -3766,8 +3719,8 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
       ib::error(ER_IB_MSG_991)
-          << "Failed to delete the datafile of"
-          << " tablespace " << space_id << ", file '" << filepath << "'!";
+          << "Failed to delete the datafile of tablespace ID=" << space_id
+          << ", file '" << filepath << "'!";
     }
   }
 
@@ -3819,7 +3772,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
       nonatomic = true;
     }
 
-    ut_ad(mutex_own(&dict_sys->mutex));
+    ut_ad(dict_sys_mutex_own());
     ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
     table = dict_table_check_if_in_cache_low(name);
@@ -3840,9 +3793,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
     /* Need to exclusive lock all AUX tables for drop table */
     if (table && table->fts) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       err = fts_lock_all_aux_tables(thd, table);
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       if (err != DB_SUCCESS) {
         dd_table_close(table, nullptr, nullptr, true);
@@ -3865,9 +3818,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   concurrent DROP while purge is happening on SDI table */
   if (file_per_table) {
     MDL_ticket *sdi_mdl = nullptr;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     err = dd_sdi_acquire_exclusive_mdl(thd, table->space, &sdi_mdl);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (err != DB_SUCCESS) {
       dd_table_close(table, nullptr, nullptr, true);
@@ -4042,12 +3995,12 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   }
 
   if (!table->is_temporary() && !file_per_table) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     for (dict_index_t *index = table->first_index();
          err == DB_SUCCESS && index != nullptr; index = index->next()) {
       err = log_ddl->write_free_tree_log(trx, index, true);
     }
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     if (err != DB_SUCCESS) {
       goto funct_exit;
     }
@@ -4144,7 +4097,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
 funct_exit:
 
-  ut_free(filepath);
+  ut::free(filepath);
 
   if (locked_dictionary) {
     row_mysql_unlock_data_dictionary(trx);
@@ -4155,7 +4108,7 @@ funct_exit:
 
   if (aux_vec.aux_name.size() > 0) {
     if (trx->dict_operation_lock_mode == RW_X_LATCH) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     if (!fts_drop_dd_tables(&aux_vec, file_per_table)) {
@@ -4163,7 +4116,7 @@ funct_exit:
     }
 
     if (trx->dict_operation_lock_mode == RW_X_LATCH) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
 
     fts_free_aux_names(&aux_vec);
@@ -4172,8 +4125,7 @@ funct_exit:
   return err;
 }
 
-MY_ATTRIBUTE((warn_unused_result))
-bool row_is_mysql_tmp_table_name(const char *name) {
+[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name) {
   return (strstr(name, "/" TEMP_FILE_PREFIX) != nullptr);
   /* return(strstr(name, "/@0023sql") != NULL); */
 }
@@ -4195,7 +4147,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 
   ut_a(old_name != nullptr);
   ut_a(new_name != nullptr);
-  ut_ad(trx->state == TRX_STATE_ACTIVE);
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+  ut_ad(trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   if (srv_force_recovery) {
     ib::info(ER_IB_MSG_995) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
@@ -4316,8 +4269,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
        table is opened. */
     if (is_rename || !table->refresh_fk) {
       if (dict_locked) {
-        ut_ad(mutex_own(&dict_sys->mutex));
-        mutex_exit(&dict_sys->mutex);
+        ut_ad(dict_sys_mutex_own());
+        dict_sys_mutex_exit();
       }
 
       err = dd_table_load_fk(client, new_name, nullptr, table, dd_table, thd,
@@ -4325,7 +4278,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                              &fk_tables);
 
       if (dict_locked) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
       }
 
       if (is_rename) {
@@ -4390,67 +4343,47 @@ funct_exit:
   return (err);
 }
 
-/** Read the total number of records in a consistent view.
-@param[in,out]  trx             Covering transaction.
-@param[in]  indexes             Indexes to scan.
-@param[in]  max_threads         Maximum number of threads to use.
-@param[out] n_rows              Number of rows seen.
-@return DB_SUCCESS or error code. */
 dberr_t row_mysql_parallel_select_count_star(
-    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t max_threads,
+    trx_t *trx, std::vector<dict_index_t *> &indexes, size_t n_threads,
     ulint *n_rows) {
+  ut_a(n_threads > 1);
   ut_a(!indexes.empty());
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
   Shards n_recs;
   Counter::clear(n_recs);
 
-  struct alignas(ut::INNODB_CACHE_LINE_SIZE) Check_interrupt {
-    size_t m_count{};
-    const buf_block_t *m_prev_block{};
-  };
-
-  Check_interrupt checker[Parallel_reader::MAX_THREADS] = {};
-
-  Parallel_reader reader(max_threads);
-
   const Parallel_reader::Scan_range FULL_SCAN;
 
-  // clang-format off
-  bool success{};
+  Parallel_reader reader(n_threads);
+
+  dberr_t err{DB_SUCCESS};
 
   for (auto index : indexes) {
     Parallel_reader::Config config(FULL_SCAN, index);
 
-    success =
-      reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
+    err = reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
       Counter::inc(n_recs, ctx->thread_id());
-
-      auto &check = checker[ctx->thread_id()];
-
-      if (ctx->m_block != check.m_prev_block) {
-        check.m_prev_block = ctx->m_block;
-
-        ++check.m_count;
-      }
-      return (DB_SUCCESS);
+      return DB_SUCCESS;
     });
 
-    if (!success) {
+    if (err != DB_SUCCESS) {
       break;
     }
   }
-  // clang-format on
 
-  auto err = success ? reader.run() : DB_ERROR;
+  if (err == DB_SUCCESS) {
+    err = reader.run(n_threads);
+  }
 
   if (err == DB_OUT_OF_RESOURCES) {
+    ut_a(n_threads > 0);
+
     ib::warn(ER_INNODB_OUT_OF_RESOURCES)
         << "Resource not available to create threads for parallel scan."
         << " Falling back to single thread mode.";
 
-    reader.fallback_to_single_threaded_mode();
-    err = reader.run();
+    err = reader.run(0);
   }
 
   if (err == DB_SUCCESS) {
@@ -4461,17 +4394,12 @@ dberr_t row_mysql_parallel_select_count_star(
     });
   }
 
-  return (err);
+  return err;
 }
 
-/** Scan the rows in parallel.
-@param[in,out] trx              Transaction covering the scan.
-@param[in] index                (Cluster) Index to scan.
-@param[in] max_threads          Maximum threads to use for the scan.
-@param[out] n_rows              Number of rows seen.
-@return DB_SUCCESS or error code. */
 static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
-                                    size_t max_threads, ulint *n_rows) {
+                                    size_t n_threads, ulint *n_rows) {
+  ut_a(n_threads > 1);
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
   Shards n_recs{};
@@ -4482,49 +4410,29 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   Counter::clear(n_recs);
   Counter::clear(n_corrupt);
 
-  using Tuples = std::vector<dtuple_t *, ut_allocator<dtuple_t *>>;
-  using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;
-  using Blocks =
-      std::vector<const buf_block_t *, ut_allocator<const buf_block_t *>>;
+  using Tuples = std::vector<dtuple_t *, ut::allocator<dtuple_t *>>;
+  using Heaps = std::vector<mem_heap_t *, ut::allocator<mem_heap_t *>>;
+  using Buf_block_allocator = ut::allocator<const buf_block_t *>;
+  using Blocks = std::vector<const buf_block_t *, Buf_block_allocator>;
 
+  Heaps heaps;
   Tuples prev_tuples;
   Blocks prev_blocks;
 
-  Heaps heaps;
-
-  for (size_t i = 0; i < max_threads; ++i) {
-    heaps.push_back(mem_heap_create(100));
+  for (size_t i = 0; i < n_threads; ++i) {
+    heaps.push_back(mem_heap_create(4096));
   }
 
-  /* Check for transaction interrupted every 1000 rows. */
-  size_t counter = 1000;
-
-  Parallel_reader reader(max_threads);
-
+  Parallel_reader reader(n_threads);
   Parallel_reader::Scan_range full_scan;
-
   Parallel_reader::Config config(full_scan, index);
 
-  // clang-format off
-  dberr_t err = reader.add_scan(
-    trx, config, [&](const Parallel_reader::Ctx* ctx) {
-
+  auto err = reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
     const auto rec = ctx->m_rec;
     const auto block = ctx->m_block;
     const auto id = ctx->thread_id();
 
     Counter::inc(n_recs, id);
-
-    /* Only check the THD state for the first thread. */
-    if (id == 0) {
-      --counter;
-
-      if (counter == 0 && trx_is_interrupted(trx)) {
-        return (DB_INTERRUPTED);
-      }
-
-      counter = 1000;
-    }
 
     auto heap = heaps[id];
 
@@ -4562,9 +4470,9 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
         Counter::inc(n_corrupt, id);
 
         ib::error(ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER)
-          << "Index records in a wrong order in " << index->name
-          << " of table " << index->table->name << ": " << *prev_tuple
-          << ", " << rec_offsets_print(rec, offsets);
+            << "Index records in a wrong order in " << index->name
+            << " of table " << index->table->name << ": " << *prev_tuple << ", "
+            << rec_offsets_print(rec, offsets);
         /* Continue reading */
       } else if (dict_index_is_unique(index) && !contains_null &&
                  matched_fields >=
@@ -4572,9 +4480,9 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
         Counter::inc(n_dups, id);
 
         ib::error(ER_IB_ERR_INDEX_DUPLICATE_KEY)
-          << "Duplicate key in " << index->name << " of table "
-          << index->table->name << ": " << *prev_tuple << ", "
-          << rec_offsets_print(rec, offsets);
+            << "Duplicate key in " << index->name << " of table "
+            << index->table->name << ": " << *prev_tuple << ", "
+            << rec_offsets_print(rec, offsets);
       }
     }
 
@@ -4587,25 +4495,23 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     prev_tuples[id] = row_rec_to_index_entry(rec, index, offsets, heap);
 
-    return (DB_SUCCESS);
+    return DB_SUCCESS;
   });
 
-  // clang-format off
-
   if (err == DB_SUCCESS) {
-    prev_tuples.resize(max_threads);
-    prev_blocks.resize(max_threads);
+    prev_tuples.resize(n_threads);
+    prev_blocks.resize(n_threads);
 
-    err = reader.run();
+    err = reader.run(n_threads);
   }
 
   if (err == DB_OUT_OF_RESOURCES) {
+    ut_a(n_threads > 0);
     ib::warn(ER_INNODB_OUT_OF_RESOURCES)
-      << "Resource not available to create threads for parallel scan."
-      << " Falling back to single thread mode.";
+        << "Resource not available to create threads for parallel scan."
+        << " Falling back to single thread mode.";
 
-    reader.fallback_to_single_threaded_mode();
-    err = reader.run();
+    err = reader.run(0);
   }
 
   for (auto heap : heaps) {
@@ -4614,26 +4520,27 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
   if (Counter::total(n_dups) > 0) {
     ib::error(ER_IB_ERR_FOUND_N_DUPLICATE_KEYS)
-      << "Found " << Counter::total(n_dups) << " duplicate rows in "
-      << index->name;
+        << "Found " << Counter::total(n_dups) << " duplicate rows in "
+        << index->name;
 
     err = DB_DUPLICATE_KEY;
   }
 
   if (Counter::total(n_corrupt) > 0) {
-    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER) << "Found " << Counter::total(n_corrupt)
-                << " rows in the wrong order in " << index->name;
+    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER)
+        << "Found " << Counter::total(n_corrupt)
+        << " rows in the wrong order in " << index->name;
 
     err = DB_INDEX_CORRUPT;
   }
 
   *n_rows = Counter::total(n_recs);
 
-  return (err);
+  return err;
 }
 
 dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
-                                 size_t n_threads, bool check_keys,
+                                 size_t max_threads, bool check_keys,
                                  ulint *n_rows) {
   *n_rows = 0;
 
@@ -4661,10 +4568,9 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       prebuilt->select_lock_type == LOCK_NONE && index->is_clustered() &&
       (check_keys || prebuilt->trx->mysql_n_tables_locked == 0) &&
       !prebuilt->ins_sel_stmt) {
+    auto n_threads = Parallel_reader::available_threads(max_threads, false);
 
-    n_threads = Parallel_reader::available_threads(n_threads);
-
-    if (n_threads > 0) {
+    if (n_threads > 1) {
       /* No INSERT INTO  ... SELECT  and non-locking selects only. */
       trx_start_if_not_started_xa(prebuilt->trx, false);
 
@@ -4674,16 +4580,19 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
 
       ut_a(prebuilt->table == index->table);
 
-      std::vector<dict_index_t*> indexes;
+      std::vector<dict_index_t *> indexes;
 
       indexes.push_back(index);
 
       if (!check_keys) {
-        return (row_mysql_parallel_select_count_star(trx, indexes, n_threads,
-                                                     n_rows));
+        return row_mysql_parallel_select_count_star(trx, indexes, n_threads,
+                                                    n_rows);
       }
 
-      return (parallel_check_table(trx, index, n_threads, n_rows));
+      return parallel_check_table(trx, index, n_threads, n_rows);
+    } else if (n_threads == 1) {
+      /* If there is a single thread available then we do a sync scan. */
+      Parallel_reader::release_threads(n_threads);
     }
   }
 
@@ -4702,7 +4611,8 @@ skip_parallel_read:
 
   ulint cnt = 1000;
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  auto buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
+  auto buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, bufsize));
   auto heap = mem_heap_create(100);
 
   auto ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -4732,11 +4642,12 @@ loop:
                                   " table "
                                << index->table->name << " returned " << ret;
     }
-    /* fall through (this error is ignored by CHECK TABLE) */
+      /* fall through (this error is ignored by CHECK TABLE) */
+      [[fallthrough]];
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:
-      ut_free(buf);
+      ut::free(buf);
       mem_heap_free(heap);
 
       return (ret);
@@ -4828,8 +4739,6 @@ next_rec:
 void row_mysql_init(void) {
   mutex_create(LATCH_ID_ROW_DROP_LIST, &row_drop_list_mutex);
 
-  UT_LIST_INIT(row_mysql_drop_list, &row_mysql_drop_t::row_mysql_drop_list);
-
   row_mysql_drop_list_inited = TRUE;
 }
 
@@ -4874,8 +4783,8 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
 
   /* Skip concurrency ticket while implicitly updating GTID table. This is to
   avoid deadlock otherwise possible with low innodb_thread_concurrency.
-  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID flush
-  GTID Background: Write to GTID table -> wait for innodb ticket. */
+  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID
+  flush GTID Background: Write to GTID table -> wait for innodb ticket. */
   auto thd = trx->mysql_thd;
   if (thd == nullptr) {
     thd = current_thd;

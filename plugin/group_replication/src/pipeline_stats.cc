@@ -103,7 +103,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
   decode(buf, len);
 }
 
-Pipeline_stats_member_message::~Pipeline_stats_member_message() {}
+Pipeline_stats_member_message::~Pipeline_stats_member_message() = default;
 
 int32 Pipeline_stats_member_message::get_transactions_waiting_certification() {
   DBUG_TRACE;

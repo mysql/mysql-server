@@ -93,7 +93,7 @@ class PFS_index_status_by_host : public PFS_engine_index {
         m_key_1("HOST"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_host() override {}
+  ~PFS_index_status_by_host() override = default;
 
   virtual bool match(PFS_host *pfs);
   virtual bool match(const Status_variable *pfs);
@@ -129,7 +129,7 @@ class table_status_by_host : public PFS_engine_table {
   table_status_by_host();
 
  public:
-  ~table_status_by_host() override {}
+  ~table_status_by_host() override = default;
 
  protected:
   int make_row(PFS_host *pfs_host, const Status_variable *status_var);

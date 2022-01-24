@@ -5,18 +5,18 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 create view coord_wait_list as
 SELECT id from Information_Schema.processlist
-where state like 'Waiting for Slave Worker%';
+where state like 'Waiting for Replica Worker%';
 include/stop_slave.inc
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 4;
 create view worker_wait_list as
 SELECT id from Information_Schema.processlist
 where state like 'Waiting for an event from Coordinator';
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-set @save_slave_pending_jobs_size_max = @@global.slave_pending_jobs_size_max;
-set @@global.slave_pending_jobs_size_max= 1024;
+set @save_replica_pending_jobs_size_max = @@global.replica_pending_jobs_size_max;
+set @@global.replica_pending_jobs_size_max= 1024;
 include/start_slave.inc
 Configured number of Workers is started.
 create database d0;
@@ -28,10 +28,10 @@ begin;
 commit;
 *** Coordinator must be waiting for Workers have released pending events mem ***
 rollback;
-set @@global.slave_pending_jobs_size_max= @save_slave_pending_jobs_size_max;
+set @@global.replica_pending_jobs_size_max= @save_replica_pending_jobs_size_max;
 drop database d0;
 include/sync_slave_sql_with_master.inc
 drop view coord_wait_list;
 drop view worker_wait_list;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/rpl_end.inc

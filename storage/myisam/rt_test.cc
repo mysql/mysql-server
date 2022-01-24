@@ -79,7 +79,7 @@ static double rt_data[] = {
     /*19*/ 110, 120, 10, 20,
     /*20*/ 100, 110, 0,  10, -1};
 
-int main(int argc MY_ATTRIBUTE((unused)), char *argv[] MY_ATTRIBUTE((unused))) {
+int main(int argc [[maybe_unused]], char *argv[] [[maybe_unused]]) {
   MY_INIT(argv[0]);
   exit(run_test("rt_test"));
 }
@@ -319,7 +319,7 @@ static int read_with_pos(MI_INFO *file, int silent) {
   return 0;
 }
 
-static void print_record(uchar *record, my_off_t offs MY_ATTRIBUTE((unused)),
+static void print_record(uchar *record, my_off_t offs [[maybe_unused]],
                          const char *tail) {
   int i;
   uchar *pos;

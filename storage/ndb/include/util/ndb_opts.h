@@ -106,9 +106,9 @@ OPT_EXTERN(const char *,opt_debug,= 0);
   {"connect-retries", NDB_OPT_NOSHORT, \
      "Set connection retries." \
      " This is the number of times the tool tries connecting" \
-     " to the cluster.", \
+     " to the cluster. -1 for eternal retries", \
      (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, GET_INT, \
-     REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0}
+     REQUIRED_ARG, 12, -1, INT_MAX, 0, 0, 0}
 
 #ifndef NDEBUG
 #define NDB_STD_OPTS(prog_name) \
@@ -146,7 +146,7 @@ void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
 bool
 ndb_std_get_one_option(int optid,
-		       const struct my_option *opt MY_ATTRIBUTE((unused)),
+		       const struct my_option *opt [[maybe_unused]],
                        char *argument);
 
 void ndb_short_usage_sub(const char* extra);

@@ -1520,7 +1520,7 @@ int ha_warp::rnd_init(bool) {
   */
   set_column_set();
 
-  /* push_where_clause is populated in ha_warp::cond_push() which is the
+  /* push_where_clause is populated in ha_warp::prep_cond_push() which is the
      handler function invoked by engine condition pushdown.  When ECP is
      used, then push_where_clause will be a non-empty string.  If it
      isn't used, then the WHERE clause is set such that Fastbit will
@@ -2480,10 +2480,10 @@ int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
 */
 
 /**
- * This function replaces (for SELECT queries) the handler::cond_push
+ * This function replaces (for SELECT queries) the handler::prep_cond_push
  * function.  Instead of using an array of ITEM* it uses an
  * abstract query plan.
- * This function now calls ha_warp::cond_push to do the work that it used
+ * This function now calls ha_warp::prep_cond_push to do the work that it used
  * to do in 8.0.20
  * @param table_aqp The specific table in the join plan to examine.
  * @return Possible error code, '0' if no errors.
@@ -2510,7 +2510,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
     str.reserve(1024*1024);
     cond2->print(current_thd, &str, QT_ORDINARY);
     // the pushdown information should already have been created in ::info
-    remainder = cond_push(cond, true);
+    remainder = prep_cond_push(cond, true);
     
     //if(remainder == nullptr) {
     //  pushed_cond = cond;
@@ -2531,7 +2531,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
 
    This code is called from ha_warp::engine_push in 8.0.20+
 */
-const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
+const Item *ha_warp::prep_cond_push(const Item *cond, bool other_tbls_ok) {
   
   static int depth=0;
   static int unpushed_condition_count = 0;
@@ -2585,7 +2585,7 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
       */
       ++depth;
       
-      if(cond_push(item, other_tbls_ok) != NULL) {
+      if(prep_cond_push(item, other_tbls_ok) != NULL) {
         unpushed_condition_count++;
         //items->push_back(item);
       }

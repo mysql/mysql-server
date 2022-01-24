@@ -12,7 +12,7 @@ gtid_executed	CREATE TABLE `gtid_executed` (
   `interval_start` bigint NOT NULL COMMENT 'First number of interval.',
   `interval_end` bigint NOT NULL COMMENT 'Last number of interval.',
   PRIMARY KEY (`source_uuid`,`interval_start`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 #
 # Verify that the specified gtid to GTID_NEXT can be reported from
 # global.gtid_executed and is stored into gtid_executed table on

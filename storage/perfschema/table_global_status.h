@@ -62,7 +62,7 @@ class PFS_index_global_status : public PFS_engine_index {
   PFS_index_global_status()
       : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_global_status() override {}
+  ~PFS_index_global_status() override = default;
 
   virtual bool match(const Status_variable *pfs);
 
@@ -96,7 +96,7 @@ class table_global_status : public PFS_engine_table {
   table_global_status();
 
  public:
-  ~table_global_status() override {}
+  ~table_global_status() override = default;
 
  protected:
   int make_row(const Status_variable *system_var);

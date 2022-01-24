@@ -1,2 +1,2 @@
 $UDF_EXAMPLE_LIB_OPT
---skip-log-bin --relay_log_info_repository=TABLE --sync-master-info=1 --skip-log-slave-updates
+--skip-log-bin --relay_log_info_repository=TABLE --sync-source-info=1 --skip-log-replica-updates

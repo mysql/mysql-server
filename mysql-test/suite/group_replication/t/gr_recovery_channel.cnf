@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 [mysqld.1]
-skip-slave-start=   FALSE
+skip-replica-start=   FALSE
 
 [mysqld.2]
 

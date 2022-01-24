@@ -711,11 +711,13 @@ SELECT INET6_NTOA('1234'), INET6_NTOA(BINARY('1234'));
 INET6_NTOA('1234')	INET6_NTOA(BINARY('1234'))
 NULL	49.50.51.52
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1411	Incorrect string value: ''1234'' for function inet6_ntoa
 SELECT INET6_NTOA('0123456789abcdef'), INET6_NTOA(BINARY('0123456789abcdef'));
 INET6_NTOA('0123456789abcdef')	INET6_NTOA(BINARY('0123456789abcdef'))
 NULL	3031:3233:3435:3637:3839:6162:6364:6566
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1411	Incorrect string value: ''0123456789abcdef'' for function inet6_ntoa
 
 # -- Checking double-conversion...
@@ -925,6 +927,8 @@ IS_IPV4('::1')
 SELECT IS_IPV4(BINARY('1.2.3.4'));
 IS_IPV4(BINARY('1.2.3.4'))
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT IS_IPV6(NULL);
 IS_IPV6(NULL)
 NULL
@@ -955,6 +959,8 @@ IS_IPV6('0000:0000:0000:0000:0000:0000:0000:0001')
 SELECT IS_IPV6(BINARY('0000:0000:0000:0000:0000:0000:0000:0001'));
 IS_IPV6(BINARY('0000:0000:0000:0000:0000:0000:0000:0001'))
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 
 # -- Checking IS_IPV4_MAPPED() and IS_IPV4_COMPAT()...
 
@@ -1130,7 +1136,7 @@ CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp9
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(5) CHARACTER SET cp932 DEFAULT NULL
+  `a` varchar(6) CHARACTER SET cp932 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Bug#28892294: Segmentation fault at get_time_value()

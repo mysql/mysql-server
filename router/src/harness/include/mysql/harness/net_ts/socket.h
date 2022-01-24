@@ -60,22 +60,100 @@ namespace net {
 // 18.3 [socket.err]
 // implemented in impl/socket_error.h
 
+// 18.5 [socket.opt]
+
+namespace socket_option {
+
+/**
+ * base-class of socket options.
+ *
+ * can be used to implement type safe socket options.
+ *
+ * @see socket_option::integer
+ * @see socket_option::boolen
+ */
+template <int Level, int Name, class T, class V = T>
+class option_base {
+ public:
+  using value_type = T;
+  using storage_type = V;
+
+  constexpr option_base() : value_{} {}
+
+  constexpr explicit option_base(value_type v)
+      : value_{static_cast<storage_type>(v)} {}
+
+  value_type value() const { return value_; }
+
+  template <typename Protocol>
+  constexpr int level(const Protocol & /* unused */) const noexcept {
+    return Level;
+  }
+
+  template <typename Protocol>
+  constexpr int name(const Protocol & /* unused */) const noexcept {
+    return Name;
+  }
+
+  template <typename Protocol>
+  const storage_type *data(const Protocol & /* unused */) const {
+    return std::addressof(value_);
+  }
+
+  template <typename Protocol>
+  storage_type *data(const Protocol & /* unused */) {
+    return std::addressof(value_);
+  }
+
+  template <typename Protocol>
+  constexpr size_t size(const Protocol & /* unused */) const {
+    return sizeof(value_);
+  }
+
+  template <class Protocol>
+  void resize(const Protocol & /* p */, size_t s) {
+    if (s != sizeof(value_)) {
+      throw std::length_error("size != sizeof(value_)");
+    }
+  }
+
+ private:
+  storage_type value_;
+};
+
+/**
+ * socket option that uses bool as value_type.
+ */
+template <int Level, int Name>
+using boolean = option_base<Level, Name, bool, int>;
+
+/**
+ * socket option that uses int as value_type.
+ */
+template <int Level, int Name>
+using integer = option_base<Level, Name, int, int>;
+
+}  // namespace socket_option
+
 // 18.4 [socket.base]
 
 class socket_base {
  public:
-  class broadcast;
-  class debug;
-  class do_not_route;
-  class error;  // not part of std
-  class keep_alive;
+  using broadcast = socket_option::boolean<SOL_SOCKET, SO_BROADCAST>;
+  using debug = socket_option::boolean<SOL_SOCKET, SO_DEBUG>;
+  using do_not_route = socket_option::boolean<SOL_SOCKET, SO_DONTROUTE>;
+  using error =
+      socket_option::integer<SOL_SOCKET, SO_ERROR>;  // not part of std
+  using keep_alive = socket_option::boolean<SOL_SOCKET, SO_KEEPALIVE>;
+
   class linger;
-  class out_of_band_inline;
-  class receive_buffer_size;
-  class receive_low_watermark;
-  class reuse_address;
-  class send_buffer_size;
-  class send_low_watermark;
+
+  using out_of_band_inline = socket_option::boolean<SOL_SOCKET, SO_OOBINLINE>;
+  using receive_buffer_size = socket_option::integer<SOL_SOCKET, SO_RCVBUF>;
+  using receive_low_watermark = socket_option::integer<SOL_SOCKET, SO_RCVLOWAT>;
+  using reuse_address = socket_option::boolean<SOL_SOCKET, SO_REUSEADDR>;
+  using send_buffer_size = socket_option::integer<SOL_SOCKET, SO_SNDBUF>;
+  using send_low_watermark = socket_option::integer<SOL_SOCKET, SO_SNDLOWAT>;
 
   using message_flags = impl::socket::message_flags;
 
@@ -188,109 +266,6 @@ class socket_base {
   };
 };
 
-// 18.5 [socket.opt]
-
-namespace socket_option {
-
-/**
- * base-class of socket options.
- *
- * can be used to implement type safe socket options.
- *
- * @see socket_option::integer
- * @see socket_option::boolen
- */
-template <int Level, int Name, class T, class V = T>
-class option_base {
- public:
-  using value_type = T;
-  using storage_type = V;
-
-  constexpr option_base() : value_{} {}
-
-  constexpr explicit option_base(value_type v)
-      : value_{static_cast<storage_type>(v)} {}
-
-  value_type value() const { return value_; }
-
-  template <typename Protocol>
-  constexpr int level(const Protocol & /* unused */) const noexcept {
-    return Level;
-  }
-
-  template <typename Protocol>
-  constexpr int name(const Protocol & /* unused */) const noexcept {
-    return Name;
-  }
-
-  template <typename Protocol>
-  const storage_type *data(const Protocol & /* unused */) const {
-    return std::addressof(value_);
-  }
-
-  template <typename Protocol>
-  storage_type *data(const Protocol & /* unused */) {
-    return std::addressof(value_);
-  }
-
-  template <typename Protocol>
-  constexpr size_t size(const Protocol & /* unused */) const {
-    return sizeof(value_);
-  }
-
-  template <class Protocol>
-  void resize(const Protocol & /* p */, size_t s) {
-    if (s != sizeof(value_)) {
-      throw std::length_error("size != sizeof(value_)");
-    }
-  }
-
- private:
-  storage_type value_;
-};
-
-/**
- * socket option that uses bool as value_type.
- */
-template <int Level, int Name>
-using boolean = option_base<Level, Name, bool, int>;
-
-/**
- * socket option that uses int as value_type.
- */
-template <int Level, int Name>
-using integer = option_base<Level, Name, int, int>;
-
-}  // namespace socket_option
-
-class socket_base::broadcast
-    : public socket_option::boolean<SOL_SOCKET, SO_BROADCAST> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_BROADCAST>;
-  using __base::__base;
-};
-
-class socket_base::debug : public socket_option::boolean<SOL_SOCKET, SO_DEBUG> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_DEBUG>;
-  using __base::__base;
-};
-
-class socket_base::do_not_route
-    : public socket_option::boolean<SOL_SOCKET, SO_DONTROUTE> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_DONTROUTE>;
-  using __base::__base;
-};
-
-class socket_base::error : public socket_option::integer<SOL_SOCKET, SO_ERROR> {
-  using __base = socket_option::integer<SOL_SOCKET, SO_ERROR>;
-  using __base::__base;
-};
-
-class socket_base::keep_alive
-    : public socket_option::boolean<SOL_SOCKET, SO_KEEPALIVE> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_KEEPALIVE>;
-  using __base::__base;
-};
-
 // 18.5.1
 
 /**
@@ -347,42 +322,6 @@ class socket_base::linger {
 
  private:
   ::linger value_;
-};
-
-class socket_base::out_of_band_inline
-    : public socket_option::boolean<SOL_SOCKET, SO_OOBINLINE> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_OOBINLINE>;
-  using __base::__base;
-};
-
-class socket_base::receive_buffer_size
-    : public socket_option::integer<SOL_SOCKET, SO_RCVBUF> {
-  using __base = socket_option::integer<SOL_SOCKET, SO_RCVBUF>;
-  using __base::__base;
-};
-
-class socket_base::receive_low_watermark
-    : public socket_option::integer<SOL_SOCKET, SO_RCVLOWAT> {
-  using __base = socket_option::integer<SOL_SOCKET, SO_RCVLOWAT>;
-  using __base::__base;
-};
-
-class socket_base::reuse_address
-    : public socket_option::boolean<SOL_SOCKET, SO_REUSEADDR> {
-  using __base = socket_option::boolean<SOL_SOCKET, SO_REUSEADDR>;
-  using __base::__base;
-};
-
-class socket_base::send_buffer_size
-    : public socket_option::integer<SOL_SOCKET, SO_SNDBUF> {
-  using __base = socket_option::integer<SOL_SOCKET, SO_SNDBUF>;
-  using __base::__base;
-};
-
-class socket_base::send_low_watermark
-    : public socket_option::integer<SOL_SOCKET, SO_SNDLOWAT> {
-  using __base = socket_option::integer<SOL_SOCKET, SO_SNDLOWAT>;
-  using __base::__base;
 };
 
 /**
@@ -611,7 +550,7 @@ class basic_socket_impl : public basic_socket_impl_base {
                                                  endpoint_size);
     if (!res) return stdx::make_unexpected(res.error());
 
-    return {stdx::in_place, io_ctx, protocol_, std::move(res.value())};
+    return {std::in_place, io_ctx, protocol_, std::move(res.value())};
   }
 
   stdx::expected<socket_type, error_type> accept(io_context &io_ctx,
@@ -796,6 +735,71 @@ class basic_socket : public socket_base, private basic_socket_impl<Protocol> {
         native_handle(),
         reinterpret_cast<const struct sockaddr *>(endpoint.data()),
         endpoint.size());
+  }
+
+  template <class CompletionToken>
+  auto async_connect(const endpoint_type &endpoint, CompletionToken &&token) {
+    async_completion<CompletionToken, void(std::error_code)> init{token};
+
+    if (!is_open()) {
+      auto res = open(endpoint.protocol());
+      if (!res) {
+        init.completion_handler(res.error());
+
+        return;
+      }
+    }
+
+    net::defer(get_executor(), [this, endpoint,
+                                __compl_handler =
+                                    std::move(init.completion_handler)]() {
+      // remember the non-blocking flag.
+      const auto old_non_blocking = native_non_blocking();
+      if (old_non_blocking == false) native_non_blocking(true);
+
+      auto res = connect(endpoint);
+
+      // restore the non-blocking flag if needed.
+      if (old_non_blocking == false) native_non_blocking(false);
+
+      if (res) {
+        __compl_handler({});
+      } else {
+        const auto ec = res.error();
+
+        if ((ec !=
+             make_error_condition(std::errc::operation_in_progress)) /* posix */
+            && (ec != make_error_condition(
+                          std::errc::operation_would_block)) /* windows */) {
+          __compl_handler(ec);
+        } else {
+          get_executor().context().async_wait(
+              native_handle(), net::socket_base::wait_write,
+              [this, __compl_handler = std::move(__compl_handler)](
+                  std::error_code ec) mutable {
+                if (ec) {
+                  __compl_handler(ec);
+                  return;
+                }
+
+                // finish the non-blocking connect
+                net::socket_base::error so_error;
+
+                auto res = get_option(so_error);
+                if (!res) {
+                  __compl_handler(res.error());
+                  return;
+                }
+
+                // if so_error.value() is 0, the error_code will be 0 too
+                __compl_handler(
+                    impl::socket::make_error_code(so_error.value()));
+              });
+        }
+      }
+    });
+
+    return init.result.get();
   }
 
   stdx::expected<void, error_type> bind(const endpoint_type &endpoint) {
@@ -1557,6 +1561,68 @@ class basic_socket_acceptor : public socket_base,
   }
 
   template <class CompletionToken>
+  auto async_accept(endpoint_type &endpoint, CompletionToken &&token) {
+    return async_accept(get_executor().context(), endpoint,
+                        std::forward<CompletionToken>(token));
+  }
+
+  /**
+   * accept a connection with endpoint async'.
+   *
+   * - returns immediately
+   * - calls completiontoken when finished
+   *
+   * @param [in,out] io_ctx io-context to execute the waiting/execution in
+   * @param [out] endpoint remote endpoint of the accepted connection
+   * @param [in] token completion token of type 'void(std::error_code,
+   * socket_type)'
+   */
+  template <class CompletionToken>
+  auto async_accept(io_context &io_ctx, endpoint_type &endpoint,
+                    CompletionToken &&token) {
+    async_completion<CompletionToken, void(std::error_code, socket_type)> init{
+        token};
+
+    // - wait for acceptor to become readable
+    // - accept() it.
+    // - call completion with socket
+    io_ctx.get_executor().context().async_wait(
+        native_handle(), socket_base::wait_read,
+        [this, __compl_handler = std::move(init.completion_handler),
+         __protocol = protocol_, __fd = native_handle(), &__ep = endpoint,
+         &io_ctx](std::error_code ec) mutable {
+          if (ec) {
+            __compl_handler(ec, socket_type(io_ctx));
+            return;
+          }
+
+          while (true) {
+            socklen_t endpoint_len = __ep.capacity();
+
+            auto res = this->get_executor().context().socket_service()->accept(
+                __fd, static_cast<sockaddr *>(__ep.data()), &endpoint_len);
+
+            if (!res && !enable_connection_aborted() &&
+                res.error() ==
+                    make_error_condition(std::errc::connection_aborted)) {
+              continue;
+            }
+
+            if (!res) {
+              __compl_handler(res.error(), socket_type(io_ctx));
+            } else {
+              __ep.resize(endpoint_len);
+
+              __compl_handler({}, socket_type{io_ctx, __protocol, res.value()});
+            }
+            return;
+          }
+        });
+
+    return init.result.get();
+  }
+
+  template <class CompletionToken>
   auto async_accept(CompletionToken &&token) {
     return async_accept(get_executor().context(),
                         std::forward<CompletionToken>(token));
@@ -1724,6 +1790,7 @@ stdx::expected<InputIterator, std::error_code> connect(
 
   return stdx::make_unexpected(make_error_code(socket_errc::not_found));
 }
+
 template <class Protocol, class InputIterator, class ConnectCondition>
 stdx::expected<InputIterator, std::error_code> connect(
     basic_socket<Protocol> &s, InputIterator first, InputIterator last) {

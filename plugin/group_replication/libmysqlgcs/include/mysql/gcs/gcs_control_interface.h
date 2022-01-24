@@ -206,7 +206,7 @@ class Gcs_control_interface {
   */
   virtual enum_gcs_error set_xcom_cache_size(uint64_t size) = 0;
 
-  virtual ~Gcs_control_interface() {}
+  virtual ~Gcs_control_interface() = default;
 };
 
 #endif  // GCS_CONTROL_INTERFACE_INCLUDED

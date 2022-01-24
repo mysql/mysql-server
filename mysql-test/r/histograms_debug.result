@@ -203,3 +203,52 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 16 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col1'.
 DROP TABLE t1;
+#
+# Additional tests for bug#29634540 "DROP DATABASE OF 1 MILLION
+# TABLES ...".
+#
+# Check that DROP DATABASE statement doesn't acquire metadata locks
+# on column statistics while dropping it.
+#
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (i INT);
+INSERT INTO mysqltest.t1 VALUES (1), (2), (3);
+ANALYZE TABLE mysqltest.t1 UPDATE HISTOGRAM ON i WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	histogram	status	Histogram statistics created for column 'i'.
+CREATE TABLE mysqltest.t2 (j INT);
+# Run DROP DATABASE which will be paused near its end.
+SET DEBUG_SYNC = 'rm_table_no_locks_before_binlog SIGNAL drop_waiting WAIT_FOR drop_resume';
+DROP DATABASE mysqltest;
+connect con1, localhost, root,,;
+# Wait until DROP DATABASE gets paused and check what MDL
+# it has acquired. There should be X locks on both tables
+# and no locks on column statistics.
+SET DEBUG_SYNC = 'now WAIT_FOR drop_waiting';
+SELECT object_type, object_schema, object_name, column_name, lock_type
+FROM performance_schema.metadata_locks
+WHERE object_schema = "mysqltest"
+  ORDER BY object_type, object_schema, object_name, column_name, lock_type;
+object_type	object_schema	object_name	column_name	lock_type
+SCHEMA	mysqltest	NULL	NULL	EXCLUSIVE
+TABLE	mysqltest	t1	NULL	EXCLUSIVE
+TABLE	mysqltest	t2	NULL	EXCLUSIVE
+#
+# Run concurrent ANALYZE TABLE ... DROP HISTOGRAM on table from
+# database being dropped.
+ANALYZE TABLE mysqltest.t1 DROP HISTOGRAM ON i;
+connect con2, localhost, root,,;
+# Check that it will be blocked thanks to table MDL.
+# Unpause DROP DATABASE.
+SET DEBUG_SYNC = 'now SIGNAL drop_resume';
+disconnect con2;
+connection con1;
+# Reap ANALYZE TABLE ... DROP HISTOGRAM, which should not have
+# found any histograms since database has been dropped.
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	histogram	Error	No histogram statistics found for column 'i'.
+disconnect con1;
+connection default;
+# Reap DROP DATABASE
+# Clean-up.
+SET DEBUG_SYNC = 'RESET';

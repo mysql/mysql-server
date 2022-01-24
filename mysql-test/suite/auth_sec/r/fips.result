@@ -22,7 +22,7 @@ MD5 digest:
 md5(8)
 00000000000000000000000000000000
 Level	Code	Message
-Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 ##Test: Set server fips mode: STRICT.
 Server fips mode:
 Variable_name	Value
@@ -31,7 +31,7 @@ MD5 digest:
 md5(8)
 00000000000000000000000000000000
 Level	Code	Message
-Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 ##Test: Set server fips mode: INVALID.
 Server fips mode:
 Variable_name	Value
@@ -51,7 +51,7 @@ MD5 digest:
 md5(8)
 00000000000000000000000000000000
 Level	Code	Message
-Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 ##Test: Restart server and provide ssl-fips-mode at server startup: ON with skip ssl
 Server fips mode:
 Variable_name	Value
@@ -60,7 +60,7 @@ MD5 digest:
 md5(8)
 00000000000000000000000000000000
 Level	Code	Message
-Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 ##Test: Restart server and provide ssl-fips-mode at server startup: STRICT
 Server fips mode:
 Variable_name	Value
@@ -69,7 +69,7 @@ MD5 digest:
 md5(8)
 00000000000000000000000000000000
 Level	Code	Message
-Warning	11272	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 ##Test: Restart server and provide weak cipher CAMELLIA256-SHA
 client will only able to connect with only FIPS mode OFF
 Variable_name	Value

@@ -269,11 +269,11 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert ignore into t2 select a from t1;
 Warnings:
-Warning	1062	Duplicate entry '5' for key 't2.PRIMARY'
-Warning	1062	Duplicate entry '4' for key 't2.PRIMARY'
-Warning	1062	Duplicate entry '3' for key 't2.PRIMARY'
-Warning	1062	Duplicate entry '2' for key 't2.PRIMARY'
 Warning	1062	Duplicate entry '1' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '2' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '3' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '4' for key 't2.PRIMARY'
+Warning	1062	Duplicate entry '5' for key 't2.PRIMARY'
 select * from t2;
 a
 7

@@ -138,7 +138,7 @@ ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   @brief Destructor
 */
 
-ha_myisammrg::~ha_myisammrg(void) { free_root(&children_mem_root, MYF(0)); }
+ha_myisammrg::~ha_myisammrg(void) { children_mem_root.Clear(); }
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
@@ -307,9 +307,9 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   and adds a child list of TABLE_LIST to the parent handler.
 */
 
-int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
+int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
                        uint test_if_locked_arg,
-                       const dd::Table *table_def MY_ATTRIBUTE((unused))) {
+                       const dd::Table *table_def [[maybe_unused]]) {
   DBUG_TRACE;
   DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
   DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
@@ -321,7 +321,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
   test_if_locked = test_if_locked_arg;
 
   /* In case this handler was open and closed before, free old data. */
-  free_root(&this->children_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+  this->children_mem_root.ClearForReuse();
 
   /*
     Initialize variables that are used, modified, and/or set by
@@ -1065,9 +1065,8 @@ int ha_myisammrg::index_last(uchar *buf) {
   return error;
 }
 
-int ha_myisammrg::index_next_same(uchar *buf,
-                                  const uchar *key MY_ATTRIBUTE((unused)),
-                                  uint length MY_ATTRIBUTE((unused))) {
+int ha_myisammrg::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
+                                  uint length [[maybe_unused]]) {
   int error;
   assert(this->file->children_attached);
   ha_statistic_increment(&System_status_var::ha_read_next_count);

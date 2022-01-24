@@ -144,7 +144,7 @@ const char *get_type(TYPELIB *typelib, uint nr) {
 }
 
 /**
-  Create an integer value to represent the supplied comma-seperated
+  Create an integer value to represent the supplied comma-separated
   string where each string in the TYPELIB denotes a bit position.
 
   @param x      string to decompose

@@ -4,7 +4,7 @@
 # rpl info on table and also storing GTIDs on table) when a relay log split
 # a transaction letting the GTID event in one relay log file and the rest of
 # the transaction on the next relay log file. The reported issue happened when
-# log-slave-updates was off and relay-log-info-repository was set to TABLE,
+# log-replica-updates was off and relay-log-info-repository was set to TABLE,
 # both defined at test case '-slave.opt' file.
 #
 # The test case will generate a stream of events with two "transactions" and
@@ -15,7 +15,7 @@
 #
 # ==== Related Bugs and Worklogs ====
 #
-# BUG#20451386 SQL THREAD CRASH: LOG-SLAVE-UPDATES OFF, RELAY LOG ENDS
+# BUG#20451386 SQL THREAD CRASH: LOG-REPLICA-UPDATES OFF, RELAY LOG ENDS
 #              WITH GTID_LOG_EVENT
 
 # This test should run only on debug build

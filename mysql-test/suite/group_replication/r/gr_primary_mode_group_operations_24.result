@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    configuration is accepted
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 [connection server2]
+[connection server3]
 
 # 2. Execute switch to single primary mode
 [connection server1]

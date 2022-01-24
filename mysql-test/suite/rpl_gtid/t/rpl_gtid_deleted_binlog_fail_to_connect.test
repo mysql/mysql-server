@@ -27,6 +27,7 @@
 
 # This test is binlog format agnostic
 --source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --let $rpl_gtid_utils= 1
 

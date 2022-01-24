@@ -1,6 +1,6 @@
 # Test for 
-# Bug #33931  	assertion at write_ignored_events_info_to_relay_log if init_slave_thread() fails
-# Bug #33932  	assertion at handle_slave_sql if init_slave_thread() fails
+# Bug #33931  	assertion at write_ignored_events_info_to_relay_log if init_replica_thread() fails
+# Bug #33932  	assertion at handle_slave_sql if init_replica_thread() fails
 
 --source include/not_group_replication_plugin.inc
 source include/have_debug.inc;
@@ -16,7 +16,10 @@ call mtr.add_suppression("Slave SQL.*Failed during slave thread initialization.*
 reset slave;
 
 # Set debug flags on slave to force errors to occur
-SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+--let $debug_point= simulate_io_replica_error_on_init
+--source include/add_debug_point.inc
+--let $debug_point= simulate_sql_replica_error_on_init
+--source include/add_debug_point.inc
 
 --disable_query_log
 --replace_regex /[0-9]{4}/####/
@@ -45,7 +48,10 @@ start slave;
 #
 # Cleanup
 #
-SET GLOBAL debug="";
+--let $debug_point= simulate_io_replica_error_on_init
+--source include/remove_debug_point.inc
+--let $debug_point= simulate_sql_replica_error_on_init
+--source include/remove_debug_point.inc
 
 # Clear Last_SQL_Error and Last_IO_Error
 RESET SLAVE;

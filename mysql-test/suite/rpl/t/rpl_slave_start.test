@@ -29,7 +29,7 @@ source include/wait_for_slave_sql_error.inc;
 DROP TABLE t1;
 
 --echo # Block SQL thread immediately after it starts.
-SET DEBUG_SYNC='after_start_slave WAIT_FOR signal.continue';
+SET DEBUG_SYNC='after_start_replica WAIT_FOR signal.continue';
 START SLAVE SQL_THREAD;
 source include/wait_for_slave_sql_to_start.inc;
 --echo # Check Slave_SQL_Error, there should not be an error.

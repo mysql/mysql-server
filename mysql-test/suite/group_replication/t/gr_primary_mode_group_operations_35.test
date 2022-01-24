@@ -5,17 +5,18 @@
 #
 # Test:
 #  0. Group start in Multi Primary mode with 3 servers
-#  1. Get a transaction stuck on server 2 (the new primary) with a table lock
+#  1. Get a transaction stuck on server 2 (the new primary)
 #  2. Do a change to single primary mode with server 2 as the new primary
 #     Get the connection ID
 #     Check it is stuck on Primary election
 #  3. Kill the query
 #  4. Check the member left the group and moved into ERROR state
-#  5. Unlock the table, check the action completed in the other members
+#  5. Resume transactions, check the action completed in the other members
 #  6. Cleanup
 #
 ###############################################################################
 
+--source include/have_debug_sync.inc
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_server_count= 3
@@ -37,17 +38,22 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --source include/rpl_sync.inc
 
 --echo
---echo # 1. Get a transaction stuck on server 2 (the new primary) with a table lock
+--echo # 1. Get a transaction stuck on server 2 (the new primary)
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-LOCK TABLE t1 WRITE;
+--let $debug_point= group_replication_wait_on_observer_trans
+--source include/add_debug_point.inc
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
 INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 
 --echo
 --echo # 2. Do a change to single primary mode with server 2 as the new primary
@@ -113,12 +119,14 @@ INSERT INTO t1 VALUES (1);
 --reap
 
 --echo
---echo # 5. Unlock the table, check the action completed in the other members
+--echo # 5. Resume transactions, check the action completed in the other members
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-UNLOCK TABLES;
+--let $debug_point= group_replication_wait_on_observer_trans
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
 --source include/wait_condition.inc

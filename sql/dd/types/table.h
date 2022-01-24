@@ -73,7 +73,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  ~Table() override {}
+  ~Table() override = default;
 
  public:
   enum enum_row_format {
@@ -418,6 +418,14 @@ class Table : virtual public Abstract_table {
     @return pointer to dynamically allocated copy
   */
   Table *clone() const override = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  Table *clone_dropped_object_placeholder() const override = 0;
 
   /**
     Converts *this into json.

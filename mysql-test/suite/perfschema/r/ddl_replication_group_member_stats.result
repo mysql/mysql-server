@@ -12,3 +12,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `PRIMARY`
   ON performance_schema.replication_group_member_stats;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.replication_group_member_stats;
+DROP TABLE test.create_select;

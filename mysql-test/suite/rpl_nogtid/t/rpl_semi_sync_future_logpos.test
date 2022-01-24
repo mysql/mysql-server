@@ -19,7 +19,7 @@
 
 call mtr.add_suppression("Timeout waiting for reply of binlog*");
 call mtr.add_suppression("Read semi-sync reply network error");
-call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for slave reply");
+call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for replica reply");
 CALL mtr.add_suppression("Could not find first log file name in binary log");
 
 --source include/rpl_connection_master.inc
@@ -33,7 +33,7 @@ CREATE TABLE t1 (a INT);
 --send INSERT INTO t1 VALUES(0)
 
 --source include/rpl_connection_master1.inc
---let $status_var= rpl_semi_sync_master_wait_sessions
+--let $status_var= rpl_semi_sync_source_wait_sessions
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 
@@ -50,7 +50,7 @@ INSERT INTO t1 VALUES (20);
 # Since dump thread has exited and no slaves are connected, master_clients
 # must be zero.
 --source include/rpl_connection_master.inc
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
+--let $master_clients=[show status like "Rpl_semi_sync_source_clients", Value, 1]
 --let assert_cond= $master_clients = 0
 --let assert_text= semi sync master clients should be 0.
 --source include/assert.inc

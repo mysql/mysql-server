@@ -3,9 +3,9 @@
 [mysqld.1]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
+log-replica-updates
 
 [mysqld.2]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
+log-replica-updates

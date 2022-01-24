@@ -65,7 +65,7 @@ class NodePingReq {
    */
   friend class Qmgr;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -77,7 +77,7 @@ class NodePingConf {
    */
   friend class Qmgr;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;

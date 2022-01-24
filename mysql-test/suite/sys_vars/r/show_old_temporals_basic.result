@@ -128,3 +128,28 @@ Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a futur
 #Test for invalid value.
 SET GLOBAL show_old_temporals= 2;
 ERROR 42000: Variable 'show_old_temporals' can't be set to the value of '2'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.show_old_temporals;
+@@session.show_old_temporals
+0
+Warnings:
+Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a future release.
+SET @@session.show_old_temporals = 0;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.show_old_temporals;
+@@session.show_old_temporals
+0
+Warnings:
+Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a future release.
+SET @@session.show_old_temporals = 0;
+Warnings:
+Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a future release.
+SELECT @@session.show_old_temporals;
+@@session.show_old_temporals
+0
+Warnings:
+Warning	1287	'@@show_old_temporals' is deprecated and will be removed in a future release.
+SET @@global.show_old_temporals = 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER foo, bar;

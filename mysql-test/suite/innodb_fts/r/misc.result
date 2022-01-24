@@ -383,19 +383,19 @@ id
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 id
-106
 1
-52
 103
 104
+106
+52
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
 id
-106
 1
-52
 103
 104
+106
+52
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
 id
@@ -913,30 +913,30 @@ id	title	body	score
 6	MySQL Security	When configured properly, MySQL ...	0.000000003771856604828372
 SELECT * FROM articles where  MATCH(title, body) AGAINST ('MySQL - (database - tutorial)' IN BOOLEAN MODE);
 id	title	body
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+6	MySQL Security	When configured properly, MySQL ...
 SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database)' IN BOOLEAN MODE);
 id	title	body
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+6	MySQL Security	When configured properly, MySQL ...
 SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database) -Tricks' IN BOOLEAN MODE);
 id	title	body
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+6	MySQL Security	When configured properly, MySQL ...
 SELECT * FROM articles where MATCH(title, body) AGAINST ('-Tricks MySQL - (- tutorial database)' IN BOOLEAN MODE);
 id	title	body
-6	MySQL Security	When configured properly, MySQL ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+6	MySQL Security	When configured properly, MySQL ...
 DROP TABLE articles;
 drop table if exists t1;
 Warnings:
@@ -1189,12 +1189,12 @@ COMMIT;
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 id
-6
 1
 2
 3
 4
 5
+6
 DROP TABLE t1;
 CREATE TABLE `t` (`a` char(20) character set utf8mb4 default null,
 fulltext key (`a`)) ENGINE=INNODB;
@@ -1298,24 +1298,24 @@ INSERT INTO ift values (3, "--skip-networking");
 INSERT INTO ift values (4, "-donot--skip-networking");
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
 a	b
+1	skip
 2	skip and networking
 3	--skip-networking
 4	-donot--skip-networking
-1	skip
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
 a	b
+1	skip
 2	skip and networking
 3	--skip-networking
 4	-donot--skip-networking
-1	skip
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
 a	b
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
 a	b
-4	-donot--skip-networking
+1	skip
 2	skip and networking
 3	--skip-networking
-1	skip
+4	-donot--skip-networking
 DROP TABLE ift;
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -1376,32 +1376,32 @@ id	a
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
 id	a
 1	Do you know MySQL is a good database
-4	Do you know MySQL
 2	How to build a good database
+4	Do you know MySQL
 6	Do you feel good
 7	MySQL is good
 8	MySQL is good to know
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
 id	a
 1	Do you know MySQL is a good database
-4	Do you know MySQL
 2	How to build a good database
+4	Do you know MySQL
 6	Do you feel good
 7	MySQL is good
 8	MySQL is good to know
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
 id	a
 1	Do you know MySQL is a good database
-4	Do you know MySQL
 2	How to build a good database
+4	Do you know MySQL
 6	Do you feel good
 7	MySQL is good
 8	MySQL is good to know
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
 id	a
 1	Do you know MySQL is a good database
-4	Do you know MySQL
 2	How to build a good database
+4	Do you know MySQL
 6	Do you feel good
 7	MySQL is good
 8	MySQL is good to know
@@ -1437,7 +1437,7 @@ body TEXT,
 FULLTEXT (title,body)
 ) ENGINE=InnoDB;
 INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
-blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+blah'),('Matt''s Noise','this is noisy'),('February Weather','It was terrible
 this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
 database database','foo database database database'),('Database article
 title','body with lots of words.'),('myfulltext database', 'my test fulltext
@@ -1553,20 +1553,20 @@ myisam innodb
 innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
@@ -1575,20 +1575,20 @@ innodb myisam
 innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
@@ -1648,11 +1648,11 @@ myisam innodb
 innodb myisam engines
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 b
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
@@ -1708,20 +1708,20 @@ myisam innodb
 innodb myisam engines
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 c
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 c
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
@@ -1730,20 +1730,20 @@ innodb myisam
 innodb myisam engines
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
 c
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 c
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
@@ -1785,75 +1785,75 @@ SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', '
 a
 innodb
 innodb myisam
+innodb myisam engines
 myisam innodb
 storage engine innodb
-innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 a
 innodb
 innodb myisam
+innodb myisam engines
 myisam innodb
 storage engine innodb
-innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
 a
 innodb
 innodb myisam
+innodb myisam engines
 myisam innodb
 storage engine innodb
-innodb myisam engines
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
 a
+innodb
 innodb myisam
-myisam innodb
 innodb myisam engines
 myisam
-innodb
+myisam innodb
 storage engine innodb
 storage engine myisam
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
@@ -1881,45 +1881,53 @@ id	a
 4	ghome windows
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
+1	know database
+2	good database
 3	gmail email
 4	ghome windows
-2	good database
-1	know database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
 1	know database
+2	good database
 3	gmail email
 4	ghome windows
-2	good database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k * d *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
 1	know database
+2	good database
 3	gmail email
 4	ghome windows
-2	good database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
+1	know database
 2	good database
 3	gmail email
 4	ghome windows
-1	know database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * good' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
+1	know database
 2	good database
 3	gmail email
 4	ghome windows
-1	know database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('gm * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
-3	gmail email
-2	good database
 1	know database
+2	good database
+3	gmail email
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('good *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
-2	good database
 1	know database
+2	good database
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g* database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 id	a
 1	know database
 2	good database
 DROP TABLE t1;
+#
+# Bug#33409351: regression: change_to_use_tmp_fields_except_sums:
+#               Assertion `!thd->is_error()' failed.
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+SELECT ANY_VALUE(MATCH (a) AGAINST ('<' IN BOOLEAN MODE)), COUNT(*) FROM t;
+ERROR 42000: syntax error, unexpected $end
+DROP TABLE t;

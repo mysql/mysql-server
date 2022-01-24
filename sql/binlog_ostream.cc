@@ -37,7 +37,7 @@
 bool binlog_cache_is_reset = false;
 #endif
 
-IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {}
+IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() = default;
 IO_CACHE_binlog_cache_storage::~IO_CACHE_binlog_cache_storage() { close(); }
 
 bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,

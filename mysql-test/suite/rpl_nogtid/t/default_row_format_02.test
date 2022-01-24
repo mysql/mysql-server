@@ -21,7 +21,7 @@
 # Set expected error nos on slave side
 connection slave;
 stop slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=4;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=4;
 start slave;
 
 connection master;

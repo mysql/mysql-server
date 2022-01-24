@@ -17,9 +17,13 @@ connect (con1,localhost,root,,);
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
+SHOW VARIABLES LIKE 'clone_block_ddl';
 
 --echo # Set backup lock timeout to 1 sec
+SET GLOBAL clone_block_ddl = true;
 SET GLOBAL clone_ddl_timeout = 1;
+
+SHOW VARIABLES LIKE 'clone_block_ddl';
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 SHOW VARIABLES LIKE "lock_wait_timeout";
 

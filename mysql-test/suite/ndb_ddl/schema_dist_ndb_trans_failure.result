@@ -6,10 +6,10 @@ call mtr.add_suppression("Failed to write the schema op into the ndb_schema tabl
 CREATE TABLE t1(
 a INT PRIMARY KEY
 ) ENGINE NDB;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Schema distribution failed
 Warning	1815	Failed to distribute table
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 set GLOBAL debug="-d,ndb_schema_write_fail";

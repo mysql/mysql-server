@@ -28,8 +28,7 @@
 
 class Group_partition_handling {
  public:
-  Group_partition_handling(Shared_writelock *shared_stop_write_lock,
-                           ulong unreachable_timeout);
+  Group_partition_handling(ulong unreachable_timeout);
 
   /**
     The class destructor
@@ -127,9 +126,6 @@ class Group_partition_handling {
 
   /** The number of seconds until the member goes into error state*/
   ulong timeout_on_unreachable;
-
-  /** The stop lock used when killing transaction/stopping server*/
-  Shared_writelock *shared_stop_write_lock;
 
   /* Thread related structures */
 

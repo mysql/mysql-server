@@ -31,7 +31,7 @@
 
 #include "mysql/harness/tls_export.h"
 
-static_assert(SSL_ERROR_WANT_READ != 0, "");
+static_assert(SSL_ERROR_WANT_READ != 0);
 
 enum class TlsErrc {
   kWantRead = SSL_ERROR_WANT_READ,

@@ -55,7 +55,7 @@ INSERT INTO t1 VALUES (1);
 ## Member join adds to remote applied
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 3 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 4 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
 --source include/wait_condition.inc
 
 ## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 0 on server 1
@@ -63,10 +63,10 @@ INSERT INTO t1 VALUES (1);
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
 --let $assert_cond= $transaction_remote_applied_1= 0
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 3 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
 --let $transaction_remote_applied_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2'
---let $assert_cond= $transaction_remote_applied_2= 3
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $transaction_remote_applied_2= 4
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 2 on server 1
@@ -92,10 +92,10 @@ INSERT INTO t1 VALUES (1);
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
 --let $assert_cond= $transaction_remote_applied_1= 0
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 3 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
 --let $transaction_remote_applied_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2'
---let $assert_cond= $transaction_remote_applied_2= 3
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $transaction_remote_applied_2= 4
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 2 on server 1
@@ -141,7 +141,7 @@ INSERT INTO t1 VALUES (3);
 ## Else assert will fail for remote member assert checks
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 4 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 5 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
 --source include/wait_condition.inc
 
 ############################################################
@@ -153,10 +153,10 @@ INSERT INTO t1 VALUES (3);
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
 --let $assert_cond= $transaction_remote_applied_2_1= 0
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 5 on server 2
 --let $transaction_remote_applied_2_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
---let $assert_cond= $transaction_remote_applied_2_2= 4
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2'
+--let $assert_cond= $transaction_remote_applied_2_2= 5
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
@@ -202,10 +202,10 @@ INSERT INTO t1 VALUES (3);
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
 --let $assert_cond= $_transaction_remote_applied_= 0
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 5 on server 2
 --let $_transaction_remote_applied_= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
---let $assert_cond= $_transaction_remote_applied_= 4
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2'
+--let $assert_cond= $_transaction_remote_applied_= 5
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
@@ -344,10 +344,10 @@ while($i <= 110)
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1'
 --let $assert_cond= $transaction_remote_applied_4_1= 10
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 5 on server 2
 --let $transaction_remote_applied_4_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
---let $assert_cond= $transaction_remote_applied_4_2= 4
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2'
+--let $assert_cond= $transaction_remote_applied_4_2= 5
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
@@ -393,9 +393,6 @@ while($i <= 110)
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 10 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
 --source include/wait_condition.inc
 
-#--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 4 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
-#--source include/wait_condition.inc
-
 
 ## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 1
 --let $transaction_remote_in_applier_queue_5_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
@@ -413,10 +410,10 @@ while($i <= 110)
 --let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1'
 --let $assert_cond= $transaction_remote_applied_5_1= 10
 --source include/assert.inc
-## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 5 on server 2
 --let $transaction_remote_applied_5_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
---let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
---let $assert_cond= $transaction_remote_applied_5_2= 4
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 5 on server 2'
+--let $assert_cond= $transaction_remote_applied_5_2= 5
 --source include/assert.inc
 
 ## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1

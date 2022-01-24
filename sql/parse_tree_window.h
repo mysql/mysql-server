@@ -61,7 +61,7 @@ class PT_window_list : public Parse_tree_node {
   List<Window> m_windows;
 
  public:
-  PT_window_list() {}
+  PT_window_list() = default;
 
   bool contextualize(Parse_context *pc) override;
 

@@ -26,6 +26,7 @@
 #define Logger_H
 
 #include <ndb_global.h>
+#include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 
@@ -320,7 +321,7 @@ private:
   Logger operator = (const Logger&);
   bool operator == (const Logger&);
 
-  STATIC_CONST( MAX_LOG_LEVELS = 8 );
+  static constexpr Uint32 MAX_LOG_LEVELS = 8;
 
   bool m_logLevels[MAX_LOG_LEVELS];
   

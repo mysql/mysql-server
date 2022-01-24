@@ -41,6 +41,7 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title) AGAINST('+(mind thing) -idea' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title) AGAINST('mysql');
 
@@ -79,6 +80,7 @@ INSERT INTO articles (title, body) VALUES
   ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
   ('数据库是数据的结构化集合','它可以是任何东西');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('的* 或* 东西' IN BOOLEAN MODE);
 
@@ -139,6 +141,7 @@ SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"ab"' );
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据 +ab' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据 (+xyz -bc)' IN BOOLEAN MODE);
 

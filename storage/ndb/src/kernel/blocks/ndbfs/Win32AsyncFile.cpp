@@ -24,6 +24,8 @@
 
 #include <ndb_global.h>
 
+#include "cstring"
+
 #include "Win32AsyncFile.hpp"
 
 #include <signaldata/FsRef.hpp>

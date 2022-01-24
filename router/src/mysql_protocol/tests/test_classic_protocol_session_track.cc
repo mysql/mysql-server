@@ -41,7 +41,7 @@ using CodecSessiontrackSchemaTest =
 TEST_P(CodecSessiontrackSchemaTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackSchemaTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::Schema>
+const CodecParam<classic_protocol::session_track::Schema>
     codec_sessiontrack_schema_param[] = {
         {"foo", {"foo"}, {}, {0x03, 'f', 'o', 'o'}},
 };
@@ -64,7 +64,7 @@ TEST_P(CodecSessiontrackTransactionStateTest, decode) {
   test_decode(GetParam());
 }
 
-CodecParam<classic_protocol::session_track::TransactionState>
+const CodecParam<classic_protocol::session_track::TransactionState>
     codec_sessiontrack_transactionstate_param[] = {
         {"all_flags_explicit_trx",
          {'T', 'r', 'R', 'w', 'W', 's', 'S', 'L'},
@@ -95,9 +95,14 @@ using CodecSessiontrackStateTest =
 TEST_P(CodecSessiontrackStateTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackStateTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::State>
+const CodecParam<classic_protocol::session_track::State>
     codec_sessiontrack_state_param[] = {
-        {"1", {"1"}, {}, {0x01, '1'}},
+        {
+            "1",    // testname
+            {'1'},  // decoded
+            {},     // caps
+            {'1'}   // encoded
+        },
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecSessiontrackStateTest,
@@ -114,7 +119,7 @@ using CodecSessiontrackSystemVariableTest =
 TEST_P(CodecSessiontrackSystemVariableTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackSystemVariableTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::SystemVariable>
+const CodecParam<classic_protocol::session_track::SystemVariable>
     codec_sessiontrack_systemvariable_param[] = {
         {"autocommit_on",
          {"autocommit", "ON"},
@@ -131,6 +136,8 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 // session_track::Field
+//
+// the session-track info contains of zero-or-more session_track::Fields
 
 using CodecSessiontrackFieldTest =
     CodecTest<classic_protocol::session_track::Field>;
@@ -138,17 +145,63 @@ using CodecSessiontrackFieldTest =
 TEST_P(CodecSessiontrackFieldTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackFieldTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::Field>
+const CodecParam<classic_protocol::session_track::Field>
     codec_sessiontrack_field_param[] = {
         {"with_session_state_info",
-         {0, S("\nautocommit\2ON")},
-         {},
+         {0,                       // SessionState
+          S("\nautocommit\2ON")},  // decoded
+         {},                       // caps
          {0x00, 0x0e, 0x0a, 'a', 'u', 't', 'o', 'c', 'o', 'm', 'm', 'i', 't',
-          0x02, 'O', 'N'}},
+          0x02, 'O', 'N'}},  // encoded
+        {"with_gtid",
+         // decoded
+         {3,  // Gtid
+          S("\x00\x2a\x34\x64\x64\x30\x66\x39\x64\x35\x2d\x33\x62\x30\x30\x2d"
+            "\x31\x31\x65\x62\x2d\x61\x64\x37\x30\x2d\x30\x30\x33\x30\x39\x33"
+            "\x31\x34\x30\x65\x34\x65\x3a\x32\x33\x39\x32\x39")},
+         {},  // caps
+              // encoded
+         {0x03, 0x2c, 0x00, 0x2a, 0x34, 0x64, 0x64, 0x30, 0x66, 0x39,
+          0x64, 0x35, 0x2d, 0x33, 0x62, 0x30, 0x30, 0x2d, 0x31, 0x31,
+          0x65, 0x62, 0x2d, 0x61, 0x64, 0x37, 0x30, 0x2d, 0x30, 0x30,
+          0x33, 0x30, 0x39, 0x33, 0x31, 0x34, 0x30, 0x65, 0x34, 0x65,
+          0x3a, 0x32, 0x33, 0x39, 0x32, 0x39}},
+        {"with_characteristics",
+         // decoded
+         {5,  // Characteristics
+          S("\x08\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f")},
+         {},  // caps
+              // encoded
+         {0x05, 0x09, 0x08, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f}},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecSessiontrackFieldTest,
                          ::testing::ValuesIn(codec_sessiontrack_field_param),
+                         [](auto const &test_param_info) {
+                           return test_param_info.param.test_name;
+                         });
+
+// session_track::Gtid
+
+using CodecSessiontrackGtidTest =
+    CodecTest<classic_protocol::session_track::Gtid>;
+
+TEST_P(CodecSessiontrackGtidTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecSessiontrackGtidTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::session_track::Gtid>
+    codec_sessiontrack_gtid_param[] = {
+        {"a_gtid",
+         {0, S("4dd0f9d5-3b00-11eb-ad70-003093140e4e:23929")},
+         {},
+         {0x00, 0x2a, 0x34, 0x64, 0x64, 0x30, 0x66, 0x39, 0x64, 0x35, 0x2d,
+          0x33, 0x62, 0x30, 0x30, 0x2d, 0x31, 0x31, 0x65, 0x62, 0x2d, 0x61,
+          0x64, 0x37, 0x30, 0x2d, 0x30, 0x30, 0x33, 0x30, 0x39, 0x33, 0x31,
+          0x34, 0x30, 0x65, 0x34, 0x65, 0x3a, 0x32, 0x33, 0x39, 0x32, 0x39}},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, CodecSessiontrackGtidTest,
+                         ::testing::ValuesIn(codec_sessiontrack_gtid_param),
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });

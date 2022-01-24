@@ -1,0 +1,77 @@
+###############################################################################
+# Validate that when a group is being bootstrapped on server that has
+# replication channels running, those channels remain running.
+#
+# Test:
+#   0. This test requires 2 servers
+#       server1: single server
+#       server2: group in single-primary mode
+#      server2 will replicate from server1.
+#   1. Configure and start a replication channel to replicate
+#      from server1.
+#   2. Bootstrap the group on server2.
+#      Check that GR and replication channel are working.
+#   3. Write something on server1 and read it on server2.
+#   4. Clean up
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Configure and start a replication channel to replicate
+--echo #    from server1.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1
+
+--source include/start_slave.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Bootstrap the group on server2.
+--echo #    Check that GR and replication channel are working.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--source include/gr_assert_primary_member.inc
+
+--source include/check_slave_is_running.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Write something on server1 and read it on server2.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is one row in t1'
+--let $assert_cond= [SELECT COUNT(*) count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--source include/group_replication_end.inc

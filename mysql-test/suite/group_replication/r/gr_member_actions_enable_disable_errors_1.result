@@ -1,0 +1,101 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Try to enable and disable member actions with invalid
+#    parameters.
+#    It will not be allowed.
+[connection server1]
+SELECT group_replication_enable_member_action();
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; UDF takes 2 arguments.
+SELECT group_replication_disable_member_action();
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; UDF takes 2 arguments.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION", 42);
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; UDF takes 2 arguments.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION", 42);
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; UDF takes 2 arguments.
+SELECT group_replication_enable_member_action(42, "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; UDF first argument must be a string.
+SELECT group_replication_disable_member_action(42, "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; UDF first argument must be a string.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", 42);
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; UDF second argument must be a string.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", 42);
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; UDF second argument must be a string.
+
+############################################################
+# 2. Try to enable and disable member actions on a standalone
+#    server with super_read_only.
+#    It will not be allowed.
+SET GLOBAL super_read_only= 1;
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; Server must have super_read_only=0.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; Server must have super_read_only=0.
+SET GLOBAL read_only= 0;
+
+############################################################
+# 3. Try to enable and disable a non existent action.
+#    It will not be allowed.
+SELECT group_replication_enable_member_action("buh", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_enable_member_action' failed. The action does not exist for this event.
+SELECT group_replication_disable_member_action("buh", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_disable_member_action' failed. The action does not exist for this event.
+
+############################################################
+# 4. Try to enable and disable a action for a non existent
+#    event.
+#    It will not be allowed.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "COFFEE");
+ERROR HY000: The function 'group_replication_enable_member_action' failed. Invalid event name.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "COFFEE");
+ERROR HY000: The function 'group_replication_disable_member_action' failed. Invalid event name.
+
+############################################################
+# 5. Try to enable and disable a action on a secondary.
+#    It will not be allowed.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+SET GLOBAL super_read_only= 0;
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_enable_member_action' failed. Member must be the primary or OFFLINE.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_disable_member_action' failed. Member must be the primary or OFFLINE.
+SET GLOBAL super_read_only= 1;
+
+############################################################
+# 6. Try to enable and disable a action on a primary with
+#    super_read_only enabled.
+#    It will not be allowed.
+[connection server1]
+SET GLOBAL super_read_only= 1;
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; Server must have super_read_only=0.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; Server must have super_read_only=0.
+SET GLOBAL super_read_only= 0;
+
+############################################################
+# 7. Check that configuration was not changed.
+[connection server1]
+include/assert.inc [There must be two member actions]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+[connection server2]
+include/assert.inc [There must be two member actions]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+
+############################################################
+# 8. Clean up.
+include/group_replication_end.inc

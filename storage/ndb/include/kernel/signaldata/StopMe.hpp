@@ -51,7 +51,7 @@ struct StopMeReq
    */
   friend class Ndbcntr;
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -70,7 +70,7 @@ struct StopMeConf
    */
   friend class Ndbcntr;
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
   Uint32 senderRef;
   Uint32 senderData;

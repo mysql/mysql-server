@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/install_semisync.inc
 # Initialization
 SET @debug_save= @@GLOBAL.DEBUG;
-SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
+SET GLOBAL rpl_semi_sync_source_timeout= 6000000;
 #
 # Verify no deadlock at AFTER_SYNC
 #
@@ -21,7 +21,7 @@ FLUSH LOGS;
 #
 # Verify no deadlock at AFTER_COMMIT
 #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
 SET GLOBAL debug= '+d,dump_thread_before_read_event';
 SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.continue no_clear_event";
@@ -31,9 +31,9 @@ SET DEBUG_SYNC= "before_rotate_binlog SIGNAL signal.continue";
 # Rotate binlog file
 FLUSH LOGS;
 # Cleanup
-SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+SET GLOBAL rpl_semi_sync_source_timeout= 600000;
 include/sync_slave_sql_with_master.inc
-SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
+SET GLOBAL debug= '+d,semi_sync_3-way_deadlock';
 SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished";
 # Build 10 connections to master server
 # Execute INSERT statement on these 10 connections in parallel
@@ -42,7 +42,7 @@ SET DEBUG_SYNC= "before_rotate_binlog SIGNAL signal.rotate_finished";
 FLUSH LOGS;
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 include/sync_slave_sql_with_master.inc
 include/uninstall_semisync.inc
 include/rpl_end.inc

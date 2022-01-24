@@ -393,6 +393,11 @@ struct PFS_statement_stat {
   ulonglong m_sort_scan{0};
   ulonglong m_no_index_used{0};
   ulonglong m_no_good_index_used{0};
+  /**
+    CPU TIME.
+    Expressed in STORAGE units (nanoseconds).
+  */
+  ulonglong m_cpu_time{0};
 
   void reset() { new (this) PFS_statement_stat(); }
 
@@ -425,6 +430,7 @@ struct PFS_statement_stat {
       m_sort_scan += stat->m_sort_scan;
       m_no_index_used += stat->m_no_index_used;
       m_no_good_index_used += stat->m_no_good_index_used;
+      m_cpu_time += stat->m_cpu_time;
     }
   }
 };

@@ -5,8 +5,6 @@
 # Skip in valgrind because of bug#20952953
 --source include/not_valgrind.inc
 source include/have_binlog_format_mixed.inc;
-# UNTIL is not supported yet (TODO: support and remove the guard)
--- source include/not_mts_slave_parallel_workers.inc
 
 --source include/set_privilege_checks_user_as_system_user.inc
 source include/master-slave.inc;
@@ -51,7 +49,7 @@ source include/check_slave_no_error.inc;
 # Now we skip *one* table map event. If the execution starts right
 # after that table map event, *one* of the involved tables will be
 # changed.
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
@@ -80,7 +78,7 @@ connection slave;
 --replace_result $master_log_pos MASTER_LOG_POS
 eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
@@ -148,7 +146,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 
@@ -186,7 +184,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 

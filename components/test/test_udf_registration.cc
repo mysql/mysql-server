@@ -105,7 +105,7 @@ static bool dynamic_udf_init(UDF_INIT *initid, UDF_ARGS *, char *) {
   return false;
 }
 
-static void dynamic_udf_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+static void dynamic_udf_deinit(UDF_INIT *initid [[maybe_unused]]) {
   assert(initid->ptr == test_init || initid->ptr == test_udf);
 }
 
@@ -120,7 +120,7 @@ static long long dynamic_udf(UDF_INIT *initid, UDF_ARGS *,
   return 42;
 }
 
-static void dynamic_agg_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+static void dynamic_agg_deinit(UDF_INIT *initid [[maybe_unused]]) {
   assert(initid->ptr == test_init || initid->ptr == test_udf ||
          initid->ptr == test_udf_clear || initid->ptr == test_udf_add);
 }

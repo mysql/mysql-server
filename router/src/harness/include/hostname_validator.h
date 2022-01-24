@@ -56,7 +56,7 @@ bool HARNESS_EXPORT is_valid_hostname(const std::string &address);
  * domainnames according to RFC 2181:
  *
  * - max size 255 chars
- * - labels are seperated by dots
+ * - labels are separated by dots
  * - each label is min 1, max 63 chars.
  *
  * That means

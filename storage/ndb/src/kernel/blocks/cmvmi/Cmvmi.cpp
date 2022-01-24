@@ -71,8 +71,6 @@
 
 #define ZREPORT_MEMORY_USAGE 1000
 
-// Used here only to print event reports on stdout/console.
-extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
 // Index pages used by ACC instances
@@ -189,7 +187,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   m_start_time = NdbTick_getCurrentTicks();
 
-  bzero(g_acc_pages_used, sizeof(g_acc_pages_used));
+  std::memset(g_acc_pages_used, 0, sizeof(g_acc_pages_used));
 }
 
 Cmvmi::~Cmvmi()
@@ -378,6 +376,8 @@ void Cmvmi::execSET_LOGLEVELORD(Signal* signal)
   Uint32 level;
   jamEntry();
 
+  ndbrequire(llOrd->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
+
   for(unsigned int i = 0; i<llOrd->noOfEntries; i++){
     category = (LogLevel::EventCategory)(llOrd->theData[i] >> 16);
     level = llOrd->theData[i] & 0xFFFF;
@@ -393,7 +393,7 @@ struct SavedEvent
   Uint32 m_time;
   Uint32 m_data[MAX_EVENT_REP_SIZE_WORDS];
 
-  STATIC_CONST( HeaderLength = 3 );
+  static constexpr Uint32 HeaderLength = 3;
 };
 
 #define SAVE_BUFFER_CNT (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)
@@ -689,13 +689,13 @@ void Cmvmi::execEVENT_REP(Signal* signal)
 
   Uint32 buf[MAX_EVENT_REP_SIZE_WORDS];
   Uint32 *data = signal->theData;
+  const Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
+  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
   if (num_sections > 0)
   {
     copy(&buf[0], segptr);
     data = &buf[0];
   }
-  Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
-  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
 
   Uint32 saveBuf = Uint32(eventCategory);
   if (saveBuf >= NDB_ARRAY_SIZE(m_saved_event_buffer) - 1)
@@ -761,6 +761,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
      */
     LogLevel::EventCategory category;
     Uint32 level = 0;
+    ndbrequire(subReq->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
     for(Uint32 i = 0; i<subReq->noOfEntries; i++){
       category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
       level = subReq->theData[i] & 0xFFFF;
@@ -1549,18 +1550,21 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
         {
           if (signal->length() != 2)
           {
-            ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
-                     "transactional priority");
+            g_eventLogger->info(
+                "dump 103000 X, where X is between 0 and 10"
+                " to set transactional priority");
           }
           else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
           {
             if (first_val > 10)
             {
-              ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+              g_eventLogger->info(
+                  "Trying to set SchedulerResponsiveness outside 0-10");
             }
             else
             {
-              ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
+              g_eventLogger->info("Setting SchedulerResponsiveness to %u",
+                                  first_val);
               Configuration *conf = globalEmulatorData.theConfiguration;
               conf->setSchedulerResponsiveness(first_val);
             }
@@ -1793,7 +1797,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
     f_free_segment_pos = 0;
-    bzero(f_free_segments, sizeof(f_free_segments));
+    std::memset(f_free_segments, 0, sizeof(f_free_segments));
 #endif
   }
 
@@ -1877,7 +1881,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2)
   {
-    ndbout_c("CmvmiLongSignalMemorySnapshotCheck2");
+    g_eventLogger->info("CmvmiLongSignalMemorySnapshotCheck2");
 
 #if defined VM_TRACE || defined ERROR_INSERT
     Uint32 orig_idx = (f_free_segment_pos - 1) % 
@@ -1889,24 +1893,25 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Uint32 curr_level = g_sectionSegmentPool.getNoOfFree();
     Uint32 curr_used = poolsize - curr_level;
 
-    ndbout_c("  Total : %u", poolsize);
-    ndbout_c("  Orig free level : %u (%u pct)", 
-             orig_level, orig_level * 100 / poolsize);
-    ndbout_c("  Curr free level : %u (%u pct)", 
-             curr_level, curr_level * 100 / poolsize);
-    ndbout_c("  Orig in-use : %u (%u pct)",
-             orig_used, orig_used * 100 / poolsize);
-    ndbout_c("  Curr in-use : %u (%u pct)",
-             curr_used, curr_used * 100 / poolsize);
-    
+    g_eventLogger->info("  Total : %u", poolsize);
+    g_eventLogger->info("  Orig free level : %u (%u pct)", orig_level,
+                        orig_level * 100 / poolsize);
+    g_eventLogger->info("  Curr free level : %u (%u pct)", curr_level,
+                        curr_level * 100 / poolsize);
+    g_eventLogger->info("  Orig in-use : %u (%u pct)", orig_used,
+                        orig_used * 100 / poolsize);
+    g_eventLogger->info("  Curr in-use : %u (%u pct)", curr_used,
+                        curr_used * 100 / poolsize);
+
     if (curr_used > 2 * orig_used)
     {
-      ndbout_c("  ERROR : in-use has grown by more than a factor of 2");
+      g_eventLogger->info(
+          "  ERROR : in-use has grown by more than a factor of 2");
       ndbabort();
     }
     else
     {
-      ndbout_c("  Snapshot ok");
+      g_eventLogger->info("  Snapshot ok");
     }
 #endif
   }
@@ -1914,14 +1919,14 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::CmvmiShowLongSignalOwnership)
   {
 #ifdef NDB_DEBUG_RES_OWNERSHIP
-    ndbout_c("CMVMI dump LSB usage");
+    g_eventLogger->info("CMVMI dump LSB usage");
     Uint32 buffs = g_sectionSegmentPool.getSize();
     Uint32* buffOwners = (Uint32*) malloc(buffs * sizeof(Uint32));
     Uint64* buffOwnersCount = (Uint64*) malloc(buffs * sizeof(Uint64));
     
-    memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
+    std::memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
 
-    ndbout_c("  Filling owners list");
+    g_eventLogger->info("  Filling owners list");
     Uint32 zeroOwners = 0;
     lock_global_ssp();
     {
@@ -1943,7 +1948,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
     unlock_global_ssp();
 
-    ndbout_c("  Summing by owner");
+    g_eventLogger->info("  Summing by owner");
     /* Use a linear hash to find items */
     
     Uint32 free = 0;
@@ -1980,13 +1985,14 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       }
     }
 
-    ndbout_c("  Summary");
-    ndbout_c("    Warning, free buffers in thread caches considered used here");
-    ndbout_c("    ndbd avoids this problem");
-    ndbout_c("    Zero owners : %u", zeroOwners);
-    ndbout_c("    Num free : %u", free);
-    ndbout_c("    Num owners : %u", numOwners);
-    
+    g_eventLogger->info("  Summary");
+    g_eventLogger->info(
+        "    Warning, free buffers in thread caches considered used here");
+    g_eventLogger->info("    ndbd avoids this problem");
+    g_eventLogger->info("    Zero owners : %u", zeroOwners);
+    g_eventLogger->info("    Num free : %u", free);
+    g_eventLogger->info("    Num owners : %u", numOwners);
+
     for (Uint32 i=0; i < buffs; i++)
     {
       Uint64 entry = buffOwnersCount[i];
@@ -1998,24 +2004,22 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
         Uint32 block = (ownerId >> 16) & 0x1ff;
         Uint32 instance = ownerId >> 25;
         Uint32 gsn = ownerId & 0xffff;
-        ndbout_c("      Count : %u : OwnerId : 0x%x (0x%x:%u/%u) %s %s",
-                 count,
-                 ownerId,
-                 block,
-                 instance,
-                 gsn,
-                 block == 1 ? "RECV" : getBlockName(block, "Unknown"),
-                 getSignalName(gsn, "Unknown"));
+        g_eventLogger->info(
+            "      Count : %u : OwnerId : 0x%x (0x%x:%u/%u) %s %s",
+            count, ownerId, block, instance, gsn,
+            block == 1 ? "RECV" : getBlockName(block, "Unknown"),
+            getSignalName(gsn, "Unknown"));
       }
     }
 
-    ndbout_c("Done");
- 
+    g_eventLogger->info("Done");
+
     ::free(buffOwners);
     ::free(buffOwnersCount);
 #else
-    ndbout_c("CMVMI :: ShowLongSignalOwnership.  Not compiled "
-             "with NDB_DEBUG_RES_OWNERSHIP");
+    g_eventLogger->info(
+        "CMVMI :: ShowLongSignalOwnership.  Not compiled "
+        "with NDB_DEBUG_RES_OWNERSHIP");
 #endif
 
   }
@@ -2046,10 +2050,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
         if (node == 0 || 
             node >= MAX_NODES)
         {
-          ndbout_c("Bad node in ref to DUMP %u : %u %u",
-                   DumpStateOrd::DumpPageMemory,
-                   node,
-                   result_ref);
+          g_eventLogger->info("Bad node in ref to DUMP %u : %u %u",
+                              DumpStateOrd::DumpPageMemory, node, result_ref);
           return;
         }
       }
@@ -2282,14 +2284,14 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       tmp.init<RefSignalTest>(CMVMI, GSN_TESTSIG, /* senderData */ 13);
       tmp.setWaitingFor(3);
       ndbrequire(!tmp.done());
-      ndbout_c("Allocted");
+      g_eventLogger->info("Allocated");
     }
     ndbrequire(!handle.done());
     {
       SafeCounter tmp(mgr, handle);
       tmp.clearWaitingFor(3);
       ndbrequire(tmp.done());
-      ndbout_c("Deallocated");
+      g_eventLogger->info("Deallocated");
     }
     ndbrequire(handle.done());
   }
@@ -3136,7 +3138,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 					   0,
 					   getOwnNodeId(),
 					   true);
-    ndbout_c("-- Fixed section --");    
+    ndbout_c("-- Fixed section --");
     for(i = 0; i<signal->length(); i++){
       fprintf(stdout, "H'0x%.8x ", signal->theData[i]);
       if(((i + 1) % 6) == 0)
@@ -3295,8 +3297,8 @@ Cmvmi::execTESTSIG(Signal* signal){
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
       count++;
-      if(g_print)
-	ndbout_c("Sending fragment %d", count);
+      if (g_print)
+        ndbout_c("Sending fragment %d", count);
       sendNextSegmentedFragment(signal, fragSend);
     }
     break;
@@ -3337,8 +3339,8 @@ Cmvmi::execTESTSIG(Signal* signal){
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
       count++;
-      if(g_print)
-	ndbout_c("Sending fragment %d", count);
+      if (g_print)
+        ndbout_c("Sending fragment %d", count);
       sendNextLinearFragment(signal, fragSend);
     }
     
@@ -3380,7 +3382,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 12:{
 
     const Uint32 secs = handle.m_cnt;
-    memset(g_test, 0, sizeof(g_test));
+    std::memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
       handle.getSection(sptr, i);
@@ -3440,8 +3442,8 @@ Cmvmi::execTESTSIG(Signal* signal){
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
       count++;
-      if(g_print)
-	ndbout_c("Sending fragment %d", count);
+      if (g_print)
+        ndbout_c("Sending fragment %d", count);
       sendNextSegmentedFragment(signal, fragSend);
     }
 
@@ -3482,7 +3484,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 
 void
 Cmvmi::sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode){
-  if(g_print)
+  if (g_print)
     ndbout_c("sendFragmentedComplete: %d", data);
   if(data == 11 || data == 12){
     for(Uint32 i = 0; i<3; i++){

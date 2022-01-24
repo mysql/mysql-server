@@ -6,6 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #######################
 # Start a 2 server group
 server1
+SET sql_log_bin=0;
+CREATE USER 'dummy_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'dummy_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 server2
@@ -14,7 +19,14 @@ include/start_group_replication.inc
 #####################################################################
 # Restart group replication on server 2 inducing a failure on recovery
 include/stop_group_replication.inc
+SET sql_log_bin=0;
+CREATE USER 'dummy_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'dummy_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 set session sql_log_bin=0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
@@ -44,6 +56,9 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 ##########################################
 # Solve the issue and re-execute the query
 include/stop_group_replication.inc
+SET sql_log_bin=0;
+DROP USER 'dummy_user'@'%';
+SET sql_log_bin=1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 INSERT INTO test.t1 (b) VALUES (1);
@@ -51,6 +66,9 @@ include/rpl_sync.inc
 
 #######################################################################
 # Assert that server1 and server2 have the same data and GTID_EXECUTED.
+SET sql_log_bin=0;
+DROP USER 'dummy_user'@'%';
+SET sql_log_bin=1;
 server1
 include/assert.inc ['There is a value 1 in table t1 on server1']
 server2

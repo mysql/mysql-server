@@ -178,7 +178,7 @@ bool get_one_option(int optid, const struct my_option *opt, char *argument) {
       usage(true);
       break;
     case 'I':
-      // Fall through
+      [[fallthrough]];
     case '?':
       Options::s_help = true;
       usage(false);
@@ -220,6 +220,11 @@ static bool check_options_for_sanity() {
                  "source (--source-keyirng) and destination "
                  "(--destination-keyring) components is mandatory"
               << std::endl;
+    return false;
+  }
+
+  if (strcmp(Options::s_source_keyring, Options::s_destination_keyring) == 0) {
+    log_error << "Source and destination cannot be the same." << std::endl;
     return false;
   }
   return true;
@@ -324,8 +329,8 @@ Mysql_connection::Mysql_connection(bool connect) : ok_(false), mysql(nullptr) {
                           Options::s_password, NullS, Options::s_port,
                           Options::s_socket, CLIENT_REMEMBER_OPTIONS)) {
     mysql->reconnect = true;
-    log_error << "Failed to connect to server at " << Options::s_hostname
-              << ": " << mysql_error(mysql) << std::endl;
+    log_error << "Failed to connect to server. Received error: "
+              << mysql_error(mysql) << std::endl;
     return;
   }
   log_info << "Successfully connected to MySQL server" << std::endl;
@@ -345,7 +350,7 @@ Mysql_connection::~Mysql_connection() {
 
 bool Mysql_connection::execute(std::string command) {
   if (!ok_) {
-    log_error << " Connection to MySQL server is not initialized." << std::endl;
+    log_error << "Connection to MySQL server is not initialized." << std::endl;
     return false;
   }
   if (mysql_real_query(mysql, command.c_str(), command.length())) {

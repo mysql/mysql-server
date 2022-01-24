@@ -7,7 +7,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 include/sync_slave_sql_with_master.inc
 # Set a debug point on slave to simulate unknown ignorable log events.
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,simulate_unknown_ignorable_log_event';
+SET GLOBAL DEBUG='+d,simulate_unknown_ignorable_log_event';
 [connection master]
 # Write a previous_gtids log event to binlog
 # on master if gtid mode is on.

@@ -26,10 +26,10 @@ SET @max_connections_saved = @@GLOBAL.max_connections;
 
 --source include/count_sessions.inc
 --replace_result $count_sessions CURRENT_CONNECTIONS
---eval SET @@GLOBAL.max_connections= $count_sessions
+--eval SET @@GLOBAL.max_connections= ($count_sessions + 2)
 
 --let $assert_text= max_connections must be the value of current connections
---let $assert_cond= [SELECT @@GLOBAL.max_connections] = $count_sessions
+--let $assert_cond= [SELECT @@GLOBAL.max_connections] = ($count_sessions + 2)
 --source include/assert.inc
 
 

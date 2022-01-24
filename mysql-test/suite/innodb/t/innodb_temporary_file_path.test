@@ -1,0 +1,62 @@
+#######################################################################
+# Bug#32840635: WRONG FILE_NAME OF INNODB_TEMPORARY TABLESPACE IN
+#               INFORMATION_SCHEMA.FILES TABLE
+#######################################################################
+--source include/not_windows.inc
+
+# This test verifies that the value of innodb_temp_data_file_path and
+# the value of FILE_NAME of innodb_temporary tablespace in
+# INFORMATION_SCHEMA.FILES match
+
+SELECT @@innodb_temp_data_file_path;
+
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with a non-default value of innodb-temp-data-file-path
+--let $restart_parameters = restart: --innodb-temp-data-file-path=mytemp:12M:autoextend
+--source include/restart_mysqld.inc
+
+# Verify that the new temp data file path is reflect correctly
+SELECT @@innodb_temp_data_file_path;
+
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with a relative path for innodb-temp-data-file-path
+--let $restart_parameters = restart: --innodb-temp-data-file-path=./mytemp:12M:autoextend
+--source include/restart_mysqld.inc
+
+# Verify that the new temp data file path is reflect correctly
+SELECT @@innodb_temp_data_file_path;
+
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with a non-default innodb-temp-data-file-path and read only mode
+--let $restart_parameters = restart: --innodb-temp-data-file-path=newtemp:12M:autoextend
+--source include/restart_innodb_read_only.inc
+
+# Since the server is started in read only mode, the filepath is not updated and hence
+# innodb_temp_data_file_path variable and file_name in information_schema.files will
+# be different
+SELECT @@innodb_temp_data_file_path;
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with an absolute path for innodb-temp-data-file-path
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = restart: --innodb-temp-data-file-path=$MYSQL_TMP_DIR/mytemp:12M:autoextend
+--source include/restart_mysqld.inc
+
+# Verify that the new temp data file path is reflect correctly
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT @@innodb_temp_data_file_path;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with the default innodb-temp-data-file-path
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

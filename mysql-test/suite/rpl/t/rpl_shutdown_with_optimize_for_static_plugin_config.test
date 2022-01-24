@@ -1,0 +1,50 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test that replication plugins are
+# properly unloaded when `replication_optimize_for_static_plugin_config` is
+# enabled.
+#
+# ==== Requirements ====
+#
+# R1. Upon server shutdown, all replication plugins should cleanly unload
+#     even if `replication_optimize_for_static_plugin_config` is enabled.
+#
+# ==== Implementation ====
+#
+# 1. Install a replication plugin.
+# 2. Turn `replication_optimize_for_static_plugin_config` on.
+# 3. Stop and start the server.
+# 4. Check that no error message regarding erroneous plugin unloading has
+#    been logged to the error log.
+# 5. Clean up.
+#
+# ==== References ====
+#
+# BUG#32798287 PROBLEM WITH UNINSTALL WHEN
+#              --REPLICATION-OPTIMIZE-FOR-STATIC-PLUGIN-CONFIG=ON
+#
+
+--source include/have_binlog_format_row.inc
+--source include/save_error_log_position.inc
+
+# 1. Install a replication plugin.
+--source include/install_semisync_source.inc
+
+# 2. Turn `replication_optimize_for_static_plugin_config` on.
+--let $saved_replication_optimize_for_static_plugin_config = `SELECT @@GLOBAL.replication_optimize_for_static_plugin_config`
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+
+# 3. Stop and start the server.
+--source include/stop_mysqld.inc
+--source include/start_mysqld.inc
+
+# 4. Check that no error message regarding erroneous plugin unloading has
+#    been logged to the error log.
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+
+# 5. Clean up.
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+--source include/uninstall_semisync_source.inc
+--replace_result $saved_replication_optimize_for_static_plugin_config REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG
+--eval SET GLOBAL replication_optimize_for_static_plugin_config = $saved_replication_optimize_for_static_plugin_config

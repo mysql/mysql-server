@@ -195,6 +195,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
 #endif
     if (csNumber != 0) {
       unsigned err;
+      ndbrequire(csNumber <= NDB_ARRAY_SIZE(all_charsets));
       CHARSET_INFO *cs = all_charsets[csNumber];
       ndbrequire(cs != 0);
       if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
@@ -472,7 +473,8 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
       indexPtr.p->m_state = Index::Building;
       break;
     default:
-      jam(); // fall-through
+      jam();
+      [[fallthrough]];
     case AlterIndxImplReq::AlterIndexOnline:
       jam();
       indexPtr.p->m_state = Index::Online;

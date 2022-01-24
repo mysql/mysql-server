@@ -19,6 +19,7 @@ set session sql_log_bin=1;
 SET sql_log_bin = 0;
 CREATE USER 'rpl_user'@'%';
 GRANT REPLICATION SLAVE ON *.* TO 'rpl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';;
 SET sql_log_bin = 1;
 #
 # 2. Set the first advertised endpoint to the donor admin port and the
@@ -33,6 +34,10 @@ INSERT INTO test.t1 (b) VALUES (2);
 
 # 4. Change the user of recovery channel for the joiner
 [connection server2]
+SET sql_log_bin = 0;
+CREATE USER 'rpl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';;
+SET sql_log_bin = 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -69,6 +74,7 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 SET GLOBAL group_replication_recovery_reconnect_interval= 60;
 SET GLOBAL group_replication_recovery_retry_count= 10;
+DROP USER 'rpl_user'@'%';
 [connection server1]
 DROP USER 'rpl_user'@'%';
 include/group_replication_end.inc

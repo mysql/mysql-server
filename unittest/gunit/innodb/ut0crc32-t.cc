@@ -22,21 +22,32 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <string.h>
+#include <array>
+#include <iostream>
 
 #include "storage/innobase/include/univ.i"
 #include "storage/innobase/include/ut0crc32.h"
 #include "storage/innobase/include/ut0dbg.h"
 #include "unittest/gunit/benchmark.h"
 
+#ifndef CRC32_DEFAULT
+namespace hardware {
+uint32_t crc32_using_pclmul(const byte *data, size_t len);
+uint32_t crc32_using_unrolled_loop_poly_mul(const byte *data, size_t len);
+bool can_use_crc32();
+bool can_use_poly_mul();
+}  // namespace hardware
+#endif /* !CRC32_DEFAULT */
+namespace software {
+uint32_t crc32(const byte *data, size_t len);
+}
+
 namespace innodb_ut0crc32_unittest {
 
 /** A copy of a real 16k page from InnoDB. */
-static const byte page[] = {
+alignas(8) static const byte page[] = {
     0x31, 0xd4, 0xa8, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x01, 0x84,
     0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x07, 0x72, 0x00, 0x00,
@@ -1409,23 +1420,147 @@ static const size_t page_size = UT_ARR_SIZE(page);
 static void init() {
   ut_crc32_init();
 
-  fprintf(stderr, "Using %s, CPU is %s-endian\n",
-          ut_crc32_cpu_enabled ? "hardware CPU crc32 instructions"
-                               : "software crc32 implementation",
+  fprintf(stderr,
+          "CPU is %s-endian, %s crc32 and %s polynomial multiplication "
+          "instructions.\n",
 #ifdef WORDS_BIGENDIAN
           "big"
 #else  /* WORDS_BIGENDIAN */
           "little"
 #endif /* WORDS_BIGENDIAN */
-  );
+          ,
+          ut_crc32_cpu_enabled ? "has" : "has no",
+          ut_poly_mul_cpu_enabled ? "has" : "has no");
 }
 
-/* test ut_crc32*() */
+constexpr uint32_t rev(uint32_t x) {
+  uint32_t r{0};
+  for (int i = 0; i < 32; ++i) {
+    r <<= 1;
+    if (x >> i & 1) {
+      r ^= 1;
+    }
+  }
+  return r;
+}
+/** For the given 32-bit g, creates a 64-bit value such that it is congruent to
+g modulo CRC32-C polynomial, and has zeros at the lower 32-bit.
+In a sense it "inverts the crc32" step giving you <w,0> s.t. crc32(<w,0>)=g.
+It returns just higher half (the w). */
+constexpr uint32_t invert_crc32(uint32_t g) {
+  uint64_t r{g};
+  for (int i = 0; i < 32; ++i) {
+    if (r >> i & 1) {
+      /* We clear each non-zero bit within lower 32-bits by xoring with a
+      shifted crc32c polynomial (which is congruent to zero).
+      This works because CRC32C_POLYNOMIAL's lowest bit is 1. */
+      r ^= uint64_t{CRC32C_POLYNOMIAL} << i;
+      /* Note that the polynomial has implicitly a x^32 in the front of it. */
+      r ^= 1ULL << (i + 32);
+    }
+  }
+  return r >> 32;
+}
+/** This is a very slow, but correct implementation of CRC32C which I hope is
+useful for educational purposes, as it shows how the academic ideal of
+   "It's just w(x) mod c(x)!"
+gets complicated in real world technical specification of it:
+- the most significant coefficients of w(x) are in data[0]
+- the most significant coefficient within data[i] is at position (1<<0)
+- the bits of the result are "reversed", in the sense that the most significant
+  coefficient of the resulting polynomial (the one for x^31), is actually stored
+  in the least significant bit (1<<0)
+- the bits of the result are negated
+- the input is conceptually extended by appending 32 zero bits to it
+- the initial value of the register holding "the result" in the real world
+  implementation is not really 0 - it should be 0xFFFFFFFF, instead. But in the
+  real world implementation, the value of this register is not the remainder for
+  the data seen so far, but rather the result for the data seen so far with the
+  additional 32 zeros appended to it. One way to wrap your head around it is to
+  pretend that there were four bytes 0x53,0x64,0x1f,0x64 prepended to the
+  data, which leads to the same result. (This magical sequence is chosen so
+  that after appending 32 zeros to it you get polynomial with rest 0xFFFFFFFF).
+Apart from that, the rest is "obvious" implementation of the academic ideal -
+you just read one bit at the time, starting with least significant (1<<0) bit of
+each byte, and for each of them just do r(x)=r(x)*x + bit mod CRC32C_POLYNOMIAL.
+@return the crc32c of data[0...len).
+*/
+uint32_t naive_crc32(const byte *data, size_t len) {
+  byte *buff = new byte[4 + len + 4];
+  constexpr auto magic_prefix = invert_crc32(0xFFFFFFFF);
+  /* The magic_prefix treated a polynomial is such that
+    (magic_prefix * x^32) mod crc32c = x^31+x^30+...+x^0 == 0xFFFFFFFF
+  The least significant coefficient of magic_prefix is magic_prefix&(1<<31), but
+  the crc32 implementation's loop expects the most significant bit to be in
+  buff[0]&(1<<0), thus we have to reverse the bits within each byte. */
+  buff[0] = rev(magic_prefix) & 0xFF;        // 0x54;
+  buff[1] = rev(magic_prefix) >> 8 & 0xFF;   // 0x64;
+  buff[2] = rev(magic_prefix) >> 16 & 0xFF;  // 0x1f;
+  buff[3] = rev(magic_prefix) >> 24 & 0xFF;  // 0x64;
+  memcpy(buff + 4, data, len);
+  buff[4 + len] = 0;
+  buff[4 + len + 1] = 0;
+  buff[4 + len + 2] = 0;
+  buff[4 + len + 3] = 0;
+  uint32_t r{0};
+  for (size_t bit = 0; bit < (4 + len + 4) * 8; ++bit) {
+    const uint32_t next = buff[bit / 8] >> bit % 8 & 1;
+    const bool will_wrap = r >> 31 & 1;
+    r = r << 1 | next;
+    if (will_wrap) r ^= CRC32C_POLYNOMIAL;
+  }
+  delete[] buff;
+  return ~rev(r);
+}
+
+struct random_data_t {
+  std::array<byte, 20000> data;
+  random_data_t() {
+    for (byte &b : data) {
+      b = rand();
+    }
+  }
+};
+random_data_t random_data{};
+
 TEST(ut0crc32, basic) {
   init();
 
   EXPECT_EQ(1090276284U, ut_crc32((const byte *)"innodb", 6));
+}
+TEST(ut0crc32, software) {
+  init();
+  for (size_t o = 0; o < 128; ++o) {
+    for (size_t size = 0; size <= 512; ++size) {
+      const auto data = &random_data.data[o];
+      const auto good = naive_crc32(data, size);
+      EXPECT_EQ(good, software::crc32(data, size));
+    }
+  }
+}
+TEST(ut0crc32, hardware) {
+  init();
+  for (size_t o = 0; o < 128; ++o) {
+    for (size_t size = 0; size + o <= random_data.data.size(); ++size) {
+      if (rand() % 100) continue;
+      const auto data = &random_data.data[o];
+      const auto good = software::crc32(data, size);
 
+      EXPECT_EQ(good, ut_crc32(data, size));
+#ifndef CRC32_DEFAULT
+      if (hardware::can_use_crc32()) {
+        EXPECT_EQ(good,
+                  hardware::crc32_using_unrolled_loop_poly_mul(data, size));
+        if (hardware::can_use_poly_mul()) {
+          EXPECT_EQ(good, hardware::crc32_using_pclmul(data, size));
+        }
+      }
+#endif /* !CRC32_DEFAULT */
+    }
+  }
+}
+TEST(ut0crc32, legacy) {
+  init();
   EXPECT_EQ(1090276284U, ut_crc32_legacy_big_endian((const byte *)"innodb", 6));
 
   byte *buf = new byte[page_size + 7];
@@ -1438,7 +1573,16 @@ TEST(ut0crc32, basic) {
     memcpy(p, page, page_size);
 
     EXPECT_EQ(2400278014U, ut_crc32(p, page_size));
-    EXPECT_EQ(2400278014U, ut_crc32_byte_by_byte(p, page_size));
+    EXPECT_EQ(2400278014U, naive_crc32(p, page_size));
+#ifndef CRC32_DEFAULT
+    if (hardware::can_use_crc32()) {
+      EXPECT_EQ(2400278014U,
+                hardware::crc32_using_unrolled_loop_poly_mul(p, page_size));
+      if (hardware::can_use_poly_mul()) {
+        EXPECT_EQ(2400278014U, hardware::crc32_using_pclmul(p, page_size));
+      }
+    }
+#endif /* !CRC32_DEFAULT */
 
     /* Big endian results depend on the alignment. */
     switch (reinterpret_cast<uintptr_t>(p) % 8) {
@@ -1471,7 +1615,7 @@ TEST(ut0crc32, basic) {
 
   delete[] buf;
 }
-
+template <size_t offset, size_t size>
 static void BM_CRC32(size_t num_iterations) {
   StopBenchmarkTiming();
   init();
@@ -1479,14 +1623,21 @@ static void BM_CRC32(size_t num_iterations) {
   StartBenchmarkTiming();
   size_t sum = 0;
   for (size_t n = 0; n < num_iterations; n++) {
-    sum += ut_crc32(page, sizeof(page));
+    sum += ut_crc32(page + offset, size);
   }
   StopBenchmarkTiming();
 
   EXPECT_NE(0U, sum);  // To keep the compiler from optimizing it away.
-  SetBytesProcessed(num_iterations * sizeof(page));
+  SetBytesProcessed(num_iterations * size);
 }
-BENCHMARK(BM_CRC32)
+#define BENCHMARK_CRC(offset, size)                               \
+  static void BM_CRC32_##offset##_##size(size_t num_iterations) { \
+    BM_CRC32<offset, size>(num_iterations);                       \
+  }                                                               \
+  BENCHMARK(BM_CRC32_##offset##_##size)
+
+BENCHMARK_CRC(6, 16338)
+BENCHMARK_CRC(0, 508)
 
 static void BM_BigEndianCRC32(size_t num_iterations) {
   StopBenchmarkTiming();

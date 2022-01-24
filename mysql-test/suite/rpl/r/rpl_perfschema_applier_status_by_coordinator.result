@@ -73,9 +73,9 @@ SOURCE_USER='root';
 Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=1;
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=1;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
 include/start_slave.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 include/assert.inc [thread_name should should indicate sql thread.]
@@ -87,7 +87,7 @@ include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp 
 # Cleanup.
 
 include/stop_slave.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 include/start_slave.inc
 include/rpl_end.inc

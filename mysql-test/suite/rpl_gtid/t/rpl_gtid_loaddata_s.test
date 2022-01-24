@@ -1,4 +1,4 @@
-# See if the slave logs (in its own binlog, with --log-slave-updates) a
+# See if the slave logs (in its own binlog, with --log-replica-updates) a
 # replicated LOAD DATA INFILE correctly when it has binlog_*_db rules.
 # This is for BUG#1100 (LOAD DATA INFILE was half-logged).
 

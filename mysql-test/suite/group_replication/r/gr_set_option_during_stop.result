@@ -1,0 +1,238 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Bootstrap a group on server1.
+#    Setup a debug point that will block a future
+#    STOP GROUP_REPLICATION command
+#    after the plugin_running_lock is acquired.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+############################################################
+# 2. Asynchronously execute STOP GROUP_REPLICATION command.
+[connection server_1]
+STOP GROUP_REPLICATION;
+[connection server1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_plugin_gr_stop_after_holding_plugin_running_lock";
+SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+############################################################
+# 3. Try to change Group Replication options that cannot be
+#    change while a STOP GROUP_REPLICATION is ongoing, they
+#    must fail.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+CREATE TABLE gr_options_that_cannot_be_change (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) UNIQUE KEY);
+INSERT INTO gr_options_that_cannot_be_change (name)
+SELECT VARIABLE_NAME FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE 'group_replication_%'
+ AND VARIABLE_NAME != 'group_replication_allow_local_lower_version_join'
+ AND VARIABLE_NAME != 'group_replication_bootstrap_group'
+ AND VARIABLE_NAME != 'group_replication_communication_stack'
+ AND VARIABLE_NAME != 'group_replication_consistency'
+ AND VARIABLE_NAME != 'group_replication_exit_state_action'
+ AND VARIABLE_NAME NOT LIKE 'group_replication_flow_control_%'
+ AND VARIABLE_NAME != 'group_replication_group_seeds'
+ AND VARIABLE_NAME != 'group_replication_local_address'
+ AND VARIABLE_NAME != 'group_replication_poll_spin_loops'
+ AND VARIABLE_NAME != 'group_replication_ssl_mode'
+ AND VARIABLE_NAME != 'group_replication_start_on_boot'
+ AND VARIABLE_NAME != 'group_replication_tls_source'
+ AND VARIABLE_NAME != 'group_replication_transaction_size_limit'
+ ORDER BY VARIABLE_NAME;
+SET SESSION sql_log_bin = 1;
+SET @value= @@GLOBAL.group_replication_advertise_recovery_endpoints;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_auto_increment_increment;
+SET @@GLOBAL.group_replication_auto_increment_increment= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_autorejoin_tries;
+SET @@GLOBAL.group_replication_autorejoin_tries= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_clone_threshold;
+SET @@GLOBAL.group_replication_clone_threshold= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_communication_debug_options;
+SET @@GLOBAL.group_replication_communication_debug_options= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_communication_max_message_size;
+SET @@GLOBAL.group_replication_communication_max_message_size= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_components_stop_timeout;
+SET @@GLOBAL.group_replication_components_stop_timeout= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_compression_threshold;
+SET @@GLOBAL.group_replication_compression_threshold= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_enforce_update_everywhere_checks;
+SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_force_members;
+SET @@GLOBAL.group_replication_force_members= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_group_name;
+SET @@GLOBAL.group_replication_group_name= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_gtid_assignment_block_size;
+SET @@GLOBAL.group_replication_gtid_assignment_block_size= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_ip_allowlist;
+SET @@GLOBAL.group_replication_ip_allowlist= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_ip_whitelist;
+SET @@GLOBAL.group_replication_ip_whitelist= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_member_expel_timeout;
+SET @@GLOBAL.group_replication_member_expel_timeout= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_member_weight;
+SET @@GLOBAL.group_replication_member_weight= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_message_cache_size;
+SET @@GLOBAL.group_replication_message_cache_size= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_paxos_single_leader;
+SET @@GLOBAL.group_replication_paxos_single_leader= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_complete_at;
+SET @@GLOBAL.group_replication_recovery_complete_at= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_compression_algorithms;
+SET @@GLOBAL.group_replication_recovery_compression_algorithms= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_get_public_key;
+SET @@GLOBAL.group_replication_recovery_get_public_key= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_public_key_path;
+SET @@GLOBAL.group_replication_recovery_public_key_path= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_retry_count;
+SET @@GLOBAL.group_replication_recovery_retry_count= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_ca;
+SET @@GLOBAL.group_replication_recovery_ssl_ca= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_capath;
+SET @@GLOBAL.group_replication_recovery_ssl_capath= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_cert;
+SET @@GLOBAL.group_replication_recovery_ssl_cert= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_cipher;
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_crl;
+SET @@GLOBAL.group_replication_recovery_ssl_crl= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_crlpath;
+SET @@GLOBAL.group_replication_recovery_ssl_crlpath= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_key;
+SET @@GLOBAL.group_replication_recovery_ssl_key= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
+SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_tls_version;
+SET @@GLOBAL.group_replication_recovery_tls_version= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_use_ssl;
+SET @@GLOBAL.group_replication_recovery_use_ssl= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_recovery_zstd_compression_level;
+SET @@GLOBAL.group_replication_recovery_zstd_compression_level= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_single_primary_mode;
+SET @@GLOBAL.group_replication_single_primary_mode= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_unreachable_majority_timeout;
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+SET @value= @@GLOBAL.group_replication_view_change_uuid;
+SET @@GLOBAL.group_replication_view_change_uuid= @value;
+ERROR HY000: This option cannot be set while START or STOP GROUP_REPLICATION is ongoing.
+############################################################
+# 4. Change Group Replication options that can be
+#    change while a STOP GROUP_REPLICATION is ongoing.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+CREATE TABLE gr_options_that_can_be_change (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) UNIQUE KEY);
+INSERT INTO gr_options_that_can_be_change (name)
+SELECT gb.VARIABLE_NAME FROM performance_schema.global_variables gb
+WHERE gb.VARIABLE_NAME LIKE 'group_replication_%'
+ AND gb.VARIABLE_NAME NOT IN (SELECT name FROM gr_options_that_cannot_be_change)
+ORDER BY gb.VARIABLE_NAME;
+SET SESSION sql_log_bin = 1;
+SET @value= @@GLOBAL.group_replication_allow_local_lower_version_join;
+SET @@GLOBAL.group_replication_allow_local_lower_version_join= @value;
+SET @value= @@GLOBAL.group_replication_bootstrap_group;
+SET @@GLOBAL.group_replication_bootstrap_group= @value;
+SET @value= @@GLOBAL.group_replication_communication_stack;
+SET @@GLOBAL.group_replication_communication_stack= @value;
+SET @value= @@GLOBAL.group_replication_consistency;
+SET @@GLOBAL.group_replication_consistency= @value;
+SET @value= @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_applier_threshold;
+SET @@GLOBAL.group_replication_flow_control_applier_threshold= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_certifier_threshold;
+SET @@GLOBAL.group_replication_flow_control_certifier_threshold= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_hold_percent;
+SET @@GLOBAL.group_replication_flow_control_hold_percent= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_max_quota;
+SET @@GLOBAL.group_replication_flow_control_max_quota= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_member_quota_percent;
+SET @@GLOBAL.group_replication_flow_control_member_quota_percent= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_min_quota;
+SET @@GLOBAL.group_replication_flow_control_min_quota= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_min_recovery_quota;
+SET @@GLOBAL.group_replication_flow_control_min_recovery_quota= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_mode;
+SET @@GLOBAL.group_replication_flow_control_mode= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_period;
+SET @@GLOBAL.group_replication_flow_control_period= @value;
+SET @value= @@GLOBAL.group_replication_flow_control_release_percent;
+SET @@GLOBAL.group_replication_flow_control_release_percent= @value;
+SET @value= @@GLOBAL.group_replication_group_seeds;
+SET @@GLOBAL.group_replication_group_seeds= @value;
+SET @value= @@GLOBAL.group_replication_local_address;
+SET @@GLOBAL.group_replication_local_address= @value;
+SET @value= @@GLOBAL.group_replication_poll_spin_loops;
+SET @@GLOBAL.group_replication_poll_spin_loops= @value;
+SET @value= @@GLOBAL.group_replication_ssl_mode;
+SET @@GLOBAL.group_replication_ssl_mode= @value;
+SET @value= @@GLOBAL.group_replication_start_on_boot;
+SET @@GLOBAL.group_replication_start_on_boot= @value;
+SET @value= @@GLOBAL.group_replication_tls_source;
+SET @@GLOBAL.group_replication_tls_source= @value;
+SET @value= @@GLOBAL.group_replication_transaction_size_limit;
+SET @@GLOBAL.group_replication_transaction_size_limit= @value;
+############################################################
+# 5. Validate that we did test all Group Replication options.
+[connection server1]
+include/assert.inc [Validate that we did test all Group Replication options]
+############################################################
+# 6. Resume the STOP GROUP_REPLICATION command.
+[connection server1]
+SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_running_lock";
+[connection server_1]
+include/gr_wait_for_member_state.inc
+############################################################
+# 7. Clean up.
+[connection server1]
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.read_only= 0;
+SET SESSION sql_log_bin = 0;
+DROP TABLE gr_options_that_cannot_be_change;
+DROP TABLE gr_options_that_can_be_change;
+SET SESSION sql_log_bin = 1;
+include/group_replication_end.inc

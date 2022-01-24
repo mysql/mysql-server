@@ -47,7 +47,7 @@ class BlockCommitOrd {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   
 private:
   Uint32 failNo; // As used by Qmgr
@@ -64,7 +64,7 @@ class UnblockCommitOrd {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   
 private:
   Uint32 failNo; // As used by Qmgr  

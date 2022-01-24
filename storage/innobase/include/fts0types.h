@@ -129,7 +129,7 @@ struct fts_sync_t {
   doc_id_t max_doc_id;  /*!< The doc id at which the cache was
                         noted as being full, we use this to
                         set the upper_limit field */
-  ib_time_monotonic_t start_time;
+  std::chrono::steady_clock::time_point start_time;
   /*!< SYNC start time */
   bool in_progress;  /*!< flag whether sync is in progress.*/
   bool unlock_cache; /*!< flag whether unlock cache when
@@ -169,15 +169,17 @@ struct fts_cache_t {
                          the document from the table. Each
                          element is of type fts_doc_t */
 
-  ulint total_size;      /*!< total size consumed by the ilist
-                         field of all nodes. SYNC is run
-                         whenever this gets too big */
-  fts_sync_t *sync;      /*!< sync structure to sync data to
-                         disk */
-  ib_alloc_t *sync_heap; /*!< The heap allocator, for indexes
-                         and deleted_doc_ids, ie. transient
-                         objects, they are recreated after
-                         a SYNC is completed */
+  ulint total_size;                /*!< total size consumed by the ilist
+                                   field of all nodes. SYNC is run
+                                   whenever this gets too big */
+  uint64_t total_size_before_sync; /*!< total size of fts cache,
+                                   when last SYNC request was sent */
+  fts_sync_t *sync;                /*!< sync structure to sync data to
+                                   disk */
+  ib_alloc_t *sync_heap;           /*!< The heap allocator, for indexes
+                                   and deleted_doc_ids, ie. transient
+                                   objects, they are recreated after
+                                   a SYNC is completed */
 
   ib_alloc_t *self_heap; /*!< This heap is the heap out of
                          which an instance of the cache itself
@@ -306,26 +308,22 @@ extern const fts_index_selector_t fts_index_selector_5_7[];
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_trx_row_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_trx_row_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_ranking_t instances doc_ids.
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_update_t instances doc_ids.
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_update_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_update_doc_id_cmp(const void *p1, const void *p2);
 
 /** Decode and return the integer that was encoded using our VLC scheme.*/
-UNIV_INLINE
-ulint fts_decode_vlc(
+static inline ulint fts_decode_vlc(
     /*!< out: value decoded */
     byte **ptr); /*!< in: ptr to decode from, this ptr is
                  incremented by the number of bytes decoded */
@@ -335,13 +333,11 @@ ulint fts_decode_vlc(
 @param[in]	src	src string
 @param[in]	heap	heap to use
 */
-UNIV_INLINE
-void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
-                    mem_heap_t *heap);
+static inline void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
+                                  mem_heap_t *heap);
 
 /** Return length of val if it were encoded using our VLC scheme. */
-UNIV_INLINE
-ulint fts_get_encoded_len(
+static inline ulint fts_get_encoded_len(
     /*!< out: length of value
      encoded, in bytes */
     ulint val); /*!< in: value to encode */
@@ -350,26 +346,24 @@ ulint fts_get_encoded_len(
 @param[in]	val	value to encode
 @param[in]	buf	buffer, must have enough space
 @return length of value encoded, in bytes */
-UNIV_INLINE
-ulint fts_encode_int(ulint val, byte *buf);
+static inline ulint fts_encode_int(ulint val, byte *buf);
 
 /** Get the selected FTS aux INDEX suffix. */
-UNIV_INLINE
-const char *fts_get_suffix(ulint selected); /*!< in: selected index */
+static inline const char *fts_get_suffix(
+    ulint selected); /*!< in: selected index */
 
 /** Return the selected FTS aux index suffix in 5.7 compatible format
 @param[in]	selected	selected index
 @return the suffix name */
-UNIV_INLINE
-const char *fts_get_suffix_5_7(ulint selected);
+static inline const char *fts_get_suffix_5_7(ulint selected);
 
 /** Select the FTS auxiliary index for the given character.
 @param[in]	cs	charset
 @param[in]	str	string
 @param[in]	len	string length in bytes
 @return the index to use for the string */
-UNIV_INLINE
-ulint fts_select_index(const CHARSET_INFO *cs, const byte *str, ulint len);
+static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
+                                     ulint len);
 
 #include "fts0types.ic"
 #include "fts0vlc.ic"

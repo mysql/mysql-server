@@ -1,0 +1,8 @@
+################################################################################
+# Validate that Group Replication ssl mode works properly with XCom
+################################################################################
+
+--source include/have_group_replication_plugin_base.inc
+--source include/have_group_replication_xcom_communication_stack.inc
+
+--source ../include/gr_ssl_mode_verify_identity_error.inc

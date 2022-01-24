@@ -51,7 +51,7 @@ class PFS_index_session_variables : public PFS_engine_index {
   PFS_index_session_variables()
       : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_session_variables() override {}
+  ~PFS_index_session_variables() override = default;
 
   virtual bool match(const System_variable *pfs);
 
@@ -95,7 +95,7 @@ class table_session_variables : public PFS_engine_table {
   table_session_variables();
 
  public:
-  ~table_session_variables() override {}
+  ~table_session_variables() override = default;
 
  protected:
   int make_row(const System_variable *system_var);

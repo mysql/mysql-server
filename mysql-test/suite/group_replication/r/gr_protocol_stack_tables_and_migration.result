@@ -1,0 +1,49 @@
+# 1. Start the group normally.
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# 2. Assert that the value in group_replication_communication_stack is the
+#    same as the one the in P_S table for incoming connections
+include/assert.inc [Assert that the configured communication stack is the same as reported in P_S tables]
+include/assert.inc [Assert that the configured communication stack is the same as reported in P_S tables]
+# 3. Stop both servers and backup the communication stack value, local_address
+#    and seeds
+include/stop_group_replication.inc
+include/assert.inc [Assert that the configured communication stack remains valid with a stopped server]
+include/stop_group_replication.inc
+# 4. In server 1, change to MySQL stack and adjust the local_address and seeds
+#    accordingly
+# 5. Start and bootstrap the group with server 1
+SET GLOBAL group_replication_communication_stack= MySQL;
+include/start_and_bootstrap_group_replication.inc
+# 6. In server 2, change to MySQL stack and adjust the local_address and seeds
+#    accordingly
+# 7. Start server 2.
+SET GLOBAL group_replication_communication_stack= MySQL;
+include/start_group_replication.inc
+# 8. Assert that the value in group_replication_communication_stack is the
+#    same as the one the in P_S table for incoming connections
+include/assert.inc [Assert that the configured communication stack is the same as reported in P_S tables]
+include/assert.inc [Assert that the configured communication stack is the same as reported in P_S tables]
+# 9. In server 1, change the protocol to XCom and check that it differs
+#     group_replication_communication_stack
+# 10. Stop server 1
+SET GLOBAL group_replication_communication_stack= XCOM;
+include/assert.inc [Assert that the configured communication stack is different then the one reported in P_S tables]
+include/stop_group_replication.inc
+# 11. In server 2, change the protocol to XCom and check that it differs
+#     group_replication_communication_stack
+# 12. Stop server 2
+SET GLOBAL group_replication_communication_stack= XCOM;
+include/assert.inc [Assert that the configured communication stack is different then the one reported in P_S tables]
+include/stop_group_replication.inc
+# 13. Bootstrap the group with server 1.
+SET GLOBAL group_replication_communication_stack= XCOM;
+include/start_and_bootstrap_group_replication.inc
+# 14. Join Server 2.
+SET GLOBAL group_replication_communication_stack= XCOM;
+include/start_group_replication.inc
+# 15. Clean up.
+include/group_replication_end.inc

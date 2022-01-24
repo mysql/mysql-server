@@ -184,7 +184,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     if (high > space->size) {
       high = space->size;
     }
@@ -209,7 +209,9 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage != nullptr && buf_page_is_accessed(bpage) &&
+    if (bpage != nullptr &&
+        buf_page_is_accessed(bpage) !=
+            std::chrono::steady_clock::time_point{} &&
         buf_page_peek_if_young(bpage)) {
       recent_blocks++;
 
@@ -326,7 +328,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   buf_page_t *bpage;
   buf_frame_t *frame;
   buf_page_t *pred_bpage = nullptr;
-  unsigned pred_bpage_is_accessed = 0;
+  std::chrono::steady_clock::time_point pred_bpage_is_accessed;
   page_no_t pred_offset;
   page_no_t succ_offset;
   int asc_or_desc;
@@ -372,7 +374,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   do not try to read outside the bounds of the tablespace! */
   ulint space_size;
 
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     space_size = space->size;
 
     fil_space_release(space);
@@ -417,7 +419,8 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage == nullptr || !buf_page_is_accessed(bpage)) {
+    if (bpage == nullptr || buf_page_is_accessed(bpage) ==
+                                std::chrono::steady_clock::time_point{}) {
       /* Not accessed */
       fail_count++;
 
@@ -430,8 +433,14 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
       the latest access times were linear.  The
       threshold (srv_read_ahead_factor) should help
       a little against this. */
-      int res =
-          ut_ulint_cmp(buf_page_is_accessed(bpage), pred_bpage_is_accessed);
+      int res = 0;
+      if (buf_page_is_accessed(bpage) == pred_bpage_is_accessed) {
+        res = 0;
+      } else if (buf_page_is_accessed(bpage) < pred_bpage_is_accessed) {
+        res = -1;
+      } else {
+        res = 1;
+      }
       /* Accesses not in the right order */
       if (res != 0 && res != asc_or_desc) {
         fail_count++;
@@ -447,7 +456,8 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     }
 
     if (bpage) {
-      if (buf_page_is_accessed(bpage)) {
+      if (buf_page_is_accessed(bpage) !=
+          std::chrono::steady_clock::time_point{}) {
         pred_bpage = bpage;
         pred_bpage_is_accessed = buf_page_is_accessed(bpage);
       }

@@ -257,7 +257,7 @@ bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 }
 
 void mbr_join(const dd::Spatial_reference_system *srs, double *a,
-              const double *b, int n_dim MY_ATTRIBUTE((unused))) {
+              const double *b, int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   try {
@@ -291,7 +291,7 @@ void mbr_join(const dd::Spatial_reference_system *srs, double *a,
 }
 
 double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
-                     const double *b, int n_dim MY_ATTRIBUTE((unused))) {
+                     const double *b, int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   double area = 0.0;
@@ -325,7 +325,7 @@ double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
 }
 
 double compute_area(const dd::Spatial_reference_system *srs, const double *a,
-                    int n_dim MY_ATTRIBUTE((unused))) {
+                    int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   double area = 0.0;
@@ -352,7 +352,7 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
 
 int get_mbr_from_store(const dd::Spatial_reference_system *srs,
                        const uchar *store, uint size,
-                       uint n_dims MY_ATTRIBUTE((unused)), double *mbr,
+                       uint n_dims [[maybe_unused]], double *mbr,
                        gis::srid_t *srid) {
   assert(n_dims == 2);
   // The SRS should match the SRID of the geometry, with one exception: For
@@ -419,8 +419,7 @@ int get_mbr_from_store(const dd::Spatial_reference_system *srs,
 
 double rtree_area_increase(const dd::Spatial_reference_system *srs,
                            const uchar *mbr_a, const uchar *mbr_b,
-                           int mbr_len MY_ATTRIBUTE((unused)),
-                           double *ab_area) {
+                           int mbr_len [[maybe_unused]], double *ab_area) {
   assert(mbr_len == sizeof(double) * 4);
 
   double a_xmin = float8get(mbr_a);
@@ -476,7 +475,7 @@ double rtree_area_increase(const dd::Spatial_reference_system *srs,
 
 double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
                               const uchar *mbr_a, const uchar *mbr_b,
-                              int mbr_len MY_ATTRIBUTE((unused))) {
+                              int mbr_len [[maybe_unused]]) {
   assert(mbr_len == sizeof(double) * 4);
 
   double a_xmin = float8get(mbr_a);

@@ -8,3 +8,6 @@ CREATE UNIQUE INDEX test_index ON performance_schema.setup_threads(NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 DROP INDEX `PRIMARY` ON performance_schema.setup_threads;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.setup_threads;
+DROP TABLE test.create_select;

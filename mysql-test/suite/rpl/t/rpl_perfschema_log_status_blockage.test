@@ -30,7 +30,11 @@
 --let $rpl_extra_connections_per_server= 6
 --source include/master-slave.inc
 
+--source include/rpl_connection_slave.inc
+--let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
+SET @@GLOBAL.replica_checkpoint_period= 1;
 
+--source include/rpl_connection_master.inc
 # Create a table to store the data to be validated
 CREATE TABLE ils_copy (
   uuid VARCHAR(36) PRIMARY KEY,
@@ -43,6 +47,7 @@ CREATE TABLE t1_innodb (c1 INT);
 CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
+
 # Make server to pause when fully blocked
 --let $debug_point= pause_collecting_instance_logs_info
 --source include/add_debug_point.inc
@@ -245,6 +250,9 @@ if ($rpl_debug)
 --let $assert_cond= $ils_relay_log_file = "$relay_log_file"
 --source include/assert.inc
 
+--let $wait_condition= SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position")=$relay_log_pos FROM ils_copy
+--source include/wait_condition_or_abort.inc
+
 --let $assert_text= Collected default replication channel relay log file position is correct
 --let $ils_relay_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position") FROM ils_copy`
 --let $assert_cond= $ils_relay_log_pos = $relay_log_pos
@@ -279,6 +287,8 @@ if ($rpl_debug)
 # Cleanup
 --source include/rpl_connection_slave.inc
 --source include/remove_debug_point.inc
+--replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
+--eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
 RESET SLAVE ALL FOR CHANNEL 'ch2';
 --remove_file $ils_dump
 

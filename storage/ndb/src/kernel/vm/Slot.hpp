@@ -38,7 +38,7 @@
 class Slot
 {
  public:
-  STATIC_CONST(TYPE_ID = RT_FREE);
+  static constexpr Uint32 TYPE_ID = RT_FREE;
   Slot();
   Uint32 m_magic;
   Uint32 nextList;

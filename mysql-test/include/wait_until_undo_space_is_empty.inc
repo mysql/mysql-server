@@ -17,14 +17,14 @@ if ($wait_timeout)
 let $first_loop = 1;
 let $wait_timeout = 30;
 let $set_inactive = ALTER UNDO TABLESPACE $inactive_undo_space SET INACTIVE;
-let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                      WHERE NAME = '$inactive_undo_space' AND STATE = 'empty';
+let $wait_condition = SELECT STATE = 'empty' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                      WHERE NAME = '$inactive_undo_space';
 
 # Keep track of how many times the wait condition is tested
 let $repetitions = 0;
 while ($wait_seconds)
 {
-  let $repeat = 10;
+  let $repeat = 50;
 
   if (!$first_loop)
   {

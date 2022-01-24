@@ -21,11 +21,11 @@ SHOW RELAYLOG EVENTS;
 STOP SLAVE;
 --error ER_SLAVE_CONFIGURATION
 START SLAVE;
-SELECT MASTER_POS_WAIT('non-existent', 0);
+SELECT SOURCE_POS_WAIT('non-existent', 0);
 --error ER_SLAVE_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_HEARTBEAT_PERIOD = 1.01;
 --error 2
---exec $MYSQL_DUMP --compact --master-data=2 test
+--exec $MYSQL_DUMP --compact --source-data=2 test
 FLUSH LOGS;
 FLUSH RELAY LOGS;
 
@@ -63,12 +63,12 @@ SET @@GLOBAL.relay_log_info_repository= "TABLE";
 --let $saved= `SELECT @@GLOBAL.max_relay_log_size`
 SET @@GLOBAL.max_relay_log_size= 536870912;
 --eval SET @@GLOBAL.max_relay_log_size= $saved
---let $saved= `SELECT @@GLOBAL.slave_net_timeout`
-SET @@GLOBAL.slave_net_timeout= 10;
---eval SET @@GLOBAL.slave_net_timeout= $saved
---let $saved= `SELECT @@GLOBAL.sql_slave_skip_counter`
-SET @@GLOBAL.sql_slave_skip_counter= 10;
---eval SET @@GLOBAL.sql_slave_skip_counter= $saved
+--let $saved= `SELECT @@GLOBAL.replica_net_timeout`
+SET @@GLOBAL.replica_net_timeout= 10;
+--eval SET @@GLOBAL.replica_net_timeout= $saved
+--let $saved= `SELECT @@GLOBAL.sql_replica_skip_counter`
+SET @@GLOBAL.sql_replica_skip_counter= 10;
+--eval SET @@GLOBAL.sql_replica_skip_counter= $saved
 --let $saved= `SELECT @@SESSION.sql_log_bin`
 SET @@SESSION.sql_log_bin= 0;
 --eval SET @@SESSION.sql_log_bin= $saved
@@ -83,7 +83,7 @@ SHOW SLAVE HOSTS;
 RESET MASTER;
 SHOW BINLOG EVENTS;
 --error 2
---exec $MYSQL_DUMP --compact --master-data=2 test
+--exec $MYSQL_DUMP --compact --source-data=2 test
 FLUSH LOGS;
 FLUSH BINARY LOGS;
 

@@ -41,7 +41,7 @@ struct DihGetTabInfoReq
   friend class Dbdih;
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 public:
   Uint32 senderData;
   Uint32 senderRef;
@@ -55,7 +55,7 @@ public:
 
 struct DihGetTabInfoRef
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -71,7 +71,7 @@ struct DihGetTabInfoRef
 
 struct DihGetTabInfoConf
 {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderData;
   Uint32 senderRef;

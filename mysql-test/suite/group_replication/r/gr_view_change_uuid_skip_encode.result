@@ -1,0 +1,44 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group on server 1 faking that it is a
+#    server that does not have the option
+#    group_replication_view_change_uuid, thence it will not
+#    send it to group on join the handshake.
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_view_change_uuid';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Try join a member with
+#    group_replication_view_change_uuid = UUID
+#    to the group, it shall fail.
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The member is configured with a group_replication_view_change_uuid option value '.*' different from the group 'AUTOMATIC'. The member will now exit the group.");
+SET SESSION sql_log_bin = 1;
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET @@GLOBAL.group_replication_view_change_uuid = 'c0dec0de-c0de-c0de-c0de-c0dec0dec0de';
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 3. Try join a member with
+#    GLOBAL.group_replication_view_change_uuid = AUTOMATIC
+#    to the group, it shall succeed.
+SET @@GLOBAL.group_replication_view_change_uuid = AUTOMATIC;
+include/start_group_replication.inc
+
+############################################################
+# 4. Clean up.
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_skip_encode_view_change_uuid';
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+include/group_replication_end.inc

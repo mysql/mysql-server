@@ -18,7 +18,7 @@ reset slave;
 start slave io_thread;
 # Give the I/O thread time to block.
 let $slave_param= Slave_IO_State;
-let $slave_param_value= Waiting for the slave SQL thread to free enough relay log space;
+let $slave_param_value= Waiting for the replica SQL thread to free relay log space;
 source include/wait_for_slave_param.inc;
 
 # A bug caused the I/O thread to refuse stopping.
@@ -30,14 +30,14 @@ reset slave;
 # SQL thread cannot purge this relay log as purge is done only when
 # the SQL thread switches to another relay log, which does not exist
 # here.  So we should have a deadlock.  If it is not resolved
-# automatically we'll detect it with master_pos_wait that waits for
+# automatically we'll detect it with source_pos_wait that waits for
 # farther than 1Ob; it will timeout after 300 seconds (which is inline
 # with the default used for sync_slave_with_master and will protect us
 # against slow test envs); also the slave will probably not cooperate
 # to shutdown (as 2 threads are locked)
---let $outcome= `SELECT MASTER_POS_WAIT('$master_log_file',200,300) AS mpw;`
+--let $outcome= `SELECT SOURCE_POS_WAIT('$master_log_file',200,300) AS mpw;`
 
-# master_pos_wait returns:
+# source_pos_wait returns:
 #
 # * >= 0, the number of events the slave had to wait to advance to the
 #         position
@@ -46,7 +46,7 @@ reset slave;
 #
 # * NULL, if an error occurred, or the SQL thread was not started,
 #         slave master info is not initialized, the arguments are incorrect
---let $assert_text= Assert that master_pos_wait does not timeout nor it returns NULL
+--let $assert_text= Assert that source_pos_wait does not timeout nor it returns NULL
 --let $assert_cond= $outcome IS NOT NULL AND $outcome <> -1
 --source include/assert.inc
 

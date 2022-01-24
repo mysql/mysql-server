@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Try to enable and disable a replication failover configuration
+#    on a secondary.
+#    It will not be allowed.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+SELECT asynchronous_connection_failover_reset();
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Group Replication is running.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3306, '', 50);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Can't execute the given operation on a Group Replication secondary member.
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3306, '');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_source'; Can't execute the given operation on a Group Replication secondary member.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','127.0.0.1', 3306, '', 80, 60);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Can't execute the given operation on a Group Replication secondary member.
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Can't execute the given operation on a Group Replication secondary member.
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+ERROR HY000: This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary.
+
+############################################################
+# 2. Check that configuration was not changed.
+[connection server2]
+include/assert.inc [There must be no failover sources]
+include/assert.inc [There must be no failover managed sources]
+include/assert.inc ['There is no replication channel ch1']
+
+############################################################
+# 3. Clean up.
+include/group_replication_end.inc

@@ -110,7 +110,7 @@ class os_once {
           case IN_PROGRESS:
             break;
           case NEVER_DONE:
-            /* fall through */
+            [[fallthrough]];
           default:
             ut_error;
         }

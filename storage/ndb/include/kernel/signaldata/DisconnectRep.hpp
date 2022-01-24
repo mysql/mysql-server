@@ -54,7 +54,7 @@ struct DisconnectRep
    */
   friend bool printDISCONNECT_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   enum ErrCode {
     // ErrorCodes come from different sources

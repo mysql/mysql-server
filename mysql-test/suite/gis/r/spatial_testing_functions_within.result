@@ -128,7 +128,7 @@ INSERT INTO gis_geometrycollection VALUES
 (313,ST_GEOMFROMTEXT(@star_lines_near_horizontal_2)),
 (314,ST_GEOMFROMTEXT(@star_lines_near_vertical_2)),
 (315,ST_GEOMFROMTEXT(@star_collection_elems_2));
-#INSERT seperate star
+#INSERT separate star
 INSERT INTO gis_geometrycollection VALUES
 (400,ST_GEOMFROMTEXT(@star_3)),
 (401,ST_GEOMFROMTEXT(@star_elem_vertical_3)),

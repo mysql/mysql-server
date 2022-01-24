@@ -46,8 +46,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -80,8 +80,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -101,8 +101,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -119,8 +119,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -152,8 +152,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -173,8 +173,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -225,8 +225,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -254,8 +254,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -272,8 +272,8 @@ COMMIT;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -290,8 +290,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -319,8 +319,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 
@@ -337,8 +337,8 @@ ROLLBACK;
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
---let $assert_text= Slave_open_temp_tables shall be 0
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text= Replica_open_temp_tables shall be 0
 --let $assert_cond= $var_value = 0
 --source include/assert.inc
 

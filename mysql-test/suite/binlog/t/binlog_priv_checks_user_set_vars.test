@@ -11,7 +11,7 @@
 #     without privileges.
 # R2. Variables `gtid_next`, `original_commit_timestamp`,
 #     `original_server_version`, `immediate_server_version` and
-#     `pseudo_slave_mode` are allowed to be set when having `SUPER`,
+#     `pseudo_replica_mode` are allowed to be set when having `SUPER`,
 #     `SYSTEM_VARIABLES_ADMIN`, `SESSION_VARIABLES_ADMIN` or
 #     `REPLICATION_APPLIER` privileges.
 # R3. Variables `pseudo_thread_id` and `sql_require_primary_key` are allowed to
@@ -44,7 +44,7 @@
 #    c) `original_commit_timestamp`
 #    d) `original_server_version`
 #    e) `immediate_server_version`
-#    f) `pseudo_slave_mode`
+#    f) `pseudo_replica_mode`
 #    and expect failure.
 # 3) Disconnect session and grant `REPLICATION_APPLIER` privilege to the user.
 # 4) Create a client session using the privileged user.
@@ -53,7 +53,7 @@
 #    c) `original_commit_timestamp`
 #    d) `original_server_version`
 #    e) `immediate_server_version`
-#    f) `pseudo_slave_mode`
+#    f) `pseudo_replica_mode`
 #    and expect success.
 #
 # TC3. Check privileges are kept the same while setting sub-set of variables
@@ -110,7 +110,7 @@ SET rbr_exec_mode = IDEMPOTENT;
 #    c) `original_commit_timestamp`
 #    d) `original_server_version`
 #    e) `immediate_server_version`
-#    f) `pseudo_slave_mode`
+#    f) `pseudo_replica_mode`
 #    and expect failure.
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET gtid_next = AUTOMATIC;
@@ -121,7 +121,7 @@ SET original_server_version = 1;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET immediate_server_version = 1;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET pseudo_slave_mode = 1;
+SET pseudo_replica_mode = 1;
 
 # 3) Disconnect session and grant `REPLICATION_APPLIER` privilege to the user.
 --disconnect conn
@@ -137,13 +137,13 @@ GRANT REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 #    c) `original_commit_timestamp`
 #    d) `original_server_version`
 #    e) `immediate_server_version`
-#    f) `pseudo_slave_mode`
+#    f) `pseudo_replica_mode`
 #    and expect success.
 SET gtid_next = AUTOMATIC;
 SET original_commit_timestamp = 1;
 SET original_server_version = 1;
 SET immediate_server_version = 1;
-SET pseudo_slave_mode = 1;
+SET pseudo_replica_mode = 1;
 
 --echo #
 --echo # TC3. Check privileges are kept the same while setting sub-set of

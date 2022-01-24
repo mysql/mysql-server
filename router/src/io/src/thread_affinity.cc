@@ -107,15 +107,20 @@ ThreadAffinity::affinity() const noexcept {
   SetThreadAffinityMask(thread_id_, cur_mask);
 
   // create bitmask from old_mask.
-  return {stdx::in_place, cur_mask};
+  return {std::in_place, cur_mask};
 #else
   return stdx::make_unexpected(make_error_code(std::errc::not_supported));
 #endif
 }
 
+// Doxygen gets confused by [[maybe_unused]]
+
+/**
+ @cond
+*/
 stdx::expected<void, std::error_code> ThreadAffinity::affinity(
     std::bitset<ThreadAffinity::max_cpus> cpus
-        MY_ATTRIBUTE((unused))) const noexcept {
+    [[maybe_unused]]) const noexcept {
 #if defined(__linux__) || defined(__FreeBSD__)
   thread_affinity_cpu_set_type cpuset;
 
@@ -170,3 +175,7 @@ stdx::expected<void, std::error_code> ThreadAffinity::affinity(
   return stdx::make_unexpected(make_error_code(std::errc::not_supported));
 #endif
 }
+
+/**
+ @endcond
+*/

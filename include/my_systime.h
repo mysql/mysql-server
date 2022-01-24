@@ -30,11 +30,11 @@
 */
 
 #include <time.h>   // time_t, struct timespec (C11/C++17)
+#include <cassert>  // assert
 #include <chrono>   // std::chrono::microseconds
 #include <cstdint>  // std::int64_t
 #include <limits>   // std::numeric_limits
 #include <thread>   // std::this_thread::wait_for
-
 #include "my_config.h"
 
 #ifdef HAVE_SYS_TIME_H
@@ -43,7 +43,7 @@
 #ifdef _WIN32
 #include <winsock2.h>  // struct timeval
 #endif                 /* _WIN32 */
-
+#include "my_time_t.h"
 using UTC_clock = std::chrono::system_clock;
 
 /* Bits for get_date timeflag */
@@ -225,12 +225,31 @@ inline unsigned long long int my_milli_time() {
 }
 
 /**
-  Convert microseconds since epoch to timeval.
+  Convert microseconds since epoch to my_timeval.
   @param      micro_time  Microseconds.
   @param[out] tm          A timeval variable to write to.
 */
-inline void my_micro_time_to_timeval(std::uint64_t micro_time,
-                                     struct timeval *tm) {
+inline void my_micro_time_to_timeval(std::uint64_t micro_time, my_timeval *tm) {
+  tm->m_tv_sec = static_cast<int64_t>(micro_time / 1000000);
+  tm->m_tv_usec = static_cast<int64_t>(micro_time % 1000000);
+}
+
+/**
+
+ Convert microseconds since epoch to timeval. Prefer
+
+   my_micro_time_to_timeval(std::uint64_t micro_time, my_timeval *tm)
+
+ which is 64 bits safe on all platforms: Window's timeval's long
+ members are only 32 bits. Unless you need to use the host system's
+ struct timeval, of course.
+
+ @param      micro_time  Microseconds.
+ @param[out] tm          A timeval variable to write to.
+ */
+inline void my_micro_time_to_timeval(std::uint64_t micro_time, timeval *tm) {
+  assert(static_cast<std::int64_t>(micro_time / 1000000) <=
+         std::numeric_limits<long>::max());
   tm->tv_sec = static_cast<long>(micro_time / 1000000);
   tm->tv_usec = static_cast<long>(micro_time % 1000000);
 }

@@ -41,6 +41,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysqld_error.h"
+#include "sql/check_stack.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/key_spec.h"
@@ -159,8 +160,8 @@ class Parse_tree_root {
   void operator=(const Parse_tree_root &) = delete;
 
  protected:
-  virtual ~Parse_tree_root() {}
-  Parse_tree_root() {}
+  virtual ~Parse_tree_root() = default;
+  Parse_tree_root() = default;
 
  public:
   virtual Sql_cmd *make_cmd(THD *thd) = 0;
@@ -177,7 +178,7 @@ class PT_table_ddl_stmt_base : public Parse_tree_root {
   Alter_info m_alter_info;
 };
 
-inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() {}
+inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() = default;
 
 /**
   Parse context for the table DDL (ALTER TABLE and CREATE TABLE) nodes.
@@ -567,7 +568,7 @@ class PT_joined_table : public PT_table_reference {
   bool contextualize_tabs(Parse_context *pc);
 };
 
-inline PT_joined_table::~PT_joined_table() {}
+inline PT_joined_table::~PT_joined_table() = default;
 
 class PT_cross_join : public PT_joined_table {
   typedef PT_joined_table super;
@@ -1031,6 +1032,8 @@ class PT_option_value_list : public PT_option_value_list_head {
       : super(delimiter_pos_arg, tail, tail_pos), head(head_arg) {}
 
   bool contextualize(Parse_context *pc) override {
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
     return head->contextualize(pc) || super::contextualize(pc);
   }
 };
@@ -1554,6 +1557,14 @@ class PT_query_expression final : public PT_query_primary {
 
            TODO: add a warning, deprecate and replace this behavior with the
                  standard one.
+      */
+      return true;
+    }
+    if (m_order != nullptr && m_limit == nullptr && !order && limit) {
+      /*
+        Allow pushdown of LIMIT into body with ORDER BY, e.g
+
+          (SELECT ... ORDER BY order1) LIMIT a;
       */
       return true;
     }
@@ -2319,7 +2330,7 @@ class PT_ddl_table_option : public Table_ddl_node {
   virtual bool is_rename_table() const { return false; }
 };
 
-inline PT_ddl_table_option::~PT_ddl_table_option() {}
+inline PT_ddl_table_option::~PT_ddl_table_option() = default;
 
 /**
   Base class for CREATE TABLE option nodes
@@ -2339,7 +2350,7 @@ class PT_create_table_option : public PT_ddl_table_option {
   }
 };
 
-inline PT_create_table_option::~PT_create_table_option() {}
+inline PT_create_table_option::~PT_create_table_option() = default;
 
 /**
   A template for options that set a single property in HA_CREATE_INFO, and
@@ -2630,7 +2641,7 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
   using super = PT_create_table_option;
 
  public:
-  explicit PT_create_table_secondary_engine_option() {}
+  explicit PT_create_table_secondary_engine_option() = default;
   explicit PT_create_table_secondary_engine_option(
       const LEX_CSTRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}

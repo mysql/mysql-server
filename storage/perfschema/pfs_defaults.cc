@@ -44,14 +44,15 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   static PSI_thread_key thread_key;
   static PSI_thread_info thread_info = {&thread_key, "setup",
-                                        PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME};
+                                        "pfs_setup", PSI_FLAG_SINGLETON,
+                                        0,           PSI_DOCUMENT_ME};
 
   const char *pfs_category = "performance_schema";
 
   PSI_thread_service_t *psi = (PSI_thread_service_t *)service;
 
   psi->register_thread(pfs_category, &thread_info, 1);
-  PSI_thread *psi_thread = psi->new_thread(thread_key, nullptr, 0);
+  PSI_thread *psi_thread = psi->new_thread(thread_key, 0, nullptr, 0);
 
   if (psi_thread != nullptr) {
     /* LF_HASH needs a thread, for PINS */

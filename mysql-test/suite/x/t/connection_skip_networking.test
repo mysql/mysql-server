@@ -26,17 +26,24 @@ let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
 --enable_result_log
 
 --echo # Verify that UNIX socket connection still works
---exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
+exec $MYSQLXTEST
+  -u x_root --password=''
+  --socket=$XPLUGIN_SOCKET
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 --echo # Verify that TCP is disabled
---replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
---error 1
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
+--replace_regex /error: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+exec $MYSQLXTEST
+  -u x_root --password=''
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 --echo # Try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
---replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
---error 1
---exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
+--replace_regex /error: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+exec $MYSQLXTEST
+  -u nonblank --password='nonblank'
+  --expect-error 2002
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 
  call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");

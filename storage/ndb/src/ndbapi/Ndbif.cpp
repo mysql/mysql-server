@@ -175,7 +175,7 @@ Ndb::init(int aMaxNoOfTransactions)
   DBUG_RETURN(0);
   
 error_handler:
-  ndbout << "error_handler" << endl;
+  g_eventLogger->info("error_handler");
   releaseTransactionArrays();
   delete theDictionary;
   theImpl->close();
@@ -1129,7 +1129,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     else
     {
 #ifdef VM_TRACE
-      ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
+      g_eventLogger->info("Recevied TCKEY_FAILCONF wo/ operation");
 #endif
     }
     if(tFirstData & 1)
@@ -1172,7 +1172,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       }
     }
 #ifdef VM_TRACE
-    ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+    g_eventLogger->info("Recevied TCKEY_FAILREF wo/ operation");
 #endif
     return;
   }
@@ -1448,14 +1448,13 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
 
 InvalidSignal:
 #ifdef VM_TRACE
-  ndbout_c("Ndbif: Error NdbImpl::trp_deliver_signal "
-	   "(tFirstDataPtr=%p, GSN=%d, theWaiter.m_state=%d)"
-	   " sender = (Block: %d Node: %d)",
-           tFirstDataPtr,
-	   tSignalNumber,
-	   tWaitState,
-	   refToBlock(aSignal->theSendersBlockRef),
-	   refToNode(aSignal->theSendersBlockRef));
+  g_eventLogger->info(
+      "Ndbif: Error NdbImpl::trp_deliver_signal "
+      "(tFirstDataPtr=%p, GSN=%d, theWaiter.m_state=%d)"
+      " sender = (Block: %d Node: %d)",
+      tFirstDataPtr, tSignalNumber, tWaitState,
+      refToBlock(aSignal->theSendersBlockRef),
+      refToNode(aSignal->theSendersBlockRef));
 #endif
 #ifdef NDB_NO_DROPPED_SIGNAL
   abort();
@@ -1513,10 +1512,10 @@ Ndb::completedTransaction(NdbTransaction* aCon)
       theImpl->wakeHandler->notifyTransactionCompleted(this);
     }
   } else {
-    ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
-    ndbout << " theListState = " << (int) aCon->theListState;
-    ndbout << " theTransArrayIndex = " << aCon->theTransArrayIndex;
-    ndbout << endl << flush;
+    g_eventLogger->info(
+        "theNoOfSentTransactions = %d theListState = %d"
+        " theTransArrayIndex = %d",
+        theNoOfSentTransactions, aCon->theListState, aCon->theTransArrayIndex);
 #ifdef VM_TRACE
     printState("completedTransaction abort");
     //abort();
@@ -1564,9 +1563,9 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
     for (i = 0; i < tNoCompletedTransactions; i++) {
       aCopyArray[i] = theCompletedTransactionsArray[i];
       if (aCopyArray[i]->theListState != NdbTransaction::InCompletedList) {
-        ndbout << "pollCompleted error ";
-        ndbout << (int) aCopyArray[i]->theListState << endl;
-	abort();
+        g_eventLogger->info("pollCompleted error %d",
+                            (int)aCopyArray[i]->theListState);
+        abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;
       aCopyArray[i]->theListState = NdbTransaction::NotInList;
@@ -1607,8 +1606,8 @@ Ndb::check_send_timeout()
         a_con->printState();
 	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
-	ndbout_c("4012 [%.8x %.8x]", t1, t2);
-	//abort();
+        g_eventLogger->info("4012 [%.8x %.8x]", t1, t2);
+        //abort();
 #endif
         a_con->theReleaseOnClose = true;
 	a_con->theError.code = 4012;
@@ -1969,10 +1968,8 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
                                   bool send_immediate)
 {
 #ifdef MARKER_TRACE
-  ndbout_c("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
-	   transId1,
-	   transId2,
-	   refToNode(aTCRef));
+  g_eventLogger->info("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
+                      transId1, transId2, refToNode(aTCRef));
 #endif  
   aSignal->theTrace                = TestOrd::TraceAPI;
   aSignal->theReceiversBlockNumber = refToBlock(aTCRef);

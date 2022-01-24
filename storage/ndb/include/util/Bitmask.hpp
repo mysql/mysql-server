@@ -37,7 +37,7 @@
  */
 class BitmaskImpl {
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   /**
    * get - Check if bit n is set.
@@ -843,9 +843,9 @@ public:
   
   Data rep;
 public:
-  STATIC_CONST( Size = size );
-  STATIC_CONST( NotFound = BitmaskImpl::NotFound );
-  STATIC_CONST( TextLength = size * 8 );
+  static constexpr Uint32 Size = size;
+  static constexpr Uint32 NotFound = BitmaskImpl::NotFound;
+  static constexpr Uint32 TextLength = size * 8;
 
   /**
    * Return the length- number of words required to store the bitmask.

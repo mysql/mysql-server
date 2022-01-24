@@ -54,9 +54,9 @@ Execute_load_query_event::Execute_load_query_event(
 
   READER_TRY_CALL(go_to, fde->common_header_len);
   READER_TRY_CALL(forward, ELQ_FILE_ID_OFFSET);
-  READER_TRY_SET(file_id, read_and_letoh<int32_t>);
-  READER_TRY_SET(fn_pos_start, read_and_letoh<uint32_t>);
-  READER_TRY_SET(fn_pos_end, read_and_letoh<uint32_t>);
+  READER_TRY_SET(file_id, read<int32_t>);
+  READER_TRY_SET(fn_pos_start, read<uint32_t>);
+  READER_TRY_SET(fn_pos_end, read<uint32_t>);
   READER_TRY_SET(dup_temp, read<uint8_t>);
   dup_handling = (enum_load_dup_handling)(dup_temp);
 
@@ -78,7 +78,7 @@ Delete_file_event::Delete_file_event(const char *buf,
   READER_TRY_INITIALIZATION;
 
   READER_ASSERT_POSITION(fde->common_header_len);
-  READER_TRY_SET(file_id, read_and_letoh<uint32_t>);
+  READER_TRY_SET(file_id, read<uint32_t>);
   if (file_id == 0) READER_THROW("Invalid file_id");
 
   READER_CATCH_ERROR;
@@ -94,7 +94,7 @@ Append_block_event::Append_block_event(const char *buf,
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
 
-  READER_TRY_SET(file_id, read_and_letoh<uint32_t>);
+  READER_TRY_SET(file_id, read<uint32_t>);
   block_len = READER_CALL(available_to_read);
   block = const_cast<unsigned char *>(
       reinterpret_cast<const unsigned char *>(READER_CALL(ptr, block_len)));

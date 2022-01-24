@@ -48,7 +48,7 @@ class table_session_account_connect_attrs : public table_session_connect {
   table_session_account_connect_attrs();
 
  public:
-  ~table_session_account_connect_attrs() override {}
+  ~table_session_account_connect_attrs() override = default;
 
  protected:
   bool thread_fits(PFS_thread *thread) override;

@@ -1,0 +1,103 @@
+################################################################################
+# rpl_semi_sync_source_wait_for_replica_count
+#
+# It is a global variable only and can be set dynamically.
+# It has UINT type and only accepts numbers from 1 to 65535. Default value is 1.
+#
+# This test verifies the variable can be set, selected and showed correctly.
+################################################################################
+source include/have_semisync_plugin.inc;
+
+--echo #
+--echo # Initialization
+--echo #
+# The following is to prevent a mis-match on windows that has the name of the
+# lib ending with 'dll'
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+
+--echo #
+--echo # Verify it can set selected and showed correctly
+--echo #
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+
+SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE
+  VARIABLE_NAME = 'rpl_semi_sync_source_wait_for_replica_count';
+--enable_warnings
+
+--echo #
+--echo # Verify it is not a session variable
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.rpl_semi_sync_source_wait_for_replica_count;
+
+SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+--disable_warnings
+SELECT * FROM performance_schema.session_variables WHERE
+  VARIABLE_NAME ='rpl_semi_sync_source_wait_for_replica_count';
+--enable_warnings
+
+--echo #
+--echo # Verify it can be set correctly
+--echo #
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 2;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 20;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 65535;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+
+# Default value
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 1;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION rpl_semi_sync_source_wait_for_replica_count = 2;
+SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+--echo #
+--echo # Verify it could not bet set with invalid values
+--echo #
+
+# When the given value is less than 1(minimum value), then set
+# rpl_semi_sync_source_wait_for_replica_count to 1
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = -1;
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 0;
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+# When the given value is greater than 65535(minimum value), then set
+# rpl_semi_sync_source_wait_for_replica_count to 65535
+
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 65536;
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 300000;
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = blabla;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = "blabla";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = "";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = NULL;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 0.1;
+
+--echo #
+--echo # Cleanup
+--echo #
+UNINSTALL PLUGIN rpl_semi_sync_source;

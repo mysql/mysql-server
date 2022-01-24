@@ -31,7 +31,7 @@
 
 
 struct DropTabReq {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   enum RequestType {
     OnlineDropTab = 0,
@@ -47,7 +47,7 @@ struct DropTabReq {
 };
 
 struct DropTabConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -55,7 +55,7 @@ struct DropTabConf {
 };
 
 struct DropTabRef {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     NoSuchTable = 1,

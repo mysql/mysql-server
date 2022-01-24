@@ -1,1 +1,2 @@
 --force-restart
+--replica-parallel-workers=0

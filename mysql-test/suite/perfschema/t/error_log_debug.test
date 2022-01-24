@@ -91,6 +91,7 @@ SELECT error_code,data
 --echo
 --echo # clean up
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+--remove_file $LOG_FILE
 
 --echo
 --echo # Done!

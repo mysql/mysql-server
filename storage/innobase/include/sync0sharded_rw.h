@@ -66,9 +66,11 @@ class Sharded_rw_lock {
       mysql_pfs_key_t pfs_key,
 #endif
       latch_level_t latch_level, size_t n_shards) {
+    ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
-    m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
+    m_shards = static_cast<Shard *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(Shard) * n_shards));
 
     for_each([
 #ifdef UNIV_PFS_RWLOCK
@@ -85,13 +87,14 @@ class Sharded_rw_lock {
 
     for_each([](rw_lock_t &lock) { rw_lock_free(&lock); });
 
-    ut_free(m_shards);
+    ut::free(m_shards);
     m_shards = nullptr;
     m_n_shards = 0;
   }
 
   size_t s_lock(ut::Location location) {
-    const size_t shard_no = ut_rnd_interval(0, m_n_shards - 1);
+    const size_t shard_no =
+        default_indexer_t<>::get_rnd_index() & (m_n_shards - 1);
     rw_lock_s_lock_inline(&m_shards[shard_no], 0, location.filename,
                           location.line);
     return shard_no;
@@ -101,7 +104,14 @@ class Sharded_rw_lock {
     ut_a(shard_no < m_n_shards);
     rw_lock_s_unlock(&m_shards[shard_no]);
   }
-
+  /** Checks if there is a thread requesting an x-latch waiting for threads to
+  release their s-latches on given shard.
+  @param[in]  shard_no  The shard to check.
+  @return true iff there is an x-latcher blocked by s-latchers on shard_no. */
+  bool is_x_blocked_by_s(size_t shard_no) {
+    ut_a(shard_no < m_n_shards);
+    return m_shards[shard_no].is_x_blocked_by_s();
+  }
   /**
   Tries to obtain exclusive latch - similar to x_lock(), but non-blocking, and
   thus can fail.

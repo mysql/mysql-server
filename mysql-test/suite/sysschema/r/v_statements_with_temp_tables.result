@@ -8,8 +8,8 @@ memory_tmp_tables	bigint unsigned	NO		NULL
 disk_tmp_tables	bigint unsigned	NO		NULL	
 avg_tmp_tables_per_query	decimal(21,0)	NO		0	
 tmp_tables_to_disk_pct	decimal(24,0)	NO		0	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_temp_tables;
 DESC sys.x$statements_with_temp_tables;
@@ -22,7 +22,7 @@ memory_tmp_tables	bigint unsigned	NO		NULL
 disk_tmp_tables	bigint unsigned	NO		NULL	
 avg_tmp_tables_per_query	decimal(21,0)	NO		0	
 tmp_tables_to_disk_pct	decimal(24,0)	NO		0	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_temp_tables;

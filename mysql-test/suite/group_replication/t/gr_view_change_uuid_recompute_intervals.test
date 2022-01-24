@@ -1,0 +1,211 @@
+################################################################################
+#
+# This test checks that recompute of GTIDS intervals work even when
+# view_change_uuid is configured.
+#
+# Test:
+#  0. This test works with 2 servers in multi primary mode
+#  1. Setup Group Replication on server 1 and 2 with view
+#     change uuid configured with an valid uuid
+#  2. Create a table on server 1 that will add one
+#     transaction to the group
+#  3. Insert data into table on server 2 that will add one
+#     transaction to the group
+#  4. Remove and rejoin server 2, that will generate a new
+#     view and will recompute intervals
+#  5. Insert data into table on server 2 that will add one
+#     transaction to the group
+#  6. Transactions are added to the correct intervals and
+#     views are logged with view uuid
+#  7. Stop server 2 and on server 1 set GTID_NEXT to next
+#     expected view uuid and execute a transaction.
+#     Start server 2
+#  8. Assert the intervals were not used, the new view
+#     change is correctly logged and the transaction using
+#     the view uuid is also executed.
+#  9. Cleanup
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Setup Group Replication on server 1 and 2 with view
+--echo #     change uuid configured with an valid uuid
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+--let $view_change_uuid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+--eval SET GLOBAL group_replication_view_change_uuid =  "$view_change_uuid"
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  2. Create a table on server 1 that will add one
+--echo #     transaction to the group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo #  3. Insert data into table on server 2 that will add one
+--echo #     transaction to the group
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (0);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo #  4. Remove and rejoin server 2, that will generate a new
+--echo #     view and will recompute intervals
+
+--source include/stop_group_replication.inc
+
+--let $gtid_assignment_block_size= `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+--let $expected_gtid_set= $group_replication_group_name:1:1000001
+if ($gtid_assignment_block_size == 1)
+{
+  --let $expected_gtid_set= $group_replication_group_name:1-2
+}
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 2 transactions
+--let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 2 view changes
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-2", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo #  5. Insert data into table on server 2 that will add one
+--echo #     transaction to the group
+
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo #  6. Transactions are added to the correct intervals and
+--echo #     views are logged with view uuid
+
+--let $gtid_assignment_block_size= `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+--let $expected_gtid_set= $group_replication_group_name:1-2:1000001
+if ($gtid_assignment_block_size == 1)
+{
+  --let $expected_gtid_set= $group_replication_group_name:1-3
+}
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
+--let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 view changes
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
+--let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 view changes
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  7. Stop server 2 and on server 1 set GTID_NEXT to next
+--echo #     expected view uuid and execute a transaction.
+--echo #     Start server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval SET GTID_NEXT= '$view_change_uuid:4';
+
+INSERT INTO t1 VALUES (2);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  8. Assert the intervals were not used, the new view
+--echo #     change is correctly logged and the transaction using
+--echo #     the view uuid is also executed.
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
+--let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 4 view changes plus 1 transaction
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-5", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval
+--let $assert_cond= [SELECT GTID_SUBSET("$expected_gtid_set", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+--let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED 4 view changes plus 1 transaction
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-5", @@GLOBAL.GTID_EXECUTED)] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  9. Cleanup
+
+SET GTID_NEXT= 'AUTOMATIC';
+DROP TABLE t1;
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--source include/group_replication_end.inc
+

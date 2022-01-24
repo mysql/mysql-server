@@ -5263,8 +5263,8 @@ static int my_mb_wc_utf8_no_range(my_wc_t *pwc, const uchar *s) {
 }
 
 extern "C" {
-static int my_uni_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       my_wc_t wc, uchar *r, uchar *e) {
+static int my_uni_utf8(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                       uchar *r, uchar *e) {
   int count;
 
   if (r >= e) return MY_CS_TOOSMALL;
@@ -5288,11 +5288,13 @@ static int my_uni_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -5303,7 +5305,7 @@ static int my_uni_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   The same as above, but without range check.
 */
-static int my_uni_utf8_no_range(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_uni_utf8_no_range(const CHARSET_INFO *cs [[maybe_unused]],
                                 my_wc_t wc, uchar *r) {
   int count;
 
@@ -5320,11 +5322,13 @@ static int my_uni_utf8_no_range(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -5672,7 +5676,7 @@ static int my_wildcmp_utf8(const CHARSET_INFO *cs, const char *str,
                             w_many, uni_plane);
 }
 
-static size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs [[maybe_unused]],
                                   size_t len) {
   // We really ought to have len % 3 == 0, but not all calling code conforms.
   return ((len + 2) / 3) * 2;
@@ -5705,8 +5709,7 @@ static uint my_ismbchar_utf8(const CHARSET_INFO *, const char *b,
   return (res > 1) ? res : 0;
 }
 
-static uint my_mbcharlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                              uint c) {
+static uint my_mbcharlen_utf8(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   if (c < 0x80)
     return 1;
   else if (c < 0xc2)
@@ -6915,7 +6918,7 @@ static const char filename_safe_char[128] = {
 #define MY_FILENAME_ESCAPE '@'
 
 extern "C" {
-static int my_mb_wc_filename(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_filename(const CHARSET_INFO *cs [[maybe_unused]],
                              my_wc_t *pwc, const uchar *s, const uchar *e) {
   int byte1, byte2;
   if (s >= e) return MY_CS_TOOSMALL;
@@ -6959,7 +6962,7 @@ static int my_mb_wc_filename(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return MY_CS_ILSEQ;
 }
 
-static int my_wc_mb_filename(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_wc_mb_filename(const CHARSET_INFO *cs [[maybe_unused]],
                              my_wc_t wc, uchar *s, uchar *e) {
   int code;
   char hex[] = "0123456789abcdef";
@@ -7204,8 +7207,8 @@ extern "C" {
   @return The number of bytes read from s, or a value <= 0 for failure
     (see m_ctype.h).
 */
-int my_mb_wc_utf8_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t *pwc, const uchar *s, const uchar *e) {
+int my_mb_wc_utf8_thunk(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                        const uchar *s, const uchar *e) {
   return my_mb_wc_utf8(pwc, s, e);
 }
 
@@ -7220,7 +7223,7 @@ int my_mb_wc_utf8_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @return The number of bytes read from s, or a value <= 0 for failure
     (see m_ctype.h).
 */
-int my_mb_wc_utf8mb4_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+int my_mb_wc_utf8mb4_thunk(const CHARSET_INFO *cs [[maybe_unused]],
                            my_wc_t *pwc, const uchar *s, const uchar *e) {
   return my_mb_wc_utf8mb4(pwc, s, e);
 }
@@ -7231,16 +7234,15 @@ int my_mb_wc_utf8mb4_thunk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   The same as above, but without range check
   for example, for a null-terminated string
 */
-static int my_mb_wc_utf8mb4_no_range(const CHARSET_INFO *cs
-                                         MY_ATTRIBUTE((unused)),
+static int my_mb_wc_utf8mb4_no_range(const CHARSET_INFO *cs [[maybe_unused]],
                                      my_wc_t *pwc, const uchar *s) {
   return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/false, /*SUPPORT_MB4=*/true>(
       pwc, s, nullptr);
 }
 
 extern "C" {
-static int my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                            my_wc_t wc, uchar *r, uchar *e) {
+static int my_wc_mb_utf8mb4(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                            uchar *r, uchar *e) {
   int count;
 
   if (r >= e) return MY_CS_TOOSMALL;
@@ -7262,15 +7264,18 @@ static int my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     case 4:
       r[3] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x10000;  // Fall through.
+      wc |= 0x10000;
+      [[fallthrough]];
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -7281,8 +7286,8 @@ static int my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   The same as above, but without range check.
 */
-static int my_wc_mb_utf8mb4_no_range(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), my_wc_t wc, uchar *r) {
+static int my_wc_mb_utf8mb4_no_range(const CHARSET_INFO *cs [[maybe_unused]],
+                                     my_wc_t wc, uchar *r) {
   int count;
 
   if (wc < 0x80)
@@ -7300,15 +7305,18 @@ static int my_wc_mb_utf8mb4_no_range(
     case 4:
       r[3] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x10000;  // Fall through.
+      wc |= 0x10000;
+      [[fallthrough]];
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -7655,16 +7663,17 @@ static int my_wildcmp_utf8mb4(const CHARSET_INFO *cs, const char *str,
                             w_many, cs->caseinfo);
 }
 
-static size_t my_strnxfrmlen_utf8mb4(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), size_t len) {
+static size_t my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs [[maybe_unused]],
+                                     size_t len) {
   // We really ought to have len % 4 == 0, but not all calling code conforms.
   return ((len + 3) / 4) * 2;
 }
 }  // extern "C"
 
-static ALWAYS_INLINE int my_valid_mbcharlen_utf8mb4(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *s,
-    const uchar *e) {
+static ALWAYS_INLINE int my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs
+                                                    [[maybe_unused]],
+                                                    const uchar *s,
+                                                    const uchar *e) {
   my_wc_t wc;  // Ignored.
   return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/true, /*SUPPORT_MB4=*/true>(
       &wc, s, e);
@@ -7726,7 +7735,7 @@ size_t my_charpos_mb4(const CHARSET_INFO *cs, const char *pos, const char *end,
   return (size_t)(length ? end + 2 - start : pos - start);
 }
 
-static uint my_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint my_mbcharlen_utf8mb4(const CHARSET_INFO *cs [[maybe_unused]],
                                  uint c) {
   if (c < 0x80) return 1;
   if (c < 0xc2) return 0; /* Illegal mb head */

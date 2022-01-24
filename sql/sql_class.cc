@@ -34,6 +34,7 @@
 #include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mutex_lock.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
@@ -54,7 +55,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
-#include "rpl_master.h"  // unregister_slave
+#include "rpl_source.h"  // unregister_slave
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -81,8 +82,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_erroneous_autoinc
+#include "sql/rpl_replica.h"  // rpl_master_erroneous_autoinc
+#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head
@@ -105,6 +106,8 @@
 #include "sql/transaction.h"  // trans_rollback
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "storage/perfschema/pfs_instr_class.h"  // PFS_CLASS_STAGE
+#include "storage/perfschema/terminology_use_previous.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 
@@ -122,6 +125,222 @@ char empty_c_string[1] = {0}; /* used for not defined db */
 
 const char *const THD::DEFAULT_WHERE = "field list";
 extern PSI_stage_info stage_waiting_for_disk_space;
+
+Thd_mem_cnt_noop thd_cnt_noop;
+
+#ifndef NDEBUG
+/**
+   For debug purpose only. Used for
+   MTR mem_cnt_sql_keys, mem_cnt_temptable_keys keys.
+
+   @param thd   pointer to THD object
+*/
+bool fail_on_alloc(THD *thd) {
+  char alloc_name[512];
+  if (!thd->current_key_name) return false;
+  if (DBUG_EVALUATE_IF(thd->current_key_name, 1, 0)) {
+    thd->conn_mem_alloc_number++;
+    snprintf(alloc_name, sizeof(alloc_name), "alloc_number%llu",
+             thd->conn_mem_alloc_number);
+    if (DBUG_EVALUATE_IF(alloc_name, 1, 0)) return true;
+  }
+  return false;
+}
+#endif
+
+/**
+   Increase memory counter at 'alloc' operation. Update
+   global memory counter.
+
+   @param size   amount of memory allocated.
+
+   @returns always true
+*/
+bool Thd_mem_cnt_conn::alloc_cnt(size_t size) {
+  assert(!opt_initialize && m_thd->get_psi() != nullptr);
+  assert(!m_thd->kill_immunizer || !m_thd->kill_immunizer->is_active() ||
+         !is_error_mode());
+  assert(m_thd->is_killable);
+
+  mem_counter += size;
+  max_conn_mem = std::max(max_conn_mem, mem_counter);
+
+#ifndef NDEBUG
+  if (is_error_mode() && fail_on_alloc(m_thd)) {
+    m_thd->is_mem_cnt_error_issued = true;
+    return generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
+                          mem_counter);
+  }
+#endif
+
+  if (mem_counter > m_thd->variables.conn_mem_limit) {
+#ifndef NDEBUG
+    // Used for testing the entering to idle state
+    // after succesful statement execution(see mem_cnt_common_debug.test).
+    if (!DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_session", 1, 0))
+#endif
+      (void)generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
+                           mem_counter);
+  }
+
+  if ((curr_mode & MEM_CNT_UPDATE_GLOBAL_COUNTER) &&
+      m_thd->variables.conn_global_mem_tracking &&
+      max_conn_mem > glob_mem_counter) {
+    const ulonglong curr_mem =
+        (max_conn_mem / m_thd->variables.conn_mem_chunk_size + 1) *
+        m_thd->variables.conn_mem_chunk_size;
+    assert(curr_mem > glob_mem_counter && curr_mem > mem_counter);
+    ulonglong delta = curr_mem - glob_mem_counter;
+    ulonglong global_conn_mem_counter_save;
+    ulonglong global_conn_mem_limit_save;
+    {
+      MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+      global_conn_mem_counter += delta;
+      global_conn_mem_counter_save = global_conn_mem_counter;
+      global_conn_mem_limit_save = global_conn_mem_limit;
+    }
+    glob_mem_counter = curr_mem;
+    max_conn_mem = std::max(max_conn_mem, glob_mem_counter);
+    if (global_conn_mem_counter_save > global_conn_mem_limit_save) {
+#ifndef NDEBUG
+      // Used for testing the entering to idle state
+      // after succesful statement execution(see mem_cnt_common_debug.test).
+      if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0))
+        return true;
+#endif
+      (void)generate_error(ER_DA_GLOBAL_CONN_LIMIT, global_conn_mem_limit_save,
+                           global_conn_mem_counter_save);
+    }
+  }
+
+  return true;
+}
+
+/**
+   Decrease memory counter at 'free' operation.
+
+   @param size   amount of memory freed.
+*/
+void Thd_mem_cnt_conn::free_cnt(size_t size) {
+  assert(mem_counter >= size);
+  mem_counter -= size;
+}
+
+/**
+   Funtion resets current memory counter mode and adjust
+   global memory counter according to thread memory counter.
+
+   @returns -1 if OOM error, 0 otherwise.
+*/
+int Thd_mem_cnt_conn::reset() {
+  restore_mode();
+  max_conn_mem = mem_counter;
+  if (m_thd->variables.conn_global_mem_tracking &&
+      (curr_mode & MEM_CNT_UPDATE_GLOBAL_COUNTER)) {
+    ulonglong delta;
+    ulonglong global_conn_mem_counter_save;
+    ulonglong global_conn_mem_limit_save;
+    if (glob_mem_counter > mem_counter) {
+      delta = glob_mem_counter - mem_counter;
+      MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+      assert(global_conn_mem_counter >= delta);
+      global_conn_mem_counter -= delta;
+      global_conn_mem_counter_save = global_conn_mem_counter;
+      global_conn_mem_limit_save = global_conn_mem_limit;
+    } else {
+      delta = mem_counter - glob_mem_counter;
+      MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+      global_conn_mem_counter += delta;
+      global_conn_mem_counter_save = global_conn_mem_counter;
+      global_conn_mem_limit_save = global_conn_mem_limit;
+    }
+    glob_mem_counter = mem_counter;
+    if (is_connection_stage &&
+        (global_conn_mem_counter_save > global_conn_mem_limit_save))
+      return generate_error(ER_DA_GLOBAL_CONN_LIMIT, global_conn_mem_limit_save,
+                            global_conn_mem_counter_save);
+  }
+  if (is_connection_stage && (mem_counter > m_thd->variables.conn_mem_limit))
+    return generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
+                          mem_counter);
+  is_connection_stage = false;
+  return 0;
+}
+
+/**
+   Function flushes memory counters before deleting the memory counter object.
+*/
+void Thd_mem_cnt_conn::flush() {
+  max_conn_mem = mem_counter = 0;
+  if (glob_mem_counter > 0) {
+    MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+    assert(global_conn_mem_counter >= glob_mem_counter);
+    global_conn_mem_counter -= glob_mem_counter;
+  }
+  glob_mem_counter = 0;
+}
+
+/**
+   Generate OOM error and set therad to KILL_CONNECTION
+   state. Do nothing if thread is already killed or any error is
+   already issued.
+
+   @param err_no         Error number.
+   @param mem_limit      Memory limit.
+   @param mem_size       Memory size.
+
+   @returns -1 if OOM error is generated, 0 otherwise.
+*/
+int Thd_mem_cnt_conn::generate_error(int err_no, ulonglong mem_limit,
+                                     ulonglong mem_size) {
+  if (is_error_mode()) {
+    int err_no_tmp = 0;
+    bool is_log_err = is_error_log_mode();
+    assert(!m_thd->kill_immunizer || !m_thd->kill_immunizer->is_active());
+    // Set NO ERROR mode to avoid error message duplication.
+    no_error_mode();
+    // No OOM error if any error is already issued or fatal error is set.
+    if (!m_thd->is_error() && !m_thd->is_fatal_error()) {
+      MUTEX_LOCK(lock, &m_thd->LOCK_thd_data);
+      // Ignore OOM error if thread is already killed.
+      if (!m_thd->killed) {
+        err_no_tmp = err_no;
+        m_thd->killed = THD::KILL_CONNECTION;
+      }
+    }
+
+    if (err_no_tmp) {
+      m_thd->push_diagnostics_area(&m_da, false);
+      my_error(err_no_tmp, MYF(0), mem_limit, mem_size);
+      m_thd->pop_diagnostics_area();
+      if (is_log_err) {
+        switch (err_no_tmp) {
+          case ER_DA_CONN_LIMIT:
+            LogErr(ERROR_LEVEL, ER_CONN_LIMIT, mem_limit, mem_size);
+            break;
+          case ER_DA_GLOBAL_CONN_LIMIT:
+            LogErr(ERROR_LEVEL, ER_GLOBAL_CONN_LIMIT, mem_limit, mem_size);
+            break;
+
+          default:
+            assert(0);
+        }
+      }
+      return -1;
+    }
+  }
+  return 0;
+}
+
+/**
+   Set THD error status using memory counter diagnostics area.
+*/
+void Thd_mem_cnt_conn::set_thd_error_status() {
+  m_thd->get_stmt_da()->set_overwrite_status(true);
+  m_thd->get_stmt_da()->set_error_status(
+      m_da.mysql_errno(), m_da.message_text(), m_da.returned_sqlstate());
+  m_thd->get_stmt_da()->set_overwrite_status(false);
+}
 
 void THD::Transaction_state::backup(THD *thd) {
   this->m_sql_command = thd->lex->sql_command;
@@ -306,7 +525,7 @@ THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func MY_ATTRIBUTE((unused)),
+                      const char *calling_func [[maybe_unused]],
                       const char *calling_file,
                       const unsigned int calling_line) {
   DBUG_PRINT("THD::enter_stage",
@@ -315,7 +534,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 
   if (old_stage != nullptr) {
     old_stage->m_key = m_current_stage_key;
-    old_stage->m_name = proc_info;
+    old_stage->m_name = proc_info();
   }
 
   if (new_stage != nullptr) {
@@ -326,7 +545,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 #endif
 
     m_current_stage_key = new_stage->m_key;
-    proc_info = msg;
+    set_proc_info(msg);
 
     m_stage_progress_psi =
         MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
@@ -335,6 +554,35 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
   }
 
   return;
+}
+
+const char *THD::proc_info(const System_variables &sysvars) const {
+  DBUG_TRACE;
+  const char *ret = proc_info();
+  terminology_use_previous::enum_compatibility_version version =
+      static_cast<terminology_use_previous::enum_compatibility_version>(
+          sysvars.terminology_use_previous);
+  DBUG_PRINT("info", ("session.terminology_use_previous=%d", (int)version));
+  if ((ret != nullptr) && (version != terminology_use_previous::NONE)) {
+    auto compatible_name_info =
+        terminology_use_previous::lookup(PFS_CLASS_STAGE, ret, false);
+#ifndef NDEBUG
+    if (compatible_name_info.version)
+      DBUG_PRINT(
+          "info",
+          ("old name found for proc info (aka stage) <%s>; "
+           "old name is <%s>; "
+           "old version is %d; "
+           "returning %s name",
+           ret, compatible_name_info.old_name, compatible_name_info.version,
+           version <= compatible_name_info.version ? "old" : "new"));
+    else
+      DBUG_PRINT("info", ("no old name for proc info (aka stage) <%s>", ret));
+#endif  // ifndef NDEBUG
+    if (version <= compatible_name_info.version)
+      ret = compatible_name_info.old_name;
+  }
+  return ret;
 }
 
 void Open_tables_state::set_open_tables_state(Open_tables_state *state) {
@@ -479,7 +727,7 @@ THD::THD(bool enable_plugins)
   // Must be reset to handle error with THD's created for init of mysqld
   lex->thd = nullptr;
   lex->set_current_query_block(nullptr);
-  utime_after_lock = 0L;
+  m_lock_usec = 0L;
   current_linfo = nullptr;
   slave_thread = false;
   memset(&variables, 0, sizeof(variables));
@@ -496,12 +744,13 @@ THD::THD(bool enable_plugins)
   durability_property = HA_REGULAR_DURABILITY;
 #ifndef NDEBUG
   dbug_sentry = THD_SENTRY_MAGIC;
+  current_key_name = nullptr;
+  conn_mem_alloc_number = 0;
+  is_mem_cnt_error_issued = false;
 #endif
   mysql_audit_init_thd(this);
   net.vio = nullptr;
   system_thread = NON_SYSTEM_THREAD;
-  cleanup_done = false;
-  m_release_resources_done = false;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
   m_resource_group_ctx.m_cur_resource_group = nullptr;
@@ -514,13 +763,22 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_protocol, &LOCK_thd_protocol,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_security_ctx, &LOCK_thd_security_ctx,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
 
+  /*Initialize connection delegation mutex and cond*/
+  mysql_mutex_init(key_LOCK_group_replication_connection_mutex,
+                   &LOCK_group_replication_connection_mutex,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_group_replication_connection_cond_var,
+                  &COND_group_replication_connection_cond_var);
+
   /* Variables with default values */
-  proc_info = "login";
+  set_proc_info("login");
   where = THD::DEFAULT_WHERE;
   server_id = ::server_id;
   unmasked_server_id = server_id;
@@ -572,6 +830,14 @@ THD::THD(bool enable_plugins)
   debug_binlog_xid_last.reset();
 #endif
   set_system_user(false);
+  mem_cnt = &thd_cnt_noop;
+}
+
+void THD::copy_table_access_properties(THD *thd) {
+  thread_stack = thd->thread_stack;
+  variables.option_bits = thd->variables.option_bits & OPTION_BIN_LOG;
+  skip_readonly_check = thd->skip_readonly_check;
+  tx_isolation = thd->tx_isolation;
 }
 
 void THD::set_transaction(Transaction_ctx *transaction_ctx) {
@@ -692,15 +958,15 @@ void THD::raise_note_printf(uint sql_errno, ...) {
   (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_NOTE, ebuff);
 }
 
-struct timeval THD::query_start_timeval_trunc(uint decimals) {
-  struct timeval tv;
-  tv.tv_sec = start_time.tv_sec;
+my_timeval THD::query_start_timeval_trunc(uint decimals) {
+  my_timeval tv;
+  tv.m_tv_sec = start_time.tv_sec;
   if (decimals) {
-    tv.tv_usec = start_time.tv_usec;
+    tv.m_tv_usec = start_time.tv_usec;
     my_timeval_trunc(&tv, decimals);
     query_start_usec_used = true;
   } else {
-    tv.tv_usec = 0;
+    tv.m_tv_usec = 0;
   }
   return tv;
 }
@@ -790,7 +1056,8 @@ void THD::init(void) {
   {
     ulong tmp;
     tmp = sql_rnd_with_mutex();
-    randominit(&rand, tmp + (ulong)&rand,
+    randominit(&rand,
+               tmp + static_cast<ulong>(reinterpret_cast<uintptr_t>(&rand)),
                tmp + (ulong)::atomic_global_query_id);
   }
 
@@ -881,7 +1148,7 @@ void THD::cleanup_connection(void) {
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
   running_explain_analyze = false;
-  cleanup_done = false;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE;
   init();
   stmt_map.reset();
   user_vars.clear();
@@ -918,6 +1185,12 @@ void THD::cleanup_connection(void) {
 #endif
 }
 
+bool THD::is_cleanup_done() {
+  return (m_thd_life_cycle_stage ==
+              enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN ||
+          m_thd_life_cycle_stage >= enum_thd_life_cycle_stages::CLEANED_UP);
+}
+
 /*
   Do what's needed when one invokes change user.
   Also used during THD::release_resources, i.e. prior to THD destruction.
@@ -927,7 +1200,7 @@ void THD::cleanup(void) {
   XID_STATE *xs = trn_ctx->xid_state();
 
   DBUG_TRACE;
-  assert(cleanup_done == 0);
+  assert(!is_cleanup_done());
   DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed = KILL_CONNECTION;
@@ -1012,20 +1285,47 @@ void THD::cleanup(void) {
     If we have a Security_context, make sure it is "logged out"
   */
 
-  cleanup_done = true;
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+}
+
+bool THD::release_resources_done() const {
+  return m_thd_life_cycle_stage ==
+         enum_thd_life_cycle_stages::RESOURCES_RELEASED;
+}
+
+bool THD::is_being_disposed() const {
+#ifndef NDEBUG
+  if (current_thd != this) mysql_mutex_assert_owner(&LOCK_thd_data);
+#endif
+  return (m_thd_life_cycle_stage >=
+          enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL);
+}
+
+void THD::start_disposal() {
+  mysql_mutex_assert_owner(&LOCK_thd_data);
+  assert(!is_being_disposed());
+
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL;
 }
 
 /**
   Release most resources, prior to THD destruction.
  */
 void THD::release_resources() {
-  assert(m_release_resources_done == false);
-
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_query_plan);
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  // Mark THD life cycle state as "SCHEDULED_FOR_DISPOSAL".
+  start_disposal();
 
   /* Close connection */
   if (is_classic_protocol() && get_protocol_classic()->get_vio()) {
@@ -1035,13 +1335,13 @@ void THD::release_resources() {
 
   /* modification plan for UPDATE/DELETE should be freed. */
   assert(query_plan.get_modification_plan() == nullptr);
-  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
   stmt_map.reset(); /* close all prepared statements */
-  if (!cleanup_done) cleanup();
+  if (!is_cleanup_done()) cleanup();
 
   mdl_context.destroy();
   ha_close_connection(this);
@@ -1084,7 +1384,8 @@ void THD::release_resources() {
 
   mysql_mutex_unlock(&LOCK_status);
 
-  m_release_resources_done = true;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::RESOURCES_RELEASED;
+  disable_mem_cnt();
 }
 
 THD::~THD() {
@@ -1092,7 +1393,7 @@ THD::~THD() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
 
-  if (!m_release_resources_done) release_resources();
+  if (!release_resources_done()) release_resources();
 
   clear_next_event_pos();
 
@@ -1106,14 +1407,18 @@ THD::~THD() {
 
   my_free(const_cast<char *>(m_db.str));
   m_db = NULL_CSTR;
-  get_transaction()->free_memory(MYF(0));
+  get_transaction()->free_memory();
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_thd_protocol);
+  mysql_mutex_destroy(&LOCK_thd_security_ctx);
   mysql_mutex_destroy(&LOCK_current_cond);
+  mysql_mutex_destroy(&LOCK_group_replication_connection_mutex);
+
   mysql_cond_destroy(&COND_thr_lock);
+  mysql_cond_destroy(&COND_group_replication_connection_cond_var);
 #ifndef NDEBUG
   dbug_sentry = THD_SENTRY_GONE;
 #endif
@@ -1134,13 +1439,16 @@ THD::~THD() {
     but then need to be removed on error scenarios, we call this method
     here
   */
-  unregister_slave(this, true, true);
+  unregister_replica(this, true, true);
 
-  free_root(&main_mem_root, MYF(0));
+  main_mem_root.Clear();
 
   if (m_token_array != nullptr) {
     my_free(m_token_array);
   }
+
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
+  assert(mem_cnt == &thd_cnt_noop);
 }
 
 /**
@@ -1216,7 +1524,6 @@ void THD::awake(THD::killed_state state_to_set) {
         We also know that we will check thd->killed before we go for
         reading the next statement.
       */
-
       shutdown_active_vio();
     }
 
@@ -1523,13 +1830,15 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                          from_length, from_cs, 6);
     if (report_error) {
       my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
-               from_cs->csname, to_cs->csname);
+               replace_utf8_utf8mb3(from_cs->csname),
+               replace_utf8_utf8mb3(to_cs->csname));
       return true;
     } else {
       push_warning_printf(this, Sql_condition::SL_WARNING,
                           ER_INVALID_CHARACTER_STRING,
                           ER_THD(this, ER_CANNOT_CONVERT_STRING),
-                          printable_buff, from_cs->csname, to_cs->csname);
+                          printable_buff, replace_utf8_utf8mb3(from_cs->csname),
+                          replace_utf8_utf8mb3(to_cs->csname));
     }
   }
 
@@ -1793,6 +2102,11 @@ Prepared_statement_map::~Prepared_statement_map() {
 
 void THD::send_kill_message() const {
   int err = killed;
+  if (mem_cnt->is_error()) {
+    assert(err == KILL_CONNECTION);
+    mem_cnt->set_thd_error_status();
+    return;
+  }
   if (err && !get_stmt_da()->is_set()) {
     if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())
       err = KILL_QUERY;
@@ -2192,10 +2506,8 @@ void THD::get_definer(LEX_USER *definer) {
   if (slave_thread && has_invoker()) {
     definer->user = m_invoker_user;
     definer->host = m_invoker_host;
-    definer->plugin.str = "";
-    definer->plugin.length = 0;
-    definer->auth.str = nullptr;
-    definer->auth.length = 0;
+    definer->first_factor_auth_info.plugin = EMPTY_CSTR;
+    definer->first_factor_auth_info.auth = {};
   } else
     get_default_definer(this, definer);
 }
@@ -2479,7 +2791,7 @@ void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
           ? m_parser_state->m_lip.get_lineno(pos_in_lexer_raw_buffer)
           : 1;
   const char *pos = pos_in_lexer_raw_buffer ? pos_in_lexer_raw_buffer : "";
-  ErrConvString err(pos, variables.character_set_client);
+  ErrConvString err(pos, strlen(pos), variables.character_set_client);
   (void)vsnprintf(buff, sizeof(buff), format, args);
   my_printf_error(ER_PARSE_ERROR, ER_THD(this, ER_PARSE_ERROR), MYF(0), buff,
                   err.ptr(), lineno);
@@ -2552,6 +2864,7 @@ void THD::send_statement_status() {
 
   switch (da->status()) {
     case Diagnostics_area::DA_ERROR:
+      assert(!is_mem_cnt_error_issued || is_mem_cnt_error());
       /* The query failed, send error to log and abort bootstrap. */
       error = m_protocol->send_error(da->mysql_errno(), da->message_text(),
                                      da->returned_sqlstate());
@@ -2576,7 +2889,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
+void THD::claim_memory_ownership(bool claim [[maybe_unused]]) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.
@@ -2641,8 +2954,8 @@ bool THD::is_current_stmt_binlog_disabled() const {
           !mysql_bin_log.is_open());
 }
 
-bool THD::is_current_stmt_binlog_log_slave_updates_disabled() const {
-  return ((!opt_bin_log || (slave_thread && !opt_log_slave_updates)) ||
+bool THD::is_current_stmt_binlog_log_replica_updates_disabled() const {
+  return ((!opt_bin_log || (slave_thread && !opt_log_replica_updates)) ||
           !mysql_bin_log.is_open());
 }
 
@@ -2727,12 +3040,30 @@ bool THD::is_one_phase_commit() {
   return (xa_op == XA_ONE_PHASE);
 }
 
-bool THD::secondary_storage_engine_eligible() const {
-  return secondary_engine_optimization() !=
-             Secondary_engine_optimization::PRIMARY_ONLY &&
-         variables.use_secondary_engine != SECONDARY_ENGINE_OFF &&
-         locked_tables_mode == LTM_NONE && !in_multi_stmt_transaction_mode() &&
-         sp_runtime_ctx == nullptr;
+bool THD::is_secondary_storage_engine_eligible() const {
+  // STATEMENT based replication is enabled and the statement is CTAS or
+  // INSERT INTO SELECT
+  if (variables.binlog_format == BINLOG_FORMAT_STMT &&
+      (lex->sql_command == SQLCOM_CREATE_TABLE ||
+       lex->sql_command == SQLCOM_INSERT_SELECT))
+    return false;
+  // Secondary engines had been disabled in the session
+  if (secondary_engine_optimization() ==
+      Secondary_engine_optimization::PRIMARY_ONLY)
+    return false;
+  // The user has explicitly disabled secondary engines
+  if (variables.use_secondary_engine == SECONDARY_ENGINE_OFF) return false;
+  // LOCK TABLES mode is active
+  if (locked_tables_mode != LTM_NONE) return false;
+  // Multi-statement transaction mode is active and the statement is not a
+  // CREATE TABLE AS SELECT (these are safe due to COMMIT being run before
+  // and after the statement is executed)
+  if ((in_multi_stmt_transaction_mode() &&
+       lex->sql_command != SQLCOM_CREATE_TABLE))
+    return false;
+  //  It is a sub-statement of a stored procedure
+  if (sp_runtime_ctx != nullptr) return false;
+  return true;
 }
 
 void THD::swap_rewritten_query(String &query_arg) {
@@ -2804,7 +3135,8 @@ void THD::pop_protocol() {
 }
 
 void THD::set_time() {
-  start_utime = utime_after_lock = my_micro_time();
+  start_utime = my_micro_time();
+  m_lock_usec = 0;
   if (user_time.tv_sec || user_time.tv_usec)
     start_time = user_time;
   else
@@ -2815,23 +3147,50 @@ void THD::set_time() {
 #endif
 }
 
-void THD::set_time_after_lock() {
+void THD::inc_lock_usec(ulonglong lock_usec) {
   /*
     If mysql_lock_tables() is called multiple times,
-    we stick with the first timestamp. This prevents
-    anomalities with things like CREATE INDEX, where
-    otherwise, we'll get the lock timestamp for the
-    data dictionary update.
+    we sum all the lock times here.
+    This is the desired behavior, to know how much
+    time was spent waiting on SQL tables.
+    When Innodb reports additional lock time for DATA locks,
+    it is counted as well.
+    The performance_schema lock time for the current
+    statement is updated accordingly.
   */
-  if (utime_after_lock != start_utime) return;
-  utime_after_lock = my_micro_time();
-  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                (utime_after_lock - start_utime));
+  m_lock_usec += lock_usec;
+  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, m_lock_usec);
 }
 
 void THD::update_slow_query_status() {
-  if (my_micro_time() > utime_after_lock + variables.long_query_time)
+  if (my_micro_time() > start_utime + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+/**
+  Enable memory counter object.
+
+  @returns true if OOM.
+*/
+bool THD::enable_mem_cnt() {
+  assert(mem_cnt == &thd_cnt_noop);
+  if (m_psi != nullptr) {
+    Thd_mem_cnt *tmp_mem_cnt = new Thd_mem_cnt_conn(this);
+    if (tmp_mem_cnt == nullptr) return true;
+    mem_cnt = tmp_mem_cnt;
+  }
+  return false;
+}
+
+/**
+  Disable memory counter object.
+*/
+void THD::disable_mem_cnt() {
+  if (mem_cnt != &thd_cnt_noop) {
+    mem_cnt->flush();
+    delete mem_cnt;
+    mem_cnt = &thd_cnt_noop;
+  }
 }
 
 /**

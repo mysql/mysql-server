@@ -129,7 +129,11 @@ buf_LRU_stat_t buf_LRU_stat_sum;
 @{ */
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
-uint buf_LRU_old_threshold_ms;
+uint buf_LRU_old_threshold;
+std::chrono::milliseconds get_buf_LRU_old_threshold() {
+  return std::chrono::milliseconds{buf_LRU_old_threshold};
+}
+
 /** @} */
 
 /** Takes a block out of the LRU list and page hash table.
@@ -153,8 +157,9 @@ If a compressed page is freed other compressed pages may be relocated.
 caller needs to free the page to the free list
 @retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
 this case the block is already returned to the buddy allocator. */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_LRU_block_remove_hashed(
-    buf_page_t *bpage, bool zip, bool ignore_content);
+[[nodiscard]] static bool buf_LRU_block_remove_hashed(buf_page_t *bpage,
+                                                      bool zip,
+                                                      bool ignore_content);
 
 /** Puts a file page whose has no hash index to the free list.
 @param[in,out] block            Must contain a file page and be in a state
@@ -255,8 +260,8 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
     return;
   }
 
-  page_no_t *page_arr = static_cast<page_no_t *>(
-      ut_malloc_nokey(sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
+  page_no_t *page_arr = static_cast<page_no_t *>(ut::malloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
 
   ulint num_entries = 0;
 
@@ -348,181 +353,311 @@ scan_again:
 
   /* Drop any remaining batch of search hashed pages. */
   buf_LRU_drop_page_hash_batch(space_id, page_size, page_arr, num_entries);
-  ut_free(page_arr);
+  ut::free(page_arr);
 }
 
-/** While flushing (or removing dirty) pages from a tablespace we don't
-want to hog the CPU and resources. Release the LRU list and block
-mutexes and try to force a context switch. Then reacquire the same mutexes.
-The current page is "fixed" before the release of the mutexes and then
-"unfixed" again once we have reacquired the mutexes.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in,out]	bpage		current page */
-static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
-  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+/** Try to pin the block in buffer pool. Once pinned, the block cannot be moved
+within flush list or removed. The dirty page can be flushed when we release the
+flush list mutex. We return without pinning in that case.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove
+@return true if page could be pinned successfully. */
+static bool buf_page_try_pin(buf_pool_t *buf_pool, buf_page_t *bpage) {
+  /* Allow pin/unpin with NULL. */
+  if (bpage == nullptr) {
+    return true;
+  }
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
-  ut_ad(mutex_own(block_mutex));
-  ut_ad(buf_page_in_file(bpage));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+  ut_ad(bpage->in_flush_list);
 
-  /* "Fix" the block so that the position cannot be
-  changed after we release the buffer pool and
-  block mutexes. */
-  buf_page_set_sticky(bpage);
+  /* To take care of the ABA problem that the block get flushed and
+  re-inserted into flush list, we can check the oldest LSN. It is
+  safe to access oldest LSN with flush list mutex protection as it
+  is set and reset while adding and removing from flush list. */
+  auto saved_oldest_lsn = bpage->get_oldest_lsn();
 
-  /* Now it is safe to release the LRU list mutex. */
-  mutex_exit(&buf_pool->LRU_list_mutex);
+  buf_flush_list_mutex_exit(buf_pool);
 
-  mutex_exit(block_mutex);
-  /* Try and force a context switch. */
-  std::this_thread::yield();
-
-  mutex_enter(&buf_pool->LRU_list_mutex);
-
+  /* The LRU list mutex ensures that the page descriptor cannot be freed
+  for both compressed and uncompressed page. */
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
   mutex_enter(block_mutex);
 
-  /* "Unfix" the block now that we have both the
-  LRU list and block mutexes again. */
+  bool pinned = false;
+
+  /* Recheck the I/O fix and the flush list presence now that we
+  hold the right mutex */
+  if (buf_page_get_io_fix(bpage) == BUF_IO_NONE && bpage->is_dirty() &&
+      saved_oldest_lsn == bpage->get_oldest_lsn()) {
+    /* "Fix" the block so that the position cannot be
+    changed after we release the buffer pool and
+    block mutexes. */
+    buf_page_set_sticky(bpage);
+    pinned = true;
+    ut_ad(bpage->in_flush_list);
+  }
+
+  mutex_exit(block_mutex);
+  buf_flush_list_mutex_enter(buf_pool);
+
+  return pinned;
+}
+
+/** Unpin the block in buffer pool. Ensure that the dirty page cannot be
+flushed even though we need to release the flush list mutex momentarily.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove */
+static void buf_page_unpin(buf_pool_t *buf_pool, buf_page_t *bpage) {
+  /* Allow pin/unpin with NULL. */
+  if (bpage == nullptr) {
+    return;
+  }
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  buf_flush_list_mutex_exit(buf_pool);
+
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+  mutex_enter(block_mutex);
+
+  /* "Unfix" the block now that we have both the LRU list and block mutexes . */
   buf_page_unset_sticky(bpage);
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  /* Release block mutex only after re-acquiring the flush list mutex to
+  avoid any window where the page could have been flushed concurrently. The
+  block mutex must be acquired before flushing a page. */
   mutex_exit(block_mutex);
 }
 
 /** If we have hogged the resources for too long then release the LRU list and
- flush list mutexes and do a thread yield. Set the current page
- to "sticky" so that it is not relocated during the yield.
- @return true if yielded */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
-    buf_pool_t *buf_pool, /*!< in/out: buffer pool instance */
-    buf_page_t *bpage,    /*!< in/out: bpage to remove */
-    ulint processed,      /*!< in: number of pages processed */
-    bool *must_restart)   /*!< in/out: if true, we have to
-                          restart the flush list scan */
-{
-  /* Every BUF_LRU_DROP_SEARCH_SIZE iterations in the
-  loop we release buf_pool->LRU_list_mutex to let other threads
-  do their job but only if the block is not IO fixed. This
-  ensures that the block stays in its position in the
-  flush_list.
-  We read io_fix without block_mutex, because we will recheck with block_mutex.
-  And in case io_fixed is not NONE now we do the same thing as when is not NONE
-  later: return false.
-  */
+flush list mutexes and do a thread yield. Set the current page to "sticky" so
+that it is not relocated during the yield. If I/O is started before sticky BIT
+could be set, we skip yielding. The caller should restart the scan.
+@param[in,out]	buf_pool	buffer pool instance
+@param[in,out]	bpage		page to remove
+@param[in]      processed       number of pages processed
+@param[out]     restart         if caller needs to restart scan
+@return true if yielded. */
+[[nodiscard]] static bool buf_flush_try_yield(buf_pool_t *buf_pool,
+                                              buf_page_t *bpage,
+                                              size_t processed, bool &restart) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
 
+  restart = false;
+
+  /* Every BUF_LRU_DROP_SEARCH_SIZE iterations in the loop we release
+  buf_pool->LRU_list_mutex to let other threads do their job but only if the
+  block is not IO fixed. This ensures that the block stays in its position in
+  the flush_list. We read io_fix without block_mutex, because we will recheck
+  with block_mutex.*/
   if (bpage != nullptr && processed >= BUF_LRU_DROP_SEARCH_SIZE &&
       bpage->was_io_fix_none()) {
-    BPageMutex *block_mutex = buf_page_get_mutex(bpage);
-
-    buf_flush_list_mutex_exit(buf_pool);
-
-    /* We don't have to worry about bpage becoming a dangling
-    pointer by a compressed page flush list relocation because
-    buf_page_get_gen() won't be called for pages from this
-    tablespace.  */
-
-    mutex_enter(block_mutex);
-    /* Recheck the I/O fix and the flush list presence now that we
-    hold the right mutex */
-    if (buf_page_get_io_fix(bpage) != BUF_IO_NONE || !bpage->is_dirty()) {
-      mutex_exit(block_mutex);
-
-      *must_restart = true;
-
-      buf_flush_list_mutex_enter(buf_pool);
-
+    if (!buf_page_try_pin(buf_pool, bpage)) {
+      restart = true;
       return false;
     }
 
-    *must_restart = false;
+    ut_ad(bpage->in_flush_list);
+    ut_d(auto oldest_lsn = bpage->get_oldest_lsn());
 
-    /* Release the LRU list and buf_page_get_mutex() mutex
-    to give the other threads a go. */
+    /* Now it is safe to release the LRU list mutex. */
+    buf_flush_list_mutex_exit(buf_pool);
+    mutex_exit(&buf_pool->LRU_list_mutex);
 
-    buf_flush_yield(buf_pool, bpage);
+    /* Try and force a context switch. */
+    std::this_thread::yield();
 
+    mutex_enter(&buf_pool->LRU_list_mutex);
     buf_flush_list_mutex_enter(buf_pool);
 
-    /* Should not have been removed from the flush
-    list during the yield. However, this check is
-    not sufficient to catch a remove -> add. */
+    buf_page_unpin(buf_pool, bpage);
 
+    /* Should not have been removed from the flush list during the yield. */
     ut_ad(bpage->in_flush_list);
 
-    return (true);
-  }
+    /* The oldest LSN change would mean the page is removed and inserted back.
+    This ABA issue is handled during pinning and should not be the case. */
+    ut_ad(oldest_lsn == bpage->get_oldest_lsn());
 
-  return (false);
+    return true;
+  }
+  return false;
 }
 
-/** Removes a single page from a given tablespace inside a specific
-buffer pool instance.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in,out]	bpage		bpage to remove
-@param[in]	flush		flush to disk if true but don't remove
-                                else remove without flushing to disk
-@param[in,out]	must_restart	flag if must restart the flush list scan
-@return true if page was removed. */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
-    buf_pool_t *buf_pool, buf_page_t *bpage, bool flush, bool *must_restart) {
+/** Check if a dirty page should be flushed or removed based on space ID and
+flush observer.
+@param[in]  page        dirty page in flush list
+@param[in]  observer    Flush observer
+@param[in]  space       Space ID
+@return true, if page should considered for flush or removal. */
+static inline bool check_page_flush_observer(buf_page_t *page,
+                                             const Flush_observer *observer,
+                                             space_id_t space) {
+  /* If no flush observer then compare space ID. */
+  if (observer == nullptr) {
+    return (space == page->id.space());
+  }
+  /* Otherwise, match the flush observer pointer. */
+  return (observer == page->get_flush_observer());
+}
+
+/** Attempts to remove a single page from flush list. It is fine to
+skip flush if the page flush is already in progress.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove
+@return true if page could be removed successfully. */
+static bool remove_page_flush_list(buf_pool_t *buf_pool, buf_page_t *bpage) {
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   /* It is safe to check bpage->space and bpage->io_fix while holding
-  buf_pool->LRU_list_mutex only.
-  We will repeat the check of io_fix under block_mutex later, this is just an
-  optimization to avoid the mutex acquisition if its likely io_fix is not NONE.
-  */
+  buf_pool->LRU_list_mutex only. We will repeat the check of io_fix
+  under block_mutex later, this is just an optimization to avoid the
+  mutex acquisition if its likely io_fix is not NONE. */
+  if (bpage->was_io_fixed()) {
+    /* We cannot remove this page during this scan. */
+    return false;
+  }
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+
+  /* We don't have to worry about bpage becoming a dangling pointer by a
+  compressed page flush list relocation because we hold LRU mutex. */
+  buf_flush_list_mutex_exit(buf_pool);
+  mutex_enter(block_mutex);
+
+  bool removed = false;
+  /* Recheck the page I/O fix and the flush list presence now that we hold
+  the right mutex. */
+  if (buf_page_get_io_fix(bpage) == BUF_IO_NONE && bpage->is_dirty()) {
+    buf_flush_remove(bpage);
+    removed = true;
+  }
+
+  mutex_exit(block_mutex);
+  buf_flush_list_mutex_enter(buf_pool);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  return removed;
+}
+
+/** Remove all dirty pages belonging to a given tablespace inside a specific
+buffer pool instance. The pages still remain a part of LRU and are evicted from
+the list as they age towards the tail of the LRU. We don't check for interrupt
+as we must finish the operation. Usually this function is called as a cleanup
+work after an interrupt is received.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in]      id        space id for which to remove or flush pages
+@param[in]      observer  flush observer to identify specific pages
+@retval DB_SUCCESS if all freed
+@retval DB_FAIL if not all freed and caller should call function again. */
+[[nodiscard]] static dberr_t remove_pages_flush_list(buf_pool_t *buf_pool,
+                                                     space_id_t id,
+                                                     Flush_observer *observer) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  buf_page_t *prev = nullptr;
+  size_t processed = 0;
+  dberr_t error = DB_SUCCESS;
+
+  for (buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+       bpage != nullptr; bpage = prev) {
+    ut_a(buf_page_in_file(bpage));
+
+    /* Save the previous page before freeing the current one. */
+    prev = UT_LIST_GET_PREV(list, bpage);
+
+    if (check_page_flush_observer(bpage, observer, id)) {
+      /* Try to PIN the previous page before removing. This would let us
+      continue the current iteration after removal. */
+      bool pinned = buf_page_try_pin(buf_pool, prev);
+
+      /* Try to remove the current page even if pin failed. */
+      bool removed = remove_page_flush_list(buf_pool, bpage);
+
+      if (!pinned) {
+        /* We should not trust prev pointer as PIN was unsuccessful. */
+        error = DB_FAIL;
+        break;
+      }
+
+      if (!removed) {
+        /* Currently we come back and re-check. The iteration can continue.
+        In future, it is also possible to wait for the concurrent IO to complete
+        to avoid re-scanning. */
+        error = DB_FAIL;
+      }
+
+      buf_page_unpin(buf_pool, prev);
+    }
+
+    ++processed;
+
+    /* Yield if we have hogged the CPU and mutexes for too long. */
+    bool restart = false;
+    if (buf_flush_try_yield(buf_pool, prev, processed, restart)) {
+      ut_ad(!restart);
+      /* Reset the batch size counter if we had to yield. */
+      processed = 0;
+    }
+
+    if (restart) {
+      /* The previous page is already flushed or being flushed. We need at least
+      another iteration. Current iteration can continue. */
+      error = DB_FAIL;
+    }
+  }
+
+  buf_flush_list_mutex_exit(buf_pool);
+  return error;
+}
+
+/** Flushes a single page inside a buffer pool instance.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to flush
+@return true if page was flushed. */
+static bool flush_page_flush_list(buf_pool_t *buf_pool, buf_page_t *bpage) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   if (bpage->was_io_fixed()) {
-    /* We cannot remove this page during this scan
-    yet; maybe the system is currently reading it
-    in, or flushing the modifications to the file */
-    return (false);
+    return false;
   }
 
   BPageMutex *block_mutex = buf_page_get_mutex(bpage);
-  bool processed = false;
 
-  /* We don't have to worry about bpage becoming a dangling
-  pointer by a compressed page flush list relocation because
-  buf_page_get_gen() won't be called for pages from this
-  tablespace.  */
-
+  /* We don't have to worry about bpage becoming a dangling pointer by a
+  compressed page flush list relocation because we hold LRU mutex. */
   buf_flush_list_mutex_exit(buf_pool);
 
   mutex_enter(block_mutex);
+  bool flushed = false;
 
-  /* Recheck the page I/O fix and the flush list presence now
-  that we hold the right mutex. */
-  if (buf_page_get_io_fix(bpage) != BUF_IO_NONE || !bpage->is_dirty()) {
-    /* The page became I/O-fixed or is not on the flush
-    list anymore, this invalidates any flush-list-page
-    pointers we have. */
+  if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
+    /* We trigger single page flush and async IO. However, if double write is
+    used, dblwr::write() forces all single page flush to sync IO.
+    1. It makes the function behaviour change from sync to async for temp
+       tablespaces and if redo is disabled. The caller must not assume
+       the page is flushed when we return flushed = T.
+    2. For bulk flush aysnc trigger could be better for performance and seems
+       to be the case in 5.7. Need to validate if 8.0 forcing sync flush
+       is intentional - No functional impact. */
+    flushed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
+  }
 
-    mutex_exit(block_mutex);
-
-    *must_restart = true;
-    processed = false;
-
-  } else if (!flush) {
-    buf_flush_remove(bpage);
-
-    mutex_exit(block_mutex);
-
-    processed = true;
-
-  } else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
-    /* The following call will release the LRU list
-    and block mutexes. */
-    processed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
-
-    if (processed) {
-      /* Wake possible simulated aio thread to actually
-      post the writes to the operating system */
-      os_aio_simulated_wake_handler_threads();
-      mutex_enter(&buf_pool->LRU_list_mutex);
-    } else {
-      mutex_exit(block_mutex);
-    }
+  if (flushed) {
+    /* During flush, we have already released the LRU list and block mutexes.
+    Wake up possible simulated aio thread to actually post the writes to the
+    operating system */
+    os_aio_simulated_wake_handler_threads();
+    mutex_enter(&buf_pool->LRU_list_mutex);
   } else {
     mutex_exit(block_mutex);
   }
@@ -532,119 +667,92 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
   ut_ad(!mutex_own(block_mutex));
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-  return (processed);
+  return flushed;
 }
 
 /** Remove all dirty pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
 the list as they age towards the tail of the LRU.
-@param[in,out]	buf_pool	buffer pool instance
-@param[in]	id		space id for which to remove or flush pages
-@param[in]	observer	flush observer
-@param[in]	flush		flush to disk if true but don't remove,
-                                otherwise remove without flushing to disk
-@param[in]	trx		transaction to check if the operation must be
-                                interrupted, can be NULL
+@param[in,out]  buf_pool  buffer pool instance
+@param[in]      id        space id for which to remove or flush pages
+@param[in]      observer  flush observer
+@param[in]      trx       transaction to check if the operation must be
+                          interrupted, can be NULL
 @retval DB_SUCCESS if all freed
 @retval DB_FAIL if not all freed
 @retval DB_INTERRUPTED if the transaction was interrupted */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    buf_flush_or_remove_pages(buf_pool_t *buf_pool, space_id_t id,
-                              FlushObserver *observer, bool flush,
-                              const trx_t *trx) {
-  buf_page_t *prev;
-  buf_page_t *bpage;
-  ulint processed = 0;
-
+[[nodiscard]] static dberr_t flush_pages_flush_list(buf_pool_t *buf_pool,
+                                                    space_id_t id,
+                                                    Flush_observer *observer,
+                                                    const trx_t *trx) {
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
   buf_flush_list_mutex_enter(buf_pool);
 
-rescan:
-  bool must_restart = false;
-  bool all_freed = true;
+  buf_page_t *prev = nullptr;
+  size_t processed = 0;
 
-  for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list); bpage != nullptr;
-       bpage = prev) {
+  dberr_t error = DB_SUCCESS;
+
+  for (buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+       bpage != nullptr; bpage = prev) {
     ut_a(buf_page_in_file(bpage));
 
-    /* Save the previous link because once we free the page we can't rely
-    on the links. */
-
+    /* Save the previous page before flushing the current one. */
     prev = UT_LIST_GET_PREV(list, bpage);
 
-    /* If flush observer is NULL, flush page for space id,
-    or flush page for flush observer. */
-    if ((observer != nullptr && observer != bpage->get_flush_observer()) ||
-        (observer == nullptr && id != bpage->id.space())) {
-      /* Skip this block, as it does not belong to the target space. */
+    if (check_page_flush_observer(bpage, observer, id)) {
+      /* Try to PIN the previous page before flushing. This would let us
+      continue the current iteration after flush. */
+      bool pinned = buf_page_try_pin(buf_pool, prev);
 
-    } else if (!buf_flush_or_remove_page(buf_pool, bpage, flush,
-                                         &must_restart)) {
-      /* Remove was unsuccessful, we have to try again
-      by scanning the entire list from the end.
-      This also means that we never released the
-      flush list mutex. Therefore we can trust the prev
-      pointer.
-      buf_flush_or_remove_page() released the
-      flush list mutex but not the LRU list mutex.
-      Therefore it is possible that a new page was
-      added to the flush list. For example, in case
-      where we are at the head of the flush list and
-      prev == NULL. That is OK because we have the
-      tablespace quiesced and no new pages for this
-      space-id should enter flush_list. This is
-      because the only callers of this function are
-      DROP TABLE and FLUSH TABLE FOR EXPORT.
-      We know that we'll have to do at least one more
-      scan but we don't break out of loop here and
-      try to do as much work as we can in this
-      iteration. */
+      /* Try to flush the current page even if pin failed. */
+      flush_page_flush_list(buf_pool, bpage);
 
-      all_freed = false;
-    } else if (flush) {
-      /* The processing was successful. And during the
-      processing we have released all the buf_pool mutexes
-      when calling buf_page_flush(). We cannot trust
-      prev pointer. */
-      goto rescan;
-    } else if (must_restart) {
-      ut_ad(!all_freed);
-      break;
+      /* Currently we come back and re-check once flush is triggered. If the
+      flush is unsuccessful we need to rescan too. So, we set the error for
+      rescan unconditionally here. The iteration can continue if PIN was
+      successful. */
+      error = DB_FAIL;
+
+      if (!pinned) {
+        /* We should not trust prev pointer as PIN was unsuccessful. */
+        break;
+      }
+
+      buf_page_unpin(buf_pool, prev);
     }
 
     ++processed;
 
     /* Yield if we have hogged the CPU and mutexes for too long. */
-    if (buf_flush_try_yield(buf_pool, prev, processed, &must_restart)) {
-      ut_ad(!must_restart);
+    bool restart = false;
+    if (buf_flush_try_yield(buf_pool, prev, processed, restart)) {
+      ut_ad(!restart);
       /* Reset the batch size counter if we had to yield. */
-
       processed = 0;
     }
 
-    /* The check for trx is interrupted is expensive, we want
-    to check every N iterations. */
-    if (!processed && trx && trx_is_interrupted(trx)) {
-      if (trx->flush_observer != nullptr) {
-        if (flush) {
-          trx->flush_observer->interrupted();
-        } else {
-          /* We should remove all pages with the
-          the flush observer. */
-          continue;
-        }
-      }
+    if (restart) {
+      /* The previous page is already flushed or being flushed. We need at least
+      another iteration. Current iteration can continue. */
+      error = DB_FAIL;
+    }
 
-      buf_flush_list_mutex_exit(buf_pool);
-      return (DB_INTERRUPTED);
+    /* The check for trx is interrupted is expensive, we want to check every
+    N iterations. */
+    if (processed == 0 && trx && trx_is_interrupted(trx)) {
+      if (trx->flush_observer != nullptr) {
+        trx->flush_observer->interrupted();
+      }
+      error = DB_INTERRUPTED;
+      break;
     }
   }
 
   buf_flush_list_mutex_exit(buf_pool);
-
-  return (all_freed ? DB_SUCCESS : DB_FAIL);
+  return error;
 }
 
 /** Remove or flush all the dirty pages that belong to a given tablespace
@@ -661,7 +769,7 @@ the tail of the LRU list.
 @param[in]	strict		true, if no page from tablespace
                                 can be in buffer pool just after flush */
 static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
-                                  FlushObserver *observer, bool flush,
+                                  Flush_observer *observer, bool flush,
                                   const trx_t *trx, bool strict) {
   dberr_t err;
 
@@ -670,7 +778,12 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     mutex here. */
     mutex_enter(&buf_pool->LRU_list_mutex);
 
-    err = buf_flush_or_remove_pages(buf_pool, id, observer, flush, trx);
+    if (flush) {
+      err = flush_pages_flush_list(buf_pool, id, observer, trx);
+
+    } else {
+      err = remove_pages_flush_list(buf_pool, id, observer);
+    }
 
     mutex_exit(&buf_pool->LRU_list_mutex);
 
@@ -694,7 +807,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
 
   } while (err == DB_FAIL);
 
-  ut_ad(err == DB_INTERRUPTED || !strict ||
+  ut_ad(observer != nullptr || err == DB_INTERRUPTED || !strict ||
         buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
@@ -848,7 +961,7 @@ static void buf_LRU_remove_pages(
     bool strict)             /*!< in: true if no page from tablespace
                              can be in buffer pool just after flush */
 {
-  FlushObserver *observer = (trx == nullptr) ? nullptr : trx->flush_observer;
+  Flush_observer *observer = (trx == nullptr) ? nullptr : trx->flush_observer;
 
   switch (buf_remove) {
     case BUF_REMOVE_ALL_NO_WRITE:
@@ -1016,7 +1129,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
     ut_ad(bpage->in_LRU_list);
     ut_ad(buf_page_in_file(bpage));
 
-    unsigned accessed = buf_page_is_accessed(bpage);
+    const auto accessed = buf_page_is_accessed(bpage);
 
     if (bpage->was_stale()) {
       freed = buf_page_free_stale(buf_pool, bpage);
@@ -1032,7 +1145,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
       }
     }
 
-    if (freed && !accessed) {
+    if (freed && accessed == std::chrono::steady_clock::time_point{}) {
       /* Keep track of pages that are evicted without
       ever being accessed. This gives us a measure of
       the effectiveness of readahead */
@@ -1167,7 +1280,7 @@ static void buf_LRU_check_size_of_non_data_objects(
   if (!recv_recovery_is_on() && buf_pool->curr_size == buf_pool->old_size &&
       UT_LIST_GET_LEN(buf_pool->free) + UT_LIST_GET_LEN(buf_pool->LRU) <
           buf_pool->curr_size / 20) {
-    ib::fatal(ER_IB_MSG_132)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_132)
         << "Over 95 percent of the buffer pool is"
            " occupied by lock heaps or the adaptive hash index!"
            " Check that your transactions do not set too many"
@@ -1357,11 +1470,20 @@ loop:
   goto loop;
 }
 
+/** Calculates the desired number for the old blocks list.
+@param[in]	buf_pool	buffer pool instance */
+static size_t calculate_desired_LRU_old_size(const buf_pool_t *buf_pool) {
+  return ut_min(UT_LIST_GET_LEN(buf_pool->LRU) *
+                    static_cast<size_t>(buf_pool->LRU_old_ratio) /
+                    BUF_LRU_OLD_RATIO_DIV,
+                UT_LIST_GET_LEN(buf_pool->LRU) -
+                    (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+}
+
 /** Moves the LRU_old pointer so that the length of the old blocks list
 is inside the allowed limits.
 @param[in]	buf_pool	buffer pool instance */
-UNIV_INLINE
-void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
+static inline void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
   ulint old_len;
   ulint new_len;
 
@@ -1385,10 +1507,7 @@ void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
 #endif /* UNIV_LRU_DEBUG */
 
   old_len = buf_pool->LRU_old_len;
-  new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                       BUF_LRU_OLD_RATIO_DIV,
-                   UT_LIST_GET_LEN(buf_pool->LRU) -
-                       (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+  new_len = calculate_desired_LRU_old_size(buf_pool);
 
   for (;;) {
     buf_page_t *LRU_old = buf_pool->LRU_old;
@@ -1475,8 +1594,7 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage) {
 
 /** Removes a block from the LRU list.
 @param[in]	bpage	control block */
-UNIV_INLINE
-void buf_LRU_remove_block(buf_page_t *bpage) {
+static inline void buf_LRU_remove_block(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -1521,8 +1639,7 @@ void buf_LRU_remove_block(buf_page_t *bpage) {
   /* If the LRU list is so short that LRU_old is not defined,
   clear the "old" flags and return */
   if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
-    for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != nullptr;
-         bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+    for (auto bpage : buf_pool->LRU) {
       /* This loop temporarily violates the
       assertions of buf_page_set_old(). */
       bpage->old = FALSE;
@@ -1574,8 +1691,7 @@ page_size from the buffer page when adding a block into LRU
                         else put to the start; if the LRU list is very short,
                         the block is added to the start, regardless of this
                         parameter */
-UNIV_INLINE
-void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
+static inline void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -2107,7 +2223,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
         }
       }
     }
-    /* fall through */
+      [[fallthrough]];
     case BUF_BLOCK_ZIP_PAGE:
       ut_a(!bpage->is_dirty());
       if (bpage->size.is_compressed()) {
@@ -2383,31 +2499,23 @@ func_exit:
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list for one buffer pool instance.
 @param[in]	buf_pool	buffer pool instance */
-static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
-  ulint old_len;
-  ulint new_len;
-
+void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
     ut_a(buf_pool->LRU_old);
-    old_len = buf_pool->LRU_old_len;
 
-    new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                         BUF_LRU_OLD_RATIO_DIV,
-                     UT_LIST_GET_LEN(buf_pool->LRU) -
-                         (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+    const size_t new_len = calculate_desired_LRU_old_size(buf_pool);
 
-    ut_a(old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
-    ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
   }
 
   CheckInLRUList::validate(buf_pool);
 
-  old_len = 0;
+  ulint old_len = 0;
 
-  for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != nullptr;
-       bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+  for (auto bpage : buf_pool->LRU) {
     switch (buf_page_get_state(bpage)) {
       case BUF_BLOCK_POOL_WATCH:
       case BUF_BLOCK_NOT_USED:
@@ -2446,8 +2554,7 @@ static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
 
   CheckInFreeList::validate(buf_pool);
 
-  for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->free); bpage != nullptr;
-       bpage = UT_LIST_GET_NEXT(list, bpage)) {
+  for (auto bpage : buf_pool->free) {
     ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
   }
 
@@ -2457,8 +2564,7 @@ static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
 
   CheckUnzipLRUAndLRUList::validate(buf_pool);
 
-  for (buf_block_t *block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
-       block != nullptr; block = UT_LIST_GET_NEXT(unzip_LRU, block)) {
+  for (auto block : buf_pool->unzip_LRU) {
     ut_ad(block->in_unzip_LRU_list);
     ut_ad(block->page.in_LRU_list);
     ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
@@ -2485,8 +2591,7 @@ Space_References buf_LRU_count_space_references() {
 
     mutex_enter(&buf_pool->LRU_list_mutex);
 
-    for (const buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-         bpage != nullptr; bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+    for (auto bpage : buf_pool->LRU) {
       /* We have the LRU mutex, it is safe to assume the space ID will not be
       changed, as it would require removal from the LRU first. */
       result[bpage->get_space()]++;
@@ -2517,8 +2622,7 @@ Space_References buf_LRU_count_space_references() {
 static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
-  for (const buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-       bpage != nullptr; bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+  for (auto bpage : buf_pool->LRU) {
     mutex_enter(buf_page_get_mutex(bpage));
 
     fprintf(stderr, "BLOCK space " UINT32PF " page " UINT32PF " ",

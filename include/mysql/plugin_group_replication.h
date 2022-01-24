@@ -83,6 +83,9 @@ struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS {
                           size_t length);
   void (*set_member_version)(void *const context, const char &value,
                              size_t length);
+  void (*set_member_incoming_communication_protocol)(void *const context,
+                                                     const char &value,
+                                                     size_t length);
 };
 
 /*

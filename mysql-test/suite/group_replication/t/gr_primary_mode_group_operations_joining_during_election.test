@@ -37,6 +37,8 @@
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master");
 call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
@@ -44,12 +46,24 @@ set session sql_log_bin=1;
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
 
+SET sql_log_bin=0;
+CREATE USER 'recovery_user'@'%' IDENTIFIED BY 'rpl';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 SET GLOBAL group_replication_member_weight= 90;
+
+SET sql_log_bin=0;
+CREATE USER 'recovery_user'@'%' IDENTIFIED BY 'rpl';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 
 --source include/start_group_replication.inc
 
@@ -62,6 +76,7 @@ SET GLOBAL group_replication_member_weight= 90;
 SET sql_log_bin=0;
 CREATE USER 'recovery_user'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'recovery_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 
@@ -190,8 +205,20 @@ DROP TABLE t1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET sql_log_bin=0;
+DROP USER recovery_user;
+SET sql_log_bin=1;
+
 SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 
 --let $rpl_group_replication_single_primary_mode=0
 --let $rpl_group_replication_reset_persistent_vars=1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+DROP USER recovery_user;
+SET sql_log_bin=1;
+
 --source include/group_replication_end.inc

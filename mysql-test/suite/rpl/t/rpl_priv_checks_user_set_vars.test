@@ -11,7 +11,7 @@
 #     without privileges.
 # R2. Variables `gtid_next`, `original_commit_timestamp`,
 #     `original_server_version`, `immediate_server_version` and
-#     `pseudo_slave_mode` are allowed to be set when having `SUPER`,
+#     `pseudo_replica_mode` are allowed to be set when having `SUPER`,
 #     `SYSTEM_VARIABLES_ADMIN`, `SESSION_VARIABLES_ADMIN` or
 #     `REPLICATION_APPLIER` privileges.
 # R3. Variables `pseudo_thread_id` and `sql_require_primary_key` are allowed to

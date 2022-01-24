@@ -1,0 +1,9 @@
+################################################################################
+# Basic TLS 1.3 testing with XCom
+################################################################################
+
+--source include/have_group_replication_plugin_base.inc
+--source include/have_group_replication_xcom_communication_stack.inc
+
+--source ../include/gr_ssl_tls13.inc
+

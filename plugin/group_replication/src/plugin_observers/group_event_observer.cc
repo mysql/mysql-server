@@ -23,7 +23,7 @@
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Group_event_observer::~Group_event_observer() {}
+Group_event_observer::~Group_event_observer() = default;
 
 Group_events_observation_manager::Group_events_observation_manager() {
   observer_list_lock = new Checkable_rwlock(

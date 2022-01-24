@@ -46,7 +46,6 @@ NdbMutex *ndb_print_state_mutex= NULL;
 #endif
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 static int g_ndb_connection_count = 0;
 
@@ -193,8 +192,9 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 		       NDB_THREAD_PRIO_LOW);
     if (m_impl.m_connect_thread == NULL)
     {
-      ndbout_c("Ndb_cluster_connection::start_connect_thread: "
-               "Failed to create thread for cluster connection.");
+      g_eventLogger->info(
+          "Ndb_cluster_connection::start_connect_thread: "
+          "Failed to create thread for cluster connection.");
       assert(m_impl.m_connect_thread != NULL);
       DBUG_RETURN(-1);
     }
@@ -518,7 +518,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_error_msg.assfmt
       ("Could not initialize handle to management server: %s",
        m_config_retriever->getErrorString());
-    printf("%s\n", get_latest_error_msg());
+    g_eventLogger->info("%s", get_latest_error_msg());
   }
   if (!m_main_connection)
   {
@@ -1280,7 +1280,7 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         Uint32 nodeId = 0;
         Uint32 location_domain_id = 0;
         Uint32 node_type;
-        char *host_str;
+        char *host_str = nullptr;
         iterall.get(CFG_NODE_ID, &nodeId);
         iterall.get(CFG_TYPE_OF_SECTION, &node_type);
         if (node_type == NODE_TYPE_API)
@@ -1327,52 +1327,49 @@ void
 Ndb_cluster_connection_impl::do_test()
 {
   Ndb_cluster_connection_node_iter iter;
-  int n= no_db_nodes()+5;
-  Uint32 *nodes= new Uint32[n+1];
+  int n = no_db_nodes() + 5;
+  Uint32 *nodes = new Uint32[n + 1];
 
-  for (int g= 0; g < n; g++)
+  for (int g = 0; g < n; g++)
   {
-    for (int h= 0; h < n; h++)
+    for (int h = 0; h < n; h++)
     {
       Uint32 id;
       Ndb_cluster_connection_node_iter iter2;
       {
-	for (int j= 0; j < g; j++)
-	{
-	  nodes[j]= get_next_node(iter2);
-	}
+        for (int j = 0; j < g; j++)
+        {
+          nodes[j] = get_next_node(iter2);
+        }
       }
 
-      for (int i= 0; i < n; i++)
+      for (int i = 0; i < n; i++)
       {
-	init_get_next_node(iter);
-	fprintf(stderr, "%d dead:(", g);
-	id= 0;
-	while (id == 0)
-	{
-	  if ((id= get_next_node(iter)) == 0)
-	    break;
-	  for (int j= 0; j < g; j++)
-	  {
-	    if (nodes[j] == id)
-	    {
-	      fprintf(stderr, " %d", id);
-	      id= 0;
-	      break;
-	    }
-	  }
-	}
-	fprintf(stderr, ")");
-	if (id == 0)
-	{
-	  break;
-	}
-	fprintf(stderr, " %d\n", id);
+        char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
+        init_get_next_node(iter);
+        id = 0;
+        while (id == 0)
+        {
+          if ((id = get_next_node(iter)) == 0) break;
+          for (int j = 0; j < g; j++)
+          {
+            if (nodes[j] == id)
+            {
+              BaseString::snappend(logbuf, sizeof(logbuf), "%d ", id);
+              id = 0;
+              break;
+            }
+          }
+        }
+        g_eventLogger->info("%d dead: ( %s) %d", g, logbuf, id);
+        if (id == 0)
+        {
+          break;
+        }
       }
-      fprintf(stderr, "\n");
     }
   }
-  delete [] nodes;
+  delete[] nodes;
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
@@ -1446,7 +1443,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       break;
     }
 
-    ndb_mgm_config_unique_ptr config = m_config_retriever->getConfig(nodeId);
+    const ndb_mgm::config_ptr config = m_config_retriever->getConfig(nodeId);
     if (!config)
       break;
 
@@ -1479,7 +1476,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
   }
   m_latest_error = 1;
   m_latest_error_msg.assfmt("Configuration error: %s", erString);
-  ndbout << get_latest_error_msg() << endl;
+  g_eventLogger->info("%s", get_latest_error_msg());
   DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }
@@ -1505,7 +1502,7 @@ void Ndb_cluster_connection_impl::connect_thread()
     if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
-      printf("Ndb_cluster_connection::connect_thread error\n");
+      g_eventLogger->info("Ndb_cluster_connection::connect_thread error");
       assert(false);
       m_run_connect_thread= 0;
     }

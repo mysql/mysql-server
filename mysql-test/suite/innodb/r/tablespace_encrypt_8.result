@@ -1,7 +1,7 @@
 #########################################################################
 # RESTART 1 : WITH KEYRING PLUGIN
 #########################################################################
-SET SESSION debug= '+d,BtrBulk_insert_inject_error';
+SET SESSION debug= '+d,ddl_btree_build_insert_return_interrupt';
 
 #########
 # SETUP #

@@ -20,7 +20,6 @@ ERROR 70100: Query execution was interrupted
 connection con1;
 include/show_binlog_events.inc
 connection con1;
-connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t0(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=MyISAM
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=MERGE UNION=(t0) INSERT_METHOD=LAST

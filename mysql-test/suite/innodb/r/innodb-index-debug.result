@@ -22,15 +22,15 @@ DROP TABLE t1;
 CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
 ENGINE=InnoDB;
 INSERT INTO bug13861218 VALUES (8, 0), (4, 0), (0, 0);
-SET DEBUG='+d,ib_row_merge_buf_add_two';
+SET DEBUG='+d,ddl_buf_add_two';
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
-SET DEBUG='-d,ib_row_merge_buf_add_two';
+SET DEBUG='-d,ddl_buf_add_two';
 DROP TABLE bug13861218;
 CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT UNIQUE) ENGINE=InnoDB;
 INSERT INTO bug13861218 VALUES (8, NULL), (4, NULL), (0, NULL);
-SET DEBUG='+d,ib_row_merge_buf_add_two';
+SET DEBUG='+d,ddl_buf_add_two';
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
-SET DEBUG='-d,ib_row_merge_buf_add_two';
+SET DEBUG='-d,ddl_buf_add_two';
 DROP TABLE bug13861218;
 #
 # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
@@ -50,15 +50,15 @@ insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
 insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
-SET DEBUG = '+d,row_merge_write_failure';
+SET DEBUG = '+d,ddl_write_failure';
 alter table t1 drop primary key,add primary key(f2,f1);
 ERROR HY000: Temporary file write failure.
-SET DEBUG = '-d,row_merge_write_failure';
+SET DEBUG = '-d,ddl_write_failure';
 drop table t1;
 create table t1(k1 int auto_increment primary key,
 k2 char(200),k3 char(200))engine=innodb;
 insert into t1 values(NULL,'a','b'), (NULL,'aa','bb');
-SET DEBUG_SYNC= 'row_merge_after_scan
+SET DEBUG_SYNC= 'ddl_after_scan
 SIGNAL opened WAIT_FOR flushed';
 optimize table t1;
 connection default
@@ -78,7 +78,7 @@ COUNT(k1)	k2	k3
 drop table t1;
 create table t1(k1 int auto_increment primary key,
 k2 char(200),k3 char(200))engine=innodb;
-SET DEBUG_SYNC= 'row_merge_after_scan
+SET DEBUG_SYNC= 'ddl_after_scan
 SIGNAL opened WAIT_FOR flushed';
 ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
 connection default

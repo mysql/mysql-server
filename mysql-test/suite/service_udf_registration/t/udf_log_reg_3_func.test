@@ -76,3 +76,6 @@ SET GLOBAL general_log_file = @old_general_log_file;
 
 # Show general log for UDFs.
 select command_type,argument from mysql.general_log WHERE argument LIKE '%myfunc%';
+
+# Clear general log
+TRUNCATE TABLE mysql.general_log;

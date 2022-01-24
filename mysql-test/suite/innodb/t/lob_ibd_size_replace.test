@@ -1,4 +1,4 @@
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 
 --echo #

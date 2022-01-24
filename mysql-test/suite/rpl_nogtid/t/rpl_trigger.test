@@ -347,7 +347,7 @@ connection slave;
 RESET SLAVE;
 START SLAVE;
 
-SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+SELECT SOURCE_POS_WAIT('master-bin.000001', 513) >= 0;
 
 # Check that the replication succeeded.
 

@@ -14,7 +14,7 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following UPDATE t1 to pass the mode is switched temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1 order by a;
 --echo **** On Master ****
@@ -24,7 +24,7 @@ SELECT * FROM t1 order by a;
 #SHOW BINLOG EVENTS;
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 SELECT * FROM t1 order by a;
 source include/check_slave_is_running.inc;
@@ -38,16 +38,16 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 #
 # Verify that a temporary failing replicated xa transaction completes
 # upon slave applier restart after previous
-# @@global.slave_transaction_retries number of retries in vain.
+# @@global.replica_transaction_retries number of retries in vain.
 #
 connection slave;
 
 set @save_innodb_lock_wait_timeout=@@global.innodb_lock_wait_timeout;
-set @save_slave_transaction_retries=@@global.slave_transaction_retries;
+set @save_replica_transaction_retries=@@global.replica_transaction_retries;
 
 # Slave applier parameters for the failed retry
 set @@global.innodb_lock_wait_timeout=1;
-set @@global.slave_transaction_retries=2;
+set @@global.replica_transaction_retries=2;
 --source include/restart_slave_sql.inc
 
 # Temporary error implement: a record is blocked by slave local trx
@@ -71,7 +71,7 @@ connection slave;
 
 # b. Slave applier parameters for successful retry after restart
 set @@global.innodb_lock_wait_timeout=1;
-set @@global.slave_transaction_retries=100;
+set @@global.replica_transaction_retries=100;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status INTO @last_retries;
 --source include/start_slave_sql.inc
 --let $wait_condition=SELECT count_transactions_retries > @last_retries+1 FROM performance_schema.replication_applier_status;
@@ -94,7 +94,7 @@ connection slave;
 
 # Bug#24764800 cleanup:
 set @@global.innodb_lock_wait_timeout=@save_innodb_lock_wait_timeout;
-set @@global.slave_transaction_retries= @save_slave_transaction_retries;
+set @@global.replica_transaction_retries= @save_replica_transaction_retries;
 
 #
 # Total cleanup:

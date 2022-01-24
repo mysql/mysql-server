@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/rpl_mts_spco_deadlock_hang_on_non_temp_error.2.err

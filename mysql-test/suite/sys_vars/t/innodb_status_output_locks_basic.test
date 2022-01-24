@@ -58,7 +58,7 @@ set global innodb_status_output_locks=1.1;
 set global innodb_status_output_locks=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_status_output_locks=2;
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_status_output_locks=-3;
 select @@global.innodb_status_output_locks;
 --disable_warnings

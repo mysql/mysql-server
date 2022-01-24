@@ -49,7 +49,6 @@ struct System_status_var;
 struct TABLE;
 struct TABLE_LIST;
 typedef enum enum_mysql_show_type SHOW_TYPE;
-enum enum_schema_table_state : int;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
 enum enum_field_types : int;
@@ -68,7 +67,8 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table, const char *wild);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
-void mysqld_list_processes(THD *thd, const char *user, bool verbose);
+void mysqld_list_processes(THD *thd, const char *user, bool verbose,
+                           bool has_cursor);
 bool mysqld_show_privileges(THD *thd);
 void calc_sum_of_all_status(System_status_var *to);
 void append_definer(const THD *thd, String *buffer,
@@ -117,8 +117,6 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 bool make_schema_query_block(THD *thd, Query_block *sel,
                              enum enum_schema_tables schema_table_idx);
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
-bool get_schema_tables_result(JOIN *join,
-                              enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 const char *get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -164,8 +162,6 @@ class Sql_cmd_show : public Sql_cmd_select {
   bool execute(THD *thd) override;
 
  protected:
-  // Use for SHOW commands that operate on a single table.
-  bool check_privileges_for_table(THD *thd, bool is_temporary);
   enum_sql_command m_sql_command;
 };
 
@@ -477,7 +473,6 @@ class Sql_cmd_show_processlist : public Sql_cmd_show {
 
  private:
   bool use_pfs() { return m_use_pfs; }
-  bool execute_with_performance_schema(THD *thd);
 
   const bool m_verbose{false};
   bool m_use_pfs{false};

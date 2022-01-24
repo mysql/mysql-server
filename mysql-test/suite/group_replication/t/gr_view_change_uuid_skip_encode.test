@@ -1,0 +1,83 @@
+################################################################################
+# Validates that a member that does have the group_replication_view_change_uuid
+# global server option behaves like if the option value is AUTOMATIC.
+#
+# Test:
+#  0. This test requires 2 members.
+#  1. Bootstrap a group on server 1 faking that it is a
+#     server that does not have the option
+#     group_replication_view_change_uuid, thence it will not
+#     send it to group on join the handshake.
+#  2. Try join a member with
+#     group_replication_view_change_uuid = UUID
+#     to the group, it shall fail.
+#  3. Try join a member with
+#     GLOBAL.group_replication_view_change_uuid = AUTOMATIC
+#     to the group, it shall succeed.
+#  4. Clean up.
+#
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a group on server 1 faking that it is a
+--echo #    server that does not have the option
+--echo #    group_replication_view_change_uuid, thence it will not
+--echo #    send it to group on join the handshake.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_view_change_uuid';
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try join a member with
+--echo #    group_replication_view_change_uuid = UUID
+--echo #    to the group, it shall fail.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+#call mtr.add_suppression("The member is configured with a default_table_encryption option value '1' different from the group '0'. The member will now exit the group.");
+call mtr.add_suppression("The member is configured with a group_replication_view_change_uuid option value '.*' different from the group 'AUTOMATIC'. The member will now exit the group.");
+SET SESSION sql_log_bin = 1;
+
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET @@GLOBAL.group_replication_view_change_uuid = 'c0dec0de-c0de-c0de-c0de-c0dec0dec0de';
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Try join a member with
+--echo #    GLOBAL.group_replication_view_change_uuid = AUTOMATIC
+--echo #    to the group, it shall succeed.
+SET @@GLOBAL.group_replication_view_change_uuid = AUTOMATIC;
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_skip_encode_view_change_uuid';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--source include/group_replication_end.inc

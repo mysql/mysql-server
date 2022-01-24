@@ -64,9 +64,8 @@ undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
  by the caller in any case.
  @return true if found; NOTE the node->pcur must be closed by the
  caller, regardless of the return value */
-bool row_undo_search_clust_to_pcur(
-    undo_node_t *node) /*!< in/out: row undo node */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_undo_search_clust_to_pcur(
+    undo_node_t *node); /*!< in/out: row undo node */
 /** Undoes a row operation in a table. This is a high-level function used
  in SQL execution graphs.
  @return query thread to run next or NULL */

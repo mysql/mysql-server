@@ -9,6 +9,7 @@ call mtr.add_suppression("Cannot start the group replication applier as *.*");
 call mtr.add_suppression("On shutdown there was a timeout on the group replication applier *.*");
 call mtr.add_suppression("The member is leaving a group without being on one");
 set session sql_log_bin=1;
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
 SET GLOBAL group_replication_group_name= "2d249320-2e06-11e3-aa6e-0800200c9a66";
 SET @debug_save= @@GLOBAL.DEBUG;
 SET GLOBAL debug= 'd,double_unique_handler';
@@ -25,7 +26,7 @@ START GROUP_REPLICATION;
 ERROR HY000: The START GROUP_REPLICATION command failed as the applier module failed to start.
 SET DEBUG_SYNC= "now SIGNAL signal.applier_continue";
 SET @@GLOBAL.DEBUG= @debug_save;
-SET GLOBAL group_replication_components_stop_timeout= 31536000;
+SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 include/start_group_replication.inc
 include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save;

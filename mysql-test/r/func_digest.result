@@ -1853,7 +1853,7 @@ digest_text	digest_is_correct
 CREATE TABLE ( `a` INTEGER )	YES
 DROP TABLE åäö, 日本語,  𩸽;
 Warnings:
-Warning	1300	Cannot convert string '\xF0\xA9\xB8\xBD' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\xA9\xB8\xBD' from utf8mb4 to utf8mb3
 SET NAMES DEFAULT;
 #
 # Bug#27021852: WL#9637: INT MYSQL_EXECUTE_COMMAND(THD*, BOOL):

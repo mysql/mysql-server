@@ -202,8 +202,8 @@ int table_mutex_instances::make_row(PFS_mutex *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   /* Protect this reader against a mutex unlock */
@@ -416,8 +416,8 @@ int table_rwlock_instances::make_row(PFS_rwlock *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   /* Protect this reader against a rwlock unlock in the writer */
@@ -620,8 +620,8 @@ int table_cond_instances::make_row(PFS_cond *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {

@@ -9,11 +9,11 @@
 #    1.1 Block the action on validation with a debug point
 #        Change to single primary mode appoint server 2 as the new primary
 #        Check the action is stuck in the check pre conditions stage
-#    1.2 Lock a table on the new primary and execute a transaction on server1
+#    1.2 Pause transactions on the new primary and execute a transaction on server1
 #        Unblock the debug point
 #        Check the action is stuck in the Primary Election stage
 #    1.3 Block the stop process of the action using a debug point
-#        Unlock the table on the new primary
+#        Resume transactions on the new primary
 #        Check it is stuck in the wait for other member to finish stage
 #    1.4 Unblock the debug point
 #        Check the action terminates and no stages appear
@@ -110,14 +110,14 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
 --source include/assert.inc
 
 --echo
---echo # 1.2 Lock a table on the new primary and execute a transaction on server1
+--echo # 1.2 Pause transactions on the new primary and execute a transaction on server1
 --echo #     Unblock the debug point
 --echo #     Check the action is stuck in the Primary Election stage
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-LOCK TABLE t1 WRITE;
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_observer_trans';
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
@@ -148,6 +148,8 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary%" and work_completed=1
 --source include/wait_condition.inc
 
@@ -168,15 +170,15 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
 
 --echo
 --echo # 1.3 Block the stop process of the action using a debug point
---echo #     Unlock the table on the new primary
+--echo #     Resume transactions on the new primary
 --echo #     Check it is stuck in the wait for other member to finish stage
-
-SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-UNLOCK TABLES;
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 
 --source include/rpl_sync.inc
 

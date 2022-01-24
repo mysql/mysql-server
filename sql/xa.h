@@ -326,7 +326,14 @@ typedef struct xid_t {
   */
   char *xid_to_str(char *buf) const;
 #endif
+  /**
+    Check if equal to another xid.
 
+    @param[in]  xid   the id of another X/Open XA transaction
+
+    @return true iff formats, gtrid_length, bqual_length and the content of
+            gtrid_length+bqual_length bytes is exactly the same
+  */
   bool eq(const xid_t *xid) const {
     return xid->formatID == formatID && xid->gtrid_length == gtrid_length &&
            xid->bqual_length == bqual_length &&

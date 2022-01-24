@@ -26,7 +26,7 @@
 --echo #
 
 SET @save_debug= @@GLOBAL.debug;
-SET GLOBAL debug= '+d,dbug.return_null_MASTER_UUID';
+SET GLOBAL debug= '+d,dbug.return_null_SOURCE_UUID';
 
 --echo #
 --echo # We should still have the master_uuid value.
@@ -57,7 +57,7 @@ SET GLOBAL debug= '+d,dbug.return_null_MASTER_UUID';
 --echo # de-activate the debug behaviour.
 --echo #
 
-SET GLOBAL debug= '-d,dbug.return_null_MASTER_UUID';
+SET GLOBAL debug= '-d,dbug.return_null_SOURCE_UUID';
 SET GLOBAL debug= @save_debug;
 
 --echo #

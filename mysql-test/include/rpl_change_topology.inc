@@ -38,6 +38,7 @@
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
+# [--let $rpl_gtid_only= *:0,1:0,2:1]
 # --source include/rpl_change_topology.inc
 #
 # Parameters:
@@ -139,6 +140,18 @@
 #     To specify that all servers should have the same check policy, do:
 #
 #       --let $rpl_require_table_primary_key_check= *:ON
+#
+#   $rpl_gtid_only
+#     Include `GTID_ONLY` option in the `CHANGE REPLICATION SOURCE TO ...`
+#     statement to be executed. For example, to specify that server_1 should
+#     have the flag enabled and server_5 shouldn't, do:
+#
+#       --let $rpl_gtid_only= 1:1,5:0
+#
+#     To specify that all nodes have the flag enabled, do:
+#
+#       --let $rpl_gtid_only= *:1
+
 #
 # ==== Internal variables configured by this file ====
 #
@@ -267,6 +280,25 @@ if ($rpl_privilege_checks_user == ''){
 if ($_rpl_change_topology_privilege_checks_all_index)
 {
   --let $_rpl_change_topology_privilege_checks_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_privilege_checks_user", $_rpl_change_topology_privilege_checks_all_index), ',', 1), ':', -1)`
+}
+
+--source include/rpl_gtid_only_configuration.inc
+
+--let $_rpl_change_topology_gtid_only_all_index= `SELECT LOCATE('*:', "$rpl_gtid_only")`
+if ($_rpl_change_topology_gtid_only_all_index)
+{
+  --let $_rpl_change_topology_gtid_only_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_gtid_only", $_rpl_change_topology_gtid_only_all_index), ',', 1), ':', -1)`
+}
+
+# In order to enable GTID_ONLY, REQUIRE_ROW must be enabled
+
+if ($rpl_gtid_only)
+{
+  --let $rpl_topology_override_variable = $rpl_require_row_format
+  --let $rpl_topology_with_variable = $rpl_gtid_only
+  --let $rpl_topology_when_override_value = 1
+  --source include/rpl_change_topology_merge_variables.inc
+  --let $rpl_require_row_format = $rpl_topology_overriden_result
 }
 
 --let $_rpl_change_topology_require_row_all_index= `SELECT LOCATE('*:', "$rpl_require_row_format")`

@@ -300,4 +300,10 @@ typedef void *xcom_sockoptptr_t;
 #define NEWLINE "\n"
 #endif
 
+#ifdef _WIN32
+#define xcom_buf char
+#else
+#define xcom_buf void
+#endif
+
 #endif

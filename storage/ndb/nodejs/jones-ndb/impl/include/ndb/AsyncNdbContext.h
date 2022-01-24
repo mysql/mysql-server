@@ -30,27 +30,14 @@
 #include "TransactionImpl.h"
 #include "async_common.h"
 
-/* V1 NdbWaitGroup must be created with a fixed maximum size.
-   V2 NdbWaitGroup is created with an initial size and will grow as needed.
+/* V2 NdbWaitGroup is created with an initial size and will grow as needed.
 */
-#ifdef USE_OLD_MULTIWAIT_API
-#define WAIT_GROUP_SIZE 1024
-#else
 #define WAIT_GROUP_SIZE 64
-#endif
-
-#ifdef FORCE_UV_LEGACY_COMPAT
-#define PTHREAD_RETURN_TYPE void *
-#define PTHREAD_RETURN_VAL NULL
-#else
-#define PTHREAD_RETURN_TYPE void
-#define PTHREAD_RETURN_VAL
-#endif
 
 extern "C" {
   void ioCompleted(uv_async_t *);
   void ndbTxCompleted(int, NdbTransaction *, void *);
-  PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *);
+  void run_ndb_listener_thread(void *);
 }
 
 
@@ -70,7 +57,7 @@ public:
   void shutdown();
 
   /* Friend functions have C linkage but call the protected methods */
-  friend PTHREAD_RETURN_TYPE ::run_ndb_listener_thread(void *);
+  friend void ::run_ndb_listener_thread(void *);
   friend void ::ioCompleted(uv_async_t *);
   
 protected:
@@ -94,15 +81,6 @@ private:
   */
   NdbWaitGroup * waitgroup;
 
-#ifdef USE_OLD_MULTIWAIT_API
-  /* The sent queue holds Ndbs which have just been sent (executeAsynch). 
-  */
-  SharedList<Ndb> sent_queue;
-  
-  /* The completed queue holds Ndbs which have returned from execution. 
-  */
-  SharedList<Ndb> completed_queue;
-#endif
   /* Shutdown signal (used only with V2 multiwait but always present)
   */
   ConcurrentFlag shutdown_flag;

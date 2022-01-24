@@ -101,7 +101,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --echo # 07. Execute transaction T2 on server1, it will execute
 --echo #     on servers 1 and 3.
 --echo #     server2 will apply it in order not because of the
---echo #     consistency but due to --slave_preserve_commit_order
+--echo #     consistency but due to --replica_preserve_commit_order
 --echo #     or single thread applier which will make T2 be
 --echo #     committed after the UPDATE.
 --let $rpl_connection_name= server1

@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef _WIN32
+
 #include "../router_app.h"
 
 #include <cstring>
@@ -31,24 +33,23 @@
 #include <windows.h>
 #include <winsock2.h>
 
+#include "../default_paths.h"
 #include "harness_assert.h"
+#include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
+#include "mysqlrouter/utils.h"  // write_windows_event_log
+#include "mysqlrouter/windows/service_operations.h"
 #include "nt_servc.h"
-#include "utils.h"
 
 // forward declarations
 std::string get_logging_folder(const std::string &conf_file);
 void allow_windows_service_to_write_logs(const std::string &conf_file);
 
 namespace {
-
-const char *kRouterServiceName = "MySQLRouter";
-const char *kRouterServiceDisplayName = "MySQL Router";
 const char *kAccount = "NT AUTHORITY\\LocalService";
 
 NTService g_service;
-extern "C" bool g_windows_service = false;
 int (*g_real_main)(int, char **, bool);
 
 /** @brief log error message to console and Eventlog (default option)
@@ -74,12 +75,11 @@ int (*g_real_main)(int, char **, bool);
  *        sure you're NOT running as a service. It will disable (needless)
  *        logging to Eventlog.
  */
-static void log_error(
-    const std::string &msg,
-    bool certain_that_not_running_as_service = false) noexcept {
+void log_error(const std::string &msg,
+               bool certain_that_not_running_as_service = false) noexcept {
   // We don't have to write to console when running as a service, but we do it
   // anyway because it doesn't hurt. Always better to err on the safe side.
-  std::cerr << "ERROR: " << msg << std::endl;
+  std::cerr << "Error: " << msg << std::endl;
 
   if (certain_that_not_running_as_service == false) {
     try {
@@ -108,44 +108,37 @@ int router_service(void * /* p */) {
 
 enum class ServiceStatus { StartNormal, StartAsService, Done, Error };
 
-bool file_exists(const char *path) noexcept {
+bool file_exists(const std::string &path) noexcept {
   std::ifstream f(path);
   return (!f) ? false : true;
 }
 
-ServiceStatus check_service_operations(int argc, char **argv) noexcept {
+ServiceStatus check_service_operations(int argc, char **argv,
+                                       std::string &out_service_name) {
   if (g_service.GetOS()) { /* true NT family */
-    // check if a service installation option was passed
-    const char *config_path = NULL;
     std::string full_service_path;
-    enum class ServiceOperation {
-      None,
-      Install,
-      InstallManual,
-      Remove,
-      Start
-    } operation = ServiceOperation::None;
-    for (int i = 1; i < argc; i++) {
-      if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--config") == 0) {
-        if (i < argc - 1) {
-          config_path = argv[++i];
-        } else {
-          config_path = NULL;
-        }
-      } else if (strcmp(argv[i], "--install-service") == 0) {
-        operation = ServiceOperation::Install;
-      } else if (strcmp(argv[i], "--install-service-manual") == 0) {
-        operation = ServiceOperation::InstallManual;
-      } else if (strcmp(argv[i], "--remove-service") == 0) {
-        operation = ServiceOperation::Remove;
-      } else if (strcmp(argv[i], "--service") == 0) {
-        operation = ServiceOperation::Start;
-      }
+    ServiceConfOptions conf_opts;
+
+    CmdArgHandler arg_handler{false, true};
+    arg_handler.add_option(CmdOption::OptionNames({"-c", "--config"}),
+                           "Only read configuration from given file.",
+                           CmdOptionValueReq::required, "path",
+                           [&conf_opts](const std::string &value) {
+                             conf_opts.config_file = value;
+                           });
+    add_service_options(arg_handler, conf_opts);
+
+    try {
+      arg_handler.process(std::vector<std::string>({argv + 1, argv + argc}));
+    } catch (const std::invalid_argument &exc) {
+      log_error(exc.what());
+      return ServiceStatus::Error;
     }
-    switch (operation) {
+
+    switch (conf_opts.operation) {
       case ServiceOperation::Install:
       case ServiceOperation::InstallManual:
-        if (config_path == NULL || !file_exists(config_path)) {
+        if (!file_exists(conf_opts.config_file)) {
           log_error(
               "Service install option requires an existing "
               "configuration file to be specified (-c <file>)",
@@ -156,7 +149,7 @@ ServiceStatus check_service_operations(int argc, char **argv) noexcept {
         try {
           // this will parse the config file, thus partially validate it as a
           // side-effect
-          allow_windows_service_to_write_logs(config_path);
+          allow_windows_service_to_write_logs(conf_opts.config_file);
         } catch (const std::runtime_error &e) {
           log_error(
               std::string(
@@ -170,18 +163,23 @@ ServiceStatus check_service_operations(int argc, char **argv) noexcept {
           GetFullPathName(argv[0], sizeof(abs_path), abs_path, NULL);
           add_quoted_string(full_service_path, abs_path);
           full_service_path.append(" -c ");
-          GetFullPathName(config_path, sizeof(abs_path), abs_path, NULL);
+          GetFullPathName(conf_opts.config_file.c_str(), sizeof(abs_path),
+                          abs_path, NULL);
           add_quoted_string(full_service_path, abs_path);
         }
-        full_service_path.append(" --service");
-        g_service.Install(operation == ServiceOperation::Install ? 1 : 0,
-                          kRouterServiceName, kRouterServiceDisplayName,
-                          full_service_path.c_str(), kAccount);
+        full_service_path.append(" --service ");
+        add_quoted_string(full_service_path, conf_opts.service_name.c_str());
+        g_service.Install(
+            conf_opts.operation == ServiceOperation::Install ? 1 : 0,
+            conf_opts.service_name.c_str(),
+            conf_opts.service_display_name.c_str(), full_service_path.c_str(),
+            kAccount);
         return ServiceStatus::Done;
       case ServiceOperation::Remove:
-        g_service.Remove(kRouterServiceName);
+        g_service.Remove(conf_opts.service_name.c_str());
         return ServiceStatus::Done;
       case ServiceOperation::Start:
+        out_service_name = conf_opts.service_name;
         return ServiceStatus::StartAsService;
       case ServiceOperation::None:
         // normal start
@@ -196,7 +194,8 @@ ServiceStatus check_service_operations(int argc, char **argv) noexcept {
  * Performs socket library initialization and service related things, including
  * command line param handling for installation/removal of service.
  */
-ServiceStatus do_windows_init(int argc, char **argv) noexcept {
+ServiceStatus do_windows_init(int argc, char **argv,
+                              std::string &out_service_name) {
   // WinSock init
   WSADATA wsaData;
   int result;
@@ -207,7 +206,7 @@ ServiceStatus do_windows_init(int argc, char **argv) noexcept {
     return ServiceStatus::Error;
   }
   // check Windows service specific command line options
-  ServiceStatus status = check_service_operations(argc, argv);
+  ServiceStatus status = check_service_operations(argc, argv, out_service_name);
   // Windows service init
   g_service.my_argc = argc;
   g_service.my_argv = argv;
@@ -269,12 +268,12 @@ std::string get_logging_folder(const std::string &conf_file) {
   // if not provided, we have to compute the the logging_folder based on exec
   // path and predefined standard locations
   if (logging_folder.empty()) {
-    const std::string router_exec_path =
-        MySQLRouter::find_full_path(std::string() /*ignored on Win*/);
+    const std::string router_exec_path = mysqlrouter::find_full_executable_path(
+        std::string() /*ignored on Win*/);
     const mysql_harness::Path router_parent_dir =
         mysql_harness::Path(router_exec_path).dirname();
     const auto default_paths =
-        MySQLRouter::get_default_paths(router_parent_dir);
+        mysqlrouter::get_default_paths(router_parent_dir);
 
     harness_assert(
         default_paths.count(kLoggingFolder));  // ensure .at() below won't throw
@@ -343,9 +342,10 @@ static void service_request_shutdown() {
 
 int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   int result = 0;
-  switch (do_windows_init(argc, argv)) {
+  std::string service_name;
+  switch (do_windows_init(argc, argv, service_name)) {
     case ServiceStatus::StartAsService:
-      if (g_service.IsService(kRouterServiceName)) {
+      if (g_service.IsService(service_name.c_str())) {
         /* start the default service */
         g_windows_service = true;
         g_real_main = real_main;
@@ -354,31 +354,27 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         // - g_service.Stop()        (called by us after main() finishes)
         // - g_service.StopService() (triggered by OS due to outside event, such
         // as termination request)
-        BOOL ok = g_service.Init(kRouterServiceName, (void *)router_service,
+        BOOL ok = g_service.Init(service_name.c_str(), (void *)router_service,
                                  service_request_shutdown);
         if (!ok) {
-          DWORD err = GetLastError();
-
-          char err_msg[512];
-          FormatMessage(
-              FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK,
-              nullptr, err, LANG_NEUTRAL, err_msg, sizeof(err_msg), nullptr);
-          if (err == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
+          const std::error_code ec{static_cast<int>(GetLastError()),
+                                   std::system_category()};
+          if (ec.value() == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
             // typical reason for this failure, give hint
             log_error(
-                std::string("Starting service failed (are you trying to "
-                            "run Router as a service from command-line?): ") +
-                err_msg);
+                "Starting service failed (are you trying to run a service from "
+                "command-line?): " +
+                ec.message());
           } else {
-            log_error(std::string("Starting service failed: ") + err_msg);
+            log_error("Starting service failed: " + ec.message());
           }
         }
         result = 1;
       } else {
-        log_error(
-            "Could not find service 'MySQLRouter'!\n"
-            "Use --install-service or --install-service-manual option "
-            "to install the service first.");
+        log_error("Could not find service '" + service_name +
+                  "'!\n"
+                  "Use --install-service or --install-service-manual option "
+                  "to install the service first.");
         exit(1);
       }
       break;
@@ -396,3 +392,4 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   do_windows_cleanup();
   return result;
 }
+#endif

@@ -70,12 +70,12 @@ public:
   int getPort() const                    { return application_port;  }
   int getNodeId() const                  { return node_id;           }
 
-  STATIC_CONST( UriPathLength = 128 );
-  STATIC_CONST( UriPathLengthInWords = 32 );
-  STATIC_CONST( UriSchemeLength = 16);
-  STATIC_CONST( ProcessNameLength = 48 );
-  STATIC_CONST( AddressStringLength = 48 );  // Long enough for IPv6
-  STATIC_CONST( AddressStringLengthInWords = 12);
+  static constexpr Uint32 UriPathLength = 128;
+  static constexpr Uint32 UriPathLengthInWords = 32;
+  static constexpr Uint32 UriSchemeLength = 16;
+  static constexpr Uint32 ProcessNameLength = 48;
+  static constexpr Uint32 AddressStringLength = 48;  // Long enough for IPv6
+  static constexpr Uint32 AddressStringLengthInWords = 12;
 
   /* Interface for ClusterManager to create signal */
   void buildProcessInfoReport(ProcessInfoRep *);

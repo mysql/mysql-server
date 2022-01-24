@@ -35,12 +35,17 @@ char log_text[MAX_BUFFER_LENGTH];
 FILE *outfile;
 const char *filename = "test_component_sys_var_service_str.log";
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
-#define WRITE_LOG2(format, a1, a2)                  \
-  log_text_len = sprintf(log_text, format, a1, a2); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
+
+#define WRITE_LOG2(format, a1, a2)                                      \
+  log_text_len = sprintf(log_text, format, a1, a2);                     \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
@@ -88,9 +93,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use too small buffer, value is 7 bytes long (utf8mb4). */
+    /* Use too small buffer, value is 8 bytes long ("utf8mb4\0"). */
     char var2[7];
-    len = sizeof(var2) - 1;
+    len = sizeof(var2);
     pvar = &var2[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
@@ -102,10 +107,10 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use smallest buffer that can hold the value, value is 7 bytes long
-     * (utf8mb4). */
+    /* Use smallest buffer that can hold the value, value is 8 bytes long
+     * ("utf8mb4\0"). */
     char var3[8];
-    len = sizeof(var3) - 1;
+    len = sizeof(var3);
     pvar = &var3[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {

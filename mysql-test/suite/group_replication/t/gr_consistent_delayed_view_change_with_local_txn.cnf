@@ -1,0 +1,14 @@
+!include ../my.cnf
+
+[mysqld]
+group_replication_consistency= BEFORE_AND_AFTER
+
+[mysqld.1]
+
+[mysqld.2]
+
+[mysqld.3]
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

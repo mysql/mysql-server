@@ -28,6 +28,12 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+SET sql_log_bin=0;
+CREATE USER 'user_with_no_priv_s1'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'user_with_no_priv_s1'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -43,7 +49,12 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL;
 SET @recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
 --disable_warnings
-CHANGE REPLICATION SOURCE TO SOURCE_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
+SET sql_log_bin=0;
+CREATE USER 'user_with_no_priv_s1'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'user_with_no_priv_s1'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER="user_with_no_priv_s1" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 SET SESSION sql_log_bin = 0;
@@ -99,5 +110,16 @@ SET DEBUG_SYNC= "now SIGNAL signal.reset_recovery_retry_count_done";
 SET @@GLOBAL.DEBUG= @debug_save;
 SET @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL= @recovery_reconnect_interval_save;
 SET @@GLOBAL.group_replication_recovery_retry_count= @recovery_retry_count_save;
+
+SET sql_log_bin=0;
+SET GLOBAL super_read_only = 0;
+DROP USER user_with_no_priv_s1;
+SET sql_log_bin=1;
+
+--connection server1
+SET sql_log_bin=0;
+SET GLOBAL super_read_only = 0;
+DROP USER user_with_no_priv_s1;
+SET sql_log_bin=1;
 
 --source include/group_replication_end.inc

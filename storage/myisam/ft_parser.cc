@@ -257,7 +257,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs) {
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
-                           MY_ATTRIBUTE((unused))) {
+                       [[maybe_unused]]) {
   TREE *wtree;
   FT_WORD w;
   MY_FT_PARSER_PARAM *ft_param = (MY_FT_PARSER_PARAM *)param->mysql_ftparam;
@@ -333,8 +333,8 @@ MYSQL_FTPARSER_PARAM *ftparser_alloc_param(MI_INFO *info) {
         mi_key_memory_FTPARSER_PARAM,
         MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) * info->s->ftkeys,
         MYF(MY_WME | MY_ZEROFILL));
-    init_alloc_root(mi_key_memory_ft_memroot, &info->ft_memroot,
-                    FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+    ::new ((void *)&info->ft_memroot)
+        MEM_ROOT(mi_key_memory_ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE);
   }
   return info->ftparser_param;
 }
@@ -370,7 +370,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
 
 void ftparser_call_deinitializer(MI_INFO *info) {
   uint i, j, keys = info->s->state.header.keys;
-  free_root(&info->ft_memroot, MYF(0));
+  info->ft_memroot.Clear();
   if (!info->ftparser_param) return;
   for (i = 0; i < keys; i++) {
     MI_KEYDEF *keyinfo = &info->s->keyinfo[i];

@@ -1,7 +1,6 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
---source include/not_hypergraph.inc   # Windowing functions are not supported yet.
 SET NAMES utf8;
 
 --echo
@@ -31,6 +30,7 @@ let $query=
 SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY NULL DESC;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates a temporary table, even though it does not materialize into it.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -49,6 +49,7 @@ SELECT i, SUM(i) OVER (ORDER BY i ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) FROM
 DROP TABLE t1;
 
 --echo Single ordered partition
+# NOTE: V... means queries that are deterministic and have been verified against Oracle.
 #V...
 SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t;
 SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
@@ -265,6 +266,7 @@ SELECT id, FIRST_VALUE(id) OVER w first, LAST_VALUE(id) OVER w last, sex FROM t1
 CREATE TABLE t_a (a INT, b INT);
 INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
 CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
+--sorted_result
 SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
 DROP TABLE t_a, t_b;
 
@@ -475,13 +477,16 @@ SELECT id, sex, PERCENT_RANK() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
 SELECT id, sex, CUME_DIST() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
 #...V
 
+# NOTE: The LEFT JOIN is to force the join order,
+# which helps in making the query somewhat more deterministic.
+# (It still is nondeterministic, though.)
 SELECT id value,
        SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
-       FROM t1 u, t2 WHERE t2.user_id = u.id;
+       FROM t1 u LEFT JOIN t2 ON t2.user_id = u.id;
 
 --echo Aggregate with GROUP BY arguments to window function
 SELECT AVG(id) average,
-       SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+       SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
        FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
 
 --echo Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in
@@ -706,11 +711,13 @@ SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), RANK() OVER
 SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), PERCENT_RANK() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
 SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), CUME_DIST() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
 
+--sorted_result
 SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
              RANK() OVER (ORDER BY sex,id),
              ROW_NUMBER() OVER (ORDER BY sex,id)
              FROM t1;
 
+--sorted_result
 SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
              PERCENT_RANK() OVER (ORDER BY sex,id),
              CUME_DIST() OVER (ORDER BY sex,id),
@@ -841,6 +848,7 @@ SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s
 
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates two extra temporary tables that are not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 
 --echo Show sort elimination for the above
@@ -1232,6 +1240,7 @@ SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEE
 SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
 SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
 
+--sorted_result
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p );
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t);
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t DESC);
@@ -1352,11 +1361,15 @@ CREATE TABLE tj2 AS SELECT * FROM tj;
 UPDATE tj2 SET i=MOD(i,3);
 SELECT * FROM tj2;
 --echo With GROUP BY
+--sorted_result
 SELECT          COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+--sorted_result
 SELECT DISTINCT COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
 
 --echo Bug fix GROUP BY with window function referring column used in grouping expression
+--sorted_result
 SELECT i, SUM(i) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+--sorted_result
 SELECT i, SUM(SUM(i)) OVER (), SUM(i) OVER (ORDER BY i), MOD(SUM(i),2), SUM(i) FROM tj2 GROUP BY i;
 
 DROP TABLE tj2;
@@ -1371,7 +1384,9 @@ SELECT LAST_VALUE(j) OVER w, FIRST_VALUE(j) OVER w FROM tj WINDOW w AS (PARTITIO
 SELECT i, LAST_VALUE((CAST(j AS UNSIGNED))) OVER w, FIRST_VALUE(CAST(j AS UNSIGNED)) OVER w FROM tj
     WINDOW w AS (PARTITION BY i ORDER BY CAST(j AS UNSIGNED) RANGE UNBOUNDED PRECEDING);
 --echo Fix for lineno in warnings buffered and unbuffered windows
+--skip_if_hypergraph  # Different line numbers in warnings in hypergraph optimizer, since it applies the windows in different order.
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
+--skip_if_hypergraph  # Different line numbers in warnings in hypergraph optimizer, since it does not use a temporary table here.
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 
 --echo Bug fix for UNION
@@ -1888,6 +1903,7 @@ let $query=
 SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -2022,6 +2038,7 @@ let $query=
 SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (ORDER BY b) FROM t1;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -2030,6 +2047,9 @@ DROP TABLE t1;
 --echo
 --echo  Test of SOME/ANY/ALL subqueries.
 --echo
+
+# See also window_functions_in2exists.inc.
+
 CREATE TABLE t(a INT);
 INSERT INTO t VALUES (1),(2),(3);
 ANALYZE TABLE t;
@@ -2039,14 +2059,6 @@ SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () + 1 FROM t);
 EXPLAIN FORMAT=JSON SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () FROM t);
 SELECT * FROM t WHERE a = SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a = ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
---echo =ALL => NOT EXISTS (select non-equal rows)
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t WHERE a = ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
---echo <>SOME => EXISTS (select non-equal rows)
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t WHERE a <> SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t WHERE a <> ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a <> ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a >= ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 SELECT * FROM t WHERE a >= SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
@@ -2060,40 +2072,11 @@ SELECT * FROM t upper
                  WHERE rn > upper.a);
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
---echo # Correlated => no subquery materialization.
---echo # IN => EXISTS, error
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t upper
-    WHERE upper.a IN (SELECT ROW_NUMBER() OVER () FROM t
-                      WHERE t.a > upper.a);
-
---echo # Correlated => no subquery materialization.
---echo # >ANY => EXISTS(select smaller rows), error
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t upper
-    WHERE upper.a > ANY (SELECT ROW_NUMBER() OVER () FROM t
-                         WHERE t.a > upper.a);
---error ER_NOT_SUPPORTED_YET
-SELECT * FROM t upper
-    WHERE upper.a > ALL (SELECT ROW_NUMBER() OVER () FROM t
-                         WHERE t.a > upper.a);
-
 DROP TABLE t;
-
---echo #
---echo # Bug#25601138 WINDOW FUNCTION IN CORRELATED SUBQUERY GIVES WRONG RESULT
---echo #
-
-CREATE TABLE t1(i INT, j INT, k INT);
-INSERT INTO t1 VALUES (1,1,1),(2,2,2);
---echo # When we support this, expected result is 1,1,1 and 2,2,2
---error ER_NOT_SUPPORTED_YET
-select * from t1 AS upper where i+1
- IN (select row_number() over () + upper.i from t1 );
-DROP TABLE t1;
 
 --echo #
 --echo # Check window aggregate referencing columns from an outside query
@@ -2877,6 +2860,7 @@ INSERT INTO a VALUES (6, 's');
 CREATE TABLE b (pk int PRIMARY KEY,  c varchar(255));
 INSERT INTO b VALUES (9,'s');
 
+--skip_if_hypergraph  # Does not currently push the sort, so gets a different plan.
 EXPLAIN FORMAT=tree SELECT ROW_NUMBER() OVER (ORDER BY a.c)
 FROM  a LEFT JOIN b
       ON a.c = b.c
@@ -3351,8 +3335,13 @@ BEGIN
   RETURN ret;
 END!
 DELIMITER ;!
+# Dropping the decimals is bug #32831386, which the hypergraph optimizer is not affected by.
+# Adjust its output, so that the test passes. Remove the replacements when #32831386 is fixed.
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
 
 DROP FUNCTION f1;

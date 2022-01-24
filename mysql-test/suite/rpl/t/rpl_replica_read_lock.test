@@ -1,0 +1,166 @@
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that during row lookup, applier thread
+# retries the transaction when storage engine reports retryable errors
+# (like 'HA_ERR_LOCK_WAIT_TIMEOUT' or 'HA_ERR_LOCK_DEADLOCK') instead of error
+# out and stop execution. This test checks for all three(HASH_SCAN, INDEX_SCAN
+# and TABLE_SCAN) row lookup algorithms.
+#
+# ==== Requirement ====
+# When storage engine reports retryable errors(like 'HA_ERR_LOCK_WAIT_TIMEOUT'
+# or 'HA_ERR_LOCK_DEADLOCK') back to applier thread, it should be retried as
+# per # 'replica_transaction_retries'.
+#
+# ==== Implementation ====
+# 1. Create source-replica topology
+# 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with index),
+#    HASH_SCAN(with two non-unique index), HASH_SCAN(with out index),
+#    TABLE_SCAN],
+#    2.0 Configure source and replica
+#    2.1 Stop replica
+#    2.2 Execute DELETE transaction on source
+#    2.3 Begin SELECT ... FOR UPDATE on replica
+#    2:4 Start replica from another connection
+#    2.5 Wait until the applier retries
+#    2.6 Commit SELECT ... FOR UPDATE on replica
+#    2.7 Restart replica applier
+# 3. Clean up
+#
+# ==== References ====
+# BUG#33107663:LOCKING READS ON THE REPLICA: CAN'T FIND RECORD IN 'T',
+#              ERROR_CODE: 1032; HANDLER ERROR HA_ERR_KEY_NOT_FOUND
+###############################################################################
+
+# The status variable Replica_rows_last_search_algorithm_used is defined
+# only in Debug mode
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $option_name = replica_transaction_retries
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+
+--echo #
+--echo # 1. Create source-replica topology
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--let $saved_innodb_lock_wait_timeout = `SELECT @@GLOBAL.innodb_lock_wait_timeout`
+--let $saved_slave_rows_search_algorithms = `SELECT @@GLOBAL.slave_rows_search_algorithms`
+SET GLOBAL innodb_lock_wait_timeout = 2;
+--disable_warnings
+SET GLOBAL slave_rows_search_algorithms = 'INDEX_SCAN,HASH_SCAN';
+--enable_warnings
+CALL mtr.add_suppression("Slave SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
+CALL mtr.add_suppression("Slave SQL for channel.*The slave coordinator and worker threads are stopped.*");
+
+--echo # 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with
+--echo #    index), HASH_SCAN(with two non-unique index), HASH_SCAN(with out
+--echo #    index), TABLE_SCAN]
+
+#0. INDEX_SCAN
+#1. HASH_SCAN(with index)
+#2. HASH_SCAN(with two non-unique index)
+#3. HASH_SCAN(with out index)
+#4. TABLE_SCAN
+--let $i = 0
+while ($i < 5) {
+
+  --echo #
+  --echo # 2.0 Configure source and replica
+  --source include/rpl_connection_master.inc
+  if ($i == 0){
+    CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+  }
+  if ($i == 1){
+    CREATE TABLE t1 (a INT, b INT, key(a)) ENGINE=innodb;
+  }
+  if ($i == 2){
+    CREATE TABLE t1 (a INT, b INT, KEY(a), KEY(b)) ENGINE=innodb;
+    INSERT INTO t1 VALUES (10, 10), (10, 20), (10, 30), (20, 10), (20, 20);
+  }
+  if ($i > 2){
+    CREATE TABLE t1 (a INT, b INT) ENGINE=innodb;
+  }
+  if ($i != 2){
+    INSERT INTO t1 VALUES (10, 10), (20, 20);
+  }
+  --source include/sync_slave_sql_with_master.inc
+
+  --echo #
+  --echo # 2.1 Stop replica
+  --source include/stop_slave.inc
+
+  --echo #
+  --echo # 2.2 Execute DELETE transaction on source
+  --source include/rpl_connection_master.inc
+  BEGIN;
+  DELETE FROM t1;
+  COMMIT;
+
+  --echo #
+  --echo # 2.3 Begin SELECT ... FOR UPDATE on replica
+  --source include/rpl_connection_slave.inc
+  if ($i == 4)
+  {
+    --disable_warnings
+    SET GLOBAL slave_rows_search_algorithms = 'TABLE_SCAN';
+    --enable_warnings
+  }
+
+  BEGIN;
+  SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
+  # Save value of 'count_transactions_retries' before lock_wait_timeout
+  let $count_transactions_retries= query_get_value(
+  "select count_transactions_retries from
+  performance_schema.replication_applier_status",count_transactions_retries, 1);
+
+  --echo #
+  --echo # 2.4 Start replica from another connection
+  --source include/rpl_connection_slave1.inc
+  --source include/start_slave.inc
+  --echo #
+  --echo # 2.5 Wait until the applier retries:'count_transactions_retries' will be
+  --echo #    incremented
+  --source include/rpl_connection_slave.inc
+  let $status_col= count_transactions_retries;
+  let $status_col_value= $count_transactions_retries;
+  let $table=replication_applier_status;
+  let $status_col_comparsion= >;
+  --source include/wait_for_rpl_pfs_status.inc
+  --echo #
+  --echo # 2.6 Commit SELECT ... FOR UPDATE on replica
+  COMMIT;
+
+  SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
+
+  --echo #
+  --echo # 2.7 Restart replica applier
+  # This is required to avoid race condition. If the mysqltest process executes
+  # very slowly, the applier may retry multiple times, and eventually reach the
+  # maximum number of retries and will error out(#1205 ER_LOCK_WAIT_TIMEOUT) and
+  # stop.
+  --disable_warnings
+  --let $slave_sql_errno= 0,1205
+  --source include/stop_slave_sql.inc
+  --enable_warnings
+  --source include/start_slave_sql.inc
+
+  # Drop table for the next test
+  --source include/rpl_connection_master.inc
+  DROP TABLE t1;
+  --source include/sync_slave_sql_with_master.inc
+  --inc $i
+}
+
+--echo #
+--echo # 3. Clean up
+--source include/rpl_connection_slave.inc
+--replace_result $saved_innodb_lock_wait_timeout INNODB_LOCK_WAIT_TIMEOUT
+eval SET GLOBAL innodb_lock_wait_timeout = $saved_innodb_lock_wait_timeout;
+--replace_result $saved_slave_rows_search_algorithms SLAVE_ROWS_SEARCH_ALGORITHMS
+--disable_warnings
+eval SET GLOBAL slave_rows_search_algorithms = "$saved_slave_rows_search_algorithms";
+--enable_warnings
+
+--source include/rpl_end.inc

@@ -79,4 +79,5 @@ DROP PROCEDURE p1;
 SET sql_mode = default;
 SET @@global.log_output = @global_log_output;
 SET @global.slow_query_log = @global_slow_query_log;
+TRUNCATE TABLE mysql.general_log;
 TRUNCATE TABLE mysql.slow_log;

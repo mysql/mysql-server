@@ -3,7 +3,7 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 --connection slave
-show variables like 'slave_allow_batching';
+show variables like 'replica_allow_batching';
 # Use large batch sizes on slave
 set @s_batch_size:=@@ndb_batch_size;
 set @s_blob_write_batch:=@@ndb_blob_write_batch_bytes;
@@ -386,7 +386,7 @@ create table tb2(a varchar(20) character set utf8 primary key,
                  c blob) engine=ndb;
 
 stop slave;
-set global slave_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
+set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
 start slave;
 
 --connection master
@@ -459,7 +459,7 @@ commit;
 --source suite/ndb/include/ndb_diff_api_counts.inc
 --echo
 
-set global slave_type_conversions="";
+set global replica_type_conversions="";
 set global ndb_batch_size=@s_batch_size;
 set ndb_batch_size=@s_batch_size;
 set global ndb_blob_write_batch_bytes=@s_blob_write_batch;

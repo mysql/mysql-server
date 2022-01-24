@@ -1,0 +1,156 @@
+# ==== Purpose ====
+#
+# This test checks that channels can be stoped and reset if a performance_schema
+# query is being run on replication_applier_status_by_worker
+#
+# ==== Implementation ====
+#
+# 1. Add some data to the source so replica workers have some stats
+# 2. Make the performance schema query block
+# 3. Try to stop the replica while the query is running, check it is stuck
+# 4. Unblock the query, check both the SELECT and the STOP succeed
+# 5. Make the performance schema query block again
+# 6. Try to reset the replica while the query is running
+# 7. Unblock the query, check both the SELECT and the RESET REPLICA succeeded
+# 8. Cleanup
+#
+# ==== References ====
+#
+# Bug#33290947 Unexpected behaviour during query to replication_applier_status_by_worker table
+#
+
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_extra_connections_per_server = 2
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Add some data to the source so replica workers have some stats
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 2. Make the performance schema query block
+
+SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_data_lock SIGNAL signal.rpl_pfs_query_running WAIT_FOR signal.rpl_stop_reset_issued";
+
+--send SELECT * FROM performance_schema.replication_applier_status_by_worker
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
+
+--echo #
+--echo # 3. Try to stop the replica while the query is running, check it is stuck
+
+--send STOP REPLICA;
+
+--let $rpl_connection_name = server_2_1
+--source include/rpl_connection.inc
+
+--let $assert_text = 'The performance_schema query is holding the relay log data lock'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.mutex_instances WHERE Name=\"wait/synch/mutex/sql/Relay_log_info::data_lock\" AND Locked_by_thread_id != \"NULL\"]" = 1
+--source include/assert.inc
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.threads WHERE Processlist_state="Killing replica" AND Processlist_info="STOP REPLICA"
+--source include/wait_condition.inc
+
+--sleep 1
+
+--let $assert_text = 'The STOP query is still blocked'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.threads WHERE Processlist_state=\"Killing replica\" AND Processlist_info=\"STOP REPLICA\"]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # 4. Unblock the query, check both the SELECT and the STOP succeeded
+
+SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
+SET DEBUG_SYNC = 'RESET';
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+--reap
+
+--source include/rpl_connection_slave.inc
+
+--disable_result_log
+--reap
+--enable_result_log
+
+--echo #
+--echo # 5. Make the performance schema query block again
+
+SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_data_lock SIGNAL signal.rpl_pfs_query_running WAIT_FOR signal.rpl_stop_reset_issued";
+
+--send SELECT * FROM performance_schema.replication_applier_status_by_worker
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
+
+--echo #
+--echo # 6. Try to reset the replica while the query is running
+
+--send RESET REPLICA ALL;
+
+--let $rpl_connection_name = server_2_1
+--source include/rpl_connection.inc
+
+--let $assert_text = 'The performance_schema query is holding the relay log data lock'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.mutex_instances WHERE Name=\"wait/synch/mutex/sql/Relay_log_info::data_lock\" AND Locked_by_thread_id != \"NULL\"]" = 1
+--source include/assert.inc
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.threads WHERE Processlist_info="RESET REPLICA ALL"
+--source include/wait_condition.inc
+
+--sleep 1
+
+--let $assert_text = 'The RESET REPLICA query is still blocked'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.threads WHERE Processlist_info=\"RESET REPLICA ALL\"]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # 7. Unblock the query, check both the SELECT and the RESET REPLICA succeeded
+
+SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
+SET DEBUG_SYNC = 'RESET';
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+--reap
+
+--source include/rpl_connection_slave.inc
+
+--disable_result_log
+--reap
+--enable_result_log
+
+--echo #
+--echo # 8. Cleanup
+
+--source include/rpl_connection_master.inc
+
+RESET MASTER;
+
+--source include/rpl_connection_slave.inc
+
+RESET MASTER;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

@@ -2,11 +2,7 @@
 # This test is to test if mysqld can dump a core without large memory buffers.
 # See opt file for the config:
 #   (1) --skip-innodb-buffer-pool-in-core-file is set
-#   (2) the buffer pool is set to be 1G so that with the large
-#       memory buffers the core size would be much greater than 1.3GB
-#       (the actual observed size is ~1.7GB for 64k and ~2.1GB for 4k pages)
-#       and without them is less then 1.3GB
-#       (the actual observed size is ~0.7GB for 64k and ~0.9GB for 4k pages)
+#   (2) the buffer pool is set equal to limit below
 
 # madvise MADV_DONTDUMP is non-posix extension available in Linux 3.4
 --let $minimum_required_linux_version = 3.4
@@ -24,9 +20,16 @@
 --source include/shutdown_mysqld.inc
 
 --echo # Restart server with --log-error
---exec echo "restart:--log-error=$MYSQLTEST_VARDIR/log/core_dump.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let LOG_FILE = $MYSQLTEST_VARDIR/log/core_dump.err
+--exec echo "restart:--log-error=$LOG_FILE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
---let $expected_max_core_size = 1300
+# This size should be not larger than the `--innodb-buffer-pool-size`
+# setting used in the .opt file. This will assure that if the core
+# file contains buffer pool, then the core size will for sure be
+# larger than this limit.
+--let $expected_max_core_size = 1450
 --source include/mysqld_core_dump.inc
+
+--remove_file $LOG_FILE

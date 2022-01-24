@@ -21,3 +21,4 @@ select @@global.innodb_extend_and_initialize;
 select @@global.innodb_extend_and_initialize;
 @@global.innodb_extend_and_initialize
 1
+RESET PERSIST innodb_extend_and_initialize;

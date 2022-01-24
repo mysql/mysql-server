@@ -1,0 +1,333 @@
+# ==== Purpose ====
+#
+# This test validates that no info is persisted in the connection metadata repository
+#
+# ==== Requirements ====
+#
+# For the connection metadata repository:
+# R1. When CHANGE REPLICATION SOURCE is executed the repository fields are persisted
+# R2. Position information is updated when an event is queued but not persisted in the repository
+# R3. Stop replication commands do not make the server persist information in the repository
+# R4. Start replication commands do not make the server persist information in the repository
+# R5. Killing the receiver does not make the server persist information in the repository
+# R6: RESET REPLICA persists repository information after reseting it
+#
+# ==== Implementation ====
+#
+# 1. Create a table on the source and replicate it.
+#    Set the value of sync_source_info to 1 so the repo is always synced
+#    Check the repo shows the same value as SHOW REPLICA STATUS
+# 2. Stop replication and make the channel use GTID_ONLY=1
+#    Start replication and add some values to the table.
+#    Check the repo shows the old values in relation to SHOW REPLICA STATUS
+# 3. Stop replication
+#    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+# 4. Start replication again
+#    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+# 5. Kill the IO thread
+#    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+# 6. Change a replication connection setting with CHANGE REPLICATION SOURCE
+#    Check the repo now has the same value in relation to SHOW REPLICA STATUS
+# 7. Restart the replica server
+#    Check the repo still shows the old values
+# 8. Add some values and check the repo is again stale
+#    Execute a RESET REPLICA command
+#    Check the repo persisted the reset position
+# 9. Check RESET REPLICA ALL removes all the information
+# 10. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+--source include/skip_config_rpl_gtid_only.inc
+
+# This test compares source log positions between source memory and replica
+# repositories. Ensure synchronization of the source log positions
+# between source and replica memory regardless of GTIDs.
+--let $ignore_gtids_on_sync= 1
+
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Create a table on the source and replicate it.
+--echo #    Set the value of sync_source_info to 1 so the repo is always synced
+--echo #    Check the repo shows the same value as SHOW REPLICA STATUS
+
+--source include/rpl_connection_slave.inc
+
+# Make the info be synced at each event
+--let $sync_source_info_val = `SELECT @@GLOBAL.sync_source_info;`
+SET @@GLOBAL.sync_source_info=1;
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+INSERT INTO t1 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $srs_source_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+
+--let $assert_cond= [ SELECT $srs_source_log_pos = $table_source_log_pos ]
+--let $assert_text= The file position for the repository and the show replica status match
+--source include/assert.inc
+
+--let $srs_source_log_file = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+
+--let $assert_cond= [ SELECT "$srs_source_log_file" = "$table_source_log_file" ]
+--let $assert_text= The file name for the repository and the show replica status match
+--source include/assert.inc
+
+--echo #
+--echo # 2. Stop replication and make the channel use GTID_ONLY=1
+--echo #    Start replication and add some values to the table.
+--echo #    Check the repo shows the old values in relation to SHOW REPLICA STATUS
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+
+--let $table_source_log_pos_orig = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $table_source_log_file_orig = `SELECT Master_log_name FROM mysql.slave_master_info`
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (2);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos ]
+--let $assert_text= The repository position is not the one shown on show replica status
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT $table_source_log_pos = $table_source_log_pos_orig ]
+--let $assert_text= The repository pos value is still the same
+--source include/assert.inc
+
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT "$table_source_log_file" = "$table_source_log_file_orig" ]
+--let $assert_text= The repository name value is still the same
+--source include/assert.inc
+
+--echo #
+--echo # 3. Stop replication
+--echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+
+--source include/stop_slave.inc
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos ]
+--let $assert_text= The repository position is not the one shown on show replica status
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT $table_source_log_pos = $table_source_log_pos_orig ]
+--let $assert_text= The repository pos value is still the same
+--source include/assert.inc
+
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT "$table_source_log_file" = "$table_source_log_file_orig" ]
+--let $assert_text= The repository name value is still the same
+--source include/assert.inc
+
+--echo #
+--echo # 4. Start replication again
+--echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+FLUSH LOGS;
+
+INSERT INTO t1 VALUES (3);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos ]
+--let $assert_text= The repository position is not the one shown on show replica status
+--source include/assert.inc
+
+--let $srs_source_log_file = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT "$srs_source_log_file" != "$table_source_log_file" ]
+--let $assert_text= The repository file name is not the one shown on show replica status
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT $table_source_log_pos = $table_source_log_pos_orig ]
+--let $assert_text= The repository pos value is still the same
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT "$table_source_log_file" = "$table_source_log_file_orig" ]
+--let $assert_text= The repository name value is still the same
+--source include/assert.inc
+
+--echo #
+--echo # 5. Kill the IO thread
+--echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
+
+let $receiver_process_id= `SELECT Id FROM information_schema.processlist WHERE State= "Waiting for source to send event"`;
+
+--disable_query_log
+--eval KILL $receiver_process_id
+--enable_query_log
+
+--source include/wait_for_slave_io_to_stop.inc
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos ]
+--let $assert_text= The repository position is not the one shown on show replica status
+--source include/assert.inc
+
+--let $srs_source_log_file = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT "$srs_source_log_file" != "$table_source_log_file" ]
+--let $assert_text= The repository file name is not the one shown on show replica status
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT $table_source_log_pos = $table_source_log_pos_orig ]
+--let $assert_text= The repository pos value is still the same
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT "$table_source_log_file" = "$table_source_log_file_orig" ]
+--let $assert_text= The repository name value is still the same
+--source include/assert.inc
+
+--echo #
+--echo # 6. Change a replication connection setting with CHANGE REPLICATION SOURCE
+--echo #    Check the repo now has the same value in relation to SHOW REPLICA STATUS
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 10000;
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos = $table_source_log_pos ]
+--let $assert_text= The repository now has the lastest position
+--source include/assert.inc
+
+--let $srs_source_log_file = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT "$srs_source_log_file" = "$table_source_log_file" ]
+--let $assert_text= The file name for the repository and the show replica status match
+--source include/assert.inc
+
+--echo #
+--echo # 7. Restart the replica server
+--echo #    Check the repo still shows the old values
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (4);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $table_source_log_pos_orig = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $table_source_log_file_orig = `SELECT Master_log_name FROM mysql.slave_master_info`
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos_orig ]
+--let $assert_text= The repository position is not the one shown on show replica status
+--source include/assert.inc
+
+--let $rpl_server_parameters= --skip_replica_start=FALSE
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $table_source_log_file = `SELECT Master_log_name FROM mysql.slave_master_info`
+
+--let $assert_cond= [ SELECT $table_source_log_pos_orig = $table_source_log_pos ]
+--let $assert_text= The repository pos value is still the same
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT "$table_source_log_file" = "$table_source_log_file_orig" ]
+--let $assert_text= The repository name value is still the same
+
+--echo #
+--echo # 8. Add some values and check the repo is again stale
+--echo #    Execute a RESET REPLICA command
+--echo #    Check the repo persisted the reset position
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (5);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos != $table_source_log_pos ]
+--let $assert_text= The repository has not persisted
+--source include/assert.inc
+
+--source include/stop_slave.inc
+
+RESET REPLICA;
+
+--let $srs_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $srs_source_log_pos = $table_source_log_pos ]
+--let $assert_text= The repository has the reset position
+--source include/assert.inc
+
+--let $assert_cond= [ SELECT $table_source_log_pos = 4 ]
+--let $assert_text= The repository has the reset position
+--source include/assert.inc
+
+--echo #
+--echo # 9. Check RESET REPLICA ALL removes all the information
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (6);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $table_source_log_pos = `SELECT Master_log_pos FROM mysql.slave_master_info`
+--let $assert_cond= [ SELECT $table_source_log_pos = 4 ]
+--let $assert_text= The repository still has the reset position
+--source include/assert.inc
+
+--source include/stop_slave.inc
+
+RESET REPLICA ALL;
+
+--let $assert_cond= COUNT(*) = 0 FROM mysql.slave_master_info
+--let $assert_text= The repository info was deleted
+--source include/assert.inc
+
+--echo #
+--echo # 10. Cleanup
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--source include/start_slave.inc
+
+--replace_result $sync_source_info_val SYNC_SOURCE_VAL
+--eval SET @@GLOBAL.sync_source_info=$sync_source_info_val
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

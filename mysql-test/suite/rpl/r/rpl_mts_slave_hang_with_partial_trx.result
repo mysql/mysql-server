@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL DEBUG= "+d,stop_io_after_reading_write_rows_log_event";
 [connection master]
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 BEGIN;

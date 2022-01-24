@@ -550,7 +550,7 @@ EXPLAIN
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
 EXPLAIN
 -> Filter: (c > 7)
-    -> Rows fetched before execution  (cost=0.00 rows=1)
+    -> Rows fetched before execution
 
 SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
 c

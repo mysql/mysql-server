@@ -34,6 +34,13 @@
 
 --connection server1
 --echo server1
+
+SET sql_log_bin=0;
+CREATE USER 'dummy_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'dummy_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
@@ -49,7 +56,15 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 
 --source include/stop_group_replication.inc
 
+SET sql_log_bin=0;
+CREATE USER 'dummy_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'dummy_user'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 set session sql_log_bin=0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
@@ -94,6 +109,10 @@ INSERT INTO test.t1 (b) VALUES (1);
 --source include/stop_group_replication.inc
 
 --disable_warnings
+SET sql_log_bin=0;
+DROP USER 'dummy_user'@'%';
+SET sql_log_bin=1;
+
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
@@ -106,6 +125,11 @@ INSERT INTO test.t1 (b) VALUES (1);
 --echo
 --echo #######################################################################
 --echo # Assert that server1 and server2 have the same data and GTID_EXECUTED.
+
+--connection server1
+SET sql_log_bin=0;
+DROP USER 'dummy_user'@'%';
+SET sql_log_bin=1;
 
 --connection server1
 --echo server1

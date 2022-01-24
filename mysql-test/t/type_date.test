@@ -427,7 +427,6 @@ CREATE TABLE t2(b CHAR(19));
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES('0000-00-00 00:00:00');
 SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
---skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE
 LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
 DROP TABLE t1,t2;
@@ -502,3 +501,77 @@ CREATE TABLE t1(a int);
 --error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUE(15.00+adddate('2011-00-00', 1));
 DROP TABLE t1;
+
+--echo # Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+
+# Check prepared statements with various DATE comparisons
+
+set @d_str = '2020-01-01';
+set @t_str = '01:01:01';
+set @dt_str = '2020-01-01 01:01:01';
+set @dt_tz = '2020-01-01 01:01:01+03:00';
+set @d_int = 20200101;
+set @t_int = 010101;
+set @dt_int = 20200101010101;
+set @d_dec = 20200101.0;
+set @t_dec = 010101.0;
+set @dt_dec = 20200101010101.0;
+set @d_flt = 20200101E0;
+set @t_flt = 010101E0;
+set @dt_flt = 20200101010101E0;
+
+# Executions that supply a date literal will convert the literal to a
+# DATE value, and the comparison should succeed.
+# Executions that supply a time literal will convert the literal to
+# some DATE value, and the comparison will fail.
+# Executions that supply a datetime literal will convert the literal into
+# a DATETIME value. This is incompatible with the expected DATE value and
+# a reprepare is triggered. The DATE literal is extended with '00:00:00' and
+# the comparison will fail.
+
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @d_str;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @t_str;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @dt_str;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @dt_tz;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @d_int;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @t_int;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @dt_int;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @d_dec;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @t_dec;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @dt_dec;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @d_flt;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @t_flt;
+prepare stmt from "SELECT DATE'2020-01-01' = ?";
+execute stmt using @dt_flt;
+deallocate prepare stmt;
+--echo # Bug#33649009: Inconsistency between protocols when writing offset
+--echo #               char values to DATE column
+
+CREATE TABLE dt(dt DATETIME);
+INSERT INTO dt VALUES('2021-10-10 23:00:00.123456+01:00');
+
+CREATE TABLE d(d DATE);
+
+INSERT INTO d VALUES('2021-10-10 23:00:00.123456+01:00');
+INSERT INTO d SELECT * FROM dt;
+
+prepare s from "INSERT INTO d VALUES(?)";
+set @t='2021-10-10 23:00:00.123456+01:00';
+execute s using @t;
+
+SELECT * FROM d;
+
+DROP TABLE d, dt;
+

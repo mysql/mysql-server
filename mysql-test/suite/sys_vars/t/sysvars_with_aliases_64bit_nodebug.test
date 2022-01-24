@@ -1,0 +1,3 @@
+--source include/have_nodebug.inc
+--source include/have_64bit_ulong.inc
+--source ../inc/control_for_sysvars_with_aliases.inc

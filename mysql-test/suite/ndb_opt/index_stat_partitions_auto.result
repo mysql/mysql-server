@@ -1,0 +1,158 @@
+create table record_in_range(no int primary key auto_increment,
+query varchar(256), part_count int,
+explain_rows int, count_rows int) engine = innodb;
+CREATE TABLE t1(
+K INT NOT NULL AUTO_INCREMENT,
+I INT,
+J INT,
+L INT,
+PRIMARY KEY(K),
+KEY(I,J),
+KEY(L)
+) ENGINE=ndbcluster
+partition by key (K) partitions 1;
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,9,I FROM t1;
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+select i, count(*) from t1 group by 1 order by 1;
+i	count(*)
+0	512
+1	512
+2	512
+3	512
+4	512
+5	512
+6	512
+7	512
+8	512
+9	512
+select l, count(*) from t1 group by 1 order by 1;
+l	count(*)
+0	512
+1	512
+2	512
+3	512
+4	512
+5	512
+6	512
+7	512
+8	512
+9	512
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+Variable_name	Value
+ndb_index_stat_enable	ON
+Variable_name	Value
+ndb_index_stat_enable	ON
+# ndb_index_stat_enable - after
+Variable_name	Value
+ndb_index_stat_enable	OFF
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+Waiting for the index stats to be updated
+Index stats updated
+select distinct
+substring(rr.query from INSTR(rr.query, 'WHERE')) as 'WHERE',
+count_rows,
+p1.val as p1_val,
+if(p8.err_pct is not null and abs(p8.err_pct)<45,'-',p8.val) p8_val,
+case when p1.err_pct is null then '-' when abs(p1.err_pct)<45 then '<45' else p1.err_pct end p1_err_pct,
+case when p8.err_pct is null then '-' when abs(p8.err_pct)<45 then '<45' else p8.err_pct end p8_err_pct
+from record_in_range rr,
+(select query, explain_rows as val, if(count_rows>0,floor(100*(explain_rows - count_rows) / count_rows),NULL) err_pct
+from record_in_range p where part_count = 1) p1,
+(select query, explain_rows as val, if(count_rows>0,floor(100*(explain_rows - count_rows) / count_rows),NULL) err_pct
+from record_in_range p where part_count = 8) p8
+where rr.query = p1.query
+and rr.query = p8.query
+order by rr.no;
+WHERE	count_rows	p1_val	p8_val	p1_err_pct	p8_err_pct
+WHERE i = 10	0	2	2	-	-
+WHERE i = 9	512	512	-	<45	<45
+WHERE i = 8	512	512	-	<45	<45
+WHERE i = 7	512	512	-	<45	<45
+WHERE i = 6	512	512	-	<45	<45
+WHERE i = 5	512	512	-	<45	<45
+WHERE i = 4	512	512	-	<45	<45
+WHERE i = 3	512	512	-	<45	<45
+WHERE i = 2	512	512	-	<45	<45
+WHERE i = 1	512	512	-	<45	<45
+WHERE l = 10	0	2	2	-	-
+WHERE l = 9	512	512	-	<45	<45
+WHERE l = 8	512	512	-	<45	<45
+WHERE l = 7	512	512	-	<45	<45
+WHERE l = 6	512	512	-	<45	<45
+WHERE l = 5	512	512	-	<45	<45
+WHERE l = 4	512	512	-	<45	<45
+WHERE l = 3	512	512	-	<45	<45
+WHERE l = 2	512	512	-	<45	<45
+WHERE l = 1	512	512	-	<45	<45
+DROP TABLE t1, record_in_range;

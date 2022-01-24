@@ -33,6 +33,12 @@
 #include <NdbSleep.h>
 #include "NDBT_Output.hpp"
 
+// Release resources at program exit
+static void dbutil_atexit() {
+  // Release MySQL library
+  mysql_library_end();
+}
+
 DbUtil::DbUtil(const char* _dbname,
                const char* _suffix):
   m_mysql(NULL),
@@ -41,6 +47,11 @@ DbUtil::DbUtil(const char* _dbname,
   m_pass(""),
   m_dbname(_dbname)
 {
+
+  // Initialize MySQL library and setup to release it when program exits
+  mysql_library_init(0, nullptr, nullptr);
+  std::atexit(dbutil_atexit);
+
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
   {
@@ -66,6 +77,11 @@ DbUtil::DbUtil(MYSQL* mysql):
 {
 }
 
+void DbUtil::thread_end() {
+  // Release MySQL thread resources
+  mysql_thread_end();
+}
+
 bool
 DbUtil::isConnected(){
   if (m_owns_mysql == false)
@@ -74,6 +90,9 @@ DbUtil::isConnected(){
     // MYSQL objects is assumed to be connected already
     require(m_mysql);
     return true;
+  }
+  if (m_mysql) {
+    return true; // Already connected
   }
   return connect();
 }
@@ -112,6 +131,9 @@ DbUtil::connect()
 {
   // Only allow connect() when the MYSQL object is owned by this class
   require(m_owns_mysql);
+
+  // Only allow connect() when the MYSQL object isn't already allocated
+  require(m_mysql == nullptr);
 
   if (!(m_mysql = mysql_init(NULL)))
   {
@@ -341,7 +363,7 @@ DbUtil::runQuery(const char* sql,
         switch(fields[i].type){
         case MYSQL_TYPE_STRING:
 	  ((char*)bind_result[i].buffer)[fields[i].max_length] = 0;
-          // Fall through
+          [[fallthrough]];
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_VAR_STRING:
           curr.put(fields[i].name, (char*)bind_result[i].buffer);

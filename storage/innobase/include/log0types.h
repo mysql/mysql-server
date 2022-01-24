@@ -181,7 +181,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       operations will be aligned to sector size, which is required e.g. on
       Windows when doing unbuffered file access.
       Protected by: locking sn not to add. */
-      aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
+      ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
 
   /** Size of the log buffer expressed in number of data bytes,
   that is excluding bytes for headers and footers of log blocks. */
@@ -261,10 +261,10 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       std::atomic<uint64_t> write_to_file_requests_total;
 
   /** How often redo write/flush is requested in average.
-  Measures in microseconds. Log threads do not spin when
-  the write/flush requests are not frequent. */
+  Log threads do not spin when the write/flush requests are not frequent. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_to_file_requests_interval;
+      std::atomic<std::chrono::microseconds> write_to_file_requests_interval;
+  static_assert(decltype(write_to_file_requests_interval)::is_always_lock_free);
 
   /** This padding is probably not needed, left for convenience. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)
@@ -356,14 +356,14 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Aligned pointer to buffer used for the write-ahead. It is aligned to
   system page size (why?) and is currently limited by constant 64KB. */
-  aligned_array_pointer<byte, 64 * 1024> write_ahead_buf;
+  ut::aligned_array_pointer<byte, 64 * 1024> write_ahead_buf;
 
   /** Up to this file offset in the log files, the write-ahead
   has been done or is not required (for any other reason). */
   uint64_t write_ahead_end_offset;
 
   /** Aligned buffers for file headers. */
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> *file_header_bufs;
+  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> *file_header_bufs;
 #endif /* !UNIV_HOTBACKUP */
 
   /** Some lsn value within the current log file. */
@@ -621,6 +621,13 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Read by: log_checkpointer */
   bool periodical_checkpoints_enabled;
 
+  /** If checkpoints are allowed. When this is set to false, neither new
+  checkpoints might be written nor lsn available for checkpoint might be
+  updated. This is useful in recovery period, when neither flush lists can
+  be trusted nor DD dynamic metadata redo records might be reclaimed.
+  This is never set from true to false after log_start(). */
+  std::atomic_bool m_allow_checkpoints;
+
   /** Maximum sn up to which there is free space in the redo log.
   Threads check this limit and compare to current log.sn, when they
   are outside mini-transactions and hold no latches. The formula used
@@ -694,7 +701,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Aligned buffer used for writing a checkpoint header. It is aligned
   similarly to log.buf.
   Used by (private): log_checkpointer, recovery code */
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> checkpoint_buf;
+  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> checkpoint_buf;
 
   /** @} */
 

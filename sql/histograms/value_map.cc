@@ -77,9 +77,8 @@ Value_map_base::Value_map_base(const CHARSET_INFO *charset,
     : m_sampling_rate(sampling_rate),
       m_charset(charset),
       m_num_null_values(0),
-      m_data_type(data_type) {
-  init_alloc_root(key_memory_histograms, &m_mem_root, 256, 0);
-}
+      m_data_type(data_type),
+      m_mem_root(key_memory_histograms, 256) {}
 
 template <class T>
 bool Value_map_base::add_values(const T &value, const ha_rows count) {

@@ -5966,7 +5966,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `cnt` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () 
+Note	1003	/* select#1 */ select ((((```row_number() OVER w1``` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `cnt` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () 
 EXPLAIN FORMAT=JSON SELECT  (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS ntile_manually,
 COUNT(*) OVER w3
 FROM t1 WINDOW w1 AS (ORDER BY id ASC),
@@ -6040,7 +6040,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `ntile_manually`,count(0) OVER `w3` AS `COUNT(*) OVER w3` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () , `w3` AS () 
+Note	1003	/* select#1 */ select ((((```row_number() OVER w1``` * 5) - 1) DIV ```count(0) OVER w2```) + 1) AS `ntile_manually`,count(0) OVER `w3` AS `COUNT(*) OVER w3` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () , `w3` AS () 
 NTILE in combination with a frame that doesn't cover current row (was bug)
 EXPLAIN FORMAT=JSON SELECT id, ROW_NUMBER() OVER w, SUM(id) OVER w, NTILE(5) OVER w FROM t1
 WINDOW w AS (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING);
@@ -11642,7 +11642,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tj2`.`i` AS `i`,sum(sum(`test`.`tj2`.`i`)) OVER ()  AS `SUM(SUM(i)) OVER ()`,sum(`test`.`tj2`.`i`) OVER (ORDER BY `test`.`tj2`.`i` )  AS `SUM(i) OVER (ORDER BY i)`,(sum(`test`.`tj2`.`i`) % 2) AS `MOD(SUM(i),2)`,sum(`test`.`tj2`.`i`) AS `SUM(i)` from `test`.`tj2` group by `test`.`tj2`.`i`
+Note	1003	/* select#1 */ select `test`.`tj2`.`i` AS `i`,sum(```sum(tj2.i)```) OVER ()  AS `SUM(SUM(i)) OVER ()`,sum(`test`.`tj2`.`i`) OVER (ORDER BY `test`.`tj2`.`i` )  AS `SUM(i) OVER (ORDER BY i)`,(sum(`test`.`tj2`.`i`) % 2) AS `MOD(SUM(i),2)`,sum(`test`.`tj2`.`i`) AS `SUM(i)` from `test`.`tj2` group by `test`.`tj2`.`i`
 DROP TABLE tj2;
 ----------------------------------------------------------------------
 -    Bug fixes
@@ -11814,7 +11814,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tj`.`j` AS `j`,cast(sum(`test`.`tj`.`j`) OVER (PARTITION BY `test`.`tj`.`i` )  as json) AS `CAST(SUM(j) OVER (PARTITION BY i) AS JSON)`,cast(sum(`test`.`tj`.`j`) OVER ()  as json) AS `CAST(SUM(j) OVER () AS JSON)` from `test`.`tj`
+Note	1003	/* select#1 */ select `test`.`tj`.`j` AS `j`,cast(```sum(tj.j) OVER (PARTITION BY tj.i ) ``` as json) AS `CAST(SUM(j) OVER (PARTITION BY i) AS JSON)`,cast(sum(`test`.`tj`.`j`) OVER ()  as json) AS `CAST(SUM(j) OVER () AS JSON)` from `test`.`tj`
 EXPLAIN FORMAT=JSON SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 EXPLAIN
 {
@@ -14050,7 +14050,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `alias`.`sum1` AS `sum1`,`alias`.`a` AS `a` from (/* select#2 */ select (count(0) OVER ()  + sum(`test`.`t`.`c`) OVER () ) AS `sum1`,`test`.`t`.`a` AS `a` from `test`.`t`) `alias`
+Note	1003	/* select#1 */ select `alias`.`sum1` AS `sum1`,`alias`.`a` AS `a` from (/* select#2 */ select (```count(0) OVER () ``` + sum(`test`.`t`.`c`) OVER () ) AS `sum1`,`test`.`t`.`a` AS `a` from `test`.`t`) `alias`
 Wrong result if subquery window function referenced another column in the select list
 This was OK, but:
 EXPLAIN FORMAT=JSON SELECT * FROM (SELECT SUM(b) OVER (), a FROM t) AS alias;
@@ -15381,7 +15381,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t2`.`b`) OVER (ORDER BY `test`.`t1`.`a` )  AS `SUM(t2.b) OVER(ORDER BY t1.a)` from `test`.`t1` join `test`.`t1` `t2` order by `test`.`t2`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) OVER (ORDER BY `test`.`t1`.`a` )  AS `SUM(t2.b) OVER(ORDER BY t1.a)` from `test`.`t1` join `test`.`t1` `t2` order by `test`.`t2`.`a`
 DROP TABLE t1;
 #
 # Bug#26612356 WINDOW FUNCTIONS: FIX COST ESTIMATES
@@ -16605,12 +16605,18 @@ join_optimization": {
                 "adding_tmp_table_in_plan_at_position": 2,
                 "cause": "output_for_window_functions",
                 "with_buffer": false,
-                "write_method": "write_all_rows",
-                "adding_sort_to_previous_table": {
-                  "filesort": {
-                    "adding_sort_to_table": ""
-                  }
+                "write_method": "write_all_rows"
+              },
+              {
+                "filesort": {
+                  "adding_sort_to_table": ""
                 }
+              },
+              {
+                "adding_tmp_table_in_plan_at_position": 3,
+                "cause": "output_for_window_functions",
+                "with_buffer": true,
+                "write_method": "write_all_rows"
               },
               {
                 "creating_tmp_table": {
@@ -16627,18 +16633,12 @@ join_optimization": {
                 }
               },
               {
-                "adding_tmp_table_in_plan_at_position": 3,
-                "cause": "output_for_window_functions",
-                "with_buffer": true,
-                "write_method": "write_all_rows",
-                "adding_sort_to_previous_table": {
-                  "filesort": {
-                    "adding_sort_to_table": ""
-                  }
-                },
                 "filesort": {
                   "adding_sort_to_table": ""
                 }
+              },
+              {
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -16729,7 +16729,7 @@ join_optimization": {
                           "num_rows_found": 24,
                           "num_initial_chunks_spilled_to_disk": 0,
                           "peak_memory_used": "NNN",
-                          "sort_algorithm": "std::stable_sort",
+                          "sort_algorithm": "std::sort",
                           "sort_mode": "<fixed_sort_key, packed_additional_fields>"
                         }
                       }
@@ -16759,7 +16759,7 @@ join_optimization": {
                     "num_rows_found": 24,
                     "num_initial_chunks_spilled_to_disk": 0,
                     "peak_memory_used": "NNN",
-                    "sort_algorithm": "std::stable_sort",
+                    "sort_algorithm": "std::sort",
                     "sort_mode": "<fixed_sort_key, packed_additional_fields>"
                   }
                 }

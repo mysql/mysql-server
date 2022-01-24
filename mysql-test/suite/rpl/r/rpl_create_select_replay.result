@@ -49,8 +49,8 @@ DROP TABLE t0;
 # Case 3: Replay DDL_CTAS with rows and then force rollback.
 #
 RESET MASTER;
-SET GLOBAL DEBUG='+d, force_rollback_in_slave_on_transactional_ddl_commit';
-SET global DEBUG='-d, force_rollback_in_slave_on_transactional_ddl_commit';
+SET GLOBAL DEBUG='+d, force_rollback_in_replica_on_transactional_ddl_commit';
+SET global DEBUG='-d, force_rollback_in_replica_on_transactional_ddl_commit';
 include/assert.inc [Verify that only table t0 is present in test database]
 DROP TABLE t0;
 RESET MASTER;
@@ -143,5 +143,4 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 # Recover the server.
 include/assert.inc [Verify that only table t0 is present in test database]
 DROP TABLE t0;
-SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 RESET MASTER;

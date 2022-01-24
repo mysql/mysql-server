@@ -352,11 +352,9 @@ supplied information.
 the clustered type
 @param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
 @param[in]	n_fields	number of fields */
-UNIV_INLINE void dict_mem_fill_index_struct(dict_index_t *index,
-                                            mem_heap_t *heap,
-                                            const char *table_name,
-                                            const char *index_name, ulint space,
-                                            ulint type, ulint n_fields);
+static inline void dict_mem_fill_index_struct(
+    dict_index_t *index, mem_heap_t *heap, const char *table_name,
+    const char *index_name, ulint space, ulint type, ulint n_fields);
 
 /** Frees an index memory object. */
 void dict_mem_index_free(dict_index_t *index); /*!< in: index */
@@ -639,7 +637,7 @@ struct dict_v_idx_t {
 };
 
 /** Index list to put in dict_v_col_t */
-typedef std::list<dict_v_idx_t, ut_allocator<dict_v_idx_t>> dict_v_idx_list;
+typedef std::list<dict_v_idx_t, ut::allocator<dict_v_idx_t>> dict_v_idx_list;
 
 /** Data structure for a virtual column in a table */
 struct dict_v_col_t {
@@ -686,7 +684,7 @@ struct dict_s_col_t {
 };
 
 /** list to put stored column for dict_table_t */
-typedef std::list<dict_s_col_t, ut_allocator<dict_s_col_t>> dict_s_col_list;
+typedef std::list<dict_s_col_t, ut::allocator<dict_s_col_t>> dict_s_col_list;
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
 is the maximum indexed column length (or indexed prefix length) in
@@ -795,38 +793,12 @@ struct zip_pad_info_t {
 /** If key is fixed length key then cache the record offsets on first
 computation. This will help save computation cycle that generate same
 redundant data. */
-class rec_cache_t {
- public:
-  /** Constructor */
-  rec_cache_t()
-      : rec_size(),
-        offsets(),
-        sz_of_offsets(),
-        fixed_len_key(),
-        offsets_cached(),
-        key_has_null_cols() {
-    /* Do Nothing. */
-  }
-
- public:
-  /** Record size. (for fixed length key record size is constant) */
-  ulint rec_size;
-
+struct rec_cache_t {
   /** Holds reference to cached offsets for record. */
-  ulint *offsets;
+  const ulint *offsets{nullptr};
 
-  /** Size of offset array */
-  uint32_t sz_of_offsets;
-
-  /** If true, then key is fixed length key. */
-  bool fixed_len_key;
-
-  /** If true, then offset has been cached for re-use. */
-  bool offsets_cached;
-
-  /** If true, then key part can have columns that can take
-  NULL values. */
-  bool key_has_null_cols;
+  /** Number of NULLable columns among those for which offsets are cached */
+  size_t nullable_cols{0};
 };
 
 /** Cache position of last inserted or selected record by caching record
@@ -1286,7 +1258,7 @@ enum online_index_status {
 /** Set to store the virtual columns which are affected by Foreign
 key constraint. */
 typedef std::set<dict_v_col_t *, std::less<dict_v_col_t *>,
-                 ut_allocator<dict_v_col_t *>>
+                 ut::allocator<dict_v_col_t *>>
     dict_vcol_set;
 
 /** Data structure for a foreign key constraint; an example:
@@ -1372,7 +1344,7 @@ struct dict_foreign_different_tables {
 };
 
 typedef std::set<dict_foreign_t *, dict_foreign_compare,
-                 ut_allocator<dict_foreign_t *>>
+                 ut::allocator<dict_foreign_t *>>
     dict_foreign_set;
 
 std::ostream &operator<<(std::ostream &out, const dict_foreign_set &fk_set);
@@ -1408,7 +1380,7 @@ inline void dict_foreign_free(
     dict_foreign_t *foreign) /*!< in, own: foreign key struct */
 {
   if (foreign->v_cols != nullptr) {
-    UT_DELETE(foreign->v_cols);
+    ut::delete_(foreign->v_cols);
   }
 
   mem_heap_free(foreign->heap);
@@ -1457,9 +1429,8 @@ std::ostream &operator<<(std::ostream &s, const table_name_t &table_name);
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
-
-typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
-    table_lock_list_t;
+struct TableLockGetNode;
+typedef ut_list_base<lock_t, TableLockGetNode> table_lock_list_t;
 #endif /* !UNIV_HOTBACKUP */
 
 /** mysql template structure defined in row0mysql.cc */
@@ -1715,14 +1686,7 @@ struct dict_table_t {
   dict_index_t *fts_doc_id_index;
 
   /** List of indexes of the table. */
-  UT_LIST_BASE_NODE_T(dict_index_t) indexes;
-
-  /** List of foreign key constraints in the table. These refer to
-  columns in other tables. */
-  UT_LIST_BASE_NODE_T(dict_foreign_t) foreign_list;
-
-  /** List of foreign key constraints which refer to this table. */
-  UT_LIST_BASE_NODE_T(dict_foreign_t) referenced_list;
+  UT_LIST_BASE_NODE_T(dict_index_t, indexes) indexes;
 
   /** Node of the LRU list of tables. */
   UT_LIST_NODE_T(dict_table_t) table_LRU;
@@ -1806,7 +1770,7 @@ struct dict_table_t {
   unsigned stat_initialized : 1;
 
   /** Timestamp of last recalc of the stats. */
-  ib_time_monotonic_t stats_last_recalc;
+  std::chrono::steady_clock::time_point stats_last_recalc;
 
 /** The two bits below are set in the 'stat_persistent' member. They
 have the following meaning:
@@ -2003,7 +1967,8 @@ detect this and will eventually quit sooner. */
 #endif /* !UNIV_HOTBACKUP */
 
   /** Timestamp of the last modification of this table. */
-  time_t update_time;
+  std::atomic<std::chrono::system_clock::time_point> update_time;
+  static_assert(decltype(update_time)::is_always_lock_free);
 
   /** row-id counter for use by intrinsic table for getting row-id.
   Given intrinsic table semantics, row-id can be locally maintained
@@ -2250,7 +2215,7 @@ enum persistent_type_t {
   PM_BIGGEST_TYPE = 3
 };
 
-typedef std::vector<index_id_t, ut_allocator<index_id_t>> corrupted_ids_t;
+typedef std::vector<index_id_t, ut::allocator<index_id_t>> corrupted_ids_t;
 
 /** Persistent dynamic metadata for a table */
 class PersistentTableMetadata {
@@ -2322,7 +2287,7 @@ class PersistentTableMetadata {
 class Persister {
  public:
   /** Virtual desctructor */
-  virtual ~Persister() {}
+  virtual ~Persister() = default;
 
   /** Write the dynamic metadata of a table, we can pre-calculate
   the size by calling get_write_size()
@@ -2443,7 +2408,7 @@ destroy it in the end. During the server running, we only get the persisters */
 class Persisters {
   typedef std::map<
       persistent_type_t, Persister *, std::less<persistent_type_t>,
-      ut_allocator<std::pair<const persistent_type_t, Persister *>>>
+      ut::allocator<std::pair<const persistent_type_t, Persister *>>>
       persisters_t;
 
  public:
@@ -2482,10 +2447,6 @@ class Persisters {
 
 #ifndef UNIV_HOTBACKUP
 
-/** Initialise the table lock list.
-@param[out] lock_list List to initialise */
-void lock_table_lock_list_init(table_lock_list_t *lock_list);
-
 /** A function object to add the foreign key constraint to the referenced set
 of the referenced table, if it exists in the dictionary cache. */
 struct dict_foreign_add_to_referenced_table {
@@ -2515,7 +2476,7 @@ inline void dict_table_mutex_destroy(dict_table_t *table) {
   if (table->mutex_created == os_once::DONE) {
     if (table->mutex != nullptr) {
       mutex_free(table->mutex);
-      UT_DELETE(table->mutex);
+      ut::delete_(table->mutex);
     }
   }
 }
@@ -2528,12 +2489,12 @@ inline void dict_table_autoinc_destroy(dict_table_t *table) {
   if (table->autoinc_mutex_created == os_once::DONE) {
     if (table->autoinc_mutex != nullptr) {
       mutex_free(table->autoinc_mutex);
-      UT_DELETE(table->autoinc_mutex);
+      ut::delete_(table->autoinc_mutex);
     }
 
     if (table->autoinc_persisted_mutex != nullptr) {
       mutex_free(table->autoinc_persisted_mutex);
-      UT_DELETE(table->autoinc_persisted_mutex);
+      ut::delete_(table->autoinc_persisted_mutex);
     }
   }
 }
@@ -2565,7 +2526,7 @@ inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
   if (index->zip_pad.mutex_created == os_once::DONE &&
       index->zip_pad.mutex != nullptr) {
     mutex_free(index->zip_pad.mutex);
-    UT_DELETE(index->zip_pad.mutex);
+    ut::delete_(index->zip_pad.mutex);
   }
 }
 #endif /* !UNIV_HOTBACKUP */

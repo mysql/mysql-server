@@ -19,6 +19,8 @@ ucs2 varchar(1) character set ucs2 not null default '',
 ujis2 varchar(1) character set ujis not null default '',
 name varchar(64) character set ujis not null default ''
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 set ujis=0x00, name='U+0000 NULL';
 insert into t1 set ujis=0x01, name='U+0001 START OF HEADING';
 insert into t1 set ujis=0x02, name='U+0002 START OF TEXT';
@@ -19018,6 +19020,8 @@ name varchar(64),
 ucs2 varchar(1) character set ucs2,
 ujis2 varchar(1) character set ujis
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (ujis,name) values (0x5C,     'U+005C REVERSE SOLIDUS');
 insert into t1 (ujis,name) values (0x7E,     'U+007E TILDE');
 insert into t1 (ujis,name) values (0xA1B1,   'U+FFE3 FULLWIDTH MACRON');
@@ -19055,6 +19059,8 @@ ujis char(1) character set ujis,
 ucs2 char(1) character set ucs2,
 name char(64)
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (ucs2,name) values (0x00A5,'U+00A5 YEN SIGN');
 insert into t1 (ucs2,name) values (0x2014,'U+2014 EM DASH');
 insert into t1 (ucs2,name) values (0x203E,'U+203E OVERLINE');

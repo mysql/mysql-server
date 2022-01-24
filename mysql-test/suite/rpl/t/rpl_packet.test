@@ -14,15 +14,10 @@
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_row.inc;
 
-# TODO: Fixing is handed over to Sergei.
-# The test runs slow in MTS mode because of state of MTS at time of the graceful stop.
-# In this case MTS can't stop immediately if there is a Worker that received a BEGIN but never COMMIT.
--- source include/not_mts_slave_parallel_workers.inc
-
 source include/master-slave.inc;
 
-call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'slave_max_allowed_packet' bytes, Error_code: MY-013125");
-call mtr.add_suppression("Log entry on master is longer than slave_max_allowed_packet");
+call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
+call mtr.add_suppression("Log entry on master is longer than replica_max_allowed_packet");
 let $db= DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 disable_warnings;
 eval drop database if exists $db;
@@ -32,13 +27,14 @@ eval create database $db;
 connection master;
 let $old_max_allowed_packet= `SELECT @@global.max_allowed_packet`;
 let $old_net_buffer_length= `SELECT @@global.net_buffer_length`;
-let $old_slave_max_allowed_packet= `SELECT @@global.slave_max_allowed_packet`;
-let $old_slave_max_allowed_packet_temp= `SELECT @@global.slave_max_allowed_packet`;
+let $old_replica_max_allowed_packet= `SELECT @@global.replica_max_allowed_packet`;
+let $old_replica_max_allowed_packet_temp= `SELECT @@global.replica_max_allowed_packet`;
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 
 --source include/sync_slave_sql_with_master.inc
 # Restart slave for setting to take effect
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 source include/stop_slave.inc;
 source include/start_slave.inc;
 
@@ -106,6 +102,7 @@ connection master;
 CREATE TABLE `t1` (`f1` LONGTEXT);
 
 --source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
 
 connection master;
 
@@ -123,9 +120,6 @@ connection slave;
 --let $slave_io_errno= 13125
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
-
-# TODO: this is needed because of BUG#55790. Remove once that is fixed.
---source include/stop_slave_sql.inc
 
 #
 # Bug#42914: On the master, if a binary log event is larger than
@@ -233,7 +227,7 @@ INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 --let $outfile= $MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog
 --let $i= 2
 
---let $old_slave_max_allowed_packet= `SELECT @@global.max_allowed_packet`
+--let $old_replica_max_allowed_packet= `SELECT @@global.max_allowed_packet`
 SET @@global.max_allowed_packet=1048576;
 # Restart slave session for new settings to take effect.
 --connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,)
@@ -293,16 +287,17 @@ connection master;
 DROP TABLE t1;
 eval SET @@global.max_allowed_packet= $old_max_allowed_packet;
 eval SET @@global.net_buffer_length= $old_net_buffer_length;
-eval SET @@global.slave_max_allowed_packet= $old_slave_max_allowed_packet_temp;
+eval SET @@global.replica_max_allowed_packet= $old_replica_max_allowed_packet_temp;
 # slave is stopped
 connection slave;
-eval SET @@global.max_allowed_packet= $old_slave_max_allowed_packet;
+eval SET @@global.max_allowed_packet= $old_replica_max_allowed_packet;
 DROP TABLE t1;
 
 # Clear Last_IO_Error
 
---source include/stop_slave_sql.inc
+STOP REPLICA;
 RESET SLAVE;
 
+--let $rpl_only_running_threads=1
 --source include/rpl_end.inc
 # End of tests

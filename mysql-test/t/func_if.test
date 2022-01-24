@@ -100,6 +100,9 @@ DROP TABLE t1;
 create table t1 (f1 int, f2 int);
 insert into t1 values(1,1),(0,0);
 --source include/turn_off_only_full_group_by.inc
+# Depends on whether a temporary table was inserted or not, we'll get 40.0 or 40.00.
+# Accept both.
+--replace_result 40.00 40.0
 select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
@@ -280,3 +283,11 @@ SELECT JSON_ARRAYAGG(CASE WHEN true = false THEN NULL ELSE true END);
 
 DO GROUP_CONCAT(NULLIF(ELT(1, @e), POINT(250,41)) ORDER BY 1);
 
+--echo # Bug#32816305: Prepare type checking error
+
+CREATE TABLE t (t_date DATETIME NULL);
+PREPARE ps FROM 'INSERT INTO t SET t_date = NULLIF(?, '''')';
+SET @t_date = NOW();
+EXECUTE ps USING @t_date;
+DEALLOCATE PREPARE ps;
+DROP TABLE t;

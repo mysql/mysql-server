@@ -1,0 +1,67 @@
+--source include/have_debug.inc
+--source include/big_test.inc
+
+--echo # Check if a DDL operation can be interrupted.
+
+DELIMITER |;
+CREATE PROCEDURE insert_rows(IN BASE INT, IN SIZE INT)
+BEGIN
+	DECLARE i INT DEFAULT BASE;
+	WHILE (i <= SIZE) DO
+		INSERT INTO t values (i);
+		SET i = i + 1;
+	END WHILE;
+END|
+DELIMITER ;|
+
+CREATE TABLE t(c int) ENGINE=INNODB;
+
+--echo # Insert rows
+CALL insert_rows(1, 1000);
+
+connect (con1,localhost,root,,);
+connection con1;
+--echo # con1: Start the DDL
+let $ID= `SELECT @id := CONNECTION_ID()`;
+SET SESSION DEBUG='+d,ddl_merge_sort_interrupt';
+SET DEBUG_SYNC='ddl_merge_sort_interrupt SIGNAL ready WAIT_FOR interrupt';
+--send ALTER TABLE t ADD PRIMARY KEY(c);
+
+connection default;
+--echo # default: Kill the DDL
+let $ignore= `SELECT @id := $ID`;
+SET DEBUG_SYNC='now WAIT_FOR ready';
+KILL QUERY @id;
+SET DEBUG_SYNC='now SIGNAL interrupt';
+
+connection con1;
+--echo # con1: reap
+--error ER_QUERY_INTERRUPTED
+--reap
+
+connect (con2,localhost,root,,);
+connection con2;
+--echo # con2: Start the DDL
+let $ID= `SELECT @id := CONNECTION_ID()`;
+SET SESSION DEBUG='+d,ddl_btree_build_interrupt';
+SET DEBUG_SYNC='ddl_btree_build_interrupt SIGNAL ready WAIT_FOR interrupt';
+--send ALTER TABLE t ADD index i(c);
+
+connection default;
+--echo # default: Kill the DDL
+let $ignore= `SELECT @id := $ID`;
+SET DEBUG_SYNC='now WAIT_FOR ready';
+KILL QUERY @id;
+SET DEBUG_SYNC='now SIGNAL interrupt';
+
+connection con2;
+--echo # con2: reap
+--error ER_QUERY_INTERRUPTED
+--reap
+
+connection default;
+--echo # Cleanup
+SET DEBUG_SYNC="RESET";
+DROP PROCEDURE insert_rows;
+DROP TABLE t;
+disconnect con1;

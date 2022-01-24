@@ -37,7 +37,7 @@ class Query_instances {
   using Instance_id = uint64_t;
 
  public:
-  virtual ~Query_instances() {}
+  virtual ~Query_instances() = default;
 
   virtual Instance_id instances_fetch_begin() = 0;
   virtual void instances_fetch_end() = 0;

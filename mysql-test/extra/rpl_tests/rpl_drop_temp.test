@@ -31,7 +31,7 @@ if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
 }
 sync_slave_with_master;
 connection slave;
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 # Cleanup
 connection master;
 drop database mysqltest;
@@ -92,7 +92,7 @@ sync_slave_with_master;
 
 CREATE TABLE t1 ( i INT );
 --sync_slave_with_master
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 --connect(con1,localhost,root,,)
 CREATE TEMPORARY TABLE ttmp1 ( i INT );
@@ -105,7 +105,7 @@ if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
   --source include/wait_for_binlog_event.inc
 }
 --sync_slave_with_master
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 --connection master
 --source include/show_binlog_events.inc

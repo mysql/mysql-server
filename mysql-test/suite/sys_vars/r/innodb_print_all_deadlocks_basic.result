@@ -83,8 +83,8 @@ SET global innodb_print_all_deadlocks=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_print_all_deadlocks'
 SET global innodb_print_all_deadlocks=2;
 ERROR 42000: Variable 'innodb_print_all_deadlocks' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 SET global innodb_print_all_deadlocks=-3;
+ERROR 42000: Variable 'innodb_print_all_deadlocks' can't be set to the value of '-3'
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 1

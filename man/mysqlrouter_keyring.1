@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlrouter_keyring\fR
+.\"     Title: mysqlrouter_keyring
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER_KEYRING\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER_KEYRING" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -191,17 +191,17 @@ Examples:
 .RS 4
 .\}
 .nf
-shell> mysqlrouter_keyring init \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring user   
-shell> mysqlrouter_keyring get \-\-master\-key\-file=mysqlrouter\&.key data/keyring someuser key
-shell> mysqlrouter_keyring export \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring set \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key value
-shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user
-shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key
-shell> mysqlrouter_keyring master\-key\-list \-\-master\-key\-file=mysqlrouter\&.key
-shell> mysqlrouter_keyring master\-key\-delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring 
-shell> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter\&.key data/keyring other/data/keyring
+$> mysqlrouter_keyring init \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring user   
+$> mysqlrouter_keyring get \-\-master\-key\-file=mysqlrouter\&.key data/keyring someuser key
+$> mysqlrouter_keyring export \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring set \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key value
+$> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user
+$> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key
+$> mysqlrouter_keyring master\-key\-list \-\-master\-key\-file=mysqlrouter\&.key
+$> mysqlrouter_keyring master\-key\-delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring 
+$> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter\&.key data/keyring other/data/keyring
 .fi
 .if n \{\
 .RE

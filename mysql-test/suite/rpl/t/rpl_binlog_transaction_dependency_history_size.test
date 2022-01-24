@@ -58,9 +58,7 @@ while ($type < 3)
     --echo ######## 3. COMMIT_ORDER ########
   }
 
-  SELECT @@local.transaction_write_set_extraction,
-         @@global.transaction_write_set_extraction,
-         @@binlog_transaction_dependency_tracking,
+  SELECT @@binlog_transaction_dependency_tracking,
          @@binlog_transaction_dependency_history_size;
 
   CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);

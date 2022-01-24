@@ -24,8 +24,8 @@ t3	CREATE TABLE `t3` (
   `a` int NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT @@GLOBAL.slave_transaction_retries;
-@@GLOBAL.slave_transaction_retries
+SELECT @@GLOBAL.replica_transaction_retries;
+@@GLOBAL.replica_transaction_retries
 2
 SELECT @@GLOBAL.innodb_lock_wait_timeout;
 @@GLOBAL.innodb_lock_wait_timeout
@@ -126,8 +126,8 @@ delete from t3;
 delete from t1;
 delete from t2;
 delete from t3;
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 0;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
+set @@global.replica_transaction_retries= 0;
 include/stop_slave.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -144,7 +144,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 *** Now the slave must be stopped due to timeout ***
 include/wait_for_slave_sql_error.inc [errno=1205]
 rollback;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;

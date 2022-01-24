@@ -10,3 +10,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `PRIMARY`
   ON performance_schema.keyring_component_status;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+call mtr.add_suppression("No suitable 'keyring_component_metadata_query' service implementation found to fulfill the request");
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.keyring_component_status;
+DROP TABLE test.create_select;

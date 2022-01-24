@@ -1,0 +1,61 @@
+# Validate that when SOURCE_CONNECTION_AUTO_FAILOVER is enabled and
+# STOP REPLICA IO_THREAD is executed, it stops both the IO Thread
+# and the IO Monitor thread.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Create a replication channel ch1 to replicate from
+#      server2 to server1.
+#   2. Stop IO thread. Verify that SQL thread is running.
+#   3. Clean up.
+###############################################################################
+--source include/have_slave_repository_type_table.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create a replication channel ch1 to replicate from
+--echo #    server2 to server1.
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Stop IO thread
+--echo #    Verify that SQL thread is running
+--echo #    It will be allowed.
+--let $rpl_channel_name='ch1'
+--source include/stop_slave_io.inc
+
+--let $assert_text= Verify replica_monitor thread is not running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 0;
+--source include/assert.inc
+
+--let $assert_text= Verify replica SQL thread is running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_sql\"]" = 1;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_channel_name='ch1'
+--source include/stop_slave_sql.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--let $rpl_skip_sync = 1
+--source include/rpl_end.inc

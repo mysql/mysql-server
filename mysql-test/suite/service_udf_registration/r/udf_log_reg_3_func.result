@@ -80,3 +80,4 @@ Query	SELECT myfunc_double(78654)
 Query	SELECT myfunc_int(5)
 Query	SELECT myfunc_double(78654)
 Query	SELECT myfunc_int(5)
+TRUNCATE TABLE mysql.general_log;

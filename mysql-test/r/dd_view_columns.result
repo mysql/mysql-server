@@ -4,7 +4,7 @@ CREATE TABLE t2 (f2 INT);
 CREATE TABLE t3 (f3 INT);
 PREPARE check_view_columns FROM
 'SELECT table_name, column_name, column_type FROM information_schema.columns
-   WHERE table_name= ?';
+   WHERE table_name= ? ORDER BY table_name, column_name';
 PREPARE check_view_status FROM
 'SELECT table_name, table_comment FROM information_schema.tables WHERE
    table_name= ?';

@@ -40,13 +40,11 @@ include/assert.inc [On the recovered member, the table should exist and have 1 e
 #
 # Clean up
 #
-SET @@GLOBAL.group_replication_recovery_use_ssl= 0;
-SET @@GLOBAL.group_replication_recovery_ssl_ca= "";
-SET @@GLOBAL.group_replication_recovery_ssl_cert= "";
-SET @@GLOBAL.group_replication_recovery_ssl_key= "";
 [connection server1]
 set session sql_log_bin=0;
 DROP USER 'rec_ssl_user';
 set session sql_log_bin=1;
 DROP TABLE t1;
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --report_port=ADMIN_PORT
+include/rpl_reconnect.inc
 include/group_replication_end.inc

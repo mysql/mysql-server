@@ -30,7 +30,6 @@ call mtr.add_suppression("Slave I/O thread .* register on master");
 call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
-let $debug_saved= `select @@global.debug`;
 
 # set up two parameters to pass into extra/rpl_tests/rpl_get_master_version_and_clock
 let $dbug_sync_point= 'debug_lock.before_get_UNIX_TIMESTAMP';
@@ -47,16 +46,9 @@ source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 #Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
 connection slave;
 
-let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
-let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_source_uuid';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
-
-#
-# Note, due to # Bug#11765758 - 58754
-# make sure the slave threads stand still (SQL thread in this context)
-# while @@global.debug is being updated.
-#
-eval set global debug= '$debug_saved';
 
 #Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.

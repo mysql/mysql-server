@@ -9,7 +9,8 @@ include/stop_slave.inc
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+# Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -20,7 +21,8 @@ include/wait_for_slave_sql_error.inc [errno=13117]
 Last_SQL_Error = 'Fatal error: Failed during slave thread initialization'
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed during slave I/O thread initialization '
-SET GLOBAL debug="";
+# Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

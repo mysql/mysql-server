@@ -1,4 +1,6 @@
 --source include/have_debug.inc
+# CET is also know as MET, so using this include file for checking CET.
+--source include/have_met_timezone.inc
 
 --echo #
 --echo # Start of 5.7 tests
@@ -36,6 +38,18 @@ COMMIT;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 connection default;
+
+--echo #
+--echo # Bug#29330089: SERVER TIMEZONE STAYS ON CEST AFTER CHANGING
+--echo #               SUMMER TIME IS OVER
+--echo #
+
+SET DEBUG="+d,set_cet_before_dst";
+SELECT @@SYSTEM_TIME_ZONE;
+SET DEBUG="-d,set_cet_before_dst";
+SET DEBUG="+d,set_cet_after_dst";
+SELECT @@SYSTEM_TIME_ZONE;
+SET DEBUG="-d,set_cet_after_dst";
 
 --echo #
 --echo # End of 5.7 tests

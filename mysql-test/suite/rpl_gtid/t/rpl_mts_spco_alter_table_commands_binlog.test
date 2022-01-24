@@ -1,19 +1,19 @@
 # ==== Purpose ====s
 #
 # This is wrapper testcase of rpl_mts_spco_alter_table_commands.test to verify the behavior
-# of ALTER TABLE variants with slave-preserve-commit-order enabled binlog slave.
+# of ALTER TABLE variants with replica-preserve-commit-order enabled binlog slave.
 #
 # === Implementation ====
 #
 # 1. Configure master-binlog enabled slave replication.
 #
 # 2. Source rpl_mts_spco_alter_table_commands.test to verify if
-#    ALTER TABLE variant commands respect slave-preserve-commit-order.
+#    ALTER TABLE variant commands respect replica-preserve-commit-order.
 #
 # === References ===
 #
 # Bug#30483615 : ADD TESTS TO VERIFY IF SPCO IS PRESERVED FOR ALTER TABLE VARIANT COMMANDS
-# WL7846 : MTS: slave-preserve-commit-order when log-slave-updates/binlog is disabled
+# WL7846 : MTS: replica-preserve-commit-order when log-replica-updates/binlog is disabled
 
 --source include/big_test.inc
 --source include/have_debug.inc

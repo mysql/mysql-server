@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+stop slave;
+reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+# Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
+start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=13117]
+Last_SQL_Error = 'Fatal error: Failed during slave thread initialization'
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed during slave.* thread initialization");
+SET SESSION sql_log_bin= 1;
+include/wait_for_slave_io_error.inc [errno=13117]
+Last_IO_Error = 'Fatal error: Failed during slave I/O thread initialization '
+# Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
+reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SET GLOBAL init_replica= "garbage";
+start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_sql_error.inc [errno=13145]
+Last_SQL_Error = 'Slave SQL thread aborted. Can't execute init_replica query, MY-001064 - 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1''
+SET GLOBAL init_replica= "";
+include/stop_slave_io.inc
+RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/rpl_end.inc

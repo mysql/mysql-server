@@ -27,3 +27,8 @@ CREATE UNIQUE INDEX test_index ON performance_schema.setup_objects(OBJECT_NAME);
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `OBJECT`
   ON performance_schema.setup_objects;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.setup_objects;
+
+DROP TABLE test.create_select;

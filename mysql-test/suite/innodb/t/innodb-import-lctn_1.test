@@ -235,6 +235,7 @@ SELECT * from t1 ORDER BY f1;
 DROP TABLE t1;
 --remove_files_wildcard $MYSQLD_DATADIR/db1 t1*.cfg
 --remove_files_wildcard $MYSQLD_DATADIR/db1 *.zip
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
 
 DROP DATABASE db1;
 

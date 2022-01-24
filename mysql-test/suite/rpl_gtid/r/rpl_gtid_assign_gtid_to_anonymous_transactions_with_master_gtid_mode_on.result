@@ -48,9 +48,9 @@ START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = B
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/stop_slave.inc
-SET GLOBAL sql_slave_skip_counter = 1;
+SET GLOBAL sql_replica_skip_counter = 1;
 Warnings:
-Warning	4016	The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
+Warning	4016	The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
 include/start_slave.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 include/diff_tables.inc [master:t, slave:t]
@@ -66,9 +66,9 @@ include/start_slave.inc
 CREATE TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-SET GLOBAL sql_slave_skip_counter=1;
+SET GLOBAL sql_replica_skip_counter=1;
 Warnings:
-Warning	4016	The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
+Warning	4016	The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
 include/start_slave.inc
 [connection master]
 INSERT INTO t1 VALUES (20);

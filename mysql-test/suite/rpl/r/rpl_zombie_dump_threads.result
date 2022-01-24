@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/stop_dump_threads.inc
 [connection slave]
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug="d,fake_5_5_version_slave";
+SET GLOBAL debug="+d,fake_5_5_version_replica";
 include/start_slave_io.inc
 include/stop_slave_io.inc
 include/start_slave_io.inc

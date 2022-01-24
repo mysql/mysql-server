@@ -1,0 +1,177 @@
+# ==== Purpose ====
+#
+# This test validates that when a group replication channel is created
+# SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled by default
+#
+# ==== Requirements ====
+#
+# When group replication channel is created
+# R1. The channel must have SOURCE_AUTO_POSITION = 1
+# R2. The channel must have REQUIRE_ROW_FORMAT = 1
+# R3. The channel must have GTID_ONLY = 1
+# R4. The user can't change the value of SOURCE_AUTO_POSITION for the channel
+# R5. The user can't change the value of REQUIRE_ROW_FORMAT for the channel
+# R6. The user can't change the value of GTID_ONLY for the channel
+#
+# R7: Group replication channels can only be configured when GTID_MODE = ON
+#
+# ==== Implementation ====
+#
+# 1. Create a user so we can set a privileged user to create GR channels
+# 2. Create a group replication applier channel
+#    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled
+# 3. For the group replication applier channel
+#    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
+# 4. Create a group replication recovery channel
+#    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled
+# 5. For the group replication recovery channel
+#    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
+# 6. Delete the channels
+#    Verify they cannot be created when GTID_MODE != ON
+# 7. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+# WL#12968: Configure replication applier to require row-based replication
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+
+--echo #
+--echo # 1. Create a user so we can set a privileged user to create GR channels
+
+CREATE USER 'u1'@'localhost';
+
+--echo #
+--echo # 2. Create a group replication applier channel
+--echo #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled
+
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Enabled_auto_position = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Auto_position is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Require_row_format = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Require_row_format is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Gtid_only is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo #
+--echo # 3. For the group replication applier channel
+--echo #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL "group_replication_applier";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 FOR CHANNEL "group_replication_applier";
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_applier";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_applier";
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL "group_replication_applier";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_applier";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Enabled_auto_position = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Auto_position is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Require_row_format = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Require_row_format is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Gtid_only is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo #
+--echo # 4. Create a group replication recovery channel
+--echo #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled
+
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_recovery";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Enabled_auto_position = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Auto_position is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Require_row_format = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Require_row_format is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Gtid_only is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo #
+--echo # 5. For the group replication recovery channel
+--echo #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL "group_replication_recovery";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 FOR CHANNEL "group_replication_recovery";
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL "group_replication_recovery";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL "group_replication_recovery";
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL "group_replication_recovery";
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_recovery";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Enabled_auto_position = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Auto_position is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Require_row_format = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Require_row_format is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Gtid_only is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+
+--echo #
+--echo # 6. Delete the channels
+--echo #    Verify they cannot be created when GTID_MODE != ON
+
+RESET REPLICA ALL;
+
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+
+--error ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
+
+--error ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_recovery";
+
+--echo #
+--echo # 7. Cleanup
+
+SET GLOBAL GTID_MODE = ON;
+
+DROP USER 'u1'@'localhost';

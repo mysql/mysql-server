@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  the caller must have a shared latch on dict_foreign_key_check_lock.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
  DB_ROW_IS_REFERENCED */
-dberr_t row_ins_check_foreign_constraint(
+[[nodiscard]] dberr_t row_ins_check_foreign_constraint(
     ibool check_ref,         /*!< in: TRUE If we want to check that
                            the referenced table is ok, FALSE if we
                            want to check the foreign key table */
@@ -55,8 +55,7 @@ dberr_t row_ins_check_foreign_constraint(
     dict_table_t *table,     /*!< in: if check_ref is TRUE, then the foreign
                              table, else the referenced table */
     dtuple_t *entry,         /*!< in: index entry for index */
-    que_thr_t *thr)          /*!< in: query thread */
-    MY_ATTRIBUTE((warn_unused_result));
+    que_thr_t *thr);         /*!< in: query thread */
 /** Creates an insert node struct.
  @return own: insert node struct */
 ins_node_t *ins_node_create(
@@ -79,7 +78,7 @@ void ins_node_set_new_row(
  @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
  @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
  @return error code */
-dberr_t row_ins_clust_index_entry_low(
+[[nodiscard]] dberr_t row_ins_clust_index_entry_low(
     uint32_t flags,      /*!< in: undo logging and locking flags */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
@@ -91,10 +90,9 @@ dberr_t row_ins_clust_index_entry_low(
                          flags & (BTR_NO_LOCKING_FLAG
                          | BTR_NO_UNDO_LOG_FLAG) and a duplicate
                          can't occur */
-    bool dup_chk_only)
-    /*!< in: if true, just do duplicate check
-    and return. don't execute actual insert. */
-    MY_ATTRIBUTE((warn_unused_result));
+    bool dup_chk_only);
+/*!< in: if true, just do duplicate check
+and return. don't execute actual insert. */
 
 /** Tries to insert an entry into a secondary index. If a record with exactly
 the same fields is found, the other record is necessarily marked deleted.
@@ -117,12 +115,10 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
-                                    dict_index_t *index,
-                                    mem_heap_t *offsets_heap, mem_heap_t *heap,
-                                    dtuple_t *entry, trx_id_t trx_id,
-                                    que_thr_t *thr, bool dup_chk_only)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_ins_sec_index_entry_low(
+    uint32_t flags, ulint mode, dict_index_t *index, mem_heap_t *offsets_heap,
+    mem_heap_t *heap, dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr,
+    bool dup_chk_only);
 
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
@@ -138,27 +134,25 @@ dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
  to a delete marked record, performs the insert by updating or delete
  unmarking the delete marked record.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-dberr_t row_ins_clust_index_entry(
+[[nodiscard]] dberr_t row_ins_clust_index_entry(
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
-    bool dup_chk_only)
-    /*!< in: if true, just do duplicate check
-    and return. don't execute actual insert. */
-    MY_ATTRIBUTE((warn_unused_result));
+    bool dup_chk_only);
+/*!< in: if true, just do duplicate check
+and return. don't execute actual insert. */
 /** Inserts an entry into a secondary index. Tries first optimistic,
  then pessimistic descent down the tree. If the entry matches enough
  to a delete marked record, performs the insert by updating or delete
  unmarking the delete marked record.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-dberr_t row_ins_sec_index_entry(
+[[nodiscard]] dberr_t row_ins_sec_index_entry(
     dict_index_t *index, /*!< in: secondary index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
-    bool dup_chk_only)
-    /*!< in: if true, just do duplicate check
-    and return. don't execute actual insert. */
-    MY_ATTRIBUTE((warn_unused_result));
+    bool dup_chk_only);
+/*!< in: if true, just do duplicate check
+and return. don't execute actual insert. */
 /** Inserts a row to a table. This is a high-level function used in
  SQL execution graphs.
  @return query thread to run next or NULL */
@@ -180,7 +174,7 @@ struct ins_node_t {
   dtuple_t *entry;         /*!< NULL, or entry to insert in the index;
                            after a successful insert of the entry,
                            this should be reset to NULL */
-  UT_LIST_BASE_NODE_T(dtuple_t)
+  UT_LIST_BASE_NODE_T(dtuple_t, tuple_list)
   entry_list;       /* list of entries, one for each index */
   byte *row_id_buf; /* buffer for the row id sys field in row */
   trx_id_t trx_id;  /*!< trx id or the last trx which executed the

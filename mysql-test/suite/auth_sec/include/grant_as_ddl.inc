@@ -466,6 +466,7 @@ SELECT COUNT(*) = 2 AS WITH_AS_WITH_ROLE_ALL_EXCEPT_COUNT FROM mysql.general_log
 SET GLOBAL general_log_file= @old_general_log_file;
 SET GLOBAL general_log= @old_general_log;
 SET GLOBAL log_output= @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 --echo -------------------------------------------------------------------------
 

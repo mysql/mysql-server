@@ -86,6 +86,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
+  void execNODE_START_REP(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -972,6 +973,7 @@ public:
    * look for the table with the correct backupPtr.
    */
   Uint32 * c_tableMap;
+  Uint32 c_tableMapSize;
   NodeId c_masterNodeId;
   Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
@@ -1194,9 +1196,9 @@ public:
                              Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
-  STATIC_CONST(NO_OF_PAGES_META_FILE = 
-	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
-	       BACKUP_WORDS_PER_PAGE);
+  static constexpr Uint32 NO_OF_PAGES_META_FILE = 
+	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) /
+	       BACKUP_WORDS_PER_PAGE;
 
   Uint32 m_backup_report_frequency;
 
@@ -1455,9 +1457,9 @@ public:
    * MT LQH.  LCP runs separately in each instance number.
    * BACKUP uses instance key 1 (real instance 0 or 1) as master.
   */
-  STATIC_CONST( NdbdInstanceKey = 0 );
-  STATIC_CONST( BackupProxyInstanceKey = 0 );
-  STATIC_CONST( UserBackupInstanceKey = 1 );
+  static constexpr Uint32 NdbdInstanceKey = 0;
+  static constexpr Uint32 BackupProxyInstanceKey = 0;
+  static constexpr Uint32 UserBackupInstanceKey = 1;
   /*
    * instanceNo() is used for routing backup control signals and has 3
    * use cases:

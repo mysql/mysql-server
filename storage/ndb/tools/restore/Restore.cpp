@@ -116,6 +116,7 @@ public:
         break;
       }
       // Fall through - for blob/text with ArrayTypeVar
+      [[fallthrough]];
     default:
       // Default twiddling parameters
       m_twiddle_size = attr_desc->size;
@@ -556,7 +557,7 @@ RestoreMetaData::readMetaTableDesc() {
       Vector<Uint32> values;
       Uint32 len = dst->getMapLen();
       Uint32 zero = 0;
-      values.fill(len - 1, zero);
+      values.fill(len, zero);
       dst->getMapValues(values.getBase(), values.size());
       for (Uint32 i = 0; i<len; i++)
       {

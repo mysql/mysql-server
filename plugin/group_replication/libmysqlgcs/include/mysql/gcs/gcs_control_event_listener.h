@@ -90,7 +90,7 @@ class Gcs_control_event_listener {
       const std::vector<Gcs_member_identifier> &members,
       const std::vector<Gcs_member_identifier> &unreachable) const = 0;
 
-  virtual ~Gcs_control_event_listener() {}
+  virtual ~Gcs_control_event_listener() = default;
 };
 
 #endif  // GCS_CONTROL_EVENT_LISTENER_INCLUDED

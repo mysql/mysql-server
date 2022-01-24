@@ -591,7 +591,7 @@ static void handle_error(struct st_plugin_ctx *pctx) {
 }
 
 static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
-                          void *p MY_ATTRIBUTE((unused)), void *ctx) {
+                          void *p [[maybe_unused]], void *ctx) {
   char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
 
@@ -771,7 +771,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

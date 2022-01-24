@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
@@ -36,6 +37,7 @@
 #include "../../src/ndbapi/NdbQueryBuilder.hpp"
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 #include <pthread.h>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 
 #if 0
@@ -80,7 +82,7 @@ public:
 
   JoinType m_joinType;
 
-  explicit TestParameters(){bzero(this, sizeof *this);}
+  explicit TestParameters() { std::memset(this, 0, sizeof *this); }
 };
 
 /** Entry point for new posix threads.*/
@@ -715,7 +717,7 @@ int main(int argc, char* argv[]){
     for(int i = 0; i<threadCount; i++){
       threads[i] = new TestThread(con, host, port);
     }
-    sleep(1);
+    NdbSleep_SecSleep(1);
 
 
     //testScanLookupDepth(1);

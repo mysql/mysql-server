@@ -102,6 +102,7 @@ struct Binlog_user_var_event {
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
 #define LOG_INFO_EMFILE -9
+#define LOG_INFO_BACKUP_LOCK -10
 
 /* bitmap to MYSQL_BIN_LOG::close() */
 #define LOG_CLOSE_INDEX 1
@@ -360,6 +361,16 @@ class MYSQL_BIN_LOG : public TC_LOG {
   Transaction_dependency_tracker m_dependency_tracker;
 
   /**
+    Find the oldest binary log referenced by the index file
+
+    @param[out] binlog_file_name the file name of oldest log found
+    @param[out] errmsg the error message outputted, which is left untouched
+                if the function returns false
+    @return false on success, true on error.
+  */
+  bool find_first_log(std::string &binlog_file_name, std::string &errmsg);
+
+  /**
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
 
@@ -373,7 +384,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
-                                      Gtid *first_gtid, const char **errmsg);
+                                      Gtid *first_gtid, std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -565,7 +576,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     Pre-condition: transactions should have called ha_prepare_low, using
                    HA_IGNORE_DURABILITY, before entering here.
 
-    Stage#0 implements slave-preserve-commit-order for applier threads that
+    Stage#0 implements replica-preserve-commit-order for applier threads that
     write the binary log. i.e. it forces threads to enter the queue in the
     correct commit order.
 
@@ -588,7 +599,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     will wait until the last stage is finished.
 
     Stage 0 (SLAVE COMMIT ORDER):
-    1. If slave-preserve-commit-order and is slave applier worker thread, then
+    1. If replica-preserve-commit-order and is slave applier worker thread, then
        waits until its turn to commit i.e. till it is on the top of the queue.
     2. When it reaches top of the queue, it signals next worker in the commit
        order queue to awake.
@@ -717,7 +728,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
      Gtid_log_event and BEGIN, COMMIT automatically.
 
      It is aimed to handle cases of "background" logging where a statement is
-     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on
+     logged indirectly, like "TRUNCATE TABLE a_memory_table". So don't use it on
      any normal statement.
 
      @param[in] thd  the THD object of current thread.
@@ -727,8 +738,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len,
-                          enum enum_sql_command sql_command);
+  bool write_stmt_directly(THD *thd, const char *stmt, size_t stmt_len,
+                           enum enum_sql_command sql_command);
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);
@@ -846,7 +857,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param errmsg                      Pointer to the error message
   */
   void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
-                                   const char **errmsg);
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -870,7 +881,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   void report_missing_gtids(const Gtid_set *previous_gtid_set,
                             const Gtid_set *slave_executed_gtid_set,
-                            const char **errmsg);
+                            std::string &errmsg);
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want

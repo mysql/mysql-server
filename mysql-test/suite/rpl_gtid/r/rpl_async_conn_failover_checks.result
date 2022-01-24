@@ -12,10 +12,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 #
 # 2. Verify disabling AUTO_POSITION while enabling Asynchronous
 #    Replication Connection Failover results in
-#    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
+#    ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 #
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1.
+ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled.
 #
 # 3. Verify Asynchronous Replication Connection Failover is disabled and
 #    Auto_position is enabled.
@@ -42,5 +42,7 @@ ERROR HY000: Failed to enable Asynchronous Replication Connection Failover featu
 #
 # 6. Clean up.
 #
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0;
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = ON;
 include/rpl_end.inc

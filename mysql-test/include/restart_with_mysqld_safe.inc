@@ -5,7 +5,7 @@
 # ==== Usage ====
 #
 # [--let $plugin_list= "plugin.so"]
-# [--let $mysqld_extra_settings= "--skip-slave-start=0"]
+# [--let $mysqld_extra_settings= "--skip-replica-start=0"]
 # --source include/restart_with_mysqld_safe.inc
 #
 # Parameters:

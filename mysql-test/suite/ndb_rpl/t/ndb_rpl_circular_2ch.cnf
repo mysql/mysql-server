@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 # 2 clusters, each with 2 MySQLDs
-# All MySQLDs log-slave-updates
+# All MySQLDs log-replica-updates
 # All MySQLDs log-apply-status
 # Infinite loops broken in the test using Ignore_server_ids mechanism
 
@@ -13,22 +13,22 @@ mysqld=,
 server-id= 1
 log-bin
 ndb_connectstring=	@mysql_cluster.1.ndb_connectstring
-log-slave-updates
-skip-slave-start
+log-replica-updates
+skip-replica-start
 
 [mysqld.2.1]
 server-id= 3
 log-bin
 ndb_connectstring=	@mysql_cluster.1.ndb_connectstring
-log-slave-updates
-skip-slave-start
+log-replica-updates
+skip-replica-start
 
 [mysqld.1.slave]
 server-id= 2
 log-bin
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
-log-slave-updates
-skip-slave-start
+log-replica-updates
+skip-replica-start
 
 [cluster_config.mysqld.2.slave]
 NodeId=16
@@ -39,8 +39,8 @@ ndb-cluster-connection-pool-nodeids=16,48,127
 server-id= 4
 log-bin
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
-log-slave-updates
-skip-slave-start
+log-replica-updates
+skip-replica-start
 
 [ENV]
 SERVER_MYPORT_1=        @mysqld.1.1.port

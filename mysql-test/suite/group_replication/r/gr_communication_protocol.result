@@ -20,8 +20,10 @@ SELECT group_replication_set_communication_protocol("5.7.14");
 group_replication_set_communication_protocol("5.7.14")
 The operation group_replication_set_communication_protocol completed successfully
 include/assert.inc [communication_protocol is supposed to be 5.7.14]
+include/assert.inc [protocol_version (5.7.14) should be 5.7.14]
 [connection server2]
 include/assert.inc [communication_protocol is supposed to be 5.7.14]
+include/assert.inc [protocol_version (5.7.14) should be 5.7.14]
 ###############################################################################
 # 3. Increase communication_protocol.
 [connection server1]
@@ -29,8 +31,10 @@ SELECT group_replication_set_communication_protocol("8.0.16");
 group_replication_set_communication_protocol("8.0.16")
 The operation group_replication_set_communication_protocol completed successfully
 include/assert.inc [communication_protocol is supposed to be 8.0.16]
+include/assert.inc [protocol_version (8.0.16) should be 8.0.16]
 [connection server2]
 include/assert.inc [communication_protocol is supposed to be 8.0.16]
+include/assert.inc [protocol_version (8.0.16) should be 8.0.16]
 ###############################################################################
 # 4. Confirm invalid calls to group_replication_get_communication_protocol
 [connection server1]

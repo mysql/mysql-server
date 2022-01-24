@@ -1,0 +1,203 @@
+###############################################################################
+# Validate several error scenarios on the UDFs:
+#   group_replication_enable_member_action
+#   group_replication_disable_member_action
+#
+# Test:
+#   0. This test requires two servers
+#   1. Try to enable and disable member actions with invalid
+#      parameters.
+#      It will not be allowed.
+#   2. Try to enable and disable member actions on a standalone
+#      server with super_read_only.
+#      It will not be allowed.
+#   3. Try to enable and disable a non existent action.
+#      It will not be allowed.
+#   4. Try to enable and disable a action for a non existent
+#      event.
+#      It will not be allowed.
+#   5. Try to enable and disable a action on a secondary.
+#      It will not be allowed.
+#   6. Try to enable and disable a action on a primary with
+#      super_read_only enabled.
+#      It will not be allowed.
+#   7. Check that configuration was not changed.
+#   8. Clean up
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Try to enable and disable member actions with invalid
+--echo #    parameters.
+--echo #    It will not be allowed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION", 42);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION", 42);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action(42, "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action(42, "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", 42);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", 42);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to enable and disable member actions on a standalone
+--echo #    server with super_read_only.
+--echo #    It will not be allowed.
+
+SET GLOBAL super_read_only= 1;
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+SET GLOBAL read_only= 0;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Try to enable and disable a non existent action.
+--echo #    It will not be allowed.
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_enable_member_action("buh", "AFTER_PRIMARY_ELECTION");
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_disable_member_action("buh", "AFTER_PRIMARY_ELECTION");
+
+
+--echo
+--echo ############################################################
+--echo # 4. Try to enable and disable a action for a non existent
+--echo #    event.
+--echo #    It will not be allowed.
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "COFFEE");
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "COFFEE");
+
+
+--echo
+--echo ############################################################
+--echo # 5. Try to enable and disable a action on a secondary.
+--echo #    It will not be allowed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--source include/gr_assert_secondary_member.inc
+
+# Disable super_read_only to allow the UDF to reach the member role check.
+SET GLOBAL super_read_only= 0;
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+SET GLOBAL super_read_only= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 6. Try to enable and disable a action on a primary with
+--echo #    super_read_only enabled.
+--echo #    It will not be allowed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL super_read_only= 1;
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+SET GLOBAL super_read_only= 0;
+
+
+--echo
+--echo ############################################################
+--echo # 7. Check that configuration was not changed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Clean up.
+--source include/group_replication_end.inc

@@ -75,8 +75,9 @@ SET SESSION sql_log_bin= 1;
 --echo #    count and retry time to 2 and verify its enabled in
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
-SET @debug_saved= @@GLOBAL.DEBUG;
-SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
+
+--let $debug_point= async_conn_failover_disable_weight_check
+--source include/add_debug_point.inc
 
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
@@ -111,7 +112,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURC
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
 
-SET GLOBAL debug = '+d,async_conn_failover_crash';
+--let $debug_point= async_conn_failover_crash
+--source include/add_debug_point.inc
 
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
@@ -149,7 +151,7 @@ SET GLOBAL debug = '+d,async_conn_failover_crash';
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.DEBUG= @debug_saved;
+# Server crashed so debug points were cleaned
 
 --source include/stop_slave.inc
 

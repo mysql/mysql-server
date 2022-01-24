@@ -418,4 +418,25 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
       Gcs_packets_list &fragments) const;
 };
 
+class Gcs_message_stage_split_v3 : public Gcs_message_stage_split_v2 {
+ public:
+  /**
+   Creates an instance of the stage.
+
+   @param enabled enables this message stage
+   @param split_threshold messages with the payload larger
+                          than split_threshold in bytes are split.
+   */
+  explicit Gcs_message_stage_split_v3(bool enabled,
+                                      unsigned long long split_threshold)
+      : Gcs_message_stage_split_v2(enabled, split_threshold) {}
+
+  ~Gcs_message_stage_split_v3() override {}
+
+  /**
+   Return the stage code.
+   */
+  Stage_code get_stage_code() const override { return Stage_code::ST_SPLIT_V3; }
+};
+
 #endif /* GCS_MESSAGE_STAGE_SPLIT_H */

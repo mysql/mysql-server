@@ -5,18 +5,18 @@
 --echo #
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
---let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
-show status like "rpl_semi_sync_master_yes_tx";
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
+show status like "rpl_semi_sync_source_yes_tx";
 SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
 --send INSERT INTO t1 VALUES(1);
 
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 
-show status like "rpl_semi_sync_master_yes_tx";
---let $assert_text= rpl_semi_sync_master_yes_tx increased 1
+show status like "rpl_semi_sync_source_yes_tx";
+--let $assert_text= rpl_semi_sync_source_yes_tx increased 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -38,9 +38,9 @@ SET DEBUG_SYNC= "now SIGNAL end";
 --reap
 
 # Varify that after_commit hook is not executed.
---let $assert_text= rpl_semi_sync_master_yes_tx increased only 1
+--let $assert_text= rpl_semi_sync_source_yes_tx increased only 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -54,7 +54,7 @@ TRUNCATE t1;
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
---let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
 
 SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
 BEGIN;
@@ -65,9 +65,9 @@ INSERT INTO t1 VALUES(2);
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 
---let $assert_text= rpl_semi_sync_master_yes_tx increased 1
+--let $assert_text= rpl_semi_sync_source_yes_tx increased 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -89,9 +89,9 @@ SET DEBUG_SYNC= "now SIGNAL end";
 --reap
 
 # Varify that after_commit hook is not executed.
---let $assert_text= rpl_semi_sync_master_yes_tx increased only 1
+--let $assert_text= rpl_semi_sync_source_yes_tx increased only 1
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -102,10 +102,10 @@ TRUNCATE t1;
 --echo # #######################################################################
 --echo # Verify after_sync hook will not be executed
 --echo #
---let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
---let $no_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx', Value, 1)
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
+--let $no_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx', Value, 1)
 
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 --send INSERT INTO t1 VALUES(1);
@@ -117,15 +117,15 @@ SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
 --let $assert_cond= COUNT(*) = 1 FROM t1
 --source include/assert.inc
 
---let $assert_text= rpl_semi_sync_master_yes_tx was not increased
+--let $assert_text= rpl_semi_sync_source_yes_tx was not increased
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $yes_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--let $assert_cond= VARIABLE_VALUE = $yes_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_yes_tx"
 --enable_warnings
 --source include/assert.inc
 
---let $assert_text= rpl_semi_sync_master_no_tx was not increased
+--let $assert_text= rpl_semi_sync_source_no_tx was not increased
 --disable_warnings
---let $assert_cond= VARIABLE_VALUE = $no_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_master_no_tx"
+--let $assert_cond= VARIABLE_VALUE = $no_tx FROM performance_schema.global_status WHERE VARIABLE_NAME = "rpl_semi_sync_source_no_tx"
 --enable_warnings
 --source include/assert.inc
 
@@ -137,6 +137,6 @@ SET DEBUG_SYNC= "now SIGNAL end";
 SET DEBUG_SYNC= "RESET";
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 --source include/sync_slave_sql_with_master.inc

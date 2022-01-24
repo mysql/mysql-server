@@ -26,8 +26,8 @@ namespace xcom_view_ids_unittest {
 
 class XcomVIewIds : public GcsBaseTest {
  protected:
-  XcomVIewIds() {}
-  ~XcomVIewIds() override {}
+  XcomVIewIds() = default;
+  ~XcomVIewIds() override = default;
 };
 
 TEST_F(XcomVIewIds, CompareViewsTest) {

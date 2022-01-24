@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -33,6 +34,7 @@
 #include <NodeBitmask.hpp>
 #include <NdbSqlUtil.hpp>
 #include <BlockNumbers.h>
+#include "portlib/NdbSleep.h"
 
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -2691,7 +2693,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
   NdbNodeBitmask dbmask;
   // entry n marks if row with PK n exists
   char* rowmask = new char [rows];
-  memset(rowmask, 0, rows);
+  std::memset(rowmask, 0, rows);
   int loop = 0;
   while (loop < loops)
   {
@@ -2779,7 +2781,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
     // load all records
     g_err << "load records" << endl;
     CHECK2(trans.loadTable(pNdb, rows) == 0, trans.getNdbError());
-    memset(rowmask, 1, rows);
+    std::memset(rowmask, 1, rows);
     CHECK2(get_data_memory_pages(h, dbmask, &pages[3]) == NDBT_OK, "failed");
     g_err << "load records pages " << pages[3] << endl;
 
@@ -2819,7 +2821,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "delete records" << endl;
     CHECK2(trans.clearTable(pNdb) == 0, trans.getNdbError());
     memset(rowmask, 0, rows);
-    sleep(2);
+    NdbSleep_SecSleep(2);
     CHECK2(get_data_memory_pages(h, dbmask, &pages[4]) == NDBT_OK, "failed");
     g_err << "delete records pages " << pages[4] << endl;
 
@@ -2840,13 +2842,13 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
      * Even after dropping all rows, we might still have data memory pages
      * allocated for fragment page maps. So only after dropping both index
      * and tables can we rely on all memory allocated for a table to be
-     * dropped. But we can assume that create table, create index will not
-     * allocate any pages.
+     * dropped. But we can assume that create table will not allocate any pages.
+     * Create index on the other hand will allocate pages for auto index stats.
      */
     CHECK2(pages[1] == pages[0], "pages after create table " << pages[1]
                                   << " not == initial pages " << pages[0]);
-    CHECK2(pages[2] == pages[0], "pages after create index " << pages[2]
-                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[2] > pages[0], "pages after create index " << pages[2]
+                                  << " not > initial pages " << pages[0]);
     CHECK2(pages[3] >  pages[0], "pages after load " << pages[3]
                                   << " not >  initial pages " << pages[0]);
     CHECK2(pages[4] < pages[3], "pages after delete " << pages[4]
@@ -2890,7 +2892,7 @@ runBug12315582(NDBT_Context* ctx, NDBT_Step* step)
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
   Uint8 * pRow = new Uint8[len];
-  bzero(pRow, len);
+  std::memset(pRow, 0, len);
 
   HugoCalculator calc(* pTab);
   calc.equalForRow(pRow, pRowRecord, 0);
@@ -2910,7 +2912,7 @@ runBug12315582(NDBT_Context* ctx, NDBT_Step* step)
     code.finalise();
 
     NdbOperation::OperationOptions opts;
-    bzero(&opts, sizeof(opts));
+    std::memset(&opts, 0, sizeof(opts));
     opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
     opts.interpretedCode = &code;
 
@@ -2966,12 +2968,12 @@ runBug60851(NDBT_Context* ctx, NDBT_Step* step)
 
     code.finalise();
 
-    bzero(pRow, len);
+    std::memset(pRow, 0, len);
     HugoCalculator calc(* pTab);
     calc.equalForRow(pRow, pRowRecord, i);
 
     NdbOperation::OperationOptions opts;
-    bzero(&opts, sizeof(opts));
+    std::memset(&opts, 0, sizeof(opts));
     opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
     opts.interpretedCode = &code;
 
@@ -3069,13 +3071,13 @@ runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
       for (int rowNo = 0; rowNo < 100; rowNo++)
       {
         int rowId = rand() % rows;
-        bzero(pRow, len);
+        std::memset(pRow, 0, len);
 
         HugoCalculator calc(* pTab);
         calc.setValues(pRow, pRowRecord, rowId, rand());
 
         NdbOperation::OperationOptions opts;
-        bzero(&opts, sizeof(opts));
+        std::memset(&opts, 0, sizeof(opts));
         opts.optionsPresent =
           NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
 
@@ -3170,13 +3172,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
       }
       lastrow = rowId;
 
-      bzero(pRow, len);
+      std::memset(pRow, 0, len);
 
       HugoCalculator calc(* pTab);
       calc.setValues(pRow, pRowRecord, rowId, rand());
 
       NdbOperation::OperationOptions opts;
-      bzero(&opts, sizeof(opts));
+      std::memset(&opts, 0, sizeof(opts));
       if (deferred)
       {
         opts.optionsPresent =

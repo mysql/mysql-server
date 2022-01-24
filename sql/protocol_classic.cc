@@ -760,6 +760,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed system variable</td></tr>
@@ -774,7 +777,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
+  00 00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -786,6 +789,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed schema</td></tr>
@@ -798,7 +804,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  01 05 04 74 65 73 74
+  01 00 05 04 74 65 73 74
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -813,6 +819,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
   <td>is_tracked</td>
   <td>`0x31` ("1") if state tracking got enabled.</td></tr>
@@ -825,7 +834,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  03 02 01 31
+  03 02 00 01 31
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -2177,27 +2186,28 @@ int Protocol_classic::read_packet() {
       <td>ID of the prepared statement to execute</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>flags</td>
-      <td>Flags. See ::enum_cursor_type</td></tr>
+      <td>Flags. See @ref enum_cursor_type</td></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>iteration_count</td>
       <td>Number of times to execute the statement. Currently always 1.</td></tr>
-  <tr><td colspan="3">if num_params > 0 {</td></tr>
+  <tr><td colspan="3">if (num_params > 0 || (CLIENT_QUERY_ATTRIBUTES && (flags & PARAMETER_COUNT_AVAILABLE)) {</td></tr>
   <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
     <td>parameter_count</td>
     <td>The number of parameter metadata and values supplied.
-      Overrrides the count coming from prepare (num_params) if present.</td></tr>
+      Overrides the count coming from prepare (num_params) if present.</td></tr>
   <tr><td colspan="3">} -- if ::CLIENT_QUERY_ATTRIBUTES is on </td></tr>
+  <tr><td colspan="3">if (parameter_count > 0) {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>null_bitmap</td>
-      <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
+      <td>NULL bitmap, length= (paramater_count + 7) / 8</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>new_params_bind_flag</td>
       <td>Flag if parameters must be re-bound</td></tr>
   <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>parameter_type</td>
-    <td>Type of the paremeter value. See ::enum_field_type</td></tr>
+    <td>Type of the parameter value. See ::enum_field_type</td></tr>
   <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>parameter_name</td>
@@ -2207,7 +2217,8 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>parameter_values</td>
       <td>value of each parameter</td></tr>
-  <tr><td colspan="3">} -- if (num_params > 0)</td></tr>
+  <tr><td colspan="3">} -- if (parameter_count > 0)</td></tr>
+  <tr><td colspan="3">} -- if (num_params > 0 || (CLIENT_QUERY_ATTRIBUTES && (flags & PARAMETER_COUNT_AVAILABLE))</td></tr>
   </table>
 
   @par Example
@@ -2766,13 +2777,19 @@ static bool parse_query_bind_params(
         if (out_parameter_count) *out_parameter_count += 1;
         continue;
       }
+      assert(has_new_types || stmt_data);
+
+      /* check if the packet contains more parameters than expected */
+      if (!has_new_types && i >= stmt_data->param_count) return true;
+
       enum enum_field_types type =
           has_new_types ? params[i].type
-                        : stmt_data->param_array[i]->data_type_actual();
+                        : stmt_data->param_array[i]->data_type_source();
       if (type == MYSQL_TYPE_BOOL)
         return true;  // unsupported in this version of the Server
-      if (stmt_data && stmt_data->param_array[i]->param_state() ==
-                           Item_param::LONG_DATA_VALUE) {
+      if (stmt_data && i < stmt_data->param_count && stmt_data->param_array &&
+          stmt_data->param_array[i]->param_state() ==
+              Item_param::LONG_DATA_VALUE) {
         DBUG_PRINT("info", ("long data"));
         if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
           return true;
@@ -2850,7 +2867,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       read_pos += 4;
       packet_left -= 4;
       // Get execution flags
-      data->com_stmt_execute.open_cursor = static_cast<bool>(*read_pos);
+      data->com_stmt_execute.open_cursor = *read_pos;
       read_pos += 5;
       packet_left -= 5;
       DBUG_PRINT("info", ("stmt %lu", data->com_stmt_execute.stmt_id));
@@ -2865,8 +2882,15 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       /*
         If no statement found there's no need to generate error.
         It will be generated in sql_parse.cc which will check again for the id.
+        No need to bother with parsing the bind params if we know there's not
+        going to be any prepared statement params and the client doesn't do
+        query attributes or is not going to send param count for 0 params/QAs
       */
-      if (!stmt || stmt->param_count < 1) break;
+      if (!stmt ||
+          (stmt->param_count < 1 &&
+           (!this->has_client_capability(CLIENT_QUERY_ATTRIBUTES) ||
+            !(data->com_stmt_execute.open_cursor & PARAMETER_COUNT_AVAILABLE))))
+        break;
       if (parse_query_bind_params(
               m_thd, stmt->param_count, &data->com_stmt_execute.parameters,
               &data->com_stmt_execute.has_new_types,
@@ -3497,7 +3521,7 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   if (pos == nullptr) return true;
 
   int string_length = DECIMAL_MAX_STR_LENGTH + 1;
-  int error MY_ATTRIBUTE((unused)) =
+  int error [[maybe_unused]] =
       decimal2string(d, pos + 1, &string_length, prec, dec);
 
   // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.

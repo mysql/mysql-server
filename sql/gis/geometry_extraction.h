@@ -23,6 +23,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
+#include "my_sys.h"  // my_error
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/gis/geometries.h"
 #include "sql/sql_class.h"  // THD
@@ -73,23 +74,30 @@ class GeometryExtractionResult {
 /// of it and returns a value combining the result of the parsing process with
 /// the geometry in case it is a success.
 ///
-/// @param[in] str The Field or Item we want a geometry from.
+/// @param[in] fieldOrItem The Field or Item we want a geometry from.
 /// @param[in] thd THD* to report errors on
 /// @param[in] func_name C-string to report errors as.
 /// @returns GeometryExtractionResult which holds a result and an optional
 /// Geometry
 
-template <typename WithValStrMethod>
-GeometryExtractionResult ExtractGeometry(WithValStrMethod *str, THD *thd,
+template <typename FieldOrItem>
+GeometryExtractionResult ExtractGeometry(FieldOrItem *fieldOrItem, THD *thd,
                                          const char *func_name) {
   String backing_arg_wkb;
-  String *arg_wkb = str->val_str(&backing_arg_wkb);
+  if (fieldOrItem->result_type() != STRING_RESULT) {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name);
+    return GeometryExtractionResult(ResultType::Error);
+  }
+  if (fieldOrItem->is_null()) {
+    return GeometryExtractionResult(ResultType::NullValue);
+  }
+  String *arg_wkb = fieldOrItem->val_str(&backing_arg_wkb);
   if (thd->is_error()) {
     return GeometryExtractionResult(ResultType::Error);
   }
-
-  if (str->is_null() == true) {
-    return GeometryExtractionResult(ResultType::NullValue);
+  if (nullptr == arg_wkb) {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name);
+    return GeometryExtractionResult(ResultType::Error);
   }
 
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(

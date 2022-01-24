@@ -25,6 +25,8 @@
 #ifndef CONSOLELOGHANDLER_H
 #define CONSOLELOGHANDLER_H
 
+#include <time.h>
+
 #include "LogHandler.hpp"
 #include <NdbOut.hpp>
 

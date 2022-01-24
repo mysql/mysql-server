@@ -1,0 +1,118 @@
+################################################################################
+# Validate that SHOW statements which output does depend on data consistency
+# go through the `trans_begin` hook on Group Replication on server1.
+#
+# Test:
+#  0. The test requires one group member: M1.
+#  1. Bootstrap group on server1.
+#  2. Validate that a given SHOW statement goes through the
+#     `trans_begin` hook on Group Replication on server1.
+#  3. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+
+USE test;
+delimiter $$;
+CREATE PROCEDURE procedure1()
+     BEGIN
+     end$$
+delimiter ;$$
+
+CREATE FUNCTION function1() RETURNS INT RETURN (SELECT COUNT(*) FROM t1);
+
+delimiter $$;
+CREATE EVENT event1
+ ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ DO
+ BEGIN
+END$$
+delimiter ;$$
+
+DELIMITER |;
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  INSERT INTO t2 VALUES (NEW.c1);
+END|
+DELIMITER ;|
+
+
+--echo
+--echo ############################################################
+--echo # 2. Validate that a given SHOW statement goes through the
+--echo #    `trans_begin` hook on Group Replication on server1.
+--let $statement_to_hold= SHOW DATABASES
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW TABLES
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW INDEX FROM t1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW KEYS FROM t1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW GRANTS FOR CURRENT_USER()
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE DATABASE test
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW TABLE STATUS FROM test
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW TRIGGERS FROM test
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE PROCEDURE test.procedure1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE FUNCTION test.function1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW PROCEDURE CODE test.procedure1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW FUNCTION CODE test.function1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE EVENT test.event1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE TRIGGER test.trigger1
+--source ../include/gr_consistent_statement_hold.inc
+
+--let $statement_to_hold= SHOW CREATE USER CURRENT_USER()
+--source ../include/gr_consistent_statement_hold.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP PROCEDURE procedure1;
+DROP FUNCTION function1;
+DROP EVENT event1;
+DROP TRIGGER trigger1;
+DROP TABLE t2;
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

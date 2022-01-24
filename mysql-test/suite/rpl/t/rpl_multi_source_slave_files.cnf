@@ -14,7 +14,7 @@ sync_relay_log=10
 max-relay-log-size=1073741824
 relay-log=relaylog-msr
 relay-log-index=relaylog-msr.index
-sync-master-info=10
+sync-source-info=10
 master-info-file=master-msr.information
 relay-log-info-file=relaylog-msr.information
 

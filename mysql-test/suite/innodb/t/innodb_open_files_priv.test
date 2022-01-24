@@ -1,0 +1,163 @@
+# ******************************************************************************
+# This testcase is to test
+# with SUPER user privileges can change the limit of sysvar innodb_open_files
+# with SYSTEM_VARIABLES_ADMI can change the limit of sysvar innodb_open_files
+# with both above 2 privileges can change the limit of sysvar innodb_open_files
+# without both privileges can can change the limit of sysvar innodb_open_files
+# ******************************************************************************
+
+# This test requires a small amount of not easily closeable InnoDB files. The
+# UNDO tablespaces are such not easily closeable files, so we limit runs to ones
+# that use the default amount of such.
+--source include/have_innodb_default_undo_tablespaces.inc
+
+
+SET @start_global_value = @@GLOBAL.innodb_open_files;
+SELECT @start_global_value;
+
+# Check default user root privileges
+SHOW STATUS LIKE 'SYSTEM_VARIABLES_ADMIN';
+
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'SYSTEM_VARIABLES_ADMIN';
+
+# Check Default setting
+SELECT @@innodb_open_files;
+
+# Test SUPER privileges can change the limit
+
+# create a user
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '123';
+
+# Issue Grant SUPER Priv to user1
+GRANT SUPER ON *.* to 'user1'@'localhost';
+
+# Connect with user1
+--connect (con1,'localhost','user1','123',)
+
+# Check priv of user1
+SHOW GRANTS FOR 'user1'@'localhost';
+
+# Check SYSTEM_VARIABLES_ADMIN priv to user1
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'SYSTEM_VARIABLES_ADMIN';
+
+# Check Default value
+SELECT @@innodb_open_files ;
+
+# Set new value with Min
+SELECT innodb_set_open_files_limit(10);
+
+# Check value is set
+SELECT @@innodb_open_files ;
+
+--connection default
+
+--disconnect con1
+
+# clean up
+DROP USER 'user1'@'localhost';
+
+# Test user with SYSTEM_VARIABLES_ADMIN privileges can change the limit
+
+# create a user
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '123';
+
+# Issue Grant SYSTEM_VARIABLES_ADMIN Priv to user1
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'localhost';
+
+# Connect with user1
+--connect (con1,'localhost','user1','123',)
+
+# Check priv of user1
+SHOW GRANTS FOR 'user1'@'localhost';
+
+# Check SYSTEM_VARIABLES_ADMIN to user1
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'SYSTEM_VARIABLES_ADMIN';
+
+# Check value 10 is existing
+SELECT @@innodb_open_files ;
+
+# Set new value with Max
+SELECT innodb_set_open_files_limit(2147483647);
+
+# Check value is set
+SELECT @@innodb_open_files ;
+
+--connection default
+
+--disconnect con1
+
+# clean up
+DROP USER 'user1'@'localhost';
+
+# Test user with SUPER and SYSTEM_VARIABLES_ADMIN privileges can change the limit
+
+# create a user
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '123';
+
+# Grant SUPER Priv to user1
+GRANT SUPER ON *.* to 'user1'@'localhost';
+
+# Grant SYSTEM_VARIABLES_ADMI Priv to user1
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'localhost';
+
+# Connect with user1
+--connect (con1,'localhost','user1','123',)
+
+# Check priv of user1
+SHOW GRANTS FOR 'user1'@'localhost';
+
+# Check SYSTEM_VARIABLES_ADMIN to user1
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'SYSTEM_VARIABLES_ADMIN';
+
+# Check 2147483647 value exist
+SELECT @@innodb_open_files ;
+
+# Set new value with Default
+SELECT innodb_set_open_files_limit(4000);
+
+# Check value is set
+SELECT @@innodb_open_files ;
+
+--connection default
+
+--disconnect con1
+
+# clean up
+DROP USER 'user1'@'localhost';
+
+# Test user without SUPER and SYSTEM_VARIABLES_ADMIN privileges can change the limit
+
+# create a user
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '123';
+
+# Grant Priv to user1
+GRANT CREATE, SELECT, UPDATE, DELETE ON *.* TO 'user1'@'localhost';
+
+# Connect with user1
+--connect (con1,'localhost','user1','123',)
+
+# Check No such priv of user1
+SHOW GRANTS FOR 'user1'@'localhost';
+
+# Check No such Priv SYSTEM_VARIABLES_ADMIN to user1
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'SYSTEM_VARIABLES_ADMIN';
+
+# Check value 4000 is exist
+SELECT @@innodb_open_files ;
+
+# Set new value with Default
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT innodb_set_open_files_limit(6000);
+
+# Check value is set
+SELECT @@innodb_open_files ;
+
+--connection default
+
+--disconnect con1
+
+# clean up
+DROP USER 'user1'@'localhost';
+
+SELECT innodb_set_open_files_limit(@start_global_value);
+SELECT @@GLOBAL.innodb_open_files;

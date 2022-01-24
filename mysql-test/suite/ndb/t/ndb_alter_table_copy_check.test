@@ -1,0 +1,366 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_debug_sync.inc
+
+--echo Create an extra connection to server1
+connect (server1con2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--connection server1
+
+--echo Show that copying alter has some ability to detect when concurrent
+--echo changes are occuring to a source table as part of an alter.
+--echo This causes the alter to fail, avoiding silent data loss/corruption.
+--echo Concurrent modifications are made on a separate MySQLD to avoid
+--echo MDL effects.
+--echo Also show that harmless read-only references to the base table 
+--echo succeed and do not cause the ALTER to fail
+
+use test;
+create table cambridge (a int primary key, b int, c int, d int) engine=ndb;
+insert into cambridge values (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+
+create table oxford(a int primary key, b int, c text, d int) engine=ndb;
+insert into oxford values 
+  (1,1,repeat('B', 1000), 1),
+  (2,2,repeat('B', 1000), 2),
+  (3,3,repeat('B', 1000), 3),
+  (4,4,repeat('B', 1000), 4),
+  (5,5,repeat('B', 1000), 5);
+
+
+--echo -------------------------------------------------------
+--echo Test various concurrent modifications that should cause
+--echo copy failure for a copying alter drop column.
+--echo -------------------------------------------------------
+
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=UPDATE test.cambridge set c=c+1; # scanning
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=UPDATE test.cambridge set c=20 where a=2; # by pk
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=INSERT into test.cambridge values (6,6,6,6);
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=DELETE from test.cambridge where a=1;
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+--echo -------------------------------------------------------
+--echo Test various concurrent modifications that should cause
+--echo copy failure for a copying pk change
+--echo -------------------------------------------------------
+
+let alter_statement=ALTER TABLE test.cambridge drop primary key;
+let other_statement=UPDATE test.cambridge set c=c+1; # scanning
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+
+--echo --------------------------
+--echo FK cascading modifications
+--echo --------------------------
+--echo Ndb maintains inter-table FKs in the kernel, so that
+--echo changes in a different table can affect a table
+--echo undergoing a copying alter
+
+update cambridge set b=a;
+alter table cambridge add unique(b);
+
+# Setup FK via secondary keys allowing cascading update + delete...
+create table bristol
+  (a int primary key, b int, c int, 
+   foreign key (b) references cambridge (b) on update cascade on delete cascade)
+  engine=ndb;
+
+insert into bristol values (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+
+# Check that cascading FK update op causes child alter to fail
+
+let alter_statement=ALTER TABLE test.bristol drop column c;
+let other_statement=UPDATE test.cambridge set b=50 where a=5; 
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+# Check that cascading FK delete op causes child alter to fail
+
+let alter_statement=ALTER TABLE test.bristol drop column c;
+let other_statement=DELETE from test.cambridge where a=5;
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+
+drop table bristol;
+
+
+# TODO : More copying alters...
+# Partitioning, 
+
+--echo -----
+--echo Blobs
+--echo -----
+
+# A more interesting test would use NdbApi to update only the
+# parts rows of a blob, and check that this is treated as
+# a main table update.
+# MySQLD currently always overwrites the whole value
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=UPDATE test.oxford SET c=REPEAT('E',1000);
+let expected_alter_error=ER_TABLE_DEF_CHANGED;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+
+
+--echo -------------------------------------------------------
+--echo Test various concurrent operations that should not cause
+--echo copy failure for a copying alter drop column.
+--echo -------------------------------------------------------
+
+--echo Scanning SELECTs
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge order by a;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge order by a lock in share mode;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge order by a for update;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford order by a;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford order by a lock in share mode;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford order by a for update;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+--echo SELECT by PK
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge where a=3;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge where a=3 lock in share mode;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=SELECT a,b from test.cambridge where a=3 for update;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford where a=3;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford where a=3 lock in share mode;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=SELECT a,length(c) from test.oxford where a=3 for update;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+
+--echo NULL effect modifications
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=INSERT into test.cambridge values (2,2,2,2); # PK clash
+let expected_alter_error=0;
+let expected_other_error=ER_DUP_ENTRY;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=UPDATE test.cambridge set b=888 where a=888; # Null change
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=UPDATE test.cambridge set b=b; # Null change
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=DELETE from test.cambridge where a=888; # No such row
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=INSERT into test.oxford values (2,2,repeat('A', 1000),2); # PK clash
+let expected_alter_error=0;
+let expected_other_error=ER_DUP_ENTRY;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=UPDATE test.oxford set b=888 where a=888; # Null change
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=UPDATE test.oxford set c=c; # Null change
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+let alter_statement=ALTER TABLE test.oxford drop column d;
+let other_statement=DELETE from test.oxford where a=888; # No such row
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.oxford add column d int;
+
+--echo ------------------------------------------------
+--echo FK checks are unaffected by parent copying alter
+--echo ------------------------------------------------
+
+update cambridge set b=a;
+# Setup FK via secondary keys allowing cascading update + delete...
+create table bristol
+  (a int primary key, b int, c int, 
+   foreign key (b) references cambridge (b) on update cascade on delete cascade)
+  engine=ndb;
+
+select a from cambridge order by a;
+
+insert into bristol select a,a,a from cambridge;
+
+# Add new child row
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=INSERT INTO test.bristol values (40,4,40);
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+# Update child to refer to different parent row
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=UPDATE test.bristol set b=4 where b=2;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+# Delete child row(s)
+let alter_statement=ALTER TABLE test.cambridge drop column d;
+let other_statement=DELETE FROM test.bristol;
+let expected_alter_error=0;
+let expected_other_error=0;
+-- source suite/ndb/t/ndb_alter_table_copy_check.inc
+alter table test.cambridge add column d int;
+
+drop table bristol;
+
+--echo ---------------------------------------------------------
+--echo Show post-check exposure in copying alter check mechanism
+--echo ---------------------------------------------------------
+--echo Existing rows :
+update cambridge set c=a;
+select a,c from cambridge order by a;
+
+set DEBUG_SYNC= 'ndb.after_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+
+--send ALTER TABLE cambridge drop column d;
+
+--connection server1con2
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+
+--connection server2
+# Perform insert, update, delete
+insert into test.cambridge values 
+  (20,20,20,20),
+  (21,21,21,21),
+  (22,22,22,22),
+  (23,23,23,23);
+
+update test.cambridge set c=1000;
+delete from test.cambridge where a=6;
+
+--echo Committed table content :  
+select a,c from test.cambridge order by a;
+
+--connection server1con2
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+
+--connection server1
+# Expect error-free ALTER table
+--reap
+
+--echo Committed table content after ALTER
+--echo Changes have been lost
+select a,c from test.cambridge order by a;
+
+set DEBUG_SYNC='RESET';
+
+# TODO NdbAPI
+
+drop table oxford;
+drop table cambridge;

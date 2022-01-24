@@ -1,0 +1,88 @@
+Test nullable <-> not-null conversions in data restore in ndb_restore
+create table nullable_no_nulls (
+id int primary key,
+col1 int unsigned,
+col2 varchar(20),
+col3 text,
+col4 date) engine=ndb;
+create table nullable_with_nulls (
+id int primary key,
+col1 int unsigned,
+col2 varchar(20),
+col3 text,
+col4 date) engine=ndb;
+create table not_nullable_no_nulls (
+id int primary key,
+col1 int unsigned not null,
+col2 varchar(20) not null,
+col3 text not null,
+col4 date not null)engine=ndb;
+# run backup
+drop table nullable_no_nulls;
+drop table nullable_with_nulls;
+drop table not_nullable_no_nulls;
+# conversion from nullable -> not null with no NULLs in table
+create table nullable_no_nulls (
+id int primary key,
+col1 int unsigned not null,
+col2 varchar(20) not null,
+col3 text not null,
+col4 date not null)engine=ndb;
+# conversion from nullable -> not null with NULLs in table
+create table nullable_with_nulls (
+id int primary key not null,
+col1 int unsigned not null,
+col2 varchar(20) not null,
+col3 text not null,
+col4 date not null) engine=ndb;
+# conversion from not-null -> nullable
+create table not_nullable_no_nulls (
+id int primary key,
+col1 int unsigned,
+col2 varchar(20),
+col3 text,
+col4 date)engine=ndb;
+# cannot restore nullable->non-nullable without --lossy-conversions
+# can restore nullable->non-nullable if non-nullable col has no NULL values
+# cannot restore nullable->non-nullable if non-nullable col has NULL values
+# cannot restore not-null->non-nullable without --promote-attributes
+# can restore not-null->nullable
+select count(*) from nullable_no_nulls where col2=REPEAT("abcde", 4) and col3=REPEAT("XYZ", 2000) and col4="2021-04-01";
+count(*)
+100
+select count(*) from nullable_with_nulls;
+count(*)
+0
+select count(*) from not_nullable_no_nulls where col2=REPEAT("abcde", 4) and col3=REPEAT("XYZ", 2000) and col4="2021-04-01";
+count(*)
+100
+drop table nullable_no_nulls;
+drop table nullable_with_nulls;
+drop table not_nullable_no_nulls;
+Test nullable <-> not-null conversions in log replay in ndb_restore
+create table nullable (
+id int primary key,
+col1 int unsigned,
+col2 varchar(20),
+col3 text,
+col4 date) engine=ndb;
+Cause backup stall
+
+Starting backup
+Backup started
+update nullable set col2=NULL;
+
+Waiting for backup to complete
+Backup completed
+drop table nullable;
+# conversion from nullable -> not null
+create table nullable (
+id int primary key,
+col1 int unsigned not null,
+col2 varchar(20) not null,
+col3 text not null,
+col4 date not null)engine=ndb;
+# cannot restore nullable->non-nullable if backup log sets NULL values
+select * from nullable;
+id	col1	col2	col3	col4
+drop table nullable;

@@ -5,34 +5,34 @@ SELECT @@SESSION.generated_random_password_length;
 @@SESSION.generated_random_password_length
 20
 CREATE USER u1 IDENTIFIED BY RANDOM PASSWORD, u2 IDENTIFIED BY RANDOM PASSWORD, u3 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-u1	%	random
-u2	%	random
-u3	%	random
+user	host	generated password	auth_factor
+u1	%	random	1
+u2	%	random	1
+u3	%	random	1
 CREATE USER u4 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-u4	%	random
+user	host	generated password	auth_factor
+u4	%	random	1
 select current_user;
 current_user
 foo@%
 ** Verify that REPLACE-syntax works
-user	host	generated password
-foo	%	random
+user	host	generated password	auth_factor
+foo	%	random	1
 ** Verify that RETAIN-syntax works
-user	host	generated password
-foo	%	random
+user	host	generated password	auth_factor
+foo	%	random	1
 ** Verify that ALTER USER works as expected.
 select current_user;
 current_user
 foo@%
 ** Verify that REPLACE-syntax works
-user	host	generated password
-foo	%	random
+user	host	generated password	auth_factor
+foo	%	random	1
 SET PASSWORD FOR u1 = 'foo';
 ** Verify that it works for current user.
 SET PASSWORD TO RANDOM;
-user	host	generated password
-u1	%	random
+user	host	generated password	auth_factor
+u1	%	random	1
 SELECT CURRENT_USER();
 CURRENT_USER()
 u1@%
@@ -45,8 +45,8 @@ Password length
 66
 DROP USER u1,u2,u3,u4,foo;
 CREATE USER usr IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	random
+user	host	generated password	auth_factor
+usr	%	random	1
 Logged in successfully through usr
 SELECT CURRENT_USER();
 CURRENT_USER()
@@ -64,120 +64,120 @@ DROP USER usr1;
 
 #--Valid combinations/ syntaxes of RANDOM PASSWORD
 CREATE USER 'usr'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 ALTER USER 'usr'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 SET PASSWORD for 'usr'@'localhost' TO RANDOM;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 DROP USER 'usr'@'localhost';
 
 CREATE USER 'usr' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 ALTER USER 'usr' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 SET PASSWORD for 'usr' TO RANDOM;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER 'usr';
 
 CREATE USER 'usr'@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 ALTER USER 'usr'@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 SET PASSWORD for 'usr'@'%' TO RANDOM;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER 'usr'@'%';
 
 CREATE USER usr IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 ALTER USER usr IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 SET PASSWORD for usr TO RANDOM;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER usr;
 
 CREATE USER usr@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 ALTER USER usr@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 SET PASSWORD for usr@localhost TO RANDOM;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 DROP USER usr@localhost;
 
 CREATE USER usr@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 ALTER USER usr@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 SET PASSWORD for usr@'%' TO RANDOM;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER usr@'%';
 
 CREATE USER 'usr'@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 ALTER USER 'usr'@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 SET PASSWORD for 'usr'@localhost TO RANDOM;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 DROP USER 'usr'@localhost;
 
 CREATE USER usr@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 ALTER USER usr@'localhost' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 SET PASSWORD for usr@'localhost' TO RANDOM;
-user	host	generated password
-usr	localhost	#####
+user	host	generated password	auth_factor
+usr	localhost	#####	1
 DROP USER usr@'localhost';
 
 CREATE USER usr IDENTIFIED BY Random Password;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER usr;
 CREATE USER usr IDENTIFIED BY random password;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER usr;
 CREATE USER usr IDENTIFIED BY rANDOm PASSword;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 DROP USER usr;
 
 CREATE USER usr1 IDENTIFIED BY RANDOM PASSWORD,
 usr2 IDENTIFIED BY RANDOM PASSWORD,
 usr3 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr1	%	#####
-usr2	%	#####
-usr3	%	#####
+user	host	generated password	auth_factor
+usr1	%	#####	1
+usr2	%	#####	1
+usr3	%	#####	1
 ALTER USER usr1 IDENTIFIED BY RANDOM PASSWORD,
 usr2 IDENTIFIED BY RANDOM PASSWORD,
 usr3 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr1	%	#####
-usr2	%	#####
-usr3	%	#####
+user	host	generated password	auth_factor
+usr1	%	#####	1
+usr2	%	#####	1
+usr3	%	#####	1
 DROP USER usr1;
 DROP USER usr2;
 DROP USER usr3;
@@ -196,8 +196,8 @@ CREATE USER usr BY RANDOM PASSWORD;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BY RANDOM PASSWORD' at line 1
 
 CREATE USER 'usr'@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	######
+user	host	generated password	auth_factor
+usr	%	######	1
 
 ALTER USER usr IDENTIFIED BY RANDOM;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -219,8 +219,8 @@ ALTER USER usr IDENTIFIED BY RANDOM PASSWORD;
 ERROR HY000: Operation ALTER USER failed for 'usr'@'%'
 
 CREATE USER 'usr'@'%' IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	######
+user	host	generated password	auth_factor
+usr	%	######	1
 
 ALTER USER 'usr'@'localhost' IDENTIFIED BY RANDOM PASSWORD;
 ERROR HY000: Operation ALTER USER failed for 'usr'@'localhost'
@@ -233,8 +233,8 @@ DROP USER usr;
 
 #--CREATE temp user with RANDOM PASSWORD
 CREATE USER usr_temp IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr_temp	%	######
+user	host	generated password	auth_factor
+usr_temp	%	######	1
 #--CREATE user with RANDOM PASSWORD
 
 #--Login to usr with RANDOM PASSWORD
@@ -255,8 +255,8 @@ DROP USER usr_temp;
 
 #--CREATE temp user with RANDOM PASSWORD
 CREATE USER usr_temp IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr_temp	%	#####
+user	host	generated password	auth_factor
+usr_temp	%	#####	1
 
 #--CREATE user with RANDOM PASSWORD
 
@@ -275,18 +275,18 @@ usr@%
 #--Login to usr with RANDOM PASSWORD
 #--SET PASSWORD for user with RANDOM PASSWORD
 SET PASSWORD FOR usr_temp TO RANDOM;
-user	host	generated password
-usr_temp	%	#####
+user	host	generated password	auth_factor
+usr_temp	%	#####	1
 
 #--ALTER user with RANDOM PASSWORD
 ALTER USER usr_temp IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr_temp	%	#####
+user	host	generated password	auth_factor
+usr_temp	%	#####	1
 
 #--CREATE tempuser with RANDOM PASSWORD
 CREATE USER usr_ntemp IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr_ntemp	%	#####
+user	host	generated password	auth_factor
+usr_ntemp	%	#####	1
 #--Disconnect from usr ...
 
 #--ALTER user with RANDOM PASSWORD
@@ -309,8 +309,8 @@ DROP USER usr_temp;
 DROP USER usr_ntemp;
 
 CREATE USER usr_temp IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr_temp	%	#####
+user	host	generated password	auth_factor
+usr_temp	%	#####	1
 GRANT INSERT ON *.* TO usr_temp;
 FLUSH PRIVILEGES;
 
@@ -358,8 +358,8 @@ usr@%
 #--Disconnect from usr ...
 DROP USER usr;
 CREATE USER usr@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	######
+user	host	generated password	auth_factor
+usr	localhost	######	1
 #-----------------------------------------------------------------------
 # RETAIN CURRENT PASSWORD with ALTER USER and SET PASSWORD
 #-----------------------------------------------------------------------
@@ -449,8 +449,8 @@ DROP USER usr@localhost;
 #-----------------------------------------------------------------------
 
 CREATE USER usr IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	%	#####
+user	host	generated password	auth_factor
+usr	%	#####	1
 
 #--Logged in successfully through usr
 select CURRENT_USER();
@@ -480,10 +480,10 @@ DROP USER usr;
 #-----------------------------------------------------------------------
 
 CREATE USER usr1@localhost IDENTIFIED BY RANDOM PASSWORD, usr2@localhost IDENTIFIED BY RANDOM PASSWORD, usr3@localhost IDENTIFIED BY RANDOM PASSWORD ;
-user	host	generated password
-usr1	localhost	######
-usr2	localhost	######
-usr3	localhost	######
+user	host	generated password	auth_factor
+usr1	localhost	######	1
+usr2	localhost	######	1
+usr3	localhost	######	1
 
 #--Logged in successfully through usr1
 SELECT CURRENT_USER();
@@ -545,19 +545,19 @@ SET GLOBAL general_log_file = 'MYSQLTEST_VARDIR/log/random_password_general.log'
 SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL general_log=       'ON';
 CREATE USER usr@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	######
+user	host	generated password	auth_factor
+usr	localhost	######	1
 ALTER USER usr@localhost IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr	localhost	######
+user	host	generated password	auth_factor
+usr	localhost	######	1
 
 #--Logged in successfully through usr
 SELECT CURRENT_USER();
 CURRENT_USER()
 usr@localhost
 SET PASSWORD TO RANDOM;
-user	host	generated password
-usr	localhost	######
+user	host	generated password	auth_factor
+usr	localhost	######	1
 #--Disconnect from usr ...
 
 
@@ -578,27 +578,28 @@ DROP USER usr@localhost;
 SET GLOBAL general_log_file = @old_general_log_file;
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log= @old_general_log;
+TRUNCATE TABLE mysql.general_log;
 #-----------------------------------------------------------------------
 # Binary log
 #-----------------------------------------------------------------------
 include/save_binlog_position.inc
 CREATE USER usr1 IDENTIFIED BY RANDOM PASSWORD, usr2 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr1	%	#####
-usr2	%	#####
+user	host	generated password	auth_factor
+usr1	%	#####	1
+usr2	%	#####	1
 # This event sequence pattern MUST be present in binlog: !Q(CREATE USER.*usr1.*usr2.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
 ALTER USER usr1 IDENTIFIED BY RANDOM PASSWORD, usr2 IDENTIFIED BY RANDOM PASSWORD;
-user	host	generated password
-usr1	%	#####
-usr2	%	#####
+user	host	generated password	auth_factor
+usr1	%	#####	1
+usr2	%	#####	1
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*usr1.*usr2.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
 SET PASSWORD FOR usr1 TO RANDOM;
-user	host	generated password
-usr1	%	#####
+user	host	generated password	auth_factor
+usr1	%	#####	1
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*usr1.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc

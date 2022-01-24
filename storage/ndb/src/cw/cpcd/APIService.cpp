@@ -400,7 +400,6 @@ void CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
 
   m_output->println("show version");
 
-  m_output->println("compile time: %s %s", __DATE__, __TIME__);
   m_output->println("supported protocol: %u", CPCD::CPC_PROTOCOL_VERSION);
   m_output->println("effective protocol: %u", m_protocol_version);
   m_output->println("%s", "");

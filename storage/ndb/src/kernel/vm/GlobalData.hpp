@@ -26,6 +26,7 @@
 #define GLOBAL_DATA_H
 
 #include <ndb_global.h>
+#include <cstring>
 #include <kernel_types.h>
 #include "Prio.hpp"
 #include "VMSignal.hpp"
@@ -130,7 +131,7 @@ struct GlobalData {
     theBufferFullMicrosSleep = 0;
     theMicrosSend = 0;
     theMicrosSpin = 0;
-    bzero(m_hb_count, sizeof(m_hb_count));
+    std::memset(m_hb_count, 0, sizeof(m_hb_count));
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif

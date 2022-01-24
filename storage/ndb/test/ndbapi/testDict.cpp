@@ -8944,6 +8944,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       // Fall through - only system restart possible with one node
+      [[fallthrough]];
     case 1:
     {
       ndbout_c("performing system restart");

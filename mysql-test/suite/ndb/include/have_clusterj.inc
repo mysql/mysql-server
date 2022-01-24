@@ -51,8 +51,7 @@ my $clusterj_test_jar = my_find_file($bindir,
 
 # The expected installation locations are lib, lib/mysql, lib64/mysql, lib/x86_64-linux-gnu
 my $ndbclient_lib = my_find_file($bindir,
-                                ["storage/ndb/src/.libs", 
-                                 "library_output_directory",
+                                ["library_output_directory",
                                  "lib*/*",
                                  "lib"],
                                 ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],

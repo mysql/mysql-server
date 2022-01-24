@@ -249,30 +249,6 @@ class Event_reader {
   }
 
   /**
-    Reads a basic type - bool, char, int, long, double, etc - from the buffer,
-    moves the cursor forward the number of bytes returned by sizeof(T)) and
-    returns the read value.
-
-    @retval value the T read from the cursor position.
-    @retval 0 if the cursor was out of buffer boundaries.
-  */
-  template <class T>
-  T read() {
-    PRINT_READER_STATUS("Event_reader::read");
-    if (!can_read(sizeof(T))) {
-      set_error("Cannot read from out of buffer bounds");
-      BAPI_PRINT("debug", ("Event_reader::tread(): "
-                           "sizeof()= %zu",
-                           sizeof(T)));
-      return 0;
-    }
-    T value = 0;
-    value = (T) * (m_ptr);
-    m_ptr = m_ptr + sizeof(T);
-    return value;
-  }
-
-  /**
     Copies a basic type - bool, char, int, long, double, etc - from the buffer,
     moves the cursor forward the number of bytes returned by sizeof(T)) and
     returns the copied value.
@@ -310,11 +286,11 @@ class Event_reader {
               to allocate to the new string..
   */
   template <typename T>
-  T read_and_letoh(unsigned char bytes = sizeof(T)) {
-    PRINT_READER_STATUS("Event_reader::read_and_letoh");
+  T read(unsigned char bytes = sizeof(T)) {
+    PRINT_READER_STATUS("Event_reader::read");
     if (!can_read(bytes)) {
       set_error("Cannot read from out of buffer bounds");
-      BAPI_PRINT("debug", ("Event_reader::read_and_letoh(): "
+      BAPI_PRINT("debug", ("Event_reader::read(): "
                            "sizeof()= %zu, bytes= %u",
                            sizeof(T), bytes));
       return 0;
@@ -322,7 +298,7 @@ class Event_reader {
     T value = 0;
     ::memcpy((char *)&value, m_ptr, bytes);
     m_ptr = m_ptr + bytes;
-    return letoh(value);
+    return (bytes > 1) ? letoh(value) : value;
   }
 
   /**
@@ -485,7 +461,7 @@ class Event_reader {
   const char *m_error;
 
   /**
-    Wrapper to le16toh to be used by read_and_letoh function.
+    Wrapper to le16toh to be used by read function.
 
     @param[in] value the value to be converted.
 
@@ -494,7 +470,7 @@ class Event_reader {
   uint16_t letoh(uint16_t value) { return le16toh(value); }
 
   /**
-    Wrapper to le32toh to be used by read_and_letoh function.
+    Wrapper to le32toh to be used by read function.
 
     @param[in] value the value to be converted.
 
@@ -503,7 +479,7 @@ class Event_reader {
   int32_t letoh(int32_t value) { return le32toh(value); }
 
   /**
-    Wrapper to le32toh to be used by read_and_letoh function.
+    Wrapper to le32toh to be used by read function.
 
     @param[in] value the value to be converted.
 
@@ -512,7 +488,7 @@ class Event_reader {
   uint32_t letoh(uint32_t value) { return le32toh(value); }
 
   /**
-    Wrapper to le64toh to be used by read_and_letoh function.
+    Wrapper to le64toh to be used by read function.
 
     @param[in] value the value to be converted.
 
@@ -521,7 +497,7 @@ class Event_reader {
   int64_t letoh(int64_t value) { return le64toh(value); }
 
   /**
-    Wrapper to le64toh to be used by read_and_letoh function.
+    Wrapper to le64toh to be used by read function.
 
     @param[in] value the value to be converted.
 

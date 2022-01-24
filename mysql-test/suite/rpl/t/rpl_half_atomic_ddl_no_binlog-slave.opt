@@ -1,1 +1,1 @@
---skip-log-bin --relay_log_info_repository=TABLE --skip-log-slave-updates --force-restart
+--skip-log-bin --relay_log_info_repository=TABLE --skip-log-replica-updates --force-restart

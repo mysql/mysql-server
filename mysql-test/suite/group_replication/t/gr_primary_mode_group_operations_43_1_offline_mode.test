@@ -38,6 +38,7 @@ call mtr.add_suppression("A configuration change was killed in this member. The 
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
 call mtr.add_suppression("Error while executing a group configuration operation: This operation ended in error as it was not possible to wait for the execution of the plugin queued transactions");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 
 set session sql_log_bin=1;
 

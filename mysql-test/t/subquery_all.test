@@ -1,11 +1,5 @@
 # ER_STACK_OVERRUN_NEED_MORE does not currenly work well with TSan
 --source include/not_tsan.inc
-
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
 CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 

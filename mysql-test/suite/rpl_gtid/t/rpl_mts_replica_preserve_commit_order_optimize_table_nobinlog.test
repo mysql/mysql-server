@@ -1,0 +1,61 @@
+# ==== Purpose ====
+#
+# Verifies that replica-preserve-commit-order preserves the commit order with
+# slave binlog enabled for OPTIMIZE TABLE query even for those cases
+# where applier worker threads are not logging the changes to the
+# replicas binary log.
+#
+# ==== Implementation ====
+#
+# 1. We start replica (server2) with the binary log turned off (--log-bin=OFF)
+#    and applier threads are not logging to its own binary log
+#    (--log-replica-updates=OFF). Replica also has replica_preserve_commit_order
+#    enabled and running with 2 applier workers.
+#
+# 2. On slave, we add the same first insert statement which will be applied on
+#    master in step 3, but we do not commit it, to take a lock on row and block
+#    slave sql thread when transaction are applied on master in setp 3.
+#
+# 3. The master generates some transactions which can be applied in parallel,
+#    which also include OPTIMIZE TABLE query, by setting same commit parents
+#    for all the inserts.
+#
+# 4. On slave, we verify that all the other inserts are also blocked and waiting
+#    for first insert to commit i.e. applier threads are in stage 'Waiting for
+#    preceding transaction to commit' and their is no data in table except first
+#    insert.
+#
+# 5. On slave, we rollback the insert executed in step 2, and verify the
+#    transactions applied in step 3 are applied successfully.
+#
+# 6. Cleanup.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/only_mts_replica_parallel_workers.inc
+--let $rpl_gtid_utils = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+--let $mts_replica_parallel_workers= 8
+--let $mts_num_preceding_trans= 6
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; OPTIMIZE TABLE t2; BEGIN; INSERT INTO t1 VALUES (4); COMMIT;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = DROP TABLE t1; DROP TABLE t2;
+--let $mts_spco_cleanup_statement = 1
+
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc

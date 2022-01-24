@@ -19,7 +19,7 @@ INSERT INTO t1 VALUES (3);
 # and gtid_mode on. If the server scans more than one binary log in
 # every iteration, it will cause read error on the 2nd and 3rd files.
 #
-# restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+# restart:--gtid-mode=on --enforce-gtid-consistency --log-replica-updates --binlog-gtid-simple-recovery=ON
 #
 # Verify that GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED are empty
 # after server restarts.
@@ -38,7 +38,7 @@ DROP TABLE t1;
 # log in every iteration, it will cause read error on the 2nd and
 # 4th files.
 #
-# restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+# restart:--gtid-mode=on --enforce-gtid-consistency --log-replica-updates --binlog-gtid-simple-recovery=ON
 #
 # Verify that GLOBAL.GTID_EXECUTED contains committed gtid MASTER_UUID:1
 # and GLOBAL.GTID_PURGED is empty after server restarts again.

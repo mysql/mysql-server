@@ -1,6 +1,6 @@
 ###############################################################################
 # Bug #19975697 SLAVE IO_THREAD MAY GET STUCK WHEN USING GTID AND LOW
-# SLAVE_NET_TIMEOUTS
+# REPLICA_NET_TIMEOUTS
 #
 # Problem: Dump thread is not checking the necessity of heartbeat event
 #  while it is scanning through the binary log files and skipping some groups
@@ -17,11 +17,11 @@
 --let $rpl_skip_start_slave=1;
 --source include/master-slave.inc
 
-# set slave_net_timeout to 10 seconds and then start slave threads
+# set replica_net_timeout to 10 seconds and then start slave threads
 --connection slave
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=5;
-SET @save_old_slave_net_timeout=@@global.slave_net_timeout;
-SET @@global.slave_net_timeout=10;
+SET @save_old_replica_net_timeout=@@global.replica_net_timeout;
+SET @@global.replica_net_timeout=10;
 --source include/start_slave.inc
 # In order to reproduce the bug with a smaller test data,
 # inject 2 seconds delay after an skipped event.
@@ -59,7 +59,7 @@ DROP TABLE t1;
 # it does not have recent gtid transaction(drop table) and Master
 # should send that transaction to Slave. This detection will take
 # 12 seconds because of the injected 2 seconds delay after every skipped
-# event (Please see above) which is more than the slave_net_timeout.
+# event (Please see above) which is more than the replica_net_timeout.
 # But now, after the fix, the server will check for necessity of sending an
 # heartbeat event even while it is skipping the events, the below
 # sync should not be timed out after the fix.
@@ -70,5 +70,5 @@ DROP TABLE t1;
 --connection master
 SET GLOBAL DEBUG=@save_debug;
 --connection slave
-SET @@global.slave_net_timeout=@save_old_slave_net_timeout;
+SET @@global.replica_net_timeout=@save_old_replica_net_timeout;
 --source include/rpl_end.inc

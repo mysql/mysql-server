@@ -50,7 +50,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 include/check_slave_no_error.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -86,7 +86,7 @@ START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -126,7 +126,7 @@ a	b
 2	master only
 3	master/slave
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
@@ -169,7 +169,7 @@ a	b
 6	master only
 7	master only
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=11;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=11;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
@@ -215,7 +215,7 @@ a	b
 6	master only
 7	master only
 *** On Slave ***
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=2;
 include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b

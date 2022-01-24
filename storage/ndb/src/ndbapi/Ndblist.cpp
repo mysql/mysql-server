@@ -512,7 +512,7 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
   } else if (ret_code == -5) {
     TRACE_DEBUG("Node stopping when TCRELEASE sent");
   } else {
-    ndbout << "Impossible return from sendRecSignal when TCRELEASE" << endl;
+    g_eventLogger->info("Impossible return from sendRecSignal when TCRELEASE");
     abort();
   }//if
   releaseNdbCon(a_con);

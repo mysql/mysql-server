@@ -144,7 +144,7 @@ que_fork_t *que_fork_create(
 
   fork->graph = (graph != nullptr) ? graph : fork;
 
-  UT_LIST_INIT(fork->thrs, &que_thr_t::thrs);
+  UT_LIST_INIT(fork->thrs);
 
   return (fork);
 }
@@ -217,8 +217,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
 }
 
 /** Inits a query thread for a command. */
-UNIV_INLINE
-void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
+static inline void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
 {
   thr->run_node = thr;
   thr->prev_node = thr->common.parent;
@@ -276,7 +275,6 @@ que_thr_t *que_fork_scheduler_round_robin(
  caller */
 que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 {
-  que_thr_t *thr;
   que_thr_t *suspended_thr = nullptr;
   que_thr_t *completed_thr = nullptr;
 
@@ -298,8 +296,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 
   /* We make a single pass over the thr list within which we note which
   threads are ready to run. */
-  for (thr = UT_LIST_GET_FIRST(fork->thrs); thr != nullptr;
-       thr = UT_LIST_GET_NEXT(thrs, thr)) {
+  for (auto thr : fork->thrs) {
     switch (thr->state) {
       case QUE_THR_COMMAND_WAIT:
 
@@ -333,7 +330,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
         ut_error;
     }
   }
-
+  que_thr_t *thr;
   if (suspended_thr) {
     thr = suspended_thr;
     que_thr_move_to_run_state(thr);
@@ -511,7 +508,7 @@ void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
                                   afterwards! */
 {
   ut_ad(graph);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (graph->sym_tab) {
     /* The following call frees dynamic memory allocated
@@ -785,7 +782,7 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
 #ifdef UNIV_DEBUG
 /** Gets information of an SQL query graph node.
 @return type description */
-static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
+[[nodiscard]] static const char *que_node_type_string(
     const que_node_t *node) /*!< in: query graph node */
 {
   switch (que_node_get_type(node)) {
@@ -837,8 +834,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
 /** Performs an execution step on a query thread.
  @return query thread to run next: it may differ from the input
  parameter if, e.g., a subprocedure call is made */
-UNIV_INLINE
-que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
 {
   que_node_t *node;
   que_thr_t *old_thr;
@@ -1045,7 +1041,6 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
                      dict_sys->mutex around call to pars_sql. */
                      trx_t *trx) /*!< in: trx */
 {
-  que_thr_t *thr;
   que_t *graph;
 
   DBUG_TRACE;
@@ -1064,7 +1059,8 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
 
   graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-  ut_a(thr = que_fork_start_command(graph));
+  auto thr = que_fork_start_command(graph);
+  ut_a(thr);
 
   que_run_threads(thr);
 

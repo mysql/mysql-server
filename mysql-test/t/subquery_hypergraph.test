@@ -1,0 +1,17 @@
+--source include/have_hypergraph.inc
+
+--echo #
+--echo # Bug#33280189: Hypergraph: Some subqueries are evaluated
+--echo #               during optimization
+--echo #
+
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2);
+ANALYZE TABLE t;
+# Used to evaluate the subquery and fail. Should only produce the plan.
+--replace_regex / *\(cost=.*//
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE (SELECT x FROM t);
+# The error should not be raised until the query is executed.
+--error ER_SUBQUERY_NO_1_ROW
+SELECT * FROM t WHERE (SELECT x FROM t);
+DROP TABLE t;

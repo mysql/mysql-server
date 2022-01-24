@@ -1,6 +1,7 @@
 --source include/big_test.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 --echo #
 --echo # BUG 31222046 - .IDB GROWS INDEFENITELY (BUG #96466 WITH REPLACE)

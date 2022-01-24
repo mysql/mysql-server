@@ -311,6 +311,9 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysql.replication_asynchronous_connection_failover;
 
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_reset();
+
 --disconnect connect_async
 
 
@@ -330,6 +333,8 @@ connect(connect_async, localhost, async_user, pass);
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
 
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
+
+SELECT asynchronous_connection_failover_reset();
 
 --disconnect connect_async
 

@@ -32,7 +32,7 @@ class sp_name;
 template <class T>
 class mem_root_deque;
 
-class Sql_cmd_call : public Sql_cmd_dml {
+class Sql_cmd_call final : public Sql_cmd_dml {
  public:
   explicit Sql_cmd_call(sp_name *proc_name_arg,
                         mem_root_deque<Item *> *prog_args_arg)

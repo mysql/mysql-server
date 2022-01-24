@@ -30,6 +30,15 @@
 # @@secure_file_priv. That makes this more complex than you might
 # expect.
 
+--let $_wvtf_include_silent_save = $include_silent
+--let $include_silent = 1
+--let $include_filename = include/write_var_to_file.inc
+--source include/begin_include_file.inc
+--let $include_silent = $_wvtf_include_silent_save
+
+--disable_result_log
+--disable_query_log
+
 if (!$write_to_file)
 {
   --die You must set the mysqltest variable \$write_to_file before you source include/write_var_to_file.inc
@@ -58,3 +67,6 @@ if (`SELECT LENGTH(@@secure_file_priv) = 0`)
 {
   --eval SELECT '$write_var' INTO DUMPFILE '$write_to_file'
 }
+
+--let $include_filename = include/write_var_to_file.inc
+--source include/end_include_file.inc

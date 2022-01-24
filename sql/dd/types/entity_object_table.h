@@ -47,7 +47,7 @@ class Raw_record;
 */
 class Entity_object_table : virtual public Object_table {
  public:
-  ~Entity_object_table() override {}
+  ~Entity_object_table() override = default;
 
   virtual Entity_object *create_entity_object(
       const Raw_record &record) const = 0;

@@ -29,7 +29,7 @@
 
 #include "mysql/harness/tls_client_context.h"
 #include "mysqlrouter/http_client_export.h"
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 
 struct evhttp_connection;
 struct event_base;

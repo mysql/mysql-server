@@ -25,11 +25,11 @@
 #ifndef PASSWORD_OPTION_INCLUDED
 #define PASSWORD_OPTION_INCLUDED
 
+#include <optional>
 #include <string>
 
 #include "client/base/abstract_string_option.h"
 #include "my_getopt.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -49,8 +49,9 @@ class Password_option : public Abstract_string_option<Password_option> {
       --name.
     @param description Description of option to be printed in --help.
    */
-  Password_option(Nullable<std::string> *value, std::string name,
+  Password_option(std::optional<std::string> *value, std::string name,
                   std::string description);
+  ~Password_option();
 
  private:
   void password_callback(char *);

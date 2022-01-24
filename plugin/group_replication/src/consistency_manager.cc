@@ -49,7 +49,8 @@ Transaction_consistency_info::Transaction_consistency_info(
   assert(nullptr != m_members_that_must_prepare_the_transaction);
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d",
        m_thread_id, m_local_transaction, m_sidno, m_gno, m_sid_specified,
@@ -111,7 +112,8 @@ int Transaction_consistency_info::after_applier_prepare(
 
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d; "
        "member_status: %d",
@@ -163,7 +165,8 @@ int Transaction_consistency_info::handle_remote_prepare(
   DBUG_TRACE;
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d",
        m_thread_id, m_local_transaction, m_sidno, m_gno, m_sid_specified,
@@ -206,7 +209,8 @@ int Transaction_consistency_info::handle_member_leave(
 
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d; "
        "error: %d",
@@ -257,7 +261,8 @@ void Transaction_consistency_manager::clear() {
   m_new_transactions_waiting.clear();
 
   while (!m_delayed_view_change_events.empty()) {
-    delete m_delayed_view_change_events.front();
+    auto element = m_delayed_view_change_events.front();
+    delete element.first;
     m_delayed_view_change_events.pop_front();
   }
   m_delayed_view_change_events.clear();
@@ -296,6 +301,7 @@ int Transaction_consistency_manager::after_certification(
 
   std::pair<typename Transaction_consistency_manager_map::iterator, bool> ret =
       m_map.insert(Transaction_consistency_manager_pair(key, transaction_info));
+  if (transaction_info->is_local_transaction()) m_last_local_transaction = key;
   if (ret.second == false) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
@@ -305,10 +311,10 @@ int Transaction_consistency_manager::after_certification(
     /* purecov: end */
   }
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   m_map_lock->unlock();
   return error;
@@ -344,10 +350,10 @@ int Transaction_consistency_manager::after_applier_prepare(
     /* purecov: end */
   }
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   // Mark the transaction as prepared for consistent reads.
   m_prepared_transactions_on_my_applier_lock->wrlock();
@@ -460,12 +466,40 @@ int Transaction_consistency_manager::handle_remote_prepare(
 
   Transaction_consistency_info *transaction_info = it->second;
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   int result = transaction_info->handle_remote_prepare(gcs_member_id);
+
+  if (transaction_info->is_transaction_prepared_locally()) {
+    auto it = m_delayed_view_change_events.begin();
+    while (it != m_delayed_view_change_events.end()) {
+      Transaction_consistency_manager_key view_key = it->second;
+      /*
+        Check if there is pending view change procesing post the current
+        transaction. If so, process all view changes which were queued post the
+        current transaction.
+      */
+      if (view_key == key) {
+        Pipeline_event *pevent = it->first;
+        Continuation cont;
+        pevent->set_delayed_view_change_resumed();
+        int error = applier_module->inject_event_into_pipeline(pevent, &cont);
+        if (!cont.is_transaction_discarded()) {
+          delete pevent;
+        }
+        m_delayed_view_change_events.erase(it++);
+        if (error) {
+          abort_plugin_process("unable to log the View_change_log_event");
+        }
+      } else {
+        ++it;
+      }
+    }
+  }
+
   if (CONSISTENCY_INFO_OUTCOME_ERROR == result) {
     /* purecov: begin inspected */
     m_map_lock->unlock();
@@ -517,7 +551,7 @@ int Transaction_consistency_manager::handle_member_leave(
 int Transaction_consistency_manager::after_commit(my_thread_id, rpl_sidno sidno,
                                                   rpl_gno gno) {
   DBUG_TRACE;
-  DBUG_PRINT("info", ("gtid: %d:%llu", sidno, gno));
+  DBUG_PRINT("info", ("gtid: %d:%" PRId64, sidno, gno));
   int error = 0;
 
   // Only acquire a write lock if really needed.
@@ -589,8 +623,7 @@ int Transaction_consistency_manager::before_transaction_begin(
 
 int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     my_thread_id thread_id,
-    enum_group_replication_consistency_level consistency_level
-        MY_ATTRIBUTE((unused)),
+    enum_group_replication_consistency_level consistency_level [[maybe_unused]],
     ulong timeout) const {
   DBUG_TRACE;
   assert(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
@@ -633,10 +666,22 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     /* purecov: end */
   }
 
-  DBUG_PRINT("info", ("waiting for channel_wait_until_apply_queue_applied()"));
+  std::string applier_retrieved_gtids;
+  Replication_thread_api applier_channel("group_replication_applier");
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_SET_EXTRACT_ERROR);
+    return ER_GRP_TRX_CONSISTENCY_BEFORE;
+  }
 
-  if (channel_wait_until_apply_queue_applied("group_replication_applier",
-                                             timeout) < 0) {
+  DBUG_PRINT("info", ("waiting for wait_for_gtid_set_committed()"));
+
+  /*
+    We want to keep the current thd stage info of
+    "Executing hook on transaction begin.", thence we disable
+    `update_thd_status`.
+  */
+  if (wait_for_gtid_set_committed(applier_retrieved_gtids.c_str(), timeout,
+                                  false /* update_thd_status */)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED,
                  thread_id);
@@ -749,13 +794,13 @@ bool Transaction_consistency_manager::has_local_prepared_transactions() {
 int Transaction_consistency_manager::schedule_view_change_event(
     Pipeline_event *pevent) {
   DBUG_TRACE;
-  Transaction_consistency_manager_key key(-1, -1);
-
-  m_prepared_transactions_on_my_applier_lock->wrlock();
-  m_prepared_transactions_on_my_applier.push_back(key);
-  m_delayed_view_change_events.push_back(pevent);
-  m_prepared_transactions_on_my_applier_lock->unlock();
-
+#ifndef NDEBUG
+  m_map_lock->rdlock();
+  assert(!m_map.empty());
+  m_map_lock->unlock();
+#endif
+  m_delayed_view_change_events.push_back(
+      std::make_pair(pevent, m_last_local_transaction));
   return 0;
 }
 
@@ -764,7 +809,7 @@ int Transaction_consistency_manager::remove_prepared_transaction(
   DBUG_TRACE;
   int error = 0;
 
-  DBUG_PRINT("info", ("gtid: %d:%llu", key.first, key.second));
+  DBUG_PRINT("info", ("gtid: %d:%" PRId64, key.first, key.second));
 
   m_prepared_transactions_on_my_applier_lock->wrlock();
   if (key.first > 0 && key.second > 0) {
@@ -793,22 +838,6 @@ int Transaction_consistency_manager::remove_prepared_transaction(
             key.first, key.second, waiting_thread_id);
         error = 1;
         /* purecov: end */
-      }
-    } else if (-1 == next_prepared.first && -1 == next_prepared.second) {
-      assert(!m_delayed_view_change_events.empty());
-      /*
-        This is a view change that was waiting for prepared
-        transactions completion, now it is time to log it.
-      */
-      m_prepared_transactions_on_my_applier.pop_front();
-      Pipeline_event *pevent = m_delayed_view_change_events.front();
-      m_delayed_view_change_events.pop_front();
-
-      Continuation cont;
-      int error = applier_module->inject_event_into_pipeline(pevent, &cont);
-      delete pevent;
-      if (error) {
-        abort_plugin_process("unable to log the View_change_log_event");
       }
     } else {
       break;

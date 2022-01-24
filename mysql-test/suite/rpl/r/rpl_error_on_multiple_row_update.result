@@ -1,0 +1,44 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @old_binlog_row_value_options= @@session.BINLOG_ROW_VALUE_OPTIONS;
+SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+[connection slave]
+SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+CREATE TABLE t1 (a INT UNIQUE KEY, b JSON);
+INSERT INTO t1 VALUES (1, '{ "long string": "long string", "x": 2}');
+CREATE TABLE t2 (a INT);
+CREATE FUNCTION f () RETURNS INT BEGIN
+UPDATE t1 SET a = 3, b = JSON_SET(b, '$.x', 3);
+UPDATE t1 SET a = 2;
+UPDATE t1 SET a = 4;
+RETURN 1;
+END|
+BEGIN;
+INSERT INTO t2 VALUES (f());
+COMMIT;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+Variable_name	Value
+Slave_rows_last_search_algorithm_used	HASH_SCAN
+SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP FUNCTION f;
+include/rpl_end.inc

@@ -7,12 +7,10 @@ SET @binlog_transaction_dependency_tracking_save = @@GLOBAL.binlog_transaction_d
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 1. WRITESET ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	3
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -41,12 +39,10 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 2. WRITESET_SESSION ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	3
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET_SESSION	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -75,12 +71,10 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 ######## 3. COMMIT_ORDER ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	3
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+COMMIT_ORDER	3
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;

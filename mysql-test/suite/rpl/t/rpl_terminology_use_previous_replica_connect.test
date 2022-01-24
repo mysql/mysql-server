@@ -1,0 +1,129 @@
+# ==== Purpose ====
+#
+# Test that thread stages set while the replica receiver is
+# reconnecting, are translated according to
+# terminology_use_previous.
+#
+# ==== Requirements ====
+#
+# R1. When the receiver is reconnecting, the stages use terminology
+#     according to @@session.terminology_use_previous.
+#
+# ==== Implementation ====
+#
+# For each value of terminology_use_previous,
+# and each of three possible conditions that cause a reconnect,
+# and each of two stages that the server passes while reconnecting,
+# do the following:
+# - Set two debug sync points: one that makes the receiver simulate
+#   the condition that leads to the reconnect, and one that makes
+#   the receiver sleep during the given stage.
+# - Start the receiver and let it reach the point where it sleeps.
+# - Show the thread stage in the test result log.
+# - Kill the receiver.
+#
+# ==== References ====
+#
+# This was implemented as a post-push fix to the following worklogs:
+# WL#14194: Replace old terms in replication system variables, options, and strings
+# - Updated stages to use new terminology
+# WL#14628: Compatibility option to enable old replication terminology in P_S instrumentation
+# - Introduced the compatibility option
+
+# Test is binlog_format-agnostic.
+--source include/have_binlog_format_row.inc
+
+# Test uses SET debug to ensure replica pauses in specific stages.
+--source include/have_debug.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo #### Initialize ####
+
+--connection slave
+
+let $messages =
+Master command COM_REGISTER_SLAVE failed: failed
+Master command COM_BINLOG_DUMP failed: failed
+Failed on request_dump.. for channel
+;
+--source include/suppress_messages.inc
+
+let $reconnect_conditions = [
+  "failed_registration",
+  "failed_binlog_dump",
+  "failed_event_read"
+];
+let $reconnect_stages = [
+  "replica_waiting_to_reconnect",
+  "replica_reconnecting"
+];
+--let $json_label = condition
+--source include/create_json_iterator.inc
+--let $json_label = stage
+--source include/create_json_iterator.inc
+
+--let $terminology_use_previous = 0
+while ($terminology_use_previous < 2) {
+  --echo
+  --echo #### Testing terminology_use_previous = $terminology_use_previous ####
+
+  eval SET @@session.terminology_use_previous = $terminology_use_previous;
+  --let $json_array = $reconnect_conditions
+  --source $json_condition_start
+  while (!$json_condition_done) {
+    --let $json_array = $reconnect_stages
+    --source $json_stage_start
+    while (!$json_stage_done) {
+      --echo
+      --echo ---- $json_stage_value after $json_condition_value ----
+      # Tell receiver thread to simulate error and cause reconnect
+      --let $debug_point = simulate_reconnect_after_$json_condition_value
+      --source include/add_debug_point.inc
+      # Tell receiver thread to hang at a given stage during reconnect
+      --let $debug_point = hang_in_stage_$json_stage_value
+      --source include/add_debug_point.inc
+
+      # Make dump thread reach the stage
+      START REPLICA IO_THREAD;
+      --let $wait_condition = SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%'
+      --source include/wait_condition.inc
+
+      # Show the result
+      SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
+
+      SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
+
+      SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE PROCESSLIST_STATE LIKE '%connect%after a failed%';
+
+      --let $status_items = Slave_IO_State
+      --source include/show_slave_status.inc
+
+      # Remove the debug points, allowing receiver to succeed reconnecting
+      --let $debug_point = simulate_reconnect_after_$json_condition_value
+      --source include/remove_debug_point.inc
+      --let $debug_point = hang_in_stage_$json_stage_value
+      --source include/remove_debug_point.inc
+
+      # Kill receiver thread
+      --let $thread_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%'`
+      --replace_result $thread_id THREAD_ID_OF_RECEIVER
+      eval KILL $thread_id;
+      --source include/wait_for_slave_io_to_stop.inc
+
+      --source $json_stage_next
+    }
+    --source $json_condition_next
+  }
+  --inc $terminology_use_previous
+}
+
+--echo
+--echo #### Clean up ####
+
+SET @@session.terminology_use_previous = NONE;
+--source include/start_slave.inc
+--source include/destroy_json_functions.inc
+
+--source include/rpl_end.inc

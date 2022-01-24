@@ -1,5 +1,8 @@
 CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
 ENGINE=MyISAM CHARACTER SET ucs2 COLLATE ucs2_general_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 (word) VALUES ("cat");
 SELECT * FROM t1 WHERE word LIKE "c%";
 word
@@ -13,9 +16,13 @@ cat
 SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
 word
 cat
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
 word
 cat
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 SET NAMES latin1;
 CREATE TABLE t1 (
@@ -27,6 +34,8 @@ CHARSET ucs2
 COLLATE ucs2_general_ci ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a");
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -66,6 +75,9 @@ PRIMARY KEY (word))
 ENGINE=MyISAM
 CHARSET ucs2
 COLLATE ucs2_general_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a");
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -95,6 +107,8 @@ CHARSET ucs2
 COLLATE ucs2_general_ci ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a" );
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -132,6 +146,9 @@ CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
 ) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values (0x803d);
 insert into t1 values (0x005b);
 select hex(a) from t1;
@@ -184,14 +201,14 @@ CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `CONCAT_WS(1,2,3)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `CONCAT_WS(1,2,3)` varchar(6) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `INSERT(1133,3,0,22)` varchar(6) CHARACTER SET latin1 DEFAULT NULL
+  `INSERT(1133,3,0,22)` varchar(8) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
@@ -212,7 +229,7 @@ CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `REPEAT(1,2)` varchar(2) CHARACTER SET latin1 DEFAULT NULL
+  `REPEAT(1,2)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
@@ -233,42 +250,42 @@ CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `LTRIM(123)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `LTRIM(123)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `RTRIM(123)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `RTRIM(123)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ELT(1,111,222,333)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `ELT(1,111,222,333)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `REPLACE(111,2,3)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `REPLACE(111,2,3)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `SUBSTRING_INDEX(111,111,1)` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+  `SUBSTRING_INDEX(111,111,1)` varchar(4) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `MAKE_SET(111,222,3)` varchar(5) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `MAKE_SET(111,222,3)` varchar(7) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
@@ -293,6 +310,8 @@ create table t1 (
 a char(10) unicode not null,
 index a (a)
 ) engine=myisam;
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 insert into t1 values (repeat(0x201f, 10));
 insert into t1 values (repeat(0x2020, 10));
 insert into t1 values (repeat(0x2021, 10));
@@ -314,6 +333,9 @@ hex(a)
 2021202120212021202120212021202120212021
 drop table t1;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) engine=MyISAM;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 a

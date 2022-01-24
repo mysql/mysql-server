@@ -2,8 +2,8 @@
 --keyring_file_data=$MYSQL_TMP_DIR/keyring_slave
 --binlog_encryption=ON
 --skip-log-bin
---skip-log-slave-updates
---skip-slave-preserve-commit-order
+--skip-log-replica-updates
+--skip-replica-preserve-commit-order
 --relay_log_purge=false
 --force-restart
 $KEYRING_PLUGIN_OPT

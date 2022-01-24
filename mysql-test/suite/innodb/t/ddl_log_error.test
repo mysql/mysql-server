@@ -47,6 +47,7 @@ ALTER TABLESPACE my_ts ENCRYPTION='Y';
 SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 
 --echo # Cleanup
+DROP TABLESPACE my_ts;
 DROP TABLE t1;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
 

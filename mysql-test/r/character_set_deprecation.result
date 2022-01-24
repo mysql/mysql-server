@@ -132,3 +132,289 @@ SELECT * FROM json_table('[]', '$[*]' COLUMNS (p NVARCHAR(1) PATH '$.a')) AS t;
 p
 Warnings:
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+# Character set introducers.
+SELECT HEX(_ucs2'abc');
+HEX(_ucs2'abc')
+00616263
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING ucs2 );
+CONVERT ( 'abc' USING ucs2 )
+abc
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET ucs2);
+CAST('test' AS CHAR CHARACTER SET ucs2)
+test
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET ucs2 COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "ucs2" COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'ucs2' COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `ucs2`COLLATE ucs2_persian_ci;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET ucs2 COLLATE ucs2_persian_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET ucs2 COLLATE ucs2_persian_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+# restart: --character-set-server=ucs2 --collation-server=ucs2_persian_ci
+Pattern "The character set ucs2 is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 
+Deprecate macroman
+# Character set introducers.
+SELECT HEX(_macroman'abc');
+HEX(_macroman'abc')
+616263
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING macroman );
+CONVERT ( 'abc' USING macroman )
+abc
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET macroman);
+CAST('test' AS CHAR CHARACTER SET macroman)
+test
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET macroman COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "macroman" COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'macroman' COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `macroman`COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET macroman COLLATE macroman_general_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET macroman COLLATE macroman_general_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+# restart: --character-set-server=macroman --collation-server=macroman_general_ci
+Pattern "The character set macroman is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 
+Deprecate macce
+# Character set introducers.
+SELECT HEX(_macce'abc');
+HEX(_macce'abc')
+616263
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING macce );
+CONVERT ( 'abc' USING macce )
+abc
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET macce);
+CAST('test' AS CHAR CHARACTER SET macce)
+test
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET macce COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "macce" COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'macce' COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `macce`COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET macce COLLATE macce_general_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET macce COLLATE macce_general_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+Use of old aliases
+SET SESSION character_set_results=mac_latin2;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT @@character_set_results;
+@@character_set_results
+macroman
+SET SESSION character_set_results=macce_latin2;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT @@character_set_results;
+@@character_set_results
+macce
+SET SESSION character_set_results=default;
+SELECT @@character_set_results;
+@@character_set_results
+utf8mb4
+# restart: --character-set-server=macce --collation-server=macce_general_ci
+Pattern "The character set macce is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 
+Deprecate dec8
+# Character set introducers.
+SELECT HEX(_dec8'abc');
+HEX(_dec8'abc')
+616263
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING dec8 );
+CONVERT ( 'abc' USING dec8 )
+abc
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET dec8);
+CAST('test' AS CHAR CHARACTER SET dec8)
+test
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET  dec8  COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "dec8" COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'dec8' COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `dec8` COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET dec8 COLLATE dec8_swedish_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET dec8 COLLATE dec8_swedish_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+# restart: --character-set-server=dec8 --collation-server=dec8_swedish_ci
+Pattern "The character set dec8 is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 
+Deprecate hp8
+# Character set introducers.
+SELECT HEX(_hp8'abc');
+HEX(_hp8'abc')
+616263
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING hp8 );
+CONVERT ( 'abc' USING hp8 )
+abc
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET hp8);
+CAST('test' AS CHAR CHARACTER SET hp8)
+test
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET  hp8  COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "hp8" COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'hp8' COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `hp8` COLLATE hp8_english_ci;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET hp8 COLLATE hp8_english_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET hp8 COLLATE hp8_english_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
+# restart: --character-set-server=hp8 --collation-server=hp8_english_ci
+Pattern "The character set hp8 is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 

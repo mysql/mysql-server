@@ -117,6 +117,31 @@ Pattern "The schema "xyz" referenced by routine "p1" does not exist\. Please cle
 
 # Cleanup.
 
+# -----------------------------------------------------------------------
+# Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+# -----------------------------------------------------------------------
+
+# Upgrade 5.7 data directory containing a table, index, column, and
+# stored routine, each having an invalid character string in their
+# comments. Also contains a stored routine with invalid character string
+# in the body definition.
+
+# Upgrade should fail with these errors in the log.
+Pattern "Comment for index 'test\.t3\.idx1' contains an invalid utf8mb3 character string: '\\xBF\\xE1'\." found
+Pattern "Comment for field 'test\.t2\.a' contains an invalid utf8mb3 character string: '\\xBF\\xE1'\." found
+Pattern "Comment for table 'test\.t1' contains an invalid utf8mb3 character string: '\\xBF\\xE1'\." found
+Pattern "Definition of stored routine 'test\.p1' contains an invalid utf8mb3 character string: '\\xF0\\x9F\\x90'\." found
+
+# Cleanup.
+
+# Upgrade 5.7 data directory containing a view with invalid body
+# definition string.
+
+# Upgrade should fail with these errors in the log.
+Pattern "Definition of view 'test\.v1' contains an invalid utf8mb3 character string: '\\xF0\\x9F\\x90'\." found
+
+# Cleanup.
+
 # ------------------------------------------------------------------
 # End-of-test cleanup.
 # ------------------------------------------------------------------

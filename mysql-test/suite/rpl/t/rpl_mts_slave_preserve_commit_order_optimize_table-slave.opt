@@ -1,1 +1,0 @@
---slave-preserve-commit-order=on --slave-parallel-type=LOGICAL_CLOCK --slave-parallel-workers=4

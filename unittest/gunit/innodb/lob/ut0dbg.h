@@ -28,17 +28,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line);
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line);
 
-#define ut_a(EXPR)                                               \
-  do {                                                           \
-    if (!(ulint)(EXPR)) {                                        \
-      ut_dbg_assertion_failed(#EXPR, __FILE__, (ulint)__LINE__); \
-    }                                                            \
+#define ut_a(EXPR)                                        \
+  do {                                                    \
+    if (!(bool)(EXPR)) {                                  \
+      ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
+    }                                                     \
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
+#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
 
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR) ut_a(EXPR)

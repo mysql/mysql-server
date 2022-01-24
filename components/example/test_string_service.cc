@@ -30,9 +30,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MAX_BUFFER_LENGTH 80
 
-#define WRITE_LOG(lit_log_text)   \
-  strcpy(log_text, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile)
+#define WRITE_LOG(lit_log_text)                                             \
+  strcpy(log_text, lit_log_text);                                           \
+  if (fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile) != \
+      strlen(log_text))                                                     \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service
@@ -268,7 +270,7 @@ mysql_service_status_t test_string_service_init() {
           WRITE_LOG("NULL as iterator in is_digit passed.\n");
         }
         while (mysql_service_mysql_string_iterator->iterator_get_next(
-                   out_iterator, &out_iter_char) != true) {
+                   out_iterator, &out_iter_char) == 0) {
           WRITE_LOG("Iterator get next passed.\n");
           if (mysql_service_mysql_string_ctype->is_lower(out_iterator, &out)) {
             WRITE_LOG("Is lower failed.\n");

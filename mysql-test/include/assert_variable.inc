@@ -4,8 +4,8 @@
 # not.
 # ==== Usage ====
 #
-# --let $assert_text= rpl_semi_sync_master_enabled should be ON
-# --let $assert_variable_name= rpl_semi_sync_master_enabled
+# --let $assert_text= rpl_semi_sync_source_enabled should be ON
+# --let $assert_variable_name= rpl_semi_sync_source_enabled
 # --let $assert_variable_value= ON
 # [--let $rpl_debug= 1]
 # --source include/assert_variable.inc

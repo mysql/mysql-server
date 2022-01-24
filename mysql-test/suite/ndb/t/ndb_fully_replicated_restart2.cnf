@@ -1,1 +1,7 @@
 !include ndb_fully_replicated_restart.cnf
+
+# Test has a special error insert to check if reads are TC local.
+# Index stat system table reads aren't causing the test to fail
+[cluster_config]
+IndexStatAutoCreate=0
+IndexStatAutoUpdate=0

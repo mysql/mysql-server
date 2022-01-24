@@ -67,6 +67,7 @@ class Ndb_sql_metadata_api {
   Ndb_sql_metadata_api &operator=(const Ndb_sql_metadata_api &) = delete;
 
   /* Record Types */
+  static constexpr short TYPE_LOCK = 4;
   static constexpr short TYPE_USER = 11;
   static constexpr short TYPE_GRANT = 12;
 
@@ -110,7 +111,25 @@ class Ndb_sql_metadata_api {
     layout().getValue(buf, 4, a, b);
   }
 
+  /* Global locking around snapshot updates
+     After a mysql server has written a batch of rows to ndb_sql_metadata,
+     it may use the schema change distribution protocol to force other mysql
+     servers to read these rows. The global snapshot lock serializes these
+     "snapshot refreshes" so that only one of them happens at a time.
+
+     initializeSnapshotLock() assures that the token lock tuple exists.
+
+     acquireSnapshotLock() attempts to acquire an exclusive read lock on the
+     lock tuple, without waiting.
+
+     releaseSnapshotLock() releases the read lock.
+  */
+  const NdbError &initializeSnapshotLock(Ndb *);
+  const NdbError &acquireSnapshotLock(Ndb *, NdbTransaction *&);
+  void releaseSnapshotLock(NdbTransaction *tx) { tx->close(); }
+
  private:
+  void writeSnapshotLockRow(NdbTransaction *);
   Ndb_record_layout &layout() { return m_record_layout; }
   Ndb_record_layout m_record_layout;
 

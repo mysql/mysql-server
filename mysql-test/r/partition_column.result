@@ -92,6 +92,9 @@ ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partiti
 create table t1 (a varchar(5) character set ucs2 collate ucs2_bin)
 partition by range columns (a)
 (partition p0 values less than (0x0041));
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values (0x00410000);
 select hex(a) from t1 where a like 'A_';
 hex(a)

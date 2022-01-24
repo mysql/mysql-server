@@ -76,6 +76,8 @@ public:
   NdbScanFilter(class NdbOperation * op);
 
   ~NdbScanFilter();
+
+  void setSqlCmpSemantics();
   
   /**
    *  Group operators
@@ -167,6 +169,8 @@ public:
    *  �return  0 if successful, -1 otherwise
    */
   int cmp(BinaryCondition cond, int ColId1, int ColId2);
+
+  int cmp_param(BinaryCondition cond, int ColId, int ParamId);
 
   /** 
    * @name Integer Comparators

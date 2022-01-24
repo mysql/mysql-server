@@ -5,6 +5,7 @@ CALL sys.ps_setup_show_enabled_consumers();
 enabled_consumers
 events_stages_current
 events_stages_history
+events_statements_cpu
 events_statements_current
 events_statements_history
 events_transactions_current

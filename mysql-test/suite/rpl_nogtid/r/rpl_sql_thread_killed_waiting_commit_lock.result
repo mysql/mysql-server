@@ -32,7 +32,6 @@ include/start_slave_sql.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
-SET @@GLOBAL.DEBUG= '$debug_saved';
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

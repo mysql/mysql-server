@@ -6,3 +6,32 @@ Make sure that ndb_mgmd does _not_ create logger.log file
 Bug32045786
 MySQL Cluster Management Server
  ERROR    -- Mgmd node is started on port that is already in use. Attempt to bind '*:NDB_MGMD_PORT' failed with error: ERROR_CODE ERROR_MESSAGE
+Bug32706682
+# verify that mgmd fails to start when config-file
+# is not specified.
+include/assert_grep.inc [Mgmd fails to start when config-file option is not specified.]
+# verify that mgmd fails to start when skip-config-file is specified.
+include/assert_grep.inc [Mgmd fails to start when --skip-config-file is specified.]
+# verify that mgmd fails when started with both -f and --mycnf.
+include/assert_grep.inc [Verify mgmd fails when started with both -f and --mycnf]
+#
+# Bug32554779 DO NOT ACCEPT -C OPTION WHEN STARTING WITH -F OR
+# BINARY CONFIG
+#
+# verify that mgmd throws warning when -c option is provided along with -f
+include/assert_grep.inc [Do not accept -c option when starting with -f]
+#
+# Bug32554492 NDB_MGMD SHOULD REPORT ERROR WHEN STARTED
+# WITHOUT -F AND BINARY CONFIG
+#
+# verify that mgmd throws error when -f is not specified
+include/assert_grep.inc [Mgmd gives error when -f is not specifed]
+#
+# Bug11755867 NDB_MGMD MISMATCH BETWEEN --CONFIGDIR AND DATADIR
+#
+# verify that mgmd throws error when --configdir=. is specified
+include/assert_grep.inc [Mgmd gives error when relative path is specified for configdir]
+#
+# check if NDB_MGMD hangs when the hostname is not proper
+#
+include/assert_grep.inc [Mgmd gives error when can not resolve address in connectstring]

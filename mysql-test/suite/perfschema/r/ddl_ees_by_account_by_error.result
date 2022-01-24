@@ -11,3 +11,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `ACCOUNT`
   ON performance_schema.events_errors_summary_by_account_by_error;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.events_errors_summary_by_account_by_error;
+DROP TABLE test.create_select;

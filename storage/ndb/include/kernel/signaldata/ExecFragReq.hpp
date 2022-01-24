@@ -37,7 +37,7 @@ class ExecFragReq {
   friend class Dblqh;
   friend class DblqhProxy;
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
   Uint32 userPtr;

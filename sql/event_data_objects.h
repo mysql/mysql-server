@@ -51,7 +51,7 @@ void init_scheduler_psi_keys(void);
 
 class Event_queue_element_for_exec {
  public:
-  Event_queue_element_for_exec() {}
+  Event_queue_element_for_exec() = default;
   ~Event_queue_element_for_exec();
 
   bool init(LEX_CSTRING dbname, LEX_CSTRING name);

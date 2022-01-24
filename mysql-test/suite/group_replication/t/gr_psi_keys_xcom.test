@@ -1,0 +1,10 @@
+################################################################################
+# Verify that performance schema keys are available in instrument table
+# immediately after plugin installation with XCom
+################################################################################
+
+--source include/have_group_replication_plugin_base.inc
+--source include/have_group_replication_xcom_communication_stack.inc
+
+--source ../include/gr_psi_keys.inc
+

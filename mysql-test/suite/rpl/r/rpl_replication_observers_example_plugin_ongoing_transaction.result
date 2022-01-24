@@ -21,7 +21,6 @@ INSERT INTO t2 VALUES(1);
 
 # 5. Execute a DML query. A hook will count the transactions
 [connection con5]
-SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_before_commit_hook_wait';
 INSERT INTO t2 VALUES (3);;
 [connection con1]
@@ -43,5 +42,5 @@ SET DEBUG_SYNC='now SIGNAL continue_commit';
 [connection con1]
 DROP TABLE t1;
 DROP TABLE t2;
-SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 include/uninstall_replication_observers_example.inc

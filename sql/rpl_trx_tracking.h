@@ -73,7 +73,7 @@ class Logical_clock {
 
     offset = new_offset;
   }
-  ~Logical_clock() {}
+  ~Logical_clock() = default;
 };
 
 /**

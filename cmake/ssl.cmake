@@ -67,7 +67,7 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
   IF(APPLE)
     MESSAGE(FATAL_ERROR
-      "Please see http://brewformulas.org/Openssl\n")
+      "Please see https://formulae.brew.sh/formula/openssl@1.1\n")
   ENDIF()
 ENDMACRO()
 
@@ -123,7 +123,11 @@ MACRO (MYSQL_CHECK_SSL)
         SET(OPENSSL_MSVC_STATIC_RT ON)
       ENDIF()
       IF(APPLE AND NOT OPENSSL_ROOT_DIR)
-        SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+        IF(APPLE_ARM)
+          SET(OPENSSL_ROOT_DIR "/opt/homebrew/opt/openssl")
+        ELSE()
+          SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+        ENDIF()
       ENDIF()
       IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
         # We want to be able to support 32bit client-only builds
@@ -560,6 +564,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${HAVE_OPENSSL_DLL}"
           "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_DLL_NAME}"
+          COMMAND "${CMAKE_COMMAND}" -E touch cmakefiles/copy_openssl_dlls
           )
         MESSAGE(STATUS "INSTALL ${HAVE_CRYPTO_DLL} to ${INSTALL_BINDIR}")
         MESSAGE(STATUS "INSTALL ${HAVE_OPENSSL_DLL} to ${INSTALL_BINDIR}")

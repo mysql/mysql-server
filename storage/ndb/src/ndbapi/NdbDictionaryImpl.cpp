@@ -1628,10 +1628,10 @@ static Uint32 Hash( const char* str ){
   switch(len){
   case 3:
     h = (h << 5) + h + *str++;
-    // Fall through
+    [[fallthrough]];
   case 2:
     h = (h << 5) + h + *str++;
-    // Fall through
+    [[fallthrough]];
   case 1:
     h = (h << 5) + h + *str++;
   }
@@ -1697,10 +1697,10 @@ NdbTableImpl::getColumnByHash(const char * name) const
   {
     sz = (tmp >> ColShift);
     hashtable += (tmp & ColNameHashMask);
-    tmp = * hashtable;
   }
   do 
   {
+    tmp = * hashtable;
     if(hashValue == (tmp & ColNameHashMask))
     {
       NdbColumnImpl* col = cols[tmp >> ColShift];
@@ -1710,7 +1710,6 @@ NdbTableImpl::getColumnByHash(const char * name) const
       }
     }
     hashtable++;
-    tmp = * hashtable;
   } while(--sz > 0);
 
   return NULL;
@@ -1770,7 +1769,7 @@ NdbTableImpl::buildColumnHash()
   /* Now build 1d hash array */
   m_columnHash.clear();
   Uint32 tmp = UniBucket;
-  if (m_columnHash.fill((unsigned)size-1, tmp))   // Default no chaining
+  if (m_columnHash.fill(size, tmp))   // Default no chaining
   {
     return -1;
   }
@@ -1820,11 +1819,10 @@ NdbTableImpl::dumpColumnHash() const
 {
   const Uint32 size = m_columns.size();
 
-  printf("Table %s column hash stores %u columns in hash table size %u\n",
-         getName(),
-         size,
-         m_columnHash.size());
-  
+  g_eventLogger->info(
+      "Table %s column hash stores %u columns in hash table size %u",
+      getName(), size, m_columnHash.size());
+
   Uint32 comparisons = 0;
 
   for(size_t i = 0; i<m_columnHash.size(); i++){
@@ -1835,19 +1833,16 @@ NdbTableImpl::dumpColumnHash() const
       {
         if (tmp == UniBucket)
         {
-          printf("  m_columnHash[%d]  %x NULL\n", (Uint32) i, tmp);
+          g_eventLogger->info("  m_columnHash[%d]  %x NULL", (Uint32)i, tmp);
         }
         else
         {
           Uint32 hash = m_columnHash[i] & ColNameHashMask;
           Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
-          printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
-                 (Uint32) i, 
-                 tmp,
-                 m_columns[tmp >> ColShift]->getName(), 
-                 hash,
-                 bucket,
-                 (bucket < size? bucket : bucket - size));
+          g_eventLogger->info(
+              "  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d",
+              (Uint32)i, tmp, m_columns[tmp >> ColShift]->getName(), hash,
+              bucket, (bucket < size ? bucket : bucket - size));
           comparisons++;
         }
       }
@@ -1856,13 +1851,10 @@ NdbTableImpl::dumpColumnHash() const
         /* Chain header */
         Uint32 chainStart = Uint32(i) + (tmp & ColNameHashMask);
         Uint32 chainLen = tmp >> ColShift;
-        printf("  m_columnHash[%d] %x chain header of size %u @ +%u = %u\n",
-               (Uint32) i,
-               tmp,
-               chainLen,
-               (tmp & ColNameHashMask),
-               chainStart);
-        
+        g_eventLogger->info(
+            "  m_columnHash[%d] %x chain header of size %u @ +%u = %u",
+            (Uint32)i, tmp, chainLen, (tmp & ColNameHashMask), chainStart);
+
         /* Always 1 comparison, sometimes more */
         comparisons += ((chainLen * (chainLen + 1)) / 2);
       }
@@ -1872,32 +1864,27 @@ NdbTableImpl::dumpColumnHash() const
       /* Chain body  */
       Uint32 hash = m_columnHash[i] & ColNameHashMask;
       Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
-      printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
-             (Uint32) i, 
-             tmp,
-             m_columns[tmp >> ColShift]->getName(), 
-             hash,
-             bucket,
-             (bucket < size? bucket : bucket - size));
+      g_eventLogger->info(
+          "  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d",
+          (Uint32)i, tmp, m_columns[tmp >> ColShift]->getName(), hash, bucket,
+          (bucket < size ? bucket : bucket - size));
     }
   }
 
   Uint32 sigdig = comparisons/size;
   Uint32 places = 10000;
-  printf("Entries = %u Hash Total comparisons = %u Average comparisons = %u.%u "
-         "Expected average strcmps = 1\n",
-         size,
-         comparisons,
-         sigdig,
-         (comparisons * places / size) - (sigdig * places));
+  g_eventLogger->info(
+      "Entries = %u Hash Total comparisons = %u Average comparisons = %u.%u"
+      " Expected average strcmps = 1",
+      size, comparisons, sigdig,
+      (comparisons * places / size) - (sigdig * places));
   /* Basic implementation behaviour (linear string search) */
   comparisons = (size * (size+1)) / 2;
   sigdig = comparisons / size;
-  printf("Entries = %u Basic Total strcmps = %u Average strcmps = %u.%u\n",
-         size,
-         comparisons,
-         sigdig,
-         (comparisons * places / size) - (sigdig * places));
+  g_eventLogger->info(
+      "Entries = %u Basic Total strcmps = %u Average strcmps = %u.%u",
+      size, comparisons, sigdig,
+      (comparisons * places / size) - (sigdig * places));
 }
 
 bool
@@ -1925,12 +1912,11 @@ NdbTableImpl::checkColumnHash() const
        */
       if (strcmp(col->getName(), hashLookup->getName()) != 0)
       {
-        printf("NdbDictionaryImpl.cpp::checkColumnHash() : "
-               "Failed lookup on table %s col %u %s - gives %p %s\n",
-               getName(),
-               i, col->getName(),
-               hashLookup,
-               (hashLookup?hashLookup->getName():""));
+        g_eventLogger->info(
+            "NdbDictionaryImpl.cpp::checkColumnHash() : "
+            "Failed lookup on table %s col %u %s - gives %p %s",
+            getName(), i, col->getName(), hashLookup,
+            (hashLookup ? hashLookup->getName() : ""));
         ok = false;
       }
     }
@@ -1953,6 +1939,7 @@ NdbTableImpl::get_nodes(Uint32 fragmentId, const Uint16 ** nodes) const
     *nodes = m_fragments.getBase()+pos;
     return m_replicaCount;
   }
+  *nodes = nullptr;
   return 0;
 }
 
@@ -2740,7 +2727,7 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
     m_globalHash->alter_table_rep(old->m_internalName,
                                   impl->m_id,
                                   impl->m_version,
-                                  FALSE);
+                                  false);
   }
   m_globalHash->put(impl->m_internalName, impl);
   m_globalHash->unlock();
@@ -2756,7 +2743,7 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
   unsigned n= t.m_noOfBlobs;
   DBUG_ENTER("NdbDictionaryImpl::getBlobTables");
   // optimized for blob column being the last one
-  // and not looking for more than one if not neccessary
+  // and not looking for more than one if not necessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
     i--;
     NdbColumnImpl & c = *t.m_columns[i];
@@ -3061,7 +3048,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     {
       Uint32 t = sleep + 10 * (rand() % mod);
 #ifdef VM_TRACE
-      ndbout_c("retry sleep %ums on error %u", t, m_error.code);
+      g_eventLogger->info("retry sleep %ums on error %u", t, m_error.code);
 #endif
       NdbSleep_MilliSleep(t);
     }
@@ -5433,7 +5420,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
 
     int key_id = primCol->getColumnNo();
     int fill = -1;
-    idx->m_key_ids.fill(key_id, fill);
+    idx->m_key_ids.fill(key_id + 1, fill);
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
 
@@ -5981,8 +5968,8 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     if (col_impl) {
       evnt.m_facade->addColumn(*(col_impl->m_facade));
     } else {
-      ndbout_c("Attr id %u in table %s not found", evnt.m_attrIds[i],
-	       evnt.getTableName());
+      g_eventLogger->info("Attr id %u in table %s not found", evnt.m_attrIds[i],
+                          evnt.getTableName());
       m_error.code= 4713;
       ERR_RETURN(getNdbError(), -1);
     }
@@ -6192,7 +6179,7 @@ NdbDictInterface::createEvent(NdbEventImpl & evnt,
 	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
-      ndbout_c("ERROR*************");
+      g_eventLogger->info("ERROR*************");
       m_buffer.clear();
       m_tableData.clear();
       ERR_RETURN(getNdbError(), 1);
@@ -6835,8 +6822,9 @@ static int scanEventTable(Ndb* pNdb,
     {
       if (retryAttempt >= retryMax)
       {
-        ndbout << "ERROR: has retried this operation " << retryAttempt 
-               << " times, failing!" << endl;
+        g_eventLogger->info(
+            "ERROR: has retried this operation %d times, failing!",
+            retryAttempt);
         goto error;
       }
       if (pTrans)

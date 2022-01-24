@@ -58,8 +58,15 @@
 #   $rpl_debug
 #     If set, verbose debug info is printed.
 
---let $include_filename= filter_file.inc
---source include/begin_include_file.inc
+# Don't use include/begin_include_file.inc, since it requires a live
+# server connection, and we sometimes use this script while all
+# servers are down.
+if (!$_include_file_depth) {
+  if (!$include_silent)
+  {
+    --echo include/filter_file.inc
+  }
+}
 
 if ($rpl_debug)
 {
@@ -98,7 +105,7 @@ perl;
     $script = '
     chomp;
     my @cols = split(/\t/, $_);
-    $_ = join("\t", map { $cols[$_ - 1] } ('.$select_columns.'))."\n";
+    $_ = join("\t", map { $cols[$_ - 1] } ('.$select_columns.'));
     ' . $script;
   }
   if ($mask_columns)
@@ -123,7 +130,7 @@ perl;
   unless ($keep_quotes)
   {
     $pre_script = 'my %unquote = ("n"=>"\n","t"=>"\t","\\\\"=>"\\\\");' . $pre_script;
-    $script .= 's{\\\\(.)}{$unquote{$1}}ge;';
+    $script .= ';s{\\\\(.)}{$unquote{$1}}ge;';
   }
   if ($debug)
   {
@@ -140,7 +147,7 @@ perl;
   {
     chomp;
     s/\015?\012?$//;
-    if (!%column_names)
+    if ($mask_columns && !%column_names)
     {
       my $n = 1;
       %column_names = map { $_ => $n++ } split(/\t/, $_);
@@ -171,5 +178,6 @@ perl;
   $eval_ret == 0 or die "Non-zero exit value $eval_ret from script '$script'";
 EOF
 
---let $include_filename= filter_file.inc
---source include/end_include_file.inc
+# Don't use include/end_include_file.inc, since it requires a live
+# server connection, and we sometimes use this script while all
+# servers are down.

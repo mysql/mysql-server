@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/no_valgrind_without_big.inc
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 # 
 # Run subquery_sj.inc with semijoin and turn off all strategies to make
 # it resort to duplicate weedout strategy.

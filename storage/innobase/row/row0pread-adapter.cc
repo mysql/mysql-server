@@ -77,12 +77,20 @@ void Parallel_reader_adapter::set(row_prebuilt_t *prebuilt) {
 
   m_parallel_reader.set_start_callback(
       [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return init(reader_thread_ctx, prebuilt);
+        if (reader_thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return init(reader_thread_ctx, prebuilt);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 
   m_parallel_reader.set_finish_callback(
       [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return end(reader_thread_ctx);
+        if (reader_thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return end(reader_thread_ctx);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 
   ut_a(m_prebuilt == nullptr);
@@ -96,12 +104,15 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
   m_load_fn = load_fn;
   m_thread_ctxs = thread_ctxs;
 
+  m_parallel_reader.set_n_threads(m_parallel_reader.max_threads());
+
   return m_parallel_reader.run(m_parallel_reader.max_threads());
 }
 
 dberr_t Parallel_reader_adapter::init(
     Parallel_reader::Thread_ctx *reader_thread_ctx, row_prebuilt_t *prebuilt) {
-  auto thread_ctx = UT_NEW(Thread_ctx(), mem_key_archive);
+  auto thread_ctx =
+      ut::new_withkey<Thread_ctx>(ut::make_psi_memory_key(mem_key_archive));
 
   if (thread_ctx == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -173,11 +184,7 @@ dberr_t Parallel_reader_adapter::process_rows(
 
     /* Start of a new range, send what we have buffered. */
     if ((reader_ctx->m_start && n_pending > 0) || is_buffer_full(ctx)) {
-      auto part_id = reader_ctx->m_start
-                         ? reader_thread_ctx->m_prev_partition_id
-                         : reader_ctx->partition_id();
-
-      err = send_batch(reader_thread_ctx, part_id, n_pending);
+      err = send_batch(reader_thread_ctx, ctx->m_partition_id, n_pending);
 
       if (err != DB_SUCCESS) {
         return (err);
@@ -207,7 +214,15 @@ dberr_t Parallel_reader_adapter::process_rows(
                               nullptr, true, reader_ctx->index(),
                               reader_ctx->index(), offsets, false, nullptr,
                               blob_heap)) {
-    ++ctx->m_n_read;
+    /* If there is any pending records, then we should not overwrite the
+    partition ID with a different one. */
+    if (pending(ctx) && ctx->m_partition_id != reader_ctx->partition_id()) {
+      ut_ad(false);
+      err = DB_ERROR;
+    } else {
+      ++ctx->m_n_read;
+      ctx->m_partition_id = reader_ctx->partition_id();
+    }
 
     if (m_parallel_reader.is_error_set()) {
       /* Simply skip sending the records to RAPID in case of an error in the
@@ -242,15 +257,15 @@ dberr_t Parallel_reader_adapter::end(
     Send them now. */
     size_t n_pending = pending(thread_ctx);
 
-    err = (n_pending != 0)
-              ? send_batch(reader_thread_ctx,
-                           reader_thread_ctx->m_prev_partition_id, n_pending)
-              : DB_SUCCESS;
+    if (n_pending != 0) {
+      err =
+          send_batch(reader_thread_ctx, thread_ctx->m_partition_id, n_pending);
+    }
   }
 
   m_end_fn(m_thread_ctxs[thread_id]);
 
-  UT_DELETE(thread_ctx);
+  ut::delete_(thread_ctx);
   reader_thread_ctx->set_callback_ctx<Thread_ctx>(nullptr);
 
   return (err);

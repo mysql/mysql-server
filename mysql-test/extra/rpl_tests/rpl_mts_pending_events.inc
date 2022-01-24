@@ -1,7 +1,7 @@
 ###############################################################################
 # This .inc is used to check coordinator behaviour of scheduling an event
 # when the new event cannot be placed into worker's queue due to size limit
-# (SLAVE_PENDING_JOBS_SIZE_MAX)
+# (REPLICA_PENDING_JOBS_SIZE_MAX)
 #
 # Usage:
 #   --let $table_to_lock=db1.t
@@ -24,7 +24,7 @@
 #   $query_that_needs_to_be_processed_by_coordinator:
 #     A query that will be processed by coordinator only after
 #     $query_that_waits_on_table_lock is completely executed due to size limit
-#     (SLAVE_PENDING_JOBS_SIZE_MAX)
+#     (REPLICA_PENDING_JOBS_SIZE_MAX)
 #     --let $query_that_needs_to_be_processed_by_coordinator=INSERT INTO db2.t VALUES (REPEAT('big event', $mts_pending_max))
 #
 #   $tables_involved_in_test:
@@ -88,7 +88,7 @@ if (!$tables_involved_in_test)
 --let $assert_cond= [SELECT count(*) FROM information_schema.processlist WHERE state = "Waiting for table metadata lock"] = 1
 --source include/assert.inc
 
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for Slave Workers to free pending events"
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for Replica Workers to free pending events"
 --source include/wait_condition.inc
 
 --echo #

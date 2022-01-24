@@ -180,7 +180,7 @@ class Shared_dictionary_cache {
     return m_map(Type_selector<T>());
   }
 
-  Shared_dictionary_cache() {}
+  Shared_dictionary_cache() = default;
 
  public:
   static Shared_dictionary_cache *instance();

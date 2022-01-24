@@ -287,4 +287,31 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 let $rpl_only_running_threads= 1;
+
+# Cleanup
+--connection slave
+replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
+replace_column 2 ####;
+eval CHANGE REPLICATION SOURCE to
+  SOURCE_AUTO_POSITION= 0,
+  SOURCE_SSL_CRL= '',
+  SOURCE_SSL_CRLPATH= '',
+  SOURCE_SSL_CA= '',
+  SOURCE_SSL_CERT= '',
+  SOURCE_SSL_KEY='';
+
+# Reset the gtid mode if the test started with gtid_mode=OFF
+--if ($gtid_mode_on == 0) {
+ --let $rpl_gtid_mode = 0
+ --let $rpl_set_enforce_gtid_consistency= 0
+}
+--let $no_extra_info= 1
+--source include/rpl_set_gtid_mode.inc
+
+
+--connection master
+drop user replssl@localhost;
+--connection slave
+drop user replssl@localhost;
+
 source include/rpl_end.inc;

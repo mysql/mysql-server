@@ -1,0 +1,160 @@
+################################################################################
+#
+# This test verifies that group_view_change_uuid validation is done correctly
+# when starting on boot as well as when we pass it manually in the test.
+#
+# Test:
+#   0. The test requires one server: M1.
+#   1. We can't start a Group Replication if
+#      group_replication_view_change_uuid is configured with a invalid
+#      uuid
+#   2. We can't start a Group Replication if
+#      group_replication_view_change_uuid is configured with same uuid
+#      as group_replication_group_name
+#   3. We can't start a Group Replication if
+#      group_replication_view_change_uuid is configured with same uuid
+#      as server 1
+#   4. We can't set group_replication_group_name to same uuid
+#      configured on group_replication_view_change_uuid
+#   5. Cleanup
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Unable to start Group Replication on boot");
+call mtr.add_suppression("Invalid input value for group_replication_view_change_uuid ''. Please, provide a valid UUID.");
+call mtr.add_suppression("group_replication_group_name '.*', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC");
+call mtr.add_suppression("group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid.*matches server_uuid.*.");
+SET SESSION sql_log_bin=1;
+
+--echo ####################################################################
+--echo # 1. We can't start a Group Replication if
+--echo #    group_replication_view_change_uuid is configured with a invalid
+--echo #    uuid
+
+--let $view_change_uuid_save = `SELECT @@GLOBAL.group_replication_view_change_uuid`
+
+SET PERSIST_ONLY group_replication_view_change_uuid = "";
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=1 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Invalid input value for group_replication_view_change_uuid ''. Please, provide a valid UUID.
+--let $assert_count= 1
+--let $assert_text= group_replication_view_change_uuid '' not a valid uuid
+--source include/assert_grep.inc
+
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_view_change_uuid = "";
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Invalid input value for group_replication_view_change_uuid ''. Please, provide a valid UUID.
+--let $assert_count= 2
+--let $assert_text= group_replication_view_change_uuid '' not a valid uuid
+--source include/assert_grep.inc
+
+
+--echo ####################################################################
+--echo # 2. We can't start a Group Replication if
+--echo #    group_replication_view_change_uuid is configured with same uuid
+--echo #    as group_replication_group_name
+
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SET PERSIST_ONLY group_replication_view_change_uuid = "$group_replication_group_name"
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=1 --group-replication-group-name=$group_replication_group_name --group_replication_view_change_uuid=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= group_replication_group_name '.*', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC
+--let $assert_count= 1
+--let $assert_text= group_replication_group_name shall be different from group_replication_view_change_uuid
+--source include/assert_grep.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--replace_result $group_replication_group_name GROUP_NAME
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+--eval SET GLOBAL group_replication_view_change_uuid = "$group_replication_group_name"
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= group_replication_group_name '.*', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC
+--let $assert_count= 2
+--let $assert_text= group_replication_group_name shall be different from group_replication_view_change_uuid
+--source include/assert_grep.inc
+
+
+--echo ####################################################################
+--echo # 3. We can't start a Group Replication if
+--echo #    group_replication_view_change_uuid is configured with same uuid
+--echo #    as server 1
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $member1_uuid MEMBER_1_UUID
+--eval SET PERSIST_ONLY group_replication_view_change_uuid = "$member1_uuid"
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=1 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid.*matches server_uuid.*.
+--let $assert_count= 1
+--let $assert_text= group_replication_view_change_uuid shall be diferent from server uuid
+--source include/assert_grep.inc
+
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid.*matches server_uuid.*.
+--let $assert_count= 2
+--let $assert_text= group_replication_view_change_uuid shall be diferent from server uuid
+--source include/assert_grep.inc
+
+
+--echo ####################################################################
+--echo # 4. We can't set group_replication_group_name to same uuid
+--echo #    configured on group_replication_view_change_uuid
+
+SET GLOBAL group_replication_view_change_uuid = "9f46e042-98a0-439d-a8fb-7130670ca49b";
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL group_replication_group_name = "9f46e042-98a0-439d-a8fb-7130670ca49b";
+
+
+--echo ####################################################################
+--echo # 5. Cleanup
+
+RESET PERSIST;
+--replace_result $view_change_uuid_save VIEW_CHANGE_UUID
+--eval SET GLOBAL group_replication_view_change_uuid = $view_change_uuid_save
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=OFF --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--source include/restart_mysqld_no_echo.inc
+
+--source include/gr_clear_configuration.inc

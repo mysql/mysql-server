@@ -33,6 +33,7 @@ void add_site_def(u_int n, node_address *names, site_def *nodes);
 void remove_site_def(u_int n, node_address *names, site_def *nodes);
 char *dbg_site_def(site_def const *site);
 void init_site_vars();
+void free_site_def_body(site_def *s);
 void free_site_def(site_def *s);
 void free_site_defs();
 site_def *push_site_def(site_def *s);
@@ -58,6 +59,8 @@ void get_all_site_defs(site_def ***s, uint32_t *n);
 synode_no get_min_delivered_msg(site_def const *s);
 void update_delivered(site_def *s, node_no node, synode_no msgno);
 synode_no config_max_boot_key(gcs_snapshot const *gcs_snap);
+leader_array alloc_leader_array(u_int n);
+leader_array clone_leader_array(leader_array const x);
 synode_no get_highest_boot_key(gcs_snapshot *gcs_snap);
 synode_no get_lowest_boot_key(gcs_snapshot *gcs_snap);
 

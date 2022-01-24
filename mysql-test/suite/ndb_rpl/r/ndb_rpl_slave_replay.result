@@ -190,10 +190,10 @@ delete from test.t1;
 Now get skipped epoch using fault injection on the slave
 set @old_debug = @@global.debug;
 set global debug="";
-set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+set global debug="+d,ndb_replica_fail_marking_epoch_committed";
 show variables like 'debug';
 Variable_name	Value
-debug	d,ndb_slave_fail_marking_epoch_committed
+debug	d,ndb_replica_fail_marking_epoch_committed
 Let's make some epochs
 insert into test.t1 values (6, repeat('E', 1000));
 insert into test.t1 values (5, repeat('E', 1000));

@@ -26,7 +26,7 @@ Replication debug wait points
 This file contains methods used to decrease pollution in replication code
 Instead of inserting a entire block
 
-   DBUG_EXECUTE_IF(rpl_slave_debug_point
+   DBUG_EXECUTE_IF(rpl_replica_debug_point
 
     now SIGNAL this
 
@@ -34,7 +34,7 @@ Instead of inserting a entire block
 
 you can simply do
 
-  DBUG_EXECUTE_IF("rpl_slave_debug_point", {rpl_slave_debug();});
+  DBUG_EXECUTE_IF("rpl_replica_debug_point", {rpl_replica_debug();});
 
 The ideas is to have a method per file/context, like slave, master, gtid, etc
 
@@ -47,8 +47,8 @@ The ideas is to have a method per file/context, like slave, master, gtid, etc
 
 #include "my_dbug.h"
 
-enum enum_rpl_slave_debug_point {
-  /** stop_slave_dont_release_backup_lock */
+enum enum_rpl_replica_debug_point {
+  /** stop_replica_dont_release_backup_lock */
   DBUG_RPL_S_STOP_SLAVE_BACKUP_LOCK = 0,
 
   /** pause_after_queue_event */
@@ -57,7 +57,7 @@ enum enum_rpl_slave_debug_point {
   /** simulate_io_thd_wait_for_disk_space */
   DBUG_RPL_S_IO_WAIT_FOR_SPACE,
 
-  /** dbug.before_get_MASTER_UUID */
+  /** dbug.before_get_SOURCE_UUID */
   DBUG_RPL_S_BEFORE_MASTER_UUID,
 
   /** dbug.simulate_busy_io */
@@ -99,10 +99,10 @@ enum enum_rpl_slave_debug_point {
   /** pause_after_io_thread_stop_hook */
   DBUG_RPL_S_PAUSE_AFTER_IO_STOP,
 
-  /** mts_checkpoint - start */
+  /** mta_checkpoint - start */
   DBUG_RPL_S_MTS_CHECKPOINT_START,
 
-  /** mts_checkpoint - end */
+  /** mta_checkpoint - end */
   DBUG_RPL_S_MTS_CHECKPOINT_END,
 
   /** pause_after_sql_thread_stop_hook */
@@ -116,13 +116,16 @@ enum enum_rpl_slave_debug_point {
 
   /** handle_slave_io */
   DBUG_RPL_S_RETRY_COUNT_EXCEED,
+
+  /** Pause on a replica thread stop after aweking the THD */
+  DBUG_RPL_R_WAIT_AFTER_AWAKE_ON_THREAD_STOP
 };
 
 /**
   Method used to decrease code pollution in slave methods
 */
-void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
-                           THD *thd = nullptr) {
+void rpl_replica_debug_point(enum_rpl_replica_debug_point point_id,
+                             THD *thd = nullptr) {
   if (!thd) thd = current_thd;
 
   assert(opt_debug_sync_timeout > 0);
@@ -133,7 +136,7 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
     /* stop_slave_cmd */
     case DBUG_RPL_S_STOP_SLAVE_BACKUP_LOCK: {
       debug_point_string.assign(
-          "now SIGNAL slave_acquired_backup_lock WAIT_FOR "
+          "now SIGNAL replica_acquired_backup_lock WAIT_FOR "
           "tried_to_lock_instance_for_backup");
       break;
     }
@@ -149,13 +152,13 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
     }
     /* get_master_uuid */
     case DBUG_RPL_S_BEFORE_MASTER_UUID: {
-      debug_point_string.assign("now wait_for signal.get_master_uuid");
+      debug_point_string.assign("now wait_for signal.get_source_uuid");
       break;
     }
     /* get_master_uuid */
     case DBUG_RPL_S_SIMULATE_BUSY_IO: {
       debug_point_string.assign(
-          "now signal Reached wait_for signal.got_stop_slave");
+          "now signal Reached wait_for signal.got_stop_replica");
       break;
     }
     /* get_master_version_and_clock */
@@ -233,14 +236,14 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
           "continue_to_stop_io_thread");
       break;
     }
-    /* mts_checkpoint_routine */
+    /* mta_checkpoint_routine */
     case DBUG_RPL_S_MTS_CHECKPOINT_START: {
-      debug_point_string.assign("now signal mts_checkpoint_start");
+      debug_point_string.assign("now signal mta_checkpoint_start");
       break;
     }
-    /* mts_checkpoint_routine */
+    /* mta_checkpoint_routine */
     case DBUG_RPL_S_MTS_CHECKPOINT_END: {
-      debug_point_string.assign("now signal mts_checkpoint_end");
+      debug_point_string.assign("now signal mta_checkpoint_end");
       break;
     }
     /* handle_slave_sql */
@@ -259,7 +262,7 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
     /* queue_event */
     case DBUG_RPL_S_HEARTBEAT_EV: {
       debug_point_string.assign(
-          "now SIGNAL check_slave_master_info WAIT_FOR proceed_write_rotate");
+          "now SIGNAL check_replica_source_info WAIT_FOR proceed_write_rotate");
       break;
     }
     /* handle_slave_io */
@@ -267,6 +270,11 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
       debug_point_string.assign(
           "now SIGNAL wait_for_retry_count_exceed WAIT_FOR "
           "continue_retry_count_exceed");
+      break;
+    }
+    /* terminate_slave_thread */
+    case DBUG_RPL_R_WAIT_AFTER_AWAKE_ON_THREAD_STOP: {
+      debug_point_string.assign("now signal signal.stop_point_after_awake");
       break;
     }
   }

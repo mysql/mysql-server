@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <HugoOperations.hpp>
 
 #undef NDB_ERR
@@ -664,7 +665,7 @@ int HugoOperations::pkRefreshRecord(Ndb* pNdb,
   opts.optionsPresent = NdbOperation::OperationOptions::OO_ANYVALUE;
   for(int r=0; r < numRecords; r++)
   {
-    bzero(buffer, sizeof(buffer));
+    std::memset(buffer, 0, sizeof(buffer));
     if (calc.equalForRow((Uint8*)buffer, record, r + recordNo))
     {
       g_err << __LINE__ << " equal for row failed" << endl;
@@ -961,7 +962,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
   
   int len = attr->getSizeInBytes();
   char buf[NDB_MAX_TUPLE_SIZE];
-  memset(buf, 0, sizeof(buf));
+  std::memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 0, buf, len, &real_len);
   return pOp->equal( attr->getName(), value, real_len);
@@ -977,7 +978,7 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   {
     int len = attr->getSizeInBytes();
     char buf[NDB_MAX_TUPLE_SIZE];
-    memset(buf, 0, sizeof(buf));
+    std::memset(buf, 0, sizeof(buf));
     Uint32 real_len;
     const char * value = calc.calcValue(rowId, attrId,
                                         updateId, buf, len, &real_len);

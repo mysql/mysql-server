@@ -3,8 +3,8 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE DATABASE track;
 USE track;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -49,6 +49,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+Warnings:
+Warning	1287	'@@pseudo_slave_mode' is deprecated and will be removed in a future release. Please use pseudo_replica_mode instead.
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
@@ -80,7 +82,7 @@ visits_id	myid	src	ip	cc	org	ref	time	host	entry	visit_exit	user_id	visit_start
 SELECT * FROM visits_events;
 event_id	visit_id	timestamp	src	data	visits_events_id
 20000	21231038	2007-09-18 03:59:02		Downloads/MySQL-4.1/mysql-4.1.12a-win32.zip	33712207
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 DROP DATABASE track;
 include/sync_slave_sql_with_master.inc
 End of 5.1 tests

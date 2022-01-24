@@ -44,7 +44,7 @@
 --let $assert_only_after = CURRENT_TEST: rpl_gtid.rpl_async_conn_failover_udf_register_error
 --let $assert_text = Server2 receive a message from itself when server1 was OFFLINE.
 --let $assert_select = Could not execute the installation of UDF functions. Check for other errors in the log
---let $assert_count = 4
+--let $assert_count = 5
 --source include/assert_grep.inc
 
 

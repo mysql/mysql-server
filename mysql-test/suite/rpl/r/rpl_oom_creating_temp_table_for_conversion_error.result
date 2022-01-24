@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 CALL mtr.add_suppression("Slave SQL for channel .*Can.t create conversion table for table .test.t., Error_code: MY-001678");
 # Adding debug point 'simulate_out_of_memory_while_creating_temp_table_for_conversion' to @@GLOBAL.debug
-SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
-SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
+SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 [connection master]
 SET sql_log_bin = 0;
 CREATE TABLE t (a TINYINT);
@@ -18,7 +18,7 @@ CREATE TABLE t (a INT);
 INSERT INTO t VALUES (1);
 include/sync_slave_sql_with_master.inc
 # Removing debug point 'simulate_out_of_memory_while_creating_temp_table_for_conversion' from @@GLOBAL.debug
-SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 include/assert_grep.inc [Found 1 warning in the error log]
 [connection master]
 DROP TABLE t;

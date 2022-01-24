@@ -55,7 +55,7 @@
 ########################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/not_valgrind.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --connection slave
@@ -84,7 +84,7 @@ INSERT INTO test VALUES (1), (2), (3);
 --connection slave
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-info-repository=TABLE --skip-slave-start
+--let $rpl_server_parameters= --relay-log-info-repository=TABLE --skip-replica-start
 --source include/rpl_restart_server.inc
 
 let $exp_slave= 1;
@@ -103,7 +103,7 @@ file_exists $MYSQLD_DATADIR/relay-log.info;
 --connection slave
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start
+--let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-replica-start
 --source include/rpl_restart_server.inc
 
 let $exp_slave= 0;
@@ -199,6 +199,10 @@ SET @@GLOBAL.master_info_repository= "TABLE";
 
 DROP TABLE test;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
+--source include/stop_slave.inc
+SET @@GLOBAL.master_info_repository= "TABLE";
+--source include/start_slave.inc
 
 #Cleanup
 --source include/rpl_end.inc

@@ -69,7 +69,7 @@ static void atexit_main(void) {
       reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader)));
   /* Before unloading the test component we need to set the global
      service handles to minimal chassis services */
-  minimal_chassis_services_refresh(1);
+  minimal_chassis_services_refresh(true);
   loader->unload(&urn, 1);
   minimal_chassis_deinit(registry_ptr, &COMPONENT_REF(mysql_server));
 }
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   loader->load(&urn, 1);
   /* After loading the test component, update the global service
      handles to mysql_server services */
-  minimal_chassis_services_refresh(0);
+  minimal_chassis_services_refresh(false);
 
   registry_ptr->acquire("mysql_server_runnable",
                         reinterpret_cast<my_h_service *>(

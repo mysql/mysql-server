@@ -45,7 +45,9 @@
 #include "mysys_err.h"
 
 namespace {
+#ifndef _WIN32
 constexpr FILE *nullstream = nullptr;
+#endif
 
 /**
    Make a fopen() typestring from a open() type bitmap.

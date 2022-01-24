@@ -1,0 +1,283 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET sql_log_bin = 0;
+include/gtid_utils.inc
+SET sql_log_bin = 1;
+[connection server2]
+SET sql_log_bin = 0;
+include/gtid_utils.inc
+SET sql_log_bin = 1;
+[connection server3]
+SET sql_log_bin = 0;
+include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+############################################################
+# 1. Start server 1 and assert it only has one transaction
+[connection server1]
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have one transaction of view change]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 2. Start server 2 and assert it has two transactions
+[connection server2]
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have two transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 3. Confirm server 1 has same GTID_EXECUTED as server 2
+[connection server1]
+include/assert.inc [GTID_EXECUTED must have two transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 4. Start server 3 and assert it has three transactions
+[connection server3]
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 5. Confirm server 1 has same GTID_EXECUTED than server 3
+[connection server1]
+include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+############################################################
+# 6. Confirm server 2 has same GTID_EXECUTED than server 3
+[connection server2]
+include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 7. Stop server 3 and assert it has three transactions
+[connection server3]
+include/stop_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 8. Stop server 2 and assert it has three transactions
+[connection server2]
+include/stop_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 9. Start server 2 and assert it has 4 transactions
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have four transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 10. Confirm server 1 has same GTID_EXECUTED as server 2
+[connection server1]
+include/assert.inc [GTID_EXECUTED must have four transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 11. Start server 3 and assert it has 5 transactions
+[connection server3]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must have five transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+############################################################
+# 12. Confirm server 1 has same GTID_EXECUTED than server 3
+[connection server1]
+include/assert.inc [GTID_EXECUTED must have five transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+############################################################
+# 13. Confirm server 2 has same GTID_EXECUTED than server 3
+[connection server2]
+include/assert.inc [GTID_EXECUTED must have five transactions of view changes]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+
+############################################################
+# 14. Cleanup
+[connection server1]
+SET sql_log_bin = 0;
+include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET GLOBAL group_replication_view_change_uuid = "AUTOMATIC";
+[connection server2]
+SET sql_log_bin = 0;
+include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+[connection server3]
+SET sql_log_bin = 0;
+include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+include/group_replication_end.inc

@@ -49,19 +49,20 @@ class Transaction_with_guarantee_message
   };
 
   /**
-   Default constructor
+   Constructor
 
+   @param[in] payload_capacity  The transaction data size
    @param[in] consistency_level The transaction consistency level
    */
   Transaction_with_guarantee_message(
+      uint64_t payload_capacity,
       enum_group_replication_consistency_level consistency_level);
   ~Transaction_with_guarantee_message() override;
 
   /**
      Overrides Basic_ostream::write().
-     Transaction_with_guarantee_message is a Basic_ostream. Callers can write
-     data into Transaction_with_guarantee_message's data buffer though this
-     method.
+     Transaction_with_guarantee_message is a Basic_ostream, which
+     appends data into the a Gcs_message_data.
 
      @param[in] buffer  where the data will be read
      @param[in] length  the length of the data to write
@@ -71,11 +72,22 @@ class Transaction_with_guarantee_message
   bool write(const unsigned char *buffer, my_off_t length) override;
 
   /**
-     Length of data in data vector
+     Length of the message.
 
-     @return data length
+     @return message length
   */
-  my_off_t length() override;
+  uint64_t length() override;
+
+  /**
+     Get the Gcs_message_data object, which contains the serialized
+     transaction data.
+     The internal Gcs_message_data is nullified, to avoid further usage
+     of this Transaction object and the caller receives a pointer to the
+     previously internal Gcs_message_data, which whom it is now responsible.
+
+     @return the serialized transaction data in a Gcs_message_data object
+  */
+  Gcs_message_data *get_message_data_and_reset() override;
 
   /**
     Decode transaction consistency without unmarshal transaction data.
@@ -94,7 +106,8 @@ class Transaction_with_guarantee_message
                       const unsigned char *) override;
 
  private:
-  std::vector<uchar> m_data;
+  Gcs_message_data *m_gcs_message_data{nullptr};
+  static const uint64_t s_consistency_level_pit_size;
   enum_group_replication_consistency_level m_consistency_level;
 };
 

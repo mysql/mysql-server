@@ -38,7 +38,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER = "root";
 SHOW RELAYLOG EVENTS;
 
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-SELECT MASTER_POS_WAIT("dummy-bin.000001", 4);
+SELECT SOURCE_POS_WAIT("dummy-bin.000001", 4);
 
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
 START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
@@ -69,7 +69,7 @@ RESET SLAVE FOR CHANNEL "non_existent";
 FLUSH RELAY LOGS FOR CHANNEL "non_existent";
 
 --echo # Following wait functions shall return for a non_existnent channels
-SELECT MASTER_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent");
+SELECT SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent");
 
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existent");
 
@@ -86,12 +86,15 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root" FOR
 --echo #
 --echo #  3.b) Check that maximum channels permitted error is issued.
 --echo #
---let @old_debug = @@global.debug
-SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
+
+--let $debug_point= max_replication_channels_exceeded
+--source include/add_debug_point.inc
+
 --error ER_SLAVE_MAX_CHANNELS_EXCEEDED
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 4 FOR CHANNEL "257th_channel";
 
-SET GLOBAL DEBUG=@old_debug;
+--let $debug_point= max_replication_channels_exceeded
+--source include/remove_debug_point.inc
 
 --echo #
 --echo #  3.c) Check that restricted channel names cannot be used

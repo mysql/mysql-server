@@ -19,16 +19,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <random>
-
+#include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 
-[[noreturn]] void *Remote_clone_handler::launch_thread(void *arg) {
+void *Remote_clone_handler::launch_thread(void *arg) {
   Remote_clone_handler *thd = static_cast<Remote_clone_handler *>(arg);
-  thd->clone_thread_handle();
+  thd->clone_thread_handle();  // Does not return.
 }
 
 Remote_clone_handler::Remote_clone_handler(ulonglong threshold,
@@ -348,9 +346,7 @@ void Remote_clone_handler::get_clone_donors(
   std::vector<Group_member_info *> *all_members_info =
       group_member_mgr->get_all_members();
   if (all_members_info->size() > 1) {
-    std::random_device rng;
-    std::mt19937 urng(rng());
-    std::shuffle(all_members_info->begin(), all_members_info->end(), urng);
+    vector_random_shuffle(all_members_info);
   }
 
   for (Group_member_info *member : *all_members_info) {
@@ -836,7 +832,7 @@ void Remote_clone_handler::gr_clone_debug_point() {
 
       if (m_being_terminated) goto thd_end;
 
-      terminate_wait_on_start_process(true);
+      terminate_wait_on_start_process(WAIT_ON_START_PROCESS_ABORT_ON_CLONE);
 
       error = run_clone_query(sql_command_interface, hostname, port, username,
                               password, use_ssl);
@@ -896,10 +892,10 @@ thd_end:
   delete thd;
   m_clone_thd = nullptr;
   thd = nullptr;
+  my_thread_end();
   m_clone_process_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  my_thread_end();
   my_thread_exit(nullptr);
 }

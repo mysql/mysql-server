@@ -394,6 +394,7 @@ INSERT INTO `E` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_v
           (78, 5, '2004-12-21', '2004-09-01 18:53:04', '16:06:30', 'bycj'),
           (79, 0, '2003-10-14', '2000-04-13 05:21:03', '19:04:51', 'ycjzxie');
 
+--sorted_result
 SELECT outr1.col_varchar AS f1, outr2.col_varchar AS f2
     FROM `C` AS outr1 LEFT JOIN `E` AS outr2
     ON (outr1.col_int_key = outr2.col_int_key)

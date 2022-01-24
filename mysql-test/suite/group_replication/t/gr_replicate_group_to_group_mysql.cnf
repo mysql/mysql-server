@@ -1,0 +1,32 @@
+!include ../my.cnf
+
+[mysqld.1]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.2]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.3]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.4]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.5]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.6]
+loose-group_replication_communication_stack=MySQL
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+
+SERVER_MYPORT_4=		@mysqld.4.port
+SERVER_MYSOCK_4=		@mysqld.4.socket
+
+SERVER_MYPORT_5=		@mysqld.5.port
+SERVER_MYSOCK_5=		@mysqld.5.socket
+
+SERVER_MYPORT_6=		@mysqld.6.port
+SERVER_MYSOCK_6=		@mysqld.6.socket

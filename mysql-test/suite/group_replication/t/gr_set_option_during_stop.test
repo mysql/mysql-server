@@ -1,0 +1,154 @@
+################################################################################
+# This test verifies that parallel execution of STOP GROUP_REPLICATION and
+# Group Replication options change are handled properly by the server.
+#
+# Test:
+# 0. The test requires one server: M1
+# 1. Bootstrap a group on server1.
+#    Setup a debug point that will block a future
+#    STOP GROUP_REPLICATION command
+#    after the plugin_running_lock is acquired.
+# 2. Asynchronously execute STOP GROUP_REPLICATION command.
+# 3. Try to change Group Replication options that cannot be
+#    change while a STOP GROUP_REPLICATION is ongoing, they
+#    must fail.
+# 4. Change Group Replication options that can be
+#    change while a STOP GROUP_REPLICATION is ongoing.
+# 5. Validate that we did test all Group Replication options.
+# 6. Resume the STOP GROUP_REPLICATION command.
+# 7. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo ############################################################
+--echo # 1. Bootstrap a group on server1.
+--echo #    Setup a debug point that will block a future
+--echo #    STOP GROUP_REPLICATION command
+--echo #    after the plugin_running_lock is acquired.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+
+
+--echo ############################################################
+--echo # 2. Asynchronously execute STOP GROUP_REPLICATION command.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_plugin_gr_stop_after_holding_plugin_running_lock";
+SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+
+
+--echo ############################################################
+--echo # 3. Try to change Group Replication options that cannot be
+--echo #    change while a STOP GROUP_REPLICATION is ongoing, they
+--echo #    must fail.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# When adding new options, if it can be set while STOP GROUP_REPLICATION is
+# ongoing please add it below with `AND VARIABLE_NAME != 'xxx'`
+SET SESSION sql_log_bin = 0;
+CREATE TABLE gr_options_that_cannot_be_change (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) UNIQUE KEY);
+INSERT INTO gr_options_that_cannot_be_change (name)
+ SELECT VARIABLE_NAME FROM performance_schema.global_variables
+ WHERE VARIABLE_NAME LIKE 'group_replication_%'
+ AND VARIABLE_NAME != 'group_replication_allow_local_lower_version_join'
+ AND VARIABLE_NAME != 'group_replication_bootstrap_group'
+ AND VARIABLE_NAME != 'group_replication_communication_stack'
+ AND VARIABLE_NAME != 'group_replication_consistency'
+ AND VARIABLE_NAME != 'group_replication_exit_state_action'
+ AND VARIABLE_NAME NOT LIKE 'group_replication_flow_control_%'
+ AND VARIABLE_NAME != 'group_replication_group_seeds'
+ AND VARIABLE_NAME != 'group_replication_local_address'
+ AND VARIABLE_NAME != 'group_replication_poll_spin_loops'
+ AND VARIABLE_NAME != 'group_replication_ssl_mode'
+ AND VARIABLE_NAME != 'group_replication_start_on_boot'
+ AND VARIABLE_NAME != 'group_replication_tls_source'
+ AND VARIABLE_NAME != 'group_replication_transaction_size_limit'
+ ORDER BY VARIABLE_NAME;
+SET SESSION sql_log_bin = 1;
+--let $gr_options_that_cannot_be_change_count= `SELECT COUNT(*) FROM gr_options_that_cannot_be_change;`
+
+--let $option_id= 1
+while ( $option_id <= $gr_options_that_cannot_be_change_count )
+{
+  --let $option_name= `SELECT name FROM gr_options_that_cannot_be_change WHERE id=$option_id`
+  --eval SET @value= @@GLOBAL.$option_name
+  --error ER_UNABLE_TO_SET_OPTION
+  --eval SET @@GLOBAL.$option_name= @value
+  --inc $option_id
+}
+
+
+--echo ############################################################
+--echo # 4. Change Group Replication options that can be
+--echo #    change while a STOP GROUP_REPLICATION is ongoing.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE gr_options_that_can_be_change (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) UNIQUE KEY);
+INSERT INTO gr_options_that_can_be_change (name)
+ SELECT gb.VARIABLE_NAME FROM performance_schema.global_variables gb
+ WHERE gb.VARIABLE_NAME LIKE 'group_replication_%'
+ AND gb.VARIABLE_NAME NOT IN (SELECT name FROM gr_options_that_cannot_be_change)
+ ORDER BY gb.VARIABLE_NAME;
+SET SESSION sql_log_bin = 1;
+--let $gr_options_that_can_be_change_count= `SELECT COUNT(*) FROM gr_options_that_can_be_change;`
+
+--let $option_id= 1
+while ( $option_id <= $gr_options_that_can_be_change_count )
+{
+  --let $option_name= `SELECT name FROM gr_options_that_can_be_change WHERE id=$option_id`
+  --eval SET @value= @@GLOBAL.$option_name
+  --eval SET @@GLOBAL.$option_name= @value
+  --inc $option_id
+}
+
+
+--echo ############################################################
+--echo # 5. Validate that we did test all Group Replication options.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $gr_options= `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'group_replication_%'`
+
+--let $assert_text= Validate that we did test all Group Replication options
+--let $assert_cond= $gr_options = ($gr_options_that_cannot_be_change_count + $gr_options_that_can_be_change_count)
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 6. Resume the STOP GROUP_REPLICATION command.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_running_lock";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+
+--echo ############################################################
+--echo # 7. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.read_only= 0;
+
+SET SESSION sql_log_bin = 0;
+DROP TABLE gr_options_that_cannot_be_change;
+DROP TABLE gr_options_that_can_be_change;
+SET SESSION sql_log_bin = 1;
+
+--source include/group_replication_end.inc

@@ -87,6 +87,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 big5
 SET @@session.character_set_connection = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 dec8
@@ -95,6 +97,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 cp850
 SET @@session.character_set_connection = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 hp8
@@ -181,6 +185,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb4
 SET @@session.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 ucs2
@@ -193,10 +199,14 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 keybcs2
 SET @@session.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macce
 SET @@session.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macroman
@@ -242,6 +252,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 big5
 SET @@global.character_set_connection = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 dec8
@@ -250,6 +262,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 cp850
 SET @@global.character_set_connection = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 hp8
@@ -336,6 +350,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb4
 SET @@global.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 ucs2
@@ -348,10 +364,14 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 keybcs2
 SET @@global.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macce
 SET @@global.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macroman
@@ -420,6 +440,8 @@ SELECT @@character_set_connection;
 @@character_set_connection
 latin2
 SET @@character_set_connection = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_connection;
 @@character_set_connection
 dec8
@@ -442,6 +464,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 latin2
 SET @@global.character_set_connection = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 dec8

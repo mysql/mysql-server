@@ -38,9 +38,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 
 #if defined(_WIN32)
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.cc"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.h"
 #else
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.cc"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.h"
 #endif
 
 /**

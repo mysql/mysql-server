@@ -35,12 +35,12 @@
 #include "sql/current_thd.h"            // current_thd
 #include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress()
 #include "sql/field.h"                  // Field
-#include "sql/mysqld.h"                 // key_LOCK_cost_const
-#include "sql/records.h"                // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/mysqld.h"     // key_LOCK_cost_const
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"   // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"        // lex_start/lex_end
 #include "sql/sql_tmp_table.h"  // init_cache_tmp_engine_properties
 #include "sql/table.h"          // TABLE
@@ -249,9 +249,9 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 
@@ -314,9 +314,9 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 

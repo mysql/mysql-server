@@ -59,7 +59,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
 Concatenate 3 strings.*/
 char *ut_str3cat(
     /* out, own: concatenated string, must be
-    freed with ut_free() */
+    freed with ut::free() */
     const char *s1, /* in: string 1 */
     const char *s2, /* in: string 2 */
     const char *s3) /* in: string 3 */
@@ -69,7 +69,8 @@ char *ut_str3cat(
   ulint s2_len = strlen(s2);
   ulint s3_len = strlen(s3);
 
-  s = static_cast<char *>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
+  s = static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             s1_len + s2_len + s3_len + 1));
 
   memcpy(s, s1, s1_len);
   memcpy(s + s1_len, s2, s2_len);

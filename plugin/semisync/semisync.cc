@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/semisync/semisync.h"
+#include "mysql/components/services/component_sys_var_service.h"
 
 const unsigned char ReplSemiSyncBase::kPacketMagicNum = 0xef;
 const unsigned char ReplSemiSyncBase::kPacketFlagSync = 0x01;
@@ -33,3 +34,18 @@ const unsigned long Trace::kTraceFunction = 0x0040;
 
 const unsigned char ReplSemiSyncBase::kSyncHeader[2] = {
     ReplSemiSyncBase::kPacketMagicNum, 0};
+
+bool is_sysvar_defined(const char *name) {
+  char buffer[256];
+  void *value = buffer;
+  size_t value_length = sizeof(buffer) - 1;
+  auto registry_handle = mysql_plugin_registry_acquire();
+  assert(registry_handle != nullptr);
+  my_service<SERVICE_TYPE(component_sys_variable_register)> svc(
+      "component_sys_variable_register", registry_handle);
+  // Returns true on error, i.e., if the variable does *not* exist.
+  bool get_var_error =
+      svc->get_variable("mysql_server", name, &value, &value_length);
+  mysql_plugin_registry_release(registry_handle);
+  return !get_var_error;
+}

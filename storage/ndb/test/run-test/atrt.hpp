@@ -25,6 +25,8 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
+#include <time.h>
+
 #include <NDBT_ReturnCodes.h>
 #include <mgmapi.h>
 #include <my_default.h>
@@ -85,7 +87,7 @@ enum RestartMode : long {
 
 namespace coverage {
 enum Coverage : long { None, Testcase, Testsuite };
-};
+}
 
 enum CoverageTools : long { Lcov, Fastcov };
 

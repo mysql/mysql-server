@@ -16,7 +16,7 @@ include/sync_slave_sql_with_master.inc
 [connection slave]
 SET @@GLOBAL.DEBUG= '+d,rpl_set_relay_log_limits';
 SET @@GLOBAL.DEBUG= '+d,rpl_before_forced_rotate';
-SET @@GLOBAL.slave_checkpoint_period= 1;
+SET @@GLOBAL.replica_checkpoint_period= 1;
 #
 # 3. Execute a transaction on the master
 #  - Wait for the IO to be waiting to free space
@@ -37,7 +37,7 @@ include/sync_slave_sql_with_master.inc
 include/assert.inc ['There are 2 values in table t1']
 #
 # 5. Cleanup
-SET @@GLOBAL.slave_checkpoint_period= SLAVE_CHECKPOINT_PERIOD;
+SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

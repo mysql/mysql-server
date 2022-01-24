@@ -26,5 +26,19 @@ SET DEBUG='-d,mysql_lock_tables_kill_query';
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 COMMIT;
 #
+# Bug#29330089: SERVER TIMEZONE STAYS ON CEST AFTER CHANGING
+#               SUMMER TIME IS OVER
+#
+SET DEBUG="+d,set_cet_before_dst";
+SELECT @@SYSTEM_TIME_ZONE;
+@@SYSTEM_TIME_ZONE
+CET
+SET DEBUG="-d,set_cet_before_dst";
+SET DEBUG="+d,set_cet_after_dst";
+SELECT @@SYSTEM_TIME_ZONE;
+@@SYSTEM_TIME_ZONE
+CEST
+SET DEBUG="-d,set_cet_after_dst";
+#
 # End of 5.7 tests
 #

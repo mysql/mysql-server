@@ -24,36 +24,20 @@
 
 #include <typeinfo>
 
+#include <gmock/gmock.h>
+
 #include "../src/metadata_cache.h"
 #include "../src/plugin_config.h"
 
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 #include "router_test_helpers.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
 
 using ::testing::ContainerEq;
 using ::testing::Eq;
 using ::testing::StrEq;
 
 using mysql_harness::TCPAddress;
-
-// demangle the symbols returned by typeid().name() if needed
-//
-// typeid() on gcc/clang returns a mangled name, msvc doesn't.
-static std::string cxx_demangle_name(const char *mangled) {
-#if defined(__GNUC__) && defined(__cplusplus)
-  // gcc and clang are mangling the names
-  std::shared_ptr<char> demangled_name(
-      abi::__cxa_demangle(mangled, nullptr, nullptr, nullptr), [&](char *p) {
-        if (p) free(p);
-      });
-
-  return std::string(demangled_name.get());
-#else
-  return mangled;
-#endif
-}
 
 // the Good
 
@@ -108,7 +92,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
 
   EXPECT_THAT(plugin_config.user, StrEq(test_data.expected.user));
   EXPECT_THAT(plugin_config.ttl, Eq(test_data.expected.ttl));
-  EXPECT_THAT(plugin_config.metadata_cluster,
+  EXPECT_THAT(plugin_config.cluster_name,
               StrEq(test_data.expected.metadata_cluster));
   EXPECT_THAT(plugin_config.metadata_servers_addresses,
               ContainerEq(test_data.expected.bootstrap_addresses));
@@ -273,9 +257,8 @@ TEST_P(MetadataCachePluginConfigBadTest, BadConfigs) {
     MetadataCachePluginConfig plugin_config(&section);
     FAIL() << "should have failed";
   } catch (const std::exception &exc) {
-    EXPECT_THAT(
-        cxx_demangle_name(typeid(exc).name()),
-        StrEq(cxx_demangle_name(test_data.expected.exception_type.name())));
+    EXPECT_THAT(typeid(exc).name(),
+                StrEq(test_data.expected.exception_type.name()));
     EXPECT_THAT(exc.what(), StrEq(test_data.expected.exception_msg));
   }
 }
@@ -288,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               },
 
                               {
-                                  typeid(mysqlrouter::option_not_present),
+                                  typeid(mysql_harness::option_not_present),
                                   "option user in [metadata_cache] is required",
                               }},
                              // ttl is garbage
@@ -330,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               }},
                          })));
 
-using mysqlrouter::BasePluginConfig;
+using mysql_harness::BasePluginConfig;
 
 // Valid millisecond configuration values
 using GetOptionMillisecondsOkTestData =

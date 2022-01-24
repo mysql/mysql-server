@@ -680,3 +680,86 @@ SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
 ) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#32863713: CTE CRASH IN QUERY_BLOCK::MASTER_QUERY_EXPRESSION
+--echo #
+
+CREATE TABLE t(f1 INTEGER);
+# Checking if condition pushdown to a derived table does not
+# crash the server when one of derived table is merged.
+EXPLAIN SELECT a1, a2
+ FROM (SELECT MAX(2) AS a1 FROM t) as dt1,
+ (SELECT @a AS a2 FROM t) as dt2
+ WHERE dt1.a1 <= dt2.a2;
+
+SELECT a1, a2
+ FROM (SELECT MAX(f1) AS a1 FROM t) as dt1,
+ (SELECT @a AS a2 FROM t) as dt2
+ WHERE dt1.a1 <= dt2.a2;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32905044: CRASH AT CONDITION_PUSHDOWN::REPLACE_COLUMNS_IN_COND
+--echo #	       DURIN RQG CONCURRENCY RUNS
+
+CREATE TABLE t(f1 INTEGER);
+CREATE ALGORITHM=temptable VIEW v AS SELECT f1 FROM t;
+
+#Query should not crash
+SELECT f1 FROM (SELECT f1 FROM v) AS dt1 NATURAL JOIN v dt2 WHERE f1 > 5;
+
+DROP TABLE t;
+DROP VIEW v;
+
+--echo #
+--echo # Bug#32959186: DERIVED CONDITION PUSHDOWN IS NOT AVAILABLE FOR
+--echo #               INSERT ... SELECT QUERIES
+
+CREATE TABLE t1(f1 INTEGER, KEY(f1));
+CREATE TABLE t2(f1 INTEGER);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+CREATE ALGORITHM=temptable VIEW v AS SELECT f1 FROM t1;
+
+#Check that condition f1=2 is pushed down to "v"
+--replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN format=tree INSERT INTO t2 SELECT * FROM v WHERE f1=2;
+INSERT INTO t2 SELECT * FROM v WHERE f1=2;
+#Check that condition f1=2 is pushed down to "v"
+--replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
+UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
+#Check that condition f1=3 is pushed down to "v"
+--replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
+DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROp VIEW v;
+
+--echo #
+--echo # Bug#33341080: Derived condition pushdown rewrite ignores user variables
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+INSERT INTO t1 VALUES (100),(200),(300),(400),(500);
+
+let query = SELECT *
+            FROM (SELECT f1, (@rownum_r := @rownum_r + 1) AS r FROM t1) AS dt
+            WHERE dt.f1 = 300;
+
+SET @rownum_r=0;
+--replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
+# This should not push the condition down to derived table because of user variable
+# assignments.
+eval EXPLAIN FORMAT=tree $query;
+SET @rownum_r=0;
+eval $query;
+
+DROP TABLE t1;

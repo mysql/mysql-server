@@ -473,7 +473,8 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
             log.sn_locked.load(std::memory_order_acquire) > start_sn) {
           break;
         }
-        os_event_wait_time_low(log.sn_lock_event, 1000000, signal_count);
+        os_event_wait_time_low(log.sn_lock_event, std::chrono::seconds{1},
+                               signal_count);
       }
     } while ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) != 0 &&
              log.sn_locked.load(std::memory_order_acquire) <= start_sn);
@@ -1045,7 +1046,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   /* Disallow reordering of writes to log buffer after this point.
   This is actually redundant, because we use seq_cst inside the
   log.recent_written.add_link(). However, we've decided to leave
-  the seperate acq-rel synchronization between user threads and
+  the separate acq-rel synchronization between user threads and
   log writer. Reasons:
           1. Not to rely on internals of Link_buf::add_link.
           2. Stress that this synchronization is required in

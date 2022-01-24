@@ -74,44 +74,55 @@ class Backup_page_tracker {
 
  public:
   static bool m_receive_changed_page_data;
+  static char *m_changed_pages_file;
 
   // Page track UDF functions
   static mysql_service_status_t register_udfs();
   static mysql_service_status_t unregister_udfs();
 
   static bool set_page_tracking_init(UDF_INIT *initid, UDF_ARGS *, char *);
-  static void set_page_tracking_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused)));
+  static void set_page_tracking_deinit(UDF_INIT *initid [[maybe_unused]]);
   static long long set_page_tracking(UDF_INIT *initid, UDF_ARGS *,
                                      unsigned char *is_null,
                                      unsigned char *error);
 
   static bool page_track_get_changed_pages_init(UDF_INIT *initid, UDF_ARGS *,
                                                 char *);
-  static void page_track_get_changed_pages_deinit(
-      UDF_INIT *initid MY_ATTRIBUTE((unused)));
+  static void page_track_get_changed_pages_deinit(UDF_INIT *initid
+                                                  [[maybe_unused]]);
   static long long page_track_get_changed_pages(UDF_INIT *initid, UDF_ARGS *,
                                                 unsigned char *is_null,
                                                 unsigned char *error);
 
   static bool page_track_get_start_lsn_init(UDF_INIT *initid, UDF_ARGS *,
                                             char *);
-  static void page_track_get_start_lsn_deinit(
-      UDF_INIT *initid MY_ATTRIBUTE((unused)));
+  static void page_track_get_start_lsn_deinit(UDF_INIT *initid
+                                              [[maybe_unused]]);
   static long long page_track_get_start_lsn(UDF_INIT *initid, UDF_ARGS *,
                                             unsigned char *is_null,
                                             unsigned char *error);
 
   static bool page_track_get_changed_page_count_init(UDF_INIT *initid,
                                                      UDF_ARGS *, char *);
-  static void page_track_get_changed_page_count_deinit(
-      UDF_INIT *initid MY_ATTRIBUTE((unused)));
+  static void page_track_get_changed_page_count_deinit(UDF_INIT *initid
+                                                       [[maybe_unused]]);
   static long long page_track_get_changed_page_count(UDF_INIT *initid,
                                                      UDF_ARGS *,
                                                      unsigned char *is_null,
                                                      unsigned char *error);
 
+  static bool page_track_purge_up_to_init(UDF_INIT *initid, UDF_ARGS *, char *);
+  static void page_track_purge_up_to_deinit(UDF_INIT *initid [[maybe_unused]]);
+  static long long page_track_purge_up_to(UDF_INIT *initid, UDF_ARGS *,
+                                          unsigned char *is_null,
+                                          unsigned char *error);
+
   // method to act on a changed backup-id
   static bool backup_id_update();
+
+  /// Method to de-allocate the memory allocated for the buffer holding
+  /// path value for the page-track file, if not done before.
+  static void deinit();
 };
 
 #endif /* INC_PAGE_TRACKER_SERVICE_H */

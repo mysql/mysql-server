@@ -54,6 +54,8 @@ WHERE constraint_catalog IS NOT NULL AND
 table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME
+def	mtr	PRIMARY	mtr	asserted_test_suppressions
+def	mtr	PRIMARY	mtr	test_ignored_global_suppressions
 def	mysql	PRIMARY	mysql	columns_priv
 def	mysql	PRIMARY	mysql	component
 def	mysql	PRIMARY	mysql	db
@@ -77,6 +79,8 @@ def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover_managed
+def	mysql	PRIMARY	mysql	replication_group_configuration_version
+def	mysql	PRIMARY	mysql	replication_group_member_actions
 def	mysql	PRIMARY	mysql	role_edges
 def	mysql	PRIMARY	mysql	server_cost
 def	mysql	PRIMARY	mysql	servers
@@ -155,8 +159,6 @@ def	performance_schema	PRIMARY	performance_schema	replication_applier_configurat
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_coordinator
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_worker
-def	performance_schema	PRIMARY	performance_schema	replication_asynchronous_connection_failover
-def	performance_schema	PRIMARY	performance_schema	replication_asynchronous_connection_failover_managed
 def	performance_schema	PRIMARY	performance_schema	replication_connection_configuration
 def	performance_schema	PRIMARY	performance_schema	replication_connection_status
 def	performance_schema	PRIMARY	performance_schema	rwlock_instances

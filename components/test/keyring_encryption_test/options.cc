@@ -91,7 +91,7 @@ bool get_one_option(int optid, const struct my_option *, char *) {
       usage(true);
       break;
     case 'I':
-      // Fall through
+      [[fallthrough]];
     case '?':
       usage(false);
       break;

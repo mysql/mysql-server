@@ -89,6 +89,7 @@ RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS local_infile;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 UNINSTALL PLUGIN clone;
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
 set session sql_log_bin=0;

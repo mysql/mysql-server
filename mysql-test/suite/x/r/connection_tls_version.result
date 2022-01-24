@@ -9,7 +9,7 @@ CONNECTION_TYPE
 TCP/IP
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_version	
@@ -22,10 +22,10 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -35,75 +35,10 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -111,15 +46,14 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
-# restart: --tls-version=TLSv1
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -129,69 +63,30 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Application terminated with expected error: protocol version mismatch (code 2026)
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
-# restart: --tls-version=TLSv1.1
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+# restart: --tls-version=TLSv1.2
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -201,10 +96,25 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -214,51 +124,86 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: socket layer receive error (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+# restart: --tls-version=TLSv1.2
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: socket layer receive error (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 # restart:
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
-# restart: --tls_version=TLSv1,TLSv1.1
+# restart: --tls_version=TLSv1.2
 SET GLOBAL mysqlx_connect_timeout = 300;
 CREATE USER user5_mysqlx@localhost
 IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -268,7 +213,7 @@ CONNECTION_TYPE
 TCP/IP
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_version	
@@ -281,10 +226,10 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -294,75 +239,10 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1,TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1,TLSv1.1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -370,15 +250,14 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
-# restart: --tls-version=TLSv1
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -388,69 +267,30 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Application terminated with expected error: protocol version mismatch (code 2026)
-ok
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-Variable_name	Value
-tls_version	TLSv1
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
-# restart: --tls-version=TLSv1.1
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+# restart: --tls-version=TLSv1.2
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -460,10 +300,25 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -473,44 +328,79 @@ CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: socket layer receive error (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+# restart: --tls-version=TLSv1.2
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: socket layer receive error (code 2026)
+Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
 Variable_name	Value
-tls_version	TLSv1.1
+tls_version	TLSv1.2
 0 rows affected
 Variable_name	Value
-Mysqlx_ssl_version	TLSv1.1
+Mysqlx_ssl_version	TLSv1.2
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
+ok
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+Variable_name	Value
+tls_version	TLSv1.2
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok

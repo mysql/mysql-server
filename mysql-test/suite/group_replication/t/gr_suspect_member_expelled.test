@@ -41,7 +41,6 @@ SELECT @@GLOBAL.group_replication_member_expel_timeout;
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
-
 # Kill server3
 --echo #
 --echo # Crash server 3

@@ -4,15 +4,12 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 1. Test referential action RESTRICT with WRITESET. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -59,11 +56,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 2. Test referential action RESTRICT with WRITESET_SESSION. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET_SESSION
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -110,11 +105,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 3. Test referential action NO ACTION with WRITESET. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -161,11 +154,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 4. Test referential action NO ACTION with WRITESET_SESSION. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET_SESSION
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -212,11 +203,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 5. Test referential action CASCADE with WRITESET. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -261,11 +250,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 6. Test referential action CASCADE with WRITESET_SESSION. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET_SESSION
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -310,11 +297,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 7. Test referential action SET NULL with WRITESET. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -359,11 +344,9 @@ include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 8. Test referential action SET NULL with WRITESET_SESSION. ########
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
-XXHASH64	XXHASH64	WRITESET_SESSION
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -408,5 +391,4 @@ include/sync_slave_sql_with_master.inc
 
 # Clean up
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 include/rpl_end.inc

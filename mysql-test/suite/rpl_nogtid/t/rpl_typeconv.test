@@ -2,7 +2,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/not_group_replication_plugin.inc
 
-# sql_slave_skip_counter is not supported with compression
+# sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
 
 --source include/have_binlog_format_row.inc
@@ -10,7 +10,7 @@
 
 connection slave;
 --let $saved_log_error_verbosity=`SELECT @@global.log_error_verbosity`
-set @saved_slave_type_conversions = @@global.slave_type_conversions;
+set @saved_replica_type_conversions = @@global.replica_type_conversions;
 CREATE TABLE type_conversions (
        TestNo INT AUTO_INCREMENT PRIMARY KEY,
        Source TEXT,
@@ -22,18 +22,18 @@ CREATE TABLE type_conversions (
        Compare INT,
        Error TEXT);
 
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
-SELECT @@global.slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
+SELECT @@global.replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
 --error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
-SELECT @@global.slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
+SELECT @@global.replica_type_conversions;
 
 # Disabling warnings to not flood the error log, otherwise it might
 # cause sporadic test failures during the 'check warnings' stage because
@@ -47,22 +47,22 @@ SET @@global.log_error_verbosity=1;
 
 # Checking strict interpretation of type conversions
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
 source extra/rpl_tests/type_conversions.test;
 
 # Checking lossy integer type conversions
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 source extra/rpl_tests/type_conversions.test;
 
 # Checking non-lossy integer type conversions
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
 source extra/rpl_tests/type_conversions.test;
 
 # Checking all type conversions
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
 source extra/rpl_tests/type_conversions.test;
 
 # reinstate the log_error_verbosity value
@@ -90,6 +90,6 @@ connection master;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
-set global slave_type_conversions = @saved_slave_type_conversions;
+set global replica_type_conversions = @saved_replica_type_conversions;
 
 --source include/rpl_end.inc

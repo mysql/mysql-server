@@ -15,6 +15,11 @@
 # These additional stored programs which will be added might cause 
 # result content mismatch failure. 
 
+# clang/UBSAN needs to override the small thread stack in our -master.opt
+--disable_query_log
+call mtr.add_suppression("option 'thread_stack':");
+--enable_query_log
+
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
@@ -66,4 +71,7 @@ show global status like "%performance_schema_nested_statement_lost%";
 --echo ##################### 
 --source suite/perfschema/include/program_nested_cleanup.inc 
 
+--echo # Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
 

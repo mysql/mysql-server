@@ -1865,6 +1865,7 @@ WHERE ( table1.pk > 226 AND
         ) 
       )
 ;
+--disable_warnings
 SET UNIQUE_CHECKS = 0;
 SET FOREIGN_KEY_CHECKS = 0;
 sorted_result;
@@ -1877,7 +1878,7 @@ eval CREATE TABLE t2 $query;
 sorted_result;
 eval SELECT * FROM t2
      WHERE (field1, field2) IN ($query);
-
+--enable_warnings
 DROP TABLE t1, t2;
 
 --echo #
@@ -2565,11 +2566,15 @@ DROP TABLE t1, t2, t3;
 --echo # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
 --echo #
 
+# Use a PAD SPACE collation (utf8mb4_bin) to preserve test coverage
+# for the original bug. The test case for Bug#33282123 provides
+# coverage for NO PAD collations.
+
 CREATE TABLE t1 (
-  col1 VARCHAR(5),
+  col1 VARCHAR(5) CHARSET utf8mb4 COLLATE utf8mb4_bin,
   col2 INT NOT NULL,
   PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB, CHARSET utf8mb4;
+);
 
 INSERT INTO t1 VALUES ('abcde', 10);
 
@@ -2584,7 +2589,9 @@ let $query2= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 eval EXPLAIN $query1;
 eval EXPLAIN $query2;
 
+# No row with col1='abcdeaa'. Expect NULL.
 eval $query1;
+# col1='abcde  ' matches 'abcde' because of PAD SPACE. Expect non-NULL.
 eval $query2;
 
 DROP TABLE t1;
@@ -3060,8 +3067,109 @@ ANALYZE TABLE t;
 
 # Test if adjacent ranges when rounded off to the same value by range
 # optimizer return correct results. Note that range scan is not chosen as the
-# final range would be 0 < id <= 0 which is "where true". So range optimizer
+# final range would be 0 < f1 <= 0 which is "where true". So range optimizer
 # will not have any range to work on.
 SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#32523520: OPTIMIZER LOSES PART OF RANGE WHEN OR MULTIPLE
+--echo #	       IDENTICAL RANGES IN RANGE PLAN
+--echo #
+
+CREATE TABLE t1( a INTEGER, b INTEGER, c INTEGER,
+ d VARCHAR(10), PRIMARY KEY (a, b, c));
+INSERT INTO t1 VALUES (1, 1, 1, 'a'), (2, 2, 2,'b'), (3, 3, 3, 'c');
+
+#Should pick range index scan
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE (a=1 AND b=1 AND c=1)
+ OR (a=1 AND b=1 AND c=1) OR (a=1 AND b=2 AND c=2);
+
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE (a=1 AND b=1 AND c=1)
+ OR (a=1 AND b=1 AND c=1) OR (a=1 AND b=2 AND c=2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31870920: WRONG RESULT WHEN SELECT INT COLUMN WITH RANGE
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, KEY(f1));
+INSERT INTO t1 VALUES(0),(0),(0);
+ANALYZE TABLE t1;
+
+# Test if adjacent ranges for a nullable column when rounded off to the
+# same value by range optimizer return correct results. Note that range
+# scan is not chosen as the final range would be 0 < f1 <= 0 which is
+# "where true". So range optimizer will not have any range to work on.
+
+EXPLAIN SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
+SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33067554: INDEX_MERGE: ASSERTION FAILURE:
+--echo #               ROW0SEL.CC:5584:PREBUILT->CAN_PREFETCH_RECORDS() ||
+--echo #               RECORD_BUFFER == NULLPTR
+--echo #
+
+CREATE TABLE t (
+  a INTEGER,
+  b INTEGER,
+  pk TEXT NOT NULL,
+  PRIMARY KEY (pk(110)),
+  KEY (a),
+  KEY (b)
+);
+
+INSERT INTO t VALUES
+  (51,16777216,''), (-128,0,' nsj  mizb'),
+  (0,5900842,' qdblp vgc'), (0,-128,'c  z'),
+  (-1,-125,'d'), (95,3345,'dtphyrp'),
+  (97,14396343,'du'), (127,0,'fnwyz'),
+  (-128,0,'fszpsqd'), (-128,32767,'g uevfc'),
+  (-128,0,'hh  lhozu '), (0,0,'m tkr'),
+  (0,246,'mgmtel'), (-1,2147483647,'n  hjh'),
+  (127,0,'ssw'), (127,0,'t zl'), (0,-1,'uns');
+
+ANALYZE TABLE t;
+
+SELECT b FROM t WHERE a = 0 AND b = 0;
+
+DROP TABLE t;
+
+--echo # Bug#17769777 EXCESSIVE MEMORY CONSUMPTION WITH MANY AND / BETWEEN
+--echo #              ITEMS
+--echo # Bug#17413040 USING MANY WHERE CONDITIONS MAKES RANGE SCAN DISABLED
+
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY (a)
+)ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),
+(7, 7), (8, 8), (9, 9);
+
+ANALYZE TABLE t1;
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 100;
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#17769777 and Bug#17413040
+
+--echo #
+--echo # Bug#33282123: Const table optimization for aggregates goes wrong with
+--echo #               NO PAD collations
+--echo #
+
+CREATE TABLE t1 (col1 VARCHAR(5), col2 INTEGER, PRIMARY KEY (col1, col2));
+INSERT INTO t1 VALUES ('abcde', 10);
+--echo # Used to return 10. The expected result is NULL.
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+DROP TABLE t1;

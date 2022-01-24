@@ -24,46 +24,43 @@
 
 #include "utilities.h"
 
-#include <algorithm>
+#include <algorithm>  // replace
 #include <cassert>
 #include <cstdarg>
-#include <cstdio>
-#include <cstring>
+#include <cstring>  // vsnprintf
+#include <string>
 
-using std::string;
-using std::vector;
+#include "mysql/harness/utility/string.h"  // wrap_string
 
-namespace mysql_harness {
+namespace mysql_harness::utility {
 
-namespace utility {
-
-string dirname(const string &path) {
-  string::size_type pos = path.rfind('/');
-  if (pos != string::npos)
-    return string(path, 0, pos);
+std::string dirname(const std::string &path) {
+  std::string::size_type pos = path.rfind('/');
+  if (pos != std::string::npos)
+    return std::string(path, 0, pos);
   else
-    return string(".");
+    return ".";
 }
 
-string basename(const string &path) {
-  string::size_type pos = path.rfind('/');
-  if (pos != string::npos)
-    return string(path, pos + 1);
+std::string basename(const std::string &path) {
+  std::string::size_type pos = path.rfind('/');
+  if (pos != std::string::npos)
+    return std::string(path, pos + 1);
   else
     return path;
 }
 
-void strip(string *str, const char *chars) {
+void strip(std::string *str, const char *chars) {
   str->erase(str->find_last_not_of(chars) + 1);
   str->erase(0, str->find_first_not_of(chars));
 }
 
-string strip_copy(string str, const char *chars) {
+std::string strip_copy(std::string str, const char *chars) {
   strip(&str, chars);
   return str;
 }
 
-string string_format(const char *format, ...) {
+std::string string_format(const char *format, ...) {
   va_list args;
   va_start(args, format);
   va_list args_next;
@@ -76,17 +73,17 @@ string string_format(const char *format, ...) {
   vsnprintf(buf.data(), buf.size(), format, args_next);
   va_end(args_next);
 
-  return string(buf.begin(), buf.end() - 1);
+  return std::string(buf.begin(), buf.end() - 1);
 }
 
-vector<string> wrap_string(const string &to_wrap, size_t width,
-                           size_t indent_size) {
+std::vector<std::string> wrap_string(const std::string &to_wrap, size_t width,
+                                     size_t indent_size) {
   size_t curr_pos = 0;
   size_t wrap_pos = 0;
   size_t prev_pos = 0;
-  string work{to_wrap};
-  vector<string> res{};
-  auto indent = string(indent_size, ' ');
+  std::string work{to_wrap};
+  std::vector<std::string> res{};
+  auto indent = std::string(indent_size, ' ');
   auto real_width = width - indent_size;
 
   size_t str_size = work.size();
@@ -102,19 +99,19 @@ vector<string> wrap_string(const string &to_wrap, size_t width,
 
       // respect forcing newline
       wrap_pos = work.find("\n", prev_pos);
-      if (wrap_pos == string::npos || wrap_pos > curr_pos) {
+      if (wrap_pos == std::string::npos || wrap_pos > curr_pos) {
         // No new line found till real_width
         wrap_pos = work.find_last_of(" ", curr_pos);
       }
-      if (wrap_pos != string::npos) {
-        assert(wrap_pos - prev_pos != string::npos);
+      if (wrap_pos != std::string::npos) {
+        assert(wrap_pos - prev_pos != std::string::npos);
         res.push_back(indent + work.substr(prev_pos, wrap_pos - prev_pos));
         prev_pos = wrap_pos + 1;  // + 1 to skip space
       } else {
         break;
       }
     } while (str_size - prev_pos > real_width ||
-             work.find("\n", prev_pos) != string::npos);
+             work.find("\n", prev_pos) != std::string::npos);
     res.push_back(indent + work.substr(prev_pos));
   }
 
@@ -134,6 +131,4 @@ bool starts_with(const std::string &str, const std::string &prefix) {
   return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
 }
 
-}  // namespace utility
-
-}  // namespace mysql_harness
+}  // namespace mysql_harness::utility

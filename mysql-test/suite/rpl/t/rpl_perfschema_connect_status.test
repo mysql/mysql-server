@@ -61,7 +61,7 @@ source include/assert.inc;
 
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_connection_status)`;
 let $assert_text= thread_name should should indicate io thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_io";
+let $assert_cond= "$thread_name" = "thread/sql/replica_io";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
@@ -114,12 +114,12 @@ source include/stop_slave.inc;
 
 CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
 
-set @restore_slave_net_timeout= @@global.slave_net_timeout;
-set @@global.slave_net_timeout= 10;
+set @restore_replica_net_timeout= @@global.replica_net_timeout;
+set @@global.replica_net_timeout= 10;
 
 source include/start_slave.inc;
 
-# there is an explicit sleep lasting longer than slave_net_timeout
+# there is an explicit sleep lasting longer than replica_net_timeout
 # to ensure that nothing will come to slave from master for that period.
 # That would cause reconnecting and relaylog rotation w/o the fix i.e
 # without a heartbeat received.
@@ -143,7 +143,7 @@ while (!$slave_value)
   {
     query_vertical show slave status;
     select count_received_heartbeats from performance_schema.replication_connection_status;
-    --die ERROR: failed while waiting for slave to generate a heartbeat.
+    --die ERROR: failed while waiting for replica to generate a heartbeat.
     exit;
   }
   sleep 0.1;
@@ -162,8 +162,8 @@ let $assert_text= last_heartbeat_timestamp should NOT be zero;
 let $assert_cond= "$ps_value" != "0000-00-00 00:00:00";
 source include/assert.inc;
 
-# Reset slave_net_timeout to default after testing heartbeats.
-set @@global.slave_net_timeout= @restore_slave_net_timeout;
+# Reset replica_net_timeout to default after testing heartbeats.
+set @@global.replica_net_timeout= @restore_replica_net_timeout;
 
 --echo
 --echo # We now introduce an error in the IO thread and check for the correctness
@@ -378,4 +378,21 @@ RESET SLAVE;
 --source include/assert.inc
 
 source include/start_slave.inc;
+--connection master
+drop table t;
+--source include/sync_slave_sql_with_master.inc
+
+let $rpl_only_running_threads= 1;
+
+source include/stop_slave.inc;
+--connection slave
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
+# Reset the gtid mode if the test started with gtid_mode=OFF
+if ($gtid_mode_on == 0) {
+  --let $rpl_gtid_mode = 0
+  --let $rpl_set_enforce_gtid_consistency = 0
+}
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
+
 source include/rpl_end.inc;

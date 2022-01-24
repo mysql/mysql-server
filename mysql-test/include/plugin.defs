@@ -37,6 +37,8 @@ qa_auth_server                          plugin_output_directory  no PLUGIN_AUTH_
 qa_auth_client                          plugin_output_directory  no PLUGIN_AUTH_CLIENT    qa_auth_client
 udf_example                             plugin_output_directory  no UDF_EXAMPLE_LIB
 ha_example                              plugin_output_directory  no EXAMPLE_PLUGIN         EXAMPLE
+semisync_source                         plugin_output_directory  no SEMISYNC_SOURCE_PLUGIN
+semisync_replica                        plugin_output_directory  no SEMISYNC_REPLICA_PLUGIN
 semisync_master                         plugin_output_directory  no SEMISYNC_MASTER_PLUGIN
 semisync_slave                          plugin_output_directory  no SEMISYNC_SLAVE_PLUGIN
 ha_archive                              plugin_output_directory  no ARCHIVE_PLUGIN
@@ -156,3 +158,9 @@ component_reference_cache      plugin_output_directory  no  REFERENCE_CACHE_COMP
 
 # keyring file component
 component_keyring_file          plugin_output_directory  yes  KEYRING_FILE_COMPONENT component_keyring_file
+
+# a test component for the system variable set service
+component_test_mysql_system_variable_set          plugin_output_directory  no  COMPONENT_TEST_MYSQL_SYSTEM_VARIABLE_SET component_test_mysql_system_variable_set
+
+# component test_table_access
+component_test_table_access  	plugin_output_directory no TEST_TABLE_ACCESS

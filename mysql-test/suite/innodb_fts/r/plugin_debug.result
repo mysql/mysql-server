@@ -74,19 +74,19 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
 id	title	body
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
 4	1001 MySQL Tricks	How to use full-text search engine
 5	Go MySQL Tricks	How to use full text search engine
-2	How To Use MySQL Well	After you went through a ...
-1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
-3	Optimizing MySQL	In this tutorial we will show ...
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
 id	title	body
-5	Go MySQL Tricks	How to use full text search engine
-4	1001 MySQL Tricks	How to use full-text search engine
-2	How To Use MySQL Well	After you went through a ...
 1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
 id	title	body
@@ -198,11 +198,11 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('>mysql <database ~search' IN BOOLEAN MODE);
 id	title	body
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	MySQL Tutorial	DBMS stands for MySQL good one DataBase ...
 3	How To Use MySQL Well	After you went through a ...
 4	Optimizing MySQL	In this tutorial we will show ...
 5	1001 MySQL Tricks	How to use full-text search engine
-1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
-2	MySQL Tutorial	DBMS stands for MySQL good one DataBase ...
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+(mysql database) -engine' IN BOOLEAN MODE);
 id	title	body
@@ -252,13 +252,13 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+("dbms stands" search) -good' IN BOOLEAN MODE);
 id	title	body
-5	1001 MySQL Tricks	How to use full-text search engine
 1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+5	1001 MySQL Tricks	How to use full-text search engine
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+("dbms stands" "full text") -good' IN BOOLEAN MODE);
 id	title	body
-5	1001 MySQL Tricks	How to use full-text search engine
 1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+5	1001 MySQL Tricks	How to use full-text search engine
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('("msyql database")@3' IN BOOLEAN MODE);
 id	title	body
@@ -281,8 +281,8 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据库');
 id	title	body
-3	要 想 将 数据 添加 到 数据库	或 访问、处理 计算机 数据库 中 保存 的 数据
 1	数据库 是 数据 的 结构化 集合	它 可以 是 任何 东西
+3	要 想 将 数据 添加 到 数据库	或 访问、处理 计算机 数据库 中 保存 的 数据
 4	需要 使用 数据库 管理系统	计算机 是 处理 大量 数据 的 理想 工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据');
@@ -290,8 +290,8 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据*');
 id	title	body
-3	要 想 将 数据 添加 到 数据库	或 访问、处理 计算机 数据库 中 保存 的 数据
 1	数据库 是 数据 的 结构化 集合	它 可以 是 任何 东西
+3	要 想 将 数据 添加 到 数据库	或 访问、处理 计算机 数据库 中 保存 的 数据
 4	需要 使用 数据库 管理系统	计算机 是 处理 大量 数据 的 理想 工具
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('+数据库 -计算机');

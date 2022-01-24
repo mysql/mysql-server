@@ -101,7 +101,7 @@ ReturnValueOrError<const dd::Tablespace *> fetch_tablespace(
   }
   // The tablespace object may not have MDL
   // Need to use acquire_uncached_uncommitted to get name for MDL
-  dd::Tablespace *tblspc_ = nullptr;
+  std::unique_ptr<dd::Tablespace> tblspc_;
   if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_)) {
     return {nullptr, true};
   }
@@ -133,7 +133,7 @@ namespace dd {
 namespace sdi_tablespace {
 bool store_tbl_sdi(THD *thd, handlerton *hton, const dd::Sdi_type &sdi,
                    const dd::Table &table,
-                   const dd::Schema &schema MY_ATTRIBUTE((unused))) {
+                   const dd::Schema &schema [[maybe_unused]]) {
   auto res = fetch_tablespace(thd, fetch_first_tablespace_id(table));
   if (res.error) {
     return true;
@@ -166,7 +166,7 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
 }
 
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
-                  const Schema &schema MY_ATTRIBUTE((unused))) {
+                  const Schema &schema [[maybe_unused]]) {
   DBUG_PRINT("ddsdi",
              ("drop_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
               ENTITY_VAL(schema), ENTITY_VAL(table)));

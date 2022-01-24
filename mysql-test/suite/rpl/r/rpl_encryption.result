@@ -118,6 +118,12 @@ SET PERSIST binlog_encryption = OFF;
 include/assert.inc [5th binary log is not encrypted on master]
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 ERROR HY000: Cannot rotate binary log master key when 'binlog-encryption' is off.
+RESET PERSIST binlog_encryption;
 UNINSTALL PLUGIN keyring_file;
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
 include/rpl_end.inc

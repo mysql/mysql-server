@@ -20,20 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+INCLUDE(ndb_downgrade_warnings)
+
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    "unused-but-set-variable"
-    "strict-aliasing"
-    "unused-parameter"
-    "cast-qual"
-    # Downgrade -Werror to warning for "may be used uninitialized"
-    # and "is used uninitialized in this function"
-    "error=maybe-uninitialized"
-    # Downgrade -Werror=deprecated-copy to warning for gcc 9
-    "error=deprecated-copy"
     # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
     "error=stringop-truncation"
+    # Downgrade -Werror=implicit-fallthrough to warning for
+    # NdbImportCsvGram.cpp
+    "error=implicit-fallthrough"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
@@ -66,6 +62,12 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
     COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
+IF(MSVC)
+  # Suppress warnings for switch statement with no 'case' labels
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+    COMPILE_FLAGS "/wd4065")
+ENDIF()
+
 BISON_TARGET(ndb_import
   NdbImportCsvGram.ypp
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
@@ -74,8 +76,11 @@ BISON_TARGET(ndb_import
   )
 
 # Add target, for easier debugging.
-ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
-
+# The new Xcode build system does not support multiple targets that
+# DEPEND on the same outputs.
+IF(NOT APPLE_XCODE)
+  MY_ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
+ENDIF()
 
 OPTION(NDB_UTILS_LINK_DYNAMIC
   "Dynamically link NDB utilities link with shared ndbclient" OFF)
@@ -152,6 +157,7 @@ NDB_ADD_EXECUTABLE(ndb_restore
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
+  LINK_LIBRARIES ndbgeneral ndbportlib
   )
 NDB_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
@@ -203,9 +209,9 @@ NDB_ADD_EXECUTABLE(ndb_move_data
 
 NDB_ADD_EXECUTABLE(ndbxfrm
   ndbxfrm.cpp
-  ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
+  LINK_LIBRARIES ndbgeneral ndbportlib
   )
 
 IF(NOT WIN32 AND NOT SOLARIS)

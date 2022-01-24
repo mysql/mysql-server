@@ -1,0 +1,39 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Configure and start a replication channel to replicate
+#    from server1.
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_1_PORT;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+############################################################
+# 2. Bootstrap the group on server2.
+#    Check that GR and replication channel are working.
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+include/check_slave_is_running.inc
+
+############################################################
+# 3. Write something on server1 and read it on server2.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/assert.inc ['There is one row in t1']
+
+############################################################
+# 4. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/group_replication_end.inc

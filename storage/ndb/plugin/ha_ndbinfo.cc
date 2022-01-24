@@ -24,6 +24,7 @@
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
 
+#include <algorithm>  // std::min(),std::max()
 #include <vector>
 
 #include <mysql/plugin.h>
@@ -384,9 +385,10 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   for (uint i = 0; i < table->s->fields; i++) {
     const Field *field = table->field[i];
 
-    // Check if field is NULLable
-    if (const_cast<Field *>(field)->is_nullable() == false) {
-      // Only NULLable fields supported
+    // Check that field is NULLable. The only allowed NOT NULL field is the
+    // first column (the primary key column) of an indexed virtual table.
+    if ((const_cast<Field *>(field)->is_nullable() == false) &&
+        !(i == 0 && m_impl.m_table->getVirtualTable())) {
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);
       delete m_impl.m_table;
@@ -406,12 +408,15 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     switch (col->m_type) {
       case NdbInfo::Column::Number:
         if (field->type() == MYSQL_TYPE_LONG) compatible = true;
+        stats.mean_rec_length += 4;
         break;
       case NdbInfo::Column::Number64:
         if (field->type() == MYSQL_TYPE_LONGLONG) compatible = true;
+        stats.mean_rec_length += 8;
         break;
       case NdbInfo::Column::String:
         if (field->type() == MYSQL_TYPE_VARCHAR) compatible = true;
+        stats.mean_rec_length += 16;
         break;
       default:
         assert(false);
@@ -652,8 +657,14 @@ void ha_ndbinfo::position(const uchar *record) {
   memcpy(ref, record, ref_length);
 }
 
-int ha_ndbinfo::info(uint) {
+int ha_ndbinfo::info(uint flag) {
   DBUG_TRACE;
+  if (m_impl.m_table != nullptr) {
+    stats.table_in_mem_estimate = m_impl.m_table->getVirtualTable() ? 1.0 : 0.0;
+    if (flag & HA_STATUS_VARIABLE)
+      stats.records = m_impl.m_table->getRowsEstimate();
+  }
+  if (table->key_info) table->key_info->set_records_per_key(0, 1.0F);
   return 0;
 }
 
@@ -674,9 +685,10 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map =
               dbug_tmp_use_all_columns(table, table->write_set);
-          (void)vfield->store(record->c_str(),
-                              MIN(record->length(), field->field_length) - 1,
-                              field->charset());
+          (void)vfield->store(
+              record->c_str(),
+              std::min(record->length(), field->field_length) - 1,
+              field->charset());
           dbug_tmp_restore_column_map(table->write_set, old_map);
           break;
         }
@@ -701,6 +713,88 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
       field->set_null();
     }
   }
+}
+
+ulonglong ha_ndbinfo::table_flags() const {
+  ulonglong flags = HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
+
+  // m_table could be null; sometimes table_flags() is called prior to open()
+  if (m_impl.m_table != nullptr && m_impl.m_table->rowCountIsExact())
+    flags |= HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT;
+
+  return flags;
+}
+
+//
+// INDEXED READS on VirtualTables
+//
+
+ulong ha_ndbinfo::index_flags(uint, uint, bool) const {
+  return HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE;
+}
+
+int ha_ndbinfo::index_init(uint index, bool) {
+  assert(index == 0);
+  active_index = index;  // required
+  return rnd_init(true);
+}
+
+int ha_ndbinfo::index_end() { return rnd_end(); }
+
+int ha_ndbinfo::index_read(uchar *buf, const uchar *key,
+                           uint key_len ATTRIBUTE_UNUSED,
+                           enum ha_rkey_function flag) {
+  assert(key != nullptr);
+  assert(key_len == sizeof(int));
+
+  NdbInfoScanOperation::Seek seek(NdbInfoScanOperation::Seek::Mode::value);
+  seek.inclusive = (flag < HA_READ_AFTER_KEY);
+  seek.low = (flag == HA_READ_KEY_OR_PREV || flag == HA_READ_BEFORE_KEY);
+  seek.high = (flag == HA_READ_KEY_OR_NEXT || flag == HA_READ_AFTER_KEY);
+
+  int index_value = *(const int *)key;
+  bool found = m_impl.m_scan_op->seek(seek, index_value);
+  return found ? rnd_next(buf) : HA_ERR_KEY_NOT_FOUND;
+}
+
+int ha_ndbinfo::index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map,
+                               enum ha_rkey_function find_flag) {
+  return index_read(
+      buf, key, calculate_key_len(table, active_index, keypart_map), find_flag);
+}
+
+// read_last wants the last row with a given index value.
+// All indexes are unique, so it is equivalent to read.
+int ha_ndbinfo::index_read_last_map(uchar *buf, const uchar *key,
+                                    key_part_map keypart_map) {
+  return index_read(buf, key,
+                    calculate_key_len(table, active_index, keypart_map),
+                    HA_READ_KEY_EXACT);
+}
+
+int ha_ndbinfo::index_next(uchar *buf) {
+  bool found = m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::next));
+  return found ? rnd_next(buf) : HA_ERR_END_OF_FILE;
+}
+
+int ha_ndbinfo::index_prev(uchar *buf) {
+  bool found = m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::previous));
+  return found ? rnd_next(buf) : HA_ERR_END_OF_FILE;
+}
+
+int ha_ndbinfo::index_first(uchar *buf) {
+  m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::first));
+  return rnd_next(buf);
+}
+
+int ha_ndbinfo::index_last(uchar *buf) {
+  m_impl.m_scan_op->seek(
+      NdbInfoScanOperation::Seek(NdbInfoScanOperation::Seek::Mode::last));
+  return rnd_next(buf);
 }
 
 static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,

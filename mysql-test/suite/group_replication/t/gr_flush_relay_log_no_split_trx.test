@@ -18,7 +18,7 @@
 #
 # 1) Add a debug sync point that holds and makes the applier thread to wait, in
 #    the middle of a transaction - `signal.rpl_requested_for_a_flush` in
-#    `rpl_slave.cc:queue_event`.
+#    `rpl_replica.cc:queue_event`.
 # 2) Execute some statements in the master.
 # 3) Retrieve the number of the relay log file with the highest index number.
 # 4) Make the `FLUSH RELAY LOG` execution path to emit
@@ -54,7 +54,7 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 
 # 1) Add a debug sync point that holds and makes the applier thread to wait, in
 #    the middle of a transaction - `signal.rpl_requested_for_a_flush` in
-#    `rpl_slave.cc:queue_event`.
+#    `rpl_replica.cc:queue_event`.
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
 SET GLOBAL debug = '+d,wait_in_the_middle_of_trx,deferred_flush_relay_log';

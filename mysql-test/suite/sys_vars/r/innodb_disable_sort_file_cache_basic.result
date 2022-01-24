@@ -73,8 +73,8 @@ set global innodb_disable_sort_file_cache=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_disable_sort_file_cache'
 set global innodb_disable_sort_file_cache=2;
 ERROR 42000: Variable 'innodb_disable_sort_file_cache' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_disable_sort_file_cache=-3;
+ERROR 42000: Variable 'innodb_disable_sort_file_cache' can't be set to the value of '-3'
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 1

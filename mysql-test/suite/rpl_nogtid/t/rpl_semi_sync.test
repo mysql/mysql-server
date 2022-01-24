@@ -26,7 +26,7 @@ disable_query_log;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 call mtr.add_suppression("Read semi-sync reply");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
-call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for slave reply");
+call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for replica reply");
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
@@ -47,17 +47,17 @@ connection slave;
 source include/stop_slave.inc;
 disable_warnings;
 error 0,1305;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 error 0,1305;
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_warnings;
 
 connection master;
 disable_warnings;
 error 0,1305;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 error 0,1305;
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_warnings;
 --let $rpl_only_running_threads= 1
 --let $rpl_no_start_slave= 1
@@ -69,27 +69,27 @@ enable_warnings;
 --echo #
 
 source include/rpl_connection_master.inc;
-let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
+let $value = query_get_value(show variables like 'rpl_semi_sync_source_enabled', Value, 1);
 if ($value == No such row)
 {
   disable_query_log;
-  eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-  set global rpl_semi_sync_master_timeout= 60000 /* 60s */;
-  set global rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+  eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+  set global rpl_semi_sync_source_timeout= 60000 /* 60s */;
+  set global rpl_semi_sync_source_wait_point= AFTER_COMMIT;
   enable_query_log;
 }
 
 echo [ default state of semi-sync on master should be OFF ];
-show variables like 'rpl_semi_sync_master_enabled';
+show variables like 'rpl_semi_sync_source_enabled';
 
 echo [ enable semi-sync on master ];
-set global rpl_semi_sync_master_enabled = 1;
-show variables like 'rpl_semi_sync_master_enabled';
+set global rpl_semi_sync_source_enabled = 1;
+show variables like 'rpl_semi_sync_source_enabled';
 
 echo [ status of semi-sync on master should be ON even without any semi-sync slaves ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 --echo #
 --echo # BUG#45672 Semisync repl: ActiveTranx:insert_tranx_node: transaction node allocation failed
@@ -117,9 +117,9 @@ enable_query_log;
 
 # BUG#45673
 echo [ status of semi-sync on master should be OFF ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
@@ -137,59 +137,59 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
 --echo #
 
 source include/rpl_connection_slave.inc;
-let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
+let $value= query_get_value(show variables like 'rpl_semi_sync_replica_enabled', Value, 1);
 if ($value == No such row)
 {
   disable_query_log;
-  eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+  eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
   enable_query_log;
 }
 
 echo [ default state of semi-sync on slave should be OFF ];
-show variables like 'rpl_semi_sync_slave_enabled';
+show variables like 'rpl_semi_sync_replica_enabled';
 
 echo [ enable semi-sync on slave ];
-set global rpl_semi_sync_slave_enabled = 1;
-show variables like 'rpl_semi_sync_slave_enabled';
+set global rpl_semi_sync_replica_enabled = 1;
+show variables like 'rpl_semi_sync_replica_enabled';
 source include/start_slave.inc;
 
 source include/rpl_connection_master.inc;
 # NOTE: Rpl_semi_sync_master_client will only be updated when
 # semi-sync slave has started binlog dump request
-let $status_var= Rpl_semi_sync_master_clients;
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 1;
 source include/wait_for_status_var.inc;
 
 echo [ initial master state after the semi-sync slave connected ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
---let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
 
 replace_result $engine_type ENGINE_TYPE;
 eval create table t1(a int) engine = $engine_type;
 
 # wait for the ack to arrive
 --let $yes_tx_after= `SELECT $yes_tx_before + 1`
---let $status_var= Rpl_semi_sync_master_yes_tx
+--let $status_var= Rpl_semi_sync_source_yes_tx
 --let $status_var_value= $yes_tx_after
 --source include/wait_for_status_var.inc
 
 echo [ master state after CREATE TABLE statement ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master.
-let $_connections_semisync_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
-replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
+let $_connections_semisync_replica= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
+replace_result $_connections_semisync_replica CONNECTIONS_SEMISYNC_SLAVE;
 replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
-eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
+eval select $_connections_semisync_replica - $_connections_normal_slave as 'Should be 0';
 
---let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
 
 let $i=10;
 --let $acks_to_wait= 0
@@ -205,22 +205,22 @@ enable_query_log;
 
 # Wait for acks from slave to avoid test failures on slow platforms.
 --let $yes_tx_after= `SELECT $yes_tx_before + $acks_to_wait`
-let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var= Rpl_semi_sync_source_yes_tx;
 let $status_var_value= $yes_tx_after;
 let $status_timeout= 2400;
 let $status_fail_query= SHOW STATUS LIKE 'Rpl_semi_sync%';
 source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 --source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 
 echo [ slave status after replicated inserts ];
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 
 select count(distinct a) from t1;
 select min(a) from t1;
@@ -254,7 +254,7 @@ DROP TABLE t2, t3;
 SET SESSION AUTOCOMMIT= 1;
 
 # The temporary table above will be binlogged in statement mode only, resulting
-# in different Rpl_semi_sync_master_yes_tx values in statement vs row/mixed. Reset it.
+# in different Rpl_semi_sync_source_yes_tx values in statement vs row/mixed. Reset it.
 FLUSH STATUS;
 
 --source include/sync_slave_sql_with_master.inc
@@ -262,7 +262,7 @@ FLUSH STATUS;
 
 --echo #
 --echo # Test semi-sync master will switch OFF after one transaction
---echo # timeout waiting for slave reply.
+--echo # timeout waiting for replica reply.
 --echo #
 connection slave;
 source include/stop_slave.inc;
@@ -270,33 +270,33 @@ source include/stop_slave.inc;
 source include/rpl_connection_master.inc;
 # Kill the dump thread(s) on master for previous slave connection
 source include/stop_dump_threads.inc;
-# Rpl_semi_sync_master_clients should be 0, once the dump thread(s) have exited.
-let $status_var= Rpl_semi_sync_master_clients;
+# Rpl_semi_sync_source_clients should be 0, once the dump thread(s) have exited.
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
 
 # The first semi-sync check should be on because after slave stop,
 # there are no transactions on the master.
 echo [ master status should be ON ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
 
 echo [ semi-sync replication of these transactions will fail ];
 insert into t1 values (500);
 
 # Wait for the semi-sync replication of this transaction to timeout
-let $status_var= Rpl_semi_sync_master_status;
+let $status_var= Rpl_semi_sync_source_status;
 let $status_var_value= OFF;
 source include/wait_for_status_var.inc;
 
 # The second semi-sync check should be off because one transaction
 # times out during waiting.
 echo [ master status should be OFF ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 # Semi-sync status on master is now OFF, so all these transactions
 # will be replicated asynchronously.
@@ -312,9 +312,9 @@ enable_query_log;
 insert into t1 values (100);
 
 echo [ master status should be OFF ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 --echo #
 --echo # Test semi-sync status on master will be ON again when slave catches up
@@ -325,12 +325,12 @@ save_master_pos;
 
 source include/rpl_connection_slave.inc;
 echo [ slave status should be OFF ];
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 source include/start_slave.inc;
 sync_with_master;
 
 echo [ slave status should be ON ];
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 
 select count(distinct a) from t1;
 select min(a) from t1;
@@ -339,15 +339,15 @@ select max(a) from t1;
 source include/rpl_connection_master.inc;
 # Wait until master semi-sync status is on again after slave catches up
 # to avoid test failures on slow platforms.
-let $status_var= Rpl_semi_sync_master_status;
+let $status_var= Rpl_semi_sync_source_status;
 let $status_var_value= ON;
 source include/wait_for_status_var.inc;
 
 echo [ master status should be ON again after slave catches up ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
 
 --echo #
 --echo # Test disable/enable master semi-sync on the fly.
@@ -364,28 +364,28 @@ source include/stop_slave.inc;
 --echo #
 connection master;
 echo [ Semi-sync master status variables before FLUSH STATUS ];
-SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
-SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx';
 # Do not write the FLUSH STATUS to binlog, to make sure we'll get a
 # clean status after this.
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 echo [ Semi-sync master status variables after FLUSH STATUS ];
-SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
-SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx';
 
 source include/rpl_connection_master.inc;
 source include/show_master_logs.inc;
-show variables like 'rpl_semi_sync_master_enabled';
+show variables like 'rpl_semi_sync_source_enabled';
 
 echo [ disable semi-sync on the fly ];
-set global rpl_semi_sync_master_enabled=0;
-show variables like 'rpl_semi_sync_master_enabled';
-show status like 'Rpl_semi_sync_master_status';
+set global rpl_semi_sync_source_enabled=0;
+show variables like 'rpl_semi_sync_source_enabled';
+show status like 'Rpl_semi_sync_source_status';
 
 echo [ enable semi-sync on the fly ];
-set global rpl_semi_sync_master_enabled=1;
-show variables like 'rpl_semi_sync_master_enabled';
-show status like 'Rpl_semi_sync_master_status';
+set global rpl_semi_sync_source_enabled=1;
+show variables like 'rpl_semi_sync_source_enabled';
+show status like 'Rpl_semi_sync_source_status';
 
 --echo #
 --echo # Test RESET MASTER/SLAVE
@@ -408,9 +408,9 @@ source include/rpl_connection_master.inc;
 
 reset master;
 
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 source include/rpl_connection_slave.inc;
 source include/stop_slave.inc;
@@ -420,8 +420,8 @@ reset master;
 source include/rpl_connection_master.inc;
 # Kill the dump thread(s) on master for previous slave connection
 source include/stop_dump_threads.inc;
-# Rpl_semi_sync_master_clients should be 0, once the dump thread(s) have exited.
-let $status_var= Rpl_semi_sync_master_clients;
+# Rpl_semi_sync_source_clients should be 0, once the dump thread(s) have exited.
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
 
@@ -429,9 +429,9 @@ connection slave;
 source include/start_slave.inc;
 
 source include/rpl_connection_master.inc;
-# Wait for dump thread to start, Rpl_semi_sync_master_clients should be
+# Wait for dump thread to start, Rpl_semi_sync_source_clients should be
 # 1 after dump thread started.
-let $status_var= Rpl_semi_sync_master_clients;
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 1;
 source include/wait_for_status_var.inc;
 
@@ -447,14 +447,14 @@ select * from t1;
 source include/rpl_connection_master.inc;
 # Wait until master semi-sync status is on again after slave catches up
 # to avoid test failures on slow platforms.
-let $status_var= Rpl_semi_sync_master_status;
+let $status_var= Rpl_semi_sync_source_status;
 let $status_var_value= ON;
 source include/wait_for_status_var.inc;
 
 echo [ master semi-sync status should be ON ];
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 
 --echo #
@@ -465,8 +465,8 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 source include/rpl_connection_master.inc;
 # Kill the dump thread on master for previous slave connection
 source include/stop_dump_threads.inc;
-# Rpl_semi_sync_master_clients should be 0, once dump thread(s) have exited
-let $status_var= Rpl_semi_sync_master_clients;
+# Rpl_semi_sync_source_clients should be 0, once dump thread(s) have exited
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
 
@@ -489,7 +489,7 @@ flush privileges;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='rpl',SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY=1;
 source include/start_slave.inc;
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 source include/rpl_connection_master.inc;
 
 # bug#77732 related: reconnecting to the master while the show handler
@@ -502,45 +502,45 @@ source include/stop_slave.inc;
 # To ensure that master knows that the slave is stopped
 Insert into t1 values (4);
 # wait for semi sync binlog dump thread to stop
-let $status_var= Rpl_semi_sync_master_clients;
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_clients';
 
 source include/rpl_connection_slave.inc;
 source include/start_slave.inc;
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 
 --source include/rpl_connection_master.inc
 # bug#77732 cleanup
 # Added for Bug#19372027:rpl_semi_sync fails sporadically on trunk
-let $status_var= Rpl_semi_sync_master_status;
+let $status_var= Rpl_semi_sync_source_status;
 let $status_var_value= ON;
 source include/wait_for_status_var.inc;
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 
 # Wait for the semi-sync binlog dump thread to start
-let $status_var= Rpl_semi_sync_master_clients;
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 1;
 source include/wait_for_status_var.inc;
 echo [ master semi-sync should be ON ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 insert into t1 values (5);
 insert into t1 values (6);
 
 # Wait for acks from slave to avoid test failures on slow platforms.
-let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var= Rpl_semi_sync_source_yes_tx;
 let $status_var_value= 2;
 source include/wait_for_status_var.inc;
 
 echo [ master semi-sync should be ON ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
-show status like 'Rpl_semi_sync_master_no_tx';
-show status like 'Rpl_semi_sync_master_yes_tx';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
+show status like 'Rpl_semi_sync_source_no_tx';
+show status like 'Rpl_semi_sync_source_yes_tx';
 
 # Bug#31327337: SUBSYSTEM NAME FOR SEMISYNC ERRORS IS [SERVER] - pt2
 select subsystem, error_code
@@ -555,36 +555,36 @@ select subsystem, error_code
 --source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
 source include/stop_slave.inc;
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 source include/rpl_connection_master.inc;
 # Kill the dump thread(s) on master for previous slave connection
 source include/stop_dump_threads.inc;
-# Rpl_semi_sync_master_clients should be 0, once dump thread(s) have exited
-let $status_var= Rpl_semi_sync_master_clients;
+# Rpl_semi_sync_source_clients should be 0, once dump thread(s) have exited
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 0;
 source include/wait_for_status_var.inc;
 
 echo [ Semi-sync status on master should be ON ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
-set global rpl_semi_sync_master_enabled= 0;
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
+set global rpl_semi_sync_source_enabled= 0;
 
 source include/rpl_connection_slave.inc;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 source include/start_slave.inc;
 
 source include/rpl_connection_master.inc;
 insert into t1 values (8);
-let $status_var= Rpl_semi_sync_master_clients;
+let $status_var= Rpl_semi_sync_source_clients;
 let $status_var_value= 1;
 source include/wait_for_status_var.inc;
 echo [ master semi-sync clients should be 1, status should be OFF ];
-show status like 'Rpl_semi_sync_master_clients';
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_clients';
+show status like 'Rpl_semi_sync_source_status';
 --source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 
 # Uninstall semi-sync plugin on master
 connection slave;
@@ -596,53 +596,53 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
   SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 }
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 enable_query_log;
-SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
+SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 
 source include/rpl_connection_slave.inc;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 source include/start_slave.inc;
 
 source include/rpl_connection_master.inc;
 insert into t1 values (10);
 --source include/sync_slave_sql_with_master.inc
 echo [ on slave ];
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 --echo #
 --echo # Test non-semi-sync slave connect to semi-sync master
 --echo #
 
 connection master;
-replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_SOURCE_PLUGIN;
+eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
 if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
   SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 }
-set global rpl_semi_sync_master_timeout= 60000; /* 60s */
-set global rpl_semi_sync_master_enabled= 1;
+set global rpl_semi_sync_source_timeout= 60000; /* 60s */
+set global rpl_semi_sync_source_enabled= 1;
 
 source include/rpl_connection_slave.inc;
 source include/stop_slave.inc;
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 echo [ uninstall semi-sync slave plugin ];
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 source include/start_slave.inc;
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 source include/stop_slave.inc;
 
 echo [ reinstall semi-sync slave plugin and disable semi-sync ];
-replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
-set global rpl_semi_sync_slave_enabled= 0;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN;
+eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+set global rpl_semi_sync_replica_enabled= 0;
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 source include/start_slave.inc;
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 
 --echo #
 --echo # Clean up

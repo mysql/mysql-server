@@ -46,6 +46,9 @@
 
 THR_LOCK table_processlist::m_table_lock;
 
+static_assert(USERNAME_CHAR_LENGTH == 32, "Fix USER size");
+static_assert(HOST_AND_PORT_LENGTH == 261, "Fix HOST size");
+
 Plugin_table table_processlist::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -54,7 +57,7 @@ Plugin_table table_processlist::m_table_def(
     /* Definition */
     "  ID BIGINT unsigned,\n"
     "  USER VARCHAR(32),\n"
-    "  HOST VARCHAR(255) CHARACTER SET ASCII default null,\n"
+    "  HOST VARCHAR(261) CHARACTER SET ASCII default null,\n"
     "  DB VARCHAR(64),\n"
     "  COMMAND VARCHAR(16),\n"
     "  TIME BIGINT,\n"
@@ -119,7 +122,7 @@ int table_processlist::set_access(void) {
   return 0;
 }
 
-int table_processlist::rnd_init(bool scan MY_ATTRIBUTE((unused))) {
+int table_processlist::rnd_init(bool scan [[maybe_unused]]) {
   set_access();
   return 0;
 }
@@ -279,9 +282,9 @@ int table_processlist::make_row(PFS_thread *pfs) {
   stage_class = find_stage_class(pfs->m_stage);
   if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
-        stage_class->m_name + stage_class->m_prefix_length;
+        stage_class->m_name.str() + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
-        stage_class->m_name_length - stage_class->m_prefix_length;
+        stage_class->m_name.length() - stage_class->m_prefix_length;
     if (m_row.m_processlist_state_length > 64) {
       /*
         Column STATE is VARCHAR(64)
@@ -357,10 +360,10 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 4: /* COMMAND */
-          if (m_row.m_processlist_id != 0)
-            set_field_varchar_utf8(f, command_name[m_row.m_command].str,
-                                   (uint)command_name[m_row.m_command].length);
-          else {
+          if (m_row.m_processlist_id != 0) {
+            const std::string &cn = Command_names::str_session(m_row.m_command);
+            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+          } else {
             f->set_null();
           }
           break;

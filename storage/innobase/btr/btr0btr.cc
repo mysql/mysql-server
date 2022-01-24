@@ -393,7 +393,7 @@ static buf_block_t *btr_page_alloc_for_ibuf(
  @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
  (init_mtr == mtr, or the page was not previously freed in mtr),
  returned block is not allocated nor initialized otherwise */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
+[[nodiscard]] static buf_block_t *btr_page_alloc_low(
     dict_index_t *index,    /*!< in: index */
     page_no_t hint_page_no, /*!< in: hint of a good page */
     byte file_direction,    /*!< in: direction where a possible
@@ -440,22 +440,14 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
                                        reserved_ext > 0, mtr, init_mtr));
 }
 
-/** Allocates a new file page to be used in an index tree. NOTE: we assume
-that the caller has made the reservation for free extents!
-@param[in] index Index tree
-@param[in] hint_page_no Hint of a good page
-@param[in] file_direction Direction where a possible page split is made
-@param[in] level Level where the page is placed in the tree
-@param[in,out] mtr Mini-transaction for the allocation
-@param[in,out] init_mtr Mini-transaction for x-latching and initializing the
-page
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
-(init_mtr == mtr, or the page was not previously freed in mtr),
-returned block is not allocated nor initialized otherwise */
-buf_block_t *btr_page_alloc(dict_index_t *index, page_no_t hint_page_no,
-                            byte file_direction, ulint level, mtr_t *mtr,
-                            mtr_t *init_mtr) {
+buf_block_t *btr_page_alloc_priv(dict_index_t *index, page_no_t hint_page_no,
+                                 byte file_direction, ulint level, mtr_t *mtr,
+                                 mtr_t *init_mtr
+#ifdef UNIV_DEBUG
+                                 ,
+                                 const ut::Location &loc
+#endif /* UNIV_DEBUG */
+) {
   buf_block_t *new_block;
 
   if (dict_index_is_ibuf(index)) {
@@ -536,14 +528,13 @@ static void btr_page_free_for_ibuf(
   ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST, mtr));
 }
 
-/** Frees a file page used in an index tree. Can be used also to (BLOB)
- external storage pages. */
-void btr_page_free_low(
-    dict_index_t *index, /*!< in: index tree */
-    buf_block_t *block,  /*!< in: block to be freed, x-latched */
-    ulint level,         /*!< in: page level (ULINT_UNDEFINED=BLOB) */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
+                         mtr_t *mtr
+#ifdef UNIV_DEBUG
+                         ,
+                         const ut::Location &loc
+#endif /* UNIV_DEBUG */
+) {
   fseg_header_t *seg_header;
   page_t *root;
 
@@ -601,8 +592,7 @@ void btr_page_free(dict_index_t *index, /*!< in: index tree */
 }
 
 /** Sets the child node file address in a node pointer. */
-UNIV_INLINE
-void btr_node_ptr_set_child_page_no(
+static inline void btr_node_ptr_set_child_page_no(
     rec_t *rec,               /*!< in: node pointer record */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -714,10 +704,11 @@ static ulint *btr_page_get_father_node_ptr_func(
     offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
     page_rec_print(node_ptr, offsets);
 
-    ib::fatal(ER_IB_MSG_29) << "You should dump + drop + reimport the table to"
-                            << " fix the corruption. If the crash happens at"
-                            << " database startup. " << FORCE_RECOVERY_MSG
-                            << " Then dump + drop + reimport.";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_29)
+        << "You should dump + drop + reimport the table to"
+        << " fix the corruption. If the crash happens at"
+        << " database startup. " << FORCE_RECOVERY_MSG
+        << " Then dump + drop + reimport.";
   }
 
   return (offsets);
@@ -812,7 +803,7 @@ static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
 @param[in,out]	mtr		Mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
+[[nodiscard]] static buf_block_t *btr_free_root_check(
     const page_id_t &page_id, const page_size_t &page_size,
     space_index_t index_id, mtr_t *mtr) {
   ut_ad(!fsp_is_system_temporary(page_id.space()));
@@ -1063,7 +1054,7 @@ void btr_truncate(const dict_index_t *index) {
 
   page_no_t root_page_no = index->page;
   space_id_t space_id = index->space;
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return;
@@ -1119,7 +1110,7 @@ void btr_truncate_recover(const dict_index_t *index) {
 
   page_no_t root_page_no = index->page;
   space_id_t space_id = index->space;
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return;
@@ -1872,7 +1863,7 @@ func_exit:
 /** Returns TRUE if the insert fits on the appropriate half-page with the
  chosen split_rec.
  @return true if fits */
-static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_insert_fits(
+[[nodiscard]] static bool btr_page_insert_fits(
     btr_cur_t *cursor,      /*!< in: cursor at which insert
                             should be made */
     const rec_t *split_rec, /*!< in: suggestion for first record
@@ -2160,7 +2151,7 @@ static void btr_attach_half_pages(
 
 /** Determine if a tuple is smaller than any record on the page.
  @return true if smaller */
-static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_tuple_smaller(
+[[nodiscard]] static bool btr_page_tuple_smaller(
     btr_cur_t *cursor,     /*!< in: b-tree cursor */
     const dtuple_t *tuple, /*!< in: tuple to consider */
     ulint **offsets,       /*!< in/out: temporary storage */
@@ -2269,7 +2260,8 @@ static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
   /* We have to change the parent node pointer */
 
   compressed = btr_cur_pessimistic_delete(&err, TRUE, &next_father_cursor,
-                                          BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+                                          BTR_CREATE_FLAG, false, 0, 0, 0, mtr,
+                                          nullptr, nullptr);
 
   ut_a(err == DB_SUCCESS);
 
@@ -2466,8 +2458,9 @@ func_start:
   insert_empty:
     ut_ad(!split_rec);
     ut_ad(!insert_left);
-    buf =
-        UT_NEW_ARRAY_NOKEY(byte, rec_get_converted_size(cursor->index, tuple));
+    buf = ut::new_arr_withkey<byte>(
+        UT_NEW_THIS_FILE_PSI_KEY,
+        ut::Count{rec_get_converted_size(cursor->index, tuple)});
 
     first_rec = rec_convert_dtuple_to_rec(buf, cursor->index, tuple);
     move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
@@ -2489,7 +2482,7 @@ func_start:
         btr_page_insert_fits(cursor, split_rec, offsets, tuple, heap);
   } else {
     if (!insert_left) {
-      UT_DELETE_ARRAY(buf);
+      ut::delete_arr(buf);
       buf = nullptr;
     }
 
@@ -2746,11 +2739,11 @@ static void btr_level_list_remove_func(space_id_t space,
 
 /** Writes the redo log record for setting an index record as the predefined
  minimum record. */
-UNIV_INLINE
-void btr_set_min_rec_mark_log(rec_t *rec,     /*!< in: record */
-                              mlog_id_t type, /*!< in: MLOG_COMP_REC_MIN_MARK or
-                                              MLOG_REC_MIN_MARK */
-                              mtr_t *mtr)     /*!< in: mtr */
+static inline void btr_set_min_rec_mark_log(
+    rec_t *rec,     /*!< in: record */
+    mlog_id_t type, /*!< in: MLOG_COMP_REC_MIN_MARK or
+                    MLOG_REC_MIN_MARK */
+    mtr_t *mtr)     /*!< in: mtr */
 {
   mlog_write_initial_log_record(rec, type, mtr);
 
@@ -2826,8 +2819,9 @@ void btr_node_ptr_delete(dict_index_t *index, buf_block_t *block, mtr_t *mtr) {
   /* Delete node pointer on father page */
   btr_page_get_father(index, block, mtr, &cursor);
 
-  compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, BTR_CREATE_FLAG,
-                                          false, 0, 0, 0, mtr);
+  compressed =
+      btr_cur_pessimistic_delete(&err, TRUE, &cursor, BTR_CREATE_FLAG, false, 0,
+                                 0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {
@@ -3215,8 +3209,9 @@ retry:
       page_no_t page_no = btr_node_ptr_get_child_page_no(my_rec, offsets);
 
       if (page_no != block->page.id.page_no()) {
-        ib::fatal(ER_IB_MSG_33) << "father positioned on " << page_no
-                                << " instead of " << block->page.id.page_no();
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_33)
+            << "father positioned on " << page_no << " instead of "
+            << block->page.id.page_no();
 
         ut_ad(0);
       }
@@ -3374,8 +3369,9 @@ retry:
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
     } else {
-      compressed = btr_cur_pessimistic_delete(
-          &err, TRUE, &cursor2, BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+      compressed =
+          btr_cur_pessimistic_delete(&err, TRUE, &cursor2, BTR_CREATE_FLAG,
+                                     false, 0, 0, 0, mtr, nullptr, nullptr);
       ut_a(err == DB_SUCCESS);
 
       if (!compressed) {
@@ -4567,6 +4563,36 @@ bool btr_validate_index(
   }
 
   mtr_t mtr;
+
+#ifdef UNIV_DEBUG
+  /* Check the FSEG_NOT_FULL_N_USED field stored in the segment inode. */
+  {
+    const space_id_t space_id = dict_index_get_space(index);
+
+    fil_space_t *space = fil_space_acquire(space_id);
+
+    if (space == nullptr) {
+      return true;
+    }
+
+    mtr_start(&mtr);
+    const page_t *const root = btr_root_get(index, &mtr);
+    mtr_x_lock(&space->latch, &mtr);
+    const page_size_t page_size = dict_table_page_size(index->table);
+
+    for (auto offset : {PAGE_BTR_SEG_LEAF, PAGE_BTR_SEG_TOP}) {
+      const fseg_header_t *const seg_header = root + PAGE_HEADER + offset;
+      fseg_inode_t *inode =
+          fseg_inode_get(seg_header, space_id, page_size, &mtr);
+      File_segment_inode fsi(space_id, page_size, inode, &mtr);
+      ut_ad(fsi.verify_not_full_n_used());
+    }
+
+    mtr_commit(&mtr);
+
+    fil_space_release(space);
+  }
+#endif /* UNIV_DEBUG */
 
   mtr_start(&mtr);
 

@@ -250,7 +250,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/not_master_info_file.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
@@ -282,7 +282,7 @@ END_OF_PROCEDURE
   --let $rpl_server_number = 2
   --let $rpl_force_stop=1
   --source include/rpl_stop_server.inc
-  --let $rpl_server_parameters=--skip_slave_start --debug=d,$debug_point
+  --let $rpl_server_parameters=--skip_replica_start --debug=d,$debug_point
   --let $explicit_default_wait_counter = 15000
   --source include/rpl_start_server.inc
 END_OF_PROCEDURE
@@ -352,10 +352,10 @@ END_OF_PROCEDURE
   --let $rpl_server_number = 2
   --let $rpl_force_stop=1
   if ($debug_point != '') {
-    --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_slave_start --debug=d,$debug_point,simulate_priv_check_user_nullptr_t
+    --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_replica_start --debug=d,$debug_point,simulate_priv_check_user_nullptr_t
   }
   if ($debug_point == '') {
-    --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_slave_start
+    --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_replica_start
   }
   --let $explicit_default_wait_counter = 15000
   --source include/rpl_restart_server.inc
@@ -478,7 +478,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = host_name_has_@
 --let $slave_server_num = 2
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier
 --let $priv_checks_hostname = l@calhost
@@ -501,7 +501,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = anonymous_user
 --let $slave_server_num = 2
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
@@ -523,7 +523,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_
 #         ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --let $sub_testcase = nonexist_user
 --let $slave_server_num = 2
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier_nonexist
 --let $priv_checks_hostname = localhost
@@ -779,7 +779,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
@@ -803,6 +803,13 @@ DROP USER 'replication_applier'@'localhost';
 --remove_file $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_channel_invalid_config_update_of_table_repo_entry.inc
 
+--source include/stop_slave.inc
+RESET REPLICA ALL;
+--connection slave
+SET @@global.relay_log_info_repository=FILE;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT;
+--source include/start_slave.inc
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
 source include/rpl_end.inc;

@@ -33,7 +33,7 @@
 class InclNodeHBProtocolRep
 {
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -41,7 +41,7 @@ public:
 class NdbcntrStartWaitRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -49,7 +49,7 @@ public:
 class NdbcntrStartedRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -57,7 +57,7 @@ public:
 class SumaHandoverCompleteRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };
@@ -65,8 +65,8 @@ public:
 class LocalRecoveryCompleteRep
 {
 public:
-  STATIC_CONST ( SignalLengthLocal = 4 );
-  STATIC_CONST ( SignalLengthMaster = 2 );
+  static constexpr Uint32 SignalLengthLocal = 4;
+  static constexpr Uint32 SignalLengthMaster = 2;
 
   enum PhaseIds
   {

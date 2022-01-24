@@ -2068,7 +2068,7 @@ int Value::eq(const Value &val) const {
     case OPAQUE:
       if (m_field_type != val.m_field_type)
         return m_field_type < val.m_field_type ? -1 : 1;
-      /* Fall through */
+      [[fallthrough]];
     case STRING: {
       uint cmp_length = std::min(get_data_length(), val.get_data_length());
       int res;

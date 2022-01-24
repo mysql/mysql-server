@@ -1,0 +1,23 @@
+include/only_with_option.inc [GLOBAL.replica_transaction_retries > 2]
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION binlog_rows_query_log_events = ON;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection master]
+INSERT INTO t1 VALUES (0, 0);
+[connection slave]
+# Adding debug point 'error_on_rows_query_event_apply' to @@GLOBAL.debug
+include/start_slave.inc
+SET DEBUG_SYNC = "now WAIT_FOR end_retries_on_rows_query_event_apply";
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Removing debug point 'error_on_rows_query_event_apply' from @@GLOBAL.debug
+[connection master]
+DROP TABLE t1;
+SET SESSION binlog_rows_query_log_events = BINLOG_ROWS_QUERY_LOG_EVENTS;
+include/rpl_end.inc

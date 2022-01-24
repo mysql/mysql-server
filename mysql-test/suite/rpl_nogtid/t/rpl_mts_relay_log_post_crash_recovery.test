@@ -30,14 +30,14 @@
 --source include/have_binlog_format_statement.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
---source include/only_mts_slave_parallel_workers.inc
---source include/only_mts_slave_parallel_type_database.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_database.inc
 --source include/master-slave.inc
 
---let $skip_slave_start_var= FALSE
+--let $skip_replica_start_var= FALSE
 --source extra/rpl_tests/rpl_mts_relay_log_recovery.test
 
---let $skip_slave_start_var= TRUE
+--let $skip_replica_start_var= TRUE
 --source extra/rpl_tests/rpl_mts_relay_log_recovery.test
 
 --source include/rpl_end.inc

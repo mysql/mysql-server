@@ -56,7 +56,7 @@ t AS t1, t AS t2, t as t3, t as t4
 JOIN t as t5 ON t5.pk = t4.col_int
 ;
 EXPLAIN
--> Aggregate: count(0)
+-> Aggregate: count(0)  (cost=143821.25 rows=390625)
     -> Nested loop inner join  (cost=104758.75 rows=390625)
         -> Inner hash join (no condition)  (cost=65690.00 rows=390625)
             -> Table scan on t4, activating pushed join of 2 tables  (cost=0.40 rows=25)

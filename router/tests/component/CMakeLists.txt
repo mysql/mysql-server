@@ -36,10 +36,13 @@ FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
     test_bootstrap_account.cc
+    test_bootstrap_clusterset.cc
     test_bootstrap_system_deployment.cc
     test_bootstrap_tls_endpoint.cc
+    test_clusterset.cc
     test_component_test_framework.cc
     test_config.cc
+    test_config_overwrites.cc
     test_gr_notifications.cc
     test_http_server.cc
     test_logging.cc
@@ -67,8 +70,10 @@ FOREACH(test_file
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
+    ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
+    ${CMAKE_SOURCE_DIR}/plugin/x/client
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS
@@ -76,6 +81,9 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
 
   DEPENDS
   http_auth_backend

@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# Disable auto create index stats. This is required to
+# ensure that the test checks that PREPARE_SEIZE_ERROR
+# is mapped to error 748
+IndexStatAutoCreate=0

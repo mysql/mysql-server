@@ -55,7 +55,7 @@ class Parameter_type_element_impl : public Weak_object_impl,
   Parameter_type_element_impl(const Parameter_type_element_impl &src,
                               Parameter_impl *parent);
 
-  ~Parameter_type_element_impl() override {}
+  ~Parameter_type_element_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);

@@ -1,0 +1,144 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo Test nullable <-> not-null conversions in data restore in ndb_restore
+
+create table nullable_no_nulls (
+  id int primary key,
+  col1 int unsigned,
+  col2 varchar(20),
+  col3 text,
+  col4 date) engine=ndb;
+
+create table nullable_with_nulls (
+  id int primary key,
+  col1 int unsigned,
+  col2 varchar(20),
+  col3 text,
+  col4 date) engine=ndb;
+
+create table not_nullable_no_nulls (
+  id int primary key,
+  col1 int unsigned not null,
+  col2 varchar(20) not null,
+  col3 text not null,
+  col4 date not null)engine=ndb;
+
+--disable_query_log
+let $i=100;
+while ($i)
+{
+  eval insert into nullable_no_nulls values ($i, $i, REPEAT("abcde", 4), REPEAT("XYZ", 2000), "2021-04-01");
+  eval insert into nullable_with_nulls values ($i, NULL, NULL, NULL, NULL);
+  eval insert into not_nullable_no_nulls values ($i, $i, REPEAT("abcde", 4), REPEAT("XYZ", 2000), "2021-04-01");
+  dec $i;
+}
+--enable_query_log
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+drop table nullable_no_nulls;
+drop table nullable_with_nulls;
+drop table not_nullable_no_nulls;
+
+--echo # conversion from nullable -> not null with no NULLs in table
+create table nullable_no_nulls (
+  id int primary key,
+  col1 int unsigned not null,
+  col2 varchar(20) not null,
+  col3 text not null,
+  col4 date not null)engine=ndb;
+
+--echo # conversion from nullable -> not null with NULLs in table
+create table nullable_with_nulls (
+  id int primary key not null,
+  col1 int unsigned not null,
+  col2 varchar(20) not null,
+  col3 text not null,
+  col4 date not null) engine=ndb;
+
+--echo # conversion from not-null -> nullable
+create table not_nullable_no_nulls (
+  id int primary key,
+  col1 int unsigned,
+  col2 varchar(20),
+  col3 text,
+  col4 date)engine=ndb;
+
+--echo # cannot restore nullable->non-nullable without --lossy-conversions
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.nullable_no_nulls $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo # can restore nullable->non-nullable if non-nullable col has no NULL values
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.nullable_no_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --include-tables=test.nullable_no_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo # cannot restore nullable->non-nullable if non-nullable col has NULL values
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.nullable_with_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo # cannot restore not-null->non-nullable without --promote-attributes
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.not_nullable_no_nulls $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo # can restore not-null->nullable
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.not_nullable_no_nulls --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --include-tables=test.not_nullable_no_nulls --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select count(*) from nullable_no_nulls where col2=REPEAT("abcde", 4) and col3=REPEAT("XYZ", 2000) and col4="2021-04-01";
+select count(*) from nullable_with_nulls;
+select count(*) from not_nullable_no_nulls where col2=REPEAT("abcde", 4) and col3=REPEAT("XYZ", 2000) and col4="2021-04-01";
+
+drop table nullable_no_nulls;
+drop table nullable_with_nulls;
+drop table not_nullable_no_nulls;
+
+--echo Test nullable <-> not-null conversions in log replay in ndb_restore
+
+create table nullable (
+  id int primary key,
+  col1 int unsigned,
+  col2 varchar(20),
+  col3 text,
+  col4 date) engine=ndb;
+
+--disable_query_log
+let $i=100;
+while ($i)
+{
+  eval insert into nullable values ($i, $i, REPEAT("abcde", 4), REPEAT("XYZ", 2000), "2021-04-01");
+  dec $i;
+}
+--enable_query_log
+
+--echo Cause backup stall
+--exec $NDB_MGM -e "all error 10039"
+
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+update nullable set col2=NULL;
+
+--exec $NDB_MGM -e "all error 0"
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+drop table nullable;
+
+--echo # conversion from nullable -> not null
+create table nullable (
+  id int primary key,
+  col1 int unsigned not null,
+  col2 varchar(20) not null,
+  col3 text not null,
+  col4 date not null)engine=ndb;
+
+--echo # cannot restore nullable->non-nullable if backup log sets NULL values
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --include-tables=test.nullable --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+select * from nullable;
+
+drop table nullable;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

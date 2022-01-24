@@ -26,6 +26,7 @@
 #define FS_BUFFER_HPP
 
 #include <ndb_global.h>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 477
 
@@ -217,12 +218,14 @@ FsBuffer::setup(Uint32 * Buffer,
     m_size = (m_size / m_minRead) * m_minRead;
   
 #if 0
-  ndbout_c("Block = %d MinRead = %d -> %d", Block*4, MinRead*4, m_minRead*4);
-  ndbout_c("Block = %d MaxRead = %d -> %d", Block*4, MaxRead*4, m_maxRead*4);
+  g_eventLogger->info("Block = %d MinRead = %d -> %d",
+                      Block*4, MinRead*4, m_minRead*4);
+  g_eventLogger->info("Block = %d MaxRead = %d -> %d",
+                      Block*4, MaxRead*4, m_maxRead*4);
   
-  ndbout_c("Buffer = %p -> %p", Buffer, m_start);
-  ndbout_c("Buffer = %p Size = %d MaxWrite = %d -> %d",
-	   Buffer, Size*4, MaxWrite*4, m_size*4);
+  g_eventLogger->info("Buffer = %p -> %p", Buffer, m_start);
+  g_eventLogger->info("Buffer = %p Size = %d MaxWrite = %d -> %d",
+                      Buffer, Size*4, MaxWrite*4, m_size*4);
 #endif
 
   m_readIndex = m_writeIndex = m_eof = 0;
@@ -304,8 +307,9 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof)
     
     * ptr = &Tp[Tr];
 
-    DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d",
-		   Tr, Tmw, Ts, Tm, sz1, * sz));
+    DEBUG(g_eventLogger->info(
+        "getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d", Tr, Tmw, Ts,
+        Tm, sz1, *sz));
 
     m_preparedReadSize = *sz;
     return true;
@@ -313,10 +317,11 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof)
   
   if(!m_eof){
     * _eof = false;
-    
-    DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> false",
-		   Tr, Tmw, Ts, Tm, sz1));
-    
+
+    DEBUG(g_eventLogger->info(
+        "getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> false", Tr, Tmw,
+        Ts, Tm, sz1));
+
     return false;
   }
   
@@ -324,9 +329,10 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof)
   * _eof = true;
   * ptr = &Tp[Tr];
 
-  DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d eof",
-		 Tr, Tmw, Ts, Tm, sz1, * sz));
-  
+  DEBUG(g_eventLogger->info(
+      "getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d eof", Tr, Tmw,
+      Ts, Tm, sz1, *sz));
+
   m_preparedReadSize = *sz;
   return false;
 }
@@ -360,14 +366,14 @@ FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz)
   if(sz1 > sz){ // Note at least 1 word of slack
     * ptr = &Tp[Tw];
 
-    DEBUG(ndbout_c("getWritePtr(%d) Tw: %d sz1: %d -> true",
-		   sz, Tw, sz1));
+    DEBUG(g_eventLogger->info("getWritePtr(%d) Tw: %d sz1: %d -> true", sz, Tw,
+                              sz1));
     m_preparedWriteSize = sz;
     return true;
   }
 
-  DEBUG(ndbout_c("getWritePtr(%d) Tw: %d sz1: %d -> false",
-		 sz, Tw, sz1));
+  DEBUG(g_eventLogger->info("getWritePtr(%d) Tw: %d sz1: %d -> false", sz, Tw,
+                            sz1));
 
   return false;
 }
@@ -391,15 +397,15 @@ FsBuffer::updateWritePtr(Uint32 sz)
 
   if(Tnew < Ts){
     m_writeIndex = Tnew;
-    DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",
-                   sz, m_writeIndex));
+    DEBUG(g_eventLogger->info("updateWritePtr(%d) m_writeIndex: %d", sz,
+                              m_writeIndex));
     return;
   }
 
   memcpy(Tp, &Tp[Ts], (Tnew - Ts) << 2);
   m_writeIndex = Tnew - Ts;
-  DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",
-                 sz, m_writeIndex));
+  DEBUG(g_eventLogger->info("updateWritePtr(%d) m_writeIndex: %d", sz,
+                            m_writeIndex));
 }
 
 inline

@@ -51,7 +51,7 @@ DROP TABLE relay_log_file_content;
 #     Start the server using a file repository that has no ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
 #     The starting value should be 1 in the file / OFF
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
 CREATE TABLE relay_log_file_content (line_content TEXT);
@@ -63,23 +63,23 @@ DROP TABLE relay_log_file_content;
 #     Start the server using a file repository that has an invalid Assign_gtids_to_anonymous_transactions type
 #     & value. Check we cannot start the replica process
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 
@@ -89,7 +89,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_tra
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
 include/assert.inc [Check that mysql.slave_relay_log_info has an entry with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF and ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE as NULL.]
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -99,13 +99,14 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
+include/rpl_set_gtid_mode.inc [ON on servers 2]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
 include/assert.inc [Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE set to NULL]
 RESET SLAVE ALL FOR CHANNEL "ch1";
@@ -129,7 +130,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 5.2. Change ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS to <uuid>
@@ -146,7 +147,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 5.3. Execute a RESET SLAVE ALL command.

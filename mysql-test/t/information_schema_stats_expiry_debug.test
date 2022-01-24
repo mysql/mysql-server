@@ -88,3 +88,55 @@ DELETE FROM mysql.table_stats;
 DELETE FROM mysql.index_stats;
 DROP TABLE t2,t3;
 SET SESSION information_schema_stats_expiry= default;
+
+--echo # Bug#32338335 STOP UPDATING I_S DYNAMIC STATS CACHE
+--echo # IN MULTI-STATEMENT TRANSACTIONS
+# Test cases
+# Case 1: Make sure I_S query under START TRANSACTION doesn't write to
+#         statistics cache.
+# Case 2: Make sure I_S query under AUTOCOMMIT=0 doesn't write to
+#         statistics cache.
+
+CREATE TABLE t1 (a INT);
+
+--echo # CASE 1: Use START TRANSACTION
+START TRANSACTION;
+INSERT INTO t1 VALUES
+  (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+  (10),(11),(12),(13),(14),(15),(16),(17),(18),(19);
+
+--echo # Make sure that we see latest dynamic statistics and do not cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+COMMIT;
+
+--echo # Make sure that there is no dynamic statistics written
+--echo # by previous I_S query.
+SELECT schema_name, table_name, table_rows
+  FROM mysql.table_stats WHERE table_name="t1";
+
+--echo # CASE 2: Use AUTOCOMMIT=0
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES
+  (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+  (10),(11),(12),(13),(14),(15),(16),(17),(18),(19);
+
+--echo # Make sure that we see latest dynamic statistics and do not cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+COMMIT;
+SET AUTOCOMMIT=1;
+
+--echo # Make sure that there is no dynamic statistics written
+--echo # by previous I_S query.
+SELECT schema_name, table_name, table_rows
+  FROM mysql.table_stats WHERE table_name="t1";
+
+--echo # Make sure that we see latest dynamic statistics and also cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+
+--echo # Make sure that there is dynamic statistics written
+--echo # by previous I_S query.
+SELECT schema_name, table_name, table_rows
+  FROM mysql.table_stats WHERE table_name="t1";
+
+DROP table t1;
+set global debug=RESET;

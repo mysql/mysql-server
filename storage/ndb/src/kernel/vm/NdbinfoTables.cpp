@@ -26,8 +26,6 @@
 
 #define JAM_FILE_ID 239
 
-
-
 #define DECLARE_NDBINFO_TABLE(var, num)  \
 static const struct  {                   \
   Ndbinfo::Table::Members m;             \
@@ -35,18 +33,23 @@ static const struct  {                   \
 } ndbinfo_##var 
 
 
-DECLARE_NDBINFO_TABLE(TABLES,3) =
-{ { "tables", 3, 0, "metadata for tables available through ndbinfo" },
+DECLARE_NDBINFO_TABLE(TABLES,4) =
+{ { "tables", 4, 0,
+    [] (const Ndbinfo::Counts &) { return Ndbinfo::getNumTables(); },
+    "metadata for tables available through ndbinfo" },
   {
-    {"table_id",  Ndbinfo::Number, ""},
+    {"table_id",      Ndbinfo::Number, ""},
 
-    {"table_name",Ndbinfo::String, ""},
-    {"comment",   Ndbinfo::String, ""}
+    {"table_name",    Ndbinfo::String, ""},
+    {"comment",       Ndbinfo::String, ""},
+    {"rows_estimate", Ndbinfo::Number, "" }
   }
 };
 
 DECLARE_NDBINFO_TABLE(COLUMNS,5) =
-{ { "columns", 5, 0, "metadata for columns available through ndbinfo " },
+{ { "columns", 5, 0,
+    [] (const Ndbinfo::Counts &) { return 500; },
+   "metadata for columns available through ndbinfo " },
   {
     {"table_id",    Ndbinfo::Number, ""},
     {"column_id",   Ndbinfo::Number, ""},
@@ -58,7 +61,11 @@ DECLARE_NDBINFO_TABLE(COLUMNS,5) =
 };
 
 DECLARE_NDBINFO_TABLE(TEST,5) =
-{ { "test", 5, 0, "for testing" },
+{ { "test", 5, 0,
+    [] (const Ndbinfo::Counts &c) {
+      /* 1000 rows per TUP instance */
+      return c.data_nodes * c.instances.lqh * 1000; },
+    "for testing" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -70,7 +77,24 @@ DECLARE_NDBINFO_TABLE(TEST,5) =
 };
 
 DECLARE_NDBINFO_TABLE(POOLS,14) =
-{ { "pools", 14, 0, "pool usage" },
+{ { "pools", 14, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * (
+        /* The numbers here were obtained by looking for Ndbinfo::POOLS_TABLEID
+           in each block and counting how many response rows are produced.
+           For example, in Cmvmi.cpp, the CMVMI block produces rows for two
+           pools, named "Data memory" and "Long message buffer".
+        */
+        (6  * c.threads.ldm)   +   // BACKUP
+        (14 * c.instances.tc)  +   // TC
+        (3  * c.instances.lqh) +   // LQH
+        (5  * c.instances.lqh) +   // ACC
+        (9  * c.instances.lqh) +   // TUP
+        (7  * c.instances.lqh) +   // TUX
+        7 + 2 + 2 + 7 + 8);        // DICT + CMVMI + TRIX + UTIL + SUMA
+    },
+    "pool usage"
+  },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -91,7 +115,10 @@ DECLARE_NDBINFO_TABLE(POOLS,14) =
 };
 
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 11) =
-{ { "transporters", 11, 0, "transporter status" },
+{ { "transporters", 11, 0,
+     [] (const Ndbinfo::Counts &counts) {
+        return (counts.data_nodes) * (counts.all_nodes - 1); },
+     "transporter status" },
   {
     {"node_id",              Ndbinfo::Number, "Node id reporting"},
     {"remote_node_id",       Ndbinfo::Number, "Node id at other end of link"},
@@ -113,7 +140,9 @@ DECLARE_NDBINFO_TABLE(TRANSPORTERS, 11) =
 };
 
 DECLARE_NDBINFO_TABLE(LOGSPACES, 7) =
-{ { "logspaces", 7, 0, "logspace usage" },
+{ { "logspaces", 7, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.log_parts; },
+    "logspace usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
@@ -127,7 +156,9 @@ DECLARE_NDBINFO_TABLE(LOGSPACES, 7) =
 };
 
 DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
-{ { "logbuffers", 7, 0, "logbuffer usage" },
+{ { "logbuffers", 7, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.log_parts; },
+    "logbuffer usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO, 2 = BACKUP-DATA, 3 = BACKUP-LOG"},
@@ -141,7 +172,9 @@ DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
 };
 
 DECLARE_NDBINFO_TABLE(RESOURCES,7) =
-{ { "resources", 7, 0, "resources usage (a.k.a superpool)" },
+{ { "resources", 7, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * 9 /*MM_RG_COUNT*/; },
+    "resources usage (a.k.a superpool)" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"resource_id",        Ndbinfo::Number, ""},
@@ -155,7 +188,17 @@ DECLARE_NDBINFO_TABLE(RESOURCES,7) =
 };
 
 DECLARE_NDBINFO_TABLE(COUNTERS,5) =
-{ { "counters", 5, 0, "monotonic counters" },
+{ { "counters", 5, 0,
+    [] (const Ndbinfo::Counts &c) {
+      /* To verify these numbers,
+         search for COUNTERS_TABLEID under src/kernel/blocks
+      */
+      return c.data_nodes * ( (7  * c.instances.lqh) +  // 7 rows per LQH
+                              (13 * c.instances.tc)  +  // 13 rows per SPJ
+                              (11 * c.instances.tc) );  // 11 rows per TC
+    },
+    "monotonic counters"
+  },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -167,7 +210,9 @@ DECLARE_NDBINFO_TABLE(COUNTERS,5) =
 };
 
 DECLARE_NDBINFO_TABLE(NODES,5) =
-{ { "nodes", 5, 0, "node status" },
+{ { "nodes", 5, 0,
+  [] (const Ndbinfo::Counts &c) { return c.data_nodes; },
+  "node status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
 
@@ -179,7 +224,10 @@ DECLARE_NDBINFO_TABLE(NODES,5) =
 };
 
 DECLARE_NDBINFO_TABLE(DISKPAGEBUFFER, 9) =
-{ { "diskpagebuffer", 9, 0, "disk page buffer info" },
+{ { "diskpagebuffer", 9, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.instances.pgman; },
+    "disk page buffer info"
+  },
   {
     {"node_id",                     Ndbinfo::Number, ""},
     {"block_instance",              Ndbinfo::Number, ""},
@@ -195,7 +243,15 @@ DECLARE_NDBINFO_TABLE(DISKPAGEBUFFER, 9) =
 };
 
 DECLARE_NDBINFO_TABLE(THREADBLOCKS, 4) =
-{ { "threadblocks", 4, 0, "which blocks are run in which threads" },
+{ { "threadblocks", 4, 0,
+  [] (const Ndbinfo::Counts &c) {
+      // In this estimate, 18 is the number of single-instance blocks,
+      // and 11 is the number of multi-instance blocks.
+      // The result is not exact.
+      return c.data_nodes * (18 + (c.instances.lqh * 11));
+  },
+  "which blocks are run in which threads"
+  },
   {
     {"node_id",                     Ndbinfo::Number, "node id"},
     {"thr_no",                      Ndbinfo::Number, "thread number"},
@@ -205,9 +261,12 @@ DECLARE_NDBINFO_TABLE(THREADBLOCKS, 4) =
 };
 
 DECLARE_NDBINFO_TABLE(THREADSTAT, 18) =
-{ { "threadstat", 18, 0, "Statistics on execution threads" },
+{ { "threadstat", 18, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes *
+                                           (c.threads.db - c.threads.send); },
+    "Statistics on execution threads"
+  },
   {
-    //{"0123456701234567"}
     {"node_id",             Ndbinfo::Number, "node id"},
     {"thr_no",              Ndbinfo::Number, "thread number"},
     {"thr_nm",              Ndbinfo::String, "thread name"},
@@ -230,7 +289,17 @@ DECLARE_NDBINFO_TABLE(THREADSTAT, 18) =
 };
 
 DECLARE_NDBINFO_TABLE(TRANSACTIONS, 11) =
-{ { "transactions", 11, 0, "transactions" },
+{ { "transactions", 11, 0,
+    [] (const Ndbinfo::Counts &) {
+      /* It is difficult to estimate row counts for transactions, operations,
+         and acc_operations because they depend on current load. By guessing
+         5 transactions, 10 operations, and 15 acc_operations, we can keep the
+         three tables in correct relative order and allow the optimizer to
+         correctly rank them from largest to smallest most of the time.
+      */
+      return 5;
+    }, "transactions"
+  },
   {
     {"node_id",             Ndbinfo::Number, "node id"},
     {"block_instance",      Ndbinfo::Number, "TC instance no"},
@@ -247,7 +316,9 @@ DECLARE_NDBINFO_TABLE(TRANSACTIONS, 11) =
 };
 
 DECLARE_NDBINFO_TABLE(OPERATIONS, 12) =
-{ { "operations", 12, 0, "operations" },
+{ { "operations", 12, 0,
+  [] (const Ndbinfo::Counts &) { return 10; }, // see comment above
+   "operations" },
   {
     {"node_id",             Ndbinfo::Number, "node id"},
     {"block_instance",      Ndbinfo::Number, "LQH instance no"},
@@ -265,7 +336,10 @@ DECLARE_NDBINFO_TABLE(OPERATIONS, 12) =
 };
 
 DECLARE_NDBINFO_TABLE(MEMBERSHIP, 13) =
-{ { "membership", 13, 0, "membership" },
+{ { "membership", 13, 0,
+   [] (const Ndbinfo::Counts &c) { return c.data_nodes; },
+   "membership"
+  },
   {
     {"node_id",         Ndbinfo::Number, "node id"},
     {"group_id",        Ndbinfo::Number, "node group id"},
@@ -284,7 +358,10 @@ DECLARE_NDBINFO_TABLE(MEMBERSHIP, 13) =
 };
 
 DECLARE_NDBINFO_TABLE(DICT_OBJ_INFO, 7) =
-{ { "dict_obj_info", 7, 0, "Dictionary object info" },
+{ { "dict_obj_info", 7, 0,
+    [] (const Ndbinfo::Counts &c) { return c.est_tables; },
+    "Dictionary object info"
+  },
   {
     {"type",             Ndbinfo::Number,      "Type of dict object"},
     {"id",               Ndbinfo::Number,      "Object identity"},
@@ -297,7 +374,11 @@ DECLARE_NDBINFO_TABLE(DICT_OBJ_INFO, 7) =
 };
 
 DECLARE_NDBINFO_TABLE(FRAG_MEM_USE, 15) =
-{ { "frag_mem_use", 15, 0, "Per fragment space information" },
+{ { "frag_mem_use", 15, 0,
+    [] (const Ndbinfo::Counts &c) { // nodes * LDMs * fragments * tables
+      return c.data_nodes * c.threads.ldm * c.est_tables;
+    },
+    "Per fragment space information" },
   {
     {"node_id",                  Ndbinfo::Number,    "node id"},
     {"block_instance",           Ndbinfo::Number,    "LDM instance number"},
@@ -328,7 +409,10 @@ DECLARE_NDBINFO_TABLE(FRAG_MEM_USE, 15) =
 
 DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_BASE, 7) =
 { { "disk_write_speed_base", 7, 0,
-      "Actual speed of disk writes per LDM thread, base data" },
+    [] (const Ndbinfo::Counts &c) { // 61 = DISK_WRITE_SPEED_REPORT_SIZE
+      return c.data_nodes * c.threads.ldm * 61;
+    },
+    "Actual speed of disk writes per LDM thread, base data" },
   {
     {"node_id",                     Ndbinfo::Number, "node id"},
     {"thr_no",                      Ndbinfo::Number, "LDM thread instance"},
@@ -347,6 +431,7 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_BASE, 7) =
 
 DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
 { { "disk_write_speed_aggregate", 16, 0,
+      [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.threads.ldm; },
       "Actual speed of disk writes per LDM thread, aggregate data" },
   {
     {"node_id",                     Ndbinfo::Number, "node id"},
@@ -393,7 +478,11 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
 };
 
 DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 28) =
-{ { "frag_operations", 28, 0, "Per fragment operational information" },
+{ { "frag_operations", 28, 0,
+    [] (const Ndbinfo::Counts &c) {
+        return c.data_nodes * c.instances.lqh * c.est_tables; },
+    "Per fragment operational information"
+  },
   {
     {"node_id",                 Ndbinfo::Number,    "node id"},
     {"block_instance",          Ndbinfo::Number,    "LQH instance no"},
@@ -452,7 +541,8 @@ DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 28) =
 
 DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
 { { "restart_info", 22, 0,
-       "Times of restart phases in seconds and current state" },
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes; },
+    "Times of restart phases in seconds and current state" },
   {
     {"node_id",                                             Ndbinfo::Number,
      "node id" },
@@ -503,7 +593,15 @@ DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
 
 DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) =
 { { "tc_time_track_stats", 15, 0,
-      "Time tracking of transaction, key operations and scan ops" },
+    [] (const Ndbinfo::Counts &c) {
+      /* Maximum possible size is
+            data nodes * all nodes * TC instances * TIME_TRACK_HISTOGRAM_RANGES
+         but a more realistic estimate is just
+            data nodes squared * TC instances * TIME_TRACK_HISTOGRAM_RANGES
+      */
+       return c.data_nodes * c.data_nodes * c.instances.tc * 32;
+    },
+    "Time tracking of transaction, key operations and scan ops" },
   {
     {"node_id",                     Ndbinfo::Number, "node id"},
     {"block_number",                Ndbinfo::Number, "Block number"},
@@ -534,8 +632,12 @@ DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(CONFIG_VALUES,12) =
-{ { "config_values", 3, 0, "Configuration parameter values" },
+DECLARE_NDBINFO_TABLE(CONFIG_VALUES,3) =
+{ { "config_values", 3, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * 164;  // 164 = current number of config parameters
+    },
+    "Configuration parameter values" },
   {
     {"node_id",           Ndbinfo::Number, ""},
     {"config_param",      Ndbinfo::Number, "Parameter number"},
@@ -545,7 +647,9 @@ DECLARE_NDBINFO_TABLE(CONFIG_VALUES,12) =
 
 DECLARE_NDBINFO_TABLE(THREADS, 4) =
 { { "threads", 4, 0,
-    "Base table for threads" },
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.threads.db; },
+    "Base table for threads"
+  },
   {
     {"node_id",                                             Ndbinfo::Number,
      "node_id" },
@@ -560,7 +664,10 @@ DECLARE_NDBINFO_TABLE(THREADS, 4) =
 
 DECLARE_NDBINFO_TABLE(CPUSTAT_50MS, 11) =
 { { "cpustat_50ms", 11, 0,
-    "Thread CPU stats at 50 milliseconds intervals" },
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.threads.db * 20; },// NUM_MEASUREMENTS in THRMAN
+    "Thread CPU stats at 50 milliseconds intervals"
+  },
   {
     {"node_id",                                             Ndbinfo::Number,
      "node_id" },
@@ -589,7 +696,10 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_50MS, 11) =
 
 DECLARE_NDBINFO_TABLE(CPUSTAT_1SEC, 11) =
 { { "cpustat_1sec", 11, 0,
-    "Thread CPU stats at 1 second intervals" },
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.threads.db * 20; },// NUM_MEASUREMENTS in THRMAN
+    "Thread CPU stats at 1 second intervals"
+  },
   {
     {"node_id",                                             Ndbinfo::Number,
      "node_id" },
@@ -618,7 +728,10 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_1SEC, 11) =
 
 DECLARE_NDBINFO_TABLE(CPUSTAT_20SEC, 11) =
 { { "cpustat_20sec", 11, 0,
-    "Thread CPU stats at 20 seconds intervals" },
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.threads.db * 20; },// NUM_MEASUREMENTS in THRMAN
+    "Thread CPU stats at 20 seconds intervals"
+  },
   {
     {"node_id",                                             Ndbinfo::Number,
      "node_id" },
@@ -647,6 +760,7 @@ DECLARE_NDBINFO_TABLE(CPUSTAT_20SEC, 11) =
 
 DECLARE_NDBINFO_TABLE(CPUSTAT, 11) =
 { { "cpustat", 11, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.threads.db; },
     "Thread CPU stats for last second" },
   {
     {"node_id",                                             Ndbinfo::Number,
@@ -676,6 +790,9 @@ DECLARE_NDBINFO_TABLE(CPUSTAT, 11) =
 
 DECLARE_NDBINFO_TABLE(FRAG_LOCKS, 14) =
 { { "frag_locks", 14, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.instances.lqh * c.est_tables;
+    },
     "Per fragment lock information" },
   {
     {"node_id",                 Ndbinfo::Number,
@@ -712,7 +829,9 @@ DECLARE_NDBINFO_TABLE(FRAG_LOCKS, 14) =
 };
 
 DECLARE_NDBINFO_TABLE(ACC_OPERATIONS, 15) =
-{ { "acc_operations", 15, 0, "ACC operation info" },
+{ { "acc_operations", 15, 0,
+    [] (const Ndbinfo::Counts &) { return 15; }, // see comment at transactions
+    "ACC operation info" },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"block_instance",              Ndbinfo::Number,   "Block instance"},
@@ -733,7 +852,9 @@ DECLARE_NDBINFO_TABLE(ACC_OPERATIONS, 15) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS, 13) =
-{ { "table_distribution_status", 13, 0, "Table status in distribution handler" },
+{ { "table_distribution_status", 13, 0,
+    [] (const Ndbinfo::Counts &c) { return c.est_tables; },
+    "Table status in distribution handler" },
   {
     {"node_id",               Ndbinfo::Number,   "Node id"},
     {"table_id",              Ndbinfo::Number,   "Table id"},
@@ -752,7 +873,12 @@ DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS, 13) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS, 15) =
-{ { "table_fragments", 15, 0, "Partitions of the tables" },
+{ { "table_fragments", 15, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.instances.lqh * c.est_tables;
+    },
+    "Partitions of the tables"
+  },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"table_id",                    Ndbinfo::Number,   "Table id"},
@@ -773,7 +899,12 @@ DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS, 15) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_REPLICAS, 16) =
-{ { "table_replicas", 16, 0, "Fragment replicas of the tables" },
+{ { "table_replicas", 16, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.instances.lqh * c.est_tables;
+    },
+    "Fragment replicas of the tables"
+  },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"table_id",                    Ndbinfo::Number,   "Table id"},
@@ -795,7 +926,10 @@ DECLARE_NDBINFO_TABLE(TABLE_REPLICAS, 16) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS_ALL, 13) =
-{ { "table_distribution_status_all", 13, 0, "Table status in distribution handler" },
+{ { "table_distribution_status_all", 13, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.est_tables; },
+    "Table status in distribution handler"
+  },
   {
     {"node_id",               Ndbinfo::Number,   "Node id"},
     {"table_id",              Ndbinfo::Number,   "Table id"},
@@ -814,7 +948,12 @@ DECLARE_NDBINFO_TABLE(TABLE_DIST_STATUS_ALL, 13) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS_ALL, 15) =
-{ { "table_fragments_all", 15, 0, "Partitions of the tables" },
+{ { "table_fragments_all", 15, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.est_tables * c.instances.lqh;
+    },
+    "Partitions of the tables"
+  },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"table_id",                    Ndbinfo::Number,   "Table id"},
@@ -835,7 +974,12 @@ DECLARE_NDBINFO_TABLE(TABLE_FRAGMENTS_ALL, 15) =
 };
 
 DECLARE_NDBINFO_TABLE(TABLE_REPLICAS_ALL, 16) =
-{ { "table_replicas_all", 16, 0, "Fragment replicas of the tables" },
+{ { "table_replicas_all", 16, 0,
+    [] (const Ndbinfo::Counts &c) {
+      return c.instances.lqh * c.est_tables * c.data_nodes;
+    },
+    "Fragment replicas of the tables"
+  },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"table_id",                    Ndbinfo::Number,   "Table id"},
@@ -857,7 +1001,9 @@ DECLARE_NDBINFO_TABLE(TABLE_REPLICAS_ALL, 16) =
 };
 
 DECLARE_NDBINFO_TABLE(STORED_TABLES, 20) =
-{ { "stored_tables", 20, 0, "Information about stored tables" },
+{ { "stored_tables", 20, 0,
+    [] (const Ndbinfo::Counts &c) { return c.est_tables; },
+    "Information about stored tables" },
   {
     {"node_id",                     Ndbinfo::Number,   "node_id"},
     {"table_id",                    Ndbinfo::Number,   "Table id"},
@@ -883,7 +1029,9 @@ DECLARE_NDBINFO_TABLE(STORED_TABLES, 20) =
 };
 
 DECLARE_NDBINFO_TABLE(PROCESSES, 8) =
-{ { "processes", 8, 0, "Process ID and Name information for connected nodes" },
+{ { "processes", 8, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.all_nodes; },
+    "Process ID and Name information for connected nodes" },
   {
     { "reporting_node_id",         Ndbinfo::Number,    "Reporting data node ID"},
     { "node_id",                   Ndbinfo::Number,    "Connected node ID"},
@@ -897,7 +1045,9 @@ DECLARE_NDBINFO_TABLE(PROCESSES, 8) =
 };
 
 DECLARE_NDBINFO_TABLE(CONFIG_NODES, 4) =
-{ { "config_nodes", 4, 0, "All nodes of current cluster configuration" },
+{ { "config_nodes", 4, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.all_nodes; },
+    "All nodes of current cluster configuration" },
   {
     { "reporting_node_id",         Ndbinfo::Number,    "Reporting data node ID"},
     { "node_id",                   Ndbinfo::Number,    "Configured node ID"},
@@ -908,7 +1058,11 @@ DECLARE_NDBINFO_TABLE(CONFIG_NODES, 4) =
 
 DECLARE_NDBINFO_TABLE(PGMAN_TIME_TRACK_STATS, 8) =
 { { "pgman_time_track_stats", 8, 0,
-    "Time tracking of reads and writes of disk data pages" },
+    [] (const Ndbinfo::Counts &c) {  // 20 = PGMAN_TIME_TRACK_NUM_RANGES
+      return c.data_nodes * c.instances.pgman * 20;
+    },
+    "Time tracking of reads and writes of disk data pages"
+  },
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
     {"block_number",                Ndbinfo::Number, "Block number"},
@@ -928,7 +1082,11 @@ DECLARE_NDBINFO_TABLE(PGMAN_TIME_TRACK_STATS, 8) =
 
 DECLARE_NDBINFO_TABLE(DISKSTAT, 12) =
 { { "diskstat", 12, 0,
-    "Disk data statistics for last second"},
+    [] (const Ndbinfo::Counts &c) {
+      return c.data_nodes * c.instances.pgman;
+    },
+    "Disk data statistics for last second"
+  },
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
     {"block_instance",              Ndbinfo::Number, "Block instance"},
@@ -957,7 +1115,11 @@ DECLARE_NDBINFO_TABLE(DISKSTAT, 12) =
 
 DECLARE_NDBINFO_TABLE(DISKSTATS_1SEC, 13) =
 { { "diskstats_1sec", 13, 0,
-    "Disk data statistics history for last few seconds"},
+    [] (const Ndbinfo::Counts &c) {
+         return c.data_nodes * c.instances.pgman * 20;
+    },
+    "Disk data statistics history for last few seconds"
+  },
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
     {"block_instance",              Ndbinfo::Number, "Block instance"},
@@ -988,6 +1150,7 @@ DECLARE_NDBINFO_TABLE(DISKSTATS_1SEC, 13) =
 
 DECLARE_NDBINFO_TABLE(HWINFO, 7) =
 { { "hwinfo", 7, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes; },
     "HW information where node executes"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
@@ -1008,6 +1171,7 @@ DECLARE_NDBINFO_TABLE(HWINFO, 7) =
 
 DECLARE_NDBINFO_TABLE(CPUINFO, 5) =
 { { "cpuinfo", 5, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.cpus; },
     "CPU information where node executes"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
@@ -1021,6 +1185,7 @@ DECLARE_NDBINFO_TABLE(CPUINFO, 5) =
 
 DECLARE_NDBINFO_TABLE(CPUDATA, 8) =
 { { "cpudata", 8, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.cpus; },
     "Data about CPU usage last second"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
@@ -1042,6 +1207,7 @@ DECLARE_NDBINFO_TABLE(CPUDATA, 8) =
 
 DECLARE_NDBINFO_TABLE(CPUDATA_50MS, 10) =
 { { "cpudata_50ms", 10, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.cpus; },
     "Data about CPU usage per 50ms last second"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
@@ -1067,6 +1233,7 @@ DECLARE_NDBINFO_TABLE(CPUDATA_50MS, 10) =
 
 DECLARE_NDBINFO_TABLE(CPUDATA_1SEC, 10) =
 { { "cpudata_1sec", 10, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.cpus; },
     "Data about CPU usage per second last 20 seconds"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},
@@ -1092,6 +1259,7 @@ DECLARE_NDBINFO_TABLE(CPUDATA_1SEC, 10) =
 
 DECLARE_NDBINFO_TABLE(CPUDATA_20SEC, 10) =
 { { "cpudata_20sec", 10, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.cpus; },
     "Data about CPU usage per 20 sec last 400 seconds"},
   {
     {"node_id",                     Ndbinfo::Number, "node_id"},

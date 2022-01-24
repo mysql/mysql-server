@@ -1,54 +1,49 @@
 drop table if exists t1,t2;
-set names latin1;
 create table t1 (name char(20) not null, primary key (name)) charset latin1;
-create table t2 (name char(20) binary not null, primary key (name));
-Warnings:
-Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
-insert into t1 values ("å");
-insert into t1 values ("ä");
-insert into t1 values ("ö");
+create table t2 (name char(20) collate utf8mb4_bin not null, primary key (name));
+insert into t1 values ("Ã¥");
+insert into t1 values ("Ã¤");
+insert into t1 values ("Ã¶");
 insert into t2 select * from t1;
 select * from t1 order by name;
 name
-å
-ä
-ö
+Ã¥
+Ã¤
+Ã¶
 select concat("*",name,"*") from t1 order by 1;
 concat("*",name,"*")
-*å*
-*ä*
-*ö*
+*Ã¥*
+*Ã¤*
+*Ã¶*
 select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t1;
 min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
-å	*å*	ö	*ö*
+Ã¥	*Ã¥*	Ã¶	*Ã¶*
 select * from t2 order by name;
 name
-ä
-å
-ö
+Ã¤
+Ã¥
+Ã¶
 select concat("*",name,"*") from t2 order by 1;
 concat("*",name,"*")
-*ä*
-*å*
-*ö*
+*Ã¤*
+*Ã¥*
+*Ã¶*
 select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t2;
 min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
-ä	*ä*	ö	*ö*
-select name from t1 where name between 'Ä' and 'Ö';
+Ã¤	*Ã¤*	Ã¶	*Ã¶*
+select name from t1 where name between 'Ã„' and 'Ã–';
 name
-ä
-ö
-select name from t2 where name between 'ä' and 'ö';
+Ã¤
+Ã¶
+select name from t2 where name between 'Ã¤' and 'Ã¶';
 name
-ä
-å
-ö
-select name from t2 where name between 'Ä' and 'Ö';
+Ã¤
+Ã¥
+Ã¶
+select name from t2 where name between 'Ã„' and 'Ã–';
 name
 drop table t1,t2;
-create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b)) charset latin1;
-Warnings:
-Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+create table t1 (a char(10) not null, b char(10) collate latin1_bin not null,key (a), key(b)) charset latin1;
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
 select concat("-",a,"-",b,"-") from t1 where a="hello";
 concat("-",a,"-",b,"-")
@@ -82,12 +77,12 @@ concat("-",a,"-",b,"-")
 drop table t1;
 create table t1 (b char(8));
 insert into t1 values(NULL);
-select b from t1 where binary b like '';
+select b from t1 where cast(b as binary)  like '';
 b
-select b from t1 group by binary b like '';
+select b from t1 group by cast(b as binary) like '';
 b
 NULL
-select b from t1 having binary b like '';
+select b from t1 having cast(b as binary) like '';
 b
 drop table t1;
 create table t1 (a char(3) binary, b binary(3)) charset latin1;
@@ -116,30 +111,30 @@ AAA	BBB
 select * from t1 where lower(b)='bbb';
 a	b
 aaa	bbb
-select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
-charset(a)	charset(b)	charset(binary 'ccc')
+select charset(a), charset(b), charset(cast('ccc' as binary)) from t1 limit 1;
+charset(a)	charset(b)	charset(cast('ccc' as binary))
 latin1	binary	binary
-select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
-collation(a)	collation(b)	collation(binary 'ccc')
+select collation(a), collation(b), collation(cast('ccc' as binary)) from t1 limit 1;
+collation(a)	collation(b)	collation(cast('ccc' as binary))
 latin1_bin	binary	binary
 drop table t1;
 create table t1( firstname char(20), lastname char(20));
 insert into t1 values ("john","doe"),("John","Doe");
-select * from t1 where firstname='john' and firstname like binary 'john';
+select * from t1 where firstname='john' and firstname like cast('john' as binary);
 firstname	lastname
 john	doe
-select * from t1 where firstname='john' and binary 'john' = firstname;
+select * from t1 where firstname='john' and cast('john' as binary) = firstname;
 firstname	lastname
 john	doe
-select * from t1 where firstname='john' and firstname = binary 'john';
+select * from t1 where firstname='john' and firstname = cast('john' as binary);
 firstname	lastname
 john	doe
-select * from t1 where firstname='John' and firstname like binary 'john';
+select * from t1 where firstname='John' and firstname like cast('john' as binary);
 firstname	lastname
 john	doe
-select * from t1 where firstname='john' and firstname like binary 'John';
+select * from t1 where firstname='john' and firstname like cast('john' as binary);
 firstname	lastname
-John	Doe
+john	doe
 drop table t1;
 create table t1 (a binary) charset utf8mb4;
 show create table t1;

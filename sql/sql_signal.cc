@@ -95,7 +95,7 @@ bool Set_signal_information::set_item(enum_condition_item_name name,
 }
 
 void Sql_cmd_common_signal::assign_defaults(
-    THD *thd MY_ATTRIBUTE((unused)), Sql_condition *cond, bool set_level_code,
+    THD *thd [[maybe_unused]], Sql_condition *cond, bool set_level_code,
     Sql_condition::enum_severity_level level, int sqlcode) {
   if (set_level_code) {
     cond->m_severity_level = level;

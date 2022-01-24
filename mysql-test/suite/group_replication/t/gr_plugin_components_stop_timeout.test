@@ -17,7 +17,7 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
---let $debug_save_timeout= `SELECT @@GLOBAL.group_replication_components_stop_timeout`
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
@@ -68,5 +68,5 @@ SET GLOBAL group_replication_components_stop_timeout= 3153;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 3153
 --source include/assert.inc
 
---eval SET GLOBAL group_replication_components_stop_timeout= $debug_save_timeout
+SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 --source include/group_replication_end.inc

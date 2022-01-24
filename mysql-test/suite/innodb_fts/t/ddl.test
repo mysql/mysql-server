@@ -49,6 +49,7 @@ SELECT * FROM fts_test WHERE MATCH (title, body)
 
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
+--sorted_result
 SELECT * FROM fts_test WHERE MATCH (title,body)
         AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 

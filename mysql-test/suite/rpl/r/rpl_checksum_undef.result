@@ -6,12 +6,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [ON SLAVE]
 call mtr.add_suppression('The slave I/O thread was stopped because a fatal error is encountered');
 include/stop_slave.inc
-SET GLOBAL debug='+d,undefined_algorithm_on_slave';
+# Adding debug point 'undefined_algorithm_on_replica' to @@GLOBAL.debug
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
 include/stop_slave.inc
-SET GLOBAL debug = '';
+# Removing debug point 'undefined_algorithm_on_replica' from @@GLOBAL.debug
 include/start_slave.inc
 include/rpl_end.inc

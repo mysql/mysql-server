@@ -31,7 +31,7 @@ namespace Dump {
 
 class I_data_object {
  public:
-  virtual ~I_data_object() {}
+  virtual ~I_data_object() = default;
 };
 
 }  // namespace Dump

@@ -53,7 +53,7 @@ dberr_t ib_trx_lock_table_with_retry(
 
   return (lock_table_for_trx(table, trx, mode));
 }
-/* Handles user errors and lock waits detected by the database engine.
+/** Handles user errors and lock waits detected by the database engine.
 @param[out]	new_err	possible new error encountered in lock wait, or if no
 new error, the value of trx->error_state at the entry of this function
 @param[in]	trx	transaction
@@ -78,7 +78,7 @@ handle_new_error:
         trx_rollback_for_mysql(trx);
       }
       break;
-      /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:

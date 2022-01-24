@@ -240,14 +240,14 @@ SELECT * FROM t1 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In
 # order for the preceding test UPDATE t1 to pass, the mode is switched
 # temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 --echo **** On Master ****
 connection master;
 UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;

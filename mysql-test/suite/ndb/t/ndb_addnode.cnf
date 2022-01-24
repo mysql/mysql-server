@@ -19,7 +19,7 @@ ndb-extra-logging=99
 log-error-verbosity=3
 # Test is designed to run without binlogging
 skip-log-bin
-skip-log-slave-updates
+skip-log-replica-updates
 # Enable load data local functionality
 local-infile=true
 

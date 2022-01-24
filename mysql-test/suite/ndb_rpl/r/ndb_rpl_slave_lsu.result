@@ -74,9 +74,9 @@ server_id	1
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -139,9 +139,9 @@ server_id	2
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -154,9 +154,9 @@ server_id	3
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -219,9 +219,9 @@ server_id	4
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -234,9 +234,9 @@ server_id	5
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
@@ -299,9 +299,9 @@ server_id	6
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	ON
+log_replica_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
@@ -470,9 +470,9 @@ server_id	1
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -535,9 +535,9 @@ server_id	2
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -550,9 +550,9 @@ server_id	3
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -615,9 +615,9 @@ server_id	4
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -630,9 +630,9 @@ server_id	5
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
@@ -695,9 +695,9 @@ server_id	6
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	ON
+log_replica_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
@@ -866,9 +866,9 @@ server_id	1
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -931,9 +931,9 @@ server_id	2
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -946,9 +946,9 @@ server_id	3
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
@@ -1011,9 +1011,9 @@ server_id	4
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	OFF
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
@@ -1026,9 +1026,9 @@ server_id	5
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_replica_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
@@ -1091,9 +1091,9 @@ server_id	6
 show variables like 'log_bin';
 Variable_name	Value
 log_bin	ON
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 Variable_name	Value
-log_slave_updates	ON
+log_replica_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB

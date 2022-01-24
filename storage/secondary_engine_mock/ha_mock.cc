@@ -247,7 +247,7 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
 static void AssertSupportedPath(const AccessPath *path) {
   switch (path->type) {
     // The only supported join type is hash join. Other join types are disabled
-    // in handlerton::secondary_engine_supported_access_paths.
+    // in handlerton::secondary_engine_flags.
     case AccessPath::NESTED_LOOP_JOIN: /* purecov: deadcode */
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
     case AccessPath::BKA_JOIN:
@@ -259,6 +259,10 @@ static void AssertSupportedPath(const AccessPath *path) {
     case AccessPath::EQ_REF:
     case AccessPath::PUSHED_JOIN_REF:
     case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+    case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::ROWID_UNION:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
       assert(false); /* purecov: deadcode */
       break;
@@ -271,7 +275,7 @@ static void AssertSupportedPath(const AccessPath *path) {
   assert(path->secondary_engine_data == nullptr);
 }
 
-static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)), LEX *lex) {
+static bool OptimizeSecondaryEngine(THD *thd [[maybe_unused]], LEX *lex) {
   // The context should have been set by PrepareSecondaryEngine.
   assert(lex->secondary_engine_execution_context() != nullptr);
 
@@ -334,9 +338,10 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
-static bool ModifyAccessPathCost(
-    THD *thd MY_ATTRIBUTE((unused)),
-    const JoinHypergraph &hypergraph MY_ATTRIBUTE((unused)), AccessPath *path) {
+static bool ModifyAccessPathCost(THD *thd [[maybe_unused]],
+                                 const JoinHypergraph &hypergraph
+                                 [[maybe_unused]],
+                                 AccessPath *path) {
   assert(!thd->is_error());
   assert(hypergraph.query_block()->join == hypergraph.join());
   AssertSupportedPath(path);
@@ -359,8 +364,8 @@ static int Init(MYSQL_PLUGIN p) {
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
-  hton->secondary_engine_supported_access_paths =
-      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
   hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
   return 0;
 }

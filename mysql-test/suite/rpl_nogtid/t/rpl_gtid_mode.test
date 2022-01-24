@@ -499,6 +499,7 @@ DROP TABLE t5;
 RESET MASTER;
 
 --source include/rpl_connection_slave.inc
+DROP TABLE t5;
 RESET SLAVE;
 
 --let $rpl_skip_sync=0
@@ -517,7 +518,7 @@ RESET SLAVE;
 --source include/rpl_connection_master.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 
-SET GLOBAL DEBUG= "d,skip_sender_anon_autoposition_error";
+SET GLOBAL DEBUG= "+d,skip_sender_anon_autoposition_error";
 
 --let $rpl_server_numbers= 1,2
 --let $rpl_skip_sync= 1
@@ -602,7 +603,7 @@ call mtr.add_suppression("Could not open * for logging");
 --source include/stop_slave.inc
 
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET GLOBAL DEBUG= "d,fault_injection_new_file_rotate_event";
+SET GLOBAL DEBUG= "+d,fault_injection_new_file_rotate_event";
 
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
@@ -658,7 +659,7 @@ RESET MASTER;
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
-SET @@GLOBAL.DEBUG= 'd,simulate_master_has_unknown_gtid_mode';
+SET @@GLOBAL.DEBUG= '+d,simulate_source_has_unknown_gtid_mode';
 START SLAVE IO_THREAD;
 --let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --let $show_slave_io_error= 1

@@ -54,7 +54,7 @@ const char lock_name4[] = "lock4";
 
 class LockingServiceTest : public ::testing::Test {
  protected:
-  LockingServiceTest() {}
+  LockingServiceTest() = default;
 
   static void SetUpTestCase() {
     m_old_error_handler_hook = error_handler_hook;
@@ -437,7 +437,7 @@ TEST_F(LockingServiceTest, Namespaces) {
 */
 class LockServiceDisconnectThread : public Thread {
  public:
-  LockServiceDisconnectThread() {}
+  LockServiceDisconnectThread() = default;
 
   void run() override {
     Server_initializer m_initializer;

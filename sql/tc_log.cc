@@ -429,7 +429,7 @@ bool TC_LOG_MMAP::sync() {
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
+void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid [[maybe_unused]]) {
   PAGE *p = pages + (cookie / tc_log_page_size);
   my_xid *x = (my_xid *)(data + cookie);
 
@@ -454,23 +454,23 @@ void TC_LOG_MMAP::close() {
     case 6:
       mysql_mutex_destroy(&LOCK_tc);
       mysql_cond_destroy(&COND_pool);
-      // Fall through.
+      [[fallthrough]];
     case 5:
       data[0] = 'A';  // garble the first (signature) byte, in case
                       // mysql_file_delete fails
-      // Fall through.
+      [[fallthrough]];
     case 4:
       for (i = 0; i < npages; i++) {
         if (pages[i].ptr == nullptr) break;
         mysql_cond_destroy(&pages[i].cond);
       }
-      // Fall through.
+      [[fallthrough]];
     case 3:
       my_free(pages);
-      // Fall through.
+      [[fallthrough]];
     case 2:
       my_munmap((char *)data, (size_t)file_length);
-      // Fall through.
+      [[fallthrough]];
     case 1:
       mysql_file_close(fd, MYF(0));
   }

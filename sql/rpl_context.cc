@@ -174,7 +174,7 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
     Session_consistency_gtids_ctx::Ctx_change_listener *listener
-        MY_ATTRIBUTE((unused))) {
+    [[maybe_unused]]) {
   assert(m_listener == listener || m_listener == nullptr);
 
   if (m_gtid_set) delete m_gtid_set;
@@ -190,7 +190,7 @@ Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
   m_last_used_gtid = std::unique_ptr<Gtid>(new Gtid{0, 0});
 }
 
-Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() {}
+Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() = default;
 
 void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid) {
   (*m_last_used_gtid).set(gtid.sidno, gtid.gno);

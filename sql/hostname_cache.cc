@@ -110,7 +110,7 @@ Host_errors::Host_errors()
       m_init_connect(0),
       m_local(0) {}
 
-Host_errors::~Host_errors() {}
+Host_errors::~Host_errors() = default;
 
 void Host_errors::reset() {
   m_connect = 0;
@@ -925,7 +925,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-      bool err_status MY_ATTRIBUTE((unused));
+      bool err_status [[maybe_unused]];
       err_status = vio_get_normalized_ip_string(addr_info->ai_addr,
                                                 addr_info->ai_addrlen,
                                                 ip_buffer, sizeof(ip_buffer));

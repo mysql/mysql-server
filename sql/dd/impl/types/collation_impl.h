@@ -137,6 +137,11 @@ class Collation_impl : public Entity_object_impl, public Collation {
   Object_id m_charset_id;
 
   Collation *clone() const override { return new Collation_impl(*this); }
+
+  Collation *clone_dropped_object_placeholder() const override {
+    // Play simple. Proper placeholder will take the same memory as clone.
+    return clone();
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

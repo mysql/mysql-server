@@ -64,6 +64,7 @@ sql/rpl_binlog_sender.cc:*
 sql/rpl_handler.h:*
 sql/rpl_io_monitor.h:*
 sql/rpl_rli_pdb.h:*
+sql/rpl_info_dummy.cc:*
 sql/rpl_trx_tracking.h:*
 sql/rpl_utility.h:*
 libbinlogevents/include/binlog_event.h:*
@@ -73,7 +74,7 @@ libbinlogevents/include/trx_boundary_parser.h:*
 # BUG#32245629 - FIX DOXYGEN WARNINGS IN THE OPTIMIZER CODE
 # 07-DEC-2020 Erlend Dahl
 sql/join_optimizer/join_optimizer.cc:*
-sql/opt_range.cc:*
+sql/range_optimizer/range_optimizer.cc:*
 sql/protocol_callback.h:*
 sql/protocol_classic.cc:*
 sql/spatial.cc:*
@@ -83,10 +84,6 @@ sql/sql_optimizer.cc:*
 sql/sql_optimizer_internal.h:*
 sql/sql_prepare.cc:*
 sql/sql_table.cc:*
-#
-# BUG#32246059 - FIX DOXYGEN ERRORS IN THE XPLUGIN CODE
-# 07-DEC-2020 Erlend Dahl
-plugin/x/protocol/protobuf/mysqlx.proto:*
 
 #===========================================================================
 # 08-DEC-2020 Marc Alff

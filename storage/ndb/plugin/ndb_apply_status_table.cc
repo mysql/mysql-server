@@ -27,6 +27,7 @@
 
 #include <sstream>
 
+#include "storage/ndb/plugin/ndb_dd_table.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 const std::string Ndb_apply_status_table::DB_NAME = "mysql";
@@ -63,9 +64,9 @@ bool Ndb_apply_status_table::check_schema() const {
   }
 
   // log_name
-  // varbinary, min 255 long
+  // varchar, min 255 long
   if (!(check_column_exist(COL_LOG_NAME) &&
-        check_column_varbinary(COL_LOG_NAME) &&
+        check_column_varchar(COL_LOG_NAME) &&
         check_column_minlength(COL_LOG_NAME, 255))) {
     return false;
   }
@@ -148,7 +149,7 @@ bool Ndb_apply_status_table::define_table_ndb(NdbDictionary::Table &new_table,
   }
 
   {
-    // log_name VARBINARY(255) NOT NULL
+    // log_name VARCHAR(255) NOT NULL
     NdbDictionary::Column col_log_name(COL_LOG_NAME);
     col_log_name.setType(NdbDictionary::Column::Varchar);
     col_log_name.setCharset(&my_charset_latin1_bin);
@@ -186,12 +187,17 @@ bool Ndb_apply_status_table::drop_events_in_NDB() const {
 
 bool Ndb_apply_status_table::need_upgrade() const { return false; }
 
+bool Ndb_apply_status_table::need_reinstall(const dd::Table *table_def) const {
+  // Detect "log_name" column being VARBINARY and reinstall the table def in DD
+  return ndb_dd_table_check_column_varbinary(table_def, COL_LOG_NAME);
+}
+
 std::string Ndb_apply_status_table::define_table_dd() const {
   std::stringstream ss;
   ss << "CREATE TABLE " << db_name() << "." << table_name() << "(\n";
   ss << "server_id INT UNSIGNED NOT NULL,"
         "epoch BIGINT UNSIGNED NOT NULL,"
-        "log_name VARBINARY(255) NOT NULL,"
+        "log_name VARCHAR(255) NOT NULL,"
         "start_pos BIGINT UNSIGNED NOT NULL,"
         "end_pos BIGINT UNSIGNED NOT NULL,"
         "PRIMARY KEY USING HASH (server_id)\n"

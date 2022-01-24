@@ -65,7 +65,7 @@ class TrivialReceiver {
 
   // Called EmitCsgCmp() in the paper.
   bool FoundSubgraphPair(NodeMap left, NodeMap right,
-                         int edge_idx MY_ATTRIBUTE((unused))) {
+                         int edge_idx [[maybe_unused]]) {
     printf("Found sets %s and %s, connected by edge %s-%s\n",
            PrintSet(left).c_str(), PrintSet(right).c_str(),
            PrintSet(m_g.edges[edge_idx].left).c_str(),

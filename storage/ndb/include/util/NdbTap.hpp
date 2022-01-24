@@ -25,6 +25,8 @@
 #ifndef NDB_TAP_HPP
 #define NDB_TAP_HPP
 
+#include <stdlib.h>  // abort
+
 #include "unittest/mytap/tap.h"
 
 #ifdef VM_TRACE
@@ -36,6 +38,7 @@
 #define TAPTEST(name)                           \
 int name##_test();                              \
 int main(int argc, const char** argv){          \
+  (void)argc; (void)argv; /* unused args */     \
   plan(1);                                      \
   ok(name##_test(), #name);                     \
   return exit_status();                         \

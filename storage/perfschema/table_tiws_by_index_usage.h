@@ -85,7 +85,7 @@ class PFS_index_tiws_by_index_usage : public PFS_engine_index {
         m_key_3("OBJECT_NAME"),
         m_key_4("INDEX_NAME") {}
 
-  ~PFS_index_tiws_by_index_usage() override {}
+  ~PFS_index_tiws_by_index_usage() override = default;
 
   virtual bool match(PFS_table_share *table);
   virtual bool match(PFS_table_share *share, uint index);
@@ -121,7 +121,7 @@ class table_tiws_by_index_usage : public PFS_engine_table {
   table_tiws_by_index_usage();
 
  public:
-  ~table_tiws_by_index_usage() override {}
+  ~table_tiws_by_index_usage() override = default;
 
  protected:
   int make_row(PFS_table_share *table_share, uint index);

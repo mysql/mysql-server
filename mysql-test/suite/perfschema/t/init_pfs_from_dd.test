@@ -42,5 +42,7 @@ SELECT COUNT(*) FROM performance_schema.cond_instances;
 --exec $CMD
 --enable_warnings
 
+# Clean up
+--let $restart_parameters=restart:--debug=-d,test_p_s_metadata_version
 --source include/start_mysqld.inc
-
+--remove_file $LOG_FILE

@@ -16,7 +16,7 @@ CREATE TEMPORARY TABLE temp1 (i INT);
 END;|
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT EVENT
@@ -51,7 +51,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a MULTI STMTs EVENT
@@ -68,7 +68,7 @@ INSERT INTO t1 VALUES (4);
 END;|
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

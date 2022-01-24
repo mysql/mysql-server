@@ -275,6 +275,32 @@ enum mtr_memo_type_t {
   MTR_MEMO_SX_LOCK = 256
 };
 
+inline const char *mtr_memo_type(const ulint type) {
+  switch (type) {
+    case MTR_MEMO_PAGE_S_FIX:
+      return "MTR_MEMO_PAGE_S_FIX";
+    case MTR_MEMO_PAGE_X_FIX:
+      return "MTR_MEMO_PAGE_X_FIX";
+    case MTR_MEMO_PAGE_SX_FIX:
+      return "MTR_MEMO_PAGE_SX_FIX";
+    case MTR_MEMO_BUF_FIX:
+      return "MTR_MEMO_BUF_FIX";
+#ifdef UNIV_DEBUG
+    case MTR_MEMO_MODIFY:
+      return "MTR_MEMO_MODIFY";
+#endif /* UNIV_DEBUG */
+    case MTR_MEMO_S_LOCK:
+      return "MTR_MEMO_S_LOCK";
+    case MTR_MEMO_X_LOCK:
+      return "MTR_MEMO_X_LOCK";
+    case MTR_MEMO_SX_LOCK:
+      return "MTR_MEMO_SX_LOCK";
+    default:
+      ut_ad(0);
+  }
+  return "MTR_MEMO_UNKNOWN";
+}
+
 #ifdef UNIV_DEBUG
 #define MTR_MAGIC_N 54551
 #endif /* UNIV_DEBUG */

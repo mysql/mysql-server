@@ -95,8 +95,19 @@ drop table t1;
 --echo #
 --echo # BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
 --echo #
-SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000))); 
-SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000))); 
+
+--source include/count_sessions.inc
+SET GLOBAL max_allowed_packet=1024;
+
+connect (con1,localhost,root,,);
+
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000))); 
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000))); 
+
+connection default;
+disconnect con1;
+
+SET GLOBAL max_allowed_packet=default;
 
 --echo #
 --echo # BUG#21974321: WEIGHT_STRING RESULT IS WRONG IF USED IN A
@@ -163,3 +174,17 @@ CREATE TABLE t1 ( ch VARCHAR(1) COLLATE latin2_czech_cs );
 INSERT INTO t1 VALUES (0x4F);
 SELECT DISTINCT HEX(WEIGHT_STRING(ch)) FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32744772 REGRESSION: TRIM CRASHES IN STRING::LENGTH
+--echo #
+
+# Other tests in this file use latin1
+SET NAMES DEFAULT;
+
+--error ER_CANNOT_CONVERT_STRING
+DO ltrim(weight_string(1));
+--error ER_CANNOT_CONVERT_STRING
+DO rtrim(weight_string(1));
+
+SET NAMES latin1;

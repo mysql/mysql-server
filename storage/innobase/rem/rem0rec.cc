@@ -290,21 +290,20 @@ ulint rec_get_nth_field_offs_old(const rec_t *rec, /*!< in: record */
 
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
  @return total size */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
-    rec_get_converted_size_comp_prefix_low(
-        const dict_index_t *index, /*!< in: record descriptor;
-                                   dict_table_is_comp() is
-                                   assumed to hold, even if
-                                   it does not */
-        const dfield_t *fields,    /*!< in: array of data fields */
-        ulint n_fields,            /*!< in: number of data fields */
-        const dtuple_t *v_entry,   /*!< in: dtuple contains virtual column
-                                   data */
-        ulint *extra,              /*!< out: extra size */
-        ulint *status,             /*!< in: status bits of the record,
-                                   can be nullptr if unnecessary */
-        bool temp)                 /*!< in: whether this is a
-                                   temporary file record */
+[[nodiscard]] static inline ulint rec_get_converted_size_comp_prefix_low(
+    const dict_index_t *index, /*!< in: record descriptor;
+                               dict_table_is_comp() is
+                               assumed to hold, even if
+                               it does not */
+    const dfield_t *fields,    /*!< in: array of data fields */
+    ulint n_fields,            /*!< in: number of data fields */
+    const dtuple_t *v_entry,   /*!< in: dtuple contains virtual column
+                               data */
+    ulint *extra,              /*!< out: extra size */
+    ulint *status,             /*!< in: status bits of the record,
+                               can be nullptr if unnecessary */
+    bool temp)                 /*!< in: whether this is a
+                               temporary file record */
 {
   ulint extra_size = 0;
   ulint data_size;
@@ -691,11 +690,9 @@ static rec_t *rec_convert_dtuple_to_rec_old(
                                 files in index creation
 @return	true	if this record is an instant record on leaf page
 @retval	false	if not an instant record */
-UNIV_INLINE
-bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
-                                    const dfield_t *fields, ulint n_fields,
-                                    const dtuple_t *v_entry, ulint status,
-                                    bool temp) {
+static inline bool rec_convert_dtuple_to_rec_comp(
+    rec_t *rec, const dict_index_t *index, const dfield_t *fields,
+    ulint n_fields, const dtuple_t *v_entry, ulint status, bool temp) {
   const dfield_t *field;
   const dtype_t *type;
   byte *end;
@@ -759,7 +756,6 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
         break;
       default:
         ut_error;
-        return (instant);
     }
   }
 
@@ -1005,7 +1001,7 @@ rec_t *rec_convert_dtuple_to_rec(
 #ifndef UNIV_HOTBACKUP
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
  @return total size */
-ulint rec_get_converted_size_temp(
+ulint rec_get_serialize_size(
     const dict_index_t *index, /*!< in: record descriptor */
     const dfield_t *fields,    /*!< in: array of data fields */
     ulint n_fields,            /*!< in: number of data fields */
@@ -1018,8 +1014,8 @@ ulint rec_get_converted_size_temp(
 }
 
 /** Determine the offset to each field in temporary file.
- @see rec_convert_dtuple_to_temp() */
-void rec_init_offsets_temp(
+ @see rec_serialize_dtuple() */
+void rec_deserialize_init_offsets(
     const rec_t *rec,          /*!< in: temporary file record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets)            /*!< in/out: array of offsets;
@@ -1029,8 +1025,8 @@ void rec_init_offsets_temp(
 }
 
 /** Builds a temporary file record out of a data tuple.
- @see rec_init_offsets_temp() */
-void rec_convert_dtuple_to_temp(
+ @see rec_deserialize_init_offsets() */
+void rec_serialize_dtuple(
     rec_t *rec,                /*!< out: record */
     const dict_index_t *index, /*!< in: record descriptor */
     const dfield_t *fields,    /*!< in: array of data fields */
@@ -1106,9 +1102,10 @@ static rec_t *rec_copy_prefix_to_buf_old(
   prefix_len = area_start + area_end;
 
   if ((*buf == nullptr) || (*buf_size < prefix_len)) {
-    ut_free(*buf);
+    ut::free(*buf);
     *buf_size = prefix_len;
-    *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
+    *buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, prefix_len));
   }
 
   ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1161,7 +1158,6 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
       /* infimum or supremum record: no sense to copy anything */
     default:
       ut_error;
-      return (nullptr);
   }
 
   ut_d(uint16_t non_default_fields =)
@@ -1228,9 +1224,10 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
   prefix_len += rec - (lens + 1);
 
   if ((*buf == nullptr) || (*buf_size < prefix_len)) {
-    ut_free(*buf);
+    ut::free(*buf);
     *buf_size = prefix_len;
-    *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
+    *buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, prefix_len));
   }
 
   memcpy(*buf, lens + 1, prefix_len);

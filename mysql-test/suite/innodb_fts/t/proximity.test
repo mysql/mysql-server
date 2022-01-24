@@ -67,7 +67,7 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"Trial version"@0' IN BOOLEAN MODE);
 
-# @ is word seperator
+# @ is word separator
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);

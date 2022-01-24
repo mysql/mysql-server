@@ -111,8 +111,12 @@ usr/lib/mysql/plugin/test_services_host_application_signal.so
 usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/component_test_audit_api_message.so
 usr/lib/mysql/plugin/component_test_udf_services.so
+usr/lib/mysql/plugin/component_test_mysql_system_variable_set.so
+usr/lib/mysql/plugin/component_test_table_access.so
 # test suite
 usr/lib/mysql-test/*
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
+# test plugins
+@DEB_INSTALL_TEST_PLUGINS@

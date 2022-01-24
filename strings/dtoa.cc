@@ -1295,7 +1295,7 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
   for (s = s00; s < end; s++) switch (*s) {
       case '-':
         sign = 1;
-        // Fall through.
+        [[fallthrough]];
       case '+':
         s++;
         goto break2;
@@ -1312,6 +1312,7 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
 break2:
   if (s >= end) goto ret0;
 
+  // Gobble up leading zeros.
   if (*s == '0') {
     nz0 = 1;
     while (++s < end && *s == '0')
@@ -1328,6 +1329,7 @@ break2:
   nd0 = nd;
   if (s < end && c == '.') {
     if (++s < end) c = *s;
+    // Only leading zeros, now count number of leading zeros after the '.'
     if (!nd) {
       for (; s < end; ++s) {
         c = *s;
@@ -1344,6 +1346,13 @@ break2:
     for (; s < end; ++s) {
       c = *s;
       if (c < '0' || c > '9') break;
+
+      // We have seen some digits, but not enough of them are non-zero.
+      // Gobble up all the rest of the digits, and look for exponent.
+      if (nd > 0 && nz > DBL_MAX_10_EXP) {
+        continue;
+      }
+
       /*
         Here we are parsing the fractional part.
         We can stop counting digits after a while: the extra digits
@@ -1377,7 +1386,7 @@ dig_done:
     if (++s < end) switch (c = *s) {
         case '-':
           esign = 1;
-          // Fall through.
+          [[fallthrough]];
         case '+':
           if (++s < end) c = *s;
       }
@@ -2087,14 +2096,14 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       break;
     case 2:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 4:
       if (ndigits <= 0) ndigits = 1;
       ilim = ilim1 = i = ndigits;
       break;
     case 3:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 5:
       i = ndigits + k + 1;
       ilim = i;

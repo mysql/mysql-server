@@ -570,7 +570,7 @@ testRanges(Uint32 bitmask_size)
       Alloc a;
       a.pos = pos;
       a.size = sz;
-      a.data.fill(((sz+31)>> 5)-1, zero);
+      a.data.fill(((sz + 31) >> 5), zero);
       if(BITMASK_DEBUG)
 	printf("pos %d -> alloc [ %d %d ]", pos, pos, pos+sz);
       for(Uint32 j = 0; j<sz; j++)

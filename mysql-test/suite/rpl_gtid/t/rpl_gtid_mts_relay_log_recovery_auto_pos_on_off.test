@@ -40,7 +40,7 @@ while ($loop_count)
 {
   --source include/stop_slave.inc
   eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=$auto_position;
-  SET @@global.slave_parallel_workers=4;
+  SET @@global.replica_parallel_workers=4;
   --source include/start_slave.inc
 
   --source extra/rpl_tests/rpl_gtid_mts_relay_log_recovery.test

@@ -60,7 +60,7 @@ class Connection_control_variables {
 /** Structure to maintain statistics */
 class Connection_control_statistics {
  public:
-  Connection_control_statistics() {}
+  Connection_control_statistics() = default;
   /* Various statistics to be collected */
   std::atomic<int64> stats_array[STAT_LAST];
 };

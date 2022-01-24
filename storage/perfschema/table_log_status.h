@@ -43,7 +43,7 @@ struct st_row_log_status {
   Json_wrapper w_replication;
   Json_wrapper w_storage_engines;
 
-  st_row_log_status() {}
+  st_row_log_status() = default;
 
   void cleanup() {}
 };

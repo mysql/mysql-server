@@ -27,13 +27,14 @@ select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 # add few more to config file and reset
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
 max_heap_table_size	887808
+replica_net_timeout	160
 slave_net_timeout	160
 sort_buffer_size	156000
 RESET PERSIST max_heap_table_size;
@@ -42,8 +43,9 @@ select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
+replica_net_timeout	160
 slave_net_timeout	160
-RESET PERSIST IF EXISTS slave_net_timeout;
+RESET PERSIST IF EXISTS replica_net_timeout;
 select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
@@ -65,7 +67,7 @@ RESET PERSIST sort_buffer_size;
 ERROR HY000: Variable sort_buffer_size does not exist in persisted config file
 SET GLOBAL long_query_time= DEFAULT,
 max_connections= DEFAULT, max_heap_table_size= DEFAULT,
-slave_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
+replica_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
 join_buffer_size= DEFAULT;
 #
 # Bug #27264789: CONCURRENT EXECUTION OF SET/RESET PERSIST CALL CRASHES SERVER

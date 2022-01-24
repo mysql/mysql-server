@@ -121,15 +121,14 @@ static int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-static int validate_auth_string_hash(char *const inbuf MY_ATTRIBUTE((unused)),
-                                     unsigned int buflen
-                                         MY_ATTRIBUTE((unused))) {
+static int validate_auth_string_hash(char *const inbuf [[maybe_unused]],
+                                     unsigned int buflen [[maybe_unused]]) {
   return 0;
 }
 
-static int set_salt(const char *password MY_ATTRIBUTE((unused)),
-                    unsigned int password_len MY_ATTRIBUTE((unused)),
-                    unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_salt(const char *password [[maybe_unused]],
+                    unsigned int password_len [[maybe_unused]],
+                    unsigned char *salt [[maybe_unused]],
                     unsigned char *salt_len) {
   *salt_len = 0;
   return 0;
@@ -250,8 +249,8 @@ typedef char *(*mysql_authentication_dialog_ask_t)(MYSQL *mysql, int type,
 
 static mysql_authentication_dialog_ask_t ask;
 
-static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
-                         int type MY_ATTRIBUTE((unused)), const char *prompt,
+static char *builtin_ask(MYSQL *mysql [[maybe_unused]],
+                         int type [[maybe_unused]], const char *prompt,
                          char *buf, int buf_len) {
   char *ptr;
   fputs(prompt, stdout);
@@ -339,10 +338,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   or fall back to the default implementation.
 */
 
-static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
-                       size_t unused2 MY_ATTRIBUTE((unused)),
-                       int unused3 MY_ATTRIBUTE((unused)),
-                       va_list unused4 MY_ATTRIBUTE((unused))) {
+static int init_dialog(char *unused1 [[maybe_unused]],
+                       size_t unused2 [[maybe_unused]],
+                       int unused3 [[maybe_unused]],
+                       va_list unused4 [[maybe_unused]]) {
   void *sym = dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
   ask = sym ? (mysql_authentication_dialog_ask_t)sym : builtin_ask;
   return 0;
@@ -350,5 +349,5 @@ static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
 
 mysql_declare_client_plugin(AUTHENTICATION) "dialog",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
-    {0, 1, 0}, "GPL", nullptr, init_dialog, nullptr, nullptr, perform_dialog,
-    nullptr mysql_end_client_plugin;
+    {0, 1, 0}, "GPL", nullptr, init_dialog, nullptr, nullptr,
+    nullptr, perform_dialog, nullptr, mysql_end_client_plugin;

@@ -141,4 +141,29 @@ DROP USER tester@localhost;
 --echo # cleanup
 --remove_file $admin_outfile
 
+
+--echo #
+--echo # Bug #32798288: MORE MEANINFUL MESSAGE FOR MISSING INCLUDE DIRECTORY
+--echo #
+let $file = $MYSQLTEST_VARDIR/tmp/b32092739.out;
+write_file $file;
+!includedir /nonexistent
+EOF
+let $file2 = $MYSQLTEST_VARDIR/tmp/b32092739_file.out;
+write_file $file2;
+!include /nonexistent
+EOF
+--replace_regex /OS errno.*/OS error/
+--replace_result $file file
+--error 1
+exec $MYSQLADMIN --defaults-file=$file -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --show-warnings ping 2>&1 ;
+# On windows we skip permission check for configs. Hence (on unix) we need to
+# replace the my_stat error with a simulated my_open (on windows) error.
+--replace_regex /OS errno.*/OS error/ /Can.t get stat of ..nonexistent./File '\\nonexistent' not found/
+--replace_result $file2 file2
+exec $MYSQLADMIN --defaults-file=$file2 -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --show-warnings ping 2>&1 ;
+remove_file $file;
+remove_file $file2;
+
+
 --echo End of tests

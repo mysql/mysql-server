@@ -72,7 +72,7 @@ drop table t2;
 drop temporary table if exists t3;
 Got one of the listed errors
 include/wait_for_slave_sql_error.inc [errno=3001]
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
 include/start_slave.inc
 select count(*) from t1;
 count(*)

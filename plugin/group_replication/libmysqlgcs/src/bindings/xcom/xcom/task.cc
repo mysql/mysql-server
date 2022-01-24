@@ -42,6 +42,7 @@
 #include <stdint.h>
 #endif
 #include "xcom/x_platform.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 
 #ifndef XCOM_WITHOUT_OPENSSL
@@ -71,6 +72,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <memory>
+
 #include "xcom/node_connection.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -82,6 +85,7 @@
 #include "xcom/task_os.h"
 #include "xcom/xcom_base.h"
 #include "xcom/xcom_cfg.h"
+#include "xcom/xcom_transport.h"
 
 #ifndef _WIN32
 #include <poll.h>
@@ -97,6 +101,7 @@
 #endif
 
 extern const char *pax_op_to_str(int x);
+extern uint32_t get_my_xcom_id();
 
 task_arg null_arg = {a_end, {0}};
 
@@ -600,7 +605,7 @@ static int active_tasks = 0;
 task_env *task_new(task_func func, task_arg arg, const char *name, int debug) {
   task_env *t;
   if (link_empty(&free_tasks))
-    t = (task_env *)malloc(sizeof(task_env));
+    t = (task_env *)xcom_malloc(sizeof(task_env));
   else
     t = container_of(link_extract_first(&free_tasks), task_env, l);
   IFDBG(D_NONE, FN; PTREXP(t); STREXP(name); NDBG(active_tasks, d););
@@ -876,13 +881,6 @@ task_env *wait_io(task_env *t, int fd, int op) {
   return t;
 }
 
-static task_env *timed_wait_io(task_env *t, int fd, int op, double timeout) {
-  t->time = task_now() + timeout;
-  t->interrupt = 0;
-  add_fd(deactivate(t), fd, op);
-  return t;
-}
-
 static uint64_t send_count;
 static uint64_t receive_count;
 static uint64_t send_bytes;
@@ -915,6 +913,16 @@ result con_read(connection_descriptor const *rfd, void *buf, int n) {
 }
 #endif
 
+result con_pipe_read(connection_descriptor const *rfd, void *buf, int n) {
+  result ret = {0, 0};
+
+  SET_OS_ERR(0);
+  ret.val = (int)read(rfd->fd, (xcom_buf *)buf, (size_t)n);
+  ret.funerr = to_errno(GET_OS_ERR);
+
+  return ret;
+}
+
 /*
   It just reads no more than INT_MAX bytes. Caller should call it again for
   read more than INT_MAX bytes.
@@ -922,10 +930,12 @@ result con_read(connection_descriptor const *rfd, void *buf, int n) {
   Either the bytes written or an error number is returned to the caller through
   'ret' argument. Error number is always negative integers.
 */
-int task_read(connection_descriptor const *con, void *buf, int n,
-              int64_t *ret) {
+int task_read(connection_descriptor const *con, void *buf, int n, int64_t *ret,
+              connnection_read_method read_function) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   result sock_ret = {0, 0};
@@ -938,7 +948,9 @@ int task_read(connection_descriptor const *con, void *buf, int n,
 
   for (;;) {
     if (con->fd <= 0) TASK_FAIL;
-    sock_ret = con_read(con, buf, n);
+
+    sock_ret = read_function(con, buf, n);
+
     *ret = sock_ret.val;
     IFDBG(D_TRANSPORT, FN; NDBG(con->fd, d); NDBG(n, d); NDBG(sock_ret.val, d);
           NDBG(sock_ret.funerr, d););
@@ -990,6 +1002,16 @@ result con_write(connection_descriptor const *wfd, void *buf, int n) {
   return ret;
 }
 #endif
+result con_pipe_write(connection_descriptor const *wfd, void *buf, int n) {
+  result ret = {0, 0};
+
+  assert(n > 0);
+
+  SET_OS_ERR(0);
+  ret.val = (int)write(wfd->fd, (xcom_buf *)buf, (size_t)n);
+  ret.funerr = to_errno(GET_OS_ERR);
+  return ret;
+}
 
 /*
   It writes no more than UINT_MAX bytes which is the biggest size of
@@ -1003,6 +1025,8 @@ int task_write(connection_descriptor const *con, void *_buf, uint32_t n,
   char *buf = (char *)_buf;
   DECL_ENV
   uint32_t total; /* Keeps track of number of bytes written so far */
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   result sock_ret = {0, 0};
 
@@ -1088,9 +1112,11 @@ int block_fd(int fd) {
   return x;
 }
 
+#ifndef AGGRESSIVE_SWEEP
 /* purecov: begin deadcode */
 int is_only_task() { return link_first(&tasks) == link_last(&tasks); }
 /* purecov: end */
+#endif
 
 static task_env *first_runnable() { return (task_env *)link_first(&tasks); }
 
@@ -1189,361 +1215,6 @@ void task_loop() {
     }
   }
   task_sys_deinit();
-}
-
-int connect_tcp(char *server, xcom_port port, int *ret) {
-  DECL_ENV
-  int fd;
-  struct addrinfo *addr, *from_ns;
-  END_ENV;
-  TASK_BEGIN;
-
-  IFDBG(D_TRANSPORT, FN; STREXP(server); NDBG(port, d));
-
-  ep->addr = NULL;
-  ep->from_ns = NULL;
-
-  checked_getaddrinfo_port(server, port, NULL, &ep->from_ns);
-
-  if (ep->from_ns == NULL) {
-    TASK_FAIL;
-  }
-
-  ep->addr = does_node_have_v4_address(ep->from_ns);
-
-  /* Create socket */
-  if ((ep->fd =
-           xcom_checked_socket(ep->addr->ai_family, SOCK_STREAM, IPPROTO_TCP)
-               .val) < 0) {
-    IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d));
-    TASK_FAIL;
-  }
-  /* Make it non-blocking */
-  unblock_fd(ep->fd);
-
-  /* Connect socket to address */
-  {
-    result sock = {0, 0};
-    SET_OS_ERR(0);
-    sock.val =
-        connect(ep->fd, ep->addr->ai_addr, (socklen_t)ep->addr->ai_addrlen);
-    sock.funerr = to_errno(GET_OS_ERR);
-
-    if (sock.val < 0) {
-      if (hard_connect_err(sock.funerr)) {
-        /* purecov: begin inspected */
-        task_dump_err(sock.funerr);
-        IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
-        close_socket(&ep->fd);
-        TASK_FAIL;
-        /* purecov: end */
-      }
-    }
-  }
-
-/* Wait until connect has finished */
-retry:
-  timed_wait_io(stack, ep->fd, 'w', 10.0);
-  TASK_YIELD;
-  /* See if we timed out here. If we did, connect may or may not be active.
-     If closing fails with EINPROGRESS, we need to retry the select.
-     If close does not fail, we know that connect has indeed failed, and
-     we exit from here and return -1 as socket fd */
-  if (stack->interrupt) {
-    result shut = {0, 0};
-    stack->interrupt = 0;
-
-    /* Try to close socket on timeout */
-    shut = shut_close_socket(&ep->fd);
-    IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
-    task_dump_err(shut.funerr);
-    if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
-      goto retry; /* Connect is still active */
-    TASK_FAIL;    /* Connect has failed */
-  }
-
-  {
-    int peer = 0;
-    result sock = {0, 0};
-    struct sockaddr_storage sock_addr;
-    socklen_t sock_size = sizeof(sock_addr);
-    memset((void *)&sock_addr, 0, sizeof(sock_addr));
-
-    /* Sanity check before return */
-    SET_OS_ERR(0);
-    sock.val = peer =
-        xcom_getpeername(ep->fd, (struct sockaddr *)&sock_addr, &sock_size);
-    sock.funerr = to_errno(GET_OS_ERR);
-    if (peer >= 0) {
-      TASK_RETURN(ep->fd);
-    } else {
-      /* Something is wrong */
-      socklen_t errlen = sizeof(sock.funerr);
-
-      IFDBG(D_TRANSPORT, FN; CONSTPTREXP(&sock_addr);
-            STRLIT("Something is wrong "); NDBG(ep->fd, d); NDBG(sock.val, d);
-            NDBG(sock.funerr, d));
-      if (sock.funerr == 0) { /* Try to extract error code another way */
-        /* purecov: begin inspected */
-        getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (xcom_buf *)&sock.funerr,
-                   &errlen);
-        IFDBG(D_TRANSPORT, FN; CONSTPTREXP(&sock_addr);
-              STRLIT("Something is wrong "); NDBG(ep->fd, d); NDBG(sock.val, d);
-              NDBG(sock.funerr, d));
-        /* purecov: end */
-      }
-      if (sock.funerr == 0) { /* Still 0? Assign generic "connection refused */
-        /* purecov: begin inspected */
-        sock.funerr = to_errno(SOCK_ECONNREFUSED);
-        /* purecov: end */
-      }
-
-      shut_close_socket(&ep->fd);
-      TASK_FAIL;
-    }
-  }
-
-  FINALLY
-  if (ep->from_ns) freeaddrinfo(ep->from_ns);
-  TASK_END;
-}
-
-result set_nodelay(int fd) {
-  int n = 1;
-  result ret = {0, 0};
-
-  do {
-    SET_OS_ERR(0);
-    ret.val =
-        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (xcom_buf *)&n, sizeof n);
-    ret.funerr = to_errno(GET_OS_ERR);
-    IFDBG(D_NONE, FN; NDBG(from_errno(ret.funerr), d));
-  } while (ret.val < 0 && can_retry(ret.funerr));
-  return ret;
-}
-
-static result create_server_socket() {
-  result fd = {0, 0};
-  /* Create socket */
-  if ((fd = xcom_checked_socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)).val < 0) {
-    G_MESSAGE(
-        "Unable to create socket v6"
-        "(socket=%d, errno=%d)!",
-        fd.val, to_errno(GET_OS_ERR));
-    return fd;
-  }
-  {
-    int reuse = 1;
-    int mode = 0;
-    SET_OS_ERR(0);
-    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (xcom_buf *)&reuse,
-                   sizeof(reuse)) < 0) {
-      fd.funerr = to_errno(GET_OS_ERR);
-      G_MESSAGE(
-          "Unable to set socket options "
-          "(socket=%d, errno=%d)!",
-          fd.val, to_errno(GET_OS_ERR));
-      close_socket(&fd.val);
-      return fd;
-    }
-    /*
-     This code sets the acceptor socket as dual-stacked. What happens is that
-     we expose the XCom server socket as V6 only, and it will accept V4
-     requests. V4 requests are then represented as IPV4-mapped addresses.
-    */
-    SET_OS_ERR(0);
-    if (setsockopt(fd.val, IPPROTO_IPV6, IPV6_V6ONLY, (xcom_buf *)&mode,
-                   sizeof(mode)) < 0) {
-      fd.funerr = to_errno(GET_OS_ERR);
-      G_MESSAGE(
-          "Unable to set socket options "
-          "(socket=%d, errno=%d)!",
-          fd.val, to_errno(GET_OS_ERR));
-      close_socket(&fd.val);
-      return fd;
-    }
-  }
-  return fd;
-}
-
-static result create_server_socket_v4() {
-  result fd = {0, 0};
-  /* Create socket */
-  if ((fd = xcom_checked_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)).val < 0) {
-    G_MESSAGE(
-        "Unable to create socket v4"
-        "(socket=%d, errno=%d)!",
-        fd.val, to_errno(GET_OS_ERR));
-    return fd;
-  }
-  {
-    int reuse = 1;
-    SET_OS_ERR(0);
-    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (xcom_buf *)&reuse,
-                   sizeof(reuse)) < 0) {
-      /* purecov: begin inspected */
-      fd.funerr = to_errno(GET_OS_ERR);
-      G_MESSAGE(
-          "Unable to set socket options "
-          "(socket=%d, errno=%d)!",
-          fd.val, to_errno(GET_OS_ERR));
-      close_socket(&fd.val);
-      return fd;
-      /* purecov: end */
-    }
-  }
-  return fd;
-}
-
-/**
- * @brief Initializes a sockaddr prepared to be used in bind()
- *
- * @param sock_addr struct sockaddr out parameter. You will need to free it
- *                  after being used.
- * @param sock_len socklen_t out parameter. It will contain the length of
- *                 sock_addr
- * @param port the port to bind.
- * @param family the address family
- */
-static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
-                             xcom_port port, int family) {
-  struct addrinfo *address_info = NULL, hints, *address_info_loop;
-  memset(&hints, 0, sizeof(hints));
-
-  hints.ai_flags = AI_PASSIVE;
-  hints.ai_protocol = IPPROTO_TCP;
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM; /* TCP stream sockets */
-  checked_getaddrinfo_port(NULL, port, &hints, &address_info);
-
-  address_info_loop = address_info;
-  while (address_info_loop) {
-    if (address_info_loop->ai_family == family) {
-      if (*sock_addr == NULL) {
-        *sock_addr = (struct sockaddr *)malloc(address_info_loop->ai_addrlen);
-      }
-      memcpy(*sock_addr, address_info_loop->ai_addr,
-             address_info_loop->ai_addrlen);
-
-      *sock_len = (socklen_t)address_info_loop->ai_addrlen;
-
-      break;
-    }
-    address_info_loop = address_info_loop->ai_next;
-  }
-
-  if (address_info) freeaddrinfo(address_info);
-}
-
-result announce_tcp(xcom_port port) {
-  result fd = {0, 0};
-  struct sockaddr *sock_addr = NULL;
-  socklen_t sock_addr_len = 0;
-  int server_socket_v6_ok = 0;
-
-  /* Try and create a V6 server socket. It should succeed if the OS */
-  /* supports IPv6, and fail otherwise. */
-#ifndef FORCE_IPV4
-  fd = create_server_socket();
-#else
-  /* Force ipv4 for now */
-  fd.val = -1;
-#endif
-  if (fd.val < 0) {
-    /* If the OS does not support IPv6, we fall back to IPv4. */
-    fd = create_server_socket_v4();
-    if (fd.val < 0) {
-      return fd;
-    }
-  } else {
-    server_socket_v6_ok = 1;
-  }
-  init_server_addr(&sock_addr, &sock_addr_len, port,
-                   server_socket_v6_ok ? AF_INET6 : AF_INET);
-  if (sock_addr == NULL || (bind(fd.val, sock_addr, sock_addr_len) < 0)) {
-    /* If we fail to bind to the desired address, we fall back to an */
-    /* IPv4 socket. */
-    fd = create_server_socket_v4();
-    if (fd.val < 0) {
-      return fd;
-    }
-
-    free(sock_addr);
-    sock_addr = NULL;
-    init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
-    if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
-      int err = to_errno(GET_OS_ERR);
-      G_ERROR("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
-              port, fd.val, err);
-      goto err;
-    }
-  }
-
-  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "INADDR_ANY", port,
-          fd.val);
-  if (listen(fd.val, 32) < 0) {
-    int err = to_errno(GET_OS_ERR);
-    G_MESSAGE(
-        "Unable to listen backlog to 32. "
-        "(socket=%d, errno=%d)!",
-        fd.val, err);
-    goto err;
-  }
-  G_DEBUG(
-      "Successfully set listen backlog to 32 "
-      "(socket=%d)!",
-      fd.val);
-  /* Make socket non-blocking */
-  unblock_fd(fd.val);
-  if (fd.val < 0) {
-    int err = to_errno(GET_OS_ERR);
-    G_MESSAGE("Unable to unblock socket (socket=%d, errno=%d)!", fd.val, err);
-  } else {
-    G_DEBUG("Successfully unblocked socket (socket=%d)!", fd.val);
-  }
-
-  free(sock_addr);
-  return fd;
-
-err:
-  fd.funerr = to_errno(GET_OS_ERR);
-  task_dump_err(fd.funerr);
-  close_socket(&fd.val);
-
-  free(sock_addr);
-
-  return fd;
-}
-
-int accept_tcp(int fd, int *ret) {
-  struct sockaddr_storage sock_addr;
-  DECL_ENV
-  int connection;
-  END_ENV;
-  TASK_BEGIN;
-  /* Wait for connection attempt */
-
-  wait_io(stack, fd, 'r');
-  TASK_YIELD;
-  /* Spin on benign error code */
-  {
-    socklen_t size = sizeof(struct sockaddr_storage);
-
-    result res = {0, 0};
-    do {
-      SET_OS_ERR(0);
-      res.val = ep->connection =
-          (int)accept(fd, (struct sockaddr *)&sock_addr, &size);
-      res.funerr = to_errno(GET_OS_ERR);
-    } while (res.val < 0 && from_errno(res.funerr) == SOCK_EINTR);
-
-    if (ep->connection < 0) {
-      TASK_FAIL;
-    }
-  }
-  TASK_RETURN(ep->connection);
-  FINALLY
-  TASK_END;
 }
 
 #define STAT_INTERVAL 1.0
@@ -1664,8 +1335,6 @@ static inline task_event event_extract() {
 #endif
 
 /* purecov: begin deadcode */
-extern uint32_t get_my_xcom_id();
-
 void ev_print(task_event te) {
   enum { bufsize = 10000 };
   static char buf[bufsize];

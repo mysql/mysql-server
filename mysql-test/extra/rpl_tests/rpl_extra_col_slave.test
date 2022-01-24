@@ -27,8 +27,8 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 sync_slave_with_master;
 STOP SLAVE;
 
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 
 eval CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
                       d FLOAT DEFAULT '2.00', 
@@ -56,7 +56,7 @@ SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 
 --echo *** Drop t1  ***
 connection master;

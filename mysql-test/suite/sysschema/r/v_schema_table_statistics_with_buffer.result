@@ -24,7 +24,7 @@ innodb_buffer_free	varchar(11)	YES		NULL
 innodb_buffer_pages	bigint	YES		0	
 innodb_buffer_pages_hashed	bigint	YES		0	
 innodb_buffer_pages_old	bigint	YES		0	
-innodb_buffer_rows_cached	decimal(44,0)	YES		0	
+innodb_buffer_rows_cached	decimal(45,0)	YES		0	
 SELECT * FROM sys.schema_table_statistics_with_buffer;
 DESC sys.x$schema_table_statistics_with_buffer;
 Field	Type	Null	Key	Default	Extra
@@ -46,11 +46,11 @@ io_write	decimal(41,0)	YES		NULL
 io_write_latency	decimal(42,0)	YES		NULL	
 io_misc_requests	decimal(42,0)	YES		NULL	
 io_misc_latency	decimal(42,0)	YES		NULL	
-innodb_buffer_allocated	decimal(43,0)	YES		NULL	
-innodb_buffer_data	decimal(43,0)	YES		NULL	
-innodb_buffer_free	decimal(44,0)	YES		NULL	
+innodb_buffer_allocated	decimal(44,0)	YES		NULL	
+innodb_buffer_data	decimal(44,0)	YES		NULL	
+innodb_buffer_free	decimal(45,0)	YES		NULL	
 innodb_buffer_pages	bigint	YES		0	
 innodb_buffer_pages_hashed	bigint	YES		0	
 innodb_buffer_pages_old	bigint	YES		0	
-innodb_buffer_rows_cached	decimal(44,0)	YES		0	
+innodb_buffer_rows_cached	decimal(45,0)	YES		0	
 SELECT * FROM sys.x$schema_table_statistics_with_buffer;

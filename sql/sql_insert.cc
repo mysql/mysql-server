@@ -78,8 +78,8 @@
 #include "sql/partition_info.h"  // partition_info
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
+#include "sql/rpl_replica.h"  // rpl_master_has_bug
+#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/sql_alter.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // setup_fields
@@ -235,12 +235,12 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
           const Item *item2 = *j;
           if (item1->eq(item2, true)) {
             my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1->item_name.ptr());
-            break;
+            return true;
           }
         }
       }
-      assert(thd->is_error());
-      return true;
+      // A duplicate column name should have been found by now.
+      assert(false);
     }
   }
   /* Mark all generated columns for write*/
@@ -671,7 +671,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
     const bool transactional_table = insert_table->file->has_transactions();
 
-    const bool changed MY_ATTRIBUTE((unused)) =
+    const bool changed [[maybe_unused]] =
         info.stats.copied || info.stats.deleted || info.stats.updated;
 
     if (!has_error ||
@@ -1287,9 +1287,15 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   } else {
     ulong added_options = SELECT_NO_UNLOCK;
 
-    // Is inserted table used somewhere in other parts of query
-    if (unique_table(lex->insert_table_leaf, table_list->next_global, false)) {
-      // Using same table for INSERT and SELECT, buffer the selection
+    // The result needs to be buffered if the target table is used somewhere
+    // in other parts of query.
+    // This is not an issue if a secondary engine is involved, as the target
+    // table will always be in the primary engine, and the source table will
+    // be in the secondary engine, so they are always different for this
+    // particular case.
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, false) &&
+        thd->secondary_engine_optimization() !=
+            Secondary_engine_optimization::SECONDARY) {
       added_options |= OPTION_BUFFER_RESULT;
     }
     /*
@@ -1565,9 +1571,9 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
     it.set(insert_table);
 
     for (it.set(insert_table); !it.end_of_fields(); it.next()) {
-      Item *item = it.create_item(current_thd);
+      Item *item = it.create_item(thd);
       if (item == nullptr) return true;
-      values_field_list.push_back(down_cast<Item_field *>(item));
+      values_field_list.push_back(down_cast<Item_field *>(item->real_item()));
     }
   } else {
     for (Item *item : insert_field_list) {
@@ -1692,21 +1698,24 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
 
   lex->in_update_value_clause = false;
 
-  if (select_insert) {
+  if (select_insert && !lex->using_hypergraph_optimizer) {
     /*
       Traverse the update values list and substitute fields from the
       select for references (Item_ref objects) to them. This is done in
       order to get correct values from those fields when the select
       employs a temporary table.
+
+      This is not necessary for the hypergraph optimizer, since it changes the
+      Item_field objects to point directly to the fields in the temporary table
+      when the temporary table is created.
     */
     Query_block *const select = lex->query_block;
 
-    for (auto it = update_value_list.begin(); it != update_value_list.end();
-         ++it) {
-      Item *new_item = (*it)->transform(&Item::update_value_transformer,
-                                        pointer_cast<uchar *>(select));
+    for (Item *&it : update_value_list) {
+      Item *new_item = it->transform(&Item::update_value_transformer,
+                                     pointer_cast<uchar *>(select));
       if (new_item == nullptr) return true;
-      *it = new_item;
+      it = new_item;
     }
   }
 
@@ -1888,6 +1897,9 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
           So here we recalculate data for generated columns.
         */
         if (table->vfield) {
+          // Dont save old value while re-calculating generated fields.
+          // Before image will already be saved in the first calculation.
+          table->blobs_need_not_keep_old_value();
           update_generated_write_fields(table->write_set, table);
         }
 
@@ -2178,7 +2190,7 @@ ok_or_after_trg_err:
   if (!table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
   return trg_error;
 
 err : {
@@ -2193,7 +2205,7 @@ before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key) my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
   return true;
 }
 
@@ -2444,7 +2456,7 @@ bool Query_result_insert::stmt_binlog_is_trans() const {
 
 bool Query_result_insert::send_eof(THD *thd) {
   ulonglong id, row_count;
-  bool changed MY_ATTRIBUTE((unused));
+  bool changed [[maybe_unused]];
   THD::killed_state killed_status = thd->killed;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -2557,7 +2569,7 @@ void Query_result_insert::abort_result_set(THD *thd) {
     and the end of the function.
    */
   if (table != nullptr) {
-    bool changed MY_ATTRIBUTE((unused));
+    bool changed [[maybe_unused]];
     bool transactional_table;
     /*
       Try to end the bulk insert which might have been started before.
@@ -3052,8 +3064,9 @@ void Query_result_create::store_values(THD *thd,
     columns defined in CREATE TABLE SELECT. Hence calling set_function_defaults
     explicitly.
   */
-  if (info.function_defaults_apply_on_columns(table->write_set))
-    info.set_function_defaults(table);
+  if (info.function_defaults_apply_on_columns(table->write_set)) {
+    if (info.set_function_defaults(table)) return;
+  }
 
   fill_record_n_invoke_before_triggers(thd, table_fields, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
@@ -3176,8 +3189,6 @@ bool Query_result_create::send_eof(THD *thd) {
   if (error)
     abort_result_set(thd);
   else {
-    bool commit_error = false;
-
     DBUG_EXECUTE_IF("crash_after_create_select_insert", DBUG_SUICIDE(););
     /*
       Do an implicit commit at end of statement for non-temporary tables.
@@ -3190,29 +3201,19 @@ bool Query_result_create::send_eof(THD *thd) {
     */
     if (!table->s->tmp_table) {
       thd->get_stmt_da()->set_overwrite_status(true);
-      commit_error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
+      error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
     }
 
-    if (m_plock) {
+    if (!error && m_plock) {
       mysql_unlock_tables(thd, *m_plock);
       *m_plock = nullptr;
       m_plock = nullptr;
     }
 
-    if (commit_error) {
-      assert(!table->s->tmp_table);
-      assert(table == thd->open_tables);
-      close_thread_table(thd, &thd->open_tables);
-      /*
-        Remove TABLE and TABLE_SHARE objects for the table which creation
-        might have been rolled back from the caches.
-      */
-      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
-                       create_table->table_name, false);
+    if (!error && m_post_ddl_ht) {
+      m_post_ddl_ht->post_ddl(thd);
     }
-
-    if (m_post_ddl_ht) m_post_ddl_ht->post_ddl(thd);
 
     fk_invalidator.invalidate(thd);
   }

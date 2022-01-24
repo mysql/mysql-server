@@ -2,8 +2,8 @@
 --source include/have_binlog_format_mixed.inc
 
 --connection slave
---echo Show the effect of the server command line option slave-skip-errors
+--echo Show the effect of the server command line option replica-skip-errors
 --echo being passed the alias ignore_ddl_errors and a numeric error code
-SHOW VARIABLES LIKE 'slave_skip_errors';
+SHOW VARIABLES LIKE 'replica_skip_errors';
 
 --source include/rpl_end.inc

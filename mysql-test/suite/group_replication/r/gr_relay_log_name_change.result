@@ -1,18 +1,3 @@
-SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Failed to open the relay log");
-call mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
-call mtr.add_suppression("Failed to initialize the master info structure for channel");
-call mtr.add_suppression("Failed to create or recover replication info repositories");
-call mtr.add_suppression("Failed to setup the group replication applier thread");
-call mtr.add_suppression("Unable to initialize the Group Replication applier module");
-call mtr.add_suppression("Leaving a group without being on one");
-call mtr.add_suppression("Error checking relay log repository.");
-call mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
-call mtr.add_suppression("Error while starting the group replication applier thread");
-call mtr.add_suppression("It was not possible to identify the group replication applier thread");
-call mtr.add_suppression("It was not possible to reset the server read mode settings. Try to reset them manually.");
-call mtr.add_suppression("Error running internal SQL query:*");
-SET SESSION sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 
 ##############################################
@@ -24,13 +9,8 @@ include/gr_wait_for_member_state.inc
 # 2: Restart the server changing the relay-log option
 # restart:--group-replication-start-on-boot=ON --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=ON --relay-log=new-relay-log-name
 include/gr_wait_for_member_state.inc
-RESET SLAVE FOR CHANNEL 'group_replication_applier';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 #######################################################
-# 3: Restart the server again after removing the broken
-#    group_replication_applier channel
-# restart:--group-replication-start-on-boot=ON --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=ON --relay-log=new-relay-log-name --relay-log=new-relay-log-name
-include/gr_wait_for_member_state.inc
-include/stop_group_replication.inc
+# 3: Cleanup
+# restart:--group-replication-start-on-boot=ON --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=ON --relay-log=new-relay-log-name --relay-log=server-relay-log --group_replication_start_on_boot=OFF
+include/rpl_connect.inc [creating server_1]

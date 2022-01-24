@@ -112,7 +112,10 @@ int client_connect_and_process(const Driver_command_line_options &options,
                                std::istream &input) {
   Variable_container variables(options.m_variables);
   Console console(options.m_console_options);
-  Connection_manager cm{options.m_connection_options, &variables, console};
+  std::stringstream flow_history;
+  Console console_history_flow({}, &flow_history, &flow_history);
+  Connection_manager cm{options.m_connection_options, &variables,
+                        console_history_flow, console};
   Execution_context context(options.m_context_options, &cm, &variables,
                             console);
 
@@ -137,8 +140,12 @@ int client_connect_and_process(const Driver_command_line_options &options,
                     " (code ", e.error(), ")\n");
       return 0;
     }
+    if (options.m_connection_options.trace_protocol_history) {
+      console.print_error("Error, printing flow history:");
+      console.print_error(flow_history.str());
+      console.print_error("\n");
+    }
     console.print_error_red(context.m_script_stack, e, '\n');
-
     return 1;
   }
 }

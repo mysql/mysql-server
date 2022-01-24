@@ -8,3 +8,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `PRIMARY`
   ON performance_schema.socket_summary_by_event_name;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.socket_summary_by_event_name;
+DROP TABLE test.create_select;

@@ -1,0 +1,6 @@
+!include suite/ndb_opt/my.cnf
+
+[cluster_config]
+# Retain old default value to show how the behaviour has changed
+# without auto index stat enabled
+IndexStatAutoCreate=0

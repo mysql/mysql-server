@@ -8,6 +8,7 @@ SET @old_log_output=       @@global.log_output;
 SET @old_slow_query_log=   @@global.slow_query_log;
 SET @old_general_log=      @@global.general_log;
 SET @old_long_query_time=  @@session.long_query_time;
+SET GLOBAL log_output="FILE,TABLE";
 
 --disable_ps_protocol
 use mysql;
@@ -177,7 +178,7 @@ drop table bug16905;
 truncate table mysql.slow_log;
 set session long_query_time=1;
 select sleep(2);
---replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 11 QUERY 12 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 4 LOCK_TIME 11 QUERY 12 THREAD_ID
 select * from mysql.slow_log;
 set @@session.long_query_time = @saved_long_query_time;
 
@@ -868,3 +869,5 @@ SET @@session.long_query_time= @old_long_query_time;
 SET @@global.log_output=       @old_log_output;
 SET @@global.slow_query_log=   @old_slow_query_log;
 SET @@global.general_log=      @old_general_log;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

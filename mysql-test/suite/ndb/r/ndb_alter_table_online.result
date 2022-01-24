@@ -571,11 +571,11 @@ insert into t1 (c1) values (1), (2), (3);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c500 bit(1) column_format DYNAMIC;
 alter table t1 algorithm=copy, add column c502 varchar(18001) character set latin1;
-ERROR HY000: Can't create destination table for copying alter table
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 738 'Record too big' from NDB
-Error	1005	Can't create destination table for copying alter table
+Error	1005	Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 alter table t1 algorithm=inplace, add column c502 varchar(18001) character set latin1;
 ERROR HY000: Got error 140 'Record too big' from NDBCLUSTER
 show warnings;

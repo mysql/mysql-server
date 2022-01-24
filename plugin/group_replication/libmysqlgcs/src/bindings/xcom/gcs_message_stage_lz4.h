@@ -76,7 +76,7 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
                                  unsigned long long compress_threshold)
       : Gcs_message_stage(enabled), m_threshold(compress_threshold) {}
 
-  ~Gcs_message_stage_lz4() override {}
+  ~Gcs_message_stage_lz4() override = default;
 
   /*
    Return the stage code.
@@ -130,11 +130,38 @@ class Gcs_message_stage_lz4_v2 : public Gcs_message_stage_lz4 {
                                     unsigned long long compress_threshold)
       : Gcs_message_stage_lz4(enabled, compress_threshold) {}
 
-  ~Gcs_message_stage_lz4_v2() override {}
+  ~Gcs_message_stage_lz4_v2() override = default;
 
   /*
    Return the stage code.
    */
   Stage_code get_stage_code() const override { return Stage_code::ST_LZ4_V2; }
 };
+
+class Gcs_message_stage_lz4_v3 : public Gcs_message_stage_lz4 {
+ public:
+  /**
+   Creates an instance of the stage with the default threshold in bytes.
+   */
+  explicit Gcs_message_stage_lz4_v3() : Gcs_message_stage_lz4() {}
+
+  /**
+   Creates an instance of the stage with the given threshold in bytes.
+
+   @param enabled enables this message stage
+   @param compress_threshold messages with the payload larger
+   than compress_threshold in bytes are compressed.
+   */
+  explicit Gcs_message_stage_lz4_v3(bool enabled,
+                                    unsigned long long compress_threshold)
+      : Gcs_message_stage_lz4(enabled, compress_threshold) {}
+
+  ~Gcs_message_stage_lz4_v3() override {}
+
+  /*
+   Return the stage code.
+   */
+  Stage_code get_stage_code() const override { return Stage_code::ST_LZ4_V3; }
+};
+
 #endif /* GCS_MESSAGE_STAGE_LZ4_H */

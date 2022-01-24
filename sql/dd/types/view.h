@@ -57,7 +57,7 @@ class View : virtual public Abstract_table {
   enum enum_security_type { ST_DEFAULT = 1, ST_INVOKER, ST_DEFINER };
 
  public:
-  ~View() override {}
+  ~View() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // regular/system view flag.
@@ -159,6 +159,14 @@ class View : virtual public Abstract_table {
     @return pointer to dynamically allocated copy
   */
   View *clone() const override = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  View *clone_dropped_object_placeholder() const override = 0;
 
   /**
     Clear View columns, View_tables and View_routines collections.

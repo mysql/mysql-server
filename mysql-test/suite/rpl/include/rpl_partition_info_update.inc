@@ -20,7 +20,7 @@
 #     The log position to start reading from
 #     (settable using include/save_binlog_position.inc)
 #   $partition_id
-#     This is a semicolon seperated list of pairs of partition_id.
+#     This is a semicolon-separated list of pairs of partition_id.
 #     Each pair consists of 'source_partition_id' as an integer
 #     followed by space followed by 'target_partition_id' as an integar.
 #     Note that this is whitespace-sensitive so there should

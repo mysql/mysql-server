@@ -51,9 +51,9 @@ class Sql_cmd_truncate_table : public Sql_cmd {
   /**
     Constructor, used to represent a TRUNCATE statement.
   */
-  Sql_cmd_truncate_table() {}
+  Sql_cmd_truncate_table() = default;
 
-  ~Sql_cmd_truncate_table() override {}
+  ~Sql_cmd_truncate_table() override = default;
 
   bool execute(THD *) override;
 

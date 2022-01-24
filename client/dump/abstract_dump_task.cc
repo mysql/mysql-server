@@ -32,7 +32,7 @@ using namespace Mysql::Tools::Dump;
 Abstract_dump_task::Abstract_dump_task(Abstract_data_object *related_object)
     : m_related_object(related_object) {}
 
-Abstract_dump_task::~Abstract_dump_task() {}
+Abstract_dump_task::~Abstract_dump_task() = default;
 
 I_data_object *Abstract_dump_task::get_related_db_object() const {
   return m_related_object;

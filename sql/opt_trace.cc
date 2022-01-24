@@ -187,8 +187,7 @@ class Opt_trace_stmt {
     return trace_buffer.alloced_length() + query_buffer.alloced_length();
   }
 
-  void assert_current_struct(
-      const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const {
+  void assert_current_struct(const Opt_trace_struct *s [[maybe_unused]]) const {
     assert(current_struct == s);
   }
 

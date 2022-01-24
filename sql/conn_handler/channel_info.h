@@ -57,7 +57,7 @@ class Channel_info {
   Channel_info() : prior_thr_create_utime(0) {}
 
  public:
-  virtual ~Channel_info() {}
+  virtual ~Channel_info() = default;
 
   /**
     Instantiate and initialize THD object and vio.

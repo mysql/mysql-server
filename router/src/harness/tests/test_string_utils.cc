@@ -27,7 +27,6 @@
 ////////////////////////////////////////
 // Standard include files
 #include <fstream>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -40,11 +39,10 @@
 #include "test/helpers.h"
 
 using mysql_harness::split_string;
-using std::string;
 using ::testing::ContainerEq;
 
 TEST(StringUtilsTests, SplitStringWithEmpty) {
-  std::vector<string> exp;
+  std::vector<std::string> exp;
   std::string tcase;
 
   exp = {"val1", "val2"};
@@ -68,7 +66,7 @@ TEST(StringUtilsTests, SplitStringWithEmpty) {
 }
 
 TEST(StringUtilsTests, SplitStringWithoutEmpty) {
-  std::vector<string> exp;
+  std::vector<std::string> exp;
   std::string tcase;
 
   exp = {"val1", "val2"};

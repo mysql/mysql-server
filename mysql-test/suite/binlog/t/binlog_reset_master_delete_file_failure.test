@@ -1,0 +1,104 @@
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that appropriate error message is
+# logged when RESET MASTER fails to delete binary log file.
+#
+# ==== Requirement ====
+# R1. During RESET MASTER, if there are any failures in binary log file
+#     deletion, an appropriate error message should be logged.
+# R2. During RESET MASTER, if there are any failures in binary log index file
+#     deletion, an appropriate error message should be logged.
+#
+# ==== Implementation ====
+# 0. Add suppressions for the test and backup data directory
+# 1. Case1: Remove binary log file and create directory with same name as
+#           binlog file name
+#    1.1 Save current binlog file name
+#    1.2 Generate new binlog
+#    1.3 Create a directory with same name as binlog file name
+#    1.4 Verify that RESET MASTER failed with error
+#    1.5 Clean up
+# 2. Case2: Remove index file and create directory with same name as index
+#           file name
+#    2.1 Create a directory with same name as binlog file name
+#    2.2 verify that reset master failed with error
+#    2.3 Clean up
+#
+# ==== References ====
+# BUG#33468781: void THD::send_statement_status(): Assertion `0' failed
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 0. Add suppressions for the test and backup data directory
+call mtr.add_suppression("Failed to delete file.*");
+RESET MASTER;
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $BACKUP_DATADIR = $MYSQL_TMP_DIR/data_new
+--force-cpdir $MYSQLD_DATADIR $BACKUP_DATADIR
+
+--echo #
+--echo # 1. Case1: Remove binary log file and create directory with same name
+--echo #           as binlog file name
+--echo #
+--echo # 1.1. Save current binlog file name
+--source include/save_binlog_position.inc
+--let $first_binlog_file= $binlog_file
+
+--echo #
+--echo # 1.2 Generate new binlog
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # 1.3 Create a directory with same name as binlog file name
+--move_file $MYSQLD_DATADIR/$first_binlog_file $MYSQLD_DATADIR/$first_binlog_file.orig
+--mkdir $MYSQLD_DATADIR/$first_binlog_file
+
+--echo #
+--echo # 1.4 Verify that RESET MASTER failed with error
+--error ER_BINLOG_PURGE_FATAL_ERR
+RESET MASTER;
+
+--echo #
+--echo # 1.5 Clean up
+# Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Undo data directory changes
+--force-rmdir $MYSQLD_DATADIR
+--force-cpdir $BACKUP_DATADIR $MYSQLD_DATADIR
+# Restart the server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+--echo #
+--echo # 2. Case2: Remove index file and create directory with same name as
+--echo #           index file name
+--echo #
+--echo # 2.1 Create a directory with same name as index file name
+--let $index_file= `SELECT @@global.log_bin_index`
+--move_file $index_file $index_file.orig
+--mkdir $index_file
+
+--echo #
+--echo # 2.2 Verify that RESET MASTER failed with error
+--error ER_BINLOG_PURGE_FATAL_ERR
+RESET MASTER;
+
+--echo #
+--echo # 2.3 Cleanup
+# Stop the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Undo data directory changes
+--force-rmdir $MYSQLD_DATADIR
+--force-cpdir $BACKUP_DATADIR $MYSQLD_DATADIR
+--force-rmdir $BACKUP_DATADIR
+# Restart the server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc

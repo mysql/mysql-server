@@ -150,7 +150,7 @@ class Handler : public ::handler {
       TABLE_SHARE *table_share);
 
   /** Destructor. */
-  ~Handler() override;
+  ~Handler() override = default;
 
   /** Create an in-memory table.
    * @return 0 on success or HA_ERR_* error code */

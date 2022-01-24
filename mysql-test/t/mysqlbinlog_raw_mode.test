@@ -13,7 +13,7 @@ CREATE TABLE raw_mode_exit (exit_code INT);
 (`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ binlog.000001 ; [ $? -le 1 ]` && $MYSQL -e "use test; INSERT INTO raw_mode_exit VALUES (1);") < /dev/null > /dev/null 2>&1 &
 EOF
 --exec /bin/bash $MYSQL_TMP_DIR/mbl.sh
-let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
+let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Source has sent%';
 --source include/wait_condition.inc
 
 # Wait until creating binlog files by mysqlbinlog 
@@ -39,7 +39,7 @@ EOF
 --diff_files $MYSQL_TMP_DIR/binlog.000001 $MYSQLD_DATADIR/binlog.000001
 --diff_files $MYSQL_TMP_DIR/binlog.000002 $MYSQLD_DATADIR/binlog.000002
 
-SELECT ((@id := id) - id) from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
+SELECT ((@id := id) - id) from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Source has sent%';
 # Test killing from mysql server
 kill @id;
 --let $wait_condition= SELECT count(*) = 1 FROM raw_mode_exit WHERE exit_code = 1;

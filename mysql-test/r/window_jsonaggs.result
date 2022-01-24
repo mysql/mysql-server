@@ -163,18 +163,18 @@ SELECT i, f, JSON_ARRAYAGG(i) OVER w jarray_i, JSON_ARRAYAGG(f)
 OVER w jarray_f FROM t1 GROUP BY i,f WITH ROLLUP HAVING GROUPING(f)=1
 WINDOW w AS (ORDER BY f);
 i	f	jarray_i	jarray_f
-NULL	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 1	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+10	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+11	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+13	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+15	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 2	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 3	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 4	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 5	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 8	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 9	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
-10	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
-11	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
-13	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
-15	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+NULL	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 NULL	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
 # With other window functions
 SELECT i, f, RANK() OVER w rank1, NTH_VALUE(i,3)
@@ -852,8 +852,6 @@ DROP TABLE t1;
 SELECT 0 & (JSON_ARRAYAGG(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
 0 & (JSON_ARRAYAGG(1) OVER w)
 0
-Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 1
 SELECT MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1);
 MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1)
 00:01:01

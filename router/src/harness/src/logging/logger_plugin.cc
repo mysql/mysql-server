@@ -31,6 +31,7 @@
 #include "dim.h"
 #include "filelog_plugin.h"
 #include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/string.h"  // join
 
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
@@ -355,18 +356,37 @@ static void switch_to_loggers_in_config(
   mysql_harness::logging::create_logger(*registry, min_log_level, "sql");
 
   // attach all loggers to the handlers (throws std::runtime_error)
+  bool new_config_has_consolelog{false};
   for (const auto &handler : logger_handlers) {
     registry->add_handler(handler.first, handler.second);
     attach_handler_to_all_loggers(*registry, handler.first);
+
+    if (handler.first == kConsolelogPluginName) {
+      new_config_has_consolelog = true;
+    }
   }
 
-  // in case we switched away from the default consolelog, log that we are now
-  // switching away
-  if (!(logger_handlers.size() == 1 &&
-        logger_handlers.at(0).first == "consolelog")) {
-    log_info(
-        "logging facility initialized, switching logging to loggers specified "
-        "in configuration");
+  // in case we switched away from the default consolelog and something was
+  // already logged to the console, log that we are now switching away
+  if (!new_config_has_consolelog) {
+    auto &reg = DIM::instance().get_LoggingRegistry();
+    try {
+      // there may be no main_console_handler.
+      auto handler =
+          reg.get_handler(mysql_harness::logging::kMainConsoleHandler);
+
+      if (handler->has_logged()) {
+        std::vector<std::string> handler_names;
+        for (const auto &handler : logger_handlers) {
+          handler_names.push_back(handler.first);
+        }
+
+        log_info("stopping to log to the console. Continuing to log to %s",
+                 mysql_harness::join(handler_names, ", ").c_str());
+      }
+    } catch (const std::exception &) {
+      // not found.
+    }
   }
 
   // nothing threw - we're good. Now let's replace the new registry with the
@@ -392,8 +412,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   auto &config = DIM::instance().get_Config();
 
   bool res = init_handlers(env, config, logger_handlers);
-  // something went wrong; the init_handlers called set_error() so we just stop
-  // progress further and let Loader deal with it
+  // something went wrong; the init_handlers called set_error() so we just
+  // stop progress further and let Loader deal with it
   if (!res) return;
 
   switch_to_loggers_in_config(config, logger_handlers);

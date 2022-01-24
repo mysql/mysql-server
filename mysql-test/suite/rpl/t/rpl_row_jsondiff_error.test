@@ -24,9 +24,9 @@
 #
 # M1. Normal mode, error causing slave to stop.
 #
-# M2. slave_skip_errors includes the error.
+# M2. replica_skip_errors includes the error.
 #
-# M3. slave_exec_mode=IDEMPOTENT
+# M3. replica_exec_mode=IDEMPOTENT
 #
 # In addition, the consequence of corrupted events should be that
 # mysqlbinlog -v prints an appropriate message when failing to decode
@@ -113,7 +113,7 @@ while ($mode < 3)
     --let $er_could_not_apply_json_diff= convert_error(ER_COULD_NOT_APPLY_JSON_DIFF)
     --let $er_corrupted_json_diff= convert_error(ER_CORRUPTED_JSON_DIFF)
     --let $er_slave_corrupt_event= convert_error(ER_SLAVE_CORRUPT_EVENT)
-    --let $rpl_server_parameters= --slave_skip_errors=$er_dup_entry,$er_key_not_found,$er_could_not_apply_json_diff,$er_corrupted_json_diff,$er_slave_corrupt_event,5
+    --let $rpl_server_parameters= --replica_skip_errors=$er_dup_entry,$er_key_not_found,$er_could_not_apply_json_diff,$er_corrupted_json_diff,$er_slave_corrupt_event,5
     --source include/rpl_restart_server.inc
     --source include/rpl_connection_slave.inc
   }
@@ -122,11 +122,11 @@ while ($mode < 3)
     --let $error_mode= IDEMPOTENT
 
     --let $rpl_server_number= 2
-    --let $rpl_server_parameters= --skip-slave-start
+    --let $rpl_server_parameters= --skip-replica-start
     --source include/rpl_restart_server.inc
 
     --source include/rpl_connection_slave.inc
-    SET GLOBAL SLAVE_EXEC_MODE = IDEMPOTENT;
+    SET GLOBAL REPLICA_EXEC_MODE = IDEMPOTENT;
   }
 
   --echo ******** ERROR MODE: $error_mode ********
@@ -270,5 +270,7 @@ SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 --source include/stop_slave_sql.inc
 --source include/end_replace_combination.inc
 
+--connection slave
+SET GLOBAL REPLICA_EXEC_MODE = STRICT;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

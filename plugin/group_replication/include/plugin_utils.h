@@ -26,8 +26,11 @@
 #include <errno.h>
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
+#include <algorithm>
+#include <chrono>
 #include <map>
 #include <queue>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -118,7 +121,7 @@ class Blocked_transaction_handler {
 template <typename T>
 class Synchronized_queue_interface {
  public:
-  virtual ~Synchronized_queue_interface() {}
+  virtual ~Synchronized_queue_interface() = default;
 
   /**
     Checks if the queue is empty
@@ -257,7 +260,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
  public:
   Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
 
-  ~Abortable_synchronized_queue() override {}
+  ~Abortable_synchronized_queue() override = default;
 
   /**
     Inserts an element in the queue.
@@ -886,5 +889,18 @@ class Plugin_waitlock {
   @param[in,out] string_to_escape the string to escape
 */
 void plugin_escape_string(std::string &string_to_escape);
+
+/**
+  Rearranges the given vector elements randomly.
+
+  @param[in,out] v the vector to shuffle
+*/
+template <typename T>
+void vector_random_shuffle(std::vector<T> *v) {
+  auto seed{std::chrono::system_clock::now().time_since_epoch().count()};
+  std::shuffle(v->begin(), v->end(),
+               std::default_random_engine(
+                   static_cast<std::default_random_engine::result_type>(seed)));
+}
 
 #endif /* PLUGIN_UTILS_INCLUDED */

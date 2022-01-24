@@ -3,10 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET @save_slave_parallel_workers= @@slave_parallel_workers;
+SET @save_replica_parallel_workers= @@replica_parallel_workers;
 SET @save_default_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine='innodb';
-SET GLOBAL slave_parallel_workers= 4;
+SET GLOBAL replica_parallel_workers= 4;
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
 include/stop_slave.inc
@@ -48,5 +48,5 @@ DROP DATABASE test_2;
 DROP DATABASE test_1;
 SET @@global.default_storage_engine= @save_default_storage_engine;
 SET @@global.default_storage_engine= @save_default_storage_engine;
-SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
+SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
 include/rpl_end.inc

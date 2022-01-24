@@ -1,0 +1,124 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0, SOURCE_AUTO_POSITION=0, GTID_ONLY=0;
+#
+# 1. Validate no other value except 1 or O are accept for GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 2;
+ERROR 42000: You have an error in your CHANGE REPLICATION SOURCE syntax; GTID_ONLY only accepts values 0 or 1 near '2' at line 1
+CHANGE REPLICATION SOURCE TO GTID_ONLY = '1';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''1'' at line 1
+CHANGE REPLICATION SOURCE TO GTID_ONLY = ON;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON' at line 1
+include/assert.inc ['GTID_ONLY is disabled']
+#
+# 2. Validate that enabling GTID_ONLY requires
+#      REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+ERROR HY000: GTID_ONLY cannot be enabled for replication channel ''. You need GTID_MODE = ON, SOURCE_AUTO_POSITION = 1 and REQUIRE_ROW_FORMAT = 1.
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+ERROR HY000: GTID_ONLY cannot be enabled for replication channel ''. You need GTID_MODE = ON, SOURCE_AUTO_POSITION = 1 and REQUIRE_ROW_FORMAT = 1.
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+include/assert.inc ['GTID_ONLY is enabled']
+#
+# 3. Validate if GTID_ONLY =1 you cant disable
+#      REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+ERROR HY000: REQUIRE_ROW_FORMAT cannot be disabled for replication channel '' when GTID_ONLY=1.
+include/assert.inc ['REQUIRE_ROW_FORMAT is enabled']
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
+ERROR HY000: SOURCE_AUTO_POSITION cannot be disabled for replication channel '' when GTID_ONLY=1.
+include/assert.inc ['AUTO_POSITION is enabled']
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0, GTID_ONLY=0;
+include/assert.inc ['GTID_ONLY is disabled']
+include/assert.inc ['REQUIRE_ROW_FORMAT is disabled']
+#
+# 4. Validate if GTID_MODE != ON you can't enable GTID_ONLY
+#    Validate GTID_MODE cant be changed if GTID_ONLY = 1
+SET @@GLOBAL.GTID_MODE= ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+ERROR HY000: GTID_ONLY cannot be enabled for replication channel ''. You need GTID_MODE = ON, SOURCE_AUTO_POSITION = 1 and REQUIRE_ROW_FORMAT = 1.
+include/assert.inc ['GTID_ONLY is disabled']
+SET @@GLOBAL.GTID_MODE= ON;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+include/assert.inc ['GTID_ONLY is enabled']
+SET @@GLOBAL.GTID_MODE= ON_PERMISSIVE;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because replication channel '' is configured with GTID_ONLY = 1. Execute CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = 'ON_PERMISSIVE'.
+#
+# 5. Replication threads must be stopped to change GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+START REPLICA IO_THREAD;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+include/assert.inc ['GTID_ONLY is disabled']
+STOP REPLICA;
+START REPLICA SQL_THREAD;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+include/assert.inc ['GTID_ONLY is disabled']
+STOP REPLICA;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+#
+# 6. When positions are valid, disabling GTID_ONLY does not requires SOURCE_LOG_FILE/POS
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, GTID_ONLY=0;
+include/assert.inc ['GTID_ONLY is disabled']
+#
+# 7. When positions are invalid disabling SOURCE_AUTO_POSITION (with or without disabling GITD_ONLY) requires SOURCE_LOG_FILE/POS
+#    A warning is logged and given to the client when GITD_ONLY is disabled leaving SOURCE_AUTO_POSITION enabled
+CHANGE REPLICATION SOURCE TO GTID_ONLY=1, SOURCE_AUTO_POSITION=1;
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start]
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0;
+ERROR HY000: When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid.
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+Warnings:
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+include/assert_grep.inc [A warning is logged as some invalid positions were persisted]
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
+ERROR HY000: When disabling SOURCE_AUTO_POSITION FOR CHANNEL '' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid.
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="", SOURCE_LOG_POS=4;;
+include/assert.inc [The source log file name is valid]
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
+#
+# 8. When disabling GTID ONLY with the usage of relay log position a warning is logged
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start]
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="", SOURCE_LOG_POS=4,RELAY_LOG_FILE='slave-relay-bin.000001', RELAY_LOG_POS=4;
+Warnings:
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+include/assert_grep.inc [A warning is logged as some invalid positions were persisted]
+#
+# 9. The RESET REPLICA command does not affect the option
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+RESET REPLICA;
+include/assert.inc ['GTID_ONLY is enabled']
+#
+# 10. The RESET REPLICA ALL command does affect the option
+RESET REPLICA ALL;
+include/assert.inc ['GTID_ONLY is disabled']
+#
+# 11. After a restart that disables the GTID mode, the channel cannot be started
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1, GTID_ONLY = 1;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=on_permissive]
+include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
+include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
+START SLAVE;
+ERROR HY000: Replication cannot start for channel '' with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON.
+#
+# 12 Cleanup
+SET @@GLOBAL.GTID_MODE = ON;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT = 0;
+Warnings:
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+include/start_slave.inc [FOR CHANNEL '']
+call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. *");
+call mtr.add_suppression("The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.*");
+include/rpl_end.inc

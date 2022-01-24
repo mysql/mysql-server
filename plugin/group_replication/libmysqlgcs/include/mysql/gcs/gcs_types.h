@@ -115,7 +115,7 @@ class Gcs_interface_parameters {
 
   Gcs_interface_parameters() : parameters() {}
 
-  virtual ~Gcs_interface_parameters() {}
+  virtual ~Gcs_interface_parameters() = default;
 
  private:
   std::map<std::string, std::string> parameters;
@@ -129,10 +129,10 @@ enum class Gcs_protocol_version : unsigned short {
   UNKNOWN = 0,
   V1 = 1,
   V2 = 2,
-  /* Define the highest known version. */
-  HIGHEST_KNOWN = V2,
-  /* Currently used in test cases. */
   V3 = 3,
+  /* Define the highest known version. */
+  HIGHEST_KNOWN = V3,
+  /* Currently used in test cases. */
   V4 = 4,
   V5 = 5,
   /*

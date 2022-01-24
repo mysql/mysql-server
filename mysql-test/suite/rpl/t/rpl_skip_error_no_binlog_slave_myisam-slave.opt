@@ -1,1 +1,1 @@
---slave-skip-errors=1062,1050 --disable-log-bin --disable-log-slave-updates
+--replica-skip-errors=1062,1050 --disable-log-bin --disable-log-replica-updates

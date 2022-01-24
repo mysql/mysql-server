@@ -843,6 +843,7 @@ FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 
 connection monitor;
+--skip_if_hypergraph  # Different handler calls.
 SELECT VARIABLE_NAME, VARIABLE_VALUE
   FROM performance_schema.status_by_thread
   WHERE VARIABLE_NAME IN ('Handler_read_first', 'Handler_read_next', 'Handler_write')

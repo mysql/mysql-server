@@ -71,8 +71,8 @@ void Mysql_connection_options::Ssl_options::create_options() {
           this, _1)));
 }
 
-void Mysql_connection_options::Ssl_options::ca_option_callback(
-    char *argument MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::Ssl_options::ca_option_callback(char *argument [
+    [maybe_unused]]) {
   if (!ssl_mode_set_explicitly) ::opt_ssl_mode = SSL_MODE_VERIFY_CA;
 }
 

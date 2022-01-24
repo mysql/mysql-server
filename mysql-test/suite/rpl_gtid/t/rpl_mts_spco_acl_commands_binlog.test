@@ -1,14 +1,14 @@
 # ==== Purpose ====
 #
 # This is wrapper testcase of rpl_mts_spco_acl_commands.test to verify the behavior
-# of ACL commands with slave-preserve-commit-order enabled binlog replica.
+# of ACL commands with replica-preserve-commit-order enabled binlog replica.
 #
 # === Implementation ====
 #
 # 1. Configure replication between source - binlog enabled replica.
 #
 # 2. Source rpl_mts_spco_acl_commands.test to verify if ACL
-#    commands respect slave-preserve-commit-order.
+#    commands respect replica-preserve-commit-order.
 #
 # === References ===
 #

@@ -15,9 +15,6 @@
 #
 # WL#7318 Delayed Replication: GTID based and relative to immediate master commit
 
-# there is a specific test for mts
---source include/not_mts_slave_parallel_workers.inc
-
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

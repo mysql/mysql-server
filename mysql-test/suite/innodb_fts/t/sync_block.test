@@ -125,3 +125,5 @@ SET GLOBAL general_log = @old_general_log;
 SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL long_query_time = @old_long_query_time;
 SET GLOBAL binlog_order_commits = @old_binlog_order_commits;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

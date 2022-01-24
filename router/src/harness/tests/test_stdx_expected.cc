@@ -257,39 +257,35 @@ class non_copyable_no_default {
   non_copyable_no_default &operator=(non_copyable_no_default &&) = default;
 };
 
-static_assert(std::is_copy_constructible<copyable>::value, "");
-static_assert(std::is_move_constructible<copyable>::value, "");
-static_assert(!std::is_copy_constructible<non_copyable>::value, "");
-static_assert(std::is_move_constructible<non_copyable>::value, "");
-static_assert(!std::is_copy_assignable<non_copyable>::value, "");
-static_assert(std::is_move_assignable<non_copyable>::value, "");
+static_assert(std::is_copy_constructible<copyable>::value);
+static_assert(std::is_move_constructible<copyable>::value);
+static_assert(!std::is_copy_constructible<non_copyable>::value);
+static_assert(std::is_move_constructible<non_copyable>::value);
+static_assert(!std::is_copy_assignable<non_copyable>::value);
+static_assert(std::is_move_assignable<non_copyable>::value);
 
-static_assert(!std::is_copy_constructible<void>::value, "");
-static_assert(!std::is_copy_assignable<void>::value, "");
-static_assert(std::is_copy_constructible<int>::value, "");
-static_assert(std::is_copy_assignable<int>::value, "");
-static_assert(std::is_copy_constructible<std::error_code>::value, "");
-static_assert(std::is_copy_assignable<std::error_code>::value, "");
+static_assert(!std::is_copy_constructible<void>::value);
+static_assert(!std::is_copy_assignable<void>::value);
+static_assert(std::is_copy_constructible<int>::value);
+static_assert(std::is_copy_assignable<int>::value);
+static_assert(std::is_copy_constructible<std::error_code>::value);
+static_assert(std::is_copy_assignable<std::error_code>::value);
 static_assert(
-    std::is_copy_constructible<stdx::expected<void, std::error_code>>::value,
-    "");
+    std::is_copy_constructible<stdx::expected<void, std::error_code>>::value);
 static_assert(
-    std::is_copy_assignable<stdx::expected<void, std::error_code>>::value, "");
+    std::is_copy_assignable<stdx::expected<void, std::error_code>>::value);
 static_assert(
-    std::is_copy_constructible<stdx::expected<int, std::error_code>>::value,
-    "");
-static_assert(std::is_copy_assignable<int>::value, "");
-static_assert(std::is_copy_constructible<int>::value, "");
-static_assert(std::is_copy_assignable<std::error_code>::value, "");
-static_assert(std::is_copy_constructible<std::error_code>::value, "");
+    std::is_copy_constructible<stdx::expected<int, std::error_code>>::value);
+static_assert(std::is_copy_assignable<int>::value);
+static_assert(std::is_copy_constructible<int>::value);
+static_assert(std::is_copy_assignable<std::error_code>::value);
+static_assert(std::is_copy_constructible<std::error_code>::value);
 static_assert(
-    std::is_copy_assignable<stdx::expected<int, std::error_code>>::value, "");
+    std::is_copy_assignable<stdx::expected<int, std::error_code>>::value);
 static_assert(!std::is_copy_constructible<
-                  stdx::expected<non_copyable, std::error_code>>::value,
-              "");
+              stdx::expected<non_copyable, std::error_code>>::value);
 static_assert(!std::is_copy_assignable<
-                  stdx::expected<non_copyable, std::error_code>>::value,
-              "");
+              stdx::expected<non_copyable, std::error_code>>::value);
 
 TEST(Expected, T_unique_ptr) {
   auto test_func = [](bool success)
@@ -547,7 +543,7 @@ TEST(Expected, T_string_E_std_error_code) {
           make_error_code(std::errc::already_connected));
     }
 
-    return {stdx::in_place, "from_func"s};
+    return {std::in_place, "from_func"s};
   };
 
   // std::string in libstdc++
@@ -559,9 +555,9 @@ TEST(Expected, T_string_E_std_error_code) {
 
   // instantiation
   auto res =
-      stdx::expected<std::string, std::error_code>(stdx::in_place, "initial"s);
+      stdx::expected<std::string, std::error_code>(std::in_place, "initial"s);
 
-  static_assert(std::is_move_assignable<std::string>::value, "");
+  static_assert(std::is_move_assignable<std::string>::value);
 
   ASSERT_TRUE(res);
   ASSERT_EQ(res.value(), "initial"s);
@@ -617,11 +613,9 @@ TEST(Expected, T_no_default_construct) {
   };
 
   static_assert(!std::is_default_constructible<
-                    stdx::expected<no_default_construct, void>>::value,
-                "");
+                stdx::expected<no_default_construct, void>>::value);
   static_assert(!std::is_default_constructible<
-                    stdx::expected<no_default_construct, int>>::value,
-                "");
+                stdx::expected<no_default_construct, int>>::value);
 
   stdx::expected<no_default_construct, void> t_void(1);
   stdx::expected<no_default_construct, int> t_non_void(1);
@@ -636,67 +630,51 @@ TEST(Expected, T_no_copy_construct) {
   };
 
   static_assert(std::is_default_constructible<
-                    stdx::expected<no_copy_construct, void>>::value,
-                "");
+                stdx::expected<no_copy_construct, void>>::value);
   static_assert(
-      !std::is_copy_assignable<stdx::expected<no_copy_construct, void>>::value,
-      "");
+      !std::is_copy_assignable<stdx::expected<no_copy_construct, void>>::value);
   static_assert(
-      !std::is_move_assignable<stdx::expected<no_copy_construct, void>>::value,
-      "");
+      !std::is_move_assignable<stdx::expected<no_copy_construct, void>>::value);
 
   static_assert(std::is_default_constructible<
-                    stdx::expected<no_copy_construct, int>>::value,
-                "");
+                stdx::expected<no_copy_construct, int>>::value);
   static_assert(
-      !std::is_copy_assignable<stdx::expected<no_copy_construct, int>>::value,
-      "");
+      !std::is_copy_assignable<stdx::expected<no_copy_construct, int>>::value);
   static_assert(
-      !std::is_move_assignable<stdx::expected<no_copy_construct, int>>::value,
-      "");
+      !std::is_move_assignable<stdx::expected<no_copy_construct, int>>::value);
 
   stdx::expected<no_copy_construct, void> t_void;
   stdx::expected<no_copy_construct, int> t_non_void;
 }
 
 // tests for the operator<< behaviour
-static_assert(stdx::impl::is_to_stream_writable<std::ostream, int>::value, "");
-static_assert(stdx::impl::is_to_stream_writable<std::ostream, double>::value,
-              "");
+static_assert(stdx::impl::is_to_stream_writable<std::ostream, int>::value);
+static_assert(stdx::impl::is_to_stream_writable<std::ostream, double>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<int, std::error_code>>::value,
-              "");
+              std::ostream, stdx::expected<int, std::error_code>>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<int, void>>::value,
-              "");
+              std::ostream, stdx::expected<int, void>>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<void, void>>::value,
-              "");
+              std::ostream, stdx::expected<void, void>>::value);
 static_assert(stdx::impl::is_to_stream_writable<
-                  std::ostream, stdx::expected<void, std::error_code>>::value,
-              "");
+              std::ostream, stdx::expected<void, std::error_code>>::value);
 
 static_assert(
-    !stdx::impl::is_to_stream_writable<std::ostream, non_copyable>::value, "");
+    !stdx::impl::is_to_stream_writable<std::ostream, non_copyable>::value);
 
 static_assert(!stdx::impl::is_to_stream_writable<
-                  std::ostream, non_copyable_no_default>::value,
-              "");
+              std::ostream, non_copyable_no_default>::value);
 
 static_assert(
     !stdx::impl::is_to_stream_writable<
-        std::ostream, stdx::expected<non_copyable, std::error_code>>::value,
-    "");
+        std::ostream, stdx::expected<non_copyable, std::error_code>>::value);
 
-static_assert(
-    !stdx::impl::is_to_stream_writable<
-        std::ostream,
-        stdx::expected<non_copyable_no_default, std::error_code>>::value,
-    "");
+static_assert(!stdx::impl::is_to_stream_writable<
+              std::ostream,
+              stdx::expected<non_copyable_no_default, std::error_code>>::value);
 
 static_assert(std::is_move_constructible<
-                  stdx::expected<std::unique_ptr<int>, void>>::value,
-              "");
+              stdx::expected<std::unique_ptr<int>, void>>::value);
 
 TEST(ExpectedOstream, some_int) {
   std::ostringstream oss;

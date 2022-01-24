@@ -28,6 +28,7 @@
 ////////////////////////////////////////
 // Standard include files
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -37,22 +38,16 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "mysql/harness/filesystem.h"
+#include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/loader.h"
 #include "mysql/harness/plugin.h"
 
-#include "dim.h"
-#include "exception.h"
-#include "mysql/harness/string_utils.h"
-#include "utilities.h"
-
-////////////////////////////////////////
-// Test plugin include files
-#include "magic.h"
+#include "exception.h"                   // bad_plugin
+#include "mysql/harness/string_utils.h"  // split_string
 
 ////////////////////////////////////////
 // Test system include files
-#include "test/helpers.h"
+#include "test/helpers.h"  // EXPECT_SECTION_AVAILABLE
 
 using mysql_harness::bad_section;
 using mysql_harness::Loader;
@@ -63,25 +58,34 @@ using testing::UnorderedElementsAre;
 
 Path g_here;
 
+class TestLoader : public Loader {
+ public:
+  using Loader::Loader;
+
+  const Plugin *load(const std::string &plugin_name) {
+    return Loader::load(plugin_name);
+  }
+
+  const Plugin *load(const std::string &plugin_name, const std::string &key) {
+    return Loader::load(plugin_name, key);
+  }
+};
+
 class LoaderTest : public ::testing::TestWithParam<const char *> {
  protected:
   void SetUp() override {
-    std::map<std::string, std::string> params;
-    params["program"] = "harness";
     test_data_dir_ = mysql_harness::get_tests_data_dir(g_here.str());
-    params["prefix"] = test_data_dir_;
 
-    config_.reset(new mysql_harness::LoaderConfig(
-        params, std::vector<std::string>(), mysql_harness::Config::allow_keys));
-    loader = new Loader("harness", *config_);
+    config_ = std::make_unique<mysql_harness::LoaderConfig>(
+        std::map<std::string, std::string>{{
+            {"program", "harness"},
+            {"prefix", test_data_dir_},
+        }},
+        std::vector<std::string>(), mysql_harness::Config::allow_keys);
+    loader = std::make_unique<TestLoader>("harness", *config_);
   }
 
-  void TearDown() override {
-    delete loader;
-    loader = nullptr;
-  }
-
-  Loader *loader;
+  std::unique_ptr<TestLoader> loader;
   std::unique_ptr<mysql_harness::LoaderConfig> config_;
   std::string test_data_dir_;
 };
@@ -98,37 +102,45 @@ TEST_P(LoaderReadTest, Available) {
   auto lst = loader->available();
   EXPECT_EQ(5U, lst.size());
 
-  EXPECT_SECTION_AVAILABLE("routertestplugin_example", loader);
-  EXPECT_SECTION_AVAILABLE("routertestplugin_magic", loader);
+  EXPECT_SECTION_AVAILABLE("routertestplugin_example", loader.get());
+  EXPECT_SECTION_AVAILABLE("routertestplugin_magic", loader.get());
 }
 
-TEST_P(LoaderReadTest, Loading) {
-  // These should fail, for different reasons
-
+TEST_P(LoaderReadTest, load_non_existant_fails) {
   // Test that loading something non-existant works
   EXPECT_THROW(loader->load("nonexistant-plugin"), bad_section);
+}
 
+TEST_P(LoaderReadTest, load_missing_dep_fails) {
   // Dependent plugin does not exist
   EXPECT_THROW(loader->load("routertestplugin_bad_one"), bad_section);
+}
 
+TEST_P(LoaderReadTest, load_wrong_version) {
   // Wrong version of dependent sections
   EXPECT_THROW(loader->load("routertestplugin_bad_two"), bad_plugin);
+}
 
+TEST_P(LoaderReadTest, load_example_succeeds) {
   // These should all be OK.
   const Plugin *ext1 = loader->load("routertestplugin_example", "one");
   EXPECT_NE(ext1, nullptr);
   EXPECT_STREQ("An example plugin", ext1->brief);
+}
 
+TEST_P(LoaderReadTest, load_example_section_two_succeeds) {
   const Plugin *ext2 = loader->load("routertestplugin_example", "two");
   EXPECT_NE(ext2, nullptr);
   EXPECT_STREQ("An example plugin", ext2->brief);
+}
 
+TEST_P(LoaderReadTest, load_magic_succeeds) {
   const Plugin *ext3 = loader->load("routertestplugin_magic");
   EXPECT_NE(ext3, nullptr);
   EXPECT_STREQ("A magic plugin", ext3->brief);
 }
 
-const char *good_cfgs[] = {
+static const char *good_cfgs[] = {
     "tests-good-1.cfg",
     "tests-good-2.cfg",
 };
@@ -165,12 +177,13 @@ TEST(TestStart, StartLogger) {
 #endif
 
 TEST(TestStart, StartFailure) {
-  std::map<std::string, std::string> params;
-  params["program"] = "harness";
   std::string test_data_dir = mysql_harness::get_tests_data_dir(g_here.str());
-  params["prefix"] = test_data_dir;
 
-  mysql_harness::LoaderConfig config(params, std::vector<std::string>(),
+  mysql_harness::LoaderConfig config(std::map<std::string, std::string>{{
+                                         {"program", "harness"},
+                                         {"prefix", test_data_dir},
+                                     }},
+                                     std::vector<std::string>(),
                                      mysql_harness::Config::allow_keys);
   config.read(Path(test_data_dir).join("tests-start-1.cfg"));
   mysql_harness::Loader loader("harness", config);

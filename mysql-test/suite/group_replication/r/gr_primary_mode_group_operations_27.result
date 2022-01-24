@@ -34,7 +34,7 @@ include/assert.inc [The stage should be "Primary Election: waiting for members t
 # 6. Kill the primary selected when action was executed. Configure as
 #    single primary
 [connection server3]
-# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
 include/rpl_reconnect.inc
 
 # 7. Wait group detect exit of server3

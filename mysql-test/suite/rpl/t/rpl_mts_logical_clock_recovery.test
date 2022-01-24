@@ -3,6 +3,12 @@
 --source include/not_group_replication_plugin.inc
 -- source include/have_debug.inc
 -- source include/not_valgrind.inc
+# This test needs at least 3 MTA workers
+--let $option_name = replica_parallel_workers
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
 -- source include/master-slave.inc
 
 --let $debug_point=set_commit_parent_100
@@ -87,7 +93,9 @@ START SLAVE;
 -- echo # Reconnecting to the slave server
 -- source include/wait_until_connected_again.inc
 -- connection slave
+--disable_warnings
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+--enable_warnings
 
 # we need to send an additional event since the UNTIL CONDITION
 # needs an aditional event after the failed group to stop the slave

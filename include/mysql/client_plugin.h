@@ -62,7 +62,13 @@
 #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
 #else  /*_MSC_VER */
+
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#define MYSQL_PLUGIN_EXPORT MY_ATTRIBUTE((visibility("default")))
+#else
 #define MYSQL_PLUGIN_EXPORT
+#endif
+
 #endif
 
 #ifdef __cplusplus
@@ -75,8 +81,8 @@ extern "C" {
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN 2
 #define MYSQL_CLIENT_TRACE_PLUGIN 3
 
-#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION 0x0101
-#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION 0x0100
+#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION 0x0200
+#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION 0x0200
 
 #define MYSQL_CLIENT_MAX_PLUGINS 4
 
@@ -90,18 +96,19 @@ extern "C" {
 #define mysql_end_client_plugin }
 
 /* generic plugin header structure */
-#define MYSQL_CLIENT_PLUGIN_HEADER           \
-  int type;                                  \
-  unsigned int interface_version;            \
-  const char *name;                          \
-  const char *author;                        \
-  const char *desc;                          \
-  unsigned int version[3];                   \
-  const char *license;                       \
-  void *mysql_api;                           \
-  int (*init)(char *, size_t, int, va_list); \
-  int (*deinit)(void);                       \
-  int (*options)(const char *option, const void *);
+#define MYSQL_CLIENT_PLUGIN_HEADER                  \
+  int type;                                         \
+  unsigned int interface_version;                   \
+  const char *name;                                 \
+  const char *author;                               \
+  const char *desc;                                 \
+  unsigned int version[3];                          \
+  const char *license;                              \
+  void *mysql_api;                                  \
+  int (*init)(char *, size_t, int, va_list);        \
+  int (*deinit)(void);                              \
+  int (*options)(const char *option, const void *); \
+  int (*get_options)(const char *option, void *);
 
 struct st_mysql_client_plugin {
   MYSQL_CLIENT_PLUGIN_HEADER
@@ -207,6 +214,21 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
 **/
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+
+/**
+  get plugin options
+
+  Can be used to get options from a plugin.
+  This function may be called multiple times to get several options
+
+  @param plugin an st_mysql_client_plugin structure
+  @param option a string which specifies the option to get
+  @param[out] value  value for the option.
+
+  @retval 0 on success, 1 in case of failure
+**/
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                            const char *option, void *value);
 
 #ifdef __cplusplus
 }

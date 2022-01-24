@@ -87,18 +87,18 @@ class BlockReporter {
         m_page_size(page_size),
         m_skip_checksum(skip_checksum) {}
 
-  virtual ~BlockReporter() {}
+  virtual ~BlockReporter() = default;
   BlockReporter(const BlockReporter &) = default;
 
   /** Checks if a page is corrupt.
   @retval	true	if page is corrupt
   @retval	false	if page is not corrupt */
-  bool MY_ATTRIBUTE((warn_unused_result)) is_corrupted() const;
+  [[nodiscard]] bool is_corrupted() const;
 
   /** Checks if a page is encrypted.
   @retval	true	if page is encrypted
   @retval	false	if page is not encrypted */
-  bool is_encrypted() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool is_encrypted() const noexcept;
 
   /** Print message if page is empty.
   @param[in]	empty		true if page is empty */
@@ -191,8 +191,8 @@ class BlockReporter {
   uint32_t calc_zip_checksum(srv_checksum_algorithm_t algo,
                              bool use_legacy_big_endian = false) const;
 
-  static bool is_lsn_valid(const byte *frame, uint32_t page_size) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_lsn_valid(const byte *frame,
+                                         uint32_t page_size) noexcept;
 
  private:
   /** Checks if the page is in innodb checksum format.
@@ -230,8 +230,8 @@ class BlockReporter {
                                  srv_checksum_algorithm_t page_checksum,
                                  const page_id_t &page_id) const;
 
-  space_id_t space_id() const noexcept MY_ATTRIBUTE((warn_unused_result));
-  page_no_t page_no() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] space_id_t space_id() const noexcept;
+  [[nodiscard]] page_no_t page_no() const noexcept;
 
  protected:
   /** If true, do a LSN check during innodb recovery. */

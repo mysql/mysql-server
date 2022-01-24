@@ -53,7 +53,7 @@ class DefineBackupReq {
 
   friend bool printDEFINE_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength_v1 = 11 + NdbNodeBitmask48::Size);
+  static constexpr Uint32 SignalLength_v1 = 11 + NdbNodeBitmask48::Size;
 
 private:
   /**
@@ -111,7 +111,7 @@ class DefineBackupRef {
 
   friend bool printDEFINE_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   enum ErrorCode {
     Undefined = 1340,
@@ -147,7 +147,7 @@ class DefineBackupConf {
 
   friend bool printDEFINE_BACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 backupId;
@@ -169,7 +169,7 @@ class StartBackupReq {
   friend bool printSTART_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
 private:
   Uint32 backupId;
@@ -192,7 +192,7 @@ class StartBackupRef {
 
   friend bool printSTART_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     FailedToAllocateTriggerRecord = 1,
@@ -218,7 +218,7 @@ class StartBackupConf {
 
   friend bool printSTART_BACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 backupId;
@@ -240,7 +240,7 @@ class BackupFragmentReq {
 
   friend bool printBACKUP_FRAGMENT_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
   Uint32 backupId;
@@ -267,7 +267,7 @@ class BackupFragmentRef {
 
   friend bool printBACKUP_FRAGMENT_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 backupId;
@@ -290,7 +290,7 @@ class BackupFragmentConf {
 
   friend bool printBACKUP_FRAGMENT_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
 
 private:
   Uint32 backupId;
@@ -305,7 +305,7 @@ private:
 
 class BackupFragmentCompleteRep {
 public:
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
 
   Uint32 backupId;
   Uint32 backupPtr;
@@ -331,7 +331,7 @@ class StopBackupReq {
 
   friend bool printSTOP_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
 private:
   Uint32 backupId;
@@ -356,7 +356,7 @@ class StopBackupRef {
 
   friend bool printSTOP_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
 private:
   Uint32 backupId;
@@ -378,7 +378,7 @@ class StopBackupConf {
 
   friend bool printSTOP_BACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
 private:
   Uint32 backupId;
@@ -400,7 +400,7 @@ class BackupStatusReq {
 
   friend bool printBACKUP_STATUS_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
 private:
 };
@@ -418,7 +418,7 @@ class BackupStatusConf {
 
   friend bool printBACKUP_STATUS_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
 private:
 };

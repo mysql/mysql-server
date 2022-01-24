@@ -8,7 +8,7 @@ CREATE TABLE t1 (f INT) ENGINE= INNODB;
 include/sync_slave_sql_with_master.inc
 # Setup GLOBAL.DEBUG at slave to reach commit
 [connection slave]
-SET @@GLOBAL.DEBUG= '+d,dbug.reached_commit';
+# Adding debug point 'dbug.reached_commit' to @@GLOBAL.debug
 # Do some DML operation on master so that it will be blocked on
 # slave as global read lock is in place.
 [connection master]
@@ -23,7 +23,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
 [connection slave]
 SHOW SLAVE STATUS;
 UNLOCK TABLES;
-SET @@GLOBAL.DEBUG= '$debug_saved';
+# Removing debug point 'dbug.reached_commit' from @@GLOBAL.debug
 # Restart SQL thread so that it notices debug has changed
 include/restart_slave.inc
 [connection master]

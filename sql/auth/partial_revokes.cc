@@ -46,10 +46,10 @@ const std::string Restrictions("Restrictions");
 /**
   Abstract restriction constructor
 */
-Abstract_restrictions::Abstract_restrictions() {}
+Abstract_restrictions::Abstract_restrictions() = default;
 
 /** Abstract restriction destructor */
-Abstract_restrictions::~Abstract_restrictions() {}
+Abstract_restrictions::~Abstract_restrictions() = default;
 
 /**
   DB Restrictions constructor
@@ -562,7 +562,7 @@ Restrictions_aggregator::Restrictions_aggregator(
 }
 
 /** Destructor */
-Restrictions_aggregator::~Restrictions_aggregator() {}
+Restrictions_aggregator::~Restrictions_aggregator() = default;
 
 /**
   Constructor for database level restrictions aggregator
@@ -1441,14 +1441,6 @@ Restrictions::Restrictions() : m_db_restrictions() {}
 
 /** Destructor */
 Restrictions ::~Restrictions() { m_db_restrictions.clear(); }
-
-/**
-  Copy constructor for Restrictions
-
-  @param [in] restrictions Restrictions to be copied
-*/
-Restrictions::Restrictions(const Restrictions &restrictions)
-    : m_db_restrictions(restrictions.m_db_restrictions) {}
 
 /**
   Move constructor for Restrictions

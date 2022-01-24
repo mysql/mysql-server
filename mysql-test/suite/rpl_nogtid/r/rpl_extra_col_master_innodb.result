@@ -609,6 +609,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 *** Drop t14  ***
 DROP TABLE t14;
 DROP TABLE t14;
+RESET REPLICA;
 include/rpl_reset.inc
 
 *************************************************

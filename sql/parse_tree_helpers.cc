@@ -96,7 +96,8 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
 
   assert(pctx && spv);
 
-  if (lex->reparse_common_table_expr_at != 0) {
+  if (lex->reparse_common_table_expr_at != 0 ||
+      lex->reparse_derived_table_condition) {
     /*
       This variable doesn't exist in the original query: shouldn't be
       substituted for logging.

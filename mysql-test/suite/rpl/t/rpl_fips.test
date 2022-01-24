@@ -36,7 +36,7 @@ connection slave;
 source include/stop_slave.inc;
 --echo # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
 START SLAVE;
 --let $slave_io_errno= 2026
 --source include/wait_for_slave_io_error.inc
@@ -47,7 +47,7 @@ select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_conn
 connection slave;
 --source include/stop_slave.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'AES128-SHA';
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'AES128-SHA';
 source include/start_slave.inc;
 --source include/check_slave_no_error.inc
 

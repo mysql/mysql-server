@@ -68,3 +68,4 @@ SET @@global.log_slow_admin_statements= @old_log_slow_admin_statements;
 DROP PROCEDURE add_rows;
 DROP TABLE log_slow_admin_statements;
 TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

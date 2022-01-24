@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Verify that we can skip an incident event by setting --slave-skip-errors=1590
+# Verify that we can skip an incident event by setting --replica-skip-errors=1590
 # on slave.
 #
 # ==== Implementation ====
@@ -10,7 +10,7 @@
 #    big enough to accommodate the changes.
 #
 # 2. sync slave sql with master to verify that we can skip the incident event
-#    by setting --slave-skip-errors=1590 on slave.
+#    by setting --replica-skip-errors=1590 on slave.
 #
 # ==== References ====
 #
@@ -63,7 +63,7 @@ INSERT INTO t1 (c1, data) VALUES (2, 'b');
 
 --echo #
 --echo # Verify that we can skip the incident event by setting
---echo # --slave-skip-errors=1590 on slave.
+--echo # --replica-skip-errors=1590 on slave.
 --echo #
 --source include/sync_slave_sql_with_master.inc
 

@@ -79,4 +79,9 @@ int clone_handle_create(const char *plugin_name);
 @return error code */
 int clone_handle_drop();
 
+/** Check if it is safe to uninstall clone plugin.
+@param[in,out]	plugin_info	plugin
+@return error code */
+int clone_handle_check_drop(MYSQL_PLUGIN plugin_info);
+
 #endif

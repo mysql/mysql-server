@@ -182,7 +182,7 @@ class Ha_innopart_share : public Partition_share {
 
  private:
   /** Disable default constructor. */
-  Ha_innopart_share() {}
+  Ha_innopart_share() = default;
 
   /** Open one partition
   @param[in,out]	client		Data dictionary client
@@ -225,7 +225,7 @@ class ha_innopart : public ha_innobase,
  public:
   ha_innopart(handlerton *hton, TABLE_SHARE *table_arg);
 
-  ~ha_innopart() override;
+  ~ha_innopart() override = default;
 
   /** Clone this handler, used when needing more than one cursor
   to the same table.
@@ -543,7 +543,7 @@ class ha_innopart : public ha_innobase,
                                                      part_id);
   }
 
-  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const override {
+  uint alter_flags(uint flags [[maybe_unused]]) const override {
     return (HA_PARTITION_FUNCTION_SUPPORTED | HA_INPLACE_CHANGE_PARTITION);
   }
 
@@ -645,6 +645,9 @@ class ha_innopart : public ha_innobase,
   /** New partitions during ADD/REORG/... PARTITION. */
   Altered_partitions *m_new_partitions;
 
+  /** Can reuse the template for the previous partition. */
+  bool m_reuse_mysql_template;
+
   /** Clear used ins_nodes and upd_nodes. */
   void clear_ins_upd_nodes();
 
@@ -719,7 +722,7 @@ class ha_innopart : public ha_innobase,
   Therefore there's no need for a covering lock.
   @param[in]	no_lock	If locking should be skipped. Not used!
   @return	0 for success or error code. */
-  int initialize_auto_increment(bool no_lock MY_ATTRIBUTE((unused))) override;
+  int initialize_auto_increment(bool no_lock [[maybe_unused]]) override;
 
   /** Save currently highest auto increment value.
   @param[in]	nr	Auto increment value to save. */
@@ -867,10 +870,11 @@ class ha_innopart : public ha_innobase,
   use
   @param[in]  sampling_method     sampling method to be used; currently only
   SYSTEM sampling is supported
+  @param[in]  tablesample         true if the sampling is for tablesample
   @return 0 for success, else one of the HA_xxx values in case of error. */
   int sample_init(void *&scan_ctx, double sampling_percentage,
-                  int sampling_seed,
-                  enum_sampling_method sampling_method) override;
+                  int sampling_seed, enum_sampling_method sampling_method,
+                  const bool tablesample) override;
 
   /** Get the next record for sampling.
   @param[in]  scan_ctx  Scan context of the sampling
@@ -1145,5 +1149,9 @@ class ha_innopart : public ha_innobase,
   @param[in]	is_analyze	True if called from "::analyze()".
   @return	HA_ERR_* error code or 0. */
   int info_low(uint flag, bool is_analyze) override;
+
+  bool can_reuse_mysql_template() const override {
+    return m_reuse_mysql_template;
+  }
 };
 #endif /* ha_innopart_h */

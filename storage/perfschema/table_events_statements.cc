@@ -93,6 +93,7 @@ Plugin_table table_events_statements_current::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -164,6 +165,7 @@ Plugin_table table_events_statements_history::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -234,7 +236,8 @@ Plugin_table table_events_statements_history_long::m_table_def(
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
-    "  STATEMENT_ID BIGINT unsigned\n",
+    "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -317,8 +320,8 @@ int table_events_statements_common::make_row_part_1(
                         &m_row.m_timer_wait);
   m_row.m_lock_time = statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
@@ -364,6 +367,7 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_sort_scan = statement->m_sort_scan;
   m_row.m_no_index_used = statement->m_no_index_used;
   m_row.m_no_good_index_used = statement->m_no_good_index_used;
+  m_row.m_cpu_time = statement->m_cpu_time * NANOSEC_TO_PICOSEC;
 
   /* Copy the digest storage. */
   digest->copy(&statement->m_digest_storage);
@@ -627,6 +631,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
             f->set_null();
           }
           break;
+        case 42: /* CPU_TIME */
+          set_field_ulonglong(f, m_row.m_cpu_time);
+          break;
         default:
           assert(false);
       }
@@ -792,7 +799,7 @@ ha_rows table_events_statements_current::get_row_count(void) {
   return global_thread_container.get_row_count() * statement_stack_max;
 }
 
-int table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_events_statements_current::index_init(uint idx [[maybe_unused]],
                                                 bool) {
   PFS_index_events_statements *result;
   assert(idx == 0);
@@ -952,7 +959,7 @@ ha_rows table_events_statements_history::get_row_count(void) {
          global_thread_container.get_row_count();
 }
 
-int table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_events_statements_history::index_init(uint idx [[maybe_unused]],
                                                 bool) {
   PFS_index_events_statements *result;
   assert(idx == 0);

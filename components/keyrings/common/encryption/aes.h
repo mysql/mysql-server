@@ -63,7 +63,7 @@ class Aes_operation_context final {
  public:
   Aes_operation_context(const std::string data_id, const std::string auth_id,
                         const std::string mode, size_t block_size);
-  ~Aes_operation_context() {}
+  ~Aes_operation_context() = default;
   const std::string data_id() const { return data_id_; }
   const std::string auth_id() const { return auth_id_; }
   Keyring_aes_opmode opmode() const { return opmode_; }

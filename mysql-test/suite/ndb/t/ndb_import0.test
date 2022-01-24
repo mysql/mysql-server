@@ -707,10 +707,88 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --let $assert_count=1
 --source include/assert_grep.inc
 
+create table t10 (
+  a int primary key,
+  b int not null,
+  c varchar(16) not null
+) engine=ndb CHARACTER SET latin1;
+
+--write_file $MYSQLTEST_VARDIR/tmp/t10_no_match.csv
+1,180,"Maximilien"
+2,175,"Jean-Jacques"
+3,168,"Denis"
+4,175,"Georges"
+5,174,"William"
+EOF
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+# Look for the specific error message from ndb_import
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=No --table argument and csv filename does not match any table name
+--let $assert_select=No such table existed
+--let $assert_count=1
+--source include/assert_grep.inc
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv --table=t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+delete from t10;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cnq
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t10ver like t10;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t10_no_match.csv'
+into table t10ver
+fields terminated by ',' enclosed by '"'
+lines terminated by $lt_unix;
+--enable_query_log
+
+select count(*) from t10 x, t10ver y
+where x.a = y.a and x.b = y.b and x.c = y.c;
+
+delete from t10;
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=r
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--echo # check .rej file exists and match the input csv filename
+--file_exists $MYSQLTEST_VARDIR/tmp/t10_no_match.rej
+
+--echo # check .rej file matching the table name does not exists
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/t10.rej
+
+
+delete from t10;
+
+--echo # check order matters when using --csvopt and --fields-terminated-by
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cqn
+ --fields-terminated-by=':'
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --fields-terminated-by=':'
+ --csvopt=cqn
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+
 drop table tpersons;
 
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
-           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
+           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver;
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map

@@ -73,7 +73,7 @@ namespace mysql_harness {
 template <typename T>
 class UniquePtr : public std::unique_ptr<T, std::function<void(T *)>> {
  public:
-  UniquePtr() {}
+  UniquePtr() = default;
 
   UniquePtr(T *ptr, std::function<void(T *)> deleter = std::default_delete<T>())
       : std::unique_ptr<T, std::function<void(T *)>>(ptr, deleter) {}

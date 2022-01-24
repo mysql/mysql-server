@@ -40,13 +40,28 @@ uint64_t My_xp_util::getsystime() { return my_getsystime(); }
 int My_xp_socket_util_impl::disable_nagle_in_socket(int fd) {
   int ret = -1;
   if (fd != -1) {
-    int optval = 1;
-    /* Casting optval to char * so Windows does not complain. */
-    ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval,
-                     static_cast<socklen_t>(sizeof(int)));
+    int optval;
+    socklen_t optval_size = static_cast<socklen_t>(sizeof(int));
+    ret =
+        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval, &optval_size);
+
+    if (ret < 0) goto err;
+
+    if (optval == 0) {
+      optval = 1;
+      ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval,
+                       static_cast<socklen_t>(sizeof(int)));
+    } else {
+      MYSQL_GCS_LOG_INFO("TCP_NODELAY already set");
+      ret = 0;
+    }
   }
-  if (ret < 0)
-    MYSQL_GCS_LOG_ERROR(
-        "Error manipulating a connection's socket. Error: " << errno)
+
+err:
+  if (ret < 0) {
+    MYSQL_GCS_LOG_ERROR("Error manipulating a connection's socket. FD= "
+                        << fd << " Ret = " << ret << " Error: " << errno)
+    assert(0);
+  }
   return ret;
 }

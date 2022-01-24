@@ -1438,8 +1438,7 @@ done:
   @retval false    value OK, go ahead and update system variable (from "save")
   @retval true     value rejected, do not update variable
 */
-static int check_var_filter_rules(MYSQL_THD thd,
-                                  SYS_VAR *self MY_ATTRIBUTE((unused)),
+static int check_var_filter_rules(MYSQL_THD thd, SYS_VAR *self [[maybe_unused]],
                                   void *save, struct st_mysql_value *value) {
   int ret;
   log_filter_ruleset *log_filter_temp_rules;
@@ -1507,8 +1506,8 @@ static int check_var_filter_rules(MYSQL_THD thd,
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (from check function)
 */
-static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                    SYS_VAR *self MY_ATTRIBUTE((unused)),
+static void update_var_filter_rules(MYSQL_THD thd [[maybe_unused]],
+                                    SYS_VAR *self [[maybe_unused]],
                                     void *var_ptr, const void *save) {
   const char *state = nullptr;
   const char *new_val = *(static_cast<const char **>(const_cast<void *>(save)));
@@ -1542,7 +1541,7 @@ static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @returns          int                 Number of matched rules
 */
 DEFINE_METHOD(int, log_service_imp::run,
-              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
+              (void *instance [[maybe_unused]], log_line *ll)) {
   return log_bf->filter_run(log_filter_dragnet_rules, ll);
 }
 
@@ -1565,7 +1564,7 @@ DEFINE_METHOD(int, log_service_imp::run,
   @returns  otherwise                  A new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
-              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
+              (log_line * ll [[maybe_unused]], void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
@@ -1610,7 +1609,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   @returns  LOG_SERVICE_NOTHING_DONE       no work was done
 */
 DEFINE_METHOD(log_service_error, log_service_imp::flush,
-              (void **instance MY_ATTRIBUTE((unused)))) {
+              (void **instance [[maybe_unused]])) {
   return LOG_SERVICE_NOTHING_DONE;
 }
 

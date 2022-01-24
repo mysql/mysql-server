@@ -39,7 +39,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 
 --echo #
 --echo # TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER configured
@@ -125,4 +125,9 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 # Clean up
 --source include/rpl_connection_master.inc
 DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--connection slave
+SET GLOBAL relay_log_info_repository="FILE";
+--source include/start_slave.inc
 --source include/rpl_end.inc

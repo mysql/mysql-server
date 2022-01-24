@@ -97,10 +97,10 @@ char *mysqlx_generate_document_id(UDF_INIT *, UDF_ARGS *args, char *result,
         *is_null = 1;
         return nullptr;
       }
-      // fallthrough
+      [[fallthrough]];
     case 2:
       increment = *reinterpret_cast<long long *>(args->args[1]);
-      // fallthrough
+      [[fallthrough]];
     case 1:
       offset = *reinterpret_cast<long long *>(args->args[0]);
   }

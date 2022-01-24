@@ -120,9 +120,10 @@ class Abstract_program : public Options::Composite_options_provider {
     Redirects call to option_parsed of main Abstract_program instance.
     If we have anonymous functions or binding this should be removed.
   */
-  static bool callback_option_parsed(
-      int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-      char *argument);
+  static bool callback_option_parsed(int optid,
+                                     const struct my_option *opt
+                                     [[maybe_unused]],
+                                     char *argument);
 
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;

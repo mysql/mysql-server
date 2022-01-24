@@ -82,6 +82,7 @@ set sql_log_bin=1;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 # Wait until group has only 2 members, that is, server2's death is detected by
 # the group.
 --echo # check that there are 2 members in the group

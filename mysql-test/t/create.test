@@ -841,7 +841,6 @@ create table t1(f1 int,f2 int);
 insert into t1 value(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
 flush status;
 create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 drop table t1,t2;
 --enable_ps_protocol
@@ -2271,28 +2270,46 @@ DROP PROCEDURE p1;
 --echo #
 --echo # Bug#32227101: CREATE TABLE PRODUCES CORE
 --echo #
+--echo # Bug#33114368: 'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+--echo # DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+--echo #
+--echo # These issues are related and arise from insufficient input checking
+--echo # of numeric table options.
+--echo # From bug#33114368 we see that even if no overflow occurs on CREATE,
+--echo # there can be a risk of overflow when the option value is used
+--echo # elsewhere.
+--echo # The safest thing to do is to constrain values to the largest
+--echo # value permitted by the frm-file format (unless the range of the option
+--echo # value has been explicitly changed in 8.0).
+--echo #
+--echo # key_block_size, parser type: signed_num (int)
+--echo # std::uint32_t HA_CREATE_INFO::key_block_size
+--echo # 2 bytes in frm
+--echo # Only settable for myisam, but also used in Innodb
 
---echo # key_block_size = 2^31-1 - rejected by Innodb
---error ER_ILLEGAL_HA
+--echo # key_block_size = 2^31-1 - rejected by explicit check 
+--error ER_PARSE_ERROR
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
 
---echo # key_block_size = -(2^31)+1 - rejected by Innodb
---error ER_ILLEGAL_HA
+--echo # key_block_size = -(2^31)+1 - rejected by parser (parser switched
+--echo # back to using ulong_num now that there is an explicit check).
+--error ER_PARSE_ERROR
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
 
---echo # key_block_size = 2^31 - now rejected by parser
+--echo # key_block_size = 2^31 - rejected by explicit check
 --error ER_PARSE_ERROR
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
 
---echo # key_block_size = -2^31 - now rejected by parser
+--echo # key_block_size = -2^31 - rejected by parser (parser switched
+--echo # back to using ulong_num now that there is an explicit check).
 --error ER_PARSE_ERROR
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
 
---echo # key_block_size = 2^32-1 - now rejected by parser
+--echo # key_block_size = 2^32-1 - rejected by explicit check
 --error ER_PARSE_ERROR
 CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
 
---echo # key_block_size = 2^32 - now rejected by parser
+--echo # key_block_size = 2^32 - rejected by explicit check
 --error ER_PARSE_ERROR
 CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
 
@@ -2304,4 +2321,51 @@ c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY
 c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
 c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
 ) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
+
+--echo # Only values which will fit in the two bytes allocated in the frm file
+--echo # format are accepted.
+CREATE TABLE t1(a INT) ENGINE=myisam key_block_size=65535;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #33114368	'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+--echo # DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+--echo #
+
+--echo # avg_row_length, parser type: ulong_num (ulong) 
+--echo # ulong HA_CREATE_INFO::avg_row_length
+--echo # 4 bytes in frm
+--error ER_PARSE_ERROR
+CREATE TABLE t1(a INT) avg_row_length=18446744073709551615;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(a INT) avg_row_length=4294967296;
+
+--echo # Only values which will fit in the four bytes allocated in the frm file
+--echo # format are accepted.
+CREATE TABLE t1(a INT) avg_row_length=4294967295;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+--echo # max_rows, parser type: ulonglong_num (ulonglong)
+--echo # ulonglong HA_CREATE_INFO::max_rows
+--echo # 4 bytes in frm
+--echo # max_rows is capped and a warning produced
+CREATE TABLE t1(a INT) max_rows=18446744073709551615;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+--echo # min_rows, parser type: ulonglong_num (ulonglong)
+--echo # ulonglong HA_CREATE_INFO::min_rows
+--echo # 4 bytes in frm
+--echo # min_rows is capped and a warning produced
+CREATE TABLE t1(a INT) min_rows=18446744073709551615;
+--replace_column 12 @ts@ 13 @ts@
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
 

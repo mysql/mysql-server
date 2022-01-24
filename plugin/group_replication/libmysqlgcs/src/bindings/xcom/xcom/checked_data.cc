@@ -20,17 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdlib.h> /* malloc */
 #include <string.h> /* memcpy */
 
 #include "xcom/checked_data.h"
+#include "xcom/xcom_memory.h"
 
 bool_t copy_checked_data(checked_data *const to,
                          checked_data const *const from) {
   bool_t copied = FALSE;
 
   to->data_len = 0;
-  to->data_val = (char *)malloc(from->data_len * sizeof(char));
+  to->data_val = (char *)xcom_malloc(from->data_len * sizeof(char));
   if (to->data_val != NULL) {
     to->data_len = from->data_len;
     memcpy(to->data_val, from->data_val, from->data_len);

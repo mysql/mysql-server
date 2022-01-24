@@ -72,7 +72,7 @@ Master D	4	D
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 lock table t1 write  /* must block B_2^6 coming */;

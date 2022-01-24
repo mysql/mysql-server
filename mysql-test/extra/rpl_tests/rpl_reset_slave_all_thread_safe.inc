@@ -2,7 +2,7 @@
 
 --source include/rpl_connection_slave1.inc
 
-# Make sure master_pos_wait is waiting.
+# Make sure source_pos_wait is waiting.
 SET debug_sync = "now WAIT_FOR wait_func_begin";
 --source include/stop_slave.inc
 
@@ -11,11 +11,11 @@ SET debug_sync = "now WAIT_FOR wait_func_begin";
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-# RESET SLAVE ALL is blocked by master_pos_wait and show correct state.
+# RESET SLAVE ALL is blocked by source_pos_wait and show correct state.
 --let $wait_condition= SELECT count(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for no channel reference."
 --source include/wait_condition.inc
 
-# resume master_pos_wait
+# resume source_pos_wait
 SET debug_sync = "now signal wait_func_continue";
 
 --source include/rpl_connection_slave1.inc

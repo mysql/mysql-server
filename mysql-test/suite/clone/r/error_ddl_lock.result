@@ -3,8 +3,15 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 Variable_name	Value
 clone_ddl_timeout	300
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	OFF
 # Set backup lock timeout to 1 sec
+SET GLOBAL clone_block_ddl = true;
 SET GLOBAL clone_ddl_timeout = 1;
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	ON
 SHOW VARIABLES LIKE 'clone_ddl_timeout';
 Variable_name	Value
 clone_ddl_timeout	1
@@ -14,7 +21,7 @@ lock_wait_timeout	1
 # In connection DEFAULT
 # 1A. Clone while CREATE TABLE in progress
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 CREATE TABLE t1 (col1 INT PRIMARY KEY);
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -72,7 +79,7 @@ Variable_name	Value
 Innodb_redo_log_enabled	ON
 # 1C. Clone while ALTER INSTANCE in progress
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER INSTANCE DISABLE INNODB REDO_LOG;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -107,7 +114,7 @@ col1
 20
 30
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -162,7 +169,7 @@ col1	col2
 20	1020
 30	1030
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -221,7 +228,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -276,7 +283,7 @@ t1	CREATE TABLE `t1` (
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -345,7 +352,7 @@ t1	CREATE TABLE `t1` (
   KEY `col3_idx` (`col3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -400,7 +407,7 @@ t1	CREATE TABLE `t1` (
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -450,7 +457,7 @@ col1	col2	col3
 20	1020	2020
 30	1030	2030
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 TRUNCATE TABLE t1;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
@@ -497,7 +504,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 6B. Clone while DROP TABLE in progress
 # In connection CON1
-SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL resume_clone WAIT_FOR resume_ddl';
 DROP TABLE t1;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';

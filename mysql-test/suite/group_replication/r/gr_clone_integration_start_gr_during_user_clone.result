@@ -55,6 +55,7 @@ SET DEBUG_SYNC = 'RESET';
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 DROP TABLE test.t1;
 include/rpl_sync.inc
 SET SESSION sql_log_bin=0;

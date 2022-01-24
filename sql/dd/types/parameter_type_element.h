@@ -45,7 +45,7 @@ class Parameter_type_element : virtual public Weak_object {
   typedef tables::Parameter_type_elements DD_table;
 
  public:
-  ~Parameter_type_element() override {}
+  ~Parameter_type_element() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // Name

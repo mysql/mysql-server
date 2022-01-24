@@ -36,6 +36,7 @@ Group=mysqlrouter
 Type=notify
 ExecStartPre=/usr/share/mysqlrouter/mysqlrouter-systemd-start pre
 ExecStart=/usr/bin/mysqlrouter
+EnvironmentFile=-/etc/default/mysql
 LimitNOFILE = 10000
 Restart=on-failure
 PrivateTmp=true

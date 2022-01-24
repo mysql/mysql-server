@@ -1,0 +1,137 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in multi-primary mode on server1 and server2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Configure a failover channel on server1 that replicates
+#    from server3.
+[connection server3]
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_3, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc [Verify replica_monitor thread is running]
+
+############################################################
+# 3. Configure the same failover channel on server2.
+#    In single-primary mode, the mode to which we will change,
+#    the failover channels must exist on all members.
+#    The channel is created with SOURCE_CONNECTION_AUTO_FAILOVER=0
+#    to show that it will change to SOURCE_CONNECTION_AUTO_FAILOVER=1
+#    when group mode changes to single-primary mode.
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+############################################################
+# 4. Add some failovers sources to server2 that will be replaced
+#    when server1 becomes the primary in single-primary mode.
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.2', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch1', '10.0.0.2', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	10.0.0.1	3306		50	
+ch1	10.0.0.2	3306		50	
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover';
+name	version
+replication_asynchronous_connection_failover	2
+
+############################################################
+# 5. Change to single-primary mode.
+#    The primary must be server1, since when a member has
+#    replication channels running it must be the primary.
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 6. Validate that server1 replication failover channels
+#    configuration is preserved, and that it did replace the
+#    one on server2.
+[connection server1]
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc ['Validate the number of workers on performance_schema.replication_applier_status_by_worker table for channel ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	127.0.0.1	PORT		50	
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover';
+name	version
+replication_asynchronous_connection_failover	1
+[connection server2]
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is OFF]
+include/assert.inc [Verify replica_monitor thread is not running]
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	127.0.0.1	PORT		50	
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover';
+name	version
+replication_asynchronous_connection_failover	1
+
+############################################################
+# 7. server1 leaves the group.
+#    server2 is the new primary and does start the failover
+#    channel.
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/gr_wait_primary_member_uuid.inc
+include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc ['Validate the number of workers on performance_schema.replication_applier_status_by_worker table for channel ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
+ch1	127.0.0.1	PORT		50	
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover';
+name	version
+replication_asynchronous_connection_failover	1
+
+############################################################
+# 8. Clean up.
+[connection server2]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server1]
+include/rpl_reset_slave.inc
+[connection server3]
+include/stop_dump_threads.inc
+include/group_replication_end.inc

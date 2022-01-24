@@ -525,7 +525,7 @@ CREATE TABLE t1 (i INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @@session.sql_mode=1436549152;
 CREATE PROCEDURE p1() SET @@session.sql_mode=1436549152;
 
---echo # pseudo_slave_mode is "off", assignment should fail as before:
+--echo # pseudo_replica_mode is "off", assignment should fail as before:
 
 --error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode=1436549152;
@@ -541,10 +541,10 @@ SELECT @@session.sql_mode;
 
 --echo #
 
-SET @session_pseudo_slave_mode = @@session.pseudo_slave_mode;
-SET @@session.pseudo_slave_mode = TRUE;
+SET @session_pseudo_replica_mode = @@session.pseudo_replica_mode;
+SET @@session.pseudo_replica_mode = TRUE;
 
---echo # pseudo_slave_mode is "on", assignment should succeed:
+--echo # pseudo_replica_mode is "on", assignment should succeed:
 
 SET @@session.sql_mode=1436549152;
 SELECT @@session.sql_mode;
@@ -566,7 +566,7 @@ SELECT @@session.sql_mode;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
-SET @@session.pseudo_slave_mode = @session_pseudo_slave_mode;
+SET @@session.pseudo_replica_mode = @session_pseudo_replica_mode;
 SET @@session.sql_mode = DEFAULT;
 
 ##############################

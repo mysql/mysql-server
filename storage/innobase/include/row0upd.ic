@@ -41,9 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Creates an update vector object.
  @return own: update vector object */
-UNIV_INLINE
-upd_t *upd_create(ulint n,          /*!< in: number of fields */
-                  mem_heap_t *heap) /*!< in: heap from which memory allocated */
+static inline upd_t *upd_create(
+    ulint n,          /*!< in: number of fields */
+    mem_heap_t *heap) /*!< in: heap from which memory allocated */
 {
   upd_t *update;
 
@@ -65,8 +65,8 @@ upd_t *upd_create(ulint n,          /*!< in: number of fields */
 /** Returns the number of fields in the update vector == number of columns
  to be updated by an update vector.
  @return number of fields */
-UNIV_INLINE
-ulint upd_get_n_fields(const upd_t *update) /*!< in: update vector */
+static inline ulint upd_get_n_fields(
+    const upd_t *update) /*!< in: update vector */
 {
   ut_ad(update);
 
@@ -76,8 +76,7 @@ ulint upd_get_n_fields(const upd_t *update) /*!< in: update vector */
 #ifdef UNIV_DEBUG
 /** Returns the nth field of an update vector.
  @return update vector field */
-UNIV_INLINE
-upd_field_t *upd_get_nth_field(
+static inline upd_field_t *upd_get_nth_field(
     const upd_t *update, /*!< in: update vector */
     ulint n)             /*!< in: field position in update vector */
 {
@@ -89,8 +88,7 @@ upd_field_t *upd_get_nth_field(
 #endif /* UNIV_DEBUG */
 
 /** Sets an index field number to be updated by an update vector field. */
-UNIV_INLINE
-void upd_field_set_field_no(
+static inline void upd_field_set_field_no(
     upd_field_t *upd_field,    /*!< in: update vector field */
     ulint field_no,            /*!< in: field number in a clustered
                                index */
@@ -115,9 +113,9 @@ void upd_field_set_field_no(
 @param[in,out]	upd_field	update vector field
 @param[in]	field_no	virtual column sequence num
 @param[in]	index		index */
-UNIV_INLINE
-void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
-                              const dict_index_t *index) {
+static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
+                                            ulint field_no,
+                                            const dict_index_t *index) {
   upd_field->field_no = field_no;
   upd_field->orig_len = 0;
 
@@ -135,8 +133,7 @@ void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
 
 /** Returns a field of an update vector by field_no.
  @return update vector field, or NULL */
-UNIV_INLINE
-const upd_field_t *upd_get_field_by_field_no(
+static inline const upd_field_t *upd_get_field_by_field_no(
     const upd_t *update, /*!< in: update vector */
     ulint no,            /*!< in: field_no */
     bool is_virtual)     /*!< in: if it is virtual column */
@@ -161,8 +158,7 @@ const upd_field_t *upd_get_field_by_field_no(
 #ifndef UNIV_HOTBACKUP
 /** Updates the trx id and roll ptr field in a clustered index record when
  a row is updated or marked deleted. */
-UNIV_INLINE
-void row_upd_rec_sys_fields(
+static inline void row_upd_rec_sys_fields(
     rec_t *rec,                /*!< in/out: record */
     page_zip_des_t *page_zip,  /*!< in/out: compressed page whose
                               uncompressed part will be updated, or NULL */

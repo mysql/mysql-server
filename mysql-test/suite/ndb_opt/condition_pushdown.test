@@ -2574,22 +2574,20 @@ drop table t1;
 
 create table t1
 (
-  a int,
-  b varchar(30),
-  primary key(a)
+  b varchar(30)
 ) engine = ndb ;
 
-insert into t1 values (1,'one');
-insert into t1 values (2,'two');
-insert into t1 values (3,'three');
-insert into t1 values (4,'four');
-insert into t1 values (5,'five');
-insert into t1 values(0,NULL);
-insert into t1 values(10,NULL);
-insert into t1 values(20,NULL);
-insert into t1 values(30,NULL);
-insert into t1 values(40,NULL);
-insert into t1 values(50,NULL);
+insert into t1 values ('one');
+insert into t1 values ('two');
+insert into t1 values ('three');
+insert into t1 values ('four');
+insert into t1 values ('five');
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
 
 let $prepare =
   select @read_cnt:=variable_value
@@ -2597,7 +2595,7 @@ let $prepare =
     where variable_name = 'Ndb_api_read_row_count';
 
 # Verify that number of rows in result is same as
-# number of rows retuned by the ScanFilter.
+# number of rows returned by the ScanFilter.
 let $verify_row_count =
   select
     @count as result_rows,
@@ -2682,6 +2680,96 @@ eval $prepare;
 select @count:=count(*) from t1 where not b not like 'five';
 --enable_result_log
 eval $verify_row_count;
+
+--echo #
+--echo # WL#14476 Introduce NdbScanFilter option for NULL-compare according to SQL semantics
+--echo #
+--echo # Test case for checking the pre-WL behaviour. Disable NULL semantics added
+--echo # by WL -> force old behaviour of still needing explicit NULL check.
+--echo #
+--echo # Test cases are the same as added for Bug#28643463 above.
+--echo #
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if ($have_debug)
+{
+  SET DEBUG='+d,disable_sql_null_cmp';
+}
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '= 'five''
+select @count:=count(*) from t1 where b = 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<> 'five''
+select @count:=count(*) from t1 where b <> 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '< 'five''
+select @count:=count(*) from t1 where b < 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '> 'five''
+select @count:=count(*) from t1 where b > 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<= 'five''
+select @count:=count(*) from t1 where b <= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '>= 'five''
+select @count:=count(*) from t1 where b >= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'like 'five''
+select @count:=count(*) from t1 where b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not like 'five''
+select @count:=count(*) from t1 where b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> like 'five''
+select @count:=count(*) from t1 where not b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> not like 'five''
+select @count:=count(*) from t1 where not b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+if ($have_debug)
+{
+  SET DEBUG='-d,disable_sql_null_cmp';
+}
 
 --echo #
 --echo # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
@@ -3513,7 +3601,7 @@ DROP TABLE t1;
 #   pushed when compared against the other similar columns.
 
 CREATE TABLE t1 (
-  pk int unsigned NOT NULL PRIMARY KEY,
+  k int unsigned NOT NULL,
 
   string1 char(10),
   vstring1 varchar(10),
@@ -3689,17 +3777,6 @@ END //
 DELIMITER ;//
 
 
-# Construct a test query fetching a single rows pk.
-DELIMITER //;
-CREATE FUNCTION get_pk_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
-BEGIN
-  SET @column1 = CONCAT(get_column(col1),"1");
-  SET @column2 = CONCAT(get_column(col2),"2");
-  RETURN CONCAT("SELECT pk INTO @res FROM t1 WHERE ", @column1, op, @column2);
-END //
-DELIMITER ;//
-
-
 # Construct a test query fetching the count(*) of rows qualifying the condition
 DELIMITER //;
 CREATE FUNCTION get_count_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
@@ -3824,20 +3901,20 @@ CALL test_all(">=");
 --echo Even if the base type is the same for these conditions,
 --echo different precision, length, scale etc. should prevent pushing:
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vbin1 = vbin3",false);
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE flags1 = flags3",false);
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
 
 
 --echo Test that <col1> like <col2> is not pushed, - even if types are comparable
@@ -3853,10 +3930,112 @@ CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string
 --disable_query_log
 DROP PROCEDURE test_all;
 DROP PROCEDURE test_query;
-DROP FUNCTION get_pk_query;
 DROP FUNCTION get_count_query;
 DROP FUNCTION get_column;
 
 DROP TABLE t1;
 
 --enable_query_log
+
+
+--echo #
+--echo # Bug#32924533 Conditions not pushed down to tables inside views and table-subqueries
+--echo #
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+create view v1(a,b,c,d) as
+  select a,b,c,d from t1;
+
+# The condition refering the view should be pushed down to t1
+# referred by the view as a pushed condition - NOT end up as
+# a server side FILTER on the full t1 table scan.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,v1
+  where v1.d < 5;
+
+# Similar query where the view is replaced with its equivalent table subquery:
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+drop view v1;
+drop table t1;
+
+
+--echo #########################################################
+--echo # WL#14388 Push condition referring fields from an
+--echo            SPJ ancestor table
+--echo #########################################################
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b)
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Turn of BNL, as it would prevent condition pushdown
+# referring 'other' tables.
+set optimizer_switch='block_nested_loop=off';
+
+# Below query can not push t1 join t2 as there are no index on column 'd'.
+# t2 join t3 will be pushed. Thus, t1 is a 'const_expr_table' with regard to
+# the pushed join of 't2 join t3'
+# 1) Thus the predicate 't3.c >= t1.c' should be pushed as t1 is a 'const'
+# 2) In predicate 't3.c <= t2.c, t2 may be a param when WL#14388 is complete.
+#
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.a
+where t3.c >= t1.c and t3.c <= t2.c;
+
+drop table t1;

@@ -73,7 +73,7 @@ class Binlog_read_error {
     ERROR_DECRYPTING_FILE
   };
 
-  Binlog_read_error() {}
+  Binlog_read_error() = default;
   Binlog_read_error(Error_type type) : m_type(type) {}
 
   bool has_error() { return m_type != SUCCESS; }

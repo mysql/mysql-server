@@ -141,6 +141,10 @@ class Addon_fields {
 
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
+    if (using_packed_addons()) {
+      assert(sz + Addon_fields::size_of_length_field > sz);
+      sz += Addon_fields::size_of_length_field;
+    }
     if (m_addon_buf != nullptr) {
       assert(m_addon_buf_length == sz);
       return m_addon_buf;
@@ -298,7 +302,6 @@ class Sort_param {
   uint max_rows_per_buffer{0};  // Max (unpacked) rows / buffer.
   ha_rows max_rows{0};          // Select limit, or HA_POS_ERROR if unlimited.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
-  bool m_force_stable_sort{false};  // Keep relative order of equal elements
   bool m_remove_duplicates{
       false};  ///< Whether we want to remove duplicate rows
 
@@ -442,6 +445,8 @@ class Sort_param {
    */
   void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl);
 
+  // NOTE: Even with FILESORT_ALG_STD_STABLE, we do not necessarily have a
+  // stable sort if spilling to disk; this is purely a performance option.
   enum enum_sort_algorithm {
     FILESORT_ALG_NONE,
     FILESORT_ALG_STD_SORT,

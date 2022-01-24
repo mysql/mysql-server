@@ -5568,7 +5568,7 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Backward index scan; Using temporary
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const,const	2	100.00	Using where; Backward index scan; Using temporary
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`c2` = 0 where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 FLUSH STATUS;
@@ -5591,10 +5591,12 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "c1_idx",
         "used_key_parts": [
-          "c1_idx"
+          "c1_idx",
+          "pk"
         ] /* used_key_parts */,
         "key_length": "5",
         "ref": [
+          "const",
           "const"
         ] /* ref */,
         "rows_examined_per_scan": 2,
@@ -5674,7 +5676,7 @@ Handler_update	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Backward index scan
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const,const	2	100.00	Using where; Backward index scan
 Warnings:
 Note	1003	delete from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 FLUSH STATUS;
@@ -5696,10 +5698,12 @@ EXPLAIN
         ] /* possible_keys */,
         "key": "c1_idx",
         "used_key_parts": [
-          "c1_idx"
+          "c1_idx",
+          "pk"
         ] /* used_key_parts */,
         "key_length": "5",
         "ref": [
+          "const",
           "const"
         ] /* ref */,
         "rows_examined_per_scan": 2,
@@ -6352,7 +6356,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t12	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 Warnings:
-Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1
+Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1
 UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SET SESSION sql_safe_updates = DEFAULT;
@@ -6371,7 +6375,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1 where (`t11`.`a` > 0)
+Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1 where (`test`.`t11`.`a` > 0)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value

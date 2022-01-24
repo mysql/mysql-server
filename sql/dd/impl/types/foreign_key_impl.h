@@ -60,7 +60,7 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
 
   Foreign_key_impl(const Foreign_key_impl &src, Table_impl *parent);
 
-  ~Foreign_key_impl() override {}
+  ~Foreign_key_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

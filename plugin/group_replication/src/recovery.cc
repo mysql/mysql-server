@@ -309,6 +309,20 @@ single_member_online:
   */
   if (!recovery_aborted) applier_module->awake_applier_module();
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_before_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_before_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_before_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
+
   error = wait_for_applier_module_recovery();
 
 cleanup:
@@ -347,14 +361,14 @@ cleanup:
 
   recovery_aborted = true;  // to avoid the start missing signals
   delete recovery_thd;
-  recovery_thd_state.set_terminated();
-  mysql_cond_broadcast(&run_cond);
-  mysql_mutex_unlock(&run_lock);
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
+  recovery_thd_state.set_terminated();
+  mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
   my_thread_exit(nullptr);
 
   return error; /* purecov: inspected */
@@ -526,6 +540,13 @@ int Recovery_module::wait_for_applier_module_recovery() {
   if (applier_module->get_applier_status() == APPLIER_ERROR &&
       !recovery_aborted)
     return 1; /* purecov: inspected */
+
+  /*
+    Take View_change_log_event transaction into account, that
+    despite being queued on applier channel was applied through
+    recovery channel.
+  */
+  pipeline_stats->decrement_transactions_waiting_apply();
 
   return 0;
 }

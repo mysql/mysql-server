@@ -7,14 +7,14 @@ include/install_semisync.inc
 SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 SET @@GLOBAL.BINLOG_ORDER_COMMITS= FALSE;
-SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+SET GLOBAL rpl_semi_sync_source_timeout= 600000;
 #
 # Verify it on AFTER_SYNC wait point
 # ==============================================================
 # Flush error happens before AFTER_SYNC wait point. So
 #
 [connection master]
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 # Disable diff_table test
 # Test tables with MyISAM engine when disabling diff_table and
 # simulating flush error
@@ -46,7 +46,7 @@ include/sync_slave_sql_with_master.inc
 # ==============================================================
 #
 [connection master]
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 # Disable diff_table test
 # Test tables with MyISAM engine when disabling diff_table and
 # simulating flush error

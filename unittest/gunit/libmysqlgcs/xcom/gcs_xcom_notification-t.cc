@@ -36,7 +36,7 @@ class Dummy_notification : public Parameterized_notification<false> {
   Dummy_notification(void (*functor)(int &), int &val)
       : m_functor(functor), m_val(val) {}
 
-  ~Dummy_notification() override {}
+  ~Dummy_notification() override = default;
 
   void (*m_functor)(int &);
   int &m_val;

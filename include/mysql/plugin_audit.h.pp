@@ -171,6 +171,7 @@ enum enum_server_command {
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
   COM_CLONE,
+  COM_SUBSCRIBE_GROUP_REPLICATION_STREAM,
   COM_END
 };
 #include "my_sqlcommand.h"

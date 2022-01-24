@@ -51,7 +51,7 @@ class NodeStateRep {
   friend class Dbtup;
 
 public:
-  STATIC_CONST( SignalLength = NodeState::DataLength );
+  static constexpr Uint32 SignalLength = NodeState::DataLength;
 private:
   
   NodeStatePOD nodeState;
@@ -74,7 +74,7 @@ class ChangeNodeStateReq {
   friend class SimulatedBlock;
   
 public:
-  STATIC_CONST( SignalLength = 2 + NodeState::DataLength );
+  static constexpr Uint32 SignalLength = 2 + NodeState::DataLength;
 public:
   
   Uint32 senderRef;
@@ -100,7 +100,7 @@ class ChangeNodeStateConf {
   friend class LocalProxy;
   
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 private:
   
   Uint32 senderData;

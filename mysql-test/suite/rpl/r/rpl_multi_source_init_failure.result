@@ -23,7 +23,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 STOP SLAVE FOR CHANNEL 'ch_a';
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
 [connection slave]
 RESET SLAVE ALL;
 Warnings:

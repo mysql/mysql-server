@@ -9,6 +9,10 @@ if (!$rpl_reset_slave_all)
     {
       CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
     }
+    if ($rpl_gtid_only)
+    {
+      CHANGE REPLICATION SOURCE TO GTID_ONLY=0;
+    }
     if ($rpl_require_row_format)
     {
       CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
@@ -20,6 +24,10 @@ if (!$rpl_reset_slave_all)
     if ($rpl_privilege_checks_user)
     {
       eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL $rpl_channel_name;
+    }
+    if ($rpl_gtid_only)
+    {
+      eval CHANGE REPLICATION SOURCE TO GTID_ONLY=0 FOR CHANNEL $rpl_channel_name;
     }
     if ($rpl_require_row_format)
     {

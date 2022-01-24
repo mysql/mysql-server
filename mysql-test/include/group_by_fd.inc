@@ -306,22 +306,27 @@ let $source_no_alias=($source_query);
 eval select sin(a) as z from $source group by b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select sin(a) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select (select sin(a)) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select (select sin(a)) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from t1 group by c*2,b*2;
+--replace_numeric_round 15
 eval select sin(a+b*c) as z from $source group by c,b;
 eval $show_trace;
 
 eval select sin(a) as z from $source where b=2 group by c;
 
 --echo # {v1.b,v1.c}->v1.a->t2.a
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.a=v1.a group by v1.b,v1.c;
 eval $show_trace;
 
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 
@@ -1195,7 +1200,10 @@ SELECT * FROM t1, t2, t3
 WHERE t2.b = t1.b AND t2.b = t3.b
 AND t3.d = 1 AND t3.e = 1 AND t1.a = 2
 GROUP BY t1.b;
+# Hypergraph optimizer has different warnings here.
+--disable_warnings
 eval $show_trace;
+--enable_warnings
 
 # Remove t3.d = 1, IS NOT NULL is not enough of course.
 --error ER_WRONG_FIELD_WITH_GROUP

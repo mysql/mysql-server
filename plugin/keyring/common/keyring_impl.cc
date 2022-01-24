@@ -43,7 +43,7 @@ extern mysql_rwlock_t LOCK_keyring;
 std::unique_ptr<IKeys_container> keys(nullptr);
 volatile bool is_keys_container_initialized = false;
 std::unique_ptr<ILogger> logger(nullptr);
-std::unique_ptr<char[]> keyring_file_data(nullptr);
+char *keyring_file_data(nullptr);
 bool keyring_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
 
 #ifdef HAVE_PSI_INTERFACE
@@ -52,6 +52,11 @@ static PSI_rwlock_info all_keyring_rwlocks[] = {
 
 static PSI_memory_info all_keyring_memory[] = {
     {&keyring::key_memory_KEYRING, "KEYRING", 0, 0, PSI_DOCUMENT_ME}};
+
+void delete_keyring_file_data() {
+  free(keyring_file_data);
+  keyring_file_data = nullptr;
+}
 
 void keyring_init_psi_keys(void) {
   const char *category = "keyring";
@@ -134,19 +139,20 @@ void log_opearation_error(const char *failed_operation,
   }
 }
 
-void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+void update_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save_ptr) {
   mysql_rwlock_wrlock(&LOCK_keyring);
   IKeys_container *new_keys =
       *reinterpret_cast<IKeys_container **>(const_cast<void *>(save_ptr));
   keys.reset(new_keys);
-  keyring_file_data.reset(
-      new char[new_keys->get_keyring_storage_url().length() + 1]);
-  memcpy(keyring_file_data.get(), new_keys->get_keyring_storage_url().c_str(),
+  free(keyring_file_data);
+  keyring_file_data = (static_cast<char *>(
+      malloc(new_keys->get_keyring_storage_url().length() + 1)));
+  memcpy(keyring_file_data, new_keys->get_keyring_storage_url().c_str(),
          new_keys->get_keyring_storage_url().length() + 1);
-  *reinterpret_cast<char **>(var_ptr) = keyring_file_data.get();
+  *reinterpret_cast<char **>(var_ptr) = keyring_file_data;
   is_keys_container_initialized = true;
   mysql_rwlock_unlock(&LOCK_keyring);
 }

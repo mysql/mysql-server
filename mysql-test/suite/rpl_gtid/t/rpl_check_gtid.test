@@ -91,7 +91,7 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --connection slave
---let $slave_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $replica_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 
 #
@@ -191,7 +191,7 @@ while ($i != 5)
 
   # Check property 1.1 and 2.1.
   --let $binlog= binlog
-  --let $server_uuid= $slave_uuid
+  --let $server_uuid= $replica_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -631,7 +631,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-b
 --source include/start_slave.inc
 --enable_warnings
 
---let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $replica_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --connection master
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -659,11 +659,11 @@ while ($i != 5)
   if (`SELECT ($i % 2) = 0`)
   {
     --connection slave
-    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
     --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first', 300)
     --enable_result_log
-    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
     --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second', 300)
     --enable_result_log
@@ -672,11 +672,11 @@ while ($i != 5)
   if (`SELECT ($i % 2) = 1`)
   {
     --connection slave
-    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
     --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first')
     --enable_result_log
-    --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+    --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
     --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second')
     --enable_result_log

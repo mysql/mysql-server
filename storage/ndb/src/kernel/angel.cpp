@@ -39,7 +39,6 @@
 
 #include <EventLogger.hpp>
 #include <NdbTCP.h>
-extern EventLogger * g_eventLogger;
 
 static void
 angel_exit(int code)
@@ -219,7 +218,7 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
   assert(options == WNOHANG);
   assert(stat_loc);
 
-  HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
   if (handle == NULL)
   {
     g_eventLogger->error("waitpid: Could not open handle for pid %d, "
@@ -284,7 +283,7 @@ kill(pid_t pid, int sig)
   /* Open the event to signal */
   HANDLE shutdown_event;
   while ((shutdown_event =
-          OpenEvent(EVENT_MODIFY_STATE, FALSE, shutdown_event_name)) == NULL)
+          OpenEvent(EVENT_MODIFY_STATE, false, shutdown_event_name)) == NULL)
   {
      /*
       Check if the process is alive, otherwise there is really
@@ -292,7 +291,7 @@ kill(pid_t pid, int sig)
      */
     DWORD exit_code;
     HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION,
-                                  FALSE, pid);
+                                  false, pid);
     if (!process)
     {
       /* Already died */
@@ -315,7 +314,7 @@ kill(pid_t pid, int sig)
     }
 
     if (retry_open_event--)
-      Sleep(100);
+      NdbSleep_MilliSleep(100);
     else
     {
       g_eventLogger->error("Failed to open shutdown_event '%s', error: %d",
@@ -594,6 +593,16 @@ angel_run(const char* progname,
                            retriever.get_mgmd_port());
   g_eventLogger->info("Angel connected to '%s'", sockaddr_string);
 
+  /**
+   * Gives information to users before allocating nodeid if invalid
+   * configuration is fetched or configuration is not yet committed.
+   */
+  if (!retriever.getConfig(retriever.get_mgmHandle())) {
+    g_eventLogger->info("Could not fetch configuration/invalid "
+                        "configuration, message: '%s'",
+                        retriever.getErrorString());
+  }
+
   const int alloc_retries = 10;
   const int alloc_delay = 3;
   const Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
@@ -605,7 +614,7 @@ angel_run(const char* progname,
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
-  ndb_mgm_config_unique_ptr config(retriever.getConfig(nodeid));
+  const ndb_mgm::config_ptr config(retriever.getConfig(nodeid));
   if (!config)
   {
     g_eventLogger->error("Could not fetch configuration/invalid "
@@ -738,7 +747,7 @@ angel_run(const char* progname,
       else if (sscanf(buf, "sphase=%d\n", &value) == 1)
         child_sphase = value;
       else if (strcmp(buf, "\n") != 0)
-        fprintf(stderr, "unknown info from child: '%s'\n", buf);
+        g_eventLogger->info("unknown info from child: '%s'", buf);
     }
     g_eventLogger->debug("error: %u, signal: %u, sphase: %u",
                          child_error, child_signal, child_sphase);
@@ -778,7 +787,7 @@ angel_run(const char* progname,
                          child_error, child_signal, child_sphase);
           angel_exit(0);
         }
-        // Fall-through
+        [[fallthrough]];
       case NRT_DoStart_Restart:
         initial = false;
         no_start = false;

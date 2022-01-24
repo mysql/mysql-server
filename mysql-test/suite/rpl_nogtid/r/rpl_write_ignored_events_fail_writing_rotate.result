@@ -11,9 +11,9 @@ include/start_slave_io.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 include/sync_slave_io_with_master.inc
-SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
+SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 include/stop_slave_io.inc
-SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
+SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 include/wait_for_slave_io_error.inc [errno=13116]
 Last_IO_Error = 'Failed to create Rotate_event (out of memory?), SHOW SLAVE STATUS may be inaccurate'
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
@@ -54,9 +54,9 @@ include/start_slave_io.inc
 CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 include/sync_slave_io_with_master.inc
-SET @@GLOBAL.debug="+d,fail_to_flush_master_info";
+SET @@GLOBAL.debug="+d,fail_to_flush_source_info";
 include/stop_slave_io.inc
-SET @@GLOBAL.debug="-d,fail_to_flush_master_info";
+SET @@GLOBAL.debug="-d,fail_to_flush_source_info";
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
 include/start_slave.inc
 [connection master]

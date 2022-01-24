@@ -1,27 +1,27 @@
 # WL#1697: Multisource replication
 #
-# Test the behaviour when sql_slave_skip_counter is set
+# Test the behaviour when sql_replica_skip_counter is set
 #
-# BUG#19634753: WL1697: IF SQL_SLAVE_SKIP_COUNTER > 0, IO_THREAD(S) ARE
+# BUG#19634753: WL1697: IF SQL_REPLICA_SKIP_COUNTER > 0, IO_THREAD(S) ARE
 #               NOT ABLE TO START
 # BUG#20400518
 # The behavior for MySQL 5.7 should be:
 #
-# sql_slave_skip_counter can be set at anytime, even some channels are running.
-# Setting sql_slave_skip_counter doesn't effect any running channel. Its value
+# sql_replica_skip_counter can be set at anytime, even some channels are running.
+# Setting sql_replica_skip_counter doesn't effect any running channel. Its value
 # only effects the first channel starting after the
-# 'SET GLOBAL sql_slave_skip_counter'. After the channel starts,
-# sql_slave_skip_counter will be reset to 0 automatically.
+# 'SET GLOBAL sql_replica_skip_counter'. After the channel starts,
+# sql_replica_skip_counter will be reset to 0 automatically.
 #
 # The process like:
 #
-# SET GLOBAL sql_slave_skip_counter = 5;
+# SET GLOBAL sql_replica_skip_counter = 5;
 # START SLAVE FOR CHANNEL 'ch1';
 #
 # SHOW SLAVE STATUS FOR CHANNEL 'channel_1';
 # Skip_count item will be 5.
 #
-# SELECT @@GLOBAL.sql_slave_skip_counter;
+# SELECT @@GLOBAL.sql_replica_skip_counter;
 # It will be 0.
 #
 #
@@ -48,10 +48,10 @@
 call mtr.add_suppression("Slave: Could not start slave for channel");
 
 --echo #
---echo # Verify that Setting sql_slave_skip_counter doesn't effect running
+--echo # Verify that Setting sql_replica_skip_counter doesn't effect running
 --echo # channels
 --echo #
-SET GLOBAL sql_slave_skip_counter= 1;
+SET GLOBAL sql_replica_skip_counter= 1;
 
 --let $skip_counter= query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)
 --let $assert_text= check that channel_1's Skip_Counter is 0.
@@ -65,8 +65,8 @@ STOP SLAVE SQL_THREAD;
 --source include/rpl_for_each_connection.inc
 
 --echo #
---echo # Verify that START SLAVE FOR CHANNEL will copy sql_slave_skip_counter's
---echo # value to the channel and reset sql_slave_skip_counter to 0
+--echo # Verify that START SLAVE FOR CHANNEL will copy sql_replica_skip_counter's
+--echo # value to the channel and reset sql_replica_skip_counter to 0
 --echo #
 
 # first stop the channels
@@ -83,15 +83,15 @@ STOP SLAVE SQL_THREAD;
 --let $assert_cond= $skip_counter= 1
 --source include/assert.inc
 
---let $assert_text= check that sql_slave_skip_counter is 0
---let $assert_cond= @@GLOBAL.sql_slave_skip_counter = 0
+--let $assert_text= check that sql_replica_skip_counter is 0
+--let $assert_cond= @@GLOBAL.sql_replica_skip_counter = 0
 --source include/assert.inc
 
 --echo #
---echo # START SLAVE [SQL_THREAD] will fail when sql_slave_skip_counter is 1
+--echo # START SLAVE [SQL_THREAD] will fail when sql_replica_skip_counter is 1
 --echo # and there are more than one channels
 --echo #
-SET GLOBAL sql_slave_skip_counter = 1;
+SET GLOBAL sql_replica_skip_counter = 1;
 
 --error ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
 START SLAVE;
@@ -113,7 +113,7 @@ START SLAVE IO_THREAD;
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 2;
 --source include/assert.inc
 
-SET GLOBAL sql_slave_skip_counter= 0;
+SET GLOBAL sql_replica_skip_counter= 0;
 
 # End MSR setup.
 --let $rpl_skip_sync= 1

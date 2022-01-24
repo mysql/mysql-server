@@ -25,6 +25,11 @@
 #include <NDBT_Test.hpp>
 #include <NdbRestarter.hpp>
 
+#define CHECKTRANS(trans) if ((trans) == NULL) {    \
+    ndbout << "Error at line " << __LINE__ << endl; \
+    NDB_ERR(pNdb->getNdbError());                   \
+    return NDBT_FAILED; }
+
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
     NDB_ERR(trans->getNdbError());                  \
@@ -199,7 +204,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   NdbTransaction* trans= pNdb->startTransaction(ctx->getTab(),
                                                 &smallKey[0],
                                                 smallKeySize);
-  CHECKNOTNULL(trans);
+  CHECKTRANS(trans);
 
   /* Activate error insert 8065 in this transaction, limits
    * any single import/append to 1 section
@@ -233,9 +238,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    * on the AttrInfo section
    */
   /* Start transaction on the same node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
 
   CHECKNOTNULL(bigInsert = trans->insertTuple(record, bigAttrRowBuf));
@@ -252,9 +257,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    * in the same batch.  Check that abort handling is correct
    */
     /* Start transaction on the same node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   /* First op in batch, will cause overflow */
   CHECKNOTNULL(bigInsert = trans->insertTuple(record, bigAttrRowBuf));
   
@@ -274,9 +279,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    * with a big key value
    */
   /* Start transaction on the same node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   NdbOperation* bigInsertOldApi;
   CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
@@ -303,9 +308,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   /* Now try with a 'short' TCKEYREQ, generated using the old Api 
    * with a big data value
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
 
@@ -349,9 +354,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    * short key, but not the AttrInfo
    */
   /* Start transaction on same node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
   
@@ -380,9 +385,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   restarter.insertErrorInAllNodes(8067);
 
   /* Now a 'short' TCKEYREQ - there will be no space to import the key */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
   
@@ -409,9 +414,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   /* Finished with error insert, cleanup the error insertion
    * Error insert 8068 will free the hoarded segments
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
@@ -571,7 +576,7 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   trans= pNdb->startTransaction(ctx->getTab(),
                                 &smallKey[0],
                                 smallKeySize);
-  CHECKNOTNULL(trans);
+  CHECKTRANS(trans);
 
   /* Activate error insert 8065 in this transaction, limits any
    * single append/import to 10 sections.
@@ -607,9 +612,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
    * operations exist in this new transaction.
    */
   /* Start a transaction on a specific node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKNOTNULL(trans->readTuple(ixRecord,
                                 bigKeyIxBuf,
@@ -626,9 +631,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* Now a TCINDXREQ that overflows, but is not the last in the
    * batch, what happens to the other TCINDXREQ in the batch?
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKNOTNULL(trans->readTuple(ixRecord,
                                 bigKeyIxBuf,
@@ -654,9 +659,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
    * handling TRANSID_AI
    */
   /* Start a transaction on a specific node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   /* Activate error insert 8066 in this transaction, limits a
    * single import/append to 1 section.
@@ -697,9 +702,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* Now try with a 'short' TCINDXREQ, generated using the old Api 
    * with a big index key value
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   const NdbDictionary::Index* index;
   CHECKNOTNULL(index= pNdb->getDictionary()->
@@ -729,9 +734,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* Now try with a 'short' TCINDXREQ, generated using the old Api 
    * with a big attrinfo value
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   NdbIndexOperation* bigUpdateOldApi;
   CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
@@ -765,9 +770,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* Now a short TCINDXREQ where the KeyInfo from the TCINDXREQ
    * can be imported, but the ATTRINFO can't
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
   
   CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
 
@@ -798,9 +803,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* Now a short TCINDXREQ where the KeyInfo from the TCINDXREQ
    * can't be imported
    */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
 
@@ -828,9 +833,9 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
 #endif  
 
   /* Finished with error insert, cleanup the error insertion */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           baseRecord, 
@@ -893,7 +898,7 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
   NdbTransaction* trans= pNdb->startTransaction(ctx->getTab(),
                                                 &smallKey[0],
                                                 smallKeySize);
-  CHECKNOTNULL(trans);
+  CHECKTRANS(trans);
 
   /* Activate error insert 8066 in this transaction, limits a 
    * single import/append to 1 section.
@@ -939,9 +944,9 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
   trans->close();
 
   /* Finished with error insert, cleanup the error insertion */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
+  CHECKTRANS(trans = pNdb->startTransaction(ctx->getTab(),
+                                            &smallKey[0],
+                                            smallKeySize));
 
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
@@ -1002,7 +1007,7 @@ int testDropSignalFragments(NDBT_Context* ctx, NDBT_Step* step){
   {
     /* Start a transaction */
     NdbTransaction* trans= pNdb->startTransaction();
-    CHECKNOTNULL(trans);
+    CHECKTRANS(trans);
 
     SubCase subcase= cases[iteration % numSubCases];
 
@@ -1249,7 +1254,7 @@ int testWorker(NDBT_Context* ctx, NDBT_Step* step)
           ndbout_c("Worker : Error restarting Slave.");
           return NDBT_FAILED;
         }
-        ndbout_c("Worker : Waiting for slave to recover...");
+        ndbout_c("Worker : Waiting for replica to recover...");
         if (restarter.waitNodesStarted(&slave_nodeid, 1))
         {
           ndbout_c("Worker : Error waiting for Slave restart");

@@ -1,0 +1,44 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group with 2 members.
+#    server1 will be the primary.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+SET SESSION sql_log_bin = 1;
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+[connection server2]
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 2. Kill server2, server1 will lose group majority.
+[connection server2]
+# Kill and restart
+include/rpl_reconnect.inc
+
+############################################################
+# 3. Check that server1 sees server2 UNREACHABLE.
+[connection server1]
+
+############################################################
+# 4. Try change member actions configuration.
+#    It will not be allowed.
+[connection server1]
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_enable_member_action' failed. Member must be the primary or OFFLINE.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_disable_member_action' failed. Member must be the primary or OFFLINE.
+SELECT group_replication_reset_member_actions();
+ERROR HY000: The function 'group_replication_reset_member_actions' failed. Member must be OFFLINE to reset its member actions configuration.
+
+############################################################
+# 5. Clean up.
+include/group_replication_end.inc

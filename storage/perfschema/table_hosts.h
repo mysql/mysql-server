@@ -45,7 +45,7 @@ class PFS_index_hosts_by_host : public PFS_index_hosts {
  public:
   PFS_index_hosts_by_host() : PFS_index_hosts(&m_key), m_key("HOST") {}
 
-  ~PFS_index_hosts_by_host() override {}
+  ~PFS_index_hosts_by_host() override = default;
 
   bool match(PFS_host *pfs) override;
 
@@ -80,7 +80,7 @@ class table_hosts : public cursor_by_host {
   table_hosts();
 
  public:
-  ~table_hosts() override {}
+  ~table_hosts() override = default;
 
   int index_init(uint idx, bool sorted) override;
 

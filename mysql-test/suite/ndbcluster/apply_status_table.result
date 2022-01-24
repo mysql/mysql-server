@@ -1,0 +1,14 @@
+select TABLE_SCHEMA, TABLE_NAME from information_schema.tables
+where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_apply_status';
+TABLE_SCHEMA	TABLE_NAME
+mysql	ndb_apply_status
+select ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, CHARACTER_SET_NAME,
+COLUMN_DEFAULT, IS_NULLABLE from information_schema.columns
+where TABLE_SCHEMA = 'mysql' and TABLE_NAME = 'ndb_apply_status'
+  order by ORDINAL_POSITION;
+ORDINAL_POSITION	COLUMN_NAME	COLUMN_TYPE	CHARACTER_SET_NAME	COLUMN_DEFAULT	IS_NULLABLE
+1	server_id	int unsigned	NULL	NULL	NO
+2	epoch	bigint unsigned	NULL	NULL	NO
+3	log_name	varchar(255)	latin1	NULL	NO
+4	start_pos	bigint unsigned	NULL	NULL	NO
+5	end_pos	bigint unsigned	NULL	NULL	NO

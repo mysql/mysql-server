@@ -1,3 +1,5 @@
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 #### Setup tables ####
 CREATE TABLE t0 (a VARCHAR(510));
 CREATE TABLE t1 (a CHAR(100));
@@ -2470,7 +2472,7 @@ INSERT INTO t1 VALUES (@@global.sync_binlog);
 INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t2 SELECT UUID();
 INSERT INTO t2 VALUES (@@session.sql_mode);
-INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@global.init_replica);
 RETURN 0;
 END|
 SHOW VARIABLES LIKE "SQL_LOG_BIN";
@@ -2489,7 +2491,7 @@ INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t1 VALUES (@@global.auto_increment_increment);
 INSERT INTO t2 SELECT UUID();
 INSERT INTO t2 VALUES (@@session.sql_mode);
-INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@global.init_replica);
 INSERT INTO t2 VALUES (@@hostname);
 END|
 INSERT INTO trigger_table VALUES ('bye.');
@@ -2622,7 +2624,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (SOURCE_POS_WAIT('dummy arg', 4711, 1));
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
@@ -2760,4 +2762,6 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
 DROP FUNCTION f;
 DROP TABLE t;
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 "End of tests"

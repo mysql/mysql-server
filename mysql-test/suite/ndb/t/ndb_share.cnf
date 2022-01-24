@@ -23,13 +23,13 @@ ndb-cluster-connection-pool-nodeids=16
 [mysqld.3.1]
 new
 skip-log-bin
-skip-log-slave-updates
+skip-log-replica-updates
 ndb-cluster-connection-pool-nodeids=32
 
 [mysqld.4.1]
 new
 skip-log-bin
-skip-log-slave-updates
+skip-log-replica-updates
 ndb-cluster-connection-pool-nodeids=48
 
 [ENV]

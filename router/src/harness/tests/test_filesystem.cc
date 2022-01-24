@@ -41,13 +41,10 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 #define EXPECT_NO_ERROR(x) \
   EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
-
-using std::back_inserter;
-using std::cout;
-using std::endl;
 
 using mysql_harness::Directory;
 using mysql_harness::Path;
@@ -161,9 +158,8 @@ TEST(TestFilesystem, TestDirectory) {
 }
 
 TEST(TestFilesystem, list_recursive_empty) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
   const auto &result = test.list_recursive();
@@ -171,9 +167,8 @@ TEST(TestFilesystem, list_recursive_empty) {
 }
 
 TEST(TestFilesystem, list_recursive_empty_directories) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   mysql_harness::mkdir(Path{dir_name}.join("x").c_str(), 0700);
   mysql_harness::mkdir(Path{dir_name}.join("y").c_str(), 0700);
@@ -185,9 +180,8 @@ TEST(TestFilesystem, list_recursive_empty_directories) {
 }
 
 TEST(TestFilesystem, list_recursive_only_files) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
 
@@ -202,9 +196,8 @@ TEST(TestFilesystem, list_recursive_only_files) {
 }
 
 TEST(TestFilesystem, list_recursive_multiple_levels) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
 
@@ -227,18 +220,16 @@ TEST(TestFilesystem, list_recursive_multiple_levels) {
 }
 
 TEST(TestFilesystem, is_empty_true) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
   EXPECT_TRUE(test.is_empty());
 }
 
 TEST(TestFilesystem, is_empty_dir_with_empty_subdir) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
   mysql_harness::mkdir(Path{dir_name}.join("foo").c_str(), 0700);
@@ -247,9 +238,8 @@ TEST(TestFilesystem, is_empty_dir_with_empty_subdir) {
 }
 
 TEST(TestFilesystem, is_empty_dir_with_file) {
-  const std::string dir_name = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(dir_name); });
+  TempDirectory tmpdir("tmp");
+  const std::string dir_name = tmpdir.name();
 
   Directory test{dir_name};
   std::ofstream file(Path{dir_name}.join("bar").str());
@@ -264,9 +254,8 @@ TEST(TestFilesystem, IsReadableIfFileCanBeRead) {
 #ifndef _WIN32
 
   // create temporary file
-  const std::string directory = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(directory); });
+  TempDirectory tmpdir("tmp");
+  const std::string directory = tmpdir.name();
 
   mysql_harness::Path path = mysql_harness::Path(directory).join("/tmp_file");
   std::ofstream file(path.str());
@@ -284,9 +273,8 @@ TEST(TestFilesystem, IsNotReadableIfFileCanNotBeRead) {
 #ifndef _WIN32
 
   // create temporary file
-  const std::string directory = mysql_harness::get_tmp_dir("tmp");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(directory); });
+  TempDirectory tmpdir("tmp");
+  const std::string directory = tmpdir.name();
 
   mysql_harness::Path path = mysql_harness::Path(directory).join("/tmp_file");
   std::ofstream file(path.str());
@@ -321,9 +309,8 @@ TEST(TestFilesystem, delete_dir_recursive) {
 TEST(TestFilesystem, Mkdir) {
   constexpr auto kMode = 0700;
 
-  auto tmp_dir = mysql_harness::get_tmp_dir("test");
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(tmp_dir); });
+  TempDirectory tmpdir("tmp");
+  const std::string tmp_dir = tmpdir.name();
 
   // non-recursive should fail
   EXPECT_NE(0, mysql_harness::mkdir(tmp_dir + "/a/b/c/d", kMode));
@@ -351,6 +338,36 @@ TEST(TestFilesystem, Mkdir) {
 
   // empty path should throw
   EXPECT_THROW(mysql_harness::mkdir("", kMode, true), std::invalid_argument);
+}
+
+/*
+ * Tests mysql_harness::mkdir()
+ */
+TEST(TestFilesystem, get_tmp_dir_fail) {
+  try {
+    auto tmp_dir = mysql_harness::get_tmp_dir("/no/such/directory/test");
+
+    FAIL() << "expected get_tmp_dir() to fail";
+  } catch (const std::system_error &) {
+    SUCCEED();
+  } catch (const std::exception &e) {
+    FAIL() << "expected std::system_error, got " << e.what();
+  }
+}
+
+/*
+ * Tests mysql_harness::mkdir()
+ */
+TEST(TestFilesystem, TempDirectory_Constructor_fail) {
+  try {
+    auto tmp_dir = TempDirectory("/no/such/directory/test");
+
+    FAIL() << "expected TempDirectyory() to fail";
+  } catch (const std::system_error &) {
+    SUCCEED();
+  } catch (const std::exception &e) {
+    FAIL() << "expected std::system_error, got " << e.what();
+  }
 }
 
 int main(int argc, char *argv[]) {

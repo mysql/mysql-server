@@ -60,9 +60,12 @@ MYSQL_ADD_PLUGIN(heap ha_heap.cc
   )
 
 IF(WITH_UNIT_TESTS)
-  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc _check.cc ADD_TEST hp_test1)
-  TARGET_LINK_LIBRARIES(hp_test1 heap_library)
-
-  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc _check.cc hp_rsame.cc ADD_TEST hp_test2)
-  TARGET_LINK_LIBRARIES(hp_test2 heap_library)
+  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc _check.cc
+    ADD_TEST hp_test1
+    LINK_LIBRARIES heap_library
+    )
+  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc _check.cc hp_rsame.cc
+    ADD_TEST hp_test2
+    LINK_LIBRARIES heap_library
+    )
 ENDIF()

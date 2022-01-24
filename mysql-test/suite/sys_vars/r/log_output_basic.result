@@ -145,3 +145,4 @@ SET @@global.log_output = @start_value;
 SELECT @@global.log_output;
 @@global.log_output
 FILE
+TRUNCATE TABLE mysql.general_log;

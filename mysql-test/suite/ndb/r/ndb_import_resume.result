@@ -1,0 +1,3 @@
+CREATE TABLE mt
+(i int not null primary key, j mediumint unsigned) engine=ndb;
+DROP TABLE mt;

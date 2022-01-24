@@ -184,7 +184,7 @@ if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
   connection master;
   --source include/sync_slave_sql_with_master.inc
   connection slave;
-  show status like 'Slave_open_temp_tables';
+  show status like 'Replica_open_temp_tables';
 
   connection master;
   flush logs;
@@ -205,7 +205,7 @@ if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
   --echo **** Wait until number of open temporary tables at slave becomes zero
   --echo
   connection slave;
-  --let $status_var= Slave_open_temp_tables
+  --let $status_var= Replica_open_temp_tables
   --let $status_var_value= 0
   # The below include file accepts time in units of tenths of seconds.
   # Hence 3 minutes = 1800.

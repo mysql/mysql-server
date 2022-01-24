@@ -59,9 +59,9 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( StaticLength = 5 );
-  STATIC_CONST( OperationLength = 2 );
-  STATIC_CONST( DirtyReadBit = (((Uint32)1) << 31) );
+  static constexpr Uint32 StaticLength = 5;
+  static constexpr Uint32 OperationLength = 2;
+  static constexpr Uint32 DirtyReadBit = (((Uint32)1) << 31);
 
 protected:
   /**

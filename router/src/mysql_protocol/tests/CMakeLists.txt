@@ -35,3 +35,9 @@ FOREACH(test_file
     INCLUDE_DIRS ../include/
     LIB_DEPENDS harness_stdx)
 ENDFOREACH()
+
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    test_classic_protocol_message.cc
+    COMPILE_FLAGS "/bigobj")
+ENDIF()

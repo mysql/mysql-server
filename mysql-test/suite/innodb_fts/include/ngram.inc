@@ -63,6 +63,7 @@ ANALYZE TABLE articles_1;
 # bigram search
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('En');
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('nd');
 SELECT * FROM articles_1 WHERE
@@ -75,40 +76,52 @@ SELECT * FROM articles_1 WHERE
 	MATCH(title_text,title_varchar) AGAINST('er');
 
 # try search for an entire word
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('West');
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('first');
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_text) AGAINST('United');
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char,title_varchar) AGAINST('in');
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_text,title_varchar) AGAINST('St');
 
 # boolean mode
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('-En +la' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('-En -la' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 SELECT * FROM articles_1 WHERE
@@ -119,18 +132,23 @@ SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar,title_text) AGAINST('"Un" "-i*"' IN BOOLEAN MODE);
 
 # query expansion mode
+--sorted_result
 SELECT * FROM articles_1 WHERE
         MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
+--sorted_result
 SELECT * FROM articles_1 WHERE
         MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
+--sorted_result
 SELECT * FROM articles_1 WHERE
         MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
+--sorted_result
 SELECT * FROM articles_1 WHERE
         MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
+--sorted_result
 SELECT * FROM articles_1 WHERE
         MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 
-# proximity search - not supoorted yet
+# proximity search - not supported yet
 SELECT * FROM articles_1
         WHERE MATCH (title_text)
         AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -139,6 +157,7 @@ SELECT * FROM articles_1
         AGAINST ('"Ca da"@5' IN BOOLEAN MODE);
 
 # FTS condition and Join in where clause
+--sorted_result
 SELECT * FROM articles_1 t1,articles_1 t2
         WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
         AND t1.seq = t2.seq ;
@@ -159,6 +178,7 @@ SELECT * FROM articles_1
 SELECT * FROM articles_1
         WHERE MATCH (title_char,title_text,title_varchar)
         AGAINST ('"United States"@2' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles_1
         WHERE MATCH (title_char,title_text,title_varchar)
         AGAINST ('States' WITH QUERY EXPANSION);
@@ -230,6 +250,7 @@ SELECT * FROM articles WHERE
         MATCH(c2) AGAINST("-我幾 -火啊" IN BOOLEAN MODE);
 SELECT * FROM articles WHERE
         MATCH(c2) AGAINST("我幾 火啊" IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 
@@ -275,6 +296,7 @@ SELECT * FROM articles WHERE
         MATCH(j3) AGAINST('の長' WITH QUERY EXPANSION);
 #SELECT * FROM articles WHERE
 #        MATCH(k2) AGAINST('국말' WITH QUERY EXPANSION);
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 

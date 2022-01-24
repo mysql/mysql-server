@@ -228,33 +228,39 @@ static void store_param_str(NET *net, MYSQL_BIND *param) {
   net->write_pos = to + length;
 }
 
-/*
-  Mark if the parameter is NULL.
+/**
+  Mark the parameter as NULL.
 
-  SYNOPSIS
-    store_param_null()
-    net			MySQL NET connection
-    param		MySQL bind param
+  @param net   MySQL NET connection
+  @param param MySQL bind param
+  @param null_pos_ofs the offset from the start of the buffer to
+                      the first byte of the null mask
 
-  DESCRIPTION
-    A data package starts with a string of bits where we set a bit
-    if a parameter is NULL. Unlike bit string in result set row, here
-    we don't have reserved bits for OK/error packet.
+  A data package starts with a string of bits where we set a bit
+  if a parameter is NULL. Unlike bit string in result set row, here
+  we don't have reserved bits for OK/error packet.
 */
 
-static void store_param_null(NET *net MY_ATTRIBUTE((unused)), MYSQL_BIND *param,
-                             unsigned char *null_pos) {
+static void store_param_null(NET *net, MYSQL_BIND *param,
+                             my_off_t null_pos_ofs) {
   uint pos = param->param_number;
-  null_pos[pos / 8] |= (uchar)(1 << (pos & 7));
+  net->buff[pos / 8 + null_pos_ofs] |= (uchar)(1 << (pos & 7));
 }
 
-/*
+/**
   Store one parameter in network packet: data is read from
   client buffer and saved in network packet by means of one
   of store_param_xxxx functions.
+
+  @param net   MySQL NET connection
+  @param param MySQL bind param
+  @param null_pos_ofs the offset from the start of the buffer to
+                      the first byte of the null mask
+  @retval true failure
+  @retval false success
 */
 
-bool store_param(NET *net, MYSQL_BIND *param, unsigned char *null_pos) {
+static bool store_param(NET *net, MYSQL_BIND *param, my_off_t null_pos_ofs) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d  buffer: %p  length: %lu  is_null: %d",
@@ -262,7 +268,7 @@ bool store_param(NET *net, MYSQL_BIND *param, unsigned char *null_pos) {
               *param->length, *param->is_null));
 
   if (*param->is_null)
-    store_param_null(net, param, null_pos);
+    store_param_null(net, param, null_pos_ofs);
   else {
     /*
       Param->length should ALWAYS point to the correct length for the type
@@ -296,30 +302,34 @@ bool store_param(NET *net, MYSQL_BIND *param, unsigned char *null_pos) {
   server or not
   @param send_named_params : whether the names of the parameters should be sent
   @param send_parameter_set_count : whether to send 1 as parameter count or not
+  @param send_parameter_count_when_zero ON to send the param count even when
+     it's zero
   @retval true execution failed. Error in NET
   @retval false execution succeeded
 */
-bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
-                                    MYSQL_BIND *params, const char **names,
-                                    unsigned long n_param_sets,
-                                    uchar **ret_data, ulong *ret_length,
-                                    uchar send_types_to_server,
-                                    bool send_named_params,
-                                    bool send_parameter_set_count) {
+bool mysql_int_serialize_param_data(
+    NET *net, unsigned int param_count, MYSQL_BIND *params, const char **names,
+    unsigned long n_param_sets, uchar **ret_data, ulong *ret_length,
+    uchar send_types_to_server, bool send_named_params,
+    bool send_parameter_set_count, bool send_parameter_count_when_zero) {
   uint null_count;
   MYSQL_BIND *param, *param_end;
   const char **names_ptr = names;
-  unsigned char *null_pos;
+  my_off_t null_pos_ofs;
   DBUG_TRACE;
 
   assert(net->vio);
   net_clear(net, true); /* Sets net->write_pos */
 
   if (send_named_params) {
-    /* send the number of params */
-    my_realloc_str(net, net_length_size(param_count));
-    uchar *to = net_store_length(net->write_pos, param_count);
-    net->write_pos = to;
+    uchar *to;
+    if (param_count > 0 || send_parameter_count_when_zero) {
+      DBUG_PRINT("prep_stmt_exec", ("Sending param_count=%u", param_count));
+      /* send the number of params */
+      my_realloc_str(net, net_length_size(param_count));
+      to = net_store_length(net->write_pos, param_count);
+      net->write_pos = to;
+    }
 
     /* also send the number of parameter data sets */
     assert(n_param_sets == 1);  // reserved for now
@@ -332,7 +342,7 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
   /* only send the null bits etc if there are params to send */
   if (param_count > 0 && n_param_sets > 0) {
     /* this is where the null bitmask starts */
-    null_pos = net->write_pos;
+    null_pos_ofs = net->write_pos - net->buff;
 
     /* Reserve place for null-marker bytes */
     null_count = (param_count + 7) / 8;
@@ -375,7 +385,7 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
       /* check if mysql_stmt_send_long_data() was used */
       if (param->long_data_used)
         param->long_data_used = false; /* Clear for next execute call */
-      else if (store_param(net, param, null_pos))
+      else if (store_param(net, param, null_pos_ofs))
         return true;
     }
   }

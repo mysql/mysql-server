@@ -56,7 +56,7 @@ sync_with_master 1;
 select * from t2;
 select count(*) from t2;
 select sum(n) from t2;
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 
 #
 # Clean up

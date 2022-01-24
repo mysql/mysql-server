@@ -1,0 +1,164 @@
+# ==== Purpose ====
+#
+# This test validates SOURCE_POS_WAIT blocks when positions are invalid.
+# Unblocks when positions become valid again
+#
+# ==== Requirements ====
+#
+# R1. Verify that SOURCE_POS_WAIT blocks when applier positions are invalid
+#     and unblocks when positions are again valid
+#
+# ==== Implementation ====
+#
+# 1. Setup:
+#     Start the replica channel with GTID_ONLY=1
+#     Add some info in the source and replicate it
+#     Record the source positions to wait later on
+# 2. Start replication
+#    Check SOURCE_POS_WAIT does not time out when giving it a valid positioning info
+# 3. Restart the server so positions become invalid
+#    Use relay log recovery so the new relay log contains no source info when the applier starts
+# 4. Test that the command times out cause positions are invalid
+# 5. Execute a wait with a large timeout
+#    Turn applier positions valid again
+#    Check the function does not time out when positions become valid
+# 6. SOURCE_POS_WAIT does not timeout when invoked with valid positioning info
+# 7. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Setup:
+--echo #     Start the replica channel with GTID_ONLY=1
+--echo #     Add some info in the source and replicate it
+--echo #     Record the source positions to wait later on
+
+--source include/rpl_connection_slave.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t(s INT);
+
+INSERT INTO t VALUES(1);
+
+--let $log_file_on_source=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $log_pos_on_source=query_get_value(SHOW MASTER STATUS, Position, 1)
+
+INSERT INTO t VALUES(2);
+
+--echo #
+--echo # 2. Start replication
+--echo #    Check SOURCE_POS_WAIT does not time out when giving it a valid positioning info
+
+--source include/rpl_connection_slave.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $source_post_wait_res = `SELECT SOURCE_POS_WAIT('$log_file_on_source', $log_pos_on_source, 30)`
+
+--let $assert_cond= [ SELECT "$source_post_wait_res" != "-1" ]
+--let $assert_text= The function did not time out
+--source include/assert.inc
+
+--echo #
+--echo # 3. Restart the server so positions become invalid
+--echo #    Use relay log recovery so the new relay log contains no source info when the applier starts
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_slave_start=1 --relay-log-recovery=1
+--let $explicit_default_wait_counter = 15000
+--source include/rpl_restart_server.inc
+
+--source include/start_slave_sql.inc
+
+--let $applier_source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Source_Log_File, 1)
+--let $assert_cond= [ SELECT "$applier_source_log_file" = "INVALID" ]
+--let $assert_text= The source log file name in the applier is invalid
+--source include/assert.inc
+
+--let $applier_source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Exec_Source_Log_Pos, 1)
+--let $assert_cond= [ SELECT "$applier_source_log_pos" = "0" ]
+--let $assert_text= The source log file position in the applier is 0
+--source include/assert.inc
+
+--echo #
+--echo # 4. Test that the command times out cause positions are invalid
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $source_post_wait_res = `SELECT SOURCE_POS_WAIT('$log_file_on_source', $log_pos_on_source, 2)`
+
+--let $assert_cond= [ SELECT "$source_post_wait_res" = "-1" ]
+--let $assert_text= The function timed out
+--source include/assert.inc
+
+--echo #
+--echo # 5. Execute a wait with a large timeout
+--echo #    Turn applier positions valid again
+--echo #    Check the function does not time out when positions become valid
+
+CREATE TABLE query_result(res INT);
+--replace_result $log_file_on_source LOG_FILE_ON_SOURCE $log_pos_on_source LOG_POS_ON_SOURCE
+--send_eval INSERT INTO query_result SELECT SOURCE_POS_WAIT('$log_file_on_source', $log_pos_on_source, 100);
+
+--source include/rpl_connection_slave.inc
+
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t VALUES(3);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--reap
+
+--let $source_post_wait_res = `SELECT res FROM query_result`
+--let $assert_cond= [ SELECT "$source_post_wait_res" != "-1" ]
+--let $assert_text= The function did not time out
+--source include/assert.inc
+
+--echo #
+--echo # 6. SOURCE_POS_WAIT does not timeout when invoked with valid positioning info
+
+--source include/rpl_connection_slave.inc
+
+--let $source_post_wait_res = `SELECT SOURCE_POS_WAIT('$log_file_on_source', $log_pos_on_source, 30)`
+
+--let $assert_cond= [ SELECT "$source_post_wait_res" != "-1" ]
+--let $assert_text= The function did not time out
+--source include/assert.inc
+
+--echo #
+--echo # 7. Cleanup
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
+
+--source include/start_slave.inc
+
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+
+DROP TABLE query_result;
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t;
+
+--source include/rpl_end.inc

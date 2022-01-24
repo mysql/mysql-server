@@ -62,7 +62,7 @@ class Binlog_event_data_istream {
   Binlog_event_data_istream(const Binlog_event_data_istream &) = delete;
   Binlog_event_data_istream &operator=(const Binlog_event_data_istream &) =
       delete;
-  virtual ~Binlog_event_data_istream() {}
+  virtual ~Binlog_event_data_istream() = default;
 
   /**
      Read an event data from the stream and verify its checksum if

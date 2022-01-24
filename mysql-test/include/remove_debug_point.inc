@@ -13,7 +13,7 @@
 #
 # Parameters:
 #   $debug_point
-#     The debug point to be activated.
+#     The debug point to be removed.
 #
 #   $debug_point_silent
 #     By default, this script prints the name of the debug point. If
@@ -43,7 +43,7 @@ if ($debug_type)
 }
 if ( `SELECT UPPER('$_debug_type') <> 'GLOBAL' AND UPPER('$_debug_type') <> 'SESSION'` )
 {
-  --die ERROR IN TEST: invalid value for mysqltest variable 'debug_type': $debug_type
+  --die ERROR IN TEST: invalid value for mysqltest variable 'debug_type'. It must be either GLOBAL or SESSION
 }
 if (!$debug_point)
 {
@@ -70,7 +70,11 @@ if (!$debug_if_exists)
 {
   if (`SELECT @new_debug = @previous_debug`)
   {
-    --die ERROR IN TEST: the debug point '$debug_point' was not found
+    # Long debug entries don't allow this check
+    if(`SELECT LENGTH(@@$_debug_type.debug) < 512`)
+    {
+      --die ERROR IN TEST: the debug point to be removed was not found
+    }
   }
 }
 
@@ -84,6 +88,18 @@ if ($rpl_debug)
 {
   --let $_to_display=`SELECT @@$_debug_type.debug`
   --echo @@$_debug_type.debug was '$_to_display'
+}
+
+# If the current debug setting is already too big it might compromise the above checks
+# as the shown debug info will be cut and end with '...'
+# In this case we revert to the -d strategy
+if(`SELECT LENGTH(@@$_debug_type.debug) >= 512`)
+{
+  --eval SET @new_debug="-d,$debug_point";
+  if ($rpl_debug)
+  {
+    --echo Warning: the current value for @@$_debug_type.debug is too big to be displayed so some checks were ommited
+  }
 }
 
 --eval SET @@$_debug_type.debug=@new_debug

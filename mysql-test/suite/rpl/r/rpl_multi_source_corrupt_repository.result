@@ -55,8 +55,8 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
 ===== Remove '' channel's relaylog file.
-===== Start the server 4 with --skip-slave-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
+===== Start the server 4 with --skip-replica-start=0 option.
+include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -81,8 +81,8 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-===== SELECT MASTER_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
-SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
+===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
+SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
@@ -93,13 +93,13 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -132,13 +132,13 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -175,13 +175,13 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
@@ -264,8 +264,8 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
 ===== Remove 'channel_2' channel's relaylog file.
-===== Start the server 4 with --skip-slave-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
+===== Start the server 4 with --skip-replica-start=0 option.
+include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -290,8 +290,8 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-===== SELECT MASTER_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
-SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
+===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
+SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
@@ -302,13 +302,13 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -345,13 +345,13 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -384,13 +384,13 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
@@ -473,8 +473,8 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
 ===== Remove 'channel_3' channel's relaylog file.
-===== Start the server 4 with --skip-slave-start=0 option.
-include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
+===== Start the server 4 with --skip-replica-start=0 option.
+include/rpl_start_server.inc [server_number=4 parameters: --skip-replica-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -499,8 +499,8 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-===== SELECT MASTER_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
-SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
+===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
+SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
@@ -511,13 +511,13 @@ ERROR HY000: Multiple channels exist on the slave. Please provide channel name a
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -554,13 +554,13 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -597,13 +597,13 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION+1.]
+include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.

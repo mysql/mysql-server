@@ -1,0 +1,36 @@
+SELECT COUNT(*) as Nodes_in_cluster FROM ndbinfo.processes;
+Nodes_in_cluster
+253
+SELECT COUNT(*) as MySQL_Servers FROM ndbinfo.processes
+WHERE process_name = 'mysqld';
+MySQL_Servers
+250
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "MySQL Server with NDB");
+INSERT INTO t1 (a, b) VALUES (11, "Barrier effect");
+INSERT INTO t1 (a, b) VALUES
+(12, "The third row"),
+(37, "And of course number 37");
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	MySQL Server with NDB
+UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	MySQL Server with NDB test
+REPLACE t1 (a, b) VALUES (12, "Another layer");
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+a	b
+12	Another layer
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+SELECT b FROM t1 WHERE b LIKE "MySQL%";
+b
+MySQL Server with NDB test
+DELETE FROM t1 ORDER BY b DESC;
+DROP TABLE t1;

@@ -91,7 +91,7 @@ INSERT INTO t1 VALUES(2);
 #    Then start replication between server-1 (master) and server-2 (slave) and
 #    verify if data on master has been replicated to slave
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --log-bin=slave-bin --datadir=$NEWDATADIR --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_server_parameters= --log-bin=slave-bin --datadir=$NEWDATADIR --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -116,7 +116,7 @@ mkdir $NEWDATADIR_2;
 --echo
 --source include/rpl_connection_slave.inc
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --server-id=2 --log-bin=slave-bin --datadir=$NEWDATADIR_2 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_server_parameters= --server-id=2 --log-bin=slave-bin --datadir=$NEWDATADIR_2 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -141,7 +141,7 @@ mkdir $NEWDATADIR_3;
 --echo
 --source include/rpl_connection_slave.inc
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --server-id=0 --log-bin=slave-bin --datadir=$NEWDATADIR_3 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_server_parameters= --server-id=0 --log-bin=slave-bin --datadir=$NEWDATADIR_3 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -161,7 +161,7 @@ mkdir $NEWDATADIR_4;
 --echo
 --source include/rpl_connection_slave.inc
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --server-id=1 --log-bin=slave-bin --datadir=$NEWDATADIR_4 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_server_parameters= --server-id=1 --log-bin=slave-bin --datadir=$NEWDATADIR_4 --replica-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-replica-start=1
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -175,7 +175,7 @@ START SLAVE;
 # 10. Restart server-2 with the original datadir to bring it back to
 #     original state
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --datadir=$ORIGINAL_MYSQLD_DATADIR --basedir=$ORIGINAL_MYSQLD_BASEDIR --skip-slave-start=0
+--let $rpl_server_parameters= --datadir=$ORIGINAL_MYSQLD_DATADIR --basedir=$ORIGINAL_MYSQLD_BASEDIR --skip-replica-start=0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc
 

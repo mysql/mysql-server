@@ -21,4 +21,4 @@ ERROR 42S02: Table 'performance_schema.cond_instances' doesn't exist
 # and --innodb-read-only mode is ON.
 Can't open shared library component_reference_cache
 Can't open shared library component_reference_cache
-# restart:--debug=+d,test_p_s_metadata_version
+# restart:--debug=-d,test_p_s_metadata_version

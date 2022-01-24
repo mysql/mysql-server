@@ -3,12 +3,12 @@
 # and it's thus normal to have error 0.
 SET SESSION debug="+d,ndb_schema_trans_start_fail";
 CREATE TABLE t1(a int primary key) engine = NDB;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 0 'No error' from NDB
 Warning	1296	Failed to start NDB schema transaction
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug="-d,ndb_schema_trans_start_fail";
 # Check that table does not exist
 SELECT * FROM t1;
@@ -17,12 +17,12 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 # when creating a table.
 SET SESSION debug="+d,ndb_schema_trans_commit_fail";
 CREATE TABLE t1(a int primary key) engine = NDB;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 0 'No error' from NDB
 Warning	1296	Failed to commit NDB schema transaction
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug="-d,ndb_schema_trans_commit_fail";
 # Check that table does not exist
 SELECT * FROM t1;

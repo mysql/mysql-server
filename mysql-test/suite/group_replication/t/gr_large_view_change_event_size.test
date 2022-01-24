@@ -1,18 +1,18 @@
 ################################################################################
 # This test evaluates that when the certification information is above the
-# slave_max_allowed_packet value, the garbage collection invoked during view changes
+# replica_max_allowed_packet value, the garbage collection invoked during view changes
 # can alleviate this restriction.
 #
 # This test assumes an average size of 135 bytes per certification table entry.
 # Assuming this average, for a max packet size of 0.5MB, 3900 individual
 # transactions should be enough to break that limit.
 # In this test we use:
-#   slave_max_allowed_packet = 1024*256  -     0.125 MB
+#   replica_max_allowed_packet = 1024*256  -     0.125 MB
 #   inserted transactions    = 1950      -     ~0.16 MB
 #
 # Test:
 # 0. The test requires three servers: M1, M2 and M3.
-# 1. Reduce slave_max_allowed_packet to 0.125 MB on M1 and M2.
+# 1. Reduce replica_max_allowed_packet to 0.125 MB on M1 and M2.
 # 2. Set DEBUG point to ensure the certification garbage collector is not
 #    executed on both M1 and M2. Bootstrap start a group on M1. Start GR on M2.
 # 3. Create table and events to insert data on both members.
@@ -30,20 +30,20 @@
 --source include/group_replication.inc
 
 --echo #
---echo # Reduce the slave_max_allowed_packet value to just  0.125 MB
+--echo # Reduce the replica_max_allowed_packet value to just  0.125 MB
 --echo #
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET @start_global_value_s1 = @@global.slave_max_allowed_packet;
-SET @@global.slave_max_allowed_packet=1024*128;
+SET @start_global_value_s1 = @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=1024*128;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @start_global_value_s2 = @@global.slave_max_allowed_packet;
-SET @@global.slave_max_allowed_packet=1024*128;
+SET @start_global_value_s2 = @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=1024*128;
 
 --echo #
 --echo # Initiate a 2 member group
@@ -197,7 +197,7 @@ SET SESSION sql_log_bin= 1;
 
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.slave_max_allowed_packet = @start_global_value_s1;
+SET @@global.replica_max_allowed_packet = @start_global_value_s1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -213,7 +213,7 @@ SET SESSION sql_log_bin= 1;
 
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.slave_max_allowed_packet = @start_global_value_s2;
+SET @@global.replica_max_allowed_packet = @start_global_value_s2;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

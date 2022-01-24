@@ -35,7 +35,7 @@ UPDATE t1 SET f2 = 10 WHERE f1 = 1;
 --let $diff_tables=master:t1, slave:t1
 --source include/diff_tables.inc
 --echo # check that INDEX_SCAN is used at replica.
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 
 # Cleanup
 --source include/rpl_connection_master.inc

@@ -12,7 +12,7 @@ CREATE TEMPORARY TABLE temp1 (i INT);
 COMMIT;
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT transaction
@@ -43,7 +43,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
@@ -64,7 +64,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
@@ -77,7 +77,7 @@ Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT transaction
@@ -104,7 +104,7 @@ Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
@@ -120,7 +120,7 @@ Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 CREATE PROCEDURE sp1 ()
 BEGIN
@@ -151,7 +151,7 @@ CALL sp1();
 COMMIT;
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT procedure
@@ -175,7 +175,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
@@ -191,7 +191,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
@@ -204,7 +204,7 @@ Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT procedure
@@ -227,7 +227,7 @@ Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
@@ -240,7 +240,7 @@ Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 DROP TABLE t1;
 DROP PROCEDURE sp1;

@@ -43,15 +43,13 @@ corresponding bits are set in the ibuf bitmap. */
 #define IBUF_PAGE_SIZE_PER_FREE_SPACE 32
 
 /** Starts an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_start(mtr_t *mtr) /*!< out: mini-transaction */
+static inline void ibuf_mtr_start(mtr_t *mtr) /*!< out: mini-transaction */
 {
   mtr_start(mtr);
   mtr->enter_ibuf();
 }
 /** Commits an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_commit(mtr_t *mtr) /*!< in/out: mini-transaction */
+static inline void ibuf_mtr_commit(mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(mtr->is_inside_ibuf());
   ut_d(mtr->exit_ibuf());
@@ -110,16 +108,17 @@ void ibuf_set_free_bits_func(
 
 /** A basic partial test if an insert to the insert buffer could be possible and
  recommended. */
-UNIV_INLINE
-ibool ibuf_should_try(dict_index_t *index,     /*!< in: index where to insert */
-                      ulint ignore_sec_unique) /*!< in: if != 0, we should
-                                               ignore UNIQUE constraint on
-                                               a secondary index when we
-                                               decide */
+static inline ibool ibuf_should_try(
+    dict_index_t *index,     /*!< in: index where to insert */
+    ulint ignore_sec_unique) /*!< in: if != 0, we should
+                             ignore UNIQUE constraint on
+                             a secondary index when we
+                             decide */
 {
   return (innodb_change_buffering != IBUF_USE_NONE && ibuf->max_size != 0 &&
-          index->space != dict_sys_t::s_space_id && !index->is_clustered() &&
-          !dict_index_is_spatial(index) && !dict_index_has_desc(index) &&
+          index->space != dict_sys_t::s_dict_space_id &&
+          !index->is_clustered() && !dict_index_is_spatial(index) &&
+          !dict_index_has_desc(index) &&
           index->table->quiesce == QUIESCE_NONE &&
           (ignore_sec_unique || !dict_index_is_unique(index)) &&
           srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);
@@ -131,8 +130,7 @@ ibool ibuf_should_try(dict_index_t *index,     /*!< in: index where to insert */
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-UNIV_INLINE
-ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
+static inline ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
 {
   return (mtr->is_inside_ibuf());
 }
@@ -141,8 +139,8 @@ ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a bitmap page */
-UNIV_INLINE
-ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size) {
+static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
+                                     const page_size_t &page_size) {
   return ((page_id.page_no() & (page_size.physical() - 1)) ==
           FSP_IBUF_BITMAP_OFFSET);
 }
@@ -152,8 +150,8 @@ ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size) {
 @param[in]	max_ins_size	maximum insert size after reorganize for
 the page
 @return value for ibuf bitmap bits */
-UNIV_INLINE
-ulint ibuf_index_page_calc_free_bits(ulint page_size, ulint max_ins_size) {
+static inline ulint ibuf_index_page_calc_free_bits(ulint page_size,
+                                                   ulint max_ins_size) {
   ulint n;
   ut_ad(ut_is_2pow(page_size));
   ut_ad(page_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
@@ -175,9 +173,8 @@ ulint ibuf_index_page_calc_free_bits(ulint page_size, ulint max_ins_size) {
 @param[in]	page_size	page_size
 @param[in]	bits		value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
-UNIV_INLINE
-ulint ibuf_index_page_calc_free_from_bits(const page_size_t &page_size,
-                                          ulint bits) {
+static inline ulint ibuf_index_page_calc_free_from_bits(
+    const page_size_t &page_size, ulint bits) {
   ut_ad(bits < 4);
   ut_ad(!page_size.is_compressed() ||
         page_size.physical() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
@@ -192,12 +189,10 @@ ulint ibuf_index_page_calc_free_from_bits(const page_size_t &page_size,
 /** Translates the free space on a compressed page to a value in the ibuf
  bitmap.
  @return value for ibuf bitmap bits */
-UNIV_INLINE
-ulint ibuf_index_page_calc_free_zip(
+static inline ulint ibuf_index_page_calc_free_zip(
     const buf_block_t *block) /*!< in: buffer block */
 {
   ulint max_ins_size;
-  const page_zip_des_t *page_zip;
   lint zip_max_ins;
 
   ut_ad(block->page.size.is_compressed());
@@ -212,7 +207,7 @@ ulint ibuf_index_page_calc_free_zip(
   by using the page modification log. */
   max_ins_size = page_get_max_insert_size(buf_block_get_frame(block), 1);
 
-  page_zip = buf_block_get_page_zip(block);
+  const auto page_zip = block->get_page_zip();
   zip_max_ins = page_zip_max_ins_size(page_zip, FALSE /* not clustered */);
 
   if (zip_max_ins < 0) {
@@ -227,8 +222,7 @@ ulint ibuf_index_page_calc_free_zip(
 
 /** Translates the free space on a page to a value in the ibuf bitmap.
  @return value for ibuf bitmap bits */
-UNIV_INLINE
-ulint ibuf_index_page_calc_free(
+static inline ulint ibuf_index_page_calc_free(
     const buf_block_t *block) /*!< in: buffer block */
 {
   if (!block->page.size.is_compressed()) {
@@ -256,8 +250,7 @@ ulint ibuf_index_page_calc_free(
  decrementing the free bits.  Should more free space become available,
  we must not update the free bits here, because that would break crash
  recovery. */
-UNIV_INLINE
-void ibuf_update_free_bits_if_full(
+static inline void ibuf_update_free_bits_if_full(
     buf_block_t *block, /*!< in: index page to which we have added new
                         records; the free bits are updated if the
                         index is non-clustered and non-unique and
@@ -273,7 +266,7 @@ void ibuf_update_free_bits_if_full(
   ulint before;
   ulint after;
 
-  ut_ad(buf_block_get_page_zip(block) == NULL);
+  ut_ad(block->get_page_zip() == nullptr);
 
   before =
       ibuf_index_page_calc_free_bits(block->page.size.physical(), max_ins_size);

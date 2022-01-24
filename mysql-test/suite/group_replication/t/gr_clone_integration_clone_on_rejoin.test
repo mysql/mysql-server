@@ -73,6 +73,7 @@ INSERT INTO t1 VALUES (2);
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 # after the restart with mysqld_safe we need this option for expel operations
 SET PERSIST local_infile= ON;
@@ -89,6 +90,7 @@ SET PERSIST local_infile= ON;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -211,6 +213,7 @@ RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS local_infile;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 UNINSTALL PLUGIN clone;
 

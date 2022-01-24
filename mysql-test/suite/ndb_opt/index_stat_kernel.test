@@ -1,0 +1,35 @@
+--source include/have_ndb.inc
+
+#
+# Basic test to verify the automatic creatiion and update of
+# index stats in the kernel
+#
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL,
+  PRIMARY KEY USING HASH (a),
+  INDEX (b)
+) ENGINE NDB;
+
+--echo Check if the stats have been automatically created
+--let $index_stat_db=test
+--let $index_stat_table=t1
+--source check_index_stat_created.inc
+
+--echo Insert rows to trigger automatic update of stats
+--disable_query_log
+--let $i = 1000
+while ($i)
+{
+  --dec $i
+  --eval INSERT INTO t1 VALUES ($i, $i % 10)
+}
+--enable_query_log
+
+--echo Wait for stats update
+--let $index_stat_db=test
+--let $index_stat_table=t1
+--source wait_index_stat_updated.inc
+
+DROP TABLE t1;

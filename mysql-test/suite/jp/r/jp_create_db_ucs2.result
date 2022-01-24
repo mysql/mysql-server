@@ -4,8 +4,11 @@ drop database if exists `íÜíİíŞ`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET character_set_server = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `ÆÎİºŞ`;
 CREATE DATABASE `ÆüËÜ¸ì`;
 CREATE DATABASE `íÜíİíŞ`;

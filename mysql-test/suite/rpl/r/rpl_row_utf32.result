@@ -9,9 +9,9 @@ CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1))
 ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf32;
 SET sql_mode = default;
 SET SQL_LOG_BIN=1;
-SET @saved_slave_type_conversions= @@global.slave_type_conversions;
+SET @saved_replica_type_conversions= @@global.replica_type_conversions;
 include/stop_slave.inc
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 include/start_slave.inc
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -22,7 +22,7 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t1(c1) VALUES ('insert into t1');
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET GLOBAL SLAVE_TYPE_CONVERSIONS= @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS= @saved_replica_type_conversions;
 include/stop_slave.inc
 include/start_slave.inc
 include/rpl_end.inc

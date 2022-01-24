@@ -52,7 +52,7 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
 
   View_routine_impl(const View_routine_impl &src, View_impl *parent);
 
-  ~View_routine_impl() override {}
+  ~View_routine_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);

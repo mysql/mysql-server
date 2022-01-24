@@ -369,8 +369,8 @@ static ulint opt_calc_index_goodness(
 
 /** Calculates the number of matched fields based on an index goodness.
  @return number of excatly or partially matched fields */
-UNIV_INLINE
-ulint opt_calc_n_fields_from_goodness(ulint goodness) /*!< in: goodness */
+static inline ulint opt_calc_n_fields_from_goodness(
+    ulint goodness) /*!< in: goodness */
 {
   return (((goodness % 1024) + 2) / 4);
 }
@@ -378,8 +378,7 @@ ulint opt_calc_n_fields_from_goodness(ulint goodness) /*!< in: goodness */
 /** Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
  ...
  @return search mode */
-UNIV_INLINE
-page_cur_mode_t opt_op_to_search_mode(
+static inline page_cur_mode_t opt_op_to_search_mode(
     ibool asc, /*!< in: TRUE if the rows should be fetched in an
                ascending order */
     ulint op)  /*!< in: operator '=', PARS_GE_TOKEN, ... */
@@ -722,8 +721,8 @@ static void opt_determine_and_normalize_test_conds(
 
   plan = sel_node_get_nth_plan(sel_node, i);
 
-  UT_LIST_INIT(plan->end_conds, &func_node_t::cond_list);
-  UT_LIST_INIT(plan->other_conds, &func_node_t::cond_list);
+  UT_LIST_INIT(plan->end_conds);
+  UT_LIST_INIT(plan->other_conds);
 
   /* Recursively go through the conjuncts and classify them */
 
@@ -754,7 +753,6 @@ void opt_find_all_cols(
   func_node_t *func_node;
   que_node_t *arg;
   sym_node_t *sym_node;
-  sym_node_t *col_node;
   ulint col_pos;
 
   if (exp == nullptr) {
@@ -786,9 +784,7 @@ void opt_find_all_cols(
   /* Look for an occurrence of the same column in the plan column
   list */
 
-  col_node = UT_LIST_GET_FIRST(*col_list);
-
-  while (col_node) {
+  for (auto col_node : *col_list) {
     if (col_node->col_no == sym_node->col_no) {
       if (col_node == sym_node) {
         /* sym_node was already in a list: do
@@ -803,8 +799,6 @@ void opt_find_all_cols(
 
       return;
     }
-
-    col_node = UT_LIST_GET_NEXT(col_var_list, col_node);
   }
 
   /* The same column did not occur in the list: add it */
@@ -888,7 +882,7 @@ static void opt_classify_cols(sel_node_t *sel_node, /*!< in: select node */
 
   plan->must_get_clust = FALSE;
 
-  UT_LIST_INIT(plan->columns, &sym_node_t::col_var_list);
+  UT_LIST_INIT(plan->columns);
 
   /* All select list columns should be copied: therefore TRUE as the
   first argument */

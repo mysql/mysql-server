@@ -1,0 +1,81 @@
+################################################################################
+# This test verifies that parallel execution of
+# SELECT * FROM performance_schema.replication_group_member_stats and
+# Group Replication options change are handled properly by the server.
+#
+# Test:
+# 0. The test requires one server: M1
+# 1. Bootstrap a group on server1.
+#    Setup a debug point that will block a future
+#    SELECT * FROM performance_schema.replication_group_member_stats
+#    after the plugin_running_lock is acquired.
+# 2. Asynchronously execute a query on the table
+#    performance_schema.replication_group_member_stats
+# 3. Change a Group Replication option, it must succeed.
+# 4. Resume the query on the table
+#    performance_schema.replication_group_member_stats
+# 5. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo ############################################################
+--echo # 1. Bootstrap a group on server1.
+--echo #    Setup a debug point that will block a future
+--echo #    SELECT * FROM performance_schema.replication_group_member_stats
+--echo #    after the plugin_running_lock is acquired.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
+
+
+--echo ############################################################
+--echo # 2. Asynchronously execute a query on the table
+--echo #    performance_schema.replication_group_member_stats
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--send SELECT CHANNEL_NAME, COUNT_TRANSACTIONS_ROWS_VALIDATING, COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats_plugin_running_lock_acquired";
+SET @@GLOBAL.DEBUG='-d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
+
+
+--echo ############################################################
+--echo # 3. Change a Group Replication option, it must succeed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_member_weight_saved= @@GLOBAL.group_replication_member_weight;
+SET @@GLOBAL.group_replication_member_weight= 100;
+
+--let $assert_text= group_replication_member_weight is 100
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_weight]" = "100"
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 4. Resume the query on the table
+--echo #    performance_schema.replication_group_member_stats
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats_plugin_running_lock_acquired";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+
+--echo ############################################################
+--echo # 5. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_member_weight= @group_replication_member_weight_saved;
+
+SET DEBUG_SYNC= 'RESET';
+--source include/group_replication_end.inc

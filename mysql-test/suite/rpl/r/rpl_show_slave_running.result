@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc
-set global debug= 'd,dbug.before_get_running_status_yes';
+# Adding debug point 'dbug.before_get_running_status_yes' to @@GLOBAL.debug
 Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
 select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Running from performance_schema.replication_applier_status ras, performance_schema.replication_connection_status rcs;
 Slave_IO_Running	Slave_SQL_Running
@@ -32,7 +32,7 @@ select rcs.SERVICE_STATE as Slave_IO_Running, ras.SERVICE_STATE as Slave_SQL_Run
 Slave_IO_Running	Slave_SQL_Running
 ON	ON
 include/sync_slave_sql_with_master.inc
-set global debug= '';
+# Removing debug point 'dbug.before_get_running_status_yes' from @@GLOBAL.debug
 SET DEBUG_SYNC= 'RESET';
 End of tests
 include/rpl_end.inc

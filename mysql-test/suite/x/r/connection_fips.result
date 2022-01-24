@@ -1,6 +1,6 @@
 ##Test: Restart server and provide weak ssl-cipher at server startup
-in main, line 0:ERROR: Failed to set ciphers to use (code 2026)
-not ok
+Application terminated with expected error: Failed to set ciphers to use (code 2026)
+ok
 RUN SHOW STATUS LIKE 'ssl_cipher'
 Variable_name	Value
 Ssl_cipher	

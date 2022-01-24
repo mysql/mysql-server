@@ -312,6 +312,7 @@ int test_charset_map()
 
 int main(int argc, const char** argv)
 {
+    ndb_init();
     // TAP: print number of tests to run
     plan(3);
 
@@ -324,6 +325,7 @@ int main(int argc, const char** argv)
     ok(test_decimal_conv() == 0, "subtest: decimal_conv");
     ok(test_charset_map() == 0, "subtest: charset_map");
 
+    ndb_end(0);
     // TAP: print summary report and return exit status
     return exit_status();
 }

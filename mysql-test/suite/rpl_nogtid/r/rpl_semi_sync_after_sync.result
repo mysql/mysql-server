@@ -13,24 +13,24 @@ include/sync_slave_sql_with_master.inc
 # Case 1: Single statement transaction
 #
 [connection server_1]
-show status like "rpl_semi_sync_master_yes_tx";
+show status like "rpl_semi_sync_source_yes_tx";
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
+Rpl_semi_sync_source_yes_tx	1
 SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
-show status like "rpl_semi_sync_master_yes_tx";
+show status like "rpl_semi_sync_source_yes_tx";
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	2
-include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
+Rpl_semi_sync_source_yes_tx	2
+include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx increased only 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased only 1]
 TRUNCATE t1;
 #
 # Test on AFTER_SYNC wait point
@@ -45,35 +45,35 @@ INSERT INTO t1 VALUES(2);
 COMMIT;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
-include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx increased only 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased only 1]
 TRUNCATE t1;
 #
 # Test on AFTER_COMMIT wait point
 # #######################################################################
 # Verify after_sync hook will not be executed
 #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
 include/assert.inc [Table is empty right now.]
-include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
-include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
+include/assert.inc [rpl_semi_sync_source_yes_tx was not increased]
+include/assert.inc [rpl_semi_sync_source_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
 SET DEBUG_SYNC= "RESET";
 [connection master]
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 include/sync_slave_sql_with_master.inc
 [connection master]
@@ -84,24 +84,24 @@ SET GLOBAL binlog_order_commits = OFF;
 # Case 1: Single statement transaction
 #
 [connection server_1]
-show status like "rpl_semi_sync_master_yes_tx";
+show status like "rpl_semi_sync_source_yes_tx";
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	7
+Rpl_semi_sync_source_yes_tx	7
 SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
-show status like "rpl_semi_sync_master_yes_tx";
+show status like "rpl_semi_sync_source_yes_tx";
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	8
-include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
+Rpl_semi_sync_source_yes_tx	8
+include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx increased only 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased only 1]
 TRUNCATE t1;
 #
 # Test on AFTER_SYNC wait point
@@ -116,35 +116,35 @@ INSERT INTO t1 VALUES(2);
 COMMIT;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
-include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx increased only 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx increased only 1]
 TRUNCATE t1;
 #
 # Test on AFTER_COMMIT wait point
 # #######################################################################
 # Verify after_sync hook will not be executed
 #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
 [connection master]
 SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
 include/assert.inc [Table is empty right now.]
-include/assert.inc [rpl_semi_sync_master_yes_tx was not increased]
-include/assert.inc [rpl_semi_sync_master_no_tx was not increased]
+include/assert.inc [rpl_semi_sync_source_yes_tx was not increased]
+include/assert.inc [rpl_semi_sync_source_no_tx was not increased]
 SET DEBUG_SYNC= "now SIGNAL end";
 [connection server_1]
 SET DEBUG_SYNC= "RESET";
 [connection master]
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 include/sync_slave_sql_with_master.inc
 [connection master]
@@ -153,7 +153,7 @@ SET GLOBAL binlog_order_commits= 1;
 # For coverage test, simulate after_sync hook error
 #
 SET @saved_debug= @@GLOBAL.debug;
-SET GLOBAL debug='d,simulate_after_sync_hook_error';
+SET GLOBAL debug='+d,simulate_after_sync_hook_error';
 INSERT INTO t1 VALUES(1);
 SELECT * FROM t1;
 c1

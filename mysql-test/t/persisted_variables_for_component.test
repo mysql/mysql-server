@@ -90,3 +90,22 @@ RESET PERSIST;
 # return 0 rows
 SELECT * FROM performance_schema.persisted_variables;
 
+
+--echo #
+--echo # BUG#31968366: SET PERSIST FOR COMPONENTS GENERATES A FLOOD OF WARNINGS
+--echo #
+
+INSTALL COMPONENT 'file://component_validate_password';
+SET @@persist.validate_password.length=10;
+SET @@persist.validate_password.check_user_name=OFF;
+# return 2 rows
+SELECT COUNT(*) FROM performance_schema.persisted_variables;
+UNINSTALL COMPONENT 'file://component_validate_password';
+INSTALL COMPONENT 'file://component_validate_password';
+# with fix should return 0 rows, without fix it will return 63 rows
+SELECT COUNT(*) FROM performance_schema.error_log WHERE ERROR_CODE = "MY-013185";
+UNINSTALL COMPONENT 'file://component_validate_password';
+--echo # Test RESET PERSIST after component is uninstalled
+RESET PERSIST;
+# return 0 rows
+SELECT * FROM performance_schema.persisted_variables;

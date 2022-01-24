@@ -6,11 +6,11 @@ CREATE TABLE t2 (
 id INT AUTO_INCREMENT,
 KEY(id)
 ) ENGINE=NDBCLUSTER;
-ERROR HY000: Can't create table 't2'
+ERROR HY000: Can't create table 't2' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 4335 'Only one autoincrement column allowed per table. Having a table without primary key uses an autoincr' from NDB
-Error	1005	Can't create table 't2'
+Error	1005	Can't create table 't2' (use SHOW WARNINGS for more info).
 SHOW TABLES;
 Tables_in_test
 t1
@@ -20,11 +20,11 @@ KEY(id)
 ) ENGINE=MYISAM;
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
-ERROR HY000: Can't create destination table for copying alter table
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 4335 'Only one autoincrement column allowed per table. Having a table without primary key uses an autoincr' from NDB
-Error	1005	Can't create destination table for copying alter table
+Error	1005	Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (

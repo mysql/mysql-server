@@ -1,2 +1,2 @@
 --innodb_flush_log_at_trx_commit=2
---log_slave_updates=0
+--log_replica_updates=0

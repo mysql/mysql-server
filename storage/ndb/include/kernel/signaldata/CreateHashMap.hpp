@@ -31,7 +31,7 @@
 struct CreateHashMapReq
 {
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum RequestType
   {
@@ -55,7 +55,7 @@ struct CreateHashMapReq
 struct CreateHashMapConf
 {
 
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -66,7 +66,7 @@ struct CreateHashMapConf
 
 struct CreateHashMapRef
 {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
   Uint32 senderData;

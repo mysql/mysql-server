@@ -25,7 +25,7 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 # Should not have used the a index to syncronize the row.
 SELECT 1 AS not_using_index FROM performance_schema.global_status
-WHERE variable_name = 'Slave_rows_last_search_algorithm_used'
+WHERE variable_name = 'Replica_rows_last_search_algorithm_used'
 AND variable_value <> 'INDEX_SCAN';
 not_using_index
 1

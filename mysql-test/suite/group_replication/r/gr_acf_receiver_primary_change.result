@@ -1,0 +1,119 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin = 1;
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin = 1;
+
+# 1. Create a replication channel to replicate from server4 to
+#    to server1 on both server1 and 2.
+
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 2. Deploy a 2 members receiver group in single primary mode.
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+[connection server2]
+include/start_group_replication.inc
+#
+# 3. Deploy a 2 members sender group in single primary mode.
+#
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+
+# 4. Add replication connection details of managed channel ch1
+#    to replication_asynchronous_connection_failover_managed table
+#    through asynchronous_connection_failover_add_managed() UDF.
+
+[connection server1]
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "GROUP_NAME_SERVER2",'127.0.0.1', SERVER_MYPORT_4, '', 80, 60);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "GROUP_NAME_SERVER2",'127.0.0.1', SERVER_MYPORT_4, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+
+# 5. Verify replication_asynchronous_connection_failover on
+#    server1 has two rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+
+
+#  6. Verify replication_asynchronous_connection_failover on
+#     server2 has two rows and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+
+[connection server2]
+
+# 7. Stop group replication on existing primary (server1), and change
+#    primary to server2. The asynchronous replication channel (ch1)
+#    connection will be started without any error.
+
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+include/gr_wait_primary_member_uuid.inc
+include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+
+# 8. Delete replication connection details for managed channel ch1
+#    from replication_asynchronous_connection_failover_managed
+#    and replication_asynchronous_connection_failover table
+#    through asynchronous_connection_failover_delete_managed() UDF.
+
+[connection server2]
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_NAME_SERVER2');
+asynchronous_connection_failover_delete_managed('ch1', 'GROUP_NAME_SERVER2')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+
+# 9. Verify replication_asynchronous_connection_failover on
+#    server2 is empty and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+
+[connection server2]
+
+# 10. Verify replication_asynchronous_connection_failover on
+#     server1 is empty and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+
+[connection server1]
+#
+# 11. Clean up.
+#
+[connection server1]
+include/rpl_reset_slave.inc
+[connection server2]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+[connection server4]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

@@ -19,6 +19,8 @@ call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave th
 call mtr.add_suppression("\\[GCS\\] read failed");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: This member could not reach a majority of the members.");
 SET SESSION sql_log_bin = 1;
+[connection server3]
+[connection server1]
 [connection server2]
 [connection server3]
 

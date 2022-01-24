@@ -19,6 +19,11 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 create table t1i (a1 char(8), a2 char(8)) charset utf8mb4;
 create table t2i (b1 char(8), b2 char(8)) charset utf8mb4;
 create table t3i (c1 char(8), c2 char(8)) charset utf8mb4;
@@ -34,6 +39,11 @@ create index it3i3 on t3i (c1, c2);
 insert into t1i select * from t1;
 insert into t2i select * from t2;
 insert into t3i select * from t3;
+ANALYZE TABLE t1i, t2i, t3i;
+Table	Op	Msg_type	Msg_text
+test.t1i	analyze	status	OK
+test.t2i	analyze	status	OK
+test.t3i	analyze	status	OK
 /******************************************************************************
 * Simple tests.
 ******************************************************************************/
@@ -85,10 +95,10 @@ a1	a2
 explain
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	33	test.t2i.b1	1	100.00	NULL
+1	SIMPLE	t1i	NULL	index	it1i1,it1i3	it1i3	66	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i3	it2i1	33	test.t1i.a1	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t1i`.`a1` > '0'))
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -96,10 +106,10 @@ a1	a2
 explain
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	33	test.t2i.b1	1	100.00	NULL
+1	SIMPLE	t1i	NULL	index	it1i1,it1i3	it1i3	66	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i3	it2i1	33	test.t1i.a1	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t1i`.`a1` > '0'))
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -107,10 +117,10 @@ a1	a2
 explain
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t1i	NULL	index	it1i1,it1i2,it1i3	it1i3	66	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1i.a1,test.t1i.a2	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t1i`.`a1` > '0'))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -118,10 +128,10 @@ a1	a2
 explain
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t1i	NULL	index	it1i1,it1i2,it1i3	it1i3	66	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1i.a1,test.t1i.a2	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t1i`.`a1` > '0'))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -130,7 +140,7 @@ explain
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
+2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`min(b2)`)))))
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
@@ -141,7 +151,7 @@ explain
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i3	66	NULL	5	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
@@ -152,13 +162,13 @@ prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2)
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i3	66	NULL	5	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i3	66	NULL	5	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
@@ -174,7 +184,7 @@ explain
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
+2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`min(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
@@ -197,10 +207,10 @@ a1	a2
 explain
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t1i	NULL	index	it1i1,it1i2,it1i3	it1i3	66	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1i.a1,test.t1i.a2	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -253,7 +263,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Start temporary
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2.b1,test.t2.b2	2	100.00	Using index; FirstMatch(t1)
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2.b1,test.t2.b2	1	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t1`.`a2` = `test`.`t2`.`b2`) and (`test`.`t3`.`c2` = `test`.`t2`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2`.`b2`) and (`test`.`t1`.`a1` = `test`.`t2`.`b1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` > '0') and (`test`.`t2`.`b1` > '0'))
 select * from t1
@@ -269,10 +279,10 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	60.00	Using where; Using index; LooseScan
 1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	100.00	Using where
 1	SIMPLE	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	33	test.t2i.b1	1	100.00	Using where
-1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	1	100.00	Using index; FirstMatch(t1i)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t3i` join `test`.`t2i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0'))
 select * from t1i
@@ -292,7 +302,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	1	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (hash join)
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -316,7 +326,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	1	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (hash join)
 4	SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -348,14 +358,14 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	1	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (hash join)
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-7	UNION	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+7	UNION	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	60.00	Using where; Using index; LooseScan
 7	UNION	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	100.00	Using where
 7	UNION	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	33	test.t2i.b1	1	100.00	Using where
-7	UNION	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
+7	UNION	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	1	100.00	Using index; FirstMatch(t1i)
 NULL	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`))))))) union /* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t3i` join `test`.`t2i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0'))
@@ -382,7 +392,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	1	100.00	Using index; FirstMatch(t1)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -405,7 +415,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t3.c2	2	100.00	Using index; FirstMatch(t3)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t3.c2	1	100.00	Using index; FirstMatch(t3)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -449,7 +459,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0' or b2 = a2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	1	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (hash join)
 4	SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -538,6 +548,10 @@ insert into t1bit values (b'010', b'110');
 insert into t2bit values (b'001', b'101');
 insert into t2bit values (b'010', b'110');
 insert into t2bit values (b'110', b'111');
+ANALYZE TABLE t1bit, t2bit;
+Table	Op	Msg_type	Msg_text
+test.t1bit	analyze	status	OK
+test.t2bit	analyze	status	OK
 explain select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -561,6 +575,10 @@ insert into t1bb values (b'010', '110');
 insert into t2bb values (b'001', '101');
 insert into t2bb values (b'010', '110');
 insert into t2bb values (b'110', '111');
+ANALYZE TABLE t1bb, t2bb;
+Table	Op	Msg_type	Msg_text
+test.t1bb	analyze	status	OK
+test.t2bb	analyze	status	OK
 explain select bin(a1), a2
 from t1bb
 where (a1, a2) in (select b1, b2 from t2bb);
@@ -610,6 +628,11 @@ insert into t3 values (10);
 insert into t3 values (10);
 insert into t3 values (20);
 insert into t3 values (30);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -624,11 +647,14 @@ a
 2
 3
 create index it1a on t1(a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
+1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	1	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `<subquery2>`.`c`) and (`test`.`t2`.`d` >= 20))
@@ -639,11 +665,14 @@ a
 2
 3
 insert into t2 values (1,10);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
+1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	1	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`a` = `<subquery2>`.`c`) and (`test`.`t2`.`d` >= 20))
@@ -654,24 +683,27 @@ a
 2
 3
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select/*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	it1a	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2
 3
 create index iab on t1(a, b);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select /*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	it1a,iab	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2
@@ -696,7 +728,7 @@ select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Start temporary
-1	PRIMARY	t1	NULL	ref	it1a,iab	iab	4	test.t2.c	2	100.00	Using where; Using index; End temporary
+1	PRIMARY	t1	NULL	ref	it1a,iab	iab	4	test.t2.c	1	100.00	Using where; Using index; End temporary
 3	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
@@ -724,21 +756,25 @@ drop table t2;
 create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select min('5') AS `min(a1)` from <constant table> semi join (`test`.`t2`) where (`test`.`t2`.`b1` = 7)
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`b1` = 7)
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
 NULL
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select min('5') AS `min(a1)` from <constant table> semi join (`test`.`t2`) where (`test`.`t2`.`b1` = 7)
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`b1` = 7)
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -746,6 +782,9 @@ drop table t1,t2;
 create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
 insert into t1 values ('aa', 'aaaa');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select a,b from t1 where b in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -764,6 +803,9 @@ CREATE TABLE t1 (a varchar(5), b varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
 ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
 ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 a	b
 BBB	4
@@ -777,6 +819,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t1`.`b` = `<materialized_subquery>`.`max(b)`)))))
 ALTER TABLE t1 ADD INDEX(a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 FLUSH STATUS;
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 a	b
@@ -795,6 +840,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch
@@ -820,6 +868,12 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t3 VALUES (1),(2);
 INSERT INTO t4 VALUES (1),(2);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 
 EXPLAIN 
 SELECT t1i
@@ -834,12 +888,12 @@ GROUP BY t3i
 )  
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t4)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `t1i` from `test`.`t4` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t4`.`t4i` = '1') and (`test`.`t2`.`t2i` = '1') and (`test`.`t3`.`t3i` = '1'))
+Note	1003	/* select#1 */ select `test`.`t1`.`t1i` AS `t1i` from `test`.`t1` join `test`.`t4` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t4`.`t4i` = `test`.`t1`.`t1i`) and (`test`.`t2`.`t2i` = `test`.`t1`.`t1i`) and (`test`.`t3`.`t3i` = `test`.`t1`.`t1i`))
 DROP TABLE t1,t2,t3,t4;
 #
 # BUG#46680 - Assertion failed in file item_subselect.cc, 
@@ -858,6 +912,11 @@ CREATE TABLE empty1 (a int);
 INSERT INTO t1 VALUES (1,'c'),(2,NULL);
 INSERT INTO t2 VALUES (3,'m'),(4,NULL);
 INSERT INTO t3 VALUES (1,'n');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 
 #
 # 1) Test that subquery materialization is setup for query with
@@ -960,10 +1019,10 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	empty1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having true
+Note	1003	/* select#1 */ select min(`test`.`empty1`.`a`) AS `MIN(a)` from `test`.`empty1` having true
 
 #
 # 5) Test that subquery materialization is setup for query with
@@ -1005,26 +1064,30 @@ INSERT INTO t1 VALUES (10);
 CREATE TABLE t2 (j INTEGER);
 INSERT INTO t2 VALUES (5);
 CREATE TABLE t3 (k INTEGER);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t2)
 Warnings:
-Note	1003	/* select#1 */ select '10' AS `i`,`test`.`t2`.`j` AS `j` from <constant table> left join (`test`.`t2` semi join (`test`.`t3`)) on(((`test`.`t2`.`j` = `<subquery2>`.`k`))) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`j` AS `j` from `test`.`t1` left join (`test`.`t2` semi join (`test`.`t3`)) on(((`test`.`t3`.`k` = `test`.`t2`.`j`))) where true
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 i	j
 10	NULL
 EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '10' AS `i`,NULL AS `j` from <constant table> left join `test`.`t2` on(<in_optimizer>(NULL,<exists>(/* select#2 */ select max(NULL) from `test`.`t3` having (<cache>(NULL) = <ref_null_helper>(max(NULL))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`j` AS `j` from `test`.`t1` left join `test`.`t2` on(<in_optimizer>(`test`.`t2`.`j`,`test`.`t2`.`j` in ( <materialize> (/* select#2 */ select max(`test`.`t3`.`k`) from `test`.`t3` having true ), <primary_index_lookup>(`test`.`t2`.`j` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`j` = `<materialized_subquery>`.`max(k)`)))))) where true
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 i	j
 10	NULL
@@ -1133,10 +1196,11 @@ explain SELECT a FROM (
 SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` left join `test`.`t2` on(((NULL > 3) or <in_optimizer>(NULL,<exists>(/* select#3 */ select NULL from `test`.`t1` where (<cache>(NULL) = NULL)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` > 3) or <in_optimizer>(`test`.`t2`.`b`,`test`.`t2`.`b` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b` = `<materialized_subquery>`.`a`))))))) where true
 SELECT a FROM (
 SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
@@ -1151,20 +1215,28 @@ CREATE TABLE t1 (
 pk int NOT NULL,
 f1 int DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 CREATE TABLE t2 (
 pk int NOT NULL,
 f1 int DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES (10,0);
 INSERT INTO t2 VALUES (10,0),(11,0);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	Error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Operation failed
 explain SELECT * FROM t1 JOIN t2 USING (f1)
 WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.f1	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `f1`,'10' AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t2` where false
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`pk` = `test`.`t1`.`f1`))
 SELECT * FROM t1 JOIN t2 USING (f1)
 WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
 f1	pk	pk
@@ -1232,6 +1304,10 @@ CREATE TABLE t1(a int);
 INSERT INTO t1 values(1),(2);
 CREATE TABLE t2(a int);
 INSERT INTO t2 values(1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1257,24 +1333,29 @@ DROP TABLE t1,t2,t3;
 #
 CREATE TABLE t1 (
 col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES ('b');
 CREATE TABLE t2 (
 col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t2 VALUES ('k');
 CREATE TABLE t3 (
 col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain SELECT STRAIGHT_JOIN *
 FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select straight_join 'b' AS `col_varchar_nokey`,NULL AS `col_varchar_nokey` from <constant table> left join `test`.`t2` on(<in_optimizer>('b',<exists>(/* select#2 */ select NULL from `test`.`t3` where (<cache>('b') = NULL))))
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`col_varchar_nokey` AS `col_varchar_nokey`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` left join `test`.`t2` on(<in_optimizer>(`test`.`t1`.`col_varchar_nokey`,`test`.`t1`.`col_varchar_nokey` in ( <materialize> (/* select#2 */ select `test`.`t3`.`col_varchar_nokey` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`col_varchar_nokey` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col_varchar_nokey` = `<materialized_subquery>`.`col_varchar_nokey`)))))) where true
 SELECT STRAIGHT_JOIN *
 FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
 FROM t3);
@@ -1286,9 +1367,9 @@ DROP TABLE t1, t2, t3;
 # Bug#13591383: Assertion !(*tab->on_expr_ref && .. && is_expensive())
 # in join_read_const_table()
 #
-CREATE TABLE t1 (v INTEGER) ENGINE=MyISAM;
+CREATE TABLE t1 (v INTEGER) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
-CREATE TABLE t2 (v INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (v INTEGER) ENGINE=INNODB;
 SELECT *
 FROM t1 LEFT JOIN t2
 ON t2.v IN(SELECT v FROM t1);
@@ -1306,14 +1387,18 @@ col_int_nokey int DEFAULT NULL,
 col_int_key int DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1,2,4), (2,150,62);
 CREATE TABLE t2 (
 pk int NOT NULL,
 col_int_key int DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1,7);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
 ON table2.pk = table1.pk AND
@@ -1325,11 +1410,11 @@ GROUP BY col_int_key
 HAVING COUNT(*) > 0
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	table1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	PRIMARY	table2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.table1.pk	1	100.00	Using where
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where false group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
+Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table2`.`pk` AS `pk` from `test`.`t2` `table1` left join `test`.`t2` `table2` on(((`test`.`table2`.`pk` = `test`.`table1`.`pk`) and <in_optimizer>(`test`.`table2`.`col_int_key`,<exists>(/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where false group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(`test`.`table2`.`col_int_key`) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))))) where true
 FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
@@ -1356,6 +1441,10 @@ create table t1(a int not null);
 create table t2(a int not null);
 insert into t1 values(1),(2);
 insert into t2 values(1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 Test in SELECT list
 
 cols not nullable => subq materialization
@@ -1400,6 +1489,9 @@ a	a	(t2.a,t2.a) in (select a,a from t2 as t3)
 2	NULL	NULL
 
 alter table t2 modify a int;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 two nullable inner cols => no subq materialization
 explain select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
@@ -1413,6 +1505,9 @@ select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 a	a	(t1.a,t1.a) in (select a,a from t2 as t3)
 alter table t2 modify a int not null;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 
 Test in WHERE
 
@@ -1510,6 +1605,10 @@ create table t1(a int, b int);
 create table t2(a int);
 insert into t1 values(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
 insert into t2 values(10),(20);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 no NULLs.
 explain select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
@@ -1572,6 +1671,12 @@ create table t2(a int);
 insert into t1 values(1),(2),(3),(4),(5),(6);
 insert into t1 select * from t1;
 insert into t2 values(10),(20),(NULL);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	Error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Operation failed
 explain select a, (a in (select * from t2)) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
@@ -1598,7 +1703,7 @@ of t1 (12), plus one additional look-up to check whether table
 contains a NULL value.
 show status like "handler_read_key";
 Variable_name	Value
-Handler_read_key	13
+Handler_read_key	15
 drop table t1,t2;
 #
 # Bug#13495157 - SUBQUERY MATERIALIZATION NOT USED FOR CERTAIN
@@ -1608,6 +1713,10 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1),(2),(3);
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(1),(2),(4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 # subquery materialization used for SELECT:
 EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1620,6 +1729,9 @@ a
 1
 # Also used for INSERT SELECT:
 CREATE TABLE t3 SELECT * FROM t1;
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
@@ -1642,6 +1754,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT * FROM t2;
 a
 1
@@ -1708,6 +1823,9 @@ ERROR HY000: You can't specify target table 't2' for update in FROM clause
 EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t2);
 ERROR HY000: You can't specify target table 't2' for update in FROM clause
 UPDATE t2 SET a=3 WHERE a=0;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 # Used for multi-table UPDATE, DELETE:
 EXPLAIN SELECT * FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1724,6 +1842,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	update `test`.`t2` join `test`.`t3` semi join (`test`.`t1`) set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+ANALYZE TABLE t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 SELECT * FROM t2;
 a
 1
@@ -1762,6 +1884,10 @@ create table t1 (a varchar(3));
 create table t2 (a varchar(2));
 insert into t1 values('aaa'), ('aaa');
 insert into t2 values('aa'), ('aa');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select * from t1 where a in (select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1773,8 +1899,8 @@ select * from t1 where a in (select a from t2);
 a
 show status like "handler_read%";
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	2
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1810,6 +1936,12 @@ col_varchar_nokey varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 );
 INSERT INTO t4 VALUES (1,'x');
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT outr.pk, outr.col_varchar_nokey, outr2.col_varchar_nokey
 FROM t2 AS outr2
 JOIN t4 AS outr
@@ -1824,11 +1956,12 @@ ON (innr2.col_int_key >= innr.pk)
 XOR outr.pk < 6
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	innr2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	innr	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	outr2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using join buffer (hash join)
+2	SUBQUERY	innr2	NULL	index	NULL	col_int_key	5	NULL	1	100.00	Using index
+2	SUBQUERY	innr	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'x' AS `col_varchar_nokey`,`test`.`outr2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `outr2` where ((<in_optimizer>('x',<exists>(/* select#2 */ select NULL from <constant table> left join `test`.`t1` `innr` on(('8' >= NULL)) where <if>(outer_field_is_not_null, ((<cache>('x') = NULL) or (NULL is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))) xor ('1' < 6)) and (`test`.`outr2`.`col_varchar_nokey` > 'x'))
+Note	1003	/* select#1 */ select `test`.`outr`.`pk` AS `pk`,`test`.`outr`.`col_varchar_nokey` AS `col_varchar_nokey`,`test`.`outr2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `outr2` join `test`.`t4` `outr` where ((<in_optimizer>(`test`.`outr`.`col_varchar_nokey`,`test`.`outr`.`col_varchar_nokey` in ( <materialize> (/* select#2 */ select `test`.`innr`.`col_varchar_nokey` from `test`.`t3` `innr2` left join `test`.`t1` `innr` on((`test`.`innr2`.`col_int_key` >= `test`.`innr`.`pk`)) where true having true ), <primary_index_lookup>(`test`.`outr`.`col_varchar_nokey` in <temporary table> on <auto_distinct_key> where ((`test`.`outr`.`col_varchar_nokey` = `<materialized_subquery>`.`col_varchar_nokey`))))) xor (`test`.`outr`.`pk` < 6)) and (`test`.`outr2`.`col_varchar_nokey` > `test`.`outr`.`col_varchar_nokey`))
 FLUSH STATUS;
 SELECT outr.pk, outr.col_varchar_nokey, outr2.col_varchar_nokey
 FROM t2 AS outr2
@@ -1846,13 +1979,13 @@ XOR outr.pk < 6
 pk	col_varchar_nokey	col_varchar_nokey
 SHOW STATUS LIKE "HANDLER_READ%";
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	3
+Handler_read_key	5
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	1
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	3
+Handler_read_rnd_next	4
 DROP TABLE t1,t2,t3,t4;
 #
 # Bug#13727407: Assert !item->const_item() || !item->not_null_tables()
@@ -1871,6 +2004,10 @@ KEY col_time_key (col_time_key)
 );
 INSERT INTO t2 VALUES
 (7,'14:03:03','2001-11-28 00:50:27'), (1,'01:46:09','2007-10-09 19:53:04');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT col_datetime_nokey AS x
 FROM t2 AS outr
 WHERE col_int_key IN (
@@ -1881,7 +2018,7 @@ HAVING x = '2000-09-09'
 ORDER BY col_time_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	DEPENDENT SUBQUERY	t1	NULL	system	col_int_key	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	col_int_key	col_int_key	5	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_nokey` AS `x` from `test`.`t2` `outr` where false having (`x` = '2000-09-09') order by `test`.`outr`.`col_time_key`
 SELECT col_datetime_nokey AS x
@@ -1916,6 +2053,11 @@ INSERT INTO t3 VALUES(0,8,'',0,'');
 Warnings:
 Warning	1366	Incorrect integer value: '' for column 'c1' at row 1
 Warning	1366	Incorrect integer value: '' for column 'cy' at row 1
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN SELECT o.c2 AS x FROM t1 AS o
 WHERE o.c1 IN
 (SELECT innr.c4 AS y
@@ -1929,7 +2071,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where ((`test`.`innr`.`c4` = `test`.`innr2`.`c4k`) and ((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`))) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `<materialized_subquery>`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
+Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where (((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`)) and (`test`.`innr`.`c4` = `test`.`innr2`.`c4k`)) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `<materialized_subquery>`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
 SELECT o.c2 AS x FROM t1 AS o
 WHERE o.c1 IN
 (SELECT innr.c4 AS y
@@ -1985,15 +2127,15 @@ WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	alias2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using where; Using index
-2	SUBQUERY	sq1_alias1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	SUBQUERY	sq1_alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using index
+1	PRIMARY	alias2	NULL	index	NULL	col_int_key	5	NULL	1	100.00	Using index
+1	PRIMARY	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+2	SUBQUERY	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	sq1_alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using index; Using join buffer (hash join)
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`alias1`.`col_varchar_key` = `<materialized_subquery>`.`col_varchar_nokey`)))) is false)
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_int_key` AS `col_int_key` from `test`.`t1` `alias1` join `test`.`t2` `alias2` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select `test`.`sq1_alias1`.`col_varchar_nokey` from `test`.`t3` `sq1_alias1` join `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`alias1`.`col_varchar_key` = `<materialized_subquery>`.`col_varchar_nokey`)))) is false)
 SELECT alias2.col_int_key
 FROM t1 AS alias1 , t2 AS alias2
 WHERE alias1.col_varchar_key NOT IN (
@@ -2355,7 +2497,7 @@ NULL
 SELECT (SELECT NULL,NULL) IN (SELECT 1, 2);
 (SELECT NULL,NULL) IN (SELECT 1, 2)
 NULL
-CREATE TABLE u(a INT, b INT) ENGINE=MyISAM;
+CREATE TABLE u(a INT, b INT) ENGINE=INNODB;
 INSERT INTO u VALUES (NULL, NULL);
 SELECT (SELECT * FROM u) IN (SELECT 1, 2 FROM s) FROM s;
 (SELECT * FROM u) IN (SELECT 1, 2 FROM s)

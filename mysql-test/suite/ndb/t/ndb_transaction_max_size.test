@@ -20,7 +20,7 @@ start transaction;
 insert into t values (1000, 1000);
 insert into t select 1000+x, 1000+y from t;
 # Should fail already for insert above but does not due to bug#16021097
-error ER_GET_ERRMSG;
+--error ER_ERROR_DURING_COMMIT
 commit;
 
 drop table t;

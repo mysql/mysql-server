@@ -55,6 +55,7 @@ set session sql_log_bin=1;
 SET sql_log_bin = 0;
 --eval CREATE USER 'rpl_user'@'%'
 --eval GRANT REPLICATION SLAVE ON *.* TO 'rpl_user'@'%'
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';
 SET sql_log_bin = 1;
 
 --echo #
@@ -81,6 +82,11 @@ INSERT INTO test.t1 (b) VALUES (2);
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--eval CREATE USER 'rpl_user'@'%'
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rpl_user'@'%';
+SET sql_log_bin = 1;
 
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
 
@@ -160,6 +166,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_r
 
 --eval SET GLOBAL group_replication_recovery_reconnect_interval= $_group_replication_recovery_reconnect_interval_save
 --eval SET GLOBAL group_replication_recovery_retry_count= $_group_replication_recovery_retry_count_save
+
+--eval DROP USER 'rpl_user'@'%'
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

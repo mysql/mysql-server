@@ -1,0 +1,543 @@
+Create an extra connection to server1
+Show that copying alter has some ability to detect when concurrent
+changes are occuring to a source table as part of an alter.
+This causes the alter to fail, avoiding silent data loss/corruption.
+Concurrent modifications are made on a separate MySQLD to avoid
+MDL effects.
+Also show that harmless read-only references to the base table 
+succeed and do not cause the ALTER to fail
+use test;
+create table cambridge (a int primary key, b int, c int, d int) engine=ndb;
+insert into cambridge values (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+create table oxford(a int primary key, b int, c text, d int) engine=ndb;
+insert into oxford values 
+(1,1,repeat('B', 1000), 1),
+(2,2,repeat('B', 1000), 2),
+(3,3,repeat('B', 1000), 3),
+(4,4,repeat('B', 1000), 4),
+(5,5,repeat('B', 1000), 5);
+-------------------------------------------------------
+Test various concurrent modifications that should cause
+copy failure for a copying alter drop column.
+-------------------------------------------------------
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with UPDATE test.cambridge set c=c+1 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set c=c+1;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with UPDATE test.cambridge set c=20 where a=2 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set c=20 where a=2;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with INSERT into test.cambridge values (6,6,6,6) 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+INSERT into test.cambridge values (6,6,6,6);
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with DELETE from test.cambridge where a=1 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+DELETE from test.cambridge where a=1;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+-------------------------------------------------------
+Test various concurrent modifications that should cause
+copy failure for a copying pk change
+-------------------------------------------------------
+Checking copying alter ALTER TABLE test.cambridge drop primary key
+concurrent with UPDATE test.cambridge set c=c+1 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop primary key;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set c=c+1;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+--------------------------
+FK cascading modifications
+--------------------------
+Ndb maintains inter-table FKs in the kernel, so that
+changes in a different table can affect a table
+undergoing a copying alter
+update cambridge set b=a;
+alter table cambridge add unique(b);
+create table bristol
+(a int primary key, b int, c int, 
+foreign key (b) references cambridge (b) on update cascade on delete cascade)
+engine=ndb;
+insert into bristol values (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+Checking copying alter ALTER TABLE test.bristol drop column c
+concurrent with UPDATE test.cambridge set b=50 where a=5 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.bristol drop column c;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set b=50 where a=5;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+Checking copying alter ALTER TABLE test.bristol drop column c
+concurrent with DELETE from test.cambridge where a=5 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.bristol drop column c;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+DELETE from test.cambridge where a=5;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+drop table bristol;
+-----
+Blobs
+-----
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with UPDATE test.oxford SET c=REPEAT('E',1000) 
+has alter error ER_TABLE_DEF_CHANGED
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.oxford SET c=REPEAT('E',1000);
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+ERROR HY000: Detected change to data in source table during copying ALTER TABLE. Alter aborted to avoid inconsistency.
+set DEBUG_SYNC='RESET';
+-------------------------------------------------------
+Test various concurrent operations that should not cause
+copy failure for a copying alter drop column.
+-------------------------------------------------------
+Scanning SELECTs
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge order by a 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge order by a;
+a	b
+2	2
+3	3
+4	4
+6	6
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge order by a lock in share mode 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge order by a lock in share mode;
+a	b
+2	2
+3	3
+4	4
+6	6
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge order by a for update 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge order by a for update;
+a	b
+2	2
+3	3
+4	4
+6	6
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford order by a 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford order by a;
+a	length(c)
+1	1000
+2	1000
+3	1000
+4	1000
+5	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford order by a lock in share mode 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford order by a lock in share mode;
+a	length(c)
+1	1000
+2	1000
+3	1000
+4	1000
+5	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford order by a for update 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford order by a for update;
+a	length(c)
+1	1000
+2	1000
+3	1000
+4	1000
+5	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+SELECT by PK
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge where a=3 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge where a=3;
+a	b
+3	3
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge where a=3 lock in share mode 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge where a=3 lock in share mode;
+a	b
+3	3
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with SELECT a,b from test.cambridge where a=3 for update 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,b from test.cambridge where a=3 for update;
+a	b
+3	3
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford where a=3 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford where a=3;
+a	length(c)
+3	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford where a=3 lock in share mode 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford where a=3 lock in share mode;
+a	length(c)
+3	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with SELECT a,length(c) from test.oxford where a=3 for update 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+SELECT a,length(c) from test.oxford where a=3 for update;
+a	length(c)
+3	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+NULL effect modifications
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with INSERT into test.cambridge values (2,2,2,2) 
+has alter error 0
+and statement error ER_DUP_ENTRY
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+INSERT into test.cambridge values (2,2,2,2);
+ERROR 23000: Duplicate entry '2' for key 'cambridge.PRIMARY'
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with UPDATE test.cambridge set b=888 where a=888 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set b=888 where a=888;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with UPDATE test.cambridge set b=b 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.cambridge set b=b;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with DELETE from test.cambridge where a=888 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+DELETE from test.cambridge where a=888;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with INSERT into test.oxford values (2,2,repeat('A', 1000),2) 
+has alter error 0
+and statement error ER_DUP_ENTRY
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+INSERT into test.oxford values (2,2,repeat('A', 1000),2);
+ERROR 23000: Duplicate entry '2' for key 'oxford.PRIMARY'
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with UPDATE test.oxford set b=888 where a=888 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.oxford set b=888 where a=888;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with UPDATE test.oxford set c=c 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.oxford set c=c;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.oxford drop column d
+concurrent with DELETE from test.oxford where a=888 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.oxford drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+DELETE from test.oxford where a=888;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.oxford add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+------------------------------------------------
+FK checks are unaffected by parent copying alter
+------------------------------------------------
+update cambridge set b=a;
+create table bristol
+(a int primary key, b int, c int, 
+foreign key (b) references cambridge (b) on update cascade on delete cascade)
+engine=ndb;
+select a from cambridge order by a;
+a
+2
+3
+4
+6
+insert into bristol select a,a,a from cambridge;
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with INSERT INTO test.bristol values (40,4,40) 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+INSERT INTO test.bristol values (40,4,40);
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with UPDATE test.bristol set b=4 where b=2 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+UPDATE test.bristol set b=4 where b=2;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Checking copying alter ALTER TABLE test.cambridge drop column d
+concurrent with DELETE FROM test.bristol 
+has alter error 0
+and statement error 0
+set DEBUG_SYNC= 'ndb.before_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE test.cambridge drop column d;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+DELETE FROM test.bristol;
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+set DEBUG_SYNC='RESET';
+alter table test.cambridge add column d int;
+Warnings:
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+drop table bristol;
+---------------------------------------------------------
+Show post-check exposure in copying alter check mechanism
+---------------------------------------------------------
+Existing rows :
+update cambridge set c=a;
+select a,c from cambridge order by a;
+a	c
+2	2
+3	3
+4	4
+6	6
+set DEBUG_SYNC= 'ndb.after_commit_count_check SIGNAL alter_waiting WAIT_FOR alter_go';
+ALTER TABLE cambridge drop column d;;
+set DEBUG_SYNC= 'now WAIT_FOR alter_waiting';
+insert into test.cambridge values 
+(20,20,20,20),
+(21,21,21,21),
+(22,22,22,22),
+(23,23,23,23);
+update test.cambridge set c=1000;
+delete from test.cambridge where a=6;
+Committed table content :  
+select a,c from test.cambridge order by a;
+a	c
+2	1000
+3	1000
+4	1000
+20	1000
+21	1000
+22	1000
+23	1000
+set DEBUG_SYNC= 'now SIGNAL alter_go';
+Committed table content after ALTER
+Changes have been lost
+select a,c from test.cambridge order by a;
+a	c
+2	2
+3	3
+4	4
+6	6
+set DEBUG_SYNC='RESET';
+drop table oxford;
+drop table cambridge;

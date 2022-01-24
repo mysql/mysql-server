@@ -35,7 +35,7 @@ namespace unittests {
 
 class Ref_ptr_test : public ::testing::Test {
  protected:
-  Ref_ptr_test() {}
+  Ref_ptr_test() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
 };

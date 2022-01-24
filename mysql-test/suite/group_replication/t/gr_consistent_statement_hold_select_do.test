@@ -1,0 +1,71 @@
+################################################################################
+# Validate that SELECT and DO statements which output does depend on data
+# consistency or do call UDFs go through the `trans_begin` hook on Group
+# Replication on server1.
+#
+# Test:
+#  0. The test requires one group member: M1.
+#  1. Bootstrap group on server1.
+#  2. Validate that a given SELECT that access tables goes
+#     through the `trans_begin` hook on Group Replication on
+#     server1.
+#  3. Validate that a given SELECT that calls a UDF goes
+#     through the `trans_begin` hook on Group Replication on
+#     server1.
+#  4. Validate that a given DO that calls a UDF goes
+#     through the `trans_begin` hook on Group Replication on
+#     server1.
+#  5. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Validate that a given SELECT that access tables goes
+--echo #    through the `trans_begin` hook on Group Replication on
+--echo #    server1.
+--let $statement_to_hold= SELECT * FROM t1
+--source ../include/gr_consistent_statement_hold.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Validate that a given SELECT that calls a UDF goes
+--echo #    through the `trans_begin` hook on Group Replication on
+--echo #    server1.
+--let $statement_to_hold= SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+--source ../include/gr_consistent_statement_hold.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Validate that a given DO that calls a UDF goes
+--echo #    through the `trans_begin` hook on Group Replication on
+--echo #    server1.
+--let $statement_to_hold= DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+--source ../include/gr_consistent_statement_hold.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

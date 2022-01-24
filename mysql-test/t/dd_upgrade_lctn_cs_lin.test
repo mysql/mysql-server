@@ -166,6 +166,7 @@
 ###############################################################################
 
 --source include/big_test.inc
+--source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc
 
 --echo # This is on a case sensitive file system, so we will support only l_c_t_n = 0 or 1.

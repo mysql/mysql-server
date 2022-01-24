@@ -63,6 +63,8 @@
 #include "strings/uca_data.h"
 #include "template_utils.h"
 
+#define MY_UTF8MB3 "utf8"
+
 MY_UCA_INFO my_uca_v400 = {
     UCA_V400,
 
@@ -4081,7 +4083,10 @@ static void copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst) {
     return;
   for (int page = MIN_JA_HAN_PAGE; page <= MAX_JA_HAN_PAGE; page++) {
     // In DUCET, weight is not assigned to code points in [U+4E00, U+9FFF].
-    assert(dst->weights[page] == nullptr);
+    // When re-initializing (after my_coll_uninit_uca), the weights
+    // may already be set.
+    assert(dst->weights[page] == nullptr ||
+           dst->weights[page] == ja_han_pages[page - MIN_JA_HAN_PAGE]);
     dst->weights[page] = ja_han_pages[page - MIN_JA_HAN_PAGE];
   }
 }
@@ -4633,7 +4638,7 @@ static int my_prepare_reorder(CHARSET_INFO *cs) {
     return 0;
   /*
     For each group of character, for example, latin characters,
-    their weights are in a seperate range. The default sequence
+    their weights are in a separate range. The default sequence
     of these groups is: Latin, Greek, Coptic, Cyrillic, and so
     on. Some languages want to change the default sequence. For
     example, Croatian wants to put Cyrillic to just behind Latin.
@@ -5028,8 +5033,8 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs, const uchar *s,
   a constant just if the collation itself allows expansions or contractions.
 */
 bool my_propagate_uca_900(const CHARSET_INFO *cs,
-                          const uchar *str MY_ATTRIBUTE((unused)),
-                          size_t length MY_ATTRIBUTE((unused))) {
+                          const uchar *str [[maybe_unused]],
+                          size_t length [[maybe_unused]]) {
   return !my_uca_have_contractions(cs->uca);
 }
 
@@ -5050,8 +5055,8 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
 
   if (dst != dst_end) {
     scanner.for_each_weight(
-        [&dst, dst_end](
-            int s_res, bool is_level_separator MY_ATTRIBUTE((unused))) -> bool {
+        [&dst, dst_end](int s_res,
+                        bool is_level_separator [[maybe_unused]]) -> bool {
           assert(is_level_separator == (s_res == 0));
           if (LEVELS_FOR_COMPARE == 1) assert(!is_level_separator);
 
@@ -5075,7 +5080,7 @@ extern "C" {
 
 static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs, uchar *dst,
                                   size_t dstlen,
-                                  uint num_codepoints MY_ATTRIBUTE((unused)),
+                                  uint num_codepoints [[maybe_unused]],
                                   const uchar *src, size_t srclen, uint flags) {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
     switch (cs->levels_for_compare) {
@@ -11388,10 +11393,12 @@ CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs = {
   my_strnxfrm_unicode_full_bin() chooses to transform to UCS before collation;
   this is purely for legacy reasons and is not needed here.
  */
-static size_t my_strnxfrm_utf8mb4_0900_bin(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uchar *dst, size_t dstlen,
-    uint nweights MY_ATTRIBUTE((unused)), const uchar *src, size_t srclen,
-    uint flags) {
+static size_t my_strnxfrm_utf8mb4_0900_bin(const CHARSET_INFO *cs
+                                           [[maybe_unused]],
+                                           uchar *dst, size_t dstlen,
+                                           uint nweights [[maybe_unused]],
+                                           const uchar *src, size_t srclen,
+                                           uint flags) {
   assert(src);
 
   size_t weight_len = std::min<size_t>(srclen, dstlen);

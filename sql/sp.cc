@@ -25,6 +25,7 @@
 #include "sql/sp.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -659,15 +660,31 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
   }
 
   // Validate body definition to avoid invalid UTF8 characters.
-  if (is_invalid_string(sp->m_body_utf8, system_charset_info)) return true;
+  std::string invalid_sub_str;
+  if (is_invalid_string(sp->m_body_utf8, system_charset_info,
+                        invalid_sub_str)) {
+    // Provide contextual information
+    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+             sp->m_db.str, sp->m_name.str,
+             replace_utf8_utf8mb3(system_charset_info->csname),
+             invalid_sub_str.c_str());
+    return true;
+  }
 
   // Validate routine comment.
   if (sp->m_chistics->comment.length) {
     // validate comment string to avoid invalid utf8 characters.
     if (is_invalid_string(LEX_CSTRING{sp->m_chistics->comment.str,
                                       sp->m_chistics->comment.length},
-                          system_charset_info))
+                          system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+               (std::string(sp->m_db.str) + "." + std::string(sp->m_name.str))
+                   .c_str(),
+               replace_utf8_utf8mb3(system_charset_info->csname),
+               invalid_sub_str.c_str());
       return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(
@@ -1027,7 +1044,19 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   // Validate routine comment.
   if (chistics->comment.str) {
     // validate comment string to invalid utf8 characters.
-    if (is_invalid_string(chistics->comment, system_charset_info)) return true;
+    std::string invalid_sub_str;
+    if (is_invalid_string(
+            LEX_CSTRING{chistics->comment.str, chistics->comment.length},
+            system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(
+          ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+          (std::string(name->m_db.str) + "." + std::string(name->m_name.str))
+              .c_str(),
+          replace_utf8_utf8mb3(system_charset_info->csname),
+          invalid_sub_str.c_str());
+      return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(
@@ -1083,13 +1112,14 @@ err_report_with_rollback:
 bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   DBUG_TRACE;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  // Vectors for names of stored functions and procedures of the schema.
+  std::vector<dd::String_type> func_names, proc_names;
 
-  // Vector for the stored routines of the schema.
-  std::vector<const dd::Routine *> routines;
-
-  // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(&schema, &routines))
+  // Fetch names of stored functions and procedures of the schema.
+  if (thd->dd_client()->fetch_schema_component_names<dd::Function>(
+          &schema, &func_names) ||
+      thd->dd_client()->fetch_schema_component_names<dd::Procedure>(
+          &schema, &proc_names))
     return true;
 
   /*
@@ -1103,24 +1133,31 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
     my_casedn_str(system_charset_info, schema_name_buf);
     schema_name = schema_name_buf;
   }
+  const dd::String_type schema_name_str(schema_name);
+
+  /*
+    Ensure that we don't hold memory used by MDL_requests after locks have
+    been acquired. This reduces memory usage in cases when we have DROP
+    DATABASE tha needs to drop lots of different objects.
+  */
+  MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 
   MDL_request_list mdl_requests;
-  for (const dd::Routine *routine : routines) {
-    MDL_key mdl_key;
 
-    if (is_dd_routine_type_function(routine))
-      dd::Function::create_mdl_key(dd::String_type(schema_name),
-                                   routine->name(), &mdl_key);
-    else
-      dd::Procedure::create_mdl_key(dd::String_type(schema_name),
-                                    routine->name(), &mdl_key);
+  auto add_requests_for_names = [&](dd::Routine::enum_routine_type type,
+                                    const std::vector<dd::String_type> &names) {
+    for (const dd::String_type &name : names) {
+      MDL_key mdl_key;
+      dd::Routine::create_mdl_key(type, schema_name_str, name, &mdl_key);
+      MDL_request *mdl_request = new (&mdl_reqs_root) MDL_request;
+      MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
+                              MDL_TRANSACTION);
+      mdl_requests.push_front(mdl_request);
+    }
+  };
 
-    // Add MDL_request for routine to mdl_requests list.
-    MDL_request *mdl_request = new (thd->mem_root) MDL_request;
-    MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
-                            MDL_TRANSACTION);
-    mdl_requests.push_front(mdl_request);
-  }
+  add_requests_for_names(dd::Routine::RT_FUNCTION, func_names);
+  add_requests_for_names(dd::Routine::RT_PROCEDURE, proc_names);
 
   return thd->mdl_context.acquire_locks(&mdl_requests,
                                         thd->variables.lock_wait_timeout);
@@ -1132,64 +1169,89 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   @param   thd         Thread context.
   @param   schema      Schema object.
 
-  @retval  SP_OK       Success
-  @retval  non-SP_OK   Error (Other constants are used to indicate errors)
+  @retval  false       Success
+  @retval  true        Error
 */
 
-enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
+bool sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
   DBUG_TRACE;
 
   bool is_routine_dropped = false;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  // Vectors for names of stored functions and procedures of the schema.
+  std::vector<dd::String_type> func_names, proc_names;
 
-  // Vector for the stored routines of the schema.
-  std::vector<const dd::Routine *> routines;
+  // Fetch names of stored functions and procedures of the schema.
+  if (thd->dd_client()->fetch_schema_component_names<dd::Function>(
+          &schema, &func_names) ||
+      thd->dd_client()->fetch_schema_component_names<dd::Procedure>(
+          &schema, &proc_names))
+    return true;
 
-  // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(&schema, &routines))
-    return SP_INTERNAL_ERROR;
+  MEM_ROOT foreach_fn_root(key_memory_rm_table_foreach_root,
+                           MEM_ROOT_BLOCK_SIZE);
 
-  enum_sp_return_code ret_code = SP_OK;
-  for (const dd::Routine *routine : routines) {
-    sp_name name(
-        {schema.name().c_str(), schema.name().length()},
-        {const_cast<char *>(routine->name().c_str()), routine->name().length()},
-        false);
-    enum_sp_type type = is_dd_routine_type_function(routine)
-                            ? enum_sp_type::FUNCTION
-                            : enum_sp_type::PROCEDURE;
+  auto drop_routines_by_names = [&](enum_sp_type type,
+                                    const std::vector<dd::String_type> &names) {
+    for (const dd::String_type &name : names) {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Routine *routine = nullptr;
 
-    DBUG_EXECUTE_IF("fail_drop_db_routines", {
-      my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
-      return SP_DROP_FAILED;
-    });
+      if (type == enum_sp_type::FUNCTION) {
+        if (thd->dd_client()->acquire<dd::Function>(schema.name().c_str(),
+                                                    name.c_str(), &routine))
+          return true;
+      } else {
+        if (thd->dd_client()->acquire<dd::Procedure>(schema.name().c_str(),
+                                                     name.c_str(), &routine))
+          return true;
+      }
 
-    if (thd->dd_client()->drop(routine)) {
-      ret_code = SP_DROP_FAILED;
-      my_error(ER_SP_DROP_FAILED, MYF(0),
-               is_dd_routine_type_function(routine) ? "FUNCTION" : "PROCEDURE",
-               routine->name().c_str());
-      break;
-    }
+      DBUG_EXECUTE_IF("fail_drop_db_routines", {
+        my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
+        return true;
+      });
 
-    if (type == enum_sp_type::FUNCTION &&
-        update_referencing_views_metadata(thd, &name))
-      return SP_INTERNAL_ERROR;
+      if (routine == nullptr || thd->dd_client()->drop(routine)) {
+        assert(routine != nullptr);
+        my_error(ER_SP_DROP_FAILED, MYF(0),
+                 type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE",
+                 name.c_str());
+        return true;
+      }
 
-    is_routine_dropped = true;
+      if (type == enum_sp_type::FUNCTION) {
+        sp_name fn_name({schema.name().c_str(), schema.name().length()},
+                        {const_cast<char *>(name.c_str()), name.length()},
+                        false);
+
+        if (mark_referencing_views_invalid(thd, &fn_name, &foreach_fn_root))
+          return true;
+
+        foreach_fn_root.ClearForReuse();
+      }
+
+      is_routine_dropped = true;
 
 #ifdef HAVE_PSI_SP_INTERFACE
-    /* Drop statistics for this stored routine from performance schema. */
-    MYSQL_DROP_SP(to_uint(type), schema.name().c_str(), schema.name().length(),
-                  routine->name().c_str(), routine->name().length());
+      /* Drop statistics for this stored routine from performance schema. */
+      MYSQL_DROP_SP(to_uint(type), schema.name().c_str(),
+                    schema.name().length(), name.c_str(), name.length());
 #endif
+    }
+
+    return false;
+  };
+
+  if (drop_routines_by_names(enum_sp_type::FUNCTION, func_names) ||
+      drop_routines_by_names(enum_sp_type::PROCEDURE, proc_names)) {
+    return true;
   }
 
   // Invalidate the sp cache.
   if (is_routine_dropped) sp_cache_invalidate();
 
-  return ret_code;
+  return false;
 }
 
 /**
@@ -1311,7 +1373,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     protocol->store_null();
 
   // character_set_client
-  protocol->store(cs_info->csname, system_charset_info);
+  protocol->store(replace_utf8_utf8mb3(cs_info->csname), system_charset_info);
   // connection_collation
   cs_info = dd_get_mysql_charset(routine->connection_collation_id());
   protocol->store(cs_info->name, system_charset_info);
@@ -1418,7 +1480,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
   if (!cache_only) {
     if (db_find_routine(thd, type, name, &sp) == SP_OK) {
       sp_cache_insert(cp, sp);
-      DBUG_PRINT("info", ("added new: 0x%lx, level: %lu, flags %x", (ulong)sp,
+      DBUG_PRINT("info", ("added new: %p, level: %lu, flags %x", sp,
                           sp->m_recursion_level, sp->m_flags));
     }
   }
@@ -1450,15 +1512,15 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   sp_head *sp = sp_cache_lookup(cp, name);
   if (sp == nullptr) return nullptr;
 
-  DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
+  DBUG_PRINT("info", ("found: %p", sp));
 
   const ulong depth = type == enum_sp_type::PROCEDURE
                           ? thd->variables.max_sp_recursion_depth
                           : 0;
 
   if (sp->m_first_free_instance) {
-    DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
-                        (ulong)sp->m_first_free_instance,
+    DBUG_PRINT("info", ("first free: %p  level: %lu  flags %x",
+                        sp->m_first_free_instance,
                         sp->m_first_free_instance->m_recursion_level,
                         sp->m_first_free_instance->m_flags));
     assert(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
@@ -1502,7 +1564,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   new_sp->m_recursion_level = level;
   new_sp->m_first_instance = sp;
   sp->m_last_cached_sp = sp->m_first_free_instance = new_sp;
-  DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x", (ulong)new_sp,
+  DBUG_PRINT("info", ("added level: %p, level: %lu, flags %x", new_sp,
                       new_sp->m_recursion_level, new_sp->m_flags));
   return new_sp;
 }
@@ -2215,7 +2277,7 @@ uint sp_get_flags_for_command(LEX *lex) {
         flags = 0; /* This is a SELECT with INTO clause */
         break;
       }
-      /* fallthrough */
+      [[fallthrough]];
     case SQLCOM_ANALYZE:
     case SQLCOM_OPTIMIZE:
     case SQLCOM_PRELOAD_KEYS:
@@ -2345,6 +2407,7 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_CREATE_RESOURCE_GROUP:
     case SQLCOM_ALTER_RESOURCE_GROUP:
     case SQLCOM_DROP_RESOURCE_GROUP:
+    case SQLCOM_ALTER_TABLESPACE:
       flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     default:
@@ -2505,7 +2568,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         return item->val_str(str);
       else { /* Bit type is handled as binary string */
       }
-      // Fall through
+      [[fallthrough]];
     case STRING_RESULT: {
       String *result = item->val_str(str);
 
@@ -2520,7 +2583,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         buf.length(0);
 
         buf.append('_');
-        buf.append(result->charset()->csname);
+        buf.append(replace_utf8_utf8mb3(result->charset()->csname));
         if (cs->escape_with_backslash_is_dangerous) buf.append(' ');
         append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");

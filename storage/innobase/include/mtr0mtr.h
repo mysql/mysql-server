@@ -158,12 +158,25 @@ struct fil_space_t;
 
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {
-  /** pointer to the object */
+  /** Pointer to the object - either buf_block_t or rw_lock_t */
   void *object;
 
   /** type of the stored object (MTR_MEMO_S_LOCK, ...) */
   ulint type;
+
+  /** Check if the object stored in this slot is a lock (rw_lock_t).
+  @return true if it is a lock object, false otherwise. */
+  bool is_lock() const {
+    return type == MTR_MEMO_S_LOCK || type == MTR_MEMO_X_LOCK ||
+           type == MTR_MEMO_SX_LOCK;
+  }
+
+  std::ostream &print(std::ostream &out) const;
 };
+
+inline std::ostream &operator<<(std::ostream &out, const mtr_memo_slot_t &obj) {
+  return obj.print(out);
+}
 
 /** Mini-transaction handle and buffer */
 struct mtr_t {
@@ -205,7 +218,7 @@ struct mtr_t {
     mtr_state_t m_state;
 
     /** Flush Observer */
-    FlushObserver *m_flush_observer;
+    Flush_observer *m_flush_observer;
 
 #ifdef UNIV_DEBUG
     /** For checking corruption. */
@@ -395,7 +408,7 @@ struct mtr_t {
 
   /** Return current size of the buffer.
   @return	savepoint */
-  ulint get_savepoint() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] ulint get_savepoint() const {
     ut_ad(is_active());
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
@@ -419,7 +432,7 @@ struct mtr_t {
 
   /** Get the logging mode.
   @return	logging mode */
-  inline mtr_log_t get_log_mode() const MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] inline mtr_log_t get_log_mode() const;
 
   /** Change the logging mode.
   @param mode	 logging mode
@@ -430,8 +443,8 @@ struct mtr_t {
   @param ptr	pointer from where to read
   @param type	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
   @return	value read */
-  inline uint32_t read_ulint(const byte *ptr, mlog_id_t type) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] inline uint32_t read_ulint(const byte *ptr,
+                                           mlog_id_t type) const;
 
   /** Locks a rw-latch in S mode.
   NOTE: use mtr_s_lock().
@@ -483,7 +496,7 @@ struct mtr_t {
   @return the commit LSN
   @retval 0 if the transaction only modified temporary tablespaces or logging
   is disabled globally. */
-  lsn_t commit_lsn() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] lsn_t commit_lsn() const {
     ut_ad(has_committed());
     ut_ad(m_impl.m_log_mode == MTR_LOG_ALL);
     return (m_commit_lsn);
@@ -496,29 +509,33 @@ struct mtr_t {
   void exit_ibuf() { m_impl.m_inside_ibuf = false; }
 
   /** @return true if we are inside the change buffer code */
-  bool is_inside_ibuf() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_impl.m_inside_ibuf);
-  }
+  [[nodiscard]] bool is_inside_ibuf() const { return (m_impl.m_inside_ibuf); }
 
   /*
   @return true if the mini-transaction is active */
-  bool is_active() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_active() const {
     return (m_impl.m_state == MTR_STATE_ACTIVE);
   }
 
   /** Get flush observer
   @return flush observer */
-  FlushObserver *get_flush_observer() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Flush_observer *get_flush_observer() const {
     return (m_impl.m_flush_observer);
   }
 
   /** Set flush observer
   @param[in]	observer	flush observer */
-  void set_flush_observer(FlushObserver *observer) {
+  void set_flush_observer(Flush_observer *observer) {
     ut_ad(observer == nullptr || m_impl.m_log_mode == MTR_LOG_NO_REDO);
 
     m_impl.m_flush_observer = observer;
   }
+
+  /** Print the memo objects (mtr_memo_slot_t) of mtr_t to the given output
+  stream.
+  @param[in]   out   the output stream for printing
+  @return the output stream.  */
+  std::ostream &print_memos(std::ostream &out) const;
 
 #ifdef UNIV_DEBUG
   /** Check if memo contains the given item.
@@ -526,16 +543,15 @@ struct mtr_t {
   @param object	object to search
   @param type	type of object
   @return	true if contains */
-  static bool memo_contains(const mtr_buf_t *memo, const void *object,
-                            ulint type) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool memo_contains(const mtr_buf_t *memo,
+                                          const void *object, ulint type);
 
   /** Check if memo contains the given item.
   @param ptr		object to search
   @param flags		specify types of object (can be ORred) of
                           MTR_MEMO_PAGE_S_FIX ... values
   @return true if contains */
-  bool memo_contains_flagged(const void *ptr, ulint flags) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool memo_contains_flagged(const void *ptr, ulint flags) const;
 
   /** Check if memo contains the given page.
   @param[in]	ptr	pointer to within buffer frame
@@ -543,8 +559,8 @@ struct mtr_t {
                           MTR_MEMO_PAGE_S_FIX... values
   @return	the block
   @retval	NULL	if not found */
-  buf_block_t *memo_contains_page_flagged(const byte *ptr, ulint flags) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] buf_block_t *memo_contains_page_flagged(const byte *ptr,
+                                                        ulint flags) const;
 
   /** Mark the given latched page as modified.
   @param[in]	ptr	pointer to within buffer frame */
@@ -554,7 +570,7 @@ struct mtr_t {
   void print() const;
 
   /** @return true if the mini-transaction has committed */
-  bool has_committed() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool has_committed() const {
     return (m_impl.m_state == MTR_STATE_COMMITTED);
   }
 
@@ -564,7 +580,7 @@ struct mtr_t {
   }
 
   /** @return true if mini-transaction contains modifications. */
-  bool has_modifications() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool has_modifications() const {
     return (m_impl.m_modifications);
   }
 
@@ -573,18 +589,13 @@ struct mtr_t {
   they modify the same buffer block.
   @param[in]   mtr2  the given mtr.
   @return true if there is conflict, false otherwise. */
-  bool conflicts_with(const mtr_t *mtr2) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool conflicts_with(const mtr_t *mtr2) const;
 
   /** @return the memo stack */
-  const mtr_buf_t *get_memo() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (&m_impl.m_memo);
-  }
+  [[nodiscard]] const mtr_buf_t *get_memo() const { return (&m_impl.m_memo); }
 
   /** @return the memo stack */
-  mtr_buf_t *get_memo() MY_ATTRIBUTE((warn_unused_result)) {
-    return (&m_impl.m_memo);
-  }
+  [[nodiscard]] mtr_buf_t *get_memo() { return (&m_impl.m_memo); }
 
   /** Computes the number of bytes that would be written to the redo
   log if mtr was committed right now (excluding headers of log blocks).
@@ -598,16 +609,14 @@ struct mtr_t {
 #endif /* UNIV_DEBUG */
 
   /** @return true if a record was added to the mini-transaction */
-  bool is_dirty() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_impl.m_made_dirty);
-  }
+  [[nodiscard]] bool is_dirty() const { return (m_impl.m_made_dirty); }
 
   /** Note that a record has been added to the log */
   void added_rec() { ++m_impl.m_n_log_recs; }
 
   /** Get the buffered redo log of this mini-transaction.
   @return	redo log */
-  const mtr_buf_t *get_log() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] const mtr_buf_t *get_log() const {
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
     return (&m_impl.m_log);
@@ -615,7 +624,7 @@ struct mtr_t {
 
   /** Get the buffered redo log of this mini-transaction.
   @return	redo log */
-  mtr_buf_t *get_log() MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] mtr_buf_t *get_log() {
     ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
     return (&m_impl.m_log);
@@ -640,8 +649,7 @@ struct mtr_t {
   /** Check if this mini-transaction is dirtying a clean page.
   @param block	block being x-fixed
   @return true if the mtr is dirtying a clean page. */
-  static bool is_block_dirtied(const buf_block_t *block)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_block_dirtied(const buf_block_t *block);
 
   /** Matrix to check if a mode update request should be ignored. */
   static bool s_mode_update[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];

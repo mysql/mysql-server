@@ -8,7 +8,7 @@
 #
 # 1) Create two databases and do some DML operations on these databases.
 # 2) Sync the slave applier with master to insure that a checkpoint is done.
-# 3) Set bigger values for slave_checkpoint_period/group so that no further
+# 3) Set bigger values for replica_checkpoint_period/group so that no further
 #    checkpoints are done on slave server.
 # 4) Execute few more DMLS on master and wait till they are applied on slave.
 # 5) This is to prove that applier thread has few more committed transactions
@@ -25,7 +25,7 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 # do not execute when binlog compression is on as the debug
 # point below is not activated
 --source include/not_binlog_transaction_compression_on.inc
@@ -42,13 +42,13 @@ INSERT INTO db2.t1 VALUES (40);
 --source include/sync_slave_sql_with_master.inc
 
 # Save the global variables that are being modified. Set bigger values for
-# slave_checkpoint_group/period so that no further checkpoints are done
+# replica_checkpoint_group/period so that no further checkpoints are done
 # automatically.
 SET @save_debug = @@GLOBAL.debug;
-SET @save_slave_checkpoint_group= @@GLOBAL.slave_checkpoint_group;
-SET @save_slave_checkpoint_period= @@GLOBAL.slave_checkpoint_period;
-SET GLOBAL slave_checkpoint_group=512;
-SET GLOBAL slave_checkpoint_period=3000000;
+SET @save_replica_checkpoint_group= @@GLOBAL.replica_checkpoint_group;
+SET @save_replica_checkpoint_period= @@GLOBAL.replica_checkpoint_period;
+SET GLOBAL replica_checkpoint_group=512;
+SET GLOBAL replica_checkpoint_period=3000000;
 
 # Do some DMLs on master.
 --source include/rpl_connection_master.inc
@@ -77,7 +77,7 @@ while ($i)
 # Wait for coordinator to populate worker's queues.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates'
+--let $condition= = 'Replica has read all relay log; waiting for more updates'
 --source include/wait_show_condition.inc
 
 
@@ -94,7 +94,7 @@ COMMIT;
 # Debug simulation which will ensure that SLAVE STOPS as a regular exit
 # without an error. This ensures we have the same scenario as that of the bug
 # report.
-SET global debug="d,simulate_stop_when_mts_in_group";
+SET global debug="+d,simulate_stop_when_mta_in_group";
 --source include/start_slave_io.inc
 
 --source include/wait_for_slave_sql_to_stop.inc
@@ -112,8 +112,8 @@ SET global debug="d,simulate_stop_when_mts_in_group";
 --source include/assert_grep.inc
 
 SET GLOBAL debug=@save_debug;
-SET @@GLOBAL.slave_checkpoint_group= @save_slave_checkpoint_group;
-set @@GLOBAL.slave_checkpoint_period= @save_slave_checkpoint_period;
+SET @@GLOBAL.replica_checkpoint_group= @save_replica_checkpoint_group;
+set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 --source include/start_slave.inc
 
 # Assert that the positions that are reported by the applier thread during

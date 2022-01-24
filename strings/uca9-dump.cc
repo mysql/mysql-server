@@ -30,7 +30,7 @@
 
   This can also be used to dump weight table of Japanese Han characters.
   How to use:
-    1. Copy the line of Han characters in CLDR file ja.xml to a seperate file,
+    1. Copy the line of Han characters in CLDR file ja.xml to a separate file,
        e.g. ja_han.txt.
     2. Make sure the file is saved in UTF-8 (use 'file' command to check), or
        use iconv to convert.
@@ -41,7 +41,7 @@
     1. Make sure you have uca900_weights and all the weight tables in strings/
        uca900_data.h. If no, please refer to above comments about how to
        generate those tables.
-    2. Copy the lines of Han characters in CLDR file zh.xml to a seperate
+    2. Copy the lines of Han characters in CLDR file zh.xml to a separate
        file, e.g. zh_han.txt.
     3. Make sure the file is saved in UTF-8 (use 'file' command to check), or
        use iconv to convert.
@@ -433,7 +433,7 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
     int bytes = my_mb_wc_utf8mb4(&ja_ch_u16, ja_han, ja_han + ja_length);
     if (bytes <= 0) break;
     ja_han += bytes;
-    int page MY_ATTRIBUTE((unused)) = ja_ch_u16 >> 8;
+    int page [[maybe_unused]] = ja_ch_u16 >> 8;
     assert(page >= 0x4E && page <= 0x9F);
     MY_UCA_ITEM *item = &uca->item[ja_ch_u16 - 0x4E00];
     item->num_of_ce = 1;

@@ -39,7 +39,6 @@
 #include "mysqlrouter/routing.h"
 #include "plugin_config.h"
 
-using mysqlrouter::to_string;
 using ::testing::HasSubstr;
 
 class Bug21771595 : public ::testing::Test {
@@ -58,7 +57,7 @@ TEST_F(Bug21771595, ConstructorDefaults) {
 }
 
 TEST_F(Bug21771595, Constructor) {
-  auto expect_max_connections = routing::kDefaultMaxConnections - 10;
+  auto expect_max_connections = 20;
   auto expect_connect_timeout =
       routing::kDefaultDestinationConnectionTimeout + std::chrono::seconds(10);
 
@@ -114,17 +113,18 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
   ASSERT_THROW(r.set_max_connections(-1), std::invalid_argument);
   ASSERT_THROW(r.set_max_connections(UINT16_MAX + 1), std::invalid_argument);
   try {
-    r.set_max_connections(0);
+    r.set_max_connections(-1);
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(
         exc.what(),
-        HasSubstr("tried to set max_connections using invalid value, was '0'"));
+        HasSubstr(
+            "tried to set max_connections using invalid value, was '-1'"));
   }
   ASSERT_THROW(
       MySQLRouting(io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
                    Protocol::Type::kClassicProtocol,
                    routing::AccessMode::kReadWrite, "127.0.0.1",
-                   mysql_harness::Path(), "test", 0, std::chrono::seconds(1)),
+                   mysql_harness::Path(), "test", -1, std::chrono::seconds(1)),
       std::invalid_argument);
 }
 

@@ -22,7 +22,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 [connection master]
 include/stop_dump_threads.inc
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+# Adding debug point 'dump_thread_wait_before_send_xid' to @@GLOBAL.debug
 [connection slave]
 include/start_slave.inc
 BEGIN;
@@ -46,7 +46,7 @@ include/wait_for_slave_to_stop.inc
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection master]
-SET GLOBAL debug= $debug_save;
+# Removing debug point 'dump_thread_wait_before_send_xid' from @@GLOBAL.debug
 include/stop_dump_threads.inc
 [connection slave1]
 include/start_slave.inc

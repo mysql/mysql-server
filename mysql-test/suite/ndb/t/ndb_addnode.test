@@ -13,6 +13,8 @@
 --exec $NDB_MGM -e "create nodegroup 48,3"
 --error 255
 --exec $NDB_MGM -e "create nodegroup 4,48"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 3,3"
 
 --source ndb_mgm_show_table.inc
 

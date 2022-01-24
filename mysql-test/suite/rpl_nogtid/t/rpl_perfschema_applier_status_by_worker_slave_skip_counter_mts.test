@@ -16,7 +16,7 @@
 
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
-
+--source include/only_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --let $is_mts= 1

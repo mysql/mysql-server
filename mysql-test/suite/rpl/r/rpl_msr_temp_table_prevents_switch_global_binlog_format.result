@@ -41,28 +41,28 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # disallowed if any replication channel has open temporary table(s).
 #
 SET @@global.binlog_format=ROW;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again
 #
 # On a running slave, verify that SET @@persist.binlog_format is
 # disallowed if any replication channel has open temporary table(s).
 #
 SET @@persist.binlog_format=ROW;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 #
 # On a stopped slave, verify that SET @@global.binlog_format is
 # disallowed if any replication channel has open temporary table(s).
 #
 SET @@global.binlog_format=ROW;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again
 #
 # On a stopped slave, verify that SET @@persist.binlog_format is
 # disallowed if any replication channel has open temporary table(s).
 #
 SET @@persist.binlog_format=ROW;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again
 include/start_slave.inc [FOR CHANNEL 'channel_1']
 connection_server_1
 DROP TEMPORARY TABLE temp1;

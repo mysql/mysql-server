@@ -24,9 +24,11 @@ INSERT INTO articles (title, body) VALUES
   ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
   ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 
@@ -36,12 +38,15 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 
@@ -64,9 +69,11 @@ INSERT INTO articles (title, body) VALUES
   ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
   ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 
@@ -76,12 +83,15 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 
@@ -104,9 +114,11 @@ INSERT INTO articles (title, body) VALUES
   ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
   ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 
@@ -116,12 +128,15 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 
@@ -145,9 +160,11 @@ INSERT INTO articles (title, body) VALUES
   ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
   ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('数据');
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
 
@@ -157,15 +174,19 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('数据库');
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
         MATCH(title, body) AGAINST('数据库' WITH QUERY EXPANSION);
 
@@ -191,9 +212,11 @@ INSERT INTO articles (title, body) VALUES
   ('データベースにデータを追加するには','コンピュータのデータベースに格納されているアクセス、およびプロセスデータ'),
   ('データベース管理システムを使用する必要が','コンピュータは、大量のデータを処理するための理想的なツールである');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('データ');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('デ*' IN BOOLEAN MODE);
 
@@ -203,12 +226,15 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+(データベース 処理) -コンピュータ' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('データベース');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('データベース' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"データベース"' IN BOOLEAN MODE);
 
@@ -231,9 +257,11 @@ INSERT INTO articles (title, body) VALUES
   ('데이터베이스에 데이터를 추가하려면','액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장'),
   ('데이터베이스 관리 시스템을 사용해야합니다','컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('데이터');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('데*' IN BOOLEAN MODE);
 
@@ -243,12 +271,15 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+(데이터베이스 처리) -컴퓨터' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('데이터베이스');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('데이터베이스' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('"데이터베이스"' IN BOOLEAN MODE);
 

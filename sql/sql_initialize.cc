@@ -62,9 +62,13 @@ bool opt_initialize_insecure = false;
 bool mysql_initialize_directory_freshly_created = false;
 
 static const char *initialization_data[] = {
-    "FLUSH PRIVILEGES", insert_user_buffer,
+    "FLUSH PRIVILEGES",
+    insert_user_buffer,
     "GRANT ALL PRIVILEGES ON *.* TO root@localhost WITH GRANT OPTION;\n",
-    "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION;\n", nullptr};
+    "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION;\n",
+    "INSERT IGNORE INTO mysql.global_grants VALUES ('root', 'localhost', "
+    "'AUDIT_ABORT_EXEMPT', 'Y')",
+    nullptr};
 
 static const char **cmds[] = {initialization_cmds, mysql_system_tables,
                               initialization_data, mysql_system_data,

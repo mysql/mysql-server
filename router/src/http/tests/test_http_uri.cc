@@ -25,7 +25,7 @@
 /**
  * Test of HttpUri.
  */
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 
 #include <gmock/gmock.h>
 

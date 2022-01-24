@@ -1,0 +1,41 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Bootstrap a group on server1.
+#    Setup a debug point that will block a future
+#    SELECT * FROM performance_schema.replication_group_member_stats
+#    after the plugin_running_lock is acquired.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
+############################################################
+# 2. Asynchronously execute a query on the table
+#    performance_schema.replication_group_member_stats
+[connection server_1]
+SELECT CHANNEL_NAME, COUNT_TRANSACTIONS_ROWS_VALIDATING, COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats;
+[connection server1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats_plugin_running_lock_acquired";
+SET @@GLOBAL.DEBUG='-d,group_replication_get_group_member_stats_plugin_running_lock_acquired';
+############################################################
+# 3. Change a Group Replication option, it must succeed.
+[connection server1]
+SET @group_replication_member_weight_saved= @@GLOBAL.group_replication_member_weight;
+SET @@GLOBAL.group_replication_member_weight= 100;
+include/assert.inc [group_replication_member_weight is 100]
+############################################################
+# 4. Resume the query on the table
+#    performance_schema.replication_group_member_stats
+[connection server1]
+SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats_plugin_running_lock_acquired";
+[connection server_1]
+CHANNEL_NAME	COUNT_TRANSACTIONS_ROWS_VALIDATING	COUNT_TRANSACTIONS_REMOTE_APPLIED
+group_replication_applier	0	1
+############################################################
+# 5. Clean up.
+[connection server1]
+SET @@GLOBAL.group_replication_member_weight= @group_replication_member_weight_saved;
+SET DEBUG_SYNC= 'RESET';
+include/group_replication_end.inc

@@ -1,1 +1,2 @@
---relay-log-info-repository=FILE --slave-transaction-retries=0 --innodb_lock_wait_timeout=10
+--relay-log-info-repository=FILE --replica-transaction-retries=0 --innodb_lock_wait_timeout=10
+--replica-preserve-commit-order=OFF

@@ -44,7 +44,7 @@ pl	f1
 18	[8, 4, 3, 5]
 explain select * from t1 where 5 member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array))
 select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
@@ -97,7 +97,6 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1
 DROP TABLE t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
-SET @@global.transaction_write_set_extraction = 'XXHASH64';
 SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
 SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
 FLUSH LOGS;

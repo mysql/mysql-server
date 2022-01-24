@@ -1,0 +1,105 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SELECT source_pos_wait('master-bin.999999', 0, 1);
+source_pos_wait('master-bin.999999', 0, 1)
+-1
+EXPLAIN select source_pos_wait('master-bin.999999', 0, 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select source_pos_wait('master-bin.999999',0,1) AS `source_pos_wait('master-bin.999999', 0, 1)`
+SELECT source_pos_wait('master-bin.999999',0);
+include/stop_slave_sql.inc
+source_pos_wait('master-bin.999999',0)
+NULL
+"*** must be empty ***"
+SHOW REPLICA STATUS;
+"*** must be NULL ***"
+select source_pos_wait('foo', 98);
+source_pos_wait('foo', 98)
+NULL
+include/start_slave_sql.inc
+Test SOURCE_POS_WAIT function with negative timeout value.
+When SQL_MODE is strict, then it will throw WRONG_ARGUMENTS
+error.
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = "STRICT_ALL_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT source_pos_wait('master-bin.999999', 4, -1);
+ERROR HY000: Incorrect arguments to SOURCE_POS_WAIT.
+SET @@session.sql_mode = "";
+SELECT source_pos_wait('master-bin.999999', 4, -1);
+source_pos_wait('master-bin.999999', 4, -1)
+NULL
+Warnings:
+Warning	1210	Incorrect arguments to SOURCE_POS_WAIT.
+SET @@session.sql_mode = @save_sql_mode;
+Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
+Earlier(before fix), 0.4 is read as integer value '0' and the function
+hanged forever (or till all the specified gtids are executed).
+Now(after fix) 0.4 will be read as doube 0.4 and will waitfor
+atleast 0.4 seconds (or till all the specified  gtids are executed).
+Also check that in case of timeout, function returns -1.
+include/assert.inc [source_pos_wait returns -1 if the timeout has been exceeded.]
+SELECT source_pos_wait('master-bin.999999', 4, 1, "non_existent");
+source_pos_wait('master-bin.999999', 4, 1, "non_existent")
+NULL
+SELECT master_pos_wait('master-bin.999999', 0, 1);
+master_pos_wait('master-bin.999999', 0, 1)
+-1
+Warnings:
+Warning	1287	'MASTER_POS_WAIT' is deprecated and will be removed in a future release. Please use SOURCE_POS_WAIT instead
+EXPLAIN select master_pos_wait('master-bin.999999', 0, 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select source_pos_wait('master-bin.999999',0,1) AS `master_pos_wait('master-bin.999999', 0, 1)`
+SELECT master_pos_wait('master-bin.999999',0);
+include/stop_slave_sql.inc
+master_pos_wait('master-bin.999999',0)
+NULL
+Warnings:
+Warning	1287	'MASTER_POS_WAIT' is deprecated and will be removed in a future release. Please use SOURCE_POS_WAIT instead
+"*** must be empty ***"
+SHOW REPLICA STATUS;
+"*** must be NULL ***"
+select master_pos_wait('foo', 98);
+master_pos_wait('foo', 98)
+NULL
+Warnings:
+Warning	1287	'MASTER_POS_WAIT' is deprecated and will be removed in a future release. Please use SOURCE_POS_WAIT instead
+include/start_slave_sql.inc
+Test SOURCE_POS_WAIT function with negative timeout value.
+When SQL_MODE is strict, then it will throw WRONG_ARGUMENTS
+error.
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = "STRICT_ALL_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT master_pos_wait('master-bin.999999', 4, -1);
+ERROR HY000: Incorrect arguments to SOURCE_POS_WAIT.
+SET @@session.sql_mode = "";
+SELECT master_pos_wait('master-bin.999999', 4, -1);
+master_pos_wait('master-bin.999999', 4, -1)
+NULL
+Warnings:
+Warning	1287	'MASTER_POS_WAIT' is deprecated and will be removed in a future release. Please use SOURCE_POS_WAIT instead
+Warning	1210	Incorrect arguments to SOURCE_POS_WAIT.
+SET @@session.sql_mode = @save_sql_mode;
+Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
+Earlier(before fix), 0.4 is read as integer value '0' and the function
+hanged forever (or till all the specified gtids are executed).
+Now(after fix) 0.4 will be read as doube 0.4 and will waitfor
+atleast 0.4 seconds (or till all the specified  gtids are executed).
+Also check that in case of timeout, function returns -1.
+include/assert.inc [master_pos_wait returns -1 if the timeout has been exceeded.]
+SELECT master_pos_wait('master-bin.999999', 4, 1, "non_existent");
+master_pos_wait('master-bin.999999', 4, 1, "non_existent")
+NULL
+Warnings:
+Warning	1287	'MASTER_POS_WAIT' is deprecated and will be removed in a future release. Please use SOURCE_POS_WAIT instead
+include/rpl_end.inc

@@ -32,7 +32,7 @@ call mtr.add_suppression("On shutdown there was a timeout on the group replicati
 call mtr.add_suppression("The member is leaving a group without being on one");
 set session sql_log_bin=1;
 
---let $debug_save_timeout= `SELECT @@GLOBAL.group_replication_components_stop_timeout`
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/gr_set_bootstrap_group.inc
@@ -73,7 +73,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 #give it time to die
 --sleep 5
 
---eval SET GLOBAL group_replication_components_stop_timeout= $debug_save_timeout
+SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 #start and stop commands should work properly
 --source include/start_group_replication.inc
 --source include/stop_group_replication.inc

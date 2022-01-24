@@ -19,6 +19,8 @@ call mtr.add_suppression("The member configuration is not compatible with the gr
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_single_primary_mode\\], group configuration option: \\[group_replication_enforce_update_everywhere_checks\\].");
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_enforce_update_everywhere_checks\\], group configuration option: \\[\\].");
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. .* .member configuration option: \\[group_replication_single_primary_mode\\], group configuration option: \\[\\].");
+call mtr.add_suppression("This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.");
+call mtr.add_suppression("This member joined a group on which all members do not support replication failover channels integration on Group Replication, as such it did reset its replication failover channels configuration to the default one.");
 SET SQL_LOG_BIN=1;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= 0;
 SET GLOBAL group_replication_single_primary_mode= 0;

@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include "HugoQueries.hpp"
 #include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
@@ -101,7 +102,7 @@ HugoQueries::equalForParameters(char * buf,
       {
         Uint32 len = attr->getSizeInBytes();
         Uint32 real_len;
-        bzero(buf, len);
+        std::memset(buf, 0, len);
         calc.calcValue((Uint32)rowNo, i, 0, buf, len, &real_len);
         params[no++]= NdbQueryParamValue((void*)buf);
         buf += len;
@@ -118,7 +119,7 @@ HugoQueries::equalForParameters(char * buf,
         tab.getColumn(idx->getColumn(i)->getName());
       Uint32 len = attr->getSizeInBytes();
       Uint32 real_len;
-      bzero(buf, len);
+      std::memset(buf, 0, len);
       calc.calcValue((Uint32)rowNo, attr->getColumnNo(), 
                      0, buf, len, &real_len);
       params[no++]= NdbQueryParamValue((void*)buf);
@@ -150,7 +151,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
   m_rows_found.clear();
   Uint32 zero = 0;
-  m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+  m_rows_found.fill(m_query_def->getNoOfOperations(), zero);
 
   if (batch == 0) {
     g_info << "ERROR: Argument batch == 0 in runLookupQuery. Not allowed."
@@ -177,7 +178,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     }
 
     Vector<Uint32> batch_rows_found;
-    batch_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+    batch_rows_found.fill(m_query_def->getNoOfOperations(), zero);
     Vector<NdbQuery*> queries;
 
     clearNdbError();
@@ -344,7 +345,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     }
     m_rows_found.clear();
     Uint32 zero = 0;
-    m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+    m_rows_found.fill(m_query_def->getNoOfOperations(), zero);
 
     clearNdbError();
     NdbTransaction * pTrans = pNdb->startTransaction();

@@ -85,3 +85,9 @@ Unknown query option: Discless
 cluster1
 == 26 == Bug32175157
  ERROR    -- at line 0: Same port number is specified for management nodes 3 and 4 (or) they both are using the default port number on same host localhost.
+== 27 == Bug32210176
+ ERROR    -- at line 0: Invalid nodegroup 75 for node 2, Max nodegroups allowed: 72
+== 28 == Bug32258207
+ ERROR    -- at line 0: Too many Datanodes(84) for replicas=1, Max Nodes allowed: 72
+== 29 == Bug32871875
+1,localhost,1,0

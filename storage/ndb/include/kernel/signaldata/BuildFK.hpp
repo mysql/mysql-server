@@ -43,7 +43,7 @@ struct BuildFKReq
    */
   friend bool printBUILD_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   union {
     Uint32 senderData;
@@ -72,7 +72,7 @@ struct BuildFKRef
    */
   friend bool printBUILD_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum ErrorCode {
     NoError = 0,
@@ -106,7 +106,7 @@ struct BuildFKConf
    */
   friend bool printBUILD_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderData;
   Uint32 senderRef;

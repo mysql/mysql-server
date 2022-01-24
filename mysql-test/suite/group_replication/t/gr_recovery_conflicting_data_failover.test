@@ -68,6 +68,7 @@ SET GTID_NEXT= "AUTOMATIC";
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -80,6 +81,12 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 --connection server3
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
@@ -127,6 +134,7 @@ SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -153,6 +161,10 @@ DROP TABLE t1;
 DROP TABLE lost_test_table;
 
 RESET MASTER;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
 
 --connection server2
 

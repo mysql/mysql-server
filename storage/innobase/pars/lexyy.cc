@@ -297,12 +297,12 @@ static int yy_start = 0;	/* start state number */
 static int yy_did_buffer_switch_on_eof;
 
 static void yyrestart (FILE *input_file  );
-MY_ATTRIBUTE((unused)) static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+[[maybe_unused]] static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
 static YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
 static void yy_delete_buffer (YY_BUFFER_STATE b  );
 static void yy_flush_buffer (YY_BUFFER_STATE b  );
-MY_ATTRIBUTE((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
-MY_ATTRIBUTE((unused)) static void yypop_buffer_state (void );
+[[maybe_unused]] static void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
+[[maybe_unused]] static void yypop_buffer_state (void );
 
 static void yyensure_buffer_stack (void );
 static void yy_load_buffer_state (void );
@@ -911,9 +911,9 @@ Created 12/14/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define malloc(A)	ut_malloc_nokey(A)
-#define free(A)		ut_free(A)
-#define realloc(P, A)	ut_realloc(P, A)
+#define malloc(A) ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, A)
+#define free(A) ut::free(A)
+#define realloc(P, A) ut::realloc(P, A)
 #define exit(A) 	ut_error
 
 /* Note: We cast result from int to yy_size_t */
@@ -977,31 +977,31 @@ static int yy_init_globals (void );
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-MY_ATTRIBUTE((unused)) static int yylex_destroy (void );
+[[maybe_unused]] static int yylex_destroy (void );
 
-MY_ATTRIBUTE((unused)) static int yyget_debug (void );
+[[maybe_unused]] static int yyget_debug (void );
 
-MY_ATTRIBUTE((unused)) static void yyset_debug (int debug_flag  );
+[[maybe_unused]] static void yyset_debug (int debug_flag  );
 
 YY_EXTRA_TYPE yyget_extra (void );
 
 
 
-MY_ATTRIBUTE((unused)) static FILE *yyget_in (void );
+[[maybe_unused]] static FILE *yyget_in (void );
 
-MY_ATTRIBUTE((unused)) static void yyset_in  (FILE * in_str  );
+[[maybe_unused]] static void yyset_in  (FILE * in_str  );
 
-MY_ATTRIBUTE((unused)) static FILE *yyget_out (void );
+[[maybe_unused]] static FILE *yyget_out (void );
 
-MY_ATTRIBUTE((unused)) static void yyset_out  (FILE * out_str  );
+[[maybe_unused]] static void yyset_out  (FILE * out_str  );
 
 yy_size_t yyget_leng (void );
 
-MY_ATTRIBUTE((unused)) static char *yyget_text (void );
+[[maybe_unused]] static char *yyget_text (void );
 
-MY_ATTRIBUTE((unused)) static int yyget_lineno (void );
+[[maybe_unused]] static int yyget_lineno (void );
 
-MY_ATTRIBUTE((unused)) static void yyset_lineno (int line_number  );
+[[maybe_unused]] static void yyset_lineno (int line_number  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -2545,7 +2545,7 @@ static int yy_get_next_buffer (void)
  * @param new_buffer The new input buffer.
  * 
  */
-    MY_ATTRIBUTE((unused)) static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
+    [[maybe_unused]] static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
 {
     
 	/* TODO. We should be able to replace this entire function body
@@ -2694,7 +2694,7 @@ static void yy_load_buffer_state  (void)
  *  @param new_buffer The new state.
  *  
  */
-MY_ATTRIBUTE((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
+[[maybe_unused]] static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 {
   if (new_buffer == nullptr) return;
 
@@ -2722,7 +2722,7 @@ MY_ATTRIBUTE((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buff
  *  The next element becomes the new top.
  *  
  */
-MY_ATTRIBUTE((unused)) static void yypop_buffer_state (void)
+[[maybe_unused]] static void yypop_buffer_state (void)
 {
     	if (!YY_CURRENT_BUFFER)
 		return;
@@ -2816,7 +2816,7 @@ static void yy_fatal_error (yyconst char* msg )
 /** Get the current line number.
  * 
  */
-MY_ATTRIBUTE((unused)) static int yyget_lineno  (void)
+[[maybe_unused]] static int yyget_lineno  (void)
 {
         
     return yylineno;
@@ -2825,7 +2825,7 @@ MY_ATTRIBUTE((unused)) static int yyget_lineno  (void)
 /** Get the input stream.
  * 
  */
-MY_ATTRIBUTE((unused)) static FILE *yyget_in  (void)
+[[maybe_unused]] static FILE *yyget_in  (void)
 {
         return yyin;
 }
@@ -2833,7 +2833,7 @@ MY_ATTRIBUTE((unused)) static FILE *yyget_in  (void)
 /** Get the output stream.
  * 
  */
-MY_ATTRIBUTE((unused)) static FILE *yyget_out  (void)
+[[maybe_unused]] static FILE *yyget_out  (void)
 {
         return yyout;
 }
@@ -2850,7 +2850,7 @@ yy_size_t yyget_leng  (void)
  * 
  */
 
-MY_ATTRIBUTE((unused)) static char *yyget_text  (void)
+[[maybe_unused]] static char *yyget_text  (void)
 {
         return yytext;
 }
@@ -2859,7 +2859,7 @@ MY_ATTRIBUTE((unused)) static char *yyget_text  (void)
  * @param line_number line number
  * 
  */
-MY_ATTRIBUTE((unused)) static void yyset_lineno (int  line_number )
+[[maybe_unused]] static void yyset_lineno (int  line_number )
 {
     
     yylineno = line_number;
@@ -2871,22 +2871,22 @@ MY_ATTRIBUTE((unused)) static void yyset_lineno (int  line_number )
  * 
  * @see yy_switch_to_buffer
  */
-MY_ATTRIBUTE((unused)) static void yyset_in (FILE *  in_str )
+[[maybe_unused]] static void yyset_in (FILE *  in_str )
 {
         yyin = in_str ;
 }
 
-MY_ATTRIBUTE((unused)) static void yyset_out (FILE *  out_str )
+[[maybe_unused]] static void yyset_out (FILE *  out_str )
 {
         yyout = out_str ;
 }
 
-MY_ATTRIBUTE((unused)) static int yyget_debug  (void)
+[[maybe_unused]] static int yyget_debug  (void)
 {
         return yy_flex_debug;
 }
 
-MY_ATTRIBUTE((unused)) static void yyset_debug (int  bdebug )
+[[maybe_unused]] static void yyset_debug (int  bdebug )
 {
         yy_flex_debug = bdebug ;
 }
@@ -2920,7 +2920,7 @@ static int yy_init_globals (void)
 }
 
 /* yylex_destroy is for both reentrant and non-reentrant scanners. */
-MY_ATTRIBUTE((unused)) static int yylex_destroy  (void)
+[[maybe_unused]] static int yylex_destroy  (void)
 {
     
     /* Pop the buffer stack, destroying each element. */

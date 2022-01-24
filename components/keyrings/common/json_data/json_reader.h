@@ -77,7 +77,7 @@ class Json_reader {
   Json_reader();
 
   /** Destructor */
-  virtual ~Json_reader() {}
+  virtual ~Json_reader() = default;
 
   std::string version() const;
 

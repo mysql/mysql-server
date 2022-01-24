@@ -37,7 +37,7 @@ namespace Base {
  */
 class I_connection_factory {
  public:
-  virtual ~I_connection_factory() {}
+  virtual ~I_connection_factory() = default;
 
   /**
     Provides new connection to MySQL database server.

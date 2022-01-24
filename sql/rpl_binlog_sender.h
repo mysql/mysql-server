@@ -54,7 +54,7 @@ class Binlog_sender {
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
                 Gtid_set *exclude_gtids, uint32 flag);
 
-  ~Binlog_sender() {}
+  ~Binlog_sender() = default;
 
   /**
     It checks the dump reqest and sends events to the client until it finish
@@ -293,8 +293,24 @@ class Binlog_sender {
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_heartbeat_event(my_off_t log_pos);
+  int send_heartbeat_event_v1(my_off_t log_pos);
+  /**
+     It sends a heartbeat to the client, for the cases when the
+     flag USE_HEARTBEAT_EVENT_V2 is set.
+     @param[in] log_pos  The log position that events before it are sent.
 
+     @return It returns 0 if succeeds, otherwise 1 is returned.
+  */
+  int send_heartbeat_event_v2(my_off_t log_pos);
+  /**
+     Checks if the heartbeat_version flag is set or not, and call the correct
+     send_heartbeat_method accordingly.
+
+     @param[in] log_pos  The log position that events before it are sent.
+
+     @return It returns 0 if succeeds, otherwise 1 is returned.
+   */
+  int send_heartbeat_event(my_off_t log_pos);
   /**
      It reads an event from binlog file. this function can set event_ptr either
      a valid buffer pointer or nullptr. nullptr means it arrives at the end of

@@ -1,0 +1,96 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Disable `mysql_disable_super_read_only_if_primary` action
+#    on server1.
+#    This does not affect multi-primary mode, but we need to
+#    disable it to test the switch to single-primary mode.
+[connection server1]
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+
+############################################################
+# 2. Despite the action `mysql_disable_super_read_only_if_primary`
+#    is disabled it has not effect on multi-primary mode.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The super_read_only mode must be 0]
+include/assert.inc [The read_only mode must be 0]
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode must be 0]
+include/assert.inc [The read_only mode must be 0]
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be enabled (the default value)]
+include/assert.inc [The version of replication_group_member_actions must be 1 (the default value)]
+
+############################################################
+# 3. Make server2 leave the group and increase the value of
+#    `replication_group_member_actions` configuration.
+[connection server2]
+include/stop_group_replication.inc
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode must be 0]
+include/assert.inc [The read_only mode must be 0]
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be enabled]
+include/assert.inc [The version of replication_group_member_actions must be 3]
+
+############################################################
+# 4. Switch to single-primary mode, with server1 as the primary.
+#    server1 configuration will override the configuration of the
+#    group (server2).
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/gr_assert_primary_member.inc
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+include/assert.inc [The super_read_only mode must be 1]
+include/assert.inc [The read_only mode must be 1]
+include/assert_grep.inc [Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered]
+[connection server2]
+include/gr_assert_secondary_member.inc
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+include/assert.inc [The super_read_only mode must be 1]
+include/assert.inc [The read_only mode must be 1]
+include/assert_grep.inc [Member action "mysql_disable_super_read_only_if_primary" for event "AFTER_PRIMARY_ELECTION" was not triggered]
+
+############################################################
+# 5. Switch back to multi-primary mode, servers will be
+#    writable.
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/assert.inc [The super_read_only mode must be 0]
+include/assert.inc [The read_only mode must be 0]
+[connection server2]
+include/assert.inc [The super_read_only mode must be 0]
+include/assert.inc [The read_only mode must be 0]
+
+############################################################
+# 6. Check that UDFs can not be run on multi-primary mode.
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_disable_member_action' failed. Member must be the primary or OFFLINE.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: The function 'group_replication_enable_member_action' failed. Member must be the primary or OFFLINE.
+SELECT group_replication_reset_member_actions();
+ERROR HY000: The function 'group_replication_reset_member_actions' failed. Member must be OFFLINE to reset its member actions configuration.
+
+############################################################
+# 7. Clean up.
+include/group_replication_end.inc

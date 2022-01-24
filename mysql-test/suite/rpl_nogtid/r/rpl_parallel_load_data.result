@@ -4,8 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
-SET @save_slave_parallel_workers= @@slave_parallel_workers;
-SET @@global.slave_parallel_workers=4;
+SET @save_replica_parallel_workers= @@replica_parallel_workers;
+SET @@global.replica_parallel_workers=4;
 include/start_slave.inc
 DROP DATABASE IF EXISTS db1;
 DROP DATABASE IF EXISTS db2;
@@ -21,5 +21,5 @@ COUNT(*)
 10
 DROP DATABASE db1;
 DROP DATABASE db2;
-SET @@global.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@global.replica_parallel_workers= @save_replica_parallel_workers;
 include/rpl_end.inc

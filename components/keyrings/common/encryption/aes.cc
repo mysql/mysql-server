@@ -83,7 +83,7 @@ const EVP_CIPHER *aes_evp_type(const Keyring_aes_opmode mode) {
     case Keyring_aes_opmode::keyring_aes_256_ofb:
       return EVP_aes_256_ofb();
     case Keyring_aes_opmode::keyring_aes_opmode_invalid:
-      // Fall through
+      [[fallthrough]];
     default:
       return nullptr;
   }

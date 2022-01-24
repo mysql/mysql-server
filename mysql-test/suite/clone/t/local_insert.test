@@ -19,10 +19,9 @@ CREATE PROCEDURE prepare_data(IN val INT)
 BEGIN
   DECLARE i INT DEFAULT 1;
 
-  WHILE i < val DO
+  WHILE i <= val DO
     INSERT INTO t1 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
     INSERT INTO t2 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
-    INSERT INTO t3 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
     SET i = i + 1;
   END WHILE;
 END|
@@ -30,37 +29,52 @@ DELIMITER ;|
 
 --echo # Case 1 - Normal page archiving process using clone client.
 
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
-LONGBLOB);
-CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
-LONGBLOB);
-CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c
-LONGBLOB);
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b LONGBLOB, c LONGBLOB, key k1(a));
+CREATE TABLE t2 (a INT PRIMARY KEY AUTO_INCREMENT, b LONGBLOB, c LONGBLOB);
 
 --connection con1
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL page_signal WAIT_FOR go_page';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL redo_signal WAIT_FOR go_redo';
+
+if (!$remote_clone) {
+  SET DEBUG_SYNC = 'clone_donor_after_saving_dynamic_metadata SIGNAL meta_signal WAIT_FOR go_meta';
+}
 --source ../include/clone_command_send.inc
 
 --connection con2
 SET DEBUG_SYNC = 'now WAIT_FOR page_signal';
-CALL prepare_data(100);
+CALL prepare_data(50);
 SET DEBUG_SYNC = 'now SIGNAL go_page';
+
+SET DEBUG_SYNC = 'now WAIT_FOR redo_signal';
+CALL prepare_data(10);
+SET DEBUG_SYNC = 'now SIGNAL go_redo';
+
+if (!$remote_clone) {
+  SET DEBUG_SYNC = 'now WAIT_FOR meta_signal';
+  SET GLOBAL debug="+d,periodical_checkpoint_disabled";
+  CALL prepare_data(10);
+  UPDATE t1 SET a = 100 where a = 1;
+  UPDATE t2 SET a = 200 where a = 1;
+  SET DEBUG_SYNC = 'now SIGNAL go_meta';
+}
 
 --connection con1
 --reap
 
 select count(*) from t1;
 select count(*) from t2;
-select count(*) from t3;
 
 # Restart server on cloned data directory
 --replace_result $CLONE_DATADIR CLONE_DATADIR
 --let restart_parameters="restart: --datadir=$CLONE_DATADIR"
 --source include/restart_mysqld.inc
 
-select count(*) from t1;
-select count(*) from t2;
-select count(*) from t3;
+INSERT INTO t1 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
+INSERT INTO t2 (b,c) VALUES (REPEAT(a,600), REPEAT(b,600));
+
+select count(*), max(a) from t1;
+select count(*), max(a) from t2;
 
 #Cleanup
 --let restart_parameters="restart:"
@@ -69,7 +83,6 @@ select count(*) from t3;
 --connection con1
 DROP TABLE t1;
 DROP TABLE t2;
-DROP TABLE t3;
 
 SET DEBUG_SYNC = 'RESET';
 

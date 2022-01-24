@@ -44,7 +44,7 @@ struct DropFKReq
    */
   friend bool printDROP_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
 
   union {
     Uint32 senderData;
@@ -78,7 +78,7 @@ struct DropFKRef
    */
   friend bool printDROP_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum ErrorCode {
     NoError = 0,
@@ -114,7 +114,7 @@ struct DropFKConf
    */
   friend bool printDROP_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderData;
   Uint32 senderRef;

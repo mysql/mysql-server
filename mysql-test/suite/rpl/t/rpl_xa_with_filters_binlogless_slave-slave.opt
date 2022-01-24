@@ -1,1 +1,1 @@
---slave-preserve-commit-order=0 --log-slave-updates=OFF --skip-log-bin
+--replica-preserve-commit-order=0 --log-replica-updates=OFF --skip-log-bin

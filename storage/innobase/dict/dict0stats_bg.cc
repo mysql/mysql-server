@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 /** Minimum time interval between stats recalc for a given table */
-#define MIN_RECALC_INTERVAL 10 /* seconds */
+constexpr std::chrono::seconds MIN_RECALC_INTERVAL{10};
 
 #define SHUTTING_DOWN() \
   (srv_shutdown_state.load() >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS)
@@ -70,7 +70,7 @@ it is enlarged */
 static const ulint RECALC_POOL_INITIAL_SLOTS = 128;
 
 /** Allocator type, used by std::vector */
-typedef ut_allocator<table_id_t> recalc_pool_allocator_t;
+typedef ut::allocator<table_id_t> recalc_pool_allocator_t;
 
 /** The multitude of tables whose stats are to be automatically
 recalculated - an STL vector */
@@ -90,7 +90,8 @@ static void dict_stats_recalc_pool_init() {
 
   const PSI_memory_key key = mem_key_dict_stats_bg_recalc_pool_t;
 
-  recalc_pool = UT_NEW(recalc_pool_t(recalc_pool_allocator_t(key)), key);
+  recalc_pool = ut::new_withkey<recalc_pool_t>(ut::make_psi_memory_key(key),
+                                               recalc_pool_allocator_t(key));
 
   recalc_pool->reserve(RECALC_POOL_INITIAL_SLOTS);
 }
@@ -102,7 +103,7 @@ static void dict_stats_recalc_pool_deinit() {
 
   recalc_pool->clear();
 
-  UT_DELETE(recalc_pool);
+  ut::delete_(recalc_pool);
   recalc_pool = nullptr;
 }
 
@@ -165,7 +166,7 @@ void dict_stats_recalc_pool_del(
     const dict_table_t *table) /*!< in: table to remove */
 {
   ut_ad(!srv_read_only_mode);
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mutex_enter(&recalc_pool_mutex);
 
@@ -274,27 +275,27 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   /* We need to enter dict_sys->mutex for setting
   table->stats_bg_flag. This is for blocking other DDL, like drop
   table. */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table = dd_table_open_on_id(table_id, thd, &mdl, true, true);
 
   if (table == nullptr) {
     /* table does not exist, must have been DROPped
     after its id was enqueued */
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Check whether table is corrupted */
   if (table->is_corrupted()) {
     dd_table_close(table, thd, &mdl, true);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Set bg flag. */
   table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* ut_time_monotonic() could be expensive, the current function
   is called once every time a table has been changed more than 10% and
@@ -303,7 +304,8 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   be replaced with something else, though a time interval is the natural
   approach. */
 
-  if (ut_time_monotonic() - table->stats_last_recalc < MIN_RECALC_INTERVAL) {
+  if (std::chrono::steady_clock::now() - table->stats_last_recalc <
+      MIN_RECALC_INTERVAL) {
     /* Stats were (re)calculated not long ago. To avoid
     too frequent stats updates we put back the table on
     the auto recalc list and do nothing. */
@@ -314,12 +316,12 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
     dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Set back bg flag */
   table->stats_bg_flag = BG_STAT_NONE;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* This call can't be moved into dict_sys->mutex protection,
   since it'll cause deadlock while release mdl lock. */
@@ -356,7 +358,7 @@ the auto recalc list and proceeds them, eventually recalculating their
 statistics. */
 void dict_stats_thread() {
   ut_a(!srv_read_only_mode);
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_internal_thd();
 
   while (!SHUTTING_DOWN()) {
     /* Wake up periodically even if not signaled. This is
@@ -364,7 +366,7 @@ void dict_stats_thread() {
     dict_stats_process_entry_from_recalc_pool() puts the entry back
     in the list, the os_event_set() will be lost by the subsequent
     os_event_reset(). */
-    os_event_wait_time(dict_stats_event, MIN_RECALC_INTERVAL * 1000000);
+    os_event_wait_time(dict_stats_event, MIN_RECALC_INTERVAL);
 
 #ifdef UNIV_DEBUG
     while (innodb_dict_stats_disabled_debug) {
@@ -372,7 +374,7 @@ void dict_stats_thread() {
       if (SHUTTING_DOWN()) {
         break;
       }
-      os_event_wait_time(dict_stats_event, 100000);
+      os_event_wait_time(dict_stats_event, std::chrono::milliseconds{100});
     }
 #endif /* UNIV_DEBUG */
 
@@ -385,7 +387,7 @@ void dict_stats_thread() {
     os_event_reset(dict_stats_event);
   }
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Shutdown the dict stats thread. */

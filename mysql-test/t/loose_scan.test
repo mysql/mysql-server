@@ -202,3 +202,33 @@ eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #32597719: WL#14325: ASSERTION `IS_NULL_ROW == FALSE' FAILED|SQL/SORTING_ITERATOR.H
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  col_varchar_key VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  j JSON
+);
+
+INSERT INTO t2 VALUES (1,'true'),(2,'true'),(3,'true'),(4,'true'),(5,'true');
+
+ANALYZE TABLE t1, t2;
+
+# Sets up a plan where the sort is _not_ on the first table,
+# but produces no rows, so that the final AggregateIterator
+# needs to set the NULL row flag on a sort that has not
+# been started yet.
+SELECT SUM(t1.col_int)
+  FROM t1, t2
+WHERE t2.j IN (
+  SELECT t3.j FROM t2 JOIN t2 AS t3 ON t2.pk <> t3.pk
+) AND t1.col_varchar_key='';
+
+DROP TABLE t1, t2;

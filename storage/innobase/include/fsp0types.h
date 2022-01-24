@@ -194,7 +194,7 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
-bool fsp_flags_is_valid(uint32_t flags) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool fsp_flags_is_valid(uint32_t flags);
 
 /** Check if tablespace is system temporary.
 @param[in]	space_id	tablespace ID
@@ -354,22 +354,22 @@ tablespace dictionary.*/
 #define FSP_FLAGS_ARE_NOT_SET(flags) ((flags & FSP_FLAGS_MASK) == 0)
 
 /** Set ENCRYPTION bit in tablespace flags */
-UNIV_INLINE void fsp_flags_set_encryption(uint32_t &flags) {
+static inline void fsp_flags_set_encryption(uint32_t &flags) {
   flags |= FSP_FLAGS_MASK_ENCRYPTION;
 }
 
 /** Set ENCRYPTION bit in tablespace flags */
-UNIV_INLINE void fsp_flags_unset_encryption(uint32_t &flags) {
+static inline void fsp_flags_unset_encryption(uint32_t &flags) {
   flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
 }
 
 /** Set SDI Index bit in tablespace flags */
-UNIV_INLINE void fsp_flags_set_sdi(uint32_t &flags) {
+static inline void fsp_flags_set_sdi(uint32_t &flags) {
   flags |= FSP_FLAGS_MASK_SDI;
 }
 
 /** Set SDI Index bit in tablespace flags */
-UNIV_INLINE void fsp_flags_unset_sdi(uint32_t &flags) {
+static inline void fsp_flags_unset_sdi(uint32_t &flags) {
   flags &= ~FSP_FLAGS_MASK_SDI;
 }
 

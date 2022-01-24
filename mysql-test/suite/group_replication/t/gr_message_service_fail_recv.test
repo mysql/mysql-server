@@ -54,7 +54,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent a message");
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_fail_recv.2.err
 --let $assert_count = 1
---let $assert_select = Plugin group_replication reported: 'Message delivery error on message service of Group Replication. The server will now leave the group.'
+--let $assert_select = A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group. Try to add the server back to the group and check if the problem persists, or check previous messages in the log for hints of what could be the problem.
 --let $assert_text = Server 2 logged failure to notify recv service.
 --source include/assert_grep.inc
 

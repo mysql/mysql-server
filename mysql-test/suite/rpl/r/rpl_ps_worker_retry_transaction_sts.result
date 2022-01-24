@@ -15,8 +15,8 @@ include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must be em
 include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be zero when no transaction is being applied]
 include/stop_slave.inc
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
-SET GLOBAL slave_transaction_retries = 10;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET GLOBAL replica_transaction_retries = 10;
 SET GLOBAL innodb_lock_wait_timeout = 2;
 # Adding debug point 'rpl_ps_tables_worker_retry' to @@GLOBAL.debug
 include/start_slave.inc
@@ -66,13 +66,13 @@ include/assert.inc [The information on LAST_APPLIED_TRANSACTION_RETRIES_COUNT wa
 include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER was kept]
 include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE was kept]
 include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP was kept]
-include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT is the same as slave_transaction_retries]
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT is the same as replica_transaction_retries]
 include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must correspond to ER_LOCK_WAIT_TIMEOUT]
 include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must correspond to ER_LOCK_WAIT_TIMEOUT message]
 [connection server_1]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 include/rpl_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

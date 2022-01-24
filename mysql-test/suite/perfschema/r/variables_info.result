@@ -44,7 +44,7 @@ max_connections	COMMAND_LINE	NULL	NULL
 skip_networking	COMMAND_LINE	NULL	NULL
 # Test persisted variables
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST innodb_default_row_format=COMPACT;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
@@ -62,13 +62,14 @@ innodb_default_row_format	PERSISTED	root	localhost
 max_execution_time	PERSISTED	root	localhost
 max_heap_table_size	PERSISTED	root	localhost
 max_user_connections	PERSISTED	root	localhost
+replica_net_timeout	PERSISTED	root	localhost
 slave_net_timeout	PERSISTED	root	localhost
 sort_buffer_size	PERSISTED	root	localhost
 # Change persisted variables to dynamic
 SELECT now() into @before_timestamp;
 Sleep 1 second
 SET GLOBAL sort_buffer_size=256000;
-SET GLOBAL max_heap_table_size=999424, slave_net_timeout=124;
+SET GLOBAL max_heap_table_size=999424, replica_net_timeout=124;
 SET @@global.max_execution_time=440000, @@global.max_user_connections=30;
 SET GLOBAL innodb_default_row_format=DEFAULT;
 Sleep 1 second
@@ -88,7 +89,7 @@ from performance_schema.variables_info
 where VARIABLE_NAME in
 ('sort_buffer_size',
 'max_heap_table_size',
-'slave_net_timeout',
+'replica_net_timeout',
 'max_execution_time',
 'max_user_connections',
 'innodb_default_row_format')
@@ -98,7 +99,7 @@ innodb_default_row_format	DYNAMIC	pass	pass	root	localhost
 max_execution_time	DYNAMIC	pass	pass	root	localhost
 max_heap_table_size	DYNAMIC	pass	pass	root	localhost
 max_user_connections	DYNAMIC	pass	pass	root	localhost
-slave_net_timeout	DYNAMIC	pass	pass	root	localhost
+replica_net_timeout	DYNAMIC	pass	pass	root	localhost
 sort_buffer_size	DYNAMIC	pass	pass	root	localhost
 # Restart server
 select VARIABLE_NAME, VARIABLE_SOURCE

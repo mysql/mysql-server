@@ -12,7 +12,7 @@ tinnodb	CREATE TABLE `tinnodb` (
   `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @old_debug= @@debug;
-set @@debug= 'd,do_not_write_xid';
+set @@debug= '+d,do_not_write_xid';
 ==== Test ====
 INSERT INTO tinnodb VALUES (1);
 SELECT * FROM tinnodb ORDER BY a;

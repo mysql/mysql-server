@@ -34,50 +34,33 @@ namespace server_mock {
 class MySQLServerMockSession {
  public:
   MySQLServerMockSession(
-      ProtocolBase *protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
-      const bool debug_mode);
+      const bool debug_mode)
+      : json_reader_{std::move(statement_processor)}, debug_mode_{debug_mode} {}
 
   virtual ~MySQLServerMockSession() = default;
 
-  /**
-   * process the handshake of the current connection.
-   *
-   * @throws std::system_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  virtual bool process_handshake() = 0;
+  virtual void run() = 0;
 
-  /**
-   * process the statements of the current connection.
-   *
-   * @pre connection must be authenticated with process_handshake() first
-   *
-   * @throws std::system_error, std::runtime_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  virtual bool process_statements() = 0;
-
-  // throws std::system_error, std::runtime_error
-  void run();
-
-  void kill() noexcept { killed_ = true; }
-
-  bool killed() const { return killed_; }
+  virtual void cancel() = 0;
 
   bool debug_mode() const { return debug_mode_; }
+
+  void disconnector(std::function<void()> func) {
+    disconnector_ = std::move(func);
+  }
+
+  void disconnect() {
+    if (disconnector_) disconnector_();
+  }
 
  protected:
   std::unique_ptr<StatementReaderBase> json_reader_;
 
  private:
-  bool killed_{false};
-  ProtocolBase *protocol_;
   bool debug_mode_;
+
+  std::function<void()> disconnector_;
 };
 
 }  // namespace server_mock

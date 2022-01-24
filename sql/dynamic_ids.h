@@ -32,7 +32,7 @@ class String;
 class Server_ids {
  public:
   Server_ids();
-  ~Server_ids() {}
+  ~Server_ids() = default;
 
   Prealloced_array<ulong, 16> dynamic_ids;
 

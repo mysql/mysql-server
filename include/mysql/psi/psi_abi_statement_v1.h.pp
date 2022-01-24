@@ -55,7 +55,7 @@ struct PSI_statement_locker_state_v1 {
   void *m_class;
   struct PSI_thread *m_thread;
   unsigned long long m_timer_start;
-  unsigned long long (*m_timer)(void);
+  unsigned long long m_cpu_time_start;
   void *m_statement;
   unsigned long long m_lock_time;
   unsigned long long m_rows_sent;

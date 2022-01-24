@@ -370,8 +370,10 @@ SELECT id FROM t1
      AGAINST ('null' IN NATURAL LANGUAGE MODE);
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
 SELECT id FROM t1 WHERE MATCH (a,b)
@@ -851,13 +853,17 @@ SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS sc
 SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
 
 # With subquery
+--sorted_result
 SELECT * FROM articles where  MATCH(title, body) AGAINST ('MySQL - (database - tutorial)' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database)' IN BOOLEAN MODE);
 
 # More complex query
+--sorted_result
 SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database) -Tricks' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles where MATCH(title, body) AGAINST ('-Tricks MySQL - (- tutorial database)' IN BOOLEAN MODE);
 
 DROP TABLE articles;
@@ -1120,6 +1126,7 @@ ROLLBACK TO SAVEPOINT BATCH1;
 
 COMMIT;
 
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
@@ -1226,9 +1233,12 @@ INSERT INTO ift values (2, "skip and networking");
 INSERT INTO ift values (3, "--skip-networking");
 INSERT INTO ift values (4, "-donot--skip-networking");
 
+--sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
+--sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
+--sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
 
 DROP TABLE ift;
@@ -1294,12 +1304,16 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
 
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
 
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
@@ -1340,7 +1354,7 @@ CREATE TABLE articles (
 # Repeatedly insert/delete records, the ranking should be the same for
 # each of them
 INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
-blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+blah'),('Matt''s Noise','this is noisy'),('February Weather','It was terrible
 this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
 database database','foo database database database'),('Database article
 title','body with lots of words.'),('myfulltext database', 'my test fulltext
@@ -1399,10 +1413,14 @@ SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
@@ -1424,6 +1442,7 @@ SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '%', '"'));
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
@@ -1443,10 +1462,14 @@ SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '%', '"'));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
@@ -1466,14 +1489,23 @@ SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
@@ -1493,20 +1525,38 @@ INSERT INTO t1 (a) VALUES
 
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k * d *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * good' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('gm * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('good *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g* database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33409351: regression: change_to_use_tmp_fields_except_sums:
+--echo #               Assertion `!thd->is_error()' failed.
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+--error ER_PARSE_ERROR
+SELECT ANY_VALUE(MATCH (a) AGAINST ('<' IN BOOLEAN MODE)), COUNT(*) FROM t;
+DROP TABLE t;

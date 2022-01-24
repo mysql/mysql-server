@@ -127,6 +127,7 @@
 #include "sql/sql_cmd.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_load.h"       // Sql_cmd_load_table
@@ -168,6 +169,124 @@ void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
   const char *to_name = replace_utf8_utf8mb3(to_cs->csname);
   my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff, from_name,
            to_name);
+}
+
+/**
+  Simplify the string arguments to a function, if possible.
+
+  Currently used to substitute const values with character strings
+  in the desired character set. Only used during resolving.
+
+  @param thd      thread handler
+  @param c        Desired character set and collation
+  @param args     Pointer to argument array
+  @param nargs    Number of arguments to process
+
+  @returns false if success, true if error
+*/
+bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
+                          uint nargs) {
+  // Only used during resolving
+  assert(!thd->lex->is_exec_started());
+
+  if (thd->lex->is_view_context_analysis()) return false;
+
+  uint i;
+  Item **arg;
+  for (i = 0, arg = args; i < nargs; i++, arg++) {
+    size_t dummy_offset;
+    // Only convert const values.
+    if (!(*arg)->const_item()) continue;
+    if (!String::needs_conversion(1, (*arg)->collation.collation, c.collation,
+                                  &dummy_offset))
+      continue;
+
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> converted;
+    String *ostr = (*arg)->val_str(&original);
+    if (ostr == nullptr) {
+      if (thd->is_error()) return true;
+      *arg = new (thd->mem_root) Item_null;
+      if (*arg == nullptr) return true;
+      continue;
+    }
+    uint conv_status;
+    converted.copy(ostr->ptr(), ostr->length(), ostr->charset(), c.collation,
+                   &conv_status);
+    if (conv_status != 0) {
+      report_conversion_error(c.collation, ostr->ptr(), ostr->length(),
+                              ostr->charset());
+      return true;
+    }
+    // If source is a binary string, the string may have to be validated:
+    if (c.collation != &my_charset_bin && ostr->charset() == &my_charset_bin &&
+        !converted.is_valid_string(c.collation)) {
+      report_conversion_error(c.collation, ostr->ptr(), ostr->length(),
+                              ostr->charset());
+      return true;
+    }
+
+    char *ptr = thd->strmake(converted.ptr(), converted.length());
+    if (ptr == nullptr) return true;
+    Item *conv = new (thd->mem_root)
+        Item_string(ptr, converted.length(), converted.charset(), c.derivation);
+    if (conv == nullptr) return true;
+
+    *arg = conv;
+
+    assert(conv->fixed);
+  }
+  return false;
+}
+
+/**
+  Evaluate an argument string and return it in the desired character set.
+  Perform character set conversion if needed.
+  Perform character set validation (from a binary string) if needed.
+
+  @param to_cs  The desired character set
+  @param arg    Argument to evaluate as a string value
+  @param buffer String buffer where argument is evaluated, if necessary
+
+  @returns string pointer if success, NULL if error or NULL value
+*/
+
+String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
+
+  size_t offset;
+  const bool convert =
+      String::needs_conversion(0, arg->collation.collation, to_cs, &offset);
+  String *res = arg->val_str(convert ? &local_string : buffer);
+
+  // Return immediately if argument is a NULL value, or there was an error
+  if (res == nullptr) {
+    return nullptr;
+  }
+  if (convert) {
+    /*
+      String must be converted from source character set. It has been built
+      in the "local_string" buffer and will be copied with conversion into the
+      caller provided buffer.
+    */
+    uint errors = 0;
+    buffer->length(0);
+    buffer->copy(res->ptr(), res->length(), res->charset(), to_cs, &errors);
+    if (errors) {
+      report_conversion_error(to_cs, res->ptr(), res->length(), res->charset());
+      return nullptr;
+    }
+    return buffer;
+  }
+  // If source is a binary string, the string may have to be validated:
+  if (to_cs != &my_charset_bin && arg->collation.collation == &my_charset_bin &&
+      !res->is_valid_string(to_cs)) {
+    report_conversion_error(to_cs, res->ptr(), res->length(), res->charset());
+    return nullptr;
+  }
+  // Adjust target character set to the desired value
+  res->set_charset(to_cs);
+  return res;
 }
 
 /**
@@ -640,9 +759,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
       (func_type == Item_func::FUNC_SP &&
        my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
     return false;
-  for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->args[i], binary_cmp)) return false;
-  return true;
+  return AllItemsAreEqual(args, item_func->args, arg_count, binary_cmp);
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {
@@ -755,7 +872,9 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
   */
-  if (!has_aggregation() && !const_item() && !has_wf()) {
+  if (!has_aggregation() && !has_wf() &&
+      !(const_for_execution() &&
+        evaluate_during_optimization(this, thd->lex->current_query_block()))) {
     Item *result = new Item_field(result_field);
     return result;
   }
@@ -886,9 +1005,15 @@ bool Item_func::check_column_in_group_by(uchar *arg) {
   return select->is_grouped();
 }
 
-static bool is_function_of_type(const Item *item, Item_func::Functype type) {
+bool is_function_of_type(const Item *item, Item_func::Functype type) {
   return item->type() == Item::FUNC_ITEM &&
          down_cast<const Item_func *>(item)->functype() == type;
+}
+
+bool contains_function_of_type(Item *item, Item_func::Functype type) {
+  return WalkItem(item, enum_walk::PREFIX, [type](Item *inner_item) {
+    return is_function_of_type(inner_item, type);
+  });
 }
 
 /**
@@ -908,6 +1033,7 @@ static bool is_function_of_type(const Item *item, Item_func::Functype type) {
 
 Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found) {
+  func = func->real_item();
   Item *expr = fld->gcol_info->expr_item;
 
   /*
@@ -1134,18 +1260,22 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
 
   @param arg  List of indexed GC field
 
-  @return this item
+  @return this item on successful execution, nullptr on error
 
-  @details This function transforms the WHERE condition. It doesn't change
+  @details This function transforms a search condition. It doesn't change
   'this' item but rather changes its arguments. It takes list of GC fields
   and checks whether arguments of 'this' item matches them and index over
   the GC field isn't disabled with hints. If so, it replaces
-  the argument with newly created Item_field which uses the matched GC
-  field. Following functions' arguments could be transformed:
-  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC
+  the argument with newly created Item_field which uses the matched GC field.
+  The following predicates' arguments could be transformed:
+  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC, JSON_OVERLAPS
     - Left _or_ right argument if the opposite argument is a constant.
   - IN_FUNC, BETWEEN
     - Left argument if all other arguments are constant and of the same type.
+  - MEMBER OF
+    - Right argument if left argument is constant.
+  - JSON_CONTAINS
+    - First argument if the second argument is constant.
 
   After transformation comparators are updated to take into account the new
   field.
@@ -1166,11 +1296,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // Check if we can substitute a function with a GC. The
       // predicate must be on the form <expr> OP <constant> or
       // <constant> OP <expr>.
-      if (args[0]->can_be_substituted_for_gc() && args[1]->const_item()) {
+      if (args[0]->can_be_substituted_for_gc() &&
+          args[1]->const_for_execution()) {
         func = args;
         val = args[1];
       } else if (args[1]->can_be_substituted_for_gc() &&
-                 args[0]->const_item()) {
+                 args[0]->const_for_execution()) {
         func = args + 1;
         val = args[0];
       } else {
@@ -1191,7 +1322,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       Item_result type = args[1]->result_type();
       if (!std::all_of(args + 1, args + arg_count,
                        [type](const Item *item_arg) {
-                         return item_arg->const_item() &&
+                         return item_arg->const_for_execution() &&
                                 item_arg->result_type() == type;
                        })) {
         break;
@@ -1204,11 +1335,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       Item_result type = args[0]->result_type();
       /*
         Check whether MEMBER OF is applicable for optimization:
-        1) 1st arg is a constant
+        1) 1st arg is constant for execution
         2) .. and it isn't NULL, as MEMBER OF can't be used to lookup NULLs
         3) 2nd arg can be substituted for a GC
       */
-      if (args[0]->const_item() &&                               // 1
+      if (args[0]->const_for_execution() &&                      // 1
           !args[0]->is_null() &&                                 // 2
           args[1]->can_be_substituted_for_gc(/*array=*/true)) {  // 3
         if (substitute_gc_expression(args + 1, args, gc_fields, type, this))
@@ -1222,15 +1353,17 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       /*
         Check whether JSON_CONTAINS is applicable for optimization:
         1) 1st arg can be substituted with a generated column
-        2) value to lookup is a constant
+        2) value to lookup is constant for execution
         3) value to lookup is a proper JSON doc
         4) value to lookup is an array or scalar
       */
       if (!args[0]->can_be_substituted_for_gc(/*array=*/true) ||  // 1
-          !args[1]->real_item()->const_item())                    // 2
+          !args[1]->const_for_execution())                        // 2
         break;
-      if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr) ||  // 3
-          args[1]->null_value ||
+      if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr)) {  // 3
+        return nullptr;
+      }
+      if (args[1]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 4
         break;
       gc_subst_overlaps_contains(args, args + 1, vals_wr, gc_fields);
@@ -1242,17 +1375,17 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
 
       /*
         Check whether JSON_OVERLAPS is applicable for optimization:
-        1) One argument is a constant
+        1) One argument is constant for execution
         2) The other argument can be substituted with a generated column
         3) value to lookup is a proper JSON doc
         4) value to lookup is an array or scalar
       */
       if (args[0]->can_be_substituted_for_gc(/*array=*/true) &&  // 2
-          args[1]->const_item()) {                               // 1
+          args[1]->const_for_execution()) {                      // 1
         func = args;
         vals = 1;
       } else if (args[1]->can_be_substituted_for_gc(/*array=*/true) &&  // 2
-                 args[0]->const_item()) {                               // 1
+                 args[0]->const_for_execution()) {                      // 1
         func = args + 1;
         vals = 0;
       } else {
@@ -1261,8 +1394,10 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
 
       Json_wrapper vals_wr;
       String str;
-      if (get_json_wrapper(args, vals, &str, func_name(), &vals_wr) ||  // 3
-          args[vals]->null_value ||
+      if (get_json_wrapper(args, vals, &str, func_name(), &vals_wr)) {  // 3
+        return nullptr;
+      }
+      if (args[vals]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 4
         break;
       gc_subst_overlaps_contains(func, args + vals, vals_wr, gc_fields);
@@ -2054,7 +2189,7 @@ longlong Item_func_minus::int_op() {
     if (args[1]->unsigned_flag) {
       if ((ulonglong)(val0 - LLONG_MIN) < (ulonglong)val1) goto err;
     } else {
-      if (val0 > 0 && val1 < 0)
+      if (val0 >= 0 && val1 < 0)
         res_unsigned = true;
       else if (val0 < 0 && val1 > 0 && res >= 0)
         goto err;
@@ -2221,8 +2356,8 @@ void Item_func_mul::result_precision() {
                                                             unsigned_flag);
 }
 
-double Item_func_div::real_op() {
-  assert(fixed == 1);
+double Item_func_div_base::real_op() {
+  assert(fixed);
   double val1 = args[0]->val_real();
   if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
@@ -2236,7 +2371,7 @@ double Item_func_div::real_op() {
   return check_float_overflow(val1 / val2);
 }
 
-my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
+my_decimal *Item_func_div_base::decimal_op(my_decimal *decimal_value) {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
   int err;
@@ -2248,7 +2383,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
 
   if ((err = check_decimal_overflow(
            my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW & ~E_DEC_DIV_ZERO,
-                          decimal_value, val1, val2, prec_increment))) > 3) {
+                          decimal_value, val1, val2, m_prec_increment))) > 3) {
     if (err == E_DEC_DIV_ZERO) signal_divide_by_null();
     return error_decimal(decimal_value);
   }
@@ -2257,7 +2392,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_div::result_precision() {
   uint precision = min<uint>(
-      args[0]->decimal_precision() + args[1]->decimals + prec_increment,
+      args[0]->decimal_precision() + args[1]->decimals + m_prec_increment,
       DECIMAL_MAX_PRECISION);
 
   if (result_type() == DECIMAL_RESULT) assert(precision > 0);
@@ -2267,19 +2402,39 @@ void Item_func_div::result_precision() {
     unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag = args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals = min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+  decimals = min<uint>(args[0]->decimals + m_prec_increment, DECIMAL_MAX_SCALE);
   max_length = my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                             unsigned_flag);
 }
 
+void Item_func_div_int::result_precision() {
+  assert(result_type() == INT_RESULT);
+
+  // Integer operations keep unsigned_flag if one of arguments is unsigned
+  unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
+
+  uint arg0_decimals = args[0]->decimals;
+  if (arg0_decimals == DECIMAL_NOT_SPECIFIED) arg0_decimals = 0;
+  uint arg1_decimals = args[1]->decimals;
+  if (arg1_decimals == DECIMAL_NOT_SPECIFIED)
+    arg1_decimals = args[1]->decimal_precision();
+
+  uint precision =
+      min<uint>(args[0]->decimal_precision() - arg0_decimals + arg1_decimals,
+                MY_INT64_NUM_DECIMAL_DIGITS);
+
+  max_length =
+      my_decimal_precision_to_length_no_truncation(precision, 0, unsigned_flag);
+}
+
 bool Item_func_div::resolve_type(THD *thd) {
   DBUG_TRACE;
-  prec_increment = thd->variables.div_precincrement;
+  m_prec_increment = thd->variables.div_precincrement;
   if (Item_num_op::resolve_type(thd)) return true;
 
   switch (hybrid_type) {
     case REAL_RESULT: {
-      decimals = max(args[0]->decimals, args[1]->decimals) + prec_increment;
+      decimals = max(args[0]->decimals, args[1]->decimals) + m_prec_increment;
       decimals = min(decimals, uint8(DECIMAL_NOT_SPECIFIED));
       uint tmp = float_length(decimals);
       if (decimals == DECIMAL_NOT_SPECIFIED)
@@ -2306,9 +2461,8 @@ bool Item_func_div::resolve_type(THD *thd) {
   return false;
 }
 
-/* Integer division */
-longlong Item_func_int_div::val_int() {
-  assert(fixed == 1);
+longlong Item_func_div_base::int_op() {
+  assert(fixed);
 
   /*
     Perform division using DECIMAL math if either of the operands has a
@@ -2367,15 +2521,21 @@ longlong Item_func_int_div::val_int() {
   return check_integer_overflow(res, !res_negative);
 }
 
-bool Item_func_int_div::resolve_type(THD *thd) {
+bool Item_func_div_int::resolve_type(THD *thd) {
+  // Integer division forces result to be integer, so force arguments
+  // that are parameters to be integer as well.
   if (param_type_uses_non_param(thd, MYSQL_TYPE_LONGLONG)) return true;
-  uint precision = args[0]->decimal_precision();
-  unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
 
-  fix_char_length(my_decimal_precision_to_length(precision, 0, unsigned_flag));
+  if (Item_func_div_base::resolve_type(thd)) return true;
+  set_nullable(true);  // division by zero
 
-  set_nullable(true);
-  return reject_geometry_args(arg_count, args, this);
+  return false;
+}
+
+void Item_func_div_int::set_numeric_type() {
+  set_data_type_longlong();
+  hybrid_type = INT_RESULT;
+  result_precision();
 }
 
 longlong Item_func_mod::int_op() {
@@ -2443,7 +2603,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
       return decimal_value;
     case E_DEC_DIV_ZERO:
       signal_divide_by_null();
-      // Fall through.
+      [[fallthrough]];
     default:
       null_value = true;
       return nullptr;
@@ -2452,7 +2612,12 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_mod::result_precision() {
   decimals = max(args[0]->decimals, args[1]->decimals);
-  max_length = max(args[0]->max_length, args[1]->max_length);
+  uint precision =
+      max(args[0]->decimal_precision(), args[1]->decimal_precision());
+
+  max_length = my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                            unsigned_flag);
+
   // Increase max_length if we have: signed % unsigned(precision == scale)
   if (!args[0]->unsigned_flag && args[1]->unsigned_flag &&
       args[0]->max_length <= args[1]->max_length &&
@@ -2501,8 +2666,9 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_neg::fix_num_length_and_dec() {
   decimals = args[0]->decimals;
-  /* 1 add because sign can appear */
-  max_length = args[0]->max_length + 1;
+  max_length = args[0]->max_length + (args[0]->unsigned_flag ? 1 : 0);
+  // Booleans have max_length = 1, but need to add the minus sign
+  if (max_length == 1) max_length++;
 }
 
 bool Item_func_neg::resolve_type(THD *thd) {
@@ -2514,7 +2680,8 @@ bool Item_func_neg::resolve_type(THD *thd) {
     Use val() to get value as arg_type doesn't mean that item is
     Item_int or Item_real due to existence of Item_param.
   */
-  if (hybrid_type == INT_RESULT && args[0]->const_item()) {
+  if (hybrid_type == INT_RESULT && args[0]->const_item() &&
+      args[0]->may_eval_const_item(thd)) {
     longlong val = args[0]->val_int();
     if ((ulonglong)val >= (ulonglong)LLONG_MIN &&
         ((ulonglong)val != (ulonglong)LLONG_MIN ||
@@ -2523,7 +2690,8 @@ bool Item_func_neg::resolve_type(THD *thd) {
         Ensure that result is converted to DECIMAL, as longlong can't hold
         the negated number
       */
-      set_data_type(MYSQL_TYPE_NEWDECIMAL);
+      unsigned_flag = false;
+      set_data_type_decimal(args[0]->decimal_precision(), 0);
       hybrid_type = DECIMAL_RESULT;
       DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
     }
@@ -3204,9 +3372,10 @@ bool Item_func_round::resolve_type(THD *thd) {
         Example: ROUND(99.999, 2). Here, the type of the argument is
         DECIMAL(5, 3). The type of the result is DECIMAL(5,2), since the
         result of this operation is 100.00.
+        Also make sure that precision is greater than zero.
       */
       longlong val1;
-      if (args[1]->const_item()) {
+      if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
         val1 = args[1]->val_int();
         if ((null_value = args[1]->is_null())) {
           val1 = 0;
@@ -3233,6 +3402,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         if (!truncate) precision += 1;
         new_scale = val1;
       }
+      if (precision == 0) precision = 1;
       set_data_type_decimal(precision, new_scale);
       hybrid_type = DECIMAL_RESULT;
       break;
@@ -3885,17 +4055,22 @@ bool Item_func_locate::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 2)) return true;
   if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_LONGLONG)) return true;
   max_length = MY_INT32_NUM_DECIMAL_DIGITS;
-  return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (simplify_string_args(thd, collation, args + 1, 1)) return true;
+  return false;
 }
 
 longlong Item_func_locate::val_int() {
-  assert(fixed == 1);
-  String *a = args[0]->val_str(&value1);
-  String *b = args[1]->val_str(&value2);
-  if (!a || !b) {
-    null_value = true;
-    return 0; /* purecov: inspected */
-  }
+  assert(fixed);
+  // Evaluate the string argument first
+  const CHARSET_INFO *cs = collation.collation;
+  String *a = eval_string_arg(cs, args[0], &value1);
+  if (a == nullptr) return error_int();
+
+  // Evaluate substring argument in same character set as string argument
+  String *b = eval_string_arg(cs, args[1], &value2);
+  if (b == nullptr) return error_int();
+
   null_value = false;
   /* must be longlong to avoid truncation */
   longlong start = 0;
@@ -3918,11 +4093,11 @@ longlong Item_func_locate::val_int() {
   if (!b->length())  // Found empty string at start
     return start + 1;
 
-  if (!cmp_collation.collation->coll->strstr(
-          cmp_collation.collation, a->ptr() + start,
-          (uint)(a->length() - start), b->ptr(), b->length(), &match, 1))
+  if (!cs->coll->strstr(cs, a->ptr() + start,
+                        static_cast<uint>(a->length() - start), b->ptr(),
+                        b->length(), &match, 1))
     return 0;
-  return (longlong)match.mb_len + start0 + 1;
+  return static_cast<longlong>(match.mb_len) + start0 + 1;
 }
 
 void Item_func_locate::print(const THD *thd, String *str,
@@ -3947,22 +4122,25 @@ longlong Item_func_validate_password_strength::val_int() {
 }
 
 longlong Item_func_field::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (cmp_type == STRING_RESULT) {
-    String *field;
-    if (!(field = args[0]->val_str(&value))) return 0;
+    const CHARSET_INFO *cs = collation.collation;
+    String *field = eval_string_arg(cs, args[0], &value);
+    if (field == nullptr) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      String *tmp_value = args[i]->val_str(&tmp);
-      if (tmp_value && !sortcmp(field, tmp_value, cmp_collation.collation))
-        return (longlong)(i);
+      String *tmp_value = eval_string_arg(cs, args[i], &tmp);
+      if (tmp_value != nullptr && !sortcmp(field, tmp_value, cs)) {
+        return i;
+      }
     }
   } else if (cmp_type == INT_RESULT) {
     longlong val = args[0]->val_int();
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      if (val == args[i]->val_int() && !args[i]->null_value)
-        return (longlong)(i);
+      if (val == args[i]->val_int() && !args[i]->null_value) {
+        return i;
+      }
     }
   } else if (cmp_type == DECIMAL_RESULT) {
     my_decimal dec_arg_buf, *dec_arg, dec_buf,
@@ -3970,15 +4148,17 @@ longlong Item_func_field::val_int() {
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
       dec_arg = args[i]->val_decimal(&dec_arg_buf);
-      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec))
-        return (longlong)(i);
+      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec)) {
+        return i;
+      }
     }
   } else {
     double val = args[0]->val_real();
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      if (val == args[i]->val_real() && !args[i]->null_value)
-        return (longlong)(i);
+      if (val == args[i]->val_real() && !args[i]->null_value) {
+        return i;
+      }
     }
   }
   return 0;
@@ -3991,8 +4171,11 @@ bool Item_func_field::resolve_type(THD *thd) {
   cmp_type = args[0]->result_type();
   for (uint i = 1; i < arg_count; i++)
     cmp_type = item_cmp_type(cmp_type, args[i]->result_type());
-  if (cmp_type == STRING_RESULT)
-    return agg_arg_charsets_for_comparison(cmp_collation, args, arg_count);
+  if (cmp_type == STRING_RESULT) {
+    if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+    if (simplify_string_args(thd, collation, args + 1, arg_count - 1))
+      return true;
+  }
   return false;
 }
 
@@ -4034,15 +4217,17 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   max_length = 3;  // 1-999
 
-  if (args[0]->const_item() && args[1]->type() == FIELD_ITEM) {
-    Field *field = ((Item_field *)args[1])->field;
+  if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
+      args[0]->may_eval_const_item(thd)) {
+    Field *field = down_cast<Item_field *>(args[1])->field;
     if (field->real_type() == MYSQL_TYPE_SET) {
       String *find = args[0]->val_str(&value);
-      if (find) {
+      if (thd->is_error()) return true;
+      if (find != nullptr) {
         // find is not NULL pointer so args[0] is not a null-value
         assert(!args[0]->null_value);
-        enum_value = find_type(((Field_enum *)field)->typelib, find->ptr(),
-                               find->length(), false);
+        enum_value = find_type(down_cast<Field_enum *>(field)->typelib,
+                               find->ptr(), find->length(), false);
         enum_bit = 0;
         if (enum_value) enum_bit = 1LL << (enum_value - 1);
       }
@@ -4173,8 +4358,10 @@ void udf_handler::cleanup() {
   if (thd->stmt_arena->is_stmt_prepare() && thd->stmt_arena->is_repreparing)
     return;
 
-  if (u_d->func_deinit != nullptr) (*u_d->func_deinit)(&initid);
-
+  if (m_init_func_called && u_d->func_deinit != nullptr) {
+    (*u_d->func_deinit)(&initid);
+    m_init_func_called = false;
+  }
   DEBUG_SYNC(current_thd, "udf_handler_destroy_sync");
   free_handler();
 }
@@ -4316,9 +4503,11 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   initid.ptr = nullptr;
   initid.extension = &m_return_value_extension;
 
-  if (thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing)
+  if (thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing &&
+      !initid.const_item) {
+    udf_fun_guard.defer();
     return false;
-
+  }
   if (u_d->func_init) {
     if (call_init_func()) {
       return true;
@@ -4395,6 +4584,7 @@ bool udf_handler::call_init_func() {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0), u_d->name.str, init_msg_buff);
     return true;
   }
+  m_init_func_called = true;
   return false;
 }
 
@@ -4732,7 +4922,7 @@ String *Item_func_udf_str::val_str(String *str) {
   return res;
 }
 
-bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {
+bool Item_source_pos_wait::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -4745,7 +4935,7 @@ bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {
   on the slave.
 */
 
-longlong Item_master_pos_wait::val_int() {
+longlong Item_source_pos_wait::val_int() {
   assert(fixed == 1);
   THD *thd = current_thd;
   String *log_name = args[0]->val_str(&value);
@@ -4761,10 +4951,10 @@ longlong Item_master_pos_wait::val_int() {
   double timeout = (arg_count >= 3) ? args[2]->val_real() : 0;
   if (timeout < 0) {
     if (thd->is_strict_mode()) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_POS_WAIT.");
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "SOURCE_POS_WAIT.");
     } else {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER_THD(thd, ER_WRONG_ARGUMENTS), "MASTER_POS_WAIT.");
+                          ER_THD(thd, ER_WRONG_ARGUMENTS), "SOURCE_POS_WAIT.");
       null_value = true;
     }
     return 0;
@@ -4801,6 +4991,11 @@ longlong Item_master_pos_wait::val_int() {
 
   if (mi != nullptr) mi->dec_reference();
   return event_count;
+}
+
+longlong Item_master_pos_wait::val_int() {
+  push_deprecated_warn(current_thd, "MASTER_POS_WAIT", "SOURCE_POS_WAIT");
+  return Item_source_pos_wait::val_int();
 }
 
 bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
@@ -5056,7 +5251,7 @@ class Interruptible_wait {
  public:
   Interruptible_wait(THD *thd) : m_thd(thd) {}
 
-  ~Interruptible_wait() {}
+  ~Interruptible_wait() = default;
 
  public:
   /**
@@ -6115,7 +6310,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
       break;
     case DECIMAL_RESULT:
       str_set_decimal(E_DEC_FATAL_ERROR, pointer_cast<my_decimal *>(m_ptr), str,
-                      collation.collation);
+                      collation.collation, decimals);
       break;
     case STRING_RESULT:
       if (str->copy(m_ptr, m_length, collation.collation))
@@ -6467,8 +6662,8 @@ String *Item_func_get_user_var::val_str(String *str) {
       char tmp[32];
       convert_to_printable(tmp, sizeof(tmp), res->ptr(), res->length(),
                            res->charset(), 6);
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
-               tmp);
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+               replace_utf8_utf8mb3(collation.collation->csname), tmp);
       return error_str();
     }
     if (str->copy(tmpstr)) return error_str();
@@ -6563,13 +6758,21 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   *out_entry = var_entry;
 
   /*
+    In cases when this function is called for a sub-statement, we can't
+    rely on OPTION_BIN_LOG flag in THD::variables.option_bits bitmap
+    to determine whether binary logging is turned on, as this bit can be
+    cleared before executing sub-statement. So instead we have to look
+    at THD::variables::sql_log_bin member.
+  */
+  bool log_on = mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+
+  /*
     Any reference to user-defined variable which is done from stored
     function or trigger affects their execution and the execution of the
     calling statement. We must log all such variables even if they are
     not involved in table-updating statements.
   */
-  if (!(opt_bin_log && (is_update_query(sql_command) || thd->in_sub_stmt)))
-    return 0;
+  if (!(log_on && (is_update_query(sql_command) || thd->in_sub_stmt))) return 0;
 
   if (var_entry == nullptr) {
     /*
@@ -7396,13 +7599,14 @@ bool Item_func_match::init_search(THD *thd) {
   TABLE *const table = table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master) {
-    /*
-      We should reset ft_handler (necessary in case of re-execution of
-      subquery), as it is cleaned up when initializing the
-      SortBufferIndirectIterator / SortFileIndirectIterator.
-      TODO: Those iterators should not clean up ft_handler.
-    */
-    if (join_key) table->file->ft_handler = ft_handler;
+    // Update handler::ft_handler even if the search is already initialized.
+    // If the first call to init_search() was done before we had decided if
+    // an index scan should be used, and we later decide that we will use
+    // one, ft_handler is not set. For example, the optimizer calls
+    // init_search() early if it needs to call Item_func_match::get_count()
+    // to perform COUNT(*) optimization or decide if a LIMIT clause can be
+    // satisfied by an index scan.
+    if (score_from_index_scan) table->file->ft_handler = ft_handler;
     return false;
   }
 
@@ -7450,9 +7654,11 @@ bool Item_func_match::init_search(THD *thd) {
 
   assert(master == nullptr);
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
-  if (thd->is_error()) return true;
+  if (ft_handler == nullptr || thd->is_error()) {
+    return true;
+  }
 
-  if (join_key) table->file->ft_handler = ft_handler;
+  if (score_from_index_scan) table->file->ft_handler = ft_handler;
 
   return false;
 }
@@ -7603,7 +7809,6 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_func_match::fix_index(const THD *thd) {
-  Item_field *item;
   TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts = 0, keynr;
   uint max_cnt = 0, mkeys = 0, i;
@@ -7638,7 +7843,8 @@ bool Item_func_match::fix_index(const THD *thd) {
   if (!fts) goto err;
 
   for (i = 0; i < arg_count; i++) {
-    item = (Item_field *)(args[i]->real_item());
+    Item_field *item =
+        down_cast<Item_field *>(unwrap_rollup_group(args[i])->real_item());
     for (keynr = 0; keynr < fts; keynr++) {
       KEY *ft_key = &table->key_info[ft_to_key[keynr]];
       uint key_parts = ft_key->user_defined_key_parts;
@@ -7687,11 +7893,8 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
   /* We ignore FT_SORTED flag when checking for equality since result is
-     equvialent regardless of sorting */
-  assert(item->type() != FUNC_ITEM ||
-         down_cast<const Item_func *>(item)->functype() != MATCH_FUNC);
-  if (item->type() != FUNC_ITEM ||
-      down_cast<const Item_func *>(item)->functype() != FT_FUNC ||
+     equivalent regardless of sorting */
+  if (!is_function_of_type(item, FT_FUNC) ||
       (flags | FT_SORTED) !=
           (down_cast<const Item_func_match *>(item)->flags | FT_SORTED))
     return false;
@@ -7706,7 +7909,16 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
 }
 
 double Item_func_match::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
+
+  // MATCH only knows how to get the score for base columns. Other types of
+  // expressions (such as function calls or rollup columns) should have been
+  // rejected during resolving.
+  assert(!has_rollup_expr());
+  assert(std::all_of(args, args + arg_count, [](const Item *item) {
+    return item->real_item()->type() == FIELD_ITEM;
+  }));
+
   DBUG_TRACE;
   if (ft_handler == nullptr) return -1.0;
 
@@ -7714,12 +7926,9 @@ double Item_func_match::val_real() {
   if (key != NO_SUCH_KEY && table->has_null_row())  // NULL row from outer join
     return 0.0;
 
-  if (get_master()->join_key) {
-    if (table->file->ft_handler) {
-      double val = ft_handler->please->get_relevance(ft_handler);
-      return val;
-    }
-    get_master()->join_key = false;
+  if (get_master()->score_from_index_scan) {
+    assert(table->file->ft_handler == ft_handler);
+    return ft_handler->please->get_relevance(ft_handler);
   }
 
   if (key == NO_SUCH_KEY) {

@@ -77,9 +77,8 @@ for the background thread to stop accessing a table.
 /** Request the background collection of statistics to stop for a table.
  @retval true when no background process is active
  @retval false when it is not safe to modify the table definition */
-UNIV_INLINE
-bool dict_stats_stop_bg(dict_table_t *table) /*!< in/out: table */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dict_stats_stop_bg(
+    dict_table_t *table); /*!< in/out: table */
 
 /** Wait until background stats thread has stopped using the specified table.
  The caller must have locked the data dictionary using

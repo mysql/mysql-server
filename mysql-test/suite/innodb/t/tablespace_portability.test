@@ -57,3 +57,38 @@ call mtr.add_suppression("\\[ERROR\\] .* Cannot create tablespace .* because the
 
 --let $restart_parameters= restart:
 --source include/restart_mysqld.inc
+
+
+--echo #
+--echo # Bug#32721533 CAN'T ALTER TABLE AFTER MOVING THE DATA FILE USING INNODB_DIRECTORIES OPTION
+--echo #
+
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+let INNODB_DIR=$MYSQLTEST_VARDIR/test;
+--mkdir $INNODB_DIR
+
+CREATE TABLE t1(a INT);
+
+--source include/save_error_log_position.inc
+--source include/shutdown_mysqld.inc
+
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $INNODB_DIR/t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+--source include/start_mysqld.inc
+
+let $error_pattern = .*\\[Warning\\].*Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing;
+--source include/assert_error_log.inc
+
+--replace_result $INNODB_DIR INNODB_DIR
+--let restart_parameters="restart: --innodb_directories=$INNODB_DIR"
+--source include/restart_mysqld.inc
+
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+
+# Clean up
+--let restart_parameters="restart: "
+--source include/restart_mysqld.inc
+
+--rmdir $INNODB_DIR

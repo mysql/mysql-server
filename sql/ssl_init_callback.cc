@@ -64,6 +64,27 @@ static const char *opt_admin_tls_version = nullptr;
 
 static PolyLock_mutex lock_admin_ssl_ctx(&LOCK_admin_tls_ctx_options);
 
+bool validate_tls_version(const char *val) {
+  if (val && val[0] == 0) return true;
+  std::string token;
+  std::stringstream str(val);
+  while (getline(str, token, ',')) {
+    if (my_strcasecmp(system_charset_info, token.c_str(), "TLSv1.2") &&
+        my_strcasecmp(system_charset_info, token.c_str(), "TLSv1.3"))
+      return true;
+  }
+  return false;
+}
+
+static bool check_tls_version(sys_var *, THD *, set_var *var) {
+  if (!(var->save_result.string_value.str)) return true;
+  return validate_tls_version(var->save_result.string_value.str);
+}
+
+static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
+  return check_tls_version(nullptr, nullptr, var);
+}
+
 /*
   If you are adding new system variable for SSL communication, please take a
   look at do_auto_cert_generation() function in sql_authentication.cc and
@@ -85,15 +106,19 @@ static Sys_var_charptr Sys_ssl_capath(
 
 static Sys_var_charptr Sys_tls_version(
     "tls_version",
-    "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2, TLSv1.3",
+#ifdef HAVE_TLSv13
+    "TLS version, permitted values are TLSv1.2, TLSv1.3",
+#else
+    "TLS version, permitted values are TLSv1.2",
+#endif
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_version),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET,
 #ifdef HAVE_TLSv13
-    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3",
+    "TLSv1.2,TLSv1.3",
 #else
-    "TLSv1,TLSv1.1,TLSv1.2",
+    "TLSv1.2",
 #endif /* HAVE_TLSv13 */
-    &lock_ssl_ctx);
+    &lock_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls_version));
 
 static Sys_var_charptr Sys_ssl_cert(
     "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -150,16 +175,19 @@ static Sys_var_charptr Sys_admin_ssl_capath(
 
 static Sys_var_charptr Sys_admin_tls_version(
     "admin_tls_version",
-    "TLS version for --admin-port, permitted values are TLSv1, TLSv1.1, "
-    "TLSv1.2, TLSv1.3",
+#ifdef HAVE_TLSv13
+    "TLS version for --admin-port, permitted values are TLSv1.2, TLSv1.3",
+#else
+    "TLS version for --admin-port, permitted values are TLSv1.2",
+#endif
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_tls_version),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_VERSION), IN_FS_CHARSET,
 #ifdef HAVE_TLSv13
-    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3",
+    "TLSv1.2,TLSv1.3",
 #else
-    "TLSv1,TLSv1.1,TLSv1.2",
+    "TLSv1.2",
 #endif /* HAVE_TLSv13 */
-    &lock_admin_ssl_ctx);
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_admin_tls_version));
 
 static Sys_var_charptr Sys_admin_ssl_cert(
     "admin_ssl_cert",
@@ -253,7 +281,7 @@ static bool warn_self_signed_ca_certs(const char *ssl_ca,
   };
 
   if (ssl_ca && ssl_ca[0]) {
-    if (warn_one(ssl_ca)) return 1;
+    if (warn_one(ssl_ca)) return true;
   }
   if (ssl_capath && ssl_capath[0]) {
     /* We have ssl-capath. So search all files in the dir */

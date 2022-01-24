@@ -63,7 +63,7 @@ set global innodb_adaptive_hash_index=1.1;
 set global innodb_adaptive_hash_index=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_adaptive_hash_index=2;
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_adaptive_hash_index=-3;
 select @@global.innodb_adaptive_hash_index;
 --disable_warnings

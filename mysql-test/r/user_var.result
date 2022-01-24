@@ -1082,3 +1082,14 @@ AVG((@e:= a))
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t;
+#
+# Bug #32802216: RECENT REGRESSION: PROTOCOL_TEXT::STORE_LONGLONG: ASSERTION `SEND_METADATA || FIELD_TYPES == NULLPTR || FIELD_TYPES[FIELD_POS] == MYSQL_TYPE_LONGLONG' FAILED.
+#
+CREATE TABLE t1 (a TINYINT);
+INSERT INTO t1 VALUES (1);
+SELECT (@a:=a) FROM t1 GROUP BY 1;
+(@a:=a)
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t1;

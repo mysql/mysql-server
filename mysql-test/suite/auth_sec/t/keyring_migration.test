@@ -1,0 +1,7 @@
+--echo #
+--echo # Bug #32637784: MYSQL_MIGRATE_KEYRING DOES NOT ENFORCE
+--echo #                DISTINCT SOURCE AND DESTINATION KEYSTORES
+--echo #
+
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]/TIMESTAMP/
+--exec $MYSQL_MIGRATE_KEYRING --component-dir=foo --source-keyring=bar --destination-keyring=bar 2>&1

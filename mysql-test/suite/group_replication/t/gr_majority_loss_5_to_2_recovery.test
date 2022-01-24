@@ -35,17 +35,41 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
+--let $recovery_user= recovery_user
+--let $recovery_password= recovery_password
+
 --let $rpl_connection_name= server1
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --source include/rpl_connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --source include/start_group_replication.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --source include/start_group_replication.inc
 --let $member4_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -65,12 +89,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_connection_name= server5
 --source include/rpl_connection.inc
 --let $server5_uuid= `SELECT @@GLOBAL.SERVER_UUID`
---let $recovery_user= recovery_user
---let $recovery_password= recovery_password
 
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -86,6 +109,13 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --echo #    not be able to authenticate on any other member.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 
 --disable_warnings
@@ -239,7 +269,6 @@ while($i>2)
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
 
@@ -321,7 +350,13 @@ INSERT INTO t1 VALUES (1);
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+FLUSH PRIVILEGES;
+
 DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
@@ -330,7 +365,13 @@ DROP TABLE t1;
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+FLUSH PRIVILEGES;
+
 DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server_5
 --source include/rpl_connection.inc
@@ -339,20 +380,34 @@ DROP TABLE t1;
 --let $assert_text= 'There are no values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
+
+SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 --eval DROP USER "$recovery_user"
 FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 --eval DROP USER "$recovery_user"
 FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+--eval DROP USER "$recovery_user"
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

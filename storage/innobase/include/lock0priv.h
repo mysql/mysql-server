@@ -110,8 +110,7 @@ Next Key Lock, a.k.a. LOCK_ORDINARY, as opposed to Predicate Lock,
 GAP lock, Insert Intention or Record Lock.
 @param  mode  A mode and flags, of a non-waiting lock.
 @return true iff the only bits set in `mode` are LOCK_S or LOCK_X */
-UNIV_INLINE
-bool lock_mode_is_next_key_lock(ulint mode) {
+static inline bool lock_mode_is_next_key_lock(ulint mode) {
   static_assert(LOCK_ORDINARY == 0, "LOCK_ORDINARY must be 0 (no flags)");
   ut_ad((mode & LOCK_WAIT) == 0);
   ut_ad((mode & LOCK_TYPE_MASK) == 0);
@@ -124,8 +123,7 @@ bool lock_mode_is_next_key_lock(ulint mode) {
 @param[in]	lock	record lock
 @param[in]	i	index of the bit
 @return true if bit set also if i == ULINT_UNDEFINED return false */
-UNIV_INLINE
-bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
+static inline bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
 
 /** Lock struct; protected by lock_sys latches */
 struct lock_t {
@@ -249,6 +247,8 @@ struct lock_t {
     }
   }
 };
+
+UT_LIST_NODE_GETTER_DEFINITION(lock_t, trx_locks)
 
 /** Convert the member 'type_mode' into a human readable string.
 @return human readable string */
@@ -873,8 +873,7 @@ static const ulint lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
 /** Gets the type of a lock.
  @return LOCK_TABLE or LOCK_REC */
-UNIV_INLINE
-uint32_t lock_get_type_low(const lock_t *lock); /*!< in: lock */
+static inline uint32_t lock_get_type_low(const lock_t *lock); /*!< in: lock */
 
 /** Gets the previous record lock set on a record.
  @return previous lock on the same record, NULL if none exists */
@@ -900,107 +899,98 @@ void lock_reset_wait_and_release_thread_if_suspended(lock_t *lock);
 /** Checks if some transaction has an implicit x-lock on a record in a clustered
  index.
  @return transaction id of the transaction which has the x-lock, or 0 */
-UNIV_INLINE
-trx_id_t lock_clust_rec_some_has_impl(
+[[nodiscard]] static inline trx_id_t lock_clust_rec_some_has_impl(
     const rec_t *rec,          /*!< in: user record */
     const dict_index_t *index, /*!< in: clustered index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-    MY_ATTRIBUTE((warn_unused_result));
+    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
 
 /** Gets the first or next record lock on a page.
  @return next lock, NULL if none exists */
-UNIV_INLINE
-const lock_t *lock_rec_get_next_on_page_const(
+static inline const lock_t *lock_rec_get_next_on_page_const(
     const lock_t *lock); /*!< in: a record lock */
 
 /** Gets the number of bits in a record lock bitmap.
  @return number of bits */
-UNIV_INLINE
-ulint lock_rec_get_n_bits(const lock_t *lock); /*!< in: record lock */
+static inline ulint lock_rec_get_n_bits(
+    const lock_t *lock); /*!< in: record lock */
 
 /** Sets the nth bit of a record lock to TRUE.
 @param[in]	lock	record lock
 @param[in]	i	index of the bit */
-UNIV_INLINE
-void lock_rec_set_nth_bit(lock_t *lock, ulint i);
+static inline void lock_rec_set_nth_bit(lock_t *lock, ulint i);
 
 /** Gets the first or next record lock on a page.
  @return next lock, NULL if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_next_on_page(lock_t *lock); /*!< in: a record lock */
+static inline lock_t *lock_rec_get_next_on_page(
+    lock_t *lock); /*!< in: a record lock */
 
 /** Gets the first record lock on a page, where the page is identified by its
 file address.
 @param[in]	lock_hash	lock hash table
 @param[in]	page_id		specifies space id and page number of the page
 @return first lock, NULL if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
-                                        const page_id_t &page_id);
+static inline lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
+                                                      const page_id_t &page_id);
 
 /** Gets the first record lock on a page, where the page is identified by a
 pointer to it.
 @param[in]	lock_hash	lock hash table
 @param[in]	block		buffer block
 @return first lock, NULL if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_first_on_page(hash_table_t *lock_hash,
-                                   const buf_block_t *block);
+static inline lock_t *lock_rec_get_first_on_page(hash_table_t *lock_hash,
+                                                 const buf_block_t *block);
 
 /** Gets the next explicit lock request on a record.
 @param[in]	heap_no	heap number of the record
 @param[in]	lock	lock
 @return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
-UNIV_INLINE
-lock_t *lock_rec_get_next(ulint heap_no, lock_t *lock);
+static inline lock_t *lock_rec_get_next(ulint heap_no, lock_t *lock);
 
 /** Gets the next explicit lock request on a record.
 @param[in]	heap_no	heap number of the record
 @param[in]	lock	lock
 @return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
-UNIV_INLINE
-const lock_t *lock_rec_get_next_const(ulint heap_no, const lock_t *lock);
+static inline const lock_t *lock_rec_get_next_const(ulint heap_no,
+                                                    const lock_t *lock);
 
 /** Gets the first explicit lock request on a record.
 @param[in]	hash	hash chain the lock on
 @param[in]	block	block containing the record
 @param[in]	heap_no	heap number of the record
 @return first lock, NULL if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_first(hash_table_t *hash, const buf_block_t *block,
-                           ulint heap_no);
+static inline lock_t *lock_rec_get_first(hash_table_t *hash,
+                                         const buf_block_t *block,
+                                         ulint heap_no);
 
 /** Gets the mode of a lock.
  @return mode */
-UNIV_INLINE
-enum lock_mode lock_get_mode(const lock_t *lock); /*!< in: lock */
+static inline enum lock_mode lock_get_mode(const lock_t *lock); /*!< in: lock */
 
 /** Calculates if lock mode 1 is compatible with lock mode 2.
 @param[in]	mode1	lock mode
 @param[in]	mode2	lock mode
 @return nonzero if mode1 compatible with mode2 */
-UNIV_INLINE
-ulint lock_mode_compatible(enum lock_mode mode1, enum lock_mode mode2);
+static inline ulint lock_mode_compatible(enum lock_mode mode1,
+                                         enum lock_mode mode2);
 
 /** Calculates if lock mode 1 is stronger or equal to lock mode 2.
 @param[in]	mode1	lock mode 1
 @param[in]	mode2	lock mode 2
 @return true iff mode1 stronger or equal to mode2 */
-UNIV_INLINE
-bool lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2);
+static inline bool lock_mode_stronger_or_eq(enum lock_mode mode1,
+                                            enum lock_mode mode2);
 
 /** Gets the wait flag of a lock.
  @return LOCK_WAIT if waiting, 0 if not */
-UNIV_INLINE
-ulint lock_get_wait(const lock_t *lock); /*!< in: lock */
+static inline ulint lock_get_wait(const lock_t *lock); /*!< in: lock */
 
 /** Checks if a transaction has the specified table lock, or stronger. This
 function should only be called by the thread that owns the transaction.
-This function acquires trx->mutex which protects trx->lock.table_locks, but you
+This function acquires trx->mutex which protects trx->lock.trx_locks, but you
 should understand that this only makes it easier to argue against races at the
 level of access to the data structure, yet does not buy us any protection at
 the higher level of making actual decisions based on the result of this call -
-it may happen that another thread is performing lock_trx_table_locks_remove(),
+it may happen that another thread is removing a table lock,
 and even though lock_table_has returned true to the caller, the lock is no
 longer in possession of trx once the caller gets to evaluate if/else condition
 based on the result.
@@ -1008,16 +998,15 @@ Therefore it is up to caller to make sure that the context of the call to this
 function and making any decisions based on the result is protected from any
 concurrent modifications. This in turn makes the whole trx_mutex_enter/exit
 a bit redundant, but it does not affect performance yet makes the reasoning
-about data structure a bit easier and protects trx->lock.table_locks data
+about data structure a bit easier and protects trx->lock.trx_locks data
 structure from corruption in case our high level reasoning about absence of
 parallel modifications turns out wrong.
 @param[in]	trx	transaction
 @param[in]	table	table
 @param[in]	mode	lock mode
 @return lock or NULL */
-UNIV_INLINE
-bool lock_table_has(const trx_t *trx, const dict_table_t *table,
-                    enum lock_mode mode);
+static inline bool lock_table_has(const trx_t *trx, const dict_table_t *table,
+                                  enum lock_mode mode);
 
 /** Handles writing the information about found deadlock to the log files
 and caches it for future lock_latest_err_file() calls (for example used by

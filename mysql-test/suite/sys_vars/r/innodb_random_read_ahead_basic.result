@@ -73,17 +73,17 @@ set global innodb_random_read_ahead=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_random_read_ahead'
 set global innodb_random_read_ahead=2;
 ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_random_read_ahead=-3;
+ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of '-3'
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
-1
+0
 select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_random_read_ahead	ON
+innodb_random_read_ahead	OFF
 select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_random_read_ahead	ON
+innodb_random_read_ahead	OFF
 set global innodb_random_read_ahead='AUTO';
 ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of 'AUTO'
 SET @@global.innodb_random_read_ahead = @start_global_value;

@@ -74,4 +74,4 @@ SELECT @is_old_connection;
 @is_old_connection
 NULL
 # must find the pattern
-Pattern "The wait_timeout period was exceeded, the idle time since last command was too long." found
+Pattern "'wait_timeout' period of .* seconds was exceeded for .*\. The idle time since last command was too long\." found

@@ -30,7 +30,6 @@ disconnect con1;
 # after another then DROP TRIGGER.
 include/show_binlog_events.inc
 connection default;
-connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)

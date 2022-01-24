@@ -11,42 +11,43 @@ PROJECT(zstd)
 # CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 
 SET(ZSTD_SRCS
-  lib/common/debug.c
-  lib/common/entropy_common.c
-  lib/common/error_private.c
-  lib/common/fse_decompress.c
-  lib/common/pool.c
-  lib/common/threading.c
-  lib/common/xxhash.c
-  lib/common/zstd_common.c
-  lib/compress/fse_compress.c
-  lib/compress/hist.c
-  lib/compress/huf_compress.c
-  lib/compress/zstd_compress.c
-  lib/compress/zstd_compress_literals.c
-  lib/compress/zstd_compress_sequences.c
-  lib/compress/zstd_double_fast.c
-  lib/compress/zstd_fast.c
-  lib/compress/zstd_lazy.c
-  lib/compress/zstd_ldm.c
-  lib/compress/zstdmt_compress.c
-  lib/compress/zstd_opt.c
-  lib/decompress/huf_decompress.c
-  lib/decompress/zstd_ddict.c
-  lib/decompress/zstd_decompress_block.c
-  lib/decompress/zstd_decompress.c
-  lib/deprecated/zbuff_common.c
-  lib/deprecated/zbuff_compress.c
-  lib/deprecated/zbuff_decompress.c
-  lib/dictBuilder/cover.c
-  lib/dictBuilder/divsufsort.c
-  lib/dictBuilder/fastcover.c
-  lib/dictBuilder/zdict.c
+  ${ZSTD_VERSION_DIR}/lib/common/debug.c
+  ${ZSTD_VERSION_DIR}/lib/common/entropy_common.c
+  ${ZSTD_VERSION_DIR}/lib/common/error_private.c
+  ${ZSTD_VERSION_DIR}/lib/common/fse_decompress.c
+  ${ZSTD_VERSION_DIR}/lib/common/pool.c
+  ${ZSTD_VERSION_DIR}/lib/common/threading.c
+  ${ZSTD_VERSION_DIR}/lib/common/xxhash.c
+  ${ZSTD_VERSION_DIR}/lib/common/zstd_common.c
+
+  ${ZSTD_VERSION_DIR}/lib/compress/fse_compress.c
+  ${ZSTD_VERSION_DIR}/lib/compress/hist.c
+  ${ZSTD_VERSION_DIR}/lib/compress/huf_compress.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_compress.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_compress_literals.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_compress_sequences.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_compress_superblock.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_double_fast.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_fast.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_lazy.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_ldm.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstdmt_compress.c
+  ${ZSTD_VERSION_DIR}/lib/compress/zstd_opt.c
+
+  ${ZSTD_VERSION_DIR}/lib/decompress/huf_decompress.c
+  ${ZSTD_VERSION_DIR}/lib/decompress/zstd_ddict.c
+  ${ZSTD_VERSION_DIR}/lib/decompress/zstd_decompress_block.c
+  ${ZSTD_VERSION_DIR}/lib/decompress/zstd_decompress.c
+
+  ${ZSTD_VERSION_DIR}/lib/dictBuilder/cover.c
+  ${ZSTD_VERSION_DIR}/lib/dictBuilder/divsufsort.c
+  ${ZSTD_VERSION_DIR}/lib/dictBuilder/fastcover.c
+  ${ZSTD_VERSION_DIR}/lib/dictBuilder/zdict.c
 )
 
 ADD_CONVENIENCE_LIBRARY(zstd
   ${ZSTD_SRCS}
-  INCLUDE_DIRECTORIES lib/common
+  INCLUDE_DIRECTORIES ${ZSTD_VERSION_DIR}/lib/common
   )
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)

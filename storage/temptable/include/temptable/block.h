@@ -34,6 +34,7 @@ Block abstraction for temptable-allocator. */
 
 #include "memory_debugging.h"
 #include "my_dbug.h"
+#include "mysql/psi/mysql_memory.h"
 #include "storage/temptable/include/temptable/chunk.h"
 #include "storage/temptable/include/temptable/header.h"
 #include "storage/temptable/include/temptable/memutils.h"
@@ -54,24 +55,26 @@ void Block_PSI_track_logical_allocation(size_t size);
 void Block_PSI_track_logical_deallocation(size_t size);
 /** Log physical memory allocation of a Block located in RAM.
  *
+ * [in] Pointer to user memory block
  * [in] Number of bytes allocated
  * */
-void Block_PSI_track_physical_ram_allocation(size_t size);
+void Block_PSI_track_physical_ram_allocation(void *ptr, size_t size);
 /** Log physical memory deallocation of a Block located in RAM.
  *
- * [in] Number of bytes deallocated
+ * [in]  Pointer to PSI header
  * */
-void Block_PSI_track_physical_ram_deallocation(size_t size);
+void Block_PSI_track_physical_ram_deallocation(uint8_t *ptr);
 /** Log physical memory allocation of a Block located in MMAP-ed file.
  *
+ * [in] Pointer to user memory block
  * [in] Number of bytes allocated
  * */
-void Block_PSI_track_physical_disk_allocation(size_t size);
+void Block_PSI_track_physical_disk_allocation(void *ptr, size_t size);
 /** Log physical memory deallocation of a Block located in MMAP-ed file.
  *
- * [in] Number of bytes deallocated
+ * [in]  Pointer to PSI header
  * */
-void Block_PSI_track_physical_disk_deallocation(size_t size);
+void Block_PSI_track_physical_disk_deallocation(uint8_t *ptr);
 
 /** Memory-block abstraction whose purpose is to serve as a building block
  * for custom memory-allocator implementations.
@@ -164,7 +167,7 @@ class Block : private Header {
 
  public:
   /** Default constructor which creates an empty Block. */
-  Block() noexcept;
+  Block() noexcept = default;
 
   /** Constructor which creates a Block of given size from the given
    * memory source.
@@ -274,29 +277,41 @@ class Block : private Header {
 };
 
 static inline uint8_t *allocate_from(Source src, size_t size) {
-  uint8_t *ptr = nullptr;
+  void *ptr = nullptr;
+  size_t raw_size = size;
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  raw_size += PSI_HEADER_SIZE;
+#endif
   if (src == Source::RAM) {
-    ptr = static_cast<uint8_t *>(Memory<Source::RAM>::allocate(size));
-    Block_PSI_track_physical_ram_allocation(size);
+    ptr = Memory<Source::RAM>::allocate(raw_size);
+    Block_PSI_track_physical_ram_allocation(ptr, size);
   } else if (src == Source::MMAP_FILE) {
-    ptr = static_cast<uint8_t *>(Memory<Source::MMAP_FILE>::allocate(size));
-    Block_PSI_track_physical_disk_allocation(size);
+    ptr = Memory<Source::MMAP_FILE>::allocate(raw_size);
+    Block_PSI_track_physical_disk_allocation(ptr, size);
   }
-  return ptr;
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  return reinterpret_cast<uint8_t *>(HEADER_TO_USER(ptr));
+#else
+  return reinterpret_cast<uint8_t *>(ptr);
+#endif
 }
 
 static inline void deallocate_from(Source src, size_t size,
                                    uint8_t *block_address) {
+  size_t raw_size = size;
+  uint8_t *raw_block_address = block_address;
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  raw_size += PSI_HEADER_SIZE;
+  raw_block_address = USER_TO_HEADER_UINT8_T(block_address);
+#endif
   if (src == Source::RAM) {
-    Block_PSI_track_physical_ram_deallocation(size);
-    Memory<Source::RAM>::deallocate(block_address, size);
+    Block_PSI_track_physical_ram_deallocation(raw_block_address);
+    Memory<Source::RAM>::deallocate(raw_block_address, raw_size);
   } else if (src == Source::MMAP_FILE) {
-    Block_PSI_track_physical_disk_deallocation(size);
-    Memory<Source::MMAP_FILE>::deallocate(block_address, size);
+    Block_PSI_track_physical_disk_deallocation(raw_block_address);
+    Memory<Source::MMAP_FILE>::deallocate(raw_block_address, raw_size);
   }
 }
-
-inline Block::Block() noexcept {}
 
 inline Block::Block(Chunk chunk) noexcept : Header(chunk.block()) {
   assert(!is_empty());

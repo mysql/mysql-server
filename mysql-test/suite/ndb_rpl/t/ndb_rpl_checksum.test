@@ -15,29 +15,29 @@ call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay l
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 
 # A. read/write access to the global vars:
-# binlog_checksum master_verify_checksum slave_sql_verify_checksum
+# binlog_checksum source_verify_checksum replica_sql_verify_checksum
 
 connection master;
 
 set @master_save_binlog_checksum= @@global.binlog_checksum;
-set @save_master_verify_checksum =  @@global.master_verify_checksum;
+set @save_source_verify_checksum =  @@global.source_verify_checksum;
 
 select @@global.binlog_checksum as 'must be CRC32 because of the command line option';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.binlog_checksum as 'no session var';
 
-select @@global.master_verify_checksum  as 'must be zero because of default';
+select @@global.source_verify_checksum  as 'must be zero because of default';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@session.master_verify_checksum  as 'no session var';
+select @@session.source_verify_checksum  as 'no session var';
 
 connection slave;
 
 set @slave_save_binlog_checksum= @@global.binlog_checksum;
-set @save_slave_sql_verify_checksum = @@global.slave_sql_verify_checksum;
+set @save_replica_sql_verify_checksum = @@global.replica_sql_verify_checksum;
 
-select @@global.slave_sql_verify_checksum  as 'must be one because of default';
+select @@global.replica_sql_verify_checksum  as 'must be one because of default';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@session.slave_sql_verify_checksum  as 'no session var';
+select @@session.replica_sql_verify_checksum  as 'no session var';
 
 connection master;
 
@@ -52,20 +52,20 @@ set @@global.binlog_checksum = default;
 set @@global.binlog_checksum = CRC32;
 set @@global.binlog_checksum = CRC32; 
 
-set @@global.master_verify_checksum = 0;
-set @@global.master_verify_checksum = default;
+set @@global.source_verify_checksum = 0;
+set @@global.source_verify_checksum = default;
 
 --error ER_WRONG_VALUE_FOR_VAR
 set @@global.binlog_checksum = ADLER32;
 --error ER_WRONG_VALUE_FOR_VAR
-set @@global.master_verify_checksum = 2; # the var is of bool type
+set @@global.source_verify_checksum = 2; # the var is of bool type
 
 connection slave;
 
-set @@global.slave_sql_verify_checksum = 0;
-set @@global.slave_sql_verify_checksum = default;
+set @@global.replica_sql_verify_checksum = 0;
+set @@global.replica_sql_verify_checksum = default;
 --error ER_WRONG_VALUE_FOR_VAR
-set @@global.slave_sql_verify_checksum = 2; # the var is of bool type
+set @@global.replica_sql_verify_checksum = 2; # the var is of bool type
 
 #
 # B. Old Slave to New master conditions
@@ -100,7 +100,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 # instruction to the dump thread
 
 connection slave;
-set @@global.debug='d,simulate_slave_unaware_checksum';
+set @@global.debug='d,simulate_replica_unaware_checksum';
 start slave;
 let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
@@ -127,12 +127,12 @@ source include/start_slave.inc;
 
 # C1. Failure by a client thread
 connection master;
-set @@global.master_verify_checksum = 1;
+set @@global.source_verify_checksum = 1;
 set @@session.debug='d,simulate_checksum_test_failure';
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events;
 set @@session.debug='';
-set @@global.master_verify_checksum = default;
+set @@global.source_verify_checksum = default;
 
 #connection master;
 sync_slave_with_master;
@@ -164,7 +164,7 @@ start slave io_thread;
 
 # C3. Failure by SQL thread
 # instruction to sql thread;
-set @@global.slave_sql_verify_checksum = 1;
+set @@global.replica_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
 let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
@@ -240,7 +240,7 @@ sync_slave_with_master;
 connection master;
 drop table t1, t2, t3;
 set @@global.binlog_checksum = @master_save_binlog_checksum;
-set @@global.master_verify_checksum = @save_master_verify_checksum;
+set @@global.source_verify_checksum = @save_source_verify_checksum;
 
 #
 # BUG#58564: flush_read_lock fails in mysql-trunk-bugfixing after merging with WL#2540
@@ -264,6 +264,6 @@ AAAAAAAAAAAAAAAAAAAx+apMEzgNAAgAEgAEBAQEEgAAVAAEGggAAAAICAgCAA==
 #connection slave;
 sync_slave_with_master;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
-set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
+set @@global.replica_sql_verify_checksum = @save_replica_sql_verify_checksum;
 
 --source include/rpl_end.inc

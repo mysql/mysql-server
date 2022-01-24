@@ -92,13 +92,13 @@ static const uchar bin_char_array[] = {
     255};
 
 extern "C" {
-static bool my_coll_init_8bit_bin(
-    CHARSET_INFO *cs, MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused))) {
+static bool my_coll_init_8bit_bin(CHARSET_INFO *cs,
+                                  MY_CHARSET_LOADER *loader [[maybe_unused]]) {
   cs->max_sort_char = 255;
   return false;
 }
 
-static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_binary(const CHARSET_INFO *cs [[maybe_unused]],
                                const uchar *s, size_t slen, const uchar *t,
                                size_t tlen, bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
@@ -106,8 +106,8 @@ static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 
-static size_t my_lengthsp_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                                 const char *ptr MY_ATTRIBUTE((unused)),
+static size_t my_lengthsp_binary(const CHARSET_INFO *cs [[maybe_unused]],
+                                 const char *ptr [[maybe_unused]],
                                  size_t length) {
   return length;
 }
@@ -141,7 +141,7 @@ static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uchar *s,
   return my_strnncoll_binary(cs, s, slen, t, tlen, false);
 }
 
-static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
                                  const uchar *s, size_t slen, const uchar *t,
                                  size_t tlen, bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
@@ -171,9 +171,9 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   > 0	s > t
 */
 
-static int my_strnncollsp_8bit_bin(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *a,
-    size_t a_length, const uchar *b, size_t b_length) {
+static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                                   const uchar *a, size_t a_length,
+                                   const uchar *b, size_t b_length) {
   const uchar *end;
   size_t length;
   int res;
@@ -205,40 +205,40 @@ static int my_strnncollsp_8bit_bin(
 
 /* This function is used for all conversion functions */
 
-static size_t my_case_str_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                              char *str MY_ATTRIBUTE((unused))) {
+static size_t my_case_str_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                              char *str [[maybe_unused]]) {
   return 0;
 }
 
-static size_t my_case_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          char *src MY_ATTRIBUTE((unused)), size_t srclen,
-                          char *dst MY_ATTRIBUTE((unused)),
-                          size_t dstlen MY_ATTRIBUTE((unused))) {
+static size_t my_case_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                          char *src [[maybe_unused]], size_t srclen,
+                          char *dst [[maybe_unused]],
+                          size_t dstlen [[maybe_unused]]) {
   return srclen;
 }
 
-static int my_strcasecmp_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strcasecmp_bin(const CHARSET_INFO *cs [[maybe_unused]],
                              const char *s, const char *t) {
   return strcmp(s, t);
 }
 }  // extern "C"
 
-uint my_mbcharlen_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       uint c MY_ATTRIBUTE((unused))) {
+uint my_mbcharlen_8bit(const CHARSET_INFO *cs [[maybe_unused]],
+                       uint c [[maybe_unused]]) {
   return 1;
 }
 
 extern "C" {
-static int my_mb_wc_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t *wc, const uchar *str, const uchar *end) {
+static int my_mb_wc_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
+                        const uchar *str, const uchar *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = str[0];
   return 1;
 }
 
-static int my_wc_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                        uchar *s, uchar *e) {
   if (s >= e) return MY_CS_TOOSMALL;
 
   if (wc < 256) {
@@ -250,7 +250,7 @@ static int my_wc_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }  // extern "C"
 
 extern "C" {
-static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
                                   const uchar *key, size_t len, uint64 *nr1,
                                   uint64 *nr2) {
   const uchar *pos = key;
@@ -275,7 +275,7 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   *nr2 = tmp2;
 }
 
-static void my_hash_sort_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static void my_hash_sort_bin(const CHARSET_INFO *cs [[maybe_unused]],
                              const uchar *key, size_t len, uint64 *nr1,
                              uint64 *nr2) {
   const uchar *pos = key;
@@ -400,9 +400,9 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
   return srclen;
 }
 
-static uint my_instr_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *b, size_t b_length, const char *s,
-                         size_t s_length, my_match_t *match, uint nmatch) {
+static uint my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
+                         size_t b_length, const char *s, size_t s_length,
+                         my_match_t *match, uint nmatch) {
   const uchar *str, *search, *end, *search_end;
 
   if (s_length <= b_length) {

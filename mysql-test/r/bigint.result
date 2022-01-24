@@ -407,7 +407,7 @@ def					-((9223372036854775808))	8	20	20	N	32897	0	63
 -9223372036854775808
 select -(-(9223372036854775808));
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					-(-(9223372036854775808))	246	21	19	N	32897	0	63
+def					-(-(9223372036854775808))	246	20	19	N	32897	0	63
 -(-(9223372036854775808))
 9223372036854775808
 select --9223372036854775808, ---9223372036854775808, ----9223372036854775808;
@@ -605,6 +605,8 @@ result
 select bin(convert(-9223372036854775808 using ucs2));
 bin(convert(-9223372036854775808 using ucs2))
 1000000000000000000000000000000000000000000000000000000000000000
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug #22515857	"-1 BETWEEN 9223372036854775808 AND 1" GIVES TRUE
 #

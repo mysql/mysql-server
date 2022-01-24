@@ -551,3 +551,150 @@ SELECT id, for_name, ref_name FROM information_schema.innodb_foreign WHERE id LI
 id	for_name	ref_name
 test/......................................_ibfk_1	test/......................................	test/t1
 DROP TABLES `......................................`, t1;
+#
+# Bug#33053297 VIRTUAL INDEX CORRUPTED DURING CASCADE UPDATE ON CHILD TABLE
+#
+#Test-Case 1
+CREATE TABLE `emails` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+CREATE TABLE `email_stats` (
+`id` bigint unsigned NOT NULL AUTO_INCREMENT,
+`email_id` int unsigned DEFAULT NULL,
+`date_sent` datetime NOT NULL,
+`generated_sent_date` date GENERATED ALWAYS AS
+(concat(year(`date_sent`),'-',lpad(month(`date_sent`),2,'0'),
+'-',lpad(dayofmonth(`date_sent`),2,'0'))) VIRTUAL,
+PRIMARY KEY (`id`),
+KEY `IDX_ES1` (`email_id`),
+KEY `mautic_generated_sent_date_email_id`
+(`generated_sent_date`,`email_id`),
+CONSTRAINT `FK_EA1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+INSERT INTO `emails` VALUES (1);
+INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
+(1,1,'2020-10-22 13:32:41');
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_date
+1	1	2020-10-22 13:32:41	2020-10-22
+DELETE FROM `emails`;
+DELETE FROM `email_stats`;
+DROP TABLE `email_stats`;
+DROP TABLE `emails`;
+# Test-Case 2
+CREATE TABLE `emails` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+CREATE TABLE `email_stats` (
+`id` bigint unsigned NOT NULL AUTO_INCREMENT,
+`email_id` int unsigned DEFAULT NULL,
+`date_sent` datetime NOT NULL,
+`generated_sent_date` date GENERATED ALWAYS AS
+(concat(year(`date_sent`),'-',lpad(month(`date_sent`),2,'0'),
+'-',lpad(dayofmonth(`date_sent`),2,'0'))) VIRTUAL,
+PRIMARY KEY (`id`),
+KEY `IDX_ES1` (`email_id`),
+KEY `mautic_generated_sent_date_email_id`
+(`generated_sent_date`,`email_id`),
+CONSTRAINT `FK_EA1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+INSERT INTO `emails` VALUES (1);
+INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
+(1,1,'2020-10-22 13:32:41');
+UPDATE `emails` SET `id` = 2 where `id` = 1;
+SELECT id FROM `email_stats` WHERE `generated_sent_date` IS NULL;
+id
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_date
+1	NULL	2020-10-22 13:32:41	2020-10-22
+UPDATE `email_stats` SET `email_id`=2
+WHERE DATE(`generated_sent_date`) = '2020-10-22';
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_date
+1	2	2020-10-22 13:32:41	2020-10-22
+DROP TABLE `email_stats`;
+DROP TABLE `emails`;
+# test-case 3
+CREATE TABLE `emails` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+CREATE TABLE `email_stats` (
+`id` bigint unsigned NOT NULL AUTO_INCREMENT,
+`email_id` int unsigned DEFAULT NULL,
+`date_sent` datetime NOT NULL,
+`generated_sent_email` varchar(20) GENERATED ALWAYS AS
+(CONCAT(YEAR(`date_sent`),'-', COALESCE(`email_id`, ' '))) VIRTUAL,
+PRIMARY KEY (`id`),
+KEY `idx_es1` (`email_id`),
+KEY `mautic_generated_sent_date_email`
+(`generated_sent_email`,`email_id`),
+CONSTRAINT `fk_ea1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON DELETE SET NULL
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+INSERT INTO `emails` VALUES (1);
+INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
+(1,1,'2020-10-22 13:32:41');
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_email
+1	1	2020-10-22 13:32:41	2020-1
+SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-1';
+date_sent
+2020-10-22 13:32:41
+DELETE FROM `emails`;
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_email
+1	NULL	2020-10-22 13:32:41	2020- 
+SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-';
+date_sent
+2020-10-22 13:32:41
+DROP TABLE `email_stats`;
+DROP TABLE `emails`;
+# test-case 4
+CREATE TABLE `emails` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+CREATE TABLE `email_stats` (
+`id` bigint unsigned NOT NULL AUTO_INCREMENT,
+`email_id` int unsigned DEFAULT NULL,
+`date_sent` datetime NOT NULL,
+`generated_sent_email` varchar(20) GENERATED ALWAYS AS
+(CONCAT(YEAR(`date_sent`),'-', COALESCE(`email_id`, ' '))) VIRTUAL,
+PRIMARY KEY (`id`),
+KEY `idx_es1` (`email_id`),
+KEY `mautic_generated_sent_date_email`
+(`generated_sent_email`,`email_id`),
+CONSTRAINT `fk_ea1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON UPDATE SET NULL
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+INSERT INTO `emails` VALUES (1);
+INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
+(1,1,'2020-10-22 13:32:41');
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_email
+1	1	2020-10-22 13:32:41	2020-1
+SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-1';
+date_sent
+2020-10-22 13:32:41
+UPDATE `emails` SET `id` = 2 WHERE `id` = 1;
+SELECT * FROM `email_stats`;
+id	email_id	date_sent	generated_sent_email
+1	NULL	2020-10-22 13:32:41	2020- 
+SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-';
+date_sent
+2020-10-22 13:32:41
+DROP TABLE `email_stats`;
+DROP TABLE `emails`;

@@ -12,11 +12,11 @@ SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-SET @old_slave_exec_mode= @@GLOBAL.SLAVE_EXEC_MODE;
+SET @old_replica_exec_mode= @@GLOBAL.REPLICA_EXEC_MODE;
 [connection master]
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS= @old_slave_rows_search_algorithms;
-SET @@GLOBAL.SLAVE_EXEC_MODE= @old_slave_exec_mode;
+SET @@GLOBAL.REPLICA_EXEC_MODE= @old_replica_exec_mode;

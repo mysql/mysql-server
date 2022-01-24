@@ -437,7 +437,7 @@ XError Protocol_impl::send(const Header_message_type_id mid,
   };
   /*
     Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
-    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+    [[maybe_unused]] did not work, so we must use it.
   */
   dummy = 0;
 

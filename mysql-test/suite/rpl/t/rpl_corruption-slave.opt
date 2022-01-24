@@ -1,1 +1,1 @@
---binlog-checksum=CRC32 --slave-sql-verify-checksum=1
+--binlog-checksum=CRC32 --replica-sql-verify-checksum=1

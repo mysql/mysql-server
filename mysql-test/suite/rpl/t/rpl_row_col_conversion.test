@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 #
-# 1. Set @@global.SLAVE_TYPE_CONVERSIONS to ALL_NON_LOSSY to allow conversions.
+# 1. Set @@global.REPLICA_TYPE_CONVERSIONS to ALL_NON_LOSSY to allow conversions.
 # 2. Create a table on the master, wait until it has been replicated, drop table
 #    on slave and recreate with a column with greater size.
 # 3. Insert values that would have be truncated on the master and wait for
@@ -26,8 +26,8 @@ source include/master-slave.inc;
 --echo #
 
 --source include/rpl_connection_slave.inc
-SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
-SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
+SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (col MEDIUMTEXT);
@@ -49,7 +49,7 @@ INSERT INTO t1(col) VALUES (REPEAT('a',65534)), (REPEAT('b',65535)), (REPEAT('c'
 --let $assert_cond= "$slave_lengths" = "$master_lengths"
 --source include/assert.inc
 
-SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

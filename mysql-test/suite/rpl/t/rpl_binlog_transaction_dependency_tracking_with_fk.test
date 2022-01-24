@@ -41,7 +41,6 @@
 
 --connection master
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 
 --let $row_count= 1
 --let $referential_action= 0
@@ -88,9 +87,7 @@ while ($referential_action < 4)
 
     # Header according to all the parameters.
     --echo ######## $text ########
-    SELECT @@local.transaction_write_set_extraction,
-           @@global.transaction_write_set_extraction,
-           @@binlog_transaction_dependency_tracking;
+    SELECT @@binlog_transaction_dependency_tracking;
 
     # In all these 8 cases, behavior should be identical.
     CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
@@ -207,6 +204,5 @@ while ($referential_action < 4)
 --echo # Clean up
 --connection master
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 
 --source include/rpl_end.inc

@@ -8,11 +8,11 @@ id INT PRIMARY KEY,
 val INT
 )
 ENGINE=ndbcluster;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1037	Failed to acquire NDB_SHARE
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug=@save_debug;
 # - check that table can be created, this also checks
 #   that the above failed create properly removed the
@@ -30,11 +30,11 @@ DROP TABLE t1;
 # happen at cluster failure.
 SET SESSION debug="+d,ndb_create_open_fail";
 CREATE TABLE t1(a int primary key) engine = NDB;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 723 'No such table existed' from NDB
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug=@save_debug;
 # Check that table does not exist
 SELECT * FROM t1;

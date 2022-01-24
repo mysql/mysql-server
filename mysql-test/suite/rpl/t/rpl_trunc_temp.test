@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Verify that Slave_open_temp_tables is increased when a temporary
+# Verify that Replica_open_temp_tables is increased when a temporary
 # table is opened on the slave, and decreased when a temporary table
 # is closed on the slave, and that it is preserved during 'DELETE FROM
 # table' and 'TRUNCATE table'.
@@ -29,19 +29,19 @@ source include/master-slave.inc;
 create temporary table t1 (n int);
 insert into t1 values(1);
 --source include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 
 # Perform a delete from temp table
 connection master;
 delete from t1;
 --source include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 
 # Perform truncate on temp table
 connection master;
 truncate t1;
 --source include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 
 # Disconnect the master, temp table on slave should dissapear
 disconnect master;
@@ -52,7 +52,7 @@ connection slave;
 let $wait_binlog_event= DROP;
 source include/wait_for_binlog_event.inc;
 
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 
 
 --source include/rpl_end.inc

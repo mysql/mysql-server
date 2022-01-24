@@ -41,7 +41,7 @@ Transaction_prepared_message::Transaction_prepared_message(
   decode(buf, len);
 }
 
-Transaction_prepared_message::~Transaction_prepared_message() {}
+Transaction_prepared_message::~Transaction_prepared_message() = default;
 
 void Transaction_prepared_message::encode_payload(
     std::vector<unsigned char> *buffer) const {

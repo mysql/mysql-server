@@ -104,7 +104,7 @@ class PFS_plugin_table_index : public PFS_engine_index_abstract {
   PFS_plugin_table_index(PFS_engine_table_proxy *st_table)
       : m_st_table(st_table), m_idx(0), m_plugin_index(nullptr) {}
 
-  ~PFS_plugin_table_index() override {}
+  ~PFS_plugin_table_index() override = default;
 
   int init(PSI_table_handle *table, uint idx, bool sorted);
 

@@ -240,8 +240,9 @@ std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
 @param[in]	expr	the failed assertion if not NULL
 @param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
-  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " ULINTPF "\n",
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
+  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " UINT64PF "\n",
           file, line);
 
   if (expr != nullptr) {
@@ -313,9 +314,10 @@ static void usage() {
 }
 
 /** Parse the options passed to tool. */
-extern "C" bool ibd2sdi_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+extern "C" bool ibd2sdi_get_one_option(int optid,
+                                       const struct my_option *opt
+                                       [[maybe_unused]],
+                                       char *argument [[maybe_unused]]) {
   switch (optid) {
 #ifndef NDEBUG
     case '#':
@@ -390,7 +392,7 @@ static bool get_options(int *argc, char ***argv) {
 /** Error logging classes. */
 namespace ib {
 
-logger::~logger() {}
+logger::~logger() = default;
 
 info::~info() {
   std::cerr << "[INFO] ibd2sdi: " << m_oss.str() << "." << std::endl;
@@ -404,10 +406,20 @@ error::~error() {
   std::cerr << "[ERROR] ibd2sdi: " << m_oss.str() << "." << std::endl;
 }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
+
 fatal::~fatal() {
   std::cerr << "[FATAL] ibd2sdi: " << m_oss.str() << "." << std::endl;
   ut_error;
 }
+
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /* TODO: Improve Object creation & destruction on NDEBUG */
 class dbug : public logger {
@@ -514,14 +526,7 @@ class ib_tablespace {
 
   /** Copy Constructor.
   @param[in]	copy	another object of ib_tablespace */
-  ib_tablespace(const ib_tablespace &copy)
-      : m_space_id(copy.m_space_id),
-        m_page_size(copy.m_page_size),
-        m_file_vec(copy.m_file_vec),
-        m_page_num_recs(copy.m_page_num_recs),
-        m_max_recs_per_page(copy.m_max_recs_per_page),
-        m_sdi_root(copy.m_sdi_root),
-        m_tot_pages(copy.m_tot_pages) {}
+  ib_tablespace(const ib_tablespace &copy) = default;
 
   /** Add Datafile to vector of datafiles. Also
   resize of vector of pages.
@@ -725,8 +730,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
   }
 
   if (page_size.is_compressed() && fil_page_get_type(buf) == FIL_PAGE_SDI) {
-    byte *uncomp_buf =
-        static_cast<byte *>(ut_malloc_nokey(2 * page_size.logical()));
+    byte *uncomp_buf = static_cast<byte *>(ut::malloc(2 * page_size.logical()));
 
     byte *uncomp_page =
         static_cast<byte *>(ut_align(uncomp_buf, page_size.logical()));
@@ -760,7 +764,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
       memcpy(buf, uncomp_page, page_size.logical());
     }
 
-    ut_free(uncomp_buf);
+    ut::free(uncomp_buf);
   }
 
   return n_bytes;
@@ -1636,8 +1640,6 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
   DBUG_TRACE;
 
   byte page_buf[UNIV_PAGE_SIZE_MAX];
-  uint64_t calc_length = 0;
-  uint64_t part_len;
   page_no_t page_num = first_blob_page_num;
   z_stream d_stream;
   int err;
@@ -1674,16 +1676,12 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
       break;
     }
 
-    part_len =
-        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
-
     page_no_t next_page_num = mach_read_from_4(page_buf + FIL_PAGE_NEXT);
     space_id_t space_id =
         mach_read_from_4(page_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
     d_stream.next_in = page_buf + FIL_PAGE_DATA;
     d_stream.avail_in = static_cast<uInt>(page_size.physical() - FIL_PAGE_DATA);
-    calc_length += part_len;
     err = inflate(&d_stream, Z_NO_FLUSH);
     switch (err) {
       case Z_OK:
@@ -1695,7 +1693,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
         if (next_page_num == FIL_NULL) {
           goto func_exit;
         }
-      /* fall through */
+        [[fallthrough]];
       default:
       inflate_error : {
         page_id_t page_id(space_id, page_num);
@@ -2086,7 +2084,11 @@ void ibd2sdi::dump_sdi_rec(uint64_t sdi_type, uint64_t sdi_id, byte *sdi_data,
       d.Accept(writer);
       fprintf(out_stream, "%s", _b.GetString());
     } else {
-      fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1), out_stream);
+      if (fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1),
+                 out_stream) != static_cast<size_t>(sdi_data_len - 1)) {
+        std::cerr << "File write error: " << ferror(out_stream) << std::endl;
+        exit(1);
+      }
     }
   }
 

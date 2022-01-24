@@ -229,8 +229,7 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool) {
+int table_tiws_by_index_usage::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_tiws_by_index_usage *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_index_usage);

@@ -29,9 +29,9 @@ include/sync_slave_sql_with_master.inc
 # check that t1 exists and has same values in both servers.
 include/diff_tables.inc [master:t1, slave:t1]
 # check that INDEX_SCAN is used at replica.
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	INDEX_SCAN
+Replica_rows_last_search_algorithm_used	INDEX_SCAN
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc

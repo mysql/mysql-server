@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers = 4]
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -27,9 +28,9 @@ INSERT INTO t1 VALUES(3);
 SET debug = '-d,logical_clock_step_2';
 include/save_master_pos.inc
 [connection slave]
-SET GLOBAL debug = '+d,slave_worker_ends_group_before_signal_lwm';
+SET GLOBAL debug = '+d,replica_worker_ends_group_before_signal_lwm';
 ROLLBACK;
-SET GLOBAL debug = '-d,slave_worker_ends_group_before_signal_lwm';
+SET GLOBAL debug = '-d,replica_worker_ends_group_before_signal_lwm';
 SET GLOBAL debug = '+d,wait_for_workers_to_finish_after_wait';
 [connection slave1]
 ROLLBACK;

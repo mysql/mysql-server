@@ -1,0 +1,61 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Add some data to the source so replica workers have some stats
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+#
+# 2. Make the performance schema query block
+SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_data_lock SIGNAL signal.rpl_pfs_query_running WAIT_FOR signal.rpl_stop_reset_issued";
+SELECT * FROM performance_schema.replication_applier_status_by_worker;
+[connection server_2]
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
+#
+# 3. Try to stop the replica while the query is running, check it is stuck
+STOP REPLICA;;
+[connection server_2_1]
+include/assert.inc ['The performance_schema query is holding the relay log data lock']
+include/assert.inc ['The STOP query is still blocked']
+#
+# 4. Unblock the query, check both the SELECT and the STOP succeeded
+SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
+SET DEBUG_SYNC = 'RESET';
+[connection server_2]
+[connection slave]
+#
+# 5. Make the performance schema query block again
+SET @@SESSION.debug_sync = "rpl_pfs_replication_applier_status_by_worker_after_data_lock SIGNAL signal.rpl_pfs_query_running WAIT_FOR signal.rpl_stop_reset_issued";
+SELECT * FROM performance_schema.replication_applier_status_by_worker;
+[connection server_2]
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_pfs_query_running";
+#
+# 6. Try to reset the replica while the query is running
+RESET REPLICA ALL;;
+[connection server_2_1]
+include/assert.inc ['The performance_schema query is holding the relay log data lock']
+include/assert.inc ['The RESET REPLICA query is still blocked']
+#
+# 7. Unblock the query, check both the SELECT and the RESET REPLICA succeeded
+SET DEBUG_SYNC = "now SIGNAL signal.rpl_stop_reset_issued";
+SET DEBUG_SYNC = 'RESET';
+[connection server_2]
+[connection slave]
+#
+# 8. Cleanup
+[connection master]
+RESET MASTER;
+[connection slave]
+RESET MASTER;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

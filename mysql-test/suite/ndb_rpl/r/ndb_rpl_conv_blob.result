@@ -14,7 +14,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global slave_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
+set global replica_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -44,5 +44,5 @@ id	length(value)	value
 3	256	PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 update t1 set value=repeat('S', 2000);
 drop table test.t1;
-set global slave_type_conversions='';
+set global replica_type_conversions='';
 include/rpl_end.inc

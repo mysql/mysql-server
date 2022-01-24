@@ -27,7 +27,7 @@
 #      6) Try setting auto_pos = 1 and check for errors.
 #      7) Test that Both receiver and applier needs to be stopped to set the
 #         assign_gtids_to_anonymous_transactions
-#      8) Test assign_gtids_to_anonymous_transactions with sql_slave_skip_counter and verify that
+#      8) Test assign_gtids_to_anonymous_transactions with sql_replica_skip_counter and verify that
 #         it works and the correct warning is emitted.
 #      9) Try starting slave with SQL_BEFORE_GTIDS/SQL_AFTER_GTIDS and check for error
 #      10) Execute the function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and check for error
@@ -191,16 +191,16 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 --error ER_SLAVE_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
-# 8) Test assign_gtids_to_anonymous_transactions with sql_slave_skip_counter and verify that
+# 8) Test assign_gtids_to_anonymous_transactions with sql_replica_skip_counter and verify that
 #    it works and the correct warning is emitted.
 
 --source include/stop_slave.inc
 # This will generate a warning in the result file.
-SET GLOBAL sql_slave_skip_counter = 1;
+SET GLOBAL sql_replica_skip_counter = 1;
 
---let $assert_text= A warning will be generated stating "The value of sql_slave_skip_counter will only take effect for channels running with"
+--let $assert_text= A warning will be generated stating "The value of sql_replica_skip_counter will only take effect for channels running with"
 --let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
---let $expected_code= convert_error(ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
+--let $expected_code= convert_error(ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
 --let $assert_cond= $warning_code = $expected_code
 --source include/assert.inc
 
@@ -279,5 +279,11 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
  --let $assert_cond = $count = 1
  --source include/assert.inc
 --echo # Cleanup
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+--let $rpl_gtid_mode = OFF
+--let $rpl_set_enforce_gtid_consistency = 0
+--source include/rpl_set_gtid_mode.inc
 
 --source include/rpl_end.inc

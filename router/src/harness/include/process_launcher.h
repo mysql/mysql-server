@@ -25,6 +25,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -89,7 +90,7 @@ class HARNESS_EXPORT SpawnedProcess {
 
   SpawnedProcess(const SpawnedProcess &) = default;
 
-  virtual ~SpawnedProcess() {}
+  virtual ~SpawnedProcess() = default;
 
   std::string get_cmd_line() const;
 
@@ -198,18 +199,6 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
   int wait(std::chrono::milliseconds timeout = std::chrono::milliseconds(1000));
 
   /**
-   * Returns the file descriptor write handle (to write child's stdin).
-   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
-   */
-  uint64_t get_fd_write() const;
-
-  /**
-   * Returns the file descriptor read handle (to read child's stdout).
-   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
-   */
-  uint64_t get_fd_read() const;
-
-  /**
    * Closes pipe to process' STDIN in order to notify the process that all
    * data was sent.
    */
@@ -239,6 +228,9 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * @return process exit code.
    */
   int close();
+
+  std::mutex fd_in_mtx_;
+  std::mutex fd_out_mtx_;
 
   bool is_alive;
 };

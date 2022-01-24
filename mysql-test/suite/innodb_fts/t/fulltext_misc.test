@@ -212,3 +212,68 @@ DROP TABLE t1,t2;
 
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#32979815: WL#14422: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+--echo #
+
+CREATE TABLE t (x VARCHAR(10), FULLTEXT (x));
+
+SELECT 1 FROM t
+WHERE x IN
+ (SELECT MATCH (t2.x) AGAINST ('abc')
+  FROM t AS t1 JOIN t AS t2
+       ON t1.x = t2.x
+  GROUP BY t2.x
+  HAVING t2.x = '');
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('a'), ('b'), ('c');
+ANALYZE TABLE t;
+
+PREPARE prep_stmt FROM '
+
+ SELECT DISTINCT
+   MATCH (t1.a) AGAINST(''x''),
+   MIN(t2.a),
+   t1.a
+ FROM t AS t1 JOIN t AS t2 ON t1.a = t2.a
+ GROUP BY MATCH (t1.a) AGAINST(''x''), t1.a
+
+';
+
+# The second execution used to fail with the hypergraph optimizer.
+--sorted_result
+EXECUTE prep_stmt;
+--sorted_result
+EXECUTE prep_stmt;
+
+DEALLOCATE PREPARE prep_stmt;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32990422: WL#14422: RESULT MISMATCH WITH FTS FUNCTION
+--echo #
+
+CREATE TABLE t (i INTEGER, x VARCHAR(10), FULLTEXT (x));
+INSERT INTO t VALUES (0, 'a'), (1, 'b'), (0, 'c');
+--sorted_result
+SELECT i = 0 AS a, MATCH(x) AGAINST('d') AS b FROM t GROUP BY a, b;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32996515: WL#14422: RESULT MISMATCH WITH DISTINCT AND GROUP BY ON FTS FUNCTION
+--echo #
+
+CREATE TABLE t (a INTEGER, b VARCHAR(10), FULLTEXT(b));
+INSERT INTO t VALUES (1, 'a'), (2, 'b');
+--sorted_result
+SELECT DISTINCT MATCH (b) AGAINST ('x'), a
+FROM t GROUP BY MATCH (b) AGAINST ('x'), a;
+DROP TABLE t;

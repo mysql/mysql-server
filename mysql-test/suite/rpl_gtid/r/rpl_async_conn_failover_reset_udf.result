@@ -1,0 +1,75 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 1. Create a replication channel ch1 to replicate from
+#    server2 to server1.
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 2. Try to reset asynchronous reconnection configuration with
+#    invalid parameters.
+#    It will not be allowed.
+SELECT asynchronous_connection_failover_reset(1);
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Wrong arguments: The function takes no arguments.
+SELECT asynchronous_connection_failover_reset("");
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Wrong arguments: The function takes no arguments.
+
+############################################################
+# 3. Try to reset asynchronous reconnection configuration while
+#    channels are running.
+#    It will not be allowed.
+SELECT asynchronous_connection_failover_reset();
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOURCE_CONNECTION_AUTO_FAILOVER are running.
+include/stop_slave_sql.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+SELECT asynchronous_connection_failover_reset();
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOURCE_CONNECTION_AUTO_FAILOVER are running.
+
+############################################################
+# 4. Reset asynchronous reconnection configuration while
+#    channels are stopped.
+#    It will be allowed.
+include/stop_slave_io.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is not running]
+SELECT asynchronous_connection_failover_reset();
+asynchronous_connection_failover_reset()
+The UDF asynchronous_connection_failover_reset() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3100);
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3100)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+SELECT asynchronous_connection_failover_reset();
+asynchronous_connection_failover_reset()
+The UDF asynchronous_connection_failover_reset() executed successfully.
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
+
+############################################################
+# 5. Reset asynchronous reconnection configuration while
+#    channels are stopped for managed source.
+#    It will be allowed.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "UUID_VAL", '127.0.0.1', 3100, '', 80, 60);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "UUID_VAL", '127.0.0.1', 3100, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+SELECT asynchronous_connection_failover_reset();
+asynchronous_connection_failover_reset()
+The UDF asynchronous_connection_failover_reset() executed successfully.
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
+
+############################################################
+# 6. Clean up.
+include/rpl_reset_slave.inc
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.

@@ -8,7 +8,7 @@
 # ACL changes are executed *without* holding the Global Schema lock,
 # but the locking inside Ndb_schema_dist_client::acl_notify() serializes
 # ACL changes on a single server, and each server has a distinct name that
-# is used part of the primary key in ndb_schema.
+# is used as part of the primary key in ndb_schema.
 #
 
 #

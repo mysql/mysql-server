@@ -1,6 +1,5 @@
 --source include/have_64bit.inc
 --source include/no_valgrind_without_big.inc
---source include/not_hypergraph.inc   # Does not support WITH RECURSIVE yet.
 
 set session internal_tmp_mem_storage_engine='memory';
 

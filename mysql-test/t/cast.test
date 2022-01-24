@@ -59,10 +59,9 @@ select cast('' as signed);
 #
 # Character set conversion
 #
-set names binary;
-select cast(_latin1'test' as char character set latin2);
-select cast(_koi8r'‘≈”‘' as char character set cp1251);
-create table t1 select cast(_koi8r'‘≈”‘' as char character set cp1251) as t;
+select hex(cast(_latin1'test' as char character set latin2));
+select hex(cast(_koi8r x'D4C5D3D4' as char character set cp1251));
+create table t1 select cast(_koi8r x'D4C5D3D4' as char character set cp1251) as t;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -73,19 +72,19 @@ drop table t1;
 # CAST to CHAR with/without length
 #
 select
-  cast(_latin1'ab'  AS char)    as c1,
-  cast(_latin1'a '  AS char)    as c2,
-  cast(_latin1'abc' AS char(2)) as c3,
-  cast(_latin1'a  ' AS char(2)) as c4,
-  hex(cast(_latin1'a'   AS char(2))) as c5;
-select cast(1000 as CHAR(3));
+  cast(_latin1'ab'  AS char charset binary)    as c1,
+  cast(_latin1'a '  AS char charset binary)    as c2,
+  cast(_latin1'abc' AS char(2) charset binary) as c3,
+  cast(_latin1'a  ' AS char(2) charset binary) as c4,
+  hex(cast(_latin1'a'   AS char(2) charset binary)) as c5;
+select cast(1000 as CHAR(3) charset binary);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 select
-  cast(_latin1'ab'  AS char)    as c1,
-  cast(_latin1'a '  AS char)    as c2,
-  cast(_latin1'abc' AS char(2)) as c3,
-  cast(_latin1'a  ' AS char(2)) as c4,
-  cast(_latin1'a'   AS char(2)) as c5;
+  cast(_latin1'ab'  AS char charset binary)    as c1,
+  cast(_latin1'a '  AS char charset binary)    as c2,
+  cast(_latin1'abc' AS char(2) charset binary) as c3,
+  cast(_latin1'a  ' AS char(2) charset binary) as c4,
+  cast(_latin1'a'   AS char(2) charset binary) as c5;
 select c1,c2,c3,c4,hex(c5) from t1;
 
 #Replace default engine value with static engine string 
@@ -100,19 +99,19 @@ drop table t1;
 # Different number of warnings with ps protocol.
 --disable_ps_protocol
 select
-  cast(_koi8r'∆«'  AS nchar)    as c1,
-  cast(_koi8r'∆ '  AS nchar)    as c2,
-  cast(_koi8r'∆«»' AS nchar(2)) as c3,
-  cast(_koi8r'∆  ' AS nchar(2)) as c4,
-  cast(_koi8r'∆'   AS nchar(2)) as c5;
+  cast(_koi8r x'C6C7'   AS nchar)    as c1,
+  cast(_koi8r x'C620'   AS nchar)    as c2,
+  cast(_koi8r x'C6C7C8' AS nchar(2)) as c3,
+  cast(_koi8r x'C62020' AS nchar(2)) as c4,
+  cast(_koi8r x'C6'     AS nchar(2)) as c5;
 --enable_ps_protocol
 
 create table t1 select
-  cast(_koi8r'∆«'  AS nchar)    as c1,
-  cast(_koi8r'∆ '  AS nchar)    as c2,
-  cast(_koi8r'∆«»' AS nchar(2)) as c3,
-  cast(_koi8r'∆  ' AS nchar(2)) as c4,
-  cast(_koi8r'∆'   AS nchar(2)) as c5;
+  cast(_koi8r x'C6C7'   AS nchar)    as c1,
+  cast(_koi8r x'C620'   AS nchar)    as c2,
+  cast(_koi8r x'C6C7C8' AS nchar(2)) as c3,
+  cast(_koi8r x'C62020' AS nchar(2)) as c4,
+  cast(_koi8r x'C6'     AS nchar(2)) as c5;
 select * from t1;
 
 #Replace default engine value with static engine string 
@@ -150,14 +149,9 @@ SET sql_mode = default;
 # CAST from BINARY to non-BINARY and from non-BINARY to BINARY
 #
 create table t1 (a binary(4), b char(4) character set koi8r);
-insert into t1 values (_binary'‘≈”‘',_binary'‘≈”‘');
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
-set names koi8r;
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
-set names cp1251;
-select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+insert into t1 values (_binary x'D4C5D3D4',_binary x'D4C5D3D4');
+select hex(a),hex(b),hex(cast(a as char character set cp1251)),hex(cast(b as binary)) from t1;
 drop table t1;
-set names binary;
 
 #
 # The following should be fixed in 4.1
@@ -175,11 +169,11 @@ select cast(NULL as BINARY);
 CREATE TABLE t1 (a enum ('aac','aab','aaa') not null);
 INSERT INTO t1 VALUES ('aaa'),('aab'),('aac');
 # these two should be in enum order
-SELECT a, CAST(a AS CHAR) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
-SELECT a, CAST(a AS CHAR(3)) FROM t1 ORDER BY CAST(a AS CHAR(2)), a;
+SELECT a, CAST(a AS CHAR charset binary) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
+SELECT a, CAST(a AS CHAR(3) charset binary) FROM t1 ORDER BY CAST(a AS CHAR(2) charset binary), a;
 # these two should be in alphabetic order
-SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
-SELECT a, CAST(a AS CHAR(2)) FROM t1 ORDER BY CAST(a AS CHAR(3)), a;
+SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR charset binary) ;
+SELECT a, CAST(a AS CHAR(2) charset binary ) FROM t1 ORDER BY CAST(a AS CHAR(3) charset binary), a;
 DROP TABLE t1;
 
 #
@@ -1063,4 +1057,69 @@ CREATE TABLE t AS
          CONCAT(CAST(9223372036854775808 AS SIGNED)) AS col3;
 SHOW CREATE TABLE t;
 SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32942327: CAST: ITEM_TYPECAST_UNSIGNED:
+--echo #               ASSERTION `!NULL_VALUE || IS_NULLABLE()' FAILED
+--echo #
+
+CREATE TABLE t (x VARCHAR(10) NOT NULL);
+INSERT INTO t VALUES ('');
+--error ER_CANNOT_CONVERT_STRING
+SELECT CAST(x <= 0x4891f642 AS UNSIGNED) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT CAST(STRCMP(x, 0x4891f642) AS UNSIGNED) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33199145: CONVERT(.. USING charset) gets wrong max_length
+--echo #
+CREATE TABLE tmp(beer CHAR(1));
+INSERT INTO tmp VALUES (CONVERT(X'F09F8DBA' USING utf8mb4));
+SELECT HEX(beer), beer FROM tmp;
+--echo # Used this round-about way originally to get a utfmb4 character to
+--echo # convert in next DML/DDL query to avoid change encoding of this file
+--echo # and to avoid bug in max_length of CONVERT(X'F09F8DBA' USING UTF8MB4)
+--echo # which (used to) set to 4 instead of one (beer), fixed now, though,
+--echo # see round-trip test below.
+CREATE TABLE t AS
+    SELECT CONVERT((SELECT beer FROM tmp) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t, tmp;
+
+CREATE TABLE t AS
+    SELECT CONVERT(X'F09F8DBA' USING utf8mb4) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA' USING utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA', CHAR(1) CHARACTER SET utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+
+--echo # Check round trip: should stay VARCHAR(1).
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(_utf8mb3'a' USING utf8mb4) USING utf8mb3) AS a;
+SHOW CREATE TABLE t;
+SELECT a FROM t;
+DROP TABLE t;
+
+--echo # Character set with different min char size (utf-16: 2):
+CREATE TABLE t AS
+    SELECT CONVERT(X'D83CDF7A' USING utf16) as beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
 DROP TABLE t;

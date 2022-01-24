@@ -73,7 +73,7 @@ class cursor_by_thread_connect_attr : public PFS_engine_table {
   cursor_by_thread_connect_attr(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_thread_connect_attr() override {}
+  ~cursor_by_thread_connect_attr() override = default;
 
  protected:
   virtual int make_row(PFS_thread *thread, uint ordinal) = 0;

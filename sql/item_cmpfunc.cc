@@ -95,6 +95,8 @@ using std::min;
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
+static Item **cache_converted_constant(THD *thd, Item **value,
+                                       Item **cache_item, Item_result type);
 
 /**
   Compare row signature of two expressions
@@ -144,47 +146,6 @@ static Item_result agg_cmp_type(Item **items, uint nitems) {
     type = item_cmp_type(type, items[i]->result_type());
   }
   return type;
-}
-
-/**
-  Convert and/or validate input_string according to charset 'to_cs'.
-
-  If input_string needs conversion to 'to_cs' then do the conversion,
-  and verify the result.
-  Otherwise, if input_string has charset my_charset_bin, then verify
-  that it contains a valid string according to 'to_cs'.
-
-  Will call my_error() in case conversion/validation fails.
-
-  @param input_string        string to be converted/validated.
-  @param to_cs               result character set
-  @param output_string [out] output result variable
-
-  @return nullptr in case of error, otherwise pointer to result.
-*/
-static String *convert_or_validate_string(String *input_string,
-                                          const CHARSET_INFO *to_cs,
-                                          String *output_string) {
-  String *retval = input_string;
-  if (input_string->needs_conversion(to_cs)) {
-    uint errors = 0;
-    output_string->copy(input_string->ptr(), input_string->length(),
-                        input_string->charset(), to_cs, &errors);
-    if (errors) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-    retval = output_string;
-  } else if (to_cs != &my_charset_bin &&
-             input_string->charset() == &my_charset_bin) {
-    if (!input_string->is_valid_string(to_cs)) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-  }
-  return retval;
 }
 
 static void write_histogram_to_trace(THD *thd, Item_func *item,
@@ -694,7 +655,7 @@ bool Item_bool_func2::resolve_type(THD *thd) {
     return true;
 
   // Make a special case of compare with fields to get nicer DATE comparisons
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+  if (!(thd->lex->is_view_context_analysis())) {
     bool cvt1, cvt2;
     if (convert_constant_arg(thd, args[0], &args[1], &cvt1) ||
         convert_constant_arg(thd, args[1], &args[0], &cvt2))
@@ -755,7 +716,6 @@ bool Item_func_like::resolve_type(THD *thd) {
   } else {
     cmp.cmp_collation = args[0]->collation;
   }
-
   // LIKE is always carried out as string operation
   args[0]->cmp_context = STRING_RESULT;
   args[1]->cmp_context = STRING_RESULT;
@@ -1152,6 +1112,11 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **, const Item *,
 /**
   Sets compare functions for various datatypes.
 
+  It additionally sets up Item_cache objects for caching any constant values
+  that need conversion to a type compatible with the comparator type, to avoid
+  the need for performing the conversion again each time the comparator is
+  invoked.
+
   NOTE
     The result type of a comparison is chosen by item_cmp_type().
     Here we override the chosen result type for certain expression
@@ -1243,10 +1208,11 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
       DTCollation::set() may have chosen a charset that's a superset of both
       and "left" and "right", so we need to convert both items.
      */
-    if (agg_item_set_converter(coll, owner->func_name(), left, 1,
-                               MY_COLL_CMP_CONV, 1, true) ||
-        agg_item_set_converter(coll, owner->func_name(), right, 1,
-                               MY_COLL_CMP_CONV, 1, true))
+    const char *func_name = owner ? owner->func_name() : "";
+    if (agg_item_set_converter(coll, func_name, left, 1, MY_COLL_CMP_CONV, 1,
+                               true) ||
+        agg_item_set_converter(coll, func_name, right, 1, MY_COLL_CMP_CONV, 1,
+                               true))
       return true;
   } else if (try_year_cmp_func(type)) {
     return false;
@@ -1281,6 +1247,13 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   const Item_result item_result =
       item_cmp_type((*left_arg)->result_type(), (*right_arg)->result_type());
   return set_cmp_func(owner_arg, left_arg, right_arg, item_result);
+}
+
+bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+                                  Item **right_arg, bool set_null_arg,
+                                  Item_result type) {
+  set_null = set_null_arg;
+  return set_cmp_func(owner_arg, left_arg, right_arg, type);
 }
 
 /**
@@ -1409,6 +1382,11 @@ bool Arg_comparator::inject_cast_nodes() {
         return wrap_in_cast(left, MYSQL_TYPE_DATETIME) ||
                wrap_in_cast(right, MYSQL_TYPE_DATETIME);
       }
+      if (left_is_datetime && right_is_datetime) {
+        // E.g., DATETIME = TIMESTAMP. We allow this (we could even produce it
+        // ourselves by the logic below).
+        return false;
+      }
       // one is DATETIME the other one is not
       return left_is_datetime ? wrap_in_cast(right, MYSQL_TYPE_DATETIME)
                               : wrap_in_cast(left, MYSQL_TYPE_DATETIME);
@@ -1477,9 +1455,8 @@ bool Arg_comparator::try_year_cmp_func(Item_result type) {
   @return cache item or original value.
 */
 
-Item **Arg_comparator::cache_converted_constant(THD *thd, Item **value,
-                                                Item **cache_item,
-                                                Item_result type) {
+static Item **cache_converted_constant(THD *thd, Item **value,
+                                       Item **cache_item, Item_result type) {
   // Don't need cache if doing context analysis only.
   if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       (*value)->const_for_execution() && type != (*value)->result_type()) {
@@ -1737,21 +1714,13 @@ int Arg_comparator::compare_json() {
 }
 
 int Arg_comparator::compare_string() {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res1_converted(nullptr);
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
   const CHARSET_INFO *cs = cmp_collation.collation;
-  String *res1 = (*left)->val_str(&value1);
-  if (res1 != nullptr) {
-    res1 = convert_or_validate_string(res1, cs, &res1_converted);
-  }
+  String *res1 = eval_string_arg(cs, *left, &value1);
   if (res1 == nullptr) {
     if (set_null) owner->null_value = true;
     return -1;
   }
-  String *res2 = (*right)->val_str(&value2);
-  if (res2 != nullptr) {
-    res2 = convert_or_validate_string(res2, cs, &res2_converted);
-  }
+  String *res2 = eval_string_arg(cs, *right, &value2);
   if (res2 == nullptr) {
     if (set_null) owner->null_value = true;
     return -1;
@@ -1760,10 +1729,6 @@ int Arg_comparator::compare_string() {
   if (set_null) owner->null_value = false;
   size_t l1 = res1->length();
   size_t l2 = res2->length();
-  if (m_max_str_length > 0) {  // Truncate to imposed maximum length
-    if (l1 > m_max_str_length) l1 = m_max_str_length;
-    if (l2 > m_max_str_length) l2 = m_max_str_length;
-  }
   // Compare the two strings
   return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(res1->ptr()), l1,
                                pointer_cast<const uchar *>(res2->ptr()), l2);
@@ -1785,21 +1750,12 @@ int Arg_comparator::compare_binary_string() {
   if ((res1 = (*left)->val_str(&value1))) {
     if ((res2 = (*right)->val_str(&value2))) {
       if (set_null) owner->null_value = false;
-      auto orig_len1 = res1->length();
-      auto orig_len2 = res2->length();
-      auto new_len1 = orig_len1, new_len2 = orig_len2;
-      if (m_max_str_length > 0) {
-        if (orig_len1 > m_max_str_length)
-          res1->length(new_len1 = m_max_str_length);
-        if (orig_len2 > m_max_str_length)
-          res2->length(new_len2 = m_max_str_length);
-      }
-      size_t min_length = min(new_len1, new_len2);
+      size_t len1 = res1->length();
+      size_t len2 = res2->length();
+      size_t min_length = min(len1, len2);
       int cmp =
           min_length == 0 ? 0 : memcmp(res1->ptr(), res2->ptr(), min_length);
-      auto rc = cmp ? cmp : (int)(new_len1 - new_len2);
-      res1->length(orig_len1);
-      res2->length(orig_len2);
+      auto rc = cmp ? cmp : (int)(len1 - len2);
       return rc;
     }
   }
@@ -1828,9 +1784,11 @@ int Arg_comparator::compare_real() {
 int Arg_comparator::compare_decimal() {
   my_decimal decimal1;
   my_decimal *val1 = (*left)->val_decimal(&decimal1);
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     my_decimal decimal2;
     my_decimal *val2 = (*right)->val_decimal(&decimal2);
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       return my_decimal_cmp(val1, val2);
@@ -1843,8 +1801,10 @@ int Arg_comparator::compare_decimal() {
 int Arg_comparator::compare_real_fixed() {
   double val1, val2;
   val1 = (*left)->val_real();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     val2 = (*right)->val_real();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 == val2 || fabs(val1 - val2) < precision) return 0;
@@ -1858,8 +1818,10 @@ int Arg_comparator::compare_real_fixed() {
 
 int Arg_comparator::compare_int_signed() {
   longlong val1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     longlong val2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1912,8 +1874,10 @@ int Arg_comparator::compare_time_packed() {
 
 int Arg_comparator::compare_int_unsigned() {
   ulonglong val1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     ulonglong val2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1931,8 +1895,10 @@ int Arg_comparator::compare_int_unsigned() {
 
 int Arg_comparator::compare_int_signed_unsigned() {
   longlong sval1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     ulonglong uval2 = static_cast<ulonglong>((*right)->val_int());
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (sval1 < 0 || (ulonglong)sval1 < uval2) return -1;
@@ -1950,8 +1916,10 @@ int Arg_comparator::compare_int_signed_unsigned() {
 
 int Arg_comparator::compare_int_unsigned_signed() {
   ulonglong uval1 = static_cast<ulonglong>((*left)->val_int());
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     longlong sval2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (sval2 < 0) return 1;
@@ -2494,7 +2462,7 @@ Item *Item_in_optimizer::compile(Item_analyzer analyzer, uchar **arg_p,
   return (this->*transformer)(arg_t);
 }
 
-void Item_in_optimizer::set_arg_resolve(THD *thd, uint i MY_ATTRIBUTE((unused)),
+void Item_in_optimizer::set_arg_resolve(THD *thd, uint i [[maybe_unused]],
                                         Item *newp) {
   assert(i == 0);
   // Maintain the invariant described in this class's comment
@@ -2599,6 +2567,13 @@ float Item_func_lt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // 0 < MATCH(...) is the same as just MATCH(...), so reuse its selectivity.
+  if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
+      args[0]->const_item() && args[0]->val_real() == 0.0) {
+    return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -2635,6 +2610,13 @@ float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // MATCH(...) > 0 is the same as just MATCH(...), so reuse its selectivity.
+  if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
+      args[1]->const_item() && args[1]->val_real() == 0.0) {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -2688,16 +2670,24 @@ longlong Item_func_lt::val_int() {
 }
 
 longlong Item_func_strcmp::val_int() {
-  assert(fixed == 1);
-  String *a = args[0]->val_str(&cmp.value1);
-  String *b = args[1]->val_str(&cmp.value2);
-  if (!a || !b) {
+  assert(fixed);
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+  String *a = eval_string_arg(cs, args[0], &cmp.value1);
+  if (a == nullptr) {
+    if (current_thd->is_error()) return error_int();
     null_value = true;
     return 0;
   }
-  int value = sortcmp(a, b, cmp.cmp_collation.collation);
+
+  String *b = eval_string_arg(cs, args[1], &cmp.value2);
+  if (b == nullptr) {
+    if (current_thd->is_error()) return error_int();
+    null_value = true;
+    return 0;
+  }
+  int value = sortcmp(a, b, cs);
   null_value = false;
-  return !value ? 0 : (value < 0 ? (longlong)-1 : (longlong)1);
+  return value == 0 ? 0 : value < 0 ? -1 : 1;
 }
 
 bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
@@ -2709,9 +2699,7 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
     return false;
   if (negated != down_cast<const Item_func_opt_neg *>(item_func)->negated)
     return false;
-  for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->arguments()[i], binary_cmp)) return false;
-  return true;
+  return AllItemsAreEqual(args, item_func->arguments(), arg_count, binary_cmp);
 }
 
 bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
@@ -3028,7 +3016,9 @@ bool Item_func_between::resolve_type(THD *thd) {
       }
 
       if (args[0]->is_temporal() && args[1]->is_temporal() &&
-          args[2]->is_temporal()) {
+          args[2]->is_temporal() && args[0]->data_type() != MYSQL_TYPE_YEAR &&
+          args[1]->data_type() != MYSQL_TYPE_YEAR &&
+          args[2]->data_type() != MYSQL_TYPE_YEAR) {
         /*
           An expression:
             time_or_datetime_field
@@ -3177,7 +3167,8 @@ static inline longlong compare_between_int_result(
 }
 
 longlong Item_func_between::val_int() {  // ANSI BETWEEN
-  assert(fixed == 1);
+  assert(fixed);
+  THD *thd = current_thd;
   if (compare_as_dates_with_strings) {
     int ge_res, le_res;
 
@@ -3193,11 +3184,22 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
       null_value = ge_res < 0;
     }
   } else if (cmp_type == STRING_RESULT) {
-    String *value, *a, *b;
-    value = args[0]->val_str(&value0);
-    if ((null_value = args[0]->null_value)) return 0;
-    a = args[1]->val_str(&value1);
-    b = args[2]->val_str(&value2);
+    const CHARSET_INFO *cs = cmp_collation.collation;
+
+    String *value = eval_string_arg(cs, args[0], &value0);
+    null_value = args[0]->null_value;
+    if (value == nullptr) {
+      null_value = true;
+      return 0;
+    }
+    String *a = eval_string_arg(cs, args[1], &value1);
+    if (thd->is_error()) {
+      return error_int();
+    }
+    String *b = eval_string_arg(cs, args[2], &value2);
+    if (thd->is_error()) {
+      return error_int();
+    }
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong)((sortcmp(value, a, cmp_collation.collation) >= 0 &&
                          sortcmp(value, b, cmp_collation.collation) <= 0) !=
@@ -3240,12 +3242,12 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
       null_value = (my_decimal_cmp(dec, a_dec) >= 0);
   } else {
     double value = args[0]->val_real(), a, b;
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */
     a = args[1]->val_real();
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     b = args[2]->val_real();
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong)((value >= a && value <= b) != negated);
     if (args[1]->null_value && args[2]->null_value)
@@ -3269,14 +3271,6 @@ void Item_func_between::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN(" and "));
   args[2]->print(thd, str, query_type);
   str->append(')');
-}
-
-uint Item_func_ifnull::decimal_precision() const {
-  int arg0_int_part = args[0]->decimal_int_part();
-  int arg1_int_part = args[1]->decimal_int_part();
-  int max_int_part = max(arg0_int_part, arg1_int_part);
-  int precision = max_int_part + decimals;
-  return min<uint>(precision, DECIMAL_MAX_PRECISION);
 }
 
 Field *Item_func_ifnull::tmp_table_field(TABLE *table) {
@@ -3448,13 +3442,6 @@ TYPELIB *Item_func_if::get_typelib() const {
                                                  : args[2]->get_typelib();
 }
 
-uint Item_func_if::decimal_precision() const {
-  int arg1_prec = args[1]->decimal_int_part();
-  int arg2_prec = args[2]->decimal_int_part();
-  int precision = max(arg1_prec, arg2_prec) + decimals;
-  return min<uint>(precision, DECIMAL_MAX_PRECISION);
-}
-
 double Item_func_if::val_real() {
   assert(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
@@ -3532,8 +3519,9 @@ bool Item_func_if::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_nullif::resolve_type(THD *thd) {
-  // If 1. argument has no type, type of this operator cannot be determined yet
-  if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
+  // If no arguments have a type, type of this operator cannot be determined yet
+  if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
+      args[1]->data_type() == MYSQL_TYPE_INVALID) {
     /*
       Due to inheritance from Item_bool_func2, data_type() is LONGLONG.
       Ensure propagate_type() is called for this class:
@@ -3550,13 +3538,13 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   set_nullable(true);
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
-  if (cached_result_type == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
-    return true;
 
   // This class does not implement temporal data types
-  if (is_temporal()) set_data_type_string(args[0]->max_length);
-
+  if (is_temporal()) {
+    set_data_type_string(args[0]->max_length);
+    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
+      return true;
+  }
   return false;
 }
 
@@ -3621,7 +3609,12 @@ my_decimal *Item_func_nullif::val_decimal(my_decimal *decimal_value) {
 
 bool Item_func_nullif::val_json(Json_wrapper *wr) {
   assert(fixed);
-  if (cmp.compare() == 0) {
+  const int cmp_result = cmp.compare();
+  // compare() calls val functions and may raise errors.
+  if (current_thd->is_error()) {
+    return error_json();
+  }
+  if (cmp_result == 0) {
     null_value = true;
     return false;
   }
@@ -3631,7 +3624,12 @@ bool Item_func_nullif::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_nullif::is_null() {
-  return (null_value = (!cmp.compare() ? 1 : args[0]->null_value));
+  const int result = cmp.compare();
+  if (current_thd->is_error()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = result == 0 ? true : args[0]->null_value);
 }
 
 /**
@@ -4027,16 +4025,6 @@ TYPELIB *Item_func_case::get_typelib() const {
   return typelib;
 }
 
-uint Item_func_case::decimal_precision() const {
-  int max_int_part = 0;
-  for (uint i = 0; i < ncases; i += 2)
-    max_int_part = max(max_int_part, args[i + 1]->decimal_int_part());
-
-  if (else_expr_num != -1)
-    max_int_part = max(max_int_part, args[else_expr_num]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-}
-
 /**
   @todo
     Fix this so that it prints the whole CASE expression
@@ -4361,7 +4349,7 @@ in_string::in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs)
 
 void in_string::set(uint pos, Item *item) {
   String *str = base_pointers[pos];
-  String *res = item->val_str(str);
+  String *res = eval_string_arg(collation, item, str);
   if (res && res != str) {
     if (res->uses_buffer_owned_by(str)) res->copy();
     if (item->type() == Item::FUNC_ITEM)
@@ -4404,7 +4392,7 @@ void in_string::resize_and_sort() {
 
 bool in_string::find_item(Item *item) {
   if (used_count == 0) return false;
-  const String *str = item->val_str(&tmp);
+  const String *str = eval_string_arg(collation, item, &tmp);
   if (str == nullptr) return false;
   return std::binary_search(base_pointers.begin(), base_pointers.end(), str,
                             Cmp_string(collation));
@@ -4534,6 +4522,14 @@ cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
 
 cmp_item *cmp_item_string::make_same() {
   return new (*THR_MALLOC) cmp_item_string(cmp_charset);
+}
+
+int cmp_item_string::cmp(Item *arg) {
+  if (m_null_value) return UNKNOWN;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp(cmp_charset);
+  String *res = eval_string_arg(cmp_charset, arg, &tmp);
+  if (res == nullptr) return UNKNOWN;
+  return sortcmp(value_res, res, cmp_charset) != 0;
 }
 
 cmp_item *cmp_item_int::make_same() { return new (*THR_MALLOC) cmp_item_int(); }
@@ -5323,6 +5319,7 @@ longlong Item_func_in::val_int() {
     const int rc = in_item->cmp(args[i]);
     if (rc == false) return (longlong)(!negated);
     have_null |= (rc == UNKNOWN);
+    if (current_thd->is_error()) return error_int();
   }
 
   null_value = have_null;
@@ -5395,8 +5392,7 @@ Item *make_condition(Parse_context *pc, Item *item) {
   assert(!item->is_bool_func());
 
   Item *predicate;
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_func::FT_FUNC) {
+  if (!is_function_of_type(item, Item_func::FT_FUNC)) {
     Item *const item_zero = new (pc->mem_root) Item_int(0);
     if (item_zero == nullptr) return nullptr;
     predicate = new (pc->mem_root) Item_func_ne(item_zero, item);
@@ -5720,7 +5716,7 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
   assert(arg_count == 0 && item_cond->arg_count == 0);
   return std::equal(list.begin(), list.end(), item_cond->list.begin(),
                     [binary_cmp](const Item &i1, const Item &i2) {
-                      return i1.eq(&i2, binary_cmp);
+                      return ItemsAreEqual(&i1, &i2, binary_cmp);
                     });
 }
 
@@ -6244,16 +6240,18 @@ float Item_func_like::get_filtering_effect(THD *, table_map filter_for_table,
 }
 
 longlong Item_func_like::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (!escape_evaluated && eval_escape_clause(current_thd)) return error_int();
 
-  String *res = args[0]->val_str(&cmp.value1);
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+
+  String *res = eval_string_arg(cs, args[0], &cmp.value1);
   if (args[0]->null_value) {
     null_value = true;
     return 0;
   }
-  String *res2 = args[1]->val_str(&cmp.value2);
+  String *res2 = eval_string_arg(cs, args[1], &cmp.value2);
   if (args[1]->null_value) {
     null_value = true;
     return 0;
@@ -6261,8 +6259,7 @@ longlong Item_func_like::val_int() {
   null_value = false;
   if (current_thd->is_error()) return 0;
 
-  return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
-                    res->ptr() + res->length(), res2->ptr(),
+  return my_wildcmp(cs, res->ptr(), res->ptr() + res->length(), res2->ptr(),
                     res2->ptr() + res2->length(), escape(),
                     (escape() == wild_one) ? -1 : wild_one,
                     (escape() == wild_many) ? -1 : wild_many)
@@ -7434,8 +7431,8 @@ static bool append_string_value(Item *comparand,
   // collation. This is given by the Arg_comparator, so we call strnxfrm
   // to make the string values memcmp-able.
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
-  String *str = comparand->val_str(&str_buffer);
 
+  String *str = eval_string_arg(character_set, comparand, &str_buffer);
   if (comparand->null_value || str == nullptr) {
     return true;
   }
@@ -7507,12 +7504,8 @@ static bool append_hash_for_string_value(Item *comparand,
                                          const CHARSET_INFO *character_set,
                                          String *join_key_buffer) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> str_converted;
 
-  String *str = comparand->val_str(&str_buffer);
-  if (str != nullptr) {
-    str = convert_or_validate_string(str, character_set, &str_converted);
-  }
+  String *str = eval_string_arg(character_set, comparand, &str_buffer);
   if (str == nullptr) {
     return true;
   }
@@ -7725,15 +7718,20 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
                                  m_right_extractor->max_char_length())) {
   m_store_full_sort_key = true;
 
-  if (join_condition->compare_type() == STRING_RESULT ||
-      join_condition->compare_type() == ROW_RESULT) {
+  const bool using_secondary_storage_engine =
+      (current_thd->lex->m_sql_cmd != nullptr &&
+       current_thd->lex->m_sql_cmd->using_secondary_storage_engine());
+  if ((join_condition->compare_type() == STRING_RESULT ||
+       join_condition->compare_type() == ROW_RESULT) &&
+      !using_secondary_storage_engine) {
     const CHARSET_INFO *cs = join_condition->compare_collation();
     if (cs->coll->strnxfrmlen(cs, cs->mbmaxlen * m_max_character_length) >
         1024) {
       // This field can potentially get very long keys; it is better to
       // just store the hash, and then re-check the condition afterwards.
       // The value of 1024 is fairly arbitrary, and may be changed in the
-      // future.
+      // future. We don't do this for secondary engines; how they wish
+      // to do their hash joins will be an internal implementation detail.
       m_store_full_sort_key = false;
     }
   }

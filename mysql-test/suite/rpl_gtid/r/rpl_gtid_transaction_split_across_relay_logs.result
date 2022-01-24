@@ -10,7 +10,7 @@ CREATE TABLE t1 (i VARCHAR(8192)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(repeat('a',8192)), (repeat('b', 8192));
 [connection server_2]
 SET @saved_debug=@@GLOBAL.debug;
-SET GLOBAL debug="d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL debug="+d,stop_io_after_reading_write_rows_log_event";
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

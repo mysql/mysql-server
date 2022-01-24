@@ -32,7 +32,6 @@ SET @@global.rewriter_verbose = DEFAULT;
 --source suite/query_rewrite_plugins/include/load_error_log.inc
 SELECT search_error_log( '[Note]', "%Plugin Rewriter reported: " ||
                          "'Statement \"SELECT 'nonrewritten'\"%" ) INTO @line;
---skip_if_hypergraph  # Gets confused by extra logging.
 SELECT @line;
 
 SELECT digest INTO @pfs_digest
@@ -44,7 +43,6 @@ LIMIT 1;
 SELECT substring_index(substring_index(@line, 'digest "', -1), '"', 1)
 INTO @log_digest;
 
---skip_if_hypergraph  # Gets confused by extra logging.
 SELECT @pfs_digest = @log_digest AS digest_is_correct;
 
 --source suite/query_rewrite_plugins/include/drop_error_log.inc

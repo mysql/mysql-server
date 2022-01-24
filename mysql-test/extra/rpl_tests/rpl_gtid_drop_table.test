@@ -321,12 +321,12 @@ CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
 # FormatDescription event which tells slave SQL thread to drop all temporary
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= 'Slave has read all relay log; waiting for the slave I/O thread to update it';
+--let $condition= 'Replica has read all relay log; waiting for the slave I/O thread to update it';
 --source include/wait_show_condition.inc
 
-# Now we verify slave_open_temp_tables, it should be '0'
---let $assert_text= Slave_open_temp_tables should be 0
---let $assert_cond= [SHOW STATUS LIKE "Slave_open_temp_tables", Value, 1] = 0
+# Now we verify replica_open_temp_tables, it should be '0'
+--let $assert_text= Replica_open_temp_tables should be 0
+--let $assert_cond= [SHOW STATUS LIKE "Replica_open_temp_tables", Value, 1] = 0
 --source include/assert.inc
 
 # Cleanup replication

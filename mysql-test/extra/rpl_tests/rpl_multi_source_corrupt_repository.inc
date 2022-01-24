@@ -43,7 +43,7 @@ if (!$rpl_corrupt_channel_name)
 #         1.2: Stop the server
 #         1.3: Remove the channel's index file (one form of corrupting the
 #                                               channel)
-#         1.4: Restart the server with --skip-slave-start option.
+#         1.4: Restart the server with --skip-replica-start option.
 ###############################################################################
 
 --let $number_of_channels= `SELECT $rpl_number_of_servers -1`
@@ -86,15 +86,15 @@ if ($rpl_corrupt_channel_name != "''")
 }
 
 ###############################################################################
-# Step-1.4: Restart the server with --skip-slave-start option.
+# Step-1.4: Restart the server with --skip-replica-start option.
 ###############################################################################
 
---echo ===== Start the server $rpl_msr_server_number with --skip-slave-start=0 option.
---let $rpl_server_parameters=--skip-slave-start=0
+--echo ===== Start the server $rpl_msr_server_number with --skip-replica-start=0 option.
+--let $rpl_server_parameters=--skip-replica-start=0
 --source include/rpl_start_server.inc
 
 ###############################################################################
-# Step-2: After server started with (--skip-slave-start=0) option,
+# Step-2: After server started with (--skip-replica-start=0) option,
 #         check the state of the channels. Only corrupted channel
 #         should be in OFF state and remaining channels IO and SQL
 #         thread should be in ON state.
@@ -182,14 +182,14 @@ START SLAVE;
 SHOW RELAYLOG EVENTS;
 
 ###############################################################################
-# Step-3.4: MASTER_POS_WAIT function without 4th argument (channel name
+# Step-3.4: SOURCE_POS_WAIT function without 4th argument (channel name
 #           argument) when we have multiple channels, should throw error
 #           ER_SLAVE_MULTIPLE_CHANNELS_CMD.
 ###############################################################################
 
---echo ===== SELECT MASTER_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
+--echo ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
+SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
 # Step-3.5: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function without 3rd argument
@@ -234,7 +234,7 @@ while ($i <= $number_of_channels)
   }
 
   ##############################################################################
-  # Step-4.1: Check MASTER_POS_WAIT and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
+  # Step-4.1: Check SOURCE_POS_WAIT and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
   #           functions. We need two iterations here.
   #           > j ==1 : Test with past position/gtid (already executed)
   #                     Return value for corrupted channel: NULL
@@ -245,7 +245,7 @@ while ($i <= $number_of_channels)
   ##############################################################################
 
   --echo ===== Executing few basic commands on channel $channel_name.
-  --echo ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+  --echo ===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
   --let $j=1
   while ($j <=2)
   {
@@ -269,8 +269,8 @@ while ($i <= $number_of_channels)
 
     --let $rpl_connection_name= server_$rpl_number_of_servers
     --source include/rpl_connection.inc
-    --let $query_result= query_get_value("SELECT MASTER_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
-    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
+    --let $query_result= query_get_value("SELECT SOURCE_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
+    --let $assert_text= SOURCE_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
     --let $assert_cond= "$query_result" = "$query_expected_result"
     --source include/assert.inc
 
@@ -321,11 +321,11 @@ while ($i <= $number_of_channels)
   --let $slave_timeout= 60
 
   --let $slave_param= Slave_IO_State
-  --let $slave_param_value= Waiting for master to send event
+  --let $slave_param_value= Waiting for source to send event
   --source include/wait_for_slave_param.inc
 
   --let $slave_param= Slave_SQL_Running_State
-  --let $slave_param_value= Slave has read all relay log; waiting for more updates
+  --let $slave_param_value= Replica has read all relay log; waiting for more updates
   --source include/wait_for_slave_param.inc
 
   --let $status_items=Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name

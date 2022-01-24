@@ -1,4 +1,4 @@
-# Test clone error with concurrent DDL
+# Test clone error cases with concurrent DDL
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
@@ -11,26 +11,47 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabl
 --let $CLONE_DATADIR2 = $MYSQL_TMP_DIR/data_new2
 --let $MYSQLD_DATADIR= `select @@datadir;`
 
---let $ddl_err = ER_CLONE_DDL_IN_PROGRESS
-
-if($remote_clone) {
---let $ddl_err = ER_CLONE_DONOR
-}
-
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
-SHOW VARIABLES LIKE 'clone_ddl_timeout';
 
---echo # Disable backup lock
-SET GLOBAL clone_ddl_timeout = 0;
-SHOW VARIABLES LIKE 'clone_ddl_timeout';
+--echo # 1. CLONE blocked by DDL at beginning
+--connect (con1,localhost,root,,)
+--echo # In connection CON1
+SET DEBUG_SYNC = 'fil_ibd_created_space SIGNAL start_clone WAIT_FOR resume_ddl_1';
+--send CREATE TABLE t1(col1 int)
 
---echo # 1. CREATE TABLE while clone in progress
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+--connection default
+--echo # In connection DEFAULT
+--let $CON_ID= `SELECT CONNECTION_ID()`
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_clone';
+SET DEBUG_SYNC = 'clone_begin_wait_ddl SIGNAL start_ddl_1 WAIT_FOR resume_clone_1';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_2 WAIT_FOR resume_clone_2';
 --source ../include/clone_command_send.inc
 
-connect (con1,localhost,root,,);
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+--connect (con2,localhost,root,,)
+--echo # In connection CON2
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_1';
+SET DEBUG_SYNC = 'clone_notify_ddl_before_state_block SIGNAL resume_ddl_1';
+--send CREATE TABLE t2(col1 int)
+
+--connection con1
+--echo # In connection CON1
+--echo # Reap CREATE TABLE t1
+--reap
+SET DEBUG_SYNC= 'now SIGNAL resume_clone_1';
+
+--connection con2
+--echo # In connection CON2
+--echo # Reap CREATE TABLE t2
+--reap
+
+--echo # Disconnect CON2
+--disconnect con2
+
+--connection con1
+--echo # In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_2';
 
 --echo # 1A. TOO MANY CLONE IN PROGRESS
 --let $CLONE_DATADIR = $CLONE_DATADIR2
@@ -39,283 +60,25 @@ SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
 --let $clone_err = 0
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send CREATE TABLE t1 (col1 INT PRIMARY KEY)
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
---force-rmdir $CLONE_DATADIR
-
---echo # 1B. ALTER INSTANCE while clone in progress
-connection default;
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER INSTANCE DISABLE INNODB REDO_LOG
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-ALTER INSTANCE ENABLE INNODB REDO_LOG;
---force-rmdir $CLONE_DATADIR
-
---echo # 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress
-connection default;
---echo # In connection DEFAULT
-INSERT INTO t1 values(10), (20), (30);
-SELECT * FROM t1 ORDER BY col1;
-
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
-UPDATE t1 SET col2 = col1 + 1000;
---force-rmdir $CLONE_DATADIR
-
---echo # 2A. ALTER TABLE ADD COLUMN [INPLACE] while clone in progress
-connection default;
---echo # In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=INPLACE
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
-UPDATE t1 SET col3 = col2 + 1000;
---force-rmdir $CLONE_DATADIR
-
---echo # 3A. ADD INDEX [COPY] while clone in progress
-connection default;
---echo # In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM=COPY
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
---force-rmdir $CLONE_DATADIR
-
---echo # 3B. ADD INDEX [INPLACE] while clone in progress
-connection default;
---echo # In connection DEFAULT
-
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=INPLACE
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
---force-rmdir $CLONE_DATADIR
-
---echo # 4A. DROP INDEX [COPY] while clone in progress
-connection default;
---echo # In connection DEFAULT
-
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
---force-rmdir $CLONE_DATADIR
-
---echo # 4B. DROP INDEX [INPLACE] while clone in progress
-connection default;
---echo # In connection DEFAULT
-
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
---force-rmdir $CLONE_DATADIR
-
---echo # 5. TRUNCATE TABLE while clone in progress
-connection default;
---echo # In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send TRUNCATE TABLE t1
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-SET DEBUG_SYNC = 'RESET';
-
-connection con1;
---echo # In connection CON1
---reap
-SET DEBUG_SYNC = 'RESET';
-
-SHOW CREATE TABLE t1;
-SELECT * FROM t1 ORDER BY col1;
---force-rmdir $CLONE_DATADIR
-
---echo # 6. DROP TABLE while clone in progress
-connection default;
---echo # In connection DEFAULT
-INSERT INTO t1 values(10, 100, 1000);
-SELECT * FROM t1 ORDER BY col1;
-
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
-
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
---send DROP TABLE t1
-
-connection default;
---echo # In connection DEFAULT
---error $ddl_err
---reap
-
-connection con1;
---echo # In connection CON1
---reap
-CREATE TABLE t1(col1 int);
-
---force-rmdir $CLONE_DATADIR
-
---echo # 7. KILL CLONE command while in progress
-connection default;
---echo # In connection DEFAULT
---let $CON_ID= `SELECT CONNECTION_ID()`
+--echo # 2. ALTER INSTANCE while clone in progress
+--error ER_CLONE_IN_PROGRESS
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
 
 INSERT INTO t1 values(10), (20), (30);
 SELECT * FROM t1 ORDER BY col1;
 
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_kill WAIT_FOR resume_clone';
---source ../include/clone_command_send.inc
+--echo # 3. ALTER DISCARD while clone in progress
+--error ER_CLONE_IN_PROGRESS
+ALTER TABLE t1 DISCARD TABLESPACE;
 
-connection con1;
-SET DEBUG_SYNC = 'now WAIT_FOR start_kill';
+--echo # 4. ALTER IMPORT while clone in progress
+--error ER_CLONE_IN_PROGRESS
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # 5. KILL CLONE command while in progress
 --replace_result $CON_ID CON_ID
 --eval KILL QUERY $CON_ID
-SET DEBUG_SYNC= 'now SIGNAL resume_clone';
+SET DEBUG_SYNC= 'now SIGNAL resume_clone_2';
 
 connection default;
 --echo # In connection DEFAULT
@@ -323,8 +86,37 @@ connection default;
 --reap
 
 --force-rmdir $CLONE_DATADIR
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t2;
+
+--echo # 6. Force clone to abort by DDL
+SET GLOBAL DEBUG = '+d,clone_ddl_error_abort';
+
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+--source ../include/clone_command_send.inc
+
+--connection con1
+--echo # In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl_before_state_block SIGNAL resume_clone';
+
+CREATE TABLE t2(col1 int);
+INSERT INTO t2 VALUES(10), (20), (30);
+SELECT * FROM t2 ORDER BY col1;
+
+connection default;
+--echo # In connection DEFAULT
+--error ER_CLONE_DDL_IN_PROGRESS
+--reap
+
+SET GLOBAL DEBUG = '-d,clone_ddl_error_abort';
+
+--force-rmdir $CLONE_DATADIR
+SET DEBUG_SYNC = 'RESET';
 
 --echo #Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
 
 connection default;
 --echo # In connection DEFAULT
@@ -332,7 +124,14 @@ connection default;
 disconnect con1;
 SET DEBUG_SYNC = 'RESET';
 
-DROP TABLE t1;
+--echo # Attempt to uninstall clone if there
+--error 0, ER_PLUGIN_CANNOT_BE_UNINSTALLED
 UNINSTALL PLUGIN clone;
 
+--echo # Restart server
 --source include/wait_until_count_sessions.inc
+--source include/restart_mysqld.inc
+
+--echo # Uninstall clone if there
+--error 0, ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN clone;

@@ -76,7 +76,7 @@ if (!$rpl_debug)
 --let $restarts= 0
 while (!$done)
 {
-  --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+  --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
 
   # Wait until IO thread is waiting for disk space or the workload has finished
   --let $need_to_wait= 1
@@ -130,7 +130,7 @@ while (!$done)
       --let $rpl_server_parameters= --relay_log_recovery
       --source include/rpl_restart_server.inc
       --source include/start_slave.inc
-      --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+      --let io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
     }
     if ($events != No such row)
     {

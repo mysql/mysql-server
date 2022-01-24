@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBperror\fR
+.\"     Title: perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBPERROR\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "PERROR" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -65,7 +65,7 @@ ER_WRONG_VALUE_FOR_VAR\&.
 .RS 4
 .\}
 .nf
-shell> \fBperror 1231\fR
+$> \fBperror 1231\fR
 MySQL error code MY\-001231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq
 can\*(Aqt be set to the value of \*(Aq%\-\&.200s\*(Aq
 .fi
@@ -81,7 +81,7 @@ displays both error messages:
 .RS 4
 .\}
 .nf
-shell> \fBperror 1 13\fR
+$> \fBperror 1 13\fR
 OS error code   1:  Operation not permitted
 MySQL error code MY\-000001: Can\*(Aqt create/write to file \*(Aq%s\*(Aq (OS errno %d \- %s)
 OS error code  13:  Permission denied

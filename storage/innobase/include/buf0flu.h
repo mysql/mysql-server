@@ -55,7 +55,7 @@ extern os_event_t buf_flush_event;
 /** Event to wait for one flushing step */
 extern os_event_t buf_flush_tick_event;
 
-class ut_stage_alter_t;
+class Alter_stage;
 
 /** Remove a block from the flush list of modified blocks.
 @param[in]	bpage	pointer to the block in question */
@@ -99,8 +99,7 @@ buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
 @return true if the page was flushed and the mutex released */
-bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Do flushing batch of a given type.
@@ -163,17 +162,17 @@ already in it.
 @param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
 @param[in]	end_lsn		end lsn of the last mtr in the set of mtr's
 @param[in]	observer	flush observer */
-UNIV_INLINE
-void buf_flush_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                 lsn_t end_lsn, FlushObserver *observer);
+static inline void buf_flush_note_modification(buf_block_t *block,
+                                               lsn_t start_lsn, lsn_t end_lsn,
+                                               Flush_observer *observer);
 
 /** This function should be called when recovery has modified a buffer page.
 @param[in]	block		block which is modified
 @param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
 @param[in]	end_lsn		end lsn of the last mtr in the set of mtr's */
-UNIV_INLINE
-void buf_flush_recv_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                      lsn_t end_lsn);
+static inline void buf_flush_recv_note_modification(buf_block_t *block,
+                                                    lsn_t start_lsn,
+                                                    lsn_t end_lsn);
 
 /** Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
@@ -237,16 +236,16 @@ Requires buf_page_get_mutex(bpage).
 @param[in]	bpage		buffer control block, must be buf_page_in_file()
 @param[in]	flush_type	type of flush
 @return true if can flush immediately */
-bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_ready_for_flush(buf_page_t *bpage,
+                                             buf_flush_t flush_type);
 
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-    buf_pool_t *buf_pool,     /*!< in: buffer pool */
-    space_id_t id,            /*!< in: space id to check */
-    FlushObserver *observer); /*!< in: flush observer to check */
+    buf_pool_t *buf_pool,      /*!< in: buffer pool */
+    space_id_t id,             /*!< in: space id to check */
+    Flush_observer *observer); /*!< in: flush observer to check */
 
 /** Synchronously flush dirty blocks from the end of the flush list of all
  buffer pool instances. NOTE: The calling thread is not allowed to own any
@@ -260,24 +259,23 @@ are not changed in background.
 @return true if all flush lists were empty. */
 bool buf_are_flush_lists_empty_validate();
 
-/** We use FlushObserver to track flushing of non-redo logged pages in bulk
-create index(BtrBulk.cc).Since we disable redo logging during a index build,
+/** We use Flush_observer to track flushing of non-redo logged pages in bulk
+create index(btr0load.cc).Since we disable redo logging during a index build,
 we need to make sure that all dirty pages modifed by the index build are
 flushed to disk before any redo logged operations go to the index. */
 
-class FlushObserver {
+class Flush_observer {
  public:
   /** Constructor
   @param[in] space_id	table space id
   @param[in] trx		trx instance
-  @param[in] stage		performance schema accounting object,
-  used by ALTER TABLE. It is passed to log_preflush_pool_modified_pages()
-  for accounting. */
-  FlushObserver(space_id_t space_id, trx_t *trx,
-                ut_stage_alter_t *stage) noexcept;
+  @param[in,out] stage PFS progresss monitoring instance, it's used by
+  ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
+  accounting. */
+  Flush_observer(space_id_t space_id, trx_t *trx, Alter_stage *stage) noexcept;
 
   /** Destructor */
-  ~FlushObserver() noexcept;
+  ~Flush_observer() noexcept;
 
   /** Check pages have been flushed and removed from the flush list
   in a buffer pool instance.
@@ -311,7 +309,7 @@ class FlushObserver {
 
  private:
   using Counter = std::atomic_int;
-  using Counters = std::vector<Counter, ut_allocator<Counter>>;
+  using Counters = std::vector<Counter, ut::allocator<Counter>>;
 
   /** Tablespace ID. */
   space_id_t m_space_id{};
@@ -324,7 +322,7 @@ class FlushObserver {
   specifying the number of pages to be attempted to be flushed and
   subsequently, stage->inc() will be called for each page we attempt to
   flush. */
-  ut_stage_alter_t *m_stage{};
+  Alter_stage *m_stage{};
 
   /** Flush request sent, per buffer pool. */
   Counters m_flushed{};
@@ -338,6 +336,7 @@ class FlushObserver {
   /** True if the operation was interrupted. */
   bool m_interrupted{};
 };
+
 lsn_t get_flush_sync_lsn() noexcept;
 #endif /* !UNIV_HOTBACKUP */
 

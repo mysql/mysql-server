@@ -110,7 +110,7 @@ class My_xp_thread {
 
   virtual native_thread_t *get_native_thread() = 0;
 
-  virtual ~My_xp_thread() {}
+  virtual ~My_xp_thread() = default;
 };
 
 #ifndef XCOM_STANDALONE
@@ -137,8 +137,8 @@ class My_xp_thread_impl : public My_xp_thread_server
 #endif
 {
  public:
-  explicit My_xp_thread_impl() {}
-  ~My_xp_thread_impl() override {}
+  explicit My_xp_thread_impl() = default;
+  ~My_xp_thread_impl() override = default;
 };
 
 class My_xp_thread_util {

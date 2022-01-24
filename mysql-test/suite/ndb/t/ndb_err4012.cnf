@@ -3,3 +3,10 @@
 [mysqld]
 # Turn off auto sync so it doesn't interfere with the test
 ndb_metadata_check = false
+
+# Test causes transaction timeout using an error insert.
+# Auto index stats runs into this and thus causes the
+# test to hang
+[cluster_config]
+IndexStatAutoCreate=0
+IndexStatAutoUpdate=0

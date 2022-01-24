@@ -2,7 +2,7 @@
 # explanation of what this test does.
 #
 # This test file is for row-logging mode. It runs the test twice, with
-# slave_exec_mode=STRICT and slave_exec_mode=IDEMPOTENT, respectively.
+# replica_exec_mode=STRICT and replica_exec_mode=IDEMPOTENT, respectively.
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
@@ -12,22 +12,22 @@ call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
 
 --echo [on slave]
 connection slave;
-SET @old_slave_exec_mode= @@global.slave_exec_mode;
+SET @old_replica_exec_mode= @@global.replica_exec_mode;
 
 
---echo ######## Run with slave_exec_mode=STRICT ########
+--echo ######## Run with replica_exec_mode=STRICT ########
 
-SET @@global.slave_exec_mode = 'STRICT';
+SET @@global.replica_exec_mode = 'STRICT';
 source extra/rpl_tests/rpl_conflicts.test;
 
 --source include/rpl_reset.inc
 
 
---echo ######## Run with slave_exec_mode=IDEMPOTENT ########
+--echo ######## Run with replica_exec_mode=IDEMPOTENT ########
 
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 source extra/rpl_tests/rpl_conflicts.test;
 
 
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 --source include/rpl_end.inc

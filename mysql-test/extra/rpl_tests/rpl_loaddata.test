@@ -77,7 +77,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 # Skip the bad event and see if error is cleared in SHOW SLAVE STATUS by START
-# SLAVE, even though we are not executing any event (as sql_slave_skip_counter
+# SLAVE, even though we are not executing any event (as sql_replica_skip_counter
 # takes us directly to the end of the relay log).
 
 sync_with_master;
@@ -109,7 +109,7 @@ CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 
 # Trigger error again to test RESET SLAVE
 
-set global sql_slave_skip_counter=1;
+set global sql_replica_skip_counter=1;
 start slave;
 sync_with_master;
 connection master;
@@ -170,6 +170,11 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
 connection master;
 drop table t1, t2;
 
+connection slave;
+# Execute RESET REPLICA before calling rpl_reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+--source include/stop_slave_io.inc
+RESET REPLICA;
 # BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
 # replication aborts
 -- let $rpl_only_running_threads= 1

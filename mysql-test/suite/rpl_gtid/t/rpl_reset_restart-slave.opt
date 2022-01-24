@@ -1,2 +1,2 @@
---skip-slave-start=0
+--skip-replica-start=0
 --relay-log-purge=0

@@ -1,22 +1,20 @@
-include/group_replication.inc [rpl_server_count=4]
+include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 ############################################################
-# 1. Deploy a 3 members group in single primary mode.
+# 1. Deploy a 2 members group in single primary mode.
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
-include/start_group_replication.inc
-[connection server3]
 include/start_group_replication.inc
 
 ############################################################
 # 2. Configure replica to manage the asynchronous connection
 #    to group.
-[connection server4]
+[connection server3]
 SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_1, '', 90, 70);
 asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_1, '', 90, 70)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.
@@ -25,7 +23,7 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 
 ############################################################
 # 2. Create and start the managed channel.
-[connection server4]
+[connection server3]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -34,46 +32,16 @@ include/start_slave.inc [FOR CHANNEL 'ch1']
 include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 
 ############################################################
-# 3. Disable the SOURCE_CONNECTION_AUTO_FAILOVER option but
-#    leave the channel running.
-[connection server4]
+# 3. Try disable the SOURCE_CONNECTION_AUTO_FAILOVER option
+#    without stopping the channel.
+[connection server3]
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1';
-include/assert.inc [Verify replica_monitor thread is not running]
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL 'ch1' first
+include/assert.inc [Verify replica_monitor thread is running]
 
 ############################################################
-# 4. Make server2 the group primary, despite primary_weight
-#    is bigger, since SOURCE_CONNECTION_AUTO_FAILOVER is
-#    disabled on channel 'ch1', ch1 will remain connected to
-#    server1.
-[connection server2]
-SELECT group_replication_set_as_primary("SERVER2_UUID");
-group_replication_set_as_primary("SERVER2_UUID")
-Primary server switched to: SERVER2_UUID
-include/gr_assert_primary_member.inc
-[connection server4]
-include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
-
-############################################################
-# 5. Shutdown server1, since SOURCE_CONNECTION_AUTO_FAILOVER
-# is disabled on channel ch1, ch1 will stop (instead of reconnect).
-[connection server1]
-include/rpl_stop_server.inc [server_number=1]
-[connection server4]
-Wait until ch1 IO_THREAD stops
-include/assert.inc [Verify channel ch1 SQL_THREAD is ON]
-
-############################################################
-# 6. Verify that replication_asynchronous_connection_failover
-#    did not change after SOURCE_CONNECTION_AUTO_FAILOVER was
-#    disabled.
-[connection server4]
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server1']
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server2']
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server3']
-
-############################################################
-# 7. Clean up.
-[connection server4]
+# 4. Clean up.
+[connection server3]
 include/stop_slave.inc [FOR CHANNEL 'ch1']
 include/rpl_reset_slave.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_NAME');
@@ -81,16 +49,8 @@ asynchronous_connection_failover_delete_managed('ch1', 'GROUP_NAME')
 The UDF asynchronous_connection_failover_delete_managed() executed successfully.
 include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The source .* for channel 'ch1' has left the group .*, and so removed its entry from replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
-SET SESSION sql_log_bin = 1;
-[connection server3]
-include/stop_group_replication.inc
 [connection server2]
 include/stop_group_replication.inc
 [connection server1]
-include/rpl_reconnect.inc
+include/stop_group_replication.inc
 include/group_replication_end.inc

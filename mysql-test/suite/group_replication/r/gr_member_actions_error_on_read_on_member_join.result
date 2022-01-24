@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unable to read the member actions configuration during group membership change. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
+call mtr.add_suppression("Unable to read the replication failover channels configuration during group membership change. Please check the tables .*");
+SET SESSION sql_log_bin = 1;
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Unable to parse the member actions configuration sent by the group on member join.");
+call mtr.add_suppression("The group members were unable to send their member actions configuration. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version' on all members.");
+call mtr.add_suppression("Unable to parse the replication failover channels configuration sent by the group on member join.");
+SET SESSION sql_log_bin = 1;
+
+############################################################
+# 1. Bootstrap a group and increase the member actions
+#    configuration version.
+#    Inject a failure that will simulate a read configuration
+#    error on the group members when server2 joins.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The version of replication_group_member_actions must be 3]
+SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';
+
+############################################################
+# 2. The member will receive a invalid configuration on member join.
+#    The member will not be able to join.
+[connection server2]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [The group members were unable to send their member actions configuration.]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+include/assert_grep.inc [Unable to read the member actions configuration during group membership change.]
+
+############################################################
+# 3. Rejoin the group without the failure injection.
+[connection server1]
+SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [The version of replication_group_member_actions must be 3]
+
+############################################################
+# 4. Clean up.
+include/group_replication_end.inc

@@ -46,7 +46,7 @@ Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
   */
   if (post_header_len) {
     READER_ASSERT_POSITION(header_size + R_POS_OFFSET);
-    READER_TRY_SET(pos, read_and_letoh<uint64_t>);
+    READER_TRY_SET(pos, read<uint64_t>);
     READER_ASSERT_POSITION(header_size + post_header_len);
   } else
     pos = 4;
@@ -94,50 +94,27 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
         for binlog version 4.
       */
       static uint8_t server_event_header_length[] = {
-          0,
-          QUERY_HEADER_LEN,
-          STOP_HEADER_LEN,
-          ROTATE_HEADER_LEN,
-          INTVAR_HEADER_LEN,
-          0,
+          0, QUERY_HEADER_LEN, STOP_HEADER_LEN, ROTATE_HEADER_LEN,
+          INTVAR_HEADER_LEN, 0,
           /*
             Unused because the code for Slave log event was removed.
             (15th Oct. 2010)
           */
-          0,
-          0,
-          APPEND_BLOCK_HEADER_LEN,
-          0,
-          DELETE_FILE_HEADER_LEN,
-          0,
-          RAND_HEADER_LEN,
-          USER_VAR_HEADER_LEN,
-          FORMAT_DESCRIPTION_HEADER_LEN,
-          XID_HEADER_LEN,
-          BEGIN_LOAD_QUERY_HEADER_LEN,
-          EXECUTE_LOAD_QUERY_HEADER_LEN,
-          TABLE_MAP_HEADER_LEN,
-          0,
-          0,
-          0,
-          ROWS_HEADER_LEN_V1, /* WRITE_ROWS_EVENT_V1*/
-          ROWS_HEADER_LEN_V1, /* UPDATE_ROWS_EVENT_V1*/
-          ROWS_HEADER_LEN_V1, /* DELETE_ROWS_EVENT_V1*/
-          INCIDENT_HEADER_LEN,
-          0, /* HEARTBEAT_LOG_EVENT*/
-          IGNORABLE_HEADER_LEN,
-          IGNORABLE_HEADER_LEN,
-          ROWS_HEADER_LEN_V2,
-          ROWS_HEADER_LEN_V2,
-          ROWS_HEADER_LEN_V2,
+          0, 0, APPEND_BLOCK_HEADER_LEN, 0, DELETE_FILE_HEADER_LEN, 0,
+          RAND_HEADER_LEN, USER_VAR_HEADER_LEN, FORMAT_DESCRIPTION_HEADER_LEN,
+          XID_HEADER_LEN, BEGIN_LOAD_QUERY_HEADER_LEN,
+          EXECUTE_LOAD_QUERY_HEADER_LEN, TABLE_MAP_HEADER_LEN, 0, 0, 0,
+          ROWS_HEADER_LEN_V1,     /* WRITE_ROWS_EVENT_V1*/
+          ROWS_HEADER_LEN_V1,     /* UPDATE_ROWS_EVENT_V1*/
+          ROWS_HEADER_LEN_V1,     /* DELETE_ROWS_EVENT_V1*/
+          INCIDENT_HEADER_LEN, 0, /* HEARTBEAT_LOG_EVENT*/
+          IGNORABLE_HEADER_LEN, IGNORABLE_HEADER_LEN, ROWS_HEADER_LEN_V2,
+          ROWS_HEADER_LEN_V2, ROWS_HEADER_LEN_V2,
           Gtid_event::POST_HEADER_LENGTH, /*GTID_EVENT*/
           Gtid_event::POST_HEADER_LENGTH, /*ANONYMOUS_GTID_EVENT*/
-          IGNORABLE_HEADER_LEN,
-          TRANSACTION_CONTEXT_HEADER_LEN,
-          VIEW_CHANGE_HEADER_LEN,
-          XA_PREPARE_HEADER_LEN,
-          ROWS_HEADER_LEN_V2,
-          TRANSACTION_PAYLOAD_EVENT,
+          IGNORABLE_HEADER_LEN, TRANSACTION_CONTEXT_HEADER_LEN,
+          VIEW_CHANGE_HEADER_LEN, XA_PREPARE_HEADER_LEN, ROWS_HEADER_LEN_V2,
+          TRANSACTION_PAYLOAD_EVENT, 0 /* HEARTBEAT_LOG_EVENT_V2*/
       };
       /*
         Allows us to sanity-check that all events initialized their
@@ -224,7 +201,7 @@ Format_description_event::Format_description_event(
   number_of_event_types = 0;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_BINLOG_VER_OFFSET);
-  READER_TRY_SET(binlog_version, read_and_letoh<uint16_t>);
+  READER_TRY_SET(binlog_version, read<uint16_t>);
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_SERVER_VER_OFFSET);
   READER_TRY_CALL(memcpy<char *>, server_version, ST_SERVER_VER_LEN);
@@ -233,7 +210,7 @@ Format_description_event::Format_description_event(
   server_version[ST_SERVER_VER_LEN - 1] = 0;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET);
-  READER_TRY_SET(created, read_and_letoh<uint64_t>, 4);
+  READER_TRY_SET(created, read<uint64_t>, 4);
   dont_set_created = true;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN +
@@ -280,7 +257,7 @@ Format_description_event::Format_description_event(
   BAPI_VOID_RETURN;
 }
 
-Format_description_event::~Format_description_event() {}
+Format_description_event::~Format_description_event() = default;
 
 Stop_event::Stop_event(const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde) {
@@ -302,7 +279,7 @@ Incident_event::Incident_event(const char *buf,
   message_length = 0;
   incident = INCIDENT_NONE;
 
-  READER_TRY_SET(incident_number, read_and_letoh<uint16_t>);
+  READER_TRY_SET(incident_number, read<uint16_t>);
   if (incident_number >= INCIDENT_COUNT || incident_number <= INCIDENT_NONE)
     /*
       If the incident is not recognized, this binlog event is
@@ -354,9 +331,9 @@ XA_prepare_event::XA_prepare_event(const char *buf,
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[XA_PREPARE_LOG_EVENT - 1]);
   READER_TRY_SET(one_phase, read<bool>);
-  READER_TRY_SET(my_xid.formatID, read_and_letoh<uint32_t>);
-  READER_TRY_SET(my_xid.gtrid_length, read_and_letoh<uint32_t>);
-  READER_TRY_SET(my_xid.bqual_length, read_and_letoh<uint32_t>);
+  READER_TRY_SET(my_xid.formatID, read<uint32_t>);
+  READER_TRY_SET(my_xid.gtrid_length, read<uint32_t>);
+  READER_TRY_SET(my_xid.bqual_length, read<uint32_t>);
 
   /* Sanity check */
   if (MY_XIDDATASIZE >= my_xid.gtrid_length + my_xid.bqual_length &&
@@ -387,7 +364,7 @@ Transaction_payload_event::Transaction_payload_event(const char *payload,
                                 transaction::compression::type::NONE,
                                 payload_size) {}
 
-Transaction_payload_event::~Transaction_payload_event() {}
+Transaction_payload_event::~Transaction_payload_event() = default;
 
 Transaction_payload_event::Transaction_payload_event(
     const char *buf, const Format_description_event *fde)
@@ -504,12 +481,11 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
   // SIDNO is only generated if needed, in get_sidno().
   gtid_info_struct.rpl_gtid_sidno = -1;
 
-  READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read_and_letoh<int64_t>);
-
+  READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read<int64_t>);
   /* GNO sanity check */
   if (header()->type_code == GTID_LOG_EVENT) {
     if (gtid_info_struct.rpl_gtid_gno < MIN_GNO ||
-        gtid_info_struct.rpl_gtid_gno > MAX_GNO)
+        gtid_info_struct.rpl_gtid_gno >= GNO_END)
       READER_THROW("Invalid GNO");
   } else { /* Assume this is an ANONYMOUS_GTID_LOG_EVENT */
     BAPI_ASSERT(header()->type_code == ANONYMOUS_GTID_LOG_EVENT);
@@ -524,8 +500,8 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
     uint8_t lc_typecode = 0;
     READER_TRY_SET(lc_typecode, read<uint8_t>);
     if (lc_typecode == LOGICAL_TIMESTAMP_TYPECODE) {
-      READER_TRY_SET(last_committed, read_and_letoh<uint64_t>);
-      READER_TRY_SET(sequence_number, read_and_letoh<uint64_t>);
+      READER_TRY_SET(last_committed, read<uint64_t>);
+      READER_TRY_SET(sequence_number, read<uint64_t>);
 
       /*
         Fetch the timestamps used to monitor replication lags with respect to
@@ -537,7 +513,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
       has_commit_timestamps =
           READER_CALL(can_read, IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
       if (has_commit_timestamps) {
-        READER_TRY_SET(immediate_commit_timestamp, read_and_letoh<uint64_t>,
+        READER_TRY_SET(immediate_commit_timestamp, read<uint64_t>,
                        IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
         // Check the MSB to determine how to populate
         // original_commit_timestamps
@@ -546,7 +522,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
           // Read the original_commit_timestamp
           immediate_commit_timestamp &=
               ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
-          READER_TRY_SET(original_commit_timestamp, read_and_letoh<uint64_t>,
+          READER_TRY_SET(original_commit_timestamp, read<uint64_t>,
                          ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
         } else {
           // The transaction originated in the previous server
@@ -565,14 +541,14 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
         original_server_version = UNDEFINED_SERVER_VERSION;
         immediate_server_version = UNDEFINED_SERVER_VERSION;
         if (READER_CALL(can_read, IMMEDIATE_SERVER_VERSION_LENGTH)) {
-          READER_TRY_SET(immediate_server_version, read_and_letoh<uint32_t>);
+          READER_TRY_SET(immediate_server_version, read<uint32_t>);
           // Check the MSB to determine how to populate original_server_version
           if ((immediate_server_version &
                (1ULL << ENCODED_SERVER_VERSION_LENGTH)) != 0) {
             // Read the original_server_version
             immediate_server_version &=
                 ~(1ULL << ENCODED_SERVER_VERSION_LENGTH);  // Clear MSB
-            READER_TRY_SET(original_server_version, read_and_letoh<uint32_t>,
+            READER_TRY_SET(original_server_version, read<uint32_t>,
                            ORIGINAL_SERVER_VERSION_LENGTH);
           } else
             original_server_version = immediate_server_version;
@@ -617,11 +593,11 @@ Transaction_context_event::Transaction_context_event(
   uint32_t read_set_len;
 
   READER_TRY_SET(server_uuid_len, read<uint8_t>);
-  READER_TRY_SET(thread_id, read_and_letoh<uint32_t>);
+  READER_TRY_SET(thread_id, read<uint32_t>);
   READER_TRY_SET(gtid_specified, read<bool>);
-  READER_TRY_SET(encoded_snapshot_version_length, read_and_letoh<uint32_t>);
-  READER_TRY_SET(write_set_len, read_and_letoh<uint32_t>);
-  READER_TRY_SET(read_set_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(encoded_snapshot_version_length, read<uint32_t>);
+  READER_TRY_SET(write_set_len, read<uint32_t>);
+  READER_TRY_SET(read_set_len, read<uint32_t>);
 
   READER_TRY_SET(server_uuid, strndup<const char *>, server_uuid_len);
   READER_TRY_SET(encoded_snapshot_version, strndup<const unsigned char *>,
@@ -681,8 +657,8 @@ View_change_event::View_change_event(const char *buffer,
   READER_TRY_CALL(memcpy<char *>, view_id, ENCODED_VIEW_ID_MAX_LEN);
   if (strlen(view_id) == 0) READER_THROW("Invalid View_change information");
 
-  READER_TRY_SET(seq_number, read_and_letoh<uint64_t>);
-  READER_TRY_SET(cert_info_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(seq_number, read<uint64_t>);
+  READER_TRY_SET(cert_info_len, read<uint32_t>);
   READER_TRY_CALL(read_data_map, cert_info_len, &certification_info);
 
   READER_CATCH_ERROR;
@@ -710,6 +686,56 @@ Heartbeat_event::Heartbeat_event(const char *buf,
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
+}
+
+Heartbeat_event_v2::Heartbeat_event_v2(const char *buf,
+                                       const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Heartbeat_event_v2::Heartbeat_event_v2(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  if (header()->get_is_valid()) {
+    auto codec = codecs::Factory::build_codec(header()->type_code);
+    // decode the post LOG_EVENT header
+    auto buffer = (const unsigned char *)reader().ptr();
+    size_t buffer_size = reader().available_to_read();
+    auto result = codec->decode(buffer, buffer_size, *this);
+    header()->set_is_valid(result.second == false);
+  }
+  BAPI_VOID_RETURN;
+}
+
+Heartbeat_event_v2::Heartbeat_event_v2()
+    : Binary_log_event(HEARTBEAT_LOG_EVENT_V2) {}
+
+void Heartbeat_event_v2::set_log_filename(const std::string name) {
+  m_log_filename = name;
+}
+void Heartbeat_event_v2::set_log_position(uint64_t position) {
+  m_log_position = position;
+}
+const std::string Heartbeat_event_v2::get_log_filename() const {
+  return m_log_filename;
+}
+uint64_t Heartbeat_event_v2::get_log_position() const { return m_log_position; }
+
+/**
+  This member function returns the len of the event
+
+  @return the event len
+ */
+uint64_t Heartbeat_event_v2::max_encoding_length() {
+  auto max_log_filename_size_old = FN_REFLEN;
+  auto string_terminator_size_old = 1;
+
+  // add TYPE size + LEN size + VALUE size
+  auto max_filename_len_size = 9UL + 9 + FN_REFLEN;
+  auto max_log_position_size = 9UL + 9 + 9;
+
+  // Add new field sizes here ------------------------
+
+  return max_log_filename_size_old + string_terminator_size_old +
+         max_filename_len_size + max_log_position_size;
 }
 
 #ifndef HAVE_MYSYS
@@ -753,6 +779,15 @@ void Xid_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";
   this->print_event_info(info);
+}
+
+void Heartbeat_event_v2::print_event_info(std::ostream &info) {
+  info << "{ 'log filename' : '" << m_log_filename << "', "
+       << "'log_position' : " << m_log_position << " }";
+}
+
+void Heartbeat_event_v2::print_long_info(std::ostream &info) {
+  print_event_info(info);
 }
 
 #endif  // end HAVE_MYSYS

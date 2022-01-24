@@ -225,6 +225,25 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
 }
 
 /**
+  Convert decimal value to datetime.
+
+  @param       decimal The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+                         my_time_flags_t flags) {
+  lldiv_t lld;
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+}
+
+/**
   Convert decimal value to datetime value with a warning.
   @param       decimal The value to convert from.
   @param[out]  ltime   The variable to convert to.
@@ -254,6 +273,24 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double value to datetime.
+
+  @param       nr      The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 }
 
 /**
@@ -333,6 +370,24 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings) {
 
 /**
   Convert decimal number to TIME
+
+  @param      decimal  The number to convert from.
+  @param[out] ltime          The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  int warnings = 0;
+
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  return lldiv_t_to_time(lld, ltime, &warnings);
+}
+
+/**
+  Convert decimal number to TIME
   @param      decimal  The number to convert from.
   @param[out] ltime          The variable to convert to.
 
@@ -358,6 +413,23 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double number to TIME
+
+  @param      nr      The number to convert from.
+  @param[out] ltime   The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool double_to_time(double nr, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld) != E_DEC_OK) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_time(lld, ltime, &warnings);
 }
 
 /**
@@ -437,8 +509,7 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime) {
 */
 bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
                                               const Time_zone &tz,
-                                              struct timeval *tm,
-                                              int *warnings) {
+                                              my_timeval *tm, int *warnings) {
   if (!ltime->month) /* Zero date */
   {
     assert(!ltime->year && !ltime->day);
@@ -450,12 +521,12 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
       return true;
     }
-    tm->tv_sec = tm->tv_usec = 0;  // '0000-00-00 00:00:00.000000'
+    tm->m_tv_sec = tm->m_tv_usec = 0;  // '0000-00-00 00:00:00.000000'
     return false;
   }
 
   bool is_in_dst_time_gap = false;
-  if (!(tm->tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
+  if (!(tm->m_tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
     /*
       Date was outside of the supported timestamp range.
       For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
@@ -471,7 +542,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
     */
     *warnings |= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
   }
-  tm->tv_usec = ltime->second_part;
+  tm->m_tv_usec = ltime->second_part;
   return false;
 }
 
@@ -502,7 +573,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
   @return False on success, true on error.
 */
 bool datetime_to_timeval(const MYSQL_TIME *ltime, const Time_zone &tz,
-                         struct timeval *tm, int *warnings) {
+                         my_timeval *tm, int *warnings) {
   return check_date(*ltime, non_zero_date(*ltime), TIME_NO_ZERO_IN_DATE,
                     warnings) ||
          datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings);
@@ -599,7 +670,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_time(const Date_time_format *format [[maybe_unused]],
                const MYSQL_TIME *l_time, String *str, uint dec) {
   uint length = static_cast<uint>(my_time_to_str(*l_time, str->ptr(), dec));
   str->length(length);
@@ -612,7 +683,7 @@ void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
   @param      l_time   DATE value
   @param[out] str      String to convert to
 */
-void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_date(const Date_time_format *format [[maybe_unused]],
                const MYSQL_TIME *l_time, String *str) {
   uint length = static_cast<uint>(my_date_to_str(*l_time, str->ptr()));
   str->length(length);
@@ -626,7 +697,7 @@ void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_datetime(const Date_time_format *format [[maybe_unused]],
                    const MYSQL_TIME *l_time, String *str, uint dec) {
   uint length = static_cast<uint>(my_datetime_to_str(*l_time, str->ptr(), dec));
   str->length(length);

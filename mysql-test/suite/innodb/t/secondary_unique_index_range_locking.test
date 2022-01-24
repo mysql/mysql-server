@@ -1,0 +1,49 @@
+CREATE TABLE t (
+  id INT PRIMARY KEY,
+  val INT UNIQUE KEY
+);
+INSERT INTO t (val,id) VALUES (10,4);
+INSERT INTO t (val,id) VALUES (20,7);
+--connect (read_view_holder, localhost, root,,)
+  BEGIN;
+  SELECT * FROM t;
+#   +----+------+
+#   | id | val  |
+#   +----+------+
+#   |  4 |   10 |
+#   |  7 |   20 |
+#   +----+------+
+--connection default
+  DELETE FROM t WHERE val=10; # delete-mark (val=10 --> id=4)
+  BEGIN;
+  INSERT INTO t (val,id) VALUES (10,3);
+
+# Make sure that there is no "S" lock placed on val index val=20, id=7.
+# There should be an "S,GAP" lock though, but LOCK_DATA may contain NULLs
+# if a page is missing from BP or latched, so to avoid nondeterminism, we
+# will simply count :
+# how many "S" locks we have - there should be just one on the val=10,id=4
+# how many "S,GAP" locks we have - there should be two, on 20,7 and 10,3 :
+#   +------------+-----------+-----------+-------------+-----------+
+#   | INDEX_NAME | LOCK_TYPE | LOCK_MODE | LOCK_STATUS | LOCK_DATA |
+#   +------------+-----------+-----------+-------------+-----------+
+#   | NULL       | TABLE     | IX        | GRANTED     | NULL      |
+#   | val        | RECORD    | S         | GRANTED     | 10, 4     |
+#   | val        | RECORD    | S,GAP     | GRANTED     | 20, 7     |
+#   | val        | RECORD    | S,GAP     | GRANTED     | 10, 3     |
+#   +------------+-----------+-----------+-------------+-----------+
+  --sorted_result
+  SELECT LOCK_MODE, COUNT(*)
+    FROM performance_schema.data_locks
+    WHERE OBJECT_SCHEMA='test'
+      AND OBJECT_NAME='t'
+      AND INDEX_NAME='val'
+      AND LOCK_TYPE='RECORD'
+    GROUP BY 1;
+  ROLLBACK;
+
+--connection read_view_holder
+  ROLLBACK;
+--connection default
+--disconnect read_view_holder
+DROP TABLE t;

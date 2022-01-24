@@ -25,6 +25,9 @@
 
 
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include "TimeModule.hpp"
 #include <portlib/ndb_localtime.h>
 

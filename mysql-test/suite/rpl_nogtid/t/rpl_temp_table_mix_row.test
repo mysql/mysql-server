@@ -57,7 +57,7 @@ ALTER TABLE t1_tmp ADD COLUMN c INT;
 
 -- echo ### assertion: assert that slave has no temp table opened.
 --source include/sync_slave_sql_with_master.inc
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 -- connection master
 
@@ -77,7 +77,7 @@ INSERT INTO t1 VALUES (2);
 --source include/sync_slave_sql_with_master.inc
 
 -- echo ### assertion: assert that slave has no temporary tables opened
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 -- connection master
 

@@ -5,8 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,rpl_gtid_update_on_commit_simulate_out_of_memory';
+# Adding debug point 'rpl_gtid_update_on_commit_simulate_out_of_memory' to @@GLOBAL.debug
 [connection master]
 #
 # Commit a transaction on master
@@ -24,7 +23,6 @@ include/rpl_start_server.inc [server_number=2]
 # added into @@GLOBAL.GTID_EXECUTED and 'gtid_executed'
 # table after slave server restarts.
 #
-SET @@GLOBAL.DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	1

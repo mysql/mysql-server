@@ -34,7 +34,7 @@ class SparseBitmask {
   Vector<unsigned> m_vec;
 
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   SparseBitmask(unsigned max_size = NotFound - 1) : m_max_size(max_size) {}
 

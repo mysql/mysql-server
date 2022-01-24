@@ -1,1 +1,1 @@
---slave-skip-errors=all --log_error_verbosity=2
+--replica-skip-errors=all --log_error_verbosity=2

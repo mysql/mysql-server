@@ -43,7 +43,7 @@ struct MaterializePathParameters {
     int select_number;
     JOIN *join;
     bool disable_deduplication_by_hash_field;
-    bool copy_fields_and_items;
+    bool copy_items;
     Temp_table_param *temp_table_param;
     bool is_recursive_reference;
   };

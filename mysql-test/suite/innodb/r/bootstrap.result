@@ -5,6 +5,7 @@
 # Start mysqld without the possibility to create undo tablespaces
 # because a directory exists named 'undo_002'.
 Pattern "\[ERROR\] .*MY-\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+auto.cnf
 undo_002
 # Start mysqld to create tablespaces according to my.cnf
 # Backup the datadir

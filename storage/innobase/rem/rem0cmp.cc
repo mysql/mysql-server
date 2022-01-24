@@ -71,9 +71,9 @@ has more fields than the other. */
 @param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
-UNIV_INLINE
-int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
-                       const byte *b, size_t b_length) {
+static inline int innobase_mysql_cmp(ulint prtype, const byte *a,
+                                     size_t a_length, const byte *b,
+                                     size_t b_length) {
 #ifdef UNIV_DEBUG
   switch (prtype & DATA_MYSQL_TYPE_MASK) {
     case MYSQL_TYPE_BIT:
@@ -109,7 +109,8 @@ int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
     return (cs->coll->strnncollsp(cs, a, a_length, b, b_length));
   }
 
-  ib::fatal(ER_IB_MSG_919) << "Unable to find charset-collation " << cs_num;
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_919)
+      << "Unable to find charset-collation " << cs_num;
   return (0);
 }
 
@@ -362,7 +363,7 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
                                     " using a character set collation!";
         ut_ad(0);
       }
-      /* fall through */
+      [[fallthrough]];
     case DATA_VARMYSQL:
     case DATA_MYSQL:
       cmp = innobase_mysql_cmp(prtype, a, a_length, b, b_length);
@@ -372,7 +373,8 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
     case DATA_GEOMETRY:
       return (cmp_geometry_field(mtype, prtype, a, a_length, b, b_length));
     default:
-      ib::fatal(ER_IB_MSG_921) << "Unknown data type number " << mtype;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_921)
+          << "Unknown data type number " << mtype;
       cmp = 0;
   }
   if (!is_asc) {
@@ -418,7 +420,7 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
         pad = 0x20;
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case DATA_INT:
     case DATA_SYS_CHILD:
     case DATA_SYS:
@@ -442,7 +444,7 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
         pad = ULINT_UNDEFINED;
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     default:
       return (cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
                               data2, (unsigned)len2));
@@ -693,8 +695,7 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
 @param[in]	type SQL data type
 @return		pad character code point
 @retval		ULINT_UNDEFINED if no padding is specified */
-UNIV_INLINE
-ulint cmp_get_pad_char(const dtype_t *type) {
+static inline ulint cmp_get_pad_char(const dtype_t *type) {
   switch (type->mtype) {
     case DATA_FIXBINARY:
     case DATA_BINARY:
@@ -704,7 +705,7 @@ ulint cmp_get_pad_char(const dtype_t *type) {
         VARBINARY or BINARY columns. */
         return (ULINT_UNDEFINED);
       }
-      /* Fall through */
+      [[fallthrough]];
     case DATA_CHAR:
     case DATA_VARCHAR:
     case DATA_MYSQL:
@@ -719,7 +720,7 @@ ulint cmp_get_pad_char(const dtype_t *type) {
       if (!(type->prtype & DATA_BINARY_TYPE)) {
         return (0x20);
       }
-      /* Fall through */
+      [[fallthrough]];
     default:
       /* No padding specified */
       return (ULINT_UNDEFINED);
@@ -802,7 +803,7 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
         if (type->prtype & DATA_BINARY_TYPE) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         ut_ad(!(dfield_is_multi_value(dfield) &&
                 dtuple_f_len == UNIV_MULTI_VALUE_ARRAY_MARKER));
@@ -908,7 +909,7 @@ bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
 @retval positive if rec1 field is greater than rec2
 @retval negative if rec1 field is less than rec2
 @retval 0 if rec1 field equals to rec2 */
-static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
+[[nodiscard]] static int cmp_rec_rec_simple_field(
     const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
     const ulint *offsets2, const dict_index_t *index, ulint n) {
   ulint rec1_f_len;
@@ -930,22 +931,20 @@ static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
 
 int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
                        const ulint *offsets1, const ulint *offsets2,
-                       const dict_index_t *index, struct TABLE *table) {
+                       const dict_index_t *index, TABLE *table) {
   ulint n;
-  ulint n_uniq = dict_index_get_n_unique(index);
-  bool null_eq = false;
+  bool null_eq{};
+  const auto n_uniq = dict_index_get_n_unique(index);
 
   ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
+  ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
   ut_ad(rec_offs_n_fields(offsets2) == rec_offs_n_fields(offsets2));
 
-  ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
-
   for (n = 0; n < n_uniq; n++) {
-    int cmp =
-        cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
+    auto r = cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
 
-    if (cmp) {
-      return (cmp);
+    if (r != 0) {
+      return r;
     }
 
     /* If the fields are internally equal, they must both
@@ -965,29 +964,23 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
   if (!null_eq && table && dict_index_is_unique(index)) {
     /* Report erroneous row using new version of table. */
     innobase_rec_to_mysql(table, rec1, index, offsets1);
-    return (0);
+    return 0;
   }
 
-  /* Else, keep comparing so that we have the full internal
-  order. */
+  /* Else, keep comparing so that we have the full internal order. */
   for (; n < dict_index_get_n_fields(index); n++) {
-    int cmp =
-        cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
+    auto r = cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
 
-    if (cmp) {
-      return (cmp);
+    if (r != 0) {
+      return r;
     }
 
-    /* If the fields are internally equal, they must both
-    be NULL or non-NULL. */
+    /* If the fields are equal, they must both be NULL or non-NULL. */
     ut_ad(rec_offs_nth_sql_null(offsets1, n) ==
           rec_offs_nth_sql_null(offsets2, n));
   }
 
-  /* This should never be reached. Internally, an index must
-  never contain duplicate entries. */
-  ut_ad(0);
-  return (0);
+  return 0;
 }
 
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,

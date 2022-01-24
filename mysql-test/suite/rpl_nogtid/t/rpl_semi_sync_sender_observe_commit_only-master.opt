@@ -1,2 +1,3 @@
 $SEMISYNC_PLUGIN_OPT
+--replication-sender-observe-commit-only
 --force-restart

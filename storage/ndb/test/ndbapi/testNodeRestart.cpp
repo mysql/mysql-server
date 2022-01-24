@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -40,6 +41,7 @@
 #include <NdbHost.h>
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
+#include <NdbSleep.h>
 
 static int
 changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
@@ -96,7 +98,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
-    sleep(3); //Give MGM server time to restart
+    NdbSleep_SecSleep(3); //Give MGM server time to restart
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -1324,7 +1326,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
     {
       return NDBT_FAILED;
     }
-    sleep(2);
+    NdbSleep_SecSleep(2);
   }
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
@@ -1351,7 +1353,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   {
     return NDBT_FAILED;
   }
-  sleep(3);
+  NdbSleep_SecSleep(3);
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
   if (restarter.waitClusterStarted())
@@ -1389,7 +1391,7 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   {
     return NDBT_FAILED;
   }
-  sleep(3);
+  NdbSleep_SecSleep(3);
   if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
     return NDBT_FAILED;
   if (restarter.waitClusterStarted())
@@ -1697,8 +1699,8 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -1805,8 +1807,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -2453,7 +2455,7 @@ runInitialNodeRestartTest(NDBT_Context* ctx, NDBT_Step* step)
     int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
     res.dumpStateAllNodes(&lcpdump, 1);
   }
-  sleep(10);
+  NdbSleep_SecSleep(10);
   int node = res.getRandomNotMasterNodeId(rand());
   ndbout_c("node: %d", node);
 
@@ -3257,7 +3259,7 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
   bool lcp = ctx->getProperty("LCP", (unsigned)0);
   
   int nodegroups[MAX_NDB_NODES];
-  bzero(nodegroups, sizeof(nodegroups));
+  std::memset(nodegroups, 0, sizeof(nodegroups));
   
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
@@ -3921,7 +3923,7 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   Bitmask<255> part2mask;
   Bitmask<255> part3mask;
   Uint32 ng_count[MAX_NDB_NODE_GROUPS];
-  memset(ng_count, 0, sizeof(ng_count));
+  std::memset(ng_count, 0, sizeof(ng_count));
 
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
@@ -6977,7 +6979,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
     g_err << "Failed to set config in ndb_mgmd." << endl;
     return NDBT_FAILED;
   }
-  sleep(5); //Give MGM server time to restart
+  NdbSleep_SecSleep(5); //Give MGM server time to restart
   g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
   if (restarter->restartOneDbNode(nodeId, initial_nr, false, true))
   {
@@ -8189,6 +8191,16 @@ runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runRestartAllNodes(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll() == 0, "-");
+  CHECK(restarter.waitClusterNoStart() == 0, "-");
+  CHECK(restarter.startAll() == 0, "-");
+  CHECK(restarter.waitClusterStarted() == 0, "-");
+  CHK_NDB_READY(GETNDB(step));
+  return NDBT_OK;
+}
 
 
 static int createEvent(Ndb *pNdb,
@@ -10855,6 +10867,7 @@ TESTCASE("Bug18612SR",
 	 "Test bug with partitioned clusters"){
   INITIALIZER(runLoadTable);
   STEP(runBug18612SR);
+  FINALIZER(runRestartAllNodes);
   FINALIZER(runClearTable);
 }
 TESTCASE("Bug20185",

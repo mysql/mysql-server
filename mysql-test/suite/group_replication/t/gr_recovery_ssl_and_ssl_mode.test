@@ -28,10 +28,20 @@
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin=1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin=1;
+
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
@@ -108,6 +118,13 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 DROP TABLE t1;
+
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 SET SESSION sql_log_bin=0;
 DROP USER 'rec_ssl_user';

@@ -1,0 +1,87 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a 2 members group A in multi-primary mode.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Deploy a 2 members group A in multi-primary mode.
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+############################################################
+# 3. Add group A replication failover managed source into a member in
+#    group B, server3.
+#    It will be allowed but the configuration will not be propagated.
+[connection server3]
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_A', '127.0.0.1', SERVER_MYPORT_2, '', 90, 70);;
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_A', '127.0.0.1', SERVER_MYPORT_2, '', 90, 70)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover can be equal or greater than 1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+[connection server4]
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover_managed']
+
+############################################################
+# 4. Create and start the managed channel on group B, server3.
+[connection server3]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
+include/assert.inc ['The version of replication_asynchronous_connection_failover can be equal or greater than 2']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+[connection server4]
+include/assert.inc ['There is no replication channel ch1']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover_managed']
+############################################################
+# 5. Delete group A replication failover managed source in a member in
+#    group B, server3.
+#    It will be allowed but the configuration will not be propagated.
+[connection server3]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A');
+asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover can be equal or greater than 3']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 2']
+[connection server4]
+include/assert.inc ['There is no replication channel ch1']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover_managed']
+
+############################################################
+# 6. Clean up.
+[connection server4]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

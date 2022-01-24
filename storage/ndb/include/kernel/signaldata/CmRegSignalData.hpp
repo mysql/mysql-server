@@ -48,7 +48,7 @@ public:
    * since it's not used at the receiving end (execCM_REGREQ).
    * The additional two words are cleared before sending GSN_CM_REGREQ.
    */
-  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask48::Size );
+  static constexpr Uint32 SignalLength = 6 + NdbNodeBitmask48::Size;
 private:
   
   Uint32 blockRef;
@@ -75,12 +75,12 @@ public:
    * For NDB version < 7.6.9 where the node bitmask is sent
    * in a simple signal, NdbNodeBitmask::Size is 2.
    */
-  STATIC_CONST( SignalLength_v1 = 5 + NdbNodeBitmask48::Size );
+  static constexpr Uint32 SignalLength_v1 = 5 + NdbNodeBitmask48::Size;
   /**
    * For NDB version >= 7.6.9 where the node bitmask is sent
    * in a long signal.
    */
-  STATIC_CONST( SignalLength = 5);
+  static constexpr Uint32 SignalLength = 5;
 private:
   
   Uint32 presidentBlockRef;
@@ -109,12 +109,12 @@ public:
    * For NDB version < 7.6.9 where the node bitmask is sent
    * in a simple signal, NdbNodeBitmask::Size is 2.
    */
-  STATIC_CONST( SignalLength_v1 = 7 + NdbNodeBitmask48::Size );
+  static constexpr Uint32 SignalLength_v1 = 7 + NdbNodeBitmask48::Size;
   /**
    * For NDB version >= 7.6.9 where the node bitmask is sent
    * in a long signal.
    */
-  STATIC_CONST( SignalLength = 7);
+  static constexpr Uint32 SignalLength = 7;
   
   enum ErrorCode {
     ZBUSY = 0,          /* Only the president can send this */
@@ -160,7 +160,7 @@ class CmAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
 private:
   enum RequestType {
@@ -182,7 +182,7 @@ class CmAckAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
 private:
   Uint32 senderNodeId;
@@ -197,8 +197,8 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( OldSignalLength = 5 );
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 OldSignalLength = 5;
+  static constexpr Uint32 SignalLength = 7;
   
 private:
   /**
@@ -220,7 +220,7 @@ class CmNodeInfoRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
     NotRunning = 1
@@ -238,8 +238,8 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( OldSignalLength = 5 );
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 OldSignalLength = 5;
+  static constexpr Uint32 SignalLength = 7;
   
 private:
   Uint32 nodeId;

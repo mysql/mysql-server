@@ -1,3 +1,3 @@
---skip-slave-start=0
+--skip-replica-start=0
 --replicate-do-db=:db1
 --replicate-do-db=channel_3_2:db3

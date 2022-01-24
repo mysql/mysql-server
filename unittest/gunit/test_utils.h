@@ -30,19 +30,12 @@
 #include "my_compiler.h"
 #include "my_sys.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "nullable.h"
 #include "sql/error_handler.h"
 #include "sql/sql_error.h"
 
 class THD;
 class my_decimal;
 struct MEM_ROOT;
-
-extern thread_local THD *current_thd;
-extern thread_local MEM_ROOT **THR_MALLOC;
-extern mysql_mutex_t LOCK_open;
-extern uint opt_debug_sync_timeout;
-extern "C" void sql_alloc_error_handler(void);
 
 namespace my_testing {
 
@@ -51,7 +44,7 @@ inline int native_compare(size_t *length, unsigned char **a,
   return memcmp(*a, *b, *length);
 }
 
-inline qsort2_cmp get_ptr_compare(size_t size MY_ATTRIBUTE((unused))) {
+inline qsort2_cmp get_ptr_compare(size_t size [[maybe_unused]]) {
   return (qsort2_cmp)native_compare;
 }
 
@@ -66,6 +59,7 @@ int chars_2_decimal(const char *chars, my_decimal *to);
 class Server_initializer {
  public:
   Server_initializer() : m_thd(nullptr) {}
+  ~Server_initializer() { TearDown(); }
 
   // Invoke these from corresponding functions in test fixture classes.
   void SetUp();

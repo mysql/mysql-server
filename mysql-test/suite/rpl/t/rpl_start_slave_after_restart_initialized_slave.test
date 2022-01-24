@@ -27,6 +27,7 @@
 
 --source include/have_binlog_format_row.inc
 --source include/have_slave_repository_type_table.inc
+--source include/not_rpl_gtid_only.inc
 
 # 1. Initialize the slave by sourcing master-slave.inc without starting the
 #    slave threads.
@@ -60,7 +61,7 @@ while ($i < 2)
     --let $rpl_force_stop= 1
   }
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip_slave_start=1 --relay-log-recovery=1
+  --let $rpl_server_parameters= --skip_replica_start=1
   --source include/rpl_restart_server.inc
 
   --let $rpl_connection_name= server_2

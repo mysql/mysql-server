@@ -9,13 +9,13 @@ ERROR HY000: The system variable gtid_next cannot be set when there is an ongoin
 XA END'';
 XA PREPARE'';
 XA COMMIT'';
-SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
-SELECT  @@session.pseudo_slave_mode;
-@@session.pseudo_slave_mode
+SET @sav.pseudo_replica_mode= @@session.pseudo_replica_mode;
+SELECT  @@session.pseudo_replica_mode;
+@@session.pseudo_replica_mode
 0
-SET @@session.pseudo_slave_mode=1;
+SET @@session.pseudo_replica_mode=1;
 Warnings:
-Warning	1231	'pseudo_slave_mode' is already ON.
+Warning	1231	'pseudo_replica_mode' is already ON.
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
@@ -24,7 +24,7 @@ XA START 'xa_rollback';
 INSERT INTO t1 VALUES(10);
 XA END 'xa_rollback';
 XA ROLLBACK 'xa_rollback';
-SET @@session.pseudo_slave_mode=1;
+SET @@session.pseudo_replica_mode=1;
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES(10);
 XA END 'xa_commit';
 XA PREPARE 'xa_commit';
 XA COMMIT 'xa_commit';
-SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
+SET @@session.pseudo_replica_mode= @sav.pseudo_replica_mode;
 DROP TABLE t1;
 RESET MASTER;
 CREATE TABLE t1 (c1 INT);

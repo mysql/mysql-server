@@ -12,6 +12,7 @@
 ################################################################################
 
 --source include/have_tlsv13.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc

@@ -117,7 +117,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                     void *variable_value)) {
   try {
     struct sys_var_chain chain = {nullptr, nullptr};
-    sys_var *sysvar MY_ATTRIBUTE((unused));
+    sys_var *sysvar [[maybe_unused]];
     char *com_sys_var_name, *optname;
     int com_sys_var_len;
     SYS_VAR *opt = nullptr;
@@ -158,7 +158,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     opts->arg_source->m_path_name[0] = 0;
     opts->arg_source->m_source = enum_variable_source::COMPILED;
 
-    switch (flags & PLUGIN_VAR_TYPEMASK) {
+    switch (flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
       case PLUGIN_VAR_BOOL:
         SYSVAR_BOOL_TYPE(bool) * sysvar_bool;
 
@@ -356,7 +356,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     */
     if (mysqld_server_started) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-      if (pv && pv->set_persist_options(true)) {
+      if (pv && pv->set_persist_options(true, true)) {
         LogErr(ERROR_LEVEL,
                ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT,
                com_sys_var_name);
@@ -409,7 +409,6 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   const char *variable_value = get_one_variable(
       current_thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
       variable_data_buffer, &out_variable_data_length);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
      Allocate a buffer that can hold "worst" case byte-length of the value
@@ -422,6 +421,7 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   const size_t result_length =
       copy_and_convert(result.get(), new_len, tocs, variable_value,
                        out_variable_data_length, fromcs, &dummy_err);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
      The length of the user supplied buffer is intentionally checked
@@ -433,11 +433,13 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
 
          (tocs->mbminlen * (len)) / fromcs->mbmaxlen
    */
-  const bool is_user_buffer_too_small = *val_length < result_length;
+
+  if (*val_length < result_length + 1) {  // "+1" is for terminating '\0'
+    *val_length = result_length + 1;
+    return nullptr;
+  }
+
   *val_length = result_length;
-
-  if (is_user_buffer_too_small) return nullptr;
-
   memcpy(val_buf, result.get(), result_length);
   val_buf[result_length] = '\0';
 

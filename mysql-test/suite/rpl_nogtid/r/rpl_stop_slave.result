@@ -18,7 +18,7 @@ include/stop_slave.inc
 # Suspend the INSERT statement in current transaction on SQL thread.
 # It guarantees that SQL thread is applying the transaction when
 # STOP SLAVE command launchs.
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug= '+d,after_mysql_insert';
 include/start_slave.inc
 
 # CREATE TEMPORARY TABLE with InnoDB engine
@@ -85,7 +85,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/wait_for_slave_sql_to_start.inc
 
 # Test end
-SET GLOBAL debug= '$debug_save';
+SET GLOBAL debug= '-d,after_mysql_insert';
 include/restart_slave.inc
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");

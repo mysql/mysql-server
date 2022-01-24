@@ -17,6 +17,7 @@
 # 6. Clean up.
 ################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -130,16 +131,16 @@ SET GLOBAL group_replication_recovery_use_ssl=1;
 
 # No need to print this to the result file
 
---disable_result_log
+--disable_query_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
 
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
---eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_capath"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_crl= "$conf_rec_ssl_crl"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "$conf_rec_ssl_crlpath"
---enable_result_log
+--enable_query_log
 
 --connection server1
 --echo server1

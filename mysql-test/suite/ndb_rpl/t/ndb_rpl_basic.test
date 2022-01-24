@@ -185,7 +185,7 @@ BEGIN;
 UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
 
 # set number of retries low so we fail the retries
-set GLOBAL slave_transaction_retries=1;
+set GLOBAL replica_transaction_retries=1;
 
 # now do a change to this row on the master
 # will deadlock on the slave because of lock above
@@ -208,7 +208,7 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 --source include/wait_for_slave_sql_error.inc
 
 # now set max retries high enough to succeed, and start slave again
-set GLOBAL slave_transaction_retries=10;
+set GLOBAL replica_transaction_retries=10;
 source include/start_slave.inc;
 # Wait for deadlock to be detected and retried.
 # We want to wait until at least one retry has been made, but before

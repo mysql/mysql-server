@@ -1,0 +1,64 @@
+--source include/have_debug_sync.inc
+
+--enable_warnings
+--enable_query_log
+
+# Create some non-LRU files so there exists the limit value that can't be set.
+let $i = 9;
+while ($i >= 0)
+{
+  let $sql = CREATE UNDO TABLESPACE undo_00$i ADD DATAFILE 'undo_00$i.ibu';
+  --eval $sql
+  --dec $i
+}
+
+
+SET @start_global_value = @@GLOBAL.innodb_open_files;
+SELECT @start_global_value;
+
+SELECT innodb_set_open_files_limit(150);
+
+#
+# Set value concurrently.
+#
+--connect (con1,localhost,root,,)
+SET DEBUG_SYNC='fil_open_files_desired_limit_set SIGNAL started WAIT_FOR proceed';
+--send SELECT innodb_set_open_files_limit(200);
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR started';
+--error ER_CONCURRENT_PROCEDURE_USAGE
+SELECT innodb_set_open_files_limit(250);
+SET DEBUG_SYNC= 'now SIGNAL proceed';
+
+--connection con1
+--reap
+--disconnect con1
+--connection default
+SELECT @@GLOBAL.innodb_open_files;
+
+
+#
+# Cleanup
+#
+let $i = 9;
+while ($i >= 0)
+{
+  let $sql = ALTER UNDO TABLESPACE undo_00$i SET INACTIVE;
+  --eval $sql
+  --dec $i
+}
+
+let $i = 9;
+while ($i >= 0)
+{
+  let $inactive_undo_space = undo_00$i;
+  source include/wait_until_undo_space_is_empty.inc;
+  let $sql = DROP UNDO TABLESPACE undo_00$i;
+  --eval $sql
+
+  --dec $i
+}
+
+SELECT innodb_set_open_files_limit(@start_global_value);
+SELECT @@GLOBAL.innodb_open_files;

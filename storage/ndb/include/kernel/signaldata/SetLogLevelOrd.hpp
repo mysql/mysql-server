@@ -51,7 +51,7 @@ class SetLogLevelOrd {
   friend class NodeLogLevel;
   
 private:
-  STATIC_CONST( SignalLength = 1 + LogLevel::LOGLEVEL_CATEGORIES  );
+  static constexpr Uint32 SignalLength = 1 + LogLevel::LOGLEVEL_CATEGORIES;
   
   Uint32 noOfEntries;
   Uint32 theData[LogLevel::LOGLEVEL_CATEGORIES];

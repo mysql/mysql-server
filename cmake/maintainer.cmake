@@ -59,8 +59,8 @@ SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wcast-qual")
 
 IF(MY_COMPILER_IS_GNU)
-  # The default =3 given by -Wextra is a bit too strict for our code.
-  MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
+  # Accept only the standard [[fallthrough]] attribute, no comments.
+  MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=5")
   MY_ADD_C_WARNING_FLAG("Wjump-misses-init")
   # This is included in -Wall on some platforms, enable it explicitly.
   MY_ADD_C_WARNING_FLAG("Wstringop-truncation")
@@ -71,6 +71,8 @@ IF(MY_COMPILER_IS_GNU)
   ENDIF()
   MY_ADD_C_WARNING_FLAG("Wmissing-include-dirs")
   MY_ADD_CXX_WARNING_FLAG("Wmissing-include-dirs")
+
+  MY_ADD_CXX_WARNING_FLAG("Wextra-semi") # For gcc8 and up
 ENDIF()
 
 #
@@ -166,8 +168,17 @@ ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE)
-  STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  IF(MSVC)
+    STRING_APPEND(CMAKE_C_FLAGS   " /WX")
+    STRING_APPEND(CMAKE_CXX_FLAGS " /WX")
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS    " /WX")
+    STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS " /WX")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " /WX")
+  ENDIF()
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  ENDIF()
 ENDIF()
 
 # Set warning flags for gcc/g++/clang/clang++
@@ -182,17 +193,5 @@ MACRO(ADD_WSHADOW_WARNING)
   ELSEIF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
     # added in clang-5.0
     ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
-  ENDIF()
-ENDMACRO()
-
-# When builing with PGO, GCC 9 will report -Wmissing-profile when compiling
-# files for which it cannot find profile data. It is valid to disable
-# this warning for files we are not currently interested in profiling.
-MACRO(DISABLE_MISSING_PROFILE_WARNING)
-  IF(FPROFILE_USE)
-    MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-    IF(HAS_WARN_FLAG)
-      STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-    ENDIF()
   ENDIF()
 ENDMACRO()

@@ -494,8 +494,8 @@ static inline void inline_mysql_file_register(
 #ifdef HAVE_PSI_FILE_INTERFACE
     const char *category, PSI_file_info *info, int count
 #else
-    const char *category MY_ATTRIBUTE((unused)),
-    void *info MY_ATTRIBUTE((unused)), int count MY_ATTRIBUTE((unused))
+    const char *category [[maybe_unused]], void *info [[maybe_unused]],
+    int count [[maybe_unused]]
 #endif
 ) {
 #ifdef HAVE_PSI_FILE_INTERFACE

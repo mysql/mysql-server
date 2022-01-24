@@ -1,6 +1,6 @@
 # Replication tests need binlog
 #
-# $skip_slave_start  If true, the slave will not be started
+# $skip_replica_start  If true, the slave will not be started
 source include/have_log_bin.inc;
 
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -12,7 +12,7 @@ connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
 source suite/rpl_bhs/extension/bhs/master-slave-bhs.inc;
 
-if (!$skip_slave_start) {
+if (!$skip_replica_start) {
   connection master;
   sync_slave_with_master blackhole_slave;
   sync_slave_with_master;

@@ -73,5 +73,7 @@ Warnings:
 Warning	3795	slow query log file format changed as requested, but setting will have no effect when not actually logging to a file.
 SET GLOBAL log_output=@old_lo;
 SET GLOBAL slow_query_log=@old_sql;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 
 # READY

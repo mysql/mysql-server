@@ -1,0 +1,3 @@
+Bug #54466 client 5.5 built from source lacks "pager" support
+a
+1

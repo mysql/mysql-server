@@ -83,8 +83,7 @@ inline const char *lock_mode_string(enum lock_mode mode) {
       ut_error;
   }
 }
-
-typedef UT_LIST_BASE_NODE_T(lock_t) trx_lock_list_t;
+typedef UT_LIST_BASE_NODE_T_EXTERN(lock_t, trx_locks) trx_lock_list_t;
 
 typedef uint32_t trx_schedule_weight_t;
 #endif /* lock0types_h */

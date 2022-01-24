@@ -1,0 +1,31 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 1. Create a replication channel ch1 to replicate from
+#    server2 to server1.
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 2. Stop IO thread
+#    Verify that SQL thread is running
+#    It will be allowed.
+include/stop_slave_io.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is not running]
+include/assert.inc [Verify replica SQL thread is running]
+
+############################################################
+# 3. Clean up.
+include/stop_slave_sql.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.

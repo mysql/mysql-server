@@ -532,8 +532,8 @@ void get_granted_roles(Role_vertex_descriptor &v,
     @retval false User was removed
 */
 
-bool revoke_role_helper(THD *thd MY_ATTRIBUTE((unused)),
-                        std::string &authid_role, std::string &authid_user,
+bool revoke_role_helper(THD *thd [[maybe_unused]], std::string &authid_role,
+                        std::string &authid_user,
                         Role_vertex_descriptor *user_vert,
                         Role_vertex_descriptor *role_vert) {
   DBUG_TRACE;
@@ -600,7 +600,7 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user) {
     has changed. As a consequence we now need to rebuild the authid_to_vertex
     index.
 */
-void rebuild_vertex_index(THD *thd MY_ATTRIBUTE((unused))) {
+void rebuild_vertex_index(THD *thd [[maybe_unused]]) {
   assert(assert_acl_cache_write_lock(thd));
   for (auto &acl_user : *acl_users) {
     create_role_vertex(&acl_user);
@@ -985,11 +985,7 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
     }
   }
   global->append(STRING_WITH_LEN(" ON *.* TO "));
-  size_t len = acl_user->get_username_length();
-  append_identifier(thd, global, acl_user->user, len);
-  global->append('@');
-  append_identifier(thd, global, acl_user->host.get_host(),
-                    acl_user->host.get_host_len());
+  append_auth_id(thd, acl_user, global);
   if (want_access & GRANT_ACL)
     global->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 }
@@ -1042,11 +1038,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       db.append(STRING_WITH_LEN(" ON "));
       append_identifier(thd, &db, db_name.c_str(), db_name.length());
       db.append(STRING_WITH_LEN(".* TO "));
-      append_identifier(thd, &db, role->user, role->get_username_length());
-      db.append('@');
-      // host and lex_user->host are equal except for case
-      append_identifier(thd, &db, role->host.get_host(),
-                        role->host.get_host_len());
+      append_auth_id(thd, role, &db);
       if (want_access & GRANT_ACL)
         db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
       protocol->start_row();
@@ -1089,12 +1081,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
         append_identifier(thd, &db, rl_itr.first.c_str(),
                           rl_itr.first.length());
         db.append(STRING_WITH_LEN(".* FROM "));
-        append_identifier(thd, &db, acl_user->user,
-                          acl_user->get_username_length());
-        db.append('@');
-        // host and lex_user->host are equal except for case
-        append_identifier(thd, &db, acl_user->host.get_host(),
-                          acl_user->host.get_host_len());
+        append_auth_id(thd, acl_user, &db);
         protocol->start_row();
         protocol->store_string(db.ptr(), db.length(), db.charset());
         protocol->end_row();
@@ -1117,14 +1104,14 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
 
 */
 
-void make_proxy_privilege_statement(THD *thd MY_ATTRIBUTE((unused)),
-                                    ACL_USER *user, Protocol *protocol) {
+void make_proxy_privilege_statement(THD *thd [[maybe_unused]], ACL_USER *user,
+                                    Protocol *protocol) {
   assert(assert_acl_cache_read_lock(thd));
   for (ACL_PROXY_USER *proxy = acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy) {
     if (proxy->granted_on(user->host.get_host(), user->user)) {
       String global;
-      proxy->print_grant(&global);
+      proxy->print_grant(thd, &global);
       protocol->start_row();
       protocol->store_string(global.ptr(), global.length(), global.charset());
       protocol->end_row();
@@ -1179,11 +1166,7 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
       db.append(STRING_WITH_LEN("FUNCTION "));
     db.append(sp_name.c_str(), sp_name.length());
     db.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &db, role->user, role->get_username_length());
-    db.append(STRING_WITH_LEN("@"));
-    // host and lex_user->host are equal except for case
-    append_identifier(thd, &db, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &db);
     if (want_access & GRANT_ACL)
       db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
@@ -1221,11 +1204,7 @@ void make_with_admin_privilege_statement(
   }
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, acl_user->user,
-                      acl_user->get_username_length());
-    global.append('@');
-    append_identifier(thd, &global, acl_user->host.get_host(),
-                      acl_user->host.get_host_len());
+    append_auth_id(thd, acl_user, &global);
     global.append(" WITH ADMIN OPTION");
 
     protocol->start_row();
@@ -1257,14 +1236,7 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
     if (found) {
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
-      if (role->user != nullptr)
-        append_identifier(thd, &global, role->user,
-                          role->get_username_length());
-      else
-        global.append(STRING_WITH_LEN("''"));
-      global.append('@');
-      append_identifier(thd, &global, role->host.get_host(),
-                        role->host.get_host_len());
+      append_auth_id(thd, role, &global);
       if (grant_option) global.append(" WITH GRANT OPTION");
       protocol->start_row();
       protocol->store_string(global.ptr(), global.length(), global.charset());
@@ -1302,21 +1274,16 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
     if (got_more_granted_roles && !it->second &&
         !(got_more_mandatory_roles && *it2 < it->first)) {
       if (found) global.append(',');
-      append_identifier(thd, &global, it->first.user().c_str(),
-                        it->first.user().length());
-      global.append('@');
-      append_identifier(thd, &global, it->first.host().c_str(),
-                        it->first.host().length());
+      append_auth_id_string(thd, it->first.user().c_str(),
+                            it->first.user().length(), it->first.host().c_str(),
+                            it->first.host().length(), &global);
       found = true;
       if (got_more_mandatory_roles && it->first == *it2) ++it2;
       ++it;
     } else if (got_more_mandatory_roles) {
       if (found) global.append(',');
-      append_identifier(thd, &global, it2->user().c_str(),
-                        it2->user().length());
-      global.append('@');
-      append_identifier(thd, &global, it2->host().c_str(),
-                        it2->host().length());
+      append_auth_id_string(thd, it2->user().c_str(), it2->user().length(),
+                            it2->host().c_str(), it2->host().length(), &global);
       found = true;
       ++it2;
     } else
@@ -1326,10 +1293,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
   }  // end while
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, role->get_username_length());
-    global.append('@');
-    append_identifier(thd, &global, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &global);
     protocol->start_row();
     protocol->store_string(global.ptr(), global.length(), global.charset());
     protocol->end_row();
@@ -1398,11 +1362,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     global.append(STRING_WITH_LEN(" ON "));
     global.append(qualified_table_name.c_str(), qualified_table_name.length());
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, role->get_username_length());
-    global.append('@');
-    // host and lex_user->host are equal except for case
-    append_identifier(thd, &global, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &global);
     if (agg.table_access & GRANT_ACL)
       global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
@@ -2876,8 +2836,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
     get_global_acl_cache()->increase_version();
@@ -3059,8 +3019,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
     get_global_acl_cache()->increase_version();
@@ -3351,6 +3311,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
       }
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
+        // keep the check in sync with check_authorization_id_string
         if (role->user.length == 0 || *(role->user.str) == '\0') {
           /* Anonymous roles aren't allowed */
           errors = true;
@@ -3510,9 +3471,10 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
         existing_users.insert(target_user);
       what_to_set.m_what |= ACCESS_RIGHTS_ATTR;
-      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                    user, (!db ? rights : 0), revoke_grant,
-                                    false, what_to_set, &restrictions))) {
+      if ((ret = replace_user_table(
+               thd, tables[ACL_TABLES::TABLE_USER].table, user,
+               (!db ? rights : 0), revoke_grant, false, what_to_set,
+               &restrictions, (this_user ? this_user->m_mfa : nullptr)))) {
         error = true;
         if (ret < 0) break;
 
@@ -3678,8 +3640,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
 
@@ -3807,11 +3769,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (any_combination_will_do && (aggr.cols != 0 || aggr.table_access != 0))
         continue;
 
-      /*
-        For SHOW COLUMNS, SHOW INDEX it is enough to have some
-        privileges on any column combination on the table.
-      */
-      if (any_combination_will_do) continue;
       t_ref->grant.privilege |= aggr.table_access;
       if (!(~t_ref->grant.privilege & want_access)) {
         DBUG_PRINT("info",
@@ -5165,9 +5122,9 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
             acl_table::USER_ATTRIBUTE_RESTRICTIONS;
         restrictions.set_db(db_restrictions);
       }
-      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                    lex_user, rights, true, false,
-                                    what_to_update, &restrictions))) {
+      if ((ret = replace_user_table(
+               thd, tables[ACL_TABLES::TABLE_USER].table, lex_user, rights,
+               true, false, what_to_update, &restrictions, acl_user->m_mfa))) {
         result = true;
         if (ret < 0) break;
 
@@ -5502,7 +5459,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 }
 
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
-                                  bool with_grant MY_ATTRIBUTE((unused))) {
+                                  bool with_grant [[maybe_unused]]) {
   DBUG_TRACE;
   DBUG_PRINT("info",
              ("user=%s host=%s with_grant=%d", user, host, (int)with_grant));
@@ -5972,7 +5929,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
     switch (schema_access->check(LOCK_TABLES_ACL, &dummy)) {
       case ACL_INTERNAL_ACCESS_DENIED:
         *fake_lock_tables_acl = true;
-        // Fall through.
+        [[fallthrough]];
       case ACL_INTERNAL_ACCESS_GRANTED:
         want_access &= ~LOCK_TABLES_ACL;
         break;
@@ -5983,7 +5940,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
           switch (table_access->check(LOCK_TABLES_ACL, &dummy)) {
             case ACL_INTERNAL_ACCESS_DENIED:
               *fake_lock_tables_acl = true;
-              // Fall through.
+              [[fallthrough]];
             case ACL_INTERNAL_ACCESS_GRANTED:
               want_access &= ~LOCK_TABLES_ACL;
               break;
@@ -7200,7 +7157,8 @@ bool check_authorization_id_string(THD *thd, LEX_STRING &mandatory_roles) {
     iterate_comma_separated_quoted_string(
         authid_str, [&thd, &error, &mandatory_roles](const std::string item) {
           auto el = get_authid_from_quoted_string(item);
-          if (el.second != "" && el.first == "")
+          // Don't accept anonymous users. Keep in sync with mysql_grant_role()
+          if (el.first == "")  // don't accept anonymous users
             error = true;
           else if (thd->security_context()
                        ->has_global_grant({el.first, el.second},
@@ -7292,8 +7250,7 @@ Default_local_authid::Default_local_authid(const THD *thd) : m_thd(thd) {}
   @retval true an error occurred
   @retval false success
 */
-bool Default_local_authid::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Default_local_authid::precheck(Security_context *sctx [[maybe_unused]]) {
   return false;
 }
 
@@ -7304,8 +7261,7 @@ bool Default_local_authid::precheck(
   @retval true an error occurred
   @retval false success
 */
-bool Default_local_authid::create(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Default_local_authid::create(Security_context *sctx [[maybe_unused]]) {
   return false;
 }
 
@@ -7313,8 +7269,8 @@ Grant_temporary_dynamic_privileges::Grant_temporary_dynamic_privileges(
     const THD *thd, std::vector<std::string> privs)
     : m_thd(thd), m_privs(std::move(privs)) {}
 
-bool Grant_temporary_dynamic_privileges::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Grant_temporary_dynamic_privileges::precheck(Security_context *sctx
+                                                  [[maybe_unused]]) {
   return false;
 }
 
@@ -7340,8 +7296,8 @@ Grant_temporary_static_privileges::Grant_temporary_static_privileges(
     const THD *thd, ulong privs)
     : m_thd(thd), m_privs(privs) {}
 
-bool Grant_temporary_static_privileges::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Grant_temporary_static_privileges::precheck(Security_context *sctx
+                                                 [[maybe_unused]]) {
   return false;
 }
 

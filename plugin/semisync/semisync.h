@@ -103,4 +103,12 @@ class ReplSemiSyncBase : public Trace {
 #define REPLY_BINLOG_NAME_OFFSET \
   (REPLY_BINLOG_POS_OFFSET + REPLY_BINLOG_POS_LEN)
 
+/**
+  Return true if the named sysvar has been defined in the server.
+
+  @retval true The sysvar is defined.
+  @retval false Otherwise.
+*/
+bool is_sysvar_defined(const char *name);
+
 #endif /* SEMISYNC_H */

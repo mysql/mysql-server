@@ -51,7 +51,7 @@ FLUSH STATUS;
 eval $query;
 
 --echo # Status from execution should show that filesort was used
---skip_if_hypergraph  # The hypergraph optimizer sorts the entire join currently, not just t1 (no support for interesting orders).
+--skip_if_hypergraph  # The hypergraph optimizer avoids the sort completely.
 SHOW STATUS LIKE 'Sort%';
 
 DROP TABLE t0, t1, t2;

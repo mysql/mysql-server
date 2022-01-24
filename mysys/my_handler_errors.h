@@ -38,7 +38,7 @@ static const char *handler_error_messages[] = {
     "Someone has changed the row since it was read (while the table was locked "
     "to prevent it)",
     "Wrong index given to function",
-    "Undefined handler error 125",
+    "Transaction has been rolled back",
     "Index file is crashed",
     "Record file is crashed",
     "Out of memory in engine",

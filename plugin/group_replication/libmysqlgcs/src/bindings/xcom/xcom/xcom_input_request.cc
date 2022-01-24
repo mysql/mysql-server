@@ -37,8 +37,8 @@ typedef struct xcom_input_request {
 xcom_input_request_ptr xcom_input_request_new(
     app_data_ptr a, xcom_input_reply_function_ptr reply_function,
     void *reply_arg) {
-  xcom_input_request_ptr request =
-      (xcom_input_request_ptr)calloc((size_t)1, sizeof(xcom_input_request));
+  xcom_input_request_ptr request = (xcom_input_request_ptr)xcom_calloc(
+      (size_t)1, sizeof(xcom_input_request));
   if (request != NULL) {
     request->a = a;
     request->reply_function = reply_function;

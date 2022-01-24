@@ -36,8 +36,8 @@
 class DihFragCountReq {
 
 public:
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( RetryInterval = 5 );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 RetryInterval = 5;
   Uint32 m_connectionData;
   Uint32 m_tableRef;
   Uint32 m_senderData;
@@ -50,7 +50,7 @@ public:
 class DihFragCountConf {
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   Uint32 m_connectionData;
   Uint32 m_tableRef;
   Uint32 m_senderData;
@@ -68,7 +68,7 @@ public:
     ErroneousState = 0,
     ErroneousTableState = 1
   };
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   Uint32 m_connectionData;
   Uint32 m_tableRef;
   Uint32 m_senderData;

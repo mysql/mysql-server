@@ -21,5 +21,5 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
-include/assert.inc [Assert that master_pos_wait does not timeout nor it returns NULL]
+include/assert.inc [Assert that source_pos_wait does not timeout nor it returns NULL]
 include/rpl_end.inc

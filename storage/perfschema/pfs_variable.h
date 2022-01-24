@@ -368,8 +368,8 @@ class PFS_variable_cache {
     Get a validated THD from the thread manager. Execute callback function while
     inside of the thread manager locks.
   */
-  THD *get_THD(THD *thd);
-  THD *get_THD(PFS_thread *pfs_thread);
+  THD_ptr get_THD(THD *thd);
+  THD_ptr get_THD(PFS_thread *pfs_thread);
 
   /**
     Get a single variable from the cache.
@@ -452,30 +452,29 @@ class PFS_variable_cache {
   Destructor.
 */
 template <class Var_type>
-PFS_variable_cache<Var_type>::~PFS_variable_cache() {}
+PFS_variable_cache<Var_type>::~PFS_variable_cache() = default;
 
 /**
   Get a validated THD from the thread manager. Execute callback function while
   while inside the thread manager lock.
 */
 template <class Var_type>
-THD *PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
+THD_ptr PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
   if (unsafe_thd == nullptr) {
     /*
       May happen, precisely because the pointer is unsafe
       (THD just disconnected for example).
       No need to walk Global_THD_manager for that.
     */
-    return nullptr;
+    return THD_ptr{nullptr};
   }
 
   m_thd_finder.set_unsafe_thd(unsafe_thd);
-  THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&m_thd_finder);
-  return safe_thd;
+  return Global_THD_manager::get_instance()->find_thd(&m_thd_finder);
 }
 
 template <class Var_type>
-THD *PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
+THD_ptr PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
   assert(pfs_thread != nullptr);
   return get_THD(pfs_thread->m_thd);
 }
@@ -646,7 +645,7 @@ class PFS_system_variable_info_cache : public PFS_system_variable_cache {
  public:
   PFS_system_variable_info_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
-  ~PFS_system_variable_info_cache() override {}
+  ~PFS_system_variable_info_cache() override = default;
 
  private:
   /* Global and Session - THD */
@@ -660,7 +659,7 @@ class PFS_system_persisted_variables_cache : public PFS_system_variable_cache {
  public:
   PFS_system_persisted_variables_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
-  ~PFS_system_persisted_variables_cache() override {}
+  ~PFS_system_persisted_variables_cache() override = default;
 
  private:
   /* Global and Session - THD */

@@ -44,41 +44,37 @@ this program; if not, write to the Free Software Foundation, Inc.,
  column values is done in sel_col_prefetch_buf_free. */
 void eval_node_free_val_buf(que_node_t *node); /*!< in: query graph node */
 /** Evaluates a symbol table symbol. */
-UNIV_INLINE
-void eval_sym(sym_node_t *sym_node); /*!< in: symbol table node */
+static inline void eval_sym(sym_node_t *sym_node); /*!< in: symbol table node */
 /** Evaluates an expression. */
-UNIV_INLINE
-void eval_exp(que_node_t *exp_node); /*!< in: expression */
+static inline void eval_exp(que_node_t *exp_node); /*!< in: expression */
 
 /** Sets an integer value as the value of an expression node.
 @param[in]	node	expression node
 @param[in]	val	value to set */
-UNIV_INLINE
-void eval_node_set_int_val(que_node_t *node, lint val);
+static inline void eval_node_set_int_val(que_node_t *node, lint val);
 
 /** Gets an integer value from an expression node.
  @return integer value */
-UNIV_INLINE
-lint eval_node_get_int_val(que_node_t *node); /*!< in: expression node */
+static inline lint eval_node_get_int_val(
+    que_node_t *node); /*!< in: expression node */
 
 /** Copies a binary string value as the value of a query graph node. Allocates
 a new buffer if necessary.
 @param[in]	node	query graph node
 @param[in]	str	binary string
 @param[in]	len	string length or UNIV_SQL_NULL */
-UNIV_INLINE
-void eval_node_copy_and_alloc_val(que_node_t *node, const byte *str, ulint len);
+static inline void eval_node_copy_and_alloc_val(que_node_t *node,
+                                                const byte *str, ulint len);
 
 /** Copies a query node value to another node.
 @param[in]	node1	node to copy to
 @param[in]	node2	node to copy from */
-UNIV_INLINE
-void eval_node_copy_val(que_node_t *node1, que_node_t *node2);
+static inline void eval_node_copy_val(que_node_t *node1, que_node_t *node2);
 
 /** Gets a iboolean value from a query node.
  @return iboolean value */
-UNIV_INLINE
-ibool eval_node_get_ibool_val(que_node_t *node); /*!< in: query graph node */
+static inline ibool eval_node_get_ibool_val(
+    que_node_t *node); /*!< in: query graph node */
 /** Evaluates a comparison node.
  @return the result of the comparison */
 ibool eval_cmp(func_node_t *cmp_node); /*!< in: comparison node */

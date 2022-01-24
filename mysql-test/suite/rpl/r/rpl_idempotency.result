@@ -12,8 +12,8 @@ CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
 INSERT INTO t2 VALUES (-1),(-2),(-3);
 include/sync_slave_sql_with_master.inc
-SET @old_slave_exec_mode= @@global.slave_exec_mode;
-SET @@global.slave_exec_mode= IDEMPOTENT;
+SET @old_replica_exec_mode= @@global.replica_exec_mode;
+SET @@global.replica_exec_mode= IDEMPOTENT;
 DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 DELETE FROM t1 WHERE a = -2;
@@ -76,5 +76,5 @@ a
 include/check_slave_no_error.inc
 DROP TABLE t1, t2;
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 include/rpl_end.inc

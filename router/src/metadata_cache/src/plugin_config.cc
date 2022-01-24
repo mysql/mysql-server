@@ -23,13 +23,9 @@
 */
 
 #include "plugin_config.h"
-#include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 
-#include <limits.h>
 #include <algorithm>
-#include <cerrno>
+#include <climits>
 #include <exception>
 #include <map>
 #include <stdexcept>
@@ -37,17 +33,20 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"  // string_format
+#include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 IMPORT_LOG_FUNCTIONS()
 
+using mysql_harness::utility::string_format;
 using mysqlrouter::ms_to_seconds_string;
-using mysqlrouter::string_format;
 using mysqlrouter::to_string;
-using std::invalid_argument;
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {
   static const std::map<std::string, std::string> defaults{
-      {"address", metadata_cache::kDefaultMetadataAddress},
+      {"address", std::string{metadata_cache::kDefaultMetadataAddress}},
       {"ttl", ms_to_seconds_string(metadata_cache::kDefaultMetadataTTL)},
       {"auth_cache_ttl",
        ms_to_seconds_string(metadata_cache::kDefaultAuthCacheTTL)},
@@ -84,7 +83,16 @@ std::string MetadataCachePluginConfig::get_cluster_type_specific_id() const {
   return "";
 }
 
-unsigned MetadataCachePluginConfig::get_view_id() const {
+std::string MetadataCachePluginConfig::get_clusterset_id() const {
+  if (metadata_cache_dynamic_state) {
+    metadata_cache_dynamic_state->load();
+    return metadata_cache_dynamic_state->get_clusterset_id();
+  }
+
+  return "";
+}
+
+uint64_t MetadataCachePluginConfig::get_view_id() const {
   if (metadata_cache_dynamic_state) {
     metadata_cache_dynamic_state->load();
     return metadata_cache_dynamic_state->get_view_id();
@@ -130,7 +138,7 @@ MetadataCachePluginConfig::get_metadata_servers(
       try {
         add_metadata_server(address);
       } catch (const std::runtime_error &exc) {
-        throw invalid_argument(
+        throw std::invalid_argument(
             std::string("cluster-metadata-servers is incorrect (") +
             exc.what() + ")");
       }
@@ -147,8 +155,8 @@ MetadataCachePluginConfig::get_metadata_servers(
       try {
         add_metadata_server(address);
       } catch (const std::runtime_error &exc) {
-        throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
-                               exc.what() + ")");
+        throw std::invalid_argument(get_log_prefix(option) + " is incorrect (" +
+                                    exc.what() + ")");
       }
     }
   }
@@ -165,8 +173,9 @@ mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
     return mysqlrouter::ClusterType::GR_V2;
   }
 
-  throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +
-                         value + "', expected 'rs' or 'gr'");
+  throw std::invalid_argument(get_log_prefix("cluster_type") +
+                              " is incorrect '" + value +
+                              "', expected 'rs' or 'gr'");
 }
 
 std::unique_ptr<ClusterMetadataDynamicState>

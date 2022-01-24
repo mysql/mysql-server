@@ -78,12 +78,12 @@ ON
 set session gtid_mode = ON;
 ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable and should be set with SET GLOBAL
 set global gtid_mode = on_permissive;
-set global sql_slave_skip_counter = 1;
+set global sql_replica_skip_counter = 1;
 set global gtid_mode = on;
 Warnings:
-Warning	4016	The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
-include/assert.inc [A warning will be generated stating "The value of sql_slave_skip_counter will only take effect for channels running with"]
-set global sql_slave_skip_counter = 0;
+Warning	4016	The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF.
+include/assert.inc [A warning will be generated stating "The value of sql_replica_skip_counter will only take effect for channels running with"]
+set global sql_replica_skip_counter = 0;
 set global gtid_mode = on;
 set global gtid_mode = on_permissive;
 SET @@global.enforce_gtid_consistency = OFF;

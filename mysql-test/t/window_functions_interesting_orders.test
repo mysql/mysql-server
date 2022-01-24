@@ -1,0 +1,78 @@
+# These should have been unit tests (in hypergraph_optimizer-t),
+# but cannot easily be, as our window function implementation
+# is intimately linked to temporary tables, and our plugin system makes it
+# very hard to use temporary tables from unit tests (without pulling in
+# basically the entire server, which makes it no longer a unit test).
+
+--source include/have_hypergraph.inc  # Only supported by the hypergraph join optimizer.
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER );
+
+# Fill in some data, so we have nonzero costs.
+INSERT INTO t1 (a,b,c) VALUES (1,2,3);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+ANALYZE TABLE t1;
+
+# Simple partition by and order.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+
+# Add a second, compatible window. It should be handled using the same sort.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY a,b) FROM t1;
+
+# Swap orderings of two windows to get by with one sort.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(b) OVER (PARTITION BY a), SUM(c) OVER (ORDER BY a,b) FROM t1;
+
+# Two incompatible windows; should get a sort each.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY b,a) FROM t1;
+
+# Create an index. It should be usable for eliding the sort.
+CREATE INDEX idx ON t1 (a, b);
+ANALYZE TABLE t1;
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a) FROM t1;
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+ALTER TABLE t1 DROP INDEX idx;
+ANALYZE TABLE t1;
+
+# Window sorts should also be usable for final ORDER BY (sortahead).
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (PARTITION BY a) FROM t1 ORDER BY a;
+
+# We can even sortahead by a window function, as long as it's processed
+# before the final sort. Check that we move the window to be sorted on
+# earlier in the list.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (ORDER BY b), AVG(c) OVER (ORDER BY a), SUM(c) OVER (PARTITION BY a) AS x FROM t1 ORDER BY b, x;
+
+# DISTINCT cannot normally remove anything...
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
+
+# ...but if the window frame is static, we can use sortahead
+# (or an index).
+EXPLAIN FORMAT=tree SELECT DISTINCT a, b, SUM(b) OVER (PARTITION BY a) FROM t1 ORDER BY a;
+
+# DISTINCT and ORDER BY together. This one is incompatible with window ordering,
+# but DISTINCT and ORDER BY should be collapsed into one (duplicate-removing) sort.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
+
+# Demonstrate elision by functional dependencies from WHERE.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (ORDER BY b) FROM t1 WHERE b=3;
+
+# Finally, demonstrate elision by functional dependencies from joins.
+# Both windows should be satisfied by an index scan over a.
+CREATE INDEX idx ON t1 (a);
+ANALYZE TABLE t1;
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT t1.a, SUM(t1.a) OVER (ORDER BY t1.a), SUM(t2.b) OVER (ORDER BY t2.b) FROM t1 JOIN t1 AS t2 ON t1.a = t2.b;
+
+DROP TABLE t1;

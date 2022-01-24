@@ -33,8 +33,10 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.c
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
+exec $MYSQLXTEST
+   --socket=$MYSQL_TMP_DIR/mysqlx.custom
+   -ux_root --password='' --expect-error 2002
+   --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 --mkdir $MYSQL_TMP_DIR/mysqlx.dir.socket.lock
@@ -46,8 +48,10 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.d
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.dir.socket -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
+exec $MYSQLXTEST
+   --socket=$MYSQL_TMP_DIR/mysqlx.dir.socket
+   -ux_root --password='' --expect-error 2002
+   --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 --remove_file $MYSQL_TMP_DIR/mysqlx.custom.lock
@@ -62,8 +66,10 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.c
 --source include/restart_mysqld.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
---error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
+exec $MYSQLXTEST
+  --socket=$MYSQL_TMP_DIR/mysqlx.custom
+  -ux_root --password='' --expect-error 2002
+  --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1;
 
 
 ## Cleanup

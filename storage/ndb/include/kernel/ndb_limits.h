@@ -434,7 +434,7 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
 
   // MAX_NDB_NODES should be 48, but code assumes it is 49
-  STATIC_CONST(MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID);
+  static constexpr Uint32 MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID;
   NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
   // Default partitioning is 1 partition per LDM

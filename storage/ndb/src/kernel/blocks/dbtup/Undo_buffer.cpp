@@ -34,7 +34,7 @@ struct UndoPage
   Uint32 m_ref_count;
   Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2 );
+  static constexpr Uint32 DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2;
 };
 
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -146,11 +146,11 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     page->m_words_used= 0;
     if (m_first_free == key->m_page_no)
     {
-      //ndbout_c("resetting page");
+      // g_eventLogger->info("resetting page");
     }
     else 
     {
-      //ndbout_c("returning page");
+      // g_eventLogger->info("returning page");
       m_mm->release_page(RT_DBTUP_COPY_PAGE, key->m_page_no);
     }
   }

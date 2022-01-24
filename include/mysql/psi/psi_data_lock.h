@@ -106,8 +106,8 @@ typedef struct PSI_data_lock_bootstrap PSI_data_lock_bootstrap;
 */
 class PSI_server_data_lock_container {
  public:
-  PSI_server_data_lock_container() {}
-  virtual ~PSI_server_data_lock_container() {}
+  PSI_server_data_lock_container() = default;
+  virtual ~PSI_server_data_lock_container() = default;
 
   /**
     Add a string to the container cache.
@@ -192,8 +192,8 @@ class PSI_server_data_lock_container {
 
 class PSI_server_data_lock_wait_container {
  public:
-  PSI_server_data_lock_wait_container() {}
-  virtual ~PSI_server_data_lock_wait_container() {}
+  PSI_server_data_lock_wait_container() = default;
+  virtual ~PSI_server_data_lock_wait_container() = default;
 
   /** @sa PSI_server_data_lock_container::cache_string. */
   virtual const char *cache_string(const char *string) = 0;
@@ -289,8 +289,8 @@ class PSI_server_data_lock_wait_container {
 */
 class PSI_engine_data_lock_iterator {
  public:
-  PSI_engine_data_lock_iterator() {}
-  virtual ~PSI_engine_data_lock_iterator() {}
+  PSI_engine_data_lock_iterator() = default;
+  virtual ~PSI_engine_data_lock_iterator() = default;
 
   /**
     Scan for more data locks.
@@ -316,8 +316,8 @@ class PSI_engine_data_lock_iterator {
 
 class PSI_engine_data_lock_wait_iterator {
  public:
-  PSI_engine_data_lock_wait_iterator() {}
-  virtual ~PSI_engine_data_lock_wait_iterator() {}
+  PSI_engine_data_lock_wait_iterator() = default;
+  virtual ~PSI_engine_data_lock_wait_iterator() = default;
 
   /**
     Scan for more data lock waits.
@@ -358,8 +358,8 @@ class PSI_engine_data_lock_wait_iterator {
 */
 class PSI_engine_data_lock_inspector {
  public:
-  PSI_engine_data_lock_inspector() {}
-  virtual ~PSI_engine_data_lock_inspector() {}
+  PSI_engine_data_lock_inspector() = default;
+  virtual ~PSI_engine_data_lock_inspector() = default;
 
   /**
     Create a data lock iterator.

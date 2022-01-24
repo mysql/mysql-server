@@ -1,7 +1,7 @@
 #
 # ==== Purpose ====
 #
-# This test checks if the variable Slave_open_temp_tables is set
+# This test checks if the variable Replica_open_temp_tables is set
 # to the correct number of temporary tables open in the slave and if
 # the corresponding warning is correctly issued.
 #
@@ -15,7 +15,7 @@
 #
 # ==== References ====
 #
-# Bug#21357008: SLAVE_OPEN_TEMP_TABLES WRONG AFTER RESET SLAVE WHEN
+# Bug#21357008: REPLICA_OPEN_TEMP_TABLES WRONG AFTER RESET SLAVE WHEN
 #               USING MULTI-SOURCE
 
 
@@ -27,11 +27,11 @@
 CREATE TEMPORARY TABLE t1 (a INT);
 --source include/sync_slave_sql_with_master.inc
 
---let $status= SHOW STATUS LIKE 'Slave_open_temp_tables'
+--let $status= SHOW STATUS LIKE 'Replica_open_temp_tables'
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $correct_num_open_tables= 1
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
---let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after creating a temp table
+--let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after creating a temp table
 --source include/assert.inc
 
 # Stopping the replication thread does not delete tables and does not
@@ -40,7 +40,7 @@ CREATE TEMPORARY TABLE t1 (a INT);
 --source include/stop_slave.inc
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
---let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after stopping the replication thread
+--let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after stopping the replication thread
 --source include/assert.inc
 
 # Dropping the table that is still open will decrease the value to zero.
@@ -51,7 +51,7 @@ DROP TEMPORARY TABLE t1;
 --let $num_open_tables= query_get_value($status, Value, 1)
 --let $correct_num_open_tables= 0
 --let $assert_cond= $correct_num_open_tables = $num_open_tables
---let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after dropping the temporary table
+--let $assert_text= Replica_open_temp_tables is correctly set to $correct_num_open_tables after dropping the temporary table
 --source include/assert.inc
 
 # Stopping the slave will not generate a warning because there are no open tables.

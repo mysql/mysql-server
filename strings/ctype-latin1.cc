@@ -314,16 +314,16 @@ static const uchar *uni_to_cs[256] = {
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 extern "C" {
-static int my_mb_wc_latin1(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t *wc, const uchar *str, const uchar *end) {
+static int my_mb_wc_latin1(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
+                           const uchar *str, const uchar *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = cs_to_uni[*str];
   return (!wc[0] && str[0]) ? -1 : 1;
 }
 
-static int my_wc_mb_latin1(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t wc, uchar *str, uchar *end) {
+static int my_wc_mb_latin1(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                           uchar *str, uchar *end) {
   const uchar *pl;
 
   if (str >= end) return MY_CS_TOOSMALL;
@@ -488,7 +488,7 @@ static const uchar combo2map[] = {
 */
 
 extern "C" {
-static int my_strnncoll_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
                                   const uchar *a, size_t a_length,
                                   const uchar *b, size_t b_length,
                                   bool b_is_prefix) {
@@ -521,9 +521,9 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                   : (b < b_end || b_extend) ? -1 : 0);
 }
 
-static int my_strnncollsp_latin1_de(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *a,
-    size_t a_length, const uchar *b, size_t b_length) {
+static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
+                                    const uchar *a, size_t a_length,
+                                    const uchar *b, size_t b_length) {
   const uchar *a_end = a + a_length, *b_end = b + b_length;
   uchar a_char, a_extend = 0, b_char, b_extend = 0;
   int res;
@@ -587,9 +587,9 @@ static size_t my_strnxfrm_latin1_de(const CHARSET_INFO *cs, uchar *dst,
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
-static void my_hash_sort_latin1_de(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *key, size_t len,
-    uint64 *nr1, uint64 *nr2) {
+static void my_hash_sort_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
+                                   const uchar *key, size_t len, uint64 *nr1,
+                                   uint64 *nr2) {
   const uchar *end;
   uint64 tmp1;
   uint64 tmp2;

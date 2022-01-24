@@ -89,7 +89,7 @@ dtuple_t *row_build_index_entry_low(
 
   if (index->is_corrupted() && dict_index_has_virtual(index) &&
       dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED) {
-    /* See comments for virtual index in row_merge_drop_indexes().
+    /* See comments for virtual index in ddl::drop_indexes().
     In this case, just return the empty entry object */
     return (entry);
   }
@@ -393,8 +393,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   times, and the cursor restore can happen multiple times for single
   insert or update statement.  */
   ut_a(!rec_offs_any_null_extern(rec, offsets) ||
-       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), nullptr,
-                        false));
+       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   if (type != ROW_COPY_POINTERS) {
@@ -624,7 +623,7 @@ dtuple_t *row_rec_to_index_entry_low(
   ut_ad(heap != nullptr);
   ut_ad(index != nullptr);
 
-  /* Because this function may be invoked by row0merge.cc
+  /* Because this function may be invoked by row0ddl.cc
   on a record whose header is in different format, the check
   rec_offs_validate(rec, index, offsets) must be avoided here. */
 

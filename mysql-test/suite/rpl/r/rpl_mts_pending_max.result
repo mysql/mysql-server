@@ -4,14 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-#   0) Set SLAVE_PENDING_JOBS_SIZE_MAX to a smaller number (1024)
-#      and slave_parallel_workers to 2 to make the test easy.
+#   0) Set REPLICA_PENDING_JOBS_SIZE_MAX to a smaller number (1024)
+#      and replica_parallel_workers to 2 to make the test easy.
 #
 [connection slave]
-SET @save.slave_pending_jobs_size_max= @@global.slave_pending_jobs_size_max;
-SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
-SET @@GLOBAL.slave_pending_jobs_size_max= 1024;
-SET @@GLOBAL.slave_parallel_workers= 2;
+SET @save.replica_pending_jobs_size_max= @@global.replica_pending_jobs_size_max;
+SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
+SET @@GLOBAL.replica_pending_jobs_size_max= 1024;
+SET @@GLOBAL.replica_parallel_workers= 2;
 include/start_slave.inc
 #
 #
@@ -26,7 +26,7 @@ CREATE TABLE db2.t (a TEXT) ENGINE=INNODB;
 include/sync_slave_sql_with_master.inc
 #
 #   2) Prove that Coordinator will make a big event (bigger in size than
-#      SLAVE_PENDING_JOBS_SIZE_MAX) wait for all workers to finish
+#      REPLICA_PENDING_JOBS_SIZE_MAX) wait for all workers to finish
 #      their work (empty their queue) before processing the big event.
 #
 #
@@ -195,7 +195,7 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-SET @@global.slave_pending_jobs_size_max=  @save.slave_pending_jobs_size_max;
-SET @@GLOBAL.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.replica_pending_jobs_size_max=  @save.replica_pending_jobs_size_max;
+SET @@GLOBAL.replica_parallel_workers= @save.replica_parallel_workers;
 include/start_slave_sql.inc
 include/rpl_end.inc

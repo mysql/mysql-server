@@ -1,0 +1,40 @@
+################################################################################
+# Bug#26027024 REPLICA_COMPRESSED_PROTOCOL DOESN'T WORK WITH SEMI-SYNC
+# REPLICATION IN MYSQL-5.7
+#
+# Steps to reproduce:
+#  1) Set replica_compressed_protocol ON on Slave.
+#  2) Do some sample work on Master
+#  3) After the work is synced on Slave, check that there is no error
+#     (Read semi-sync reply magic number error) on Slave.
+#  4) Cleanup
+################################################################################
+# Test is independent of Binlog format. One of the three formats is enough
+# for testing. Choosing 'Row' format.
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+
+# Do some sample work on Master with replica_compressed_protocol ON.
+# (replica_compressed_protocol is set to ON in -slave.opt file of this test.)
+CREATE TABLE t1 (i INT);
+DROP TABLE t1;
+
+# Make sure sync is done, so that next 'assert' step can be executed without
+# any issues.
+--source include/rpl_sync.inc
+
+# Without the fix, the test would have generated few
+# errors in the error log. With the fix, test will
+# pass without any errors in the error log.
+--let $assert_text= Check that there is no 'Read semi-sync reply magic number error' in error log.
+--let $assert_select=Read semi-sync reply magic number error
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+
+# Cleanup
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

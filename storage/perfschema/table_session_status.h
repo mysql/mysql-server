@@ -64,7 +64,7 @@ class PFS_index_session_status : public PFS_engine_index {
   PFS_index_session_status()
       : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_session_status() override {}
+  ~PFS_index_session_status() override = default;
 
   virtual bool match(const Status_variable *pfs);
 
@@ -97,7 +97,7 @@ class table_session_status : public PFS_engine_table {
   table_session_status();
 
  public:
-  ~table_session_status() override {}
+  ~table_session_status() override = default;
 
  protected:
   int make_row(const Status_variable *status_var);

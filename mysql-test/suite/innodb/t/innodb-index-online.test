@@ -2,7 +2,7 @@
 
 let $innodb_metrics_select=
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
-subsystem = 'ddl' and count > 0;
+subsystem = 'ddl' and count > 16;
 
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;

@@ -10,24 +10,24 @@ call mtr.add_suppression('Event crc check failed! Most likely there is event cor
 call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117');
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 set @master_save_binlog_checksum= @@global.binlog_checksum;
-set @save_master_verify_checksum =  @@global.master_verify_checksum;
+set @save_source_verify_checksum =  @@global.source_verify_checksum;
 select @@global.binlog_checksum as 'must be CRC32 because of the command line option';
 must be CRC32 because of the command line option
 CRC32
 select @@session.binlog_checksum as 'no session var';
 ERROR HY000: Variable 'binlog_checksum' is a GLOBAL variable
-select @@global.master_verify_checksum  as 'must be zero because of default';
+select @@global.source_verify_checksum  as 'must be zero because of default';
 must be zero because of default
 0
-select @@session.master_verify_checksum  as 'no session var';
-ERROR HY000: Variable 'master_verify_checksum' is a GLOBAL variable
+select @@session.source_verify_checksum  as 'no session var';
+ERROR HY000: Variable 'source_verify_checksum' is a GLOBAL variable
 set @slave_save_binlog_checksum= @@global.binlog_checksum;
-set @save_slave_sql_verify_checksum = @@global.slave_sql_verify_checksum;
-select @@global.slave_sql_verify_checksum  as 'must be one because of default';
+set @save_replica_sql_verify_checksum = @@global.replica_sql_verify_checksum;
+select @@global.replica_sql_verify_checksum  as 'must be one because of default';
 must be one because of default
 1
-select @@session.slave_sql_verify_checksum  as 'no session var';
-ERROR HY000: Variable 'slave_sql_verify_checksum' is a GLOBAL variable
+select @@session.replica_sql_verify_checksum  as 'no session var';
+ERROR HY000: Variable 'replica_sql_verify_checksum' is a GLOBAL variable
 show binary logs;
 Log_name	File_size	Encrypted
 master-bin.000001	#	#
@@ -40,16 +40,16 @@ master-bin.000002	#	#
 set @@global.binlog_checksum = default;
 set @@global.binlog_checksum = CRC32;
 set @@global.binlog_checksum = CRC32;
-set @@global.master_verify_checksum = 0;
-set @@global.master_verify_checksum = default;
+set @@global.source_verify_checksum = 0;
+set @@global.source_verify_checksum = default;
 set @@global.binlog_checksum = ADLER32;
 ERROR 42000: Variable 'binlog_checksum' can't be set to the value of 'ADLER32'
-set @@global.master_verify_checksum = 2;
-ERROR 42000: Variable 'master_verify_checksum' can't be set to the value of '2'
-set @@global.slave_sql_verify_checksum = 0;
-set @@global.slave_sql_verify_checksum = default;
-set @@global.slave_sql_verify_checksum = 2;
-ERROR 42000: Variable 'slave_sql_verify_checksum' can't be set to the value of '2'
+set @@global.source_verify_checksum = 2;
+ERROR 42000: Variable 'source_verify_checksum' can't be set to the value of '2'
+set @@global.replica_sql_verify_checksum = 0;
+set @@global.replica_sql_verify_checksum = default;
+set @@global.replica_sql_verify_checksum = 2;
+ERROR 42000: Variable 'replica_sql_verify_checksum' can't be set to the value of '2'
 set @@global.binlog_checksum = NONE;
 create table t1 (a int) engine=ndb;
 flush logs;
@@ -64,7 +64,7 @@ zero
 include/stop_slave.inc
 set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
-set @@global.debug='d,simulate_slave_unaware_checksum';
+set @@global.debug='d,simulate_replica_unaware_checksum';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -76,12 +76,12 @@ zero
 include/stop_slave.inc
 set @@global.debug='';
 include/start_slave.inc
-set @@global.master_verify_checksum = 1;
+set @@global.source_verify_checksum = 1;
 set @@session.debug='d,simulate_checksum_test_failure';
 show binlog events;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
 set @@session.debug='';
-set @@global.master_verify_checksum = default;
+set @@global.source_verify_checksum = default;
 include/stop_slave.inc
 create table t2 (a int) engine=ndb;
 set @@global.debug='d,simulate_checksum_test_failure';
@@ -94,7 +94,7 @@ start slave io_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_io_with_master.inc
-set @@global.slave_sql_verify_checksum = 1;
+set @@global.replica_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
 Warnings:
@@ -141,7 +141,7 @@ set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
 insert into t3 value (1, @@global.binlog_checksum);
 drop table t1, t2, t3;
 set @@global.binlog_checksum = @master_save_binlog_checksum;
-set @@global.master_verify_checksum = @save_master_verify_checksum;
+set @@global.source_verify_checksum = @save_source_verify_checksum;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
-set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
+set @@global.replica_sql_verify_checksum = @save_replica_sql_verify_checksum;
 include/rpl_end.inc

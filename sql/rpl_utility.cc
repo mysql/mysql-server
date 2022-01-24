@@ -60,10 +60,10 @@ struct TYPELIB;
 #include "sql/log.h"
 #include "sql/log_event.h"  // Log_event
 #include "sql/my_decimal.h"
-#include "sql/mysqld.h"  // slave_type_conversions_options
+#include "sql/mysqld.h"  // replica_type_conversions_options
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"  // Relay_log_info
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"  // LEX
@@ -144,10 +144,10 @@ static bool is_conversion_ok(int order) {
   DBUG_TRACE;
   bool allow_non_lossy, allow_lossy;
 
-  allow_non_lossy = slave_type_conversions_options &
-                    (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
-  allow_lossy = slave_type_conversions_options &
-                (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
+  allow_non_lossy = replica_type_conversions_options &
+                    (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_NON_LOSSY);
+  allow_lossy = replica_type_conversions_options &
+                (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_LOSSY);
 
   DBUG_PRINT("enter", ("order: %d, flags:%s%s", order,
                        allow_non_lossy ? " ALL_NON_LOSSY" : "",
@@ -301,7 +301,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     */
     *order_var = -1;
     return true;
-  } else if (!slave_type_conversions_options)
+  } else if (!replica_type_conversions_options)
     return false;
 
   /*
@@ -440,7 +440,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
   This function first finds out whether the table belongs to the data
   dictionary. When not, it will compare the master table with an existing
   table on the slave and see if they are compatible with respect to the
-  current settings of @c SLAVE_TYPE_CONVERSIONS.
+  current settings of @c REPLICA_TYPE_CONVERSIONS.
 
   If the tables are compatible and conversions are required, @c
   *tmp_table_var will be set to a virtual temporary table with field
@@ -617,14 +617,14 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
   // Default value : treat all values signed
   bool unsigned_flag = false;
 
-  // Check if slave_type_conversions contains ALL_UNSIGNED
-  unsigned_flag = slave_type_conversions_options &
-                  (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED);
+  // Check if replica_type_conversions contains ALL_UNSIGNED
+  unsigned_flag = replica_type_conversions_options &
+                  (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_UNSIGNED);
 
-  // Check if slave_type_conversions contains ALL_SIGNED
+  // Check if replica_type_conversions contains ALL_SIGNED
   unsigned_flag =
-      unsigned_flag && !(slave_type_conversions_options &
-                         (1ULL << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
+      unsigned_flag && !(replica_type_conversions_options &
+                         (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_SIGNED));
 
   for (uint col = 0; col < cols_to_create; ++col) {
     Create_field *field_def = new (thd->mem_root) Create_field();

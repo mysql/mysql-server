@@ -43,8 +43,8 @@ class StopReq
   friend class MgmtSrvr;
 
 public:
-  STATIC_CONST (SignalLength = 9);
-  STATIC_CONST( SignalLength_v1 = 9 + NdbNodeBitmask48::Size);
+  static constexpr Uint32 SignalLength = 9;
+  static constexpr Uint32 SignalLength_v1 = 9 + NdbNodeBitmask48::Size;
   
 public:
   Uint32 senderRef;
@@ -84,7 +84,7 @@ public:
 
 struct StopConf
 {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   Uint32 senderData;
   union {
     Uint32 nodeState;
@@ -105,7 +105,7 @@ class StopRef
   friend class Ndbcntr;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   enum ErrorCode {
     OK = 0,

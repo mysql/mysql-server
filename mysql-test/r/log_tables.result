@@ -3,6 +3,7 @@ SET @old_log_output=       @@global.log_output;
 SET @old_slow_query_log=   @@global.slow_query_log;
 SET @old_general_log=      @@global.general_log;
 SET @old_long_query_time=  @@session.long_query_time;
+SET GLOBAL log_output="FILE,TABLE";
 use mysql;
 SET @saved_long_query_time = @@long_query_time;
 SET @saved_log_output = @@log_output;
@@ -157,7 +158,7 @@ sleep(2)
 0
 select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00.000000	1	1	mysql	0	0	1	QUERY	THREAD_ID
+TIMESTAMP	USER_HOST	QUERY_TIME	LOCK_TIME	1	1	mysql	0	0	1	QUERY	THREAD_ID
 set @@session.long_query_time = @saved_long_query_time;
 flush tables with read lock;
 unlock tables;
@@ -747,3 +748,5 @@ SET @@session.long_query_time= @old_long_query_time;
 SET @@global.log_output=       @old_log_output;
 SET @@global.slow_query_log=   @old_slow_query_log;
 SET @@global.general_log=      @old_general_log;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

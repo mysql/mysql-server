@@ -1,1 +1,1 @@
---log-bin=slave-bin --log-slave-updates
+--log-bin=slave-bin --log-replica-updates

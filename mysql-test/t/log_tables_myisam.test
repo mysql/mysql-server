@@ -13,7 +13,8 @@ use mysql;
 # Check that log tables work and we can do basic selects. This also
 # tests truncate, which works in a special mode with the log tables
 #
-
+SET @old_log_output = @@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 truncate table general_log;
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from general_log;
@@ -140,6 +141,8 @@ CREATE TABLE `slow_log` (
 
 set global general_log='ON';
 set global slow_query_log='ON';
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 --enable_ps_protocol
 use test;

@@ -41,7 +41,7 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_i
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=412;
+let $total_persistent_vars=442;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -142,7 +142,7 @@ while($var_id <= $count_vars)
   --inc $var_id
 }
 # Below 4 tests have default value as "" and these variables can't be set to
-# empty value. Hence, setting them seperately.
+# empty value. Hence, setting them separately.
 SET PERSIST innodb_monitor_enable="latch";
 SET PERSIST innodb_monitor_disable="latch";
 SET PERSIST innodb_monitor_reset="latch";

@@ -1,0 +1,31 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Start GR on S1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+############################################################
+# 2. Assert ORIGINAL_COMMIT_TIMESTAMP and IMMEDIATE_COMMIT_TIMESTAMP
+#    are correct on S1
+[connection server1]
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.']
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP = LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP.']
+############################################################
+# 3. Start GR on S2
+[connection server2]
+include/start_group_replication.inc
+############################################################
+# 4. Assert ORIGINAL_COMMIT_TIMESTAMP and IMMEDIATE_COMMIT_TIMESTAMP
+#    are correct on S1 and S2
+[connection server1]
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.']
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP = LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP.']
+[connection server2]
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP is not 0.']
+include/assert.inc ['LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP = LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP.']
+############################################################
+# 5. Clean Up
+include/group_replication_end.inc

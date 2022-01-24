@@ -33,105 +33,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "common.h"
 #include "harness_assert.h"
 
-#ifdef _WIN32
-#include <aclapi.h>
-#include <windows.h>
-#else
+#include "my_thread.h"
+
+#ifndef _WIN32
 #include <pthread.h>
 #include <sys/stat.h>
 #endif
 
 namespace mysql_harness {
 
-std::string get_strerror(int err) {
-  char msg[256];
-  std::string result;
-
-#if !defined(_GNU_SOURCE) &&                                     \
-    ((defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || \
-     (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600))
-  // glibc's POSIX version
-  int ret = strerror_r(err, msg, sizeof(msg));
-  if (ret) {
-    return "errno= " + std::to_string(err) +
-           " (strerror_r failed: " + std::to_string(ret) + ")";
-  } else {
-    result = std::string(msg);
-  }
-#elif defined(_WIN32)
-  int ret = strerror_s(msg, sizeof(msg), err);
-  if (ret) {
-    return "errno= " + std::to_string(err) +
-           " (strerror_s failed: " + std::to_string(ret) + ")";
-  } else {
-    result = std::string(msg);
-  }
-#elif defined(__GLIBC__) && defined(_GNU_SOURCE)
-  // glibc's POSIX version, GNU version
-  char *ret = strerror_r(err, msg, sizeof(msg));
-  result = std::string(ret);
-#else
-  // POSIX version
-  int ret = strerror_r(err, msg, sizeof(msg));
-  if (ret) {
-    return "errno= " + std::to_string(err) +
-           " (strerror_r failed: " + std::to_string(ret) + ")";
-  } else {
-    result = std::string(msg);
-  }
-#endif
-
-  return result;
-}
-
-#if defined(_WIN32) && defined(_DEBUG)
-const DWORD MS_VC_EXCEPTION = 0x406D1388;
-#pragma pack(push, 8)
-typedef struct tagTHREADNAME_INFO {
-  DWORD dwType;
-  LPCSTR szName;
-  DWORD dwThreadID;
-  DWORD dwFlags;
-} THREADNAME_INFO;
-#pragma pack(pop)
-#endif
-
 void rename_thread(const char thread_name[16]) {
-// linux
-#ifdef __linux__
-  assert(strnlen(thread_name, 16) < 16);  // max allowed len for thread_name
-  pthread_setname_np(pthread_self(), thread_name);
-
-// windows
-#elif defined(_WIN32)
-#ifdef _DEBUG
-  // In Win32 API there is no API for setting thread name, but according to
-  // Microsoft documentation, there is a "secret handshake" between debuggee
-  // & debugger using the special values used here.
-  THREADNAME_INFO info;
-  info.dwType = 0x1000;
-  info.szName = thread_name;
-  info.dwThreadID = GetCurrentThreadId();
-  info.dwFlags = 0;
-#pragma warning(push)
-#pragma warning(disable : 6320 6322)
-  __try {
-    RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR),
-                   (ULONG_PTR *)&info);
-  } __except (EXCEPTION_EXECUTE_HANDLER) {
-  }
-#pragma warning(pop)
-#else
-  UNREFERENCED_PARAMETER(thread_name);
-#endif  // #ifdef _DEBUG
-
-// other
-#else
-  // TODO: on BSD/OSX, this should build but does not:
-  // pthread_setname_np(thread_name);
-  (void)thread_name;
-
-#endif
+  my_thread_self_setname(thread_name);
 }
 
 static inline const std::string &truncate_string_backend(

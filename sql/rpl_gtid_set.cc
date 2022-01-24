@@ -302,7 +302,7 @@ void Gtid_set::add_gno_interval(Interval_iterator *ivitp, rpl_gno start,
   DBUG_TRACE;
   assert(start > 0);
   assert(start < end);
-  DBUG_PRINT("info", ("start=%lld end=%lld", start, end));
+  DBUG_PRINT("info", ("start=%" PRId64 " end=%" PRId64, start, end));
   Interval *iv;
   Interval_iterator ivit = *ivitp;
   has_cached_string_length = false;
@@ -410,10 +410,10 @@ ok:
 
 rpl_gno parse_gno(const char **s) {
   char *endp;
-  rpl_gno ret = my_strtoll(*s, &endp, 0);
-  if (ret < 0 || ret == LLONG_MAX) return -1;
+  long long ret = my_strtoll(*s, &endp, 0);
+  if (ret < 0 || ret >= GNO_END) return -1;
   *s = endp;
-  return ret;
+  return static_cast<rpl_gno>(ret);
 }
 
 int format_gno(char *s, rpl_gno gno) {
@@ -704,9 +704,10 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other) {
 
 bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const {
   DBUG_TRACE;
-  assert(sidno >= 1 && gno >= 1);
   if (sid_lock != nullptr) sid_lock->assert_some_lock();
   if (sidno > get_max_sidno()) return false;
+  assert(sidno >= 1);
+  assert(gno >= 1);
   Const_interval_iterator ivit(this, sidno);
   const Interval *iv;
   while ((iv = ivit.get()) != nullptr) {
@@ -849,7 +850,8 @@ void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const {
   have, if it was encoded as a string.
 */
 static size_t get_string_length(rpl_gno gno) {
-  assert(gno >= 1 && gno < MAX_GNO);
+  assert(gno >= 1);
+  assert(gno < GNO_END);
   rpl_gno tmp_gno = gno;
   size_t len = 0;
   do {
@@ -858,7 +860,7 @@ static size_t get_string_length(rpl_gno gno) {
   } while (tmp_gno != 0);
 #ifndef NDEBUG
   char buf[22];
-  assert(snprintf(buf, 22, "%lld", gno) == ssize_t(len));
+  assert(snprintf(buf, 22, "%" PRId64, gno) == ssize_t(len));
 #endif
   return len;
 }
@@ -1331,8 +1333,8 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
       rpl_gno end = sint8korr(encoded + pos);
       pos += 8;
       if (start <= last || end <= start) {
-        DBUG_PRINT("error",
-                   ("last=%lld start=%lld end=%lld", last, start, end));
+        DBUG_PRINT("error", ("last=%" PRId64 " start=%" PRId64 " end=%" PRId64,
+                             last, start, end));
         goto report_error;
       }
       last = end;
@@ -1341,7 +1343,8 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
       // from the beginning.
       Interval *current = ivit.get();
       if (current == nullptr || start < current->start) ivit.init(this, sidno);
-      DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end - 1));
+      DBUG_PRINT("info",
+                 ("adding %d:%" PRId64 "-%" PRId64, sidno, start, end - 1));
       add_gno_interval(&ivit, start, end, &lock);
     }
   }

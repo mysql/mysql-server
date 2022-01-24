@@ -17,6 +17,7 @@
 # 8. Clean up.
 ################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
 --let $group_replication_group_name= ebe0b000-f0e7-11e4-b80c-0800200c9a66
 --source include/have_group_replication_plugin.inc
@@ -214,17 +215,17 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert=1;
 
 # No need to print this to the result file
 
---disable_result_log
+--disable_query_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
 --eval SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= $conf_rec_ssl_verify
 --eval SET @@GLOBAL.group_replication_recovery_retry_count= $conf_rec_retries
 
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
---eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_capath"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_cipher= "$conf_rec_ssl_cipher"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
---enable_result_log
+--enable_query_log
 
 --connection server1
 --echo server1

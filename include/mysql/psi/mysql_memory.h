@@ -29,6 +29,7 @@
 */
 
 #include "my_compiler.h"
+#include "my_inttypes.h"
 
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
@@ -61,14 +62,39 @@ static inline void inline_mysql_memory_register(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
     const char *category, PSI_memory_info *info, int count)
 #else
-    const char *category MY_ATTRIBUTE((unused)),
-    void *info MY_ATTRIBUTE((unused)), int count MY_ATTRIBUTE((unused)))
+    const char *category [[maybe_unused]], void *info [[maybe_unused]],
+    int count [[maybe_unused]])
 #endif
 {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   PSI_MEMORY_CALL(register_memory)(category, info, count);
 #endif
 }
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+
+struct my_memory_header {
+  PSI_memory_key m_key;
+  uint m_magic;
+  size_t m_size;
+  PSI_thread *m_owner;
+};
+typedef struct my_memory_header my_memory_header;
+
+#define PSI_HEADER_SIZE 32
+
+#define PSI_MEMORY_MAGIC 1234
+
+#define PSI_MEM_CNT_BIT ((uint)1 << 31)
+#define PSI_REAL_MEM_KEY(P) ((PSI_memory_key)((P) & ~PSI_MEM_CNT_BIT))
+
+#define USER_TO_HEADER(P) ((my_memory_header *)(((char *)P) - PSI_HEADER_SIZE))
+#define HEADER_TO_USER(P) (((char *)P) + PSI_HEADER_SIZE)
+
+#define USER_TO_HEADER_UINT8_T(P) \
+  (((static_cast<uint8_t *>(P)) - PSI_HEADER_SIZE))
+
+#endif
 
 /** @} (end of group psi_api_memory) */
 

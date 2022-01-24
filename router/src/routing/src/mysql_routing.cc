@@ -37,7 +37,11 @@
 
 #include <sys/types.h>
 
-#include "common.h"  // rename_thread
+#ifndef _WIN32
+#include <sys/stat.h>  // chmod
+#endif
+
+#include "common.h"  // rename_thread, ScopeGuard
 #include "connection.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
@@ -59,6 +63,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysql/harness/tls_server_context.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -70,7 +75,7 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-using mysqlrouter::string_format;
+using mysql_harness::utility::string_format;
 using routing::AccessMode;
 using routing::RoutingStrategy;
 IMPORT_LOG_FUNCTIONS()
@@ -78,8 +83,6 @@ IMPORT_LOG_FUNCTIONS()
 using namespace std::chrono_literals;
 
 static const int kListenQueueSize{1024};
-
-static const char *kDefaultReplicaSetName = "default";
 
 /**
  * encode a initial error-msg into a buffer.
@@ -104,8 +107,8 @@ static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
 MySQLRouting::MySQLRouting(
     net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
     uint16_t port, const Protocol::Type protocol,
-    const routing::AccessMode access_mode, const string &bind_address,
-    const mysql_harness::Path &named_socket, const string &route_name,
+    const routing::AccessMode access_mode, const std::string &bind_address,
+    const mysql_harness::Path &named_socket, const std::string &route_name,
     int max_connections, std::chrono::milliseconds destination_connect_timeout,
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
@@ -831,6 +834,7 @@ class Acceptor {
         return;
       }
 
+      auto &routing_component = MySQLRoutingComponent::get_instance();
       while (is_running(env_)) {
         typename client_protocol_type::endpoint client_endpoint;
         const int socket_flags {
@@ -925,7 +929,7 @@ class Acceptor {
                   r_->get_context().get_bind_named_socket().str().c_str(),
                   peer_pid, peer_uid);
             } else
-            // fall through
+            [[fallthrough]];
 #endif
               log_debug(
                   "[%s] fd=%d connection accepted at %s",
@@ -962,40 +966,61 @@ class Acceptor {
 
             // log_info("%s", msg.c_str());
             sock.close();
-          } else if (r_->get_context().info_active_routes_.load(
-                         std::memory_order_relaxed) >=
-                     r_->get_max_connections()) {
-            std::vector<uint8_t> error_frame;
-            const auto encode_res = encode_initial_error_packet(
-                r_->get_context().get_protocol(), error_frame, 1040,
-                "Too many connections to MySQL Router", "08004");
+          } else {
+            const auto current_total_connections =
+                routing_component.current_total_connections();
+            const auto max_total_connections =
+                routing_component.max_total_connections();
 
-            if (!encode_res) {
-              log_debug("[%s] fd=%d encode error: %s",
-                        r_->get_context().get_name().c_str(),
-                        sock.native_handle(),
-                        encode_res.error().message().c_str());
-            } else {
-              auto write_res = net::write(sock, net::buffer(error_frame));
-              if (!write_res) {
-                log_debug("[%s] fd=%d write error: %s",
+            const bool max_route_connections_limit_reached =
+                r_->get_max_connections() > 0 &&
+                r_->get_context().info_active_routes_.load(
+                    std::memory_order_relaxed) >= r_->get_max_connections();
+            const bool max_total_connections_limit_reached =
+                current_total_connections >= max_total_connections;
+
+            if (max_route_connections_limit_reached ||
+                max_total_connections_limit_reached) {
+              std::vector<uint8_t> error_frame;
+              const auto encode_res = encode_initial_error_packet(
+                  r_->get_context().get_protocol(), error_frame, 1040,
+                  "Too many connections to MySQL Router", "08004");
+
+              if (!encode_res) {
+                log_debug("[%s] fd=%d encode error: %s",
                           r_->get_context().get_name().c_str(),
                           sock.native_handle(),
-                          write_res.error().message().c_str());
+                          encode_res.error().message().c_str());
+              } else {
+                auto write_res = net::write(sock, net::buffer(error_frame));
+                if (!write_res) {
+                  log_debug("[%s] fd=%d write error: %s",
+                            r_->get_context().get_name().c_str(),
+                            sock.native_handle(),
+                            write_res.error().message().c_str());
+                }
               }
+
+              sock.close();  // no shutdown() before close()
+
+              if (max_route_connections_limit_reached) {
+                log_warning(
+                    "[%s] reached max active connections for route (%d max=%d)",
+                    r_->get_context().get_name().c_str(),
+                    r_->get_context().info_active_routes_.load(),
+                    r_->get_max_connections());
+              } else {
+                log_warning("[%s] Total connections count=%" PRIu64
+                            " exceeds [DEFAULT].max_total_connections=%" PRIu64,
+                            r_->get_context().get_name().c_str(),
+                            current_total_connections, max_total_connections);
+              }
+            } else {
+              Connector<client_protocol_type>(
+                  r_, std::move(sock), client_endpoint, client_sock_container_,
+                  server_sock_container_)
+                  .async_run();
             }
-
-            sock.close();  // no shutdown() before close()
-
-            log_warning("[%s] reached max active connections (%d max=%d)",
-                        r_->get_context().get_name().c_str(),
-                        r_->get_context().info_active_routes_.load(),
-                        r_->get_max_connections());
-          } else {
-            Connector<client_protocol_type>(
-                r_, std::move(sock), client_endpoint, client_sock_container_,
-                server_sock_container_)
-                .async_run();
           }
         } else if (sock_res.error() ==
                    make_error_condition(std::errc::operation_would_block)) {
@@ -1084,9 +1109,14 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   destination_->register_stop_router_socket_acceptor(
       [&]() { stop_socket_acceptors(); });
 
+  // make sure to stop the acceptors in case of possible exceptions, otherwise
+  // we can deadlock the process
+  mysql_harness::ScopeGuard stop_acceptors_guard(
+      [&]() { stop_socket_acceptors(); });
+
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
-       is_destination_standalone)) {
+       is_destination_standalone_)) {
     // For standalone destination with first-available strategy we always try
     // to open a listening socket, even if there are no destinations.
     auto res = start_accepting_connections(env);
@@ -1095,42 +1125,46 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     // allow for it to happen, in that case we pass that information to the
     // destination, socket acceptor state should be handled basend on the
     // destination type.
-    if (!is_destination_standalone) destination_->handle_sockets_acceptors();
+    if (!is_destination_standalone_) destination_->handle_sockets_acceptors();
     // If we failed to start accepting connections on startup then router
     // should fail.
     if (!res) return res.get_unexpected();
   }
   mysql_harness::on_service_ready(env);
 
-  auto allowed_nodes_changed =
-      [&](const AllowedNodes &existing_connections_nodes,
-          const AllowedNodes &new_connection_nodes, const bool disconnect,
-          const std::string &disconnect_reason) {
-        const std::string &port_str = get_port_str();
+  auto allowed_nodes_changed = [&](const AllowedNodes
+                                       &existing_connections_nodes,
+                                   const AllowedNodes &new_connection_nodes,
+                                   const bool disconnect,
+                                   const std::string &disconnect_reason) {
+    const std::string &port_str = get_port_str();
 
-        if (disconnect) {
-          log_info(
-              "Routing %s listening on %s got request to disconnect invalid "
-              "connections: %s",
-              context_.get_name().c_str(), port_str.c_str(),
-              disconnect_reason.c_str());
-
-          // handle allowed nodes changed for existing connections
+    if (disconnect) {
+      // handle allowed nodes changed for existing connections
+      const auto num_of_cons =
           connection_container_.disconnect(existing_connections_nodes);
-        }
 
-        if (!is_running(env)) return;
-        if (service_tcp_.is_open() && new_connection_nodes.empty()) {
-          stop_socket_acceptors();
-        } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
-          if (!start_accepting_connections(env)) {
-            // We could not start acceptor (e.g. the port is used by other app)
-            // In that case we should retry on the next md refresh with the
-            // latest instance information.
-            destination_->handle_sockets_acceptors();
-          }
-        }
-      };
+      if (num_of_cons > 0) {
+        log_info(
+            "Routing %s listening on %s got request to disconnect %u invalid "
+            "connections: %s",
+            context_.get_name().c_str(), port_str.c_str(), num_of_cons,
+            disconnect_reason.c_str());
+      }
+    }
+
+    if (!is_running(env)) return;
+    if (service_tcp_.is_open() && new_connection_nodes.empty()) {
+      stop_socket_acceptors();
+    } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
+      if (!start_accepting_connections(env)) {
+        // We could not start acceptor (e.g. the port is used by other app)
+        // In that case we should retry on the next md refresh with the
+        // latest instance information.
+        destination_->handle_sockets_acceptors();
+      }
+    }
+  };
 
   allowed_nodes_list_iterator_ =
       destination_->register_allowed_nodes_change_callback(
@@ -1147,6 +1181,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   mysql_harness::wait_for_stop(env, 0);
   routing_stopped_ = true;
 
+  stop_acceptors_guard.dismiss();
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
 
@@ -1444,13 +1479,13 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
   if (uri.scheme == "metadata-cache") {
     // Syntax:
     // metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY|PRIMARY_AND_SECONDARY
-    std::string replicaset_name = kDefaultReplicaSetName;
+    //    std::string replicaset_name = kDefaultReplicaSetName;
 
-    if (uri.path.size() > 0 && !uri.path[0].empty())
-      replicaset_name = uri.path[0];
+    //    if (uri.path.size() > 0 && !uri.path[0].empty())
+    //      replicaset_name = uri.path[0];
 
     destination_ = std::make_unique<DestMetadataCacheGroup>(
-        io_ctx_, uri.host, replicaset_name, routing_strategy_, uri.query,
+        io_ctx_, uri.host, routing_strategy_, uri.query,
         context_.get_protocol(), access_mode_);
   } else {
     throw std::runtime_error(string_format(
@@ -1496,7 +1531,7 @@ std::unique_ptr<RouteDestination> create_standalone_destination(
 }
 }  // namespace
 
-void MySQLRouting::set_destinations_from_csv(const string &csv) {
+void MySQLRouting::set_destinations_from_csv(const std::string &csv) {
   std::stringstream ss(csv);
   std::string part;
 
@@ -1506,7 +1541,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
     routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
 
-  is_destination_standalone = true;
+  is_destination_standalone_ = true;
   destination_ = create_standalone_destination(
       io_ctx_, routing_strategy_, context_.get_protocol(),
       context_.get_thread_stack_size());
@@ -1557,7 +1592,7 @@ void MySQLRouting::validate_destination_connect_timeout(
 }
 
 int MySQLRouting::set_max_connections(int maximum) {
-  if (maximum <= 0 || maximum > UINT16_MAX) {
+  if (maximum < 0 || maximum > static_cast<int>(UINT16_MAX)) {
     auto err = string_format(
         "[%s] tried to set max_connections using invalid value, was '%d'",
         context_.get_name().c_str(), maximum);

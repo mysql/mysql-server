@@ -46,6 +46,7 @@
 #include <winsock2.h>  // struct timeval
 #endif                 /* _WIN32 */
 
+#include "my_time_t.h"
 #include "mysql_time.h"  // struct MYSQL_TIME, shared with client code
 
 enum enum_field_types : int;
@@ -54,29 +55,33 @@ extern const unsigned long long int log_10_int[20];
 extern const unsigned char days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
 
-/**
-  Portable time_t replacement.
-  Should be signed and hold seconds for 1902 -- 2038-01-19 range
-  i.e at least a 32bit variable
-
-  Using the system built in time_t is not an option as
-  we rely on the above requirements in the time functions
-*/
-using my_time_t = long int;
-
-constexpr const my_time_t MY_TIME_T_MAX = std::numeric_limits<my_time_t>::max();
-constexpr const my_time_t MY_TIME_T_MIN = std::numeric_limits<my_time_t>::min();
+constexpr const bool HAVE_64_BITS_TIME_T = sizeof(time_t) == sizeof(my_time_t);
 
 /** Time handling defaults */
+constexpr const int MYTIME_MAX_YEAR = HAVE_64_BITS_TIME_T ? 9999 : 2038;
 constexpr const int TIMESTAMP_MAX_YEAR = 2038;
 
 /** Two-digit years < this are 20XX; >= this are 19XX */
 constexpr const int YY_PART_YEAR = 70;
-constexpr const int TIMESTAMP_MIN_YEAR = (1900 + YY_PART_YEAR - 1);
+constexpr const int MYTIME_MIN_YEAR = (1900 + YY_PART_YEAR - 1);
 
-constexpr const int TIMESTAMP_MAX_VALUE =
+/** max seconds from epoch of host's time_t stored in my_time_t
+    Windows allows up to 3001-01-18 23:59:59 UTC for localtime_r, so
+    that is our effective limit, although Unixen allow higher time points.
+    Hence the magic constant 32536771199.
+ */
+constexpr const my_time_t MYTIME_MAX_VALUE =
+    HAVE_64_BITS_TIME_T ? 32536771199
+                        : std::numeric_limits<std::int32_t>::max();
+
+constexpr const int MYTIME_MIN_VALUE = 0;
+
+/** max seconds from epoch that can be stored in a column of type TIMESTAMP.
+    This also impacts the max value that can be given to SET TIMESTAMP
+*/
+constexpr const std::int64_t TYPE_TIMESTAMP_MAX_VALUE =
     std::numeric_limits<std::int32_t>::max();
-constexpr const int TIMESTAMP_MIN_VALUE = 1;
+constexpr const std::int64_t TYPE_TIMESTAMP_MIN_VALUE = 1;
 
 /** Flags to str_to_datetime and number_to_datetime */
 using my_time_flags_t = unsigned int;
@@ -111,8 +116,8 @@ constexpr const int MYSQL_TIME_NOTE_TRUNCATED = 16;
 constexpr const int MYSQL_TIME_WARN_ZERO_IN_DATE = 32;
 constexpr const int MYSQL_TIME_WARN_DATETIME_OVERFLOW = 64;
 
-/** Usefull constants */
-constexpr const long int SECONDS_IN_24H = 86400L;
+/** Useful constants */
+constexpr const int64_t SECONDS_IN_24H = 86400LL;
 
 /** Limits for the TIME data type */
 constexpr const int TIME_MAX_HOUR = 838;
@@ -193,13 +198,13 @@ uint64_t convert_period_to_month(uint64_t period);
 uint64_t convert_month_to_period(uint64_t month);
 
 /**
-  Check for valid times only if the range of time_t is greater than
-  the range of my_time_t. Which is almost always the case and even time_t
-  does have the same range, the compiler will optimize away
-  the unnecessary test (checked with compiler explorer).
+  Check for valid my_time_t value. Note: timestamp here pertains to seconds
+  since epoch, not the legacy MySQL type TIMESTAMP, which is limited to
+  32 bits even on 64 bit platforms.
 */
 inline bool is_time_t_valid_for_timestamp(time_t x) {
-  return x <= TIMESTAMP_MAX_VALUE && x >= TIMESTAMP_MIN_VALUE;
+  return (static_cast<int64_t>(x) <= static_cast<int64_t>(MYTIME_MAX_VALUE) &&
+          x >= MYTIME_MIN_VALUE);
 }
 
 unsigned int calc_week(const MYSQL_TIME &l_time, unsigned int week_behaviour,
@@ -324,9 +329,9 @@ void my_time_packed_to_binary(long long int nr, unsigned char *ptr,
 long long int my_time_packed_from_binary(const unsigned char *ptr,
                                          unsigned int dec);
 
-void my_timestamp_to_binary(const struct timeval *tm, unsigned char *ptr,
+void my_timestamp_to_binary(const my_timeval *tm, unsigned char *ptr,
                             unsigned int dec);
-void my_timestamp_from_binary(struct timeval *tm, const unsigned char *ptr,
+void my_timestamp_from_binary(my_timeval *tm, const unsigned char *ptr,
                               unsigned int dec);
 
 bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
@@ -338,29 +343,21 @@ bool check_datetime_range(const MYSQL_TIME &my_time);
 void adjust_time_range(MYSQL_TIME *, int *warning);
 
 /**
-  Function to check sanity of a TIMESTAMP value.
-
-  Check if a given MYSQL_TIME value fits in TIMESTAMP range.
-  This function doesn't make precise check, but rather a rough
-  estimate.
+  Check whether the argument holds a valid UNIX time value
+  (seconds after epoch). This function doesn't make precise check, but rather a
+  rough estimate before time zone adjustments.
 
   @param my_time  timepoint to check
-  @retval true    The value seems sane
-  @retval false   The MYSQL_TIME value is definitely out of range
+  @returns true if value satisfies the check above, false otherwise.
 */
-inline bool validate_timestamp_range(const MYSQL_TIME &my_time) {
-  if ((my_time.year > TIMESTAMP_MAX_YEAR ||
-       my_time.year < TIMESTAMP_MIN_YEAR) ||
-      (my_time.year == TIMESTAMP_MAX_YEAR &&
-       (my_time.month > 1 || my_time.day > 19)) ||
-      (my_time.year == TIMESTAMP_MIN_YEAR &&
-       (my_time.month < 12 || my_time.day < 31)))
+inline bool validate_my_time(const MYSQL_TIME &my_time) {
+  if (my_time.year < MYTIME_MIN_YEAR || my_time.year > MYTIME_MAX_YEAR)
     return false;
 
   return true;
 }
 
-my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
+my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
                             bool *in_dst_time_gap);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
@@ -384,7 +381,7 @@ int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 
 void my_date_to_binary(const MYSQL_TIME *ltime, unsigned char *ptr);
-int my_timeval_to_str(const struct timeval *tm, char *to, unsigned int dec);
+int my_timeval_to_str(const my_timeval *tm, char *to, unsigned int dec);
 
 /**
   Available interval types used in any statement.
@@ -470,8 +467,8 @@ inline void my_datetime_trunc(MYSQL_TIME *ltime, unsigned int decimals) {
    @param tv timepoint/duration
    @param decimals desired precision
  */
-inline void my_timeval_trunc(struct timeval *tv, unsigned int decimals) {
-  tv->tv_usec -= my_time_fraction_remainder(tv->tv_usec, decimals);
+inline void my_timeval_trunc(my_timeval *tv, unsigned int decimals) {
+  tv->m_tv_usec -= my_time_fraction_remainder(tv->m_tv_usec, decimals);
 }
 
 /**
@@ -573,7 +570,7 @@ bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime,
 bool my_time_adjust_frac(MYSQL_TIME *ltime, unsigned int dec, bool truncate);
 bool my_datetime_adjust_frac(MYSQL_TIME *ltime, unsigned int dec, int *warnings,
                              bool truncate);
-bool my_timeval_round(struct timeval *tv, unsigned int decimals);
+bool my_timeval_round(my_timeval *tv, unsigned int decimals);
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME &my_time);
 
 void localtime_to_TIME(MYSQL_TIME *to, const struct tm *from);

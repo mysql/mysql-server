@@ -33,7 +33,7 @@ SET SESSION optimizer_switch="index_merge_sort_union=off";
 SET SESSION optimizer_switch="index_merge_union=off";
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	a,b	3,3	NULL	2	11.11	Using intersect(a,b); Using where
+1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	a,b	3,3	NULL	2	8.64	Using intersect(a,b); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
@@ -68,7 +68,7 @@ test.t1	analyze	status	OK
 SET SESSION optimizer_switch="index_merge_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	17	11.11	Using union(b,a); Using where
+1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	16	11.11	Using union(b,a); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`b` = 2) or (`test`.`t1`.`a` = 2)) and (`test`.`t1`.`c` > 0) and (`test`.`t1`.`c` < 100))
 SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;

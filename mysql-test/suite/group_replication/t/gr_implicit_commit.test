@@ -1,0 +1,116 @@
+###############################################################################
+#
+# This test confirm that an implicit TRUNCATE statement is managed by Group
+# Replication when a replicated memory table is first updated after a server
+# crash or a server restart.
+#
+# Test:
+#   0. The test requires two serves
+#   1. Create table t1 with engine set to memory on server1
+#   2. Restart server1 and start group replication
+#   3. Create a new table based on t1. This will create an
+#      implicit commit due previous restart
+#   4. Wait for GTID_EXECUTED has 6 gtids
+#   5. On binary log from first start we shall have: two
+#      views and a create table.
+#   6. On binary log from second start we shall have: a view,
+#      a truncate table and a create table
+#   7. On server 2 binary log we shall have: two views, a
+#      create table, a view, a truncate table and a create table
+#   8. Cleanup
+#
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Create table t1 with engine set to memory on server1
+
+CREATE TABLE t1(a INT, b INT) engine=memory;
+
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Restart server1 and start group replication
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Create a new table based on t1. This will create an
+--echo #    implicit commit due previous restart
+
+CREATE TABLE t2 LIKE t1;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Wait for GTID_EXECUTED has 6 gtids
+
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-6"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. On binary log from first start we shall have: two
+--echo #    views and a create table.
+
+# The sequence of events that make up a View Change
+--let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
+
+# limit to remove match with stop on last line
+--let $limit= 0, 12
+--let $binlog_file= server-binary-log.000001
+--let $event_sequence= $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*)
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. On binary log from second start we shall have: a view,
+--echo #    a truncate table and a create table
+
+--let $binlog_file= server-binary-log.000002
+--let $event_sequence= $vcle_seq # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. On server 2 binary log we shall have: two views, a
+--echo #    create table, a view, a truncate table and a create table
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $limit=
+--let $binlog_file= server-binary-log.000001
+--let $event_sequence= $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*) # $vcle_seq # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Cleanup
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/group_replication_end.inc

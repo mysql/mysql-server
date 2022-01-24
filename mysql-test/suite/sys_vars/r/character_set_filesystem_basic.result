@@ -87,6 +87,8 @@ SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 big5
 SET @@session.character_set_filesystem = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 dec8
@@ -95,6 +97,8 @@ SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 cp850
 SET @@session.character_set_filesystem = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 hp8
@@ -181,6 +185,8 @@ SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8mb4
 SET @@session.character_set_filesystem = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 ucs2
@@ -193,10 +199,14 @@ SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 keybcs2
 SET @@session.character_set_filesystem = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 macce
 SET @@session.character_set_filesystem = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 macroman
@@ -242,6 +252,8 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 big5
 SET @@global.character_set_filesystem = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 dec8
@@ -250,6 +262,8 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 cp850
 SET @@global.character_set_filesystem = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 hp8
@@ -336,6 +350,8 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 utf8mb4
 SET @@global.character_set_filesystem = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 ucs2
@@ -348,10 +364,14 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 keybcs2
 SET @@global.character_set_filesystem = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 macce
 SET @@global.character_set_filesystem = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 macroman
@@ -420,6 +440,8 @@ SELECT @@character_set_filesystem;
 @@character_set_filesystem
 latin2
 SET @@character_set_filesystem = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_filesystem;
 @@character_set_filesystem
 dec8
