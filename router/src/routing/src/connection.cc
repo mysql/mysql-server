@@ -270,6 +270,11 @@ stdx::expected<void, std::error_code> ConnectorBase::next_destination() {
   }
 }
 
+void MySQLRoutingConnectionBase::accepted() {
+  context().increase_info_active_routes();
+  context().increase_info_handled_routes();
+}
+
 void MySQLRoutingConnectionBase::connected() {
   const auto now = clock_type::now();
   stats_([now](Stats &stats) { stats.connected_to_server = now; });
@@ -278,7 +283,4 @@ void MySQLRoutingConnectionBase::connected() {
     log_debug("[%s] connected %s -> %s", context().get_name().c_str(),
               get_client_address().c_str(), get_server_address().c_str());
   }
-
-  context().increase_info_active_routes();
-  context().increase_info_handled_routes();
 }

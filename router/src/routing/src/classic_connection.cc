@@ -876,37 +876,38 @@ static stdx::expected<bool, std::error_code> forward_server_greeting(
   }
 }
 
-void MysqlRoutingClassicConnection::on_handshake_done(bool handshake_success) {
+void MysqlRoutingClassicConnection::on_handshake_received() {
   auto &blocked_endpoints = this->context().blocked_endpoints();
   auto &client_conn = this->socket_splicer()->client_conn();
 
-  if (handshake_success) {
-    const uint64_t old_value = client_conn.reset_error_count(blocked_endpoints);
+  const uint64_t old_value = client_conn.reset_error_count(blocked_endpoints);
 
-    if (old_value != 0) {
-      log_info("[%s] resetting error counter for %s (was %" PRIu64 ")",
-               this->context().get_name().c_str(),
-               client_conn.endpoint().c_str(), old_value);
-    }
+  if (old_value != 0) {
+    log_info("[%s] resetting error counter for %s (was %" PRIu64 ")",
+             this->context().get_name().c_str(), client_conn.endpoint().c_str(),
+             old_value);
+  }
+}
+
+void MysqlRoutingClassicConnection::on_handshake_aborted() {
+  auto &blocked_endpoints = this->context().blocked_endpoints();
+  auto &client_conn = this->socket_splicer()->client_conn();
+  const uint64_t new_value =
+      client_conn.increment_error_count(blocked_endpoints);
+
+  if (new_value >= blocked_endpoints.max_connect_errors()) {
+    log_warning("[%s] blocking client host for %s",
+                this->context().get_name().c_str(),
+                client_conn.endpoint().c_str());
   } else {
-    const uint64_t new_value =
-        client_conn.increment_error_count(blocked_endpoints);
-
-    if (new_value >= blocked_endpoints.max_connect_errors()) {
-      log_warning("[%s] blocking client host for %s",
-                  this->context().get_name().c_str(),
-                  client_conn.endpoint().c_str());
-    } else {
-      log_info("[%s] incrementing error counter for host of %s (now %" PRIu64
-               ")",
-               this->context().get_name().c_str(),
-               client_conn.endpoint().c_str(), new_value);
-    }
+    log_info("[%s] incrementing error counter for host of %s (now %" PRIu64 ")",
+             this->context().get_name().c_str(), client_conn.endpoint().c_str(),
+             new_value);
   }
 }
 
 void MysqlRoutingClassicConnection::async_run() {
-  this->connected();
+  this->accepted();
 
   connector().on_connect_failure(
       [&](std::string hostname, uint16_t port, const std::error_code last_ec) {
@@ -1002,6 +1003,14 @@ void MysqlRoutingClassicConnection::client_socket_failed(std::error_code ec) {
   auto &client_conn = this->socket_splicer()->client_conn();
 
   if (client_conn.is_open()) {
+    if (!client_greeting_sent_) {
+      log_info("[%s] %s closed connection before finishing handshake",
+               this->context().get_name().c_str(),
+               client_conn.endpoint().c_str());
+
+      on_handshake_aborted();
+    }
+
     auto &server_conn = this->socket_splicer()->server_conn();
 
     if (server_conn.is_open()) {
@@ -1110,12 +1119,6 @@ void MysqlRoutingClassicConnection::async_wait_client_closed() {
 // Generate a Greeting to be sent to the server, to ensure the router's IP
 // isn't blocked due to the server's max_connect_errors.
 void MysqlRoutingClassicConnection::server_side_client_greeting() {
-  log_info("[%s] %s closed connection before finishing handshake",
-           this->context().get_name().c_str(),
-           this->socket_splicer()->client_conn().endpoint().c_str());
-
-  on_handshake_done(false);
-
   auto encode_res = encode_server_side_client_greeting(
       this->socket_splicer()->server_channel()->send_buffer(), 1,
       client_protocol()->shared_capabilities());
@@ -1642,6 +1645,8 @@ void MysqlRoutingClassicConnection::connect() {
     this->socket_splicer()->server_conn() =
         make_connection_from_pooled(std::move(server_connection));
 
+    this->connected();
+
     this->socket_splicer()->server_channel()->recv_buffer().reserve(
         context().get_net_buffer_length());
 
@@ -1650,6 +1655,8 @@ void MysqlRoutingClassicConnection::connect() {
     // connection is fresh.
     this->socket_splicer()->server_conn().assign_connection(
         std::move(server_connection.connection()));
+
+    this->connected();
 
     this->socket_splicer()->server_channel()->recv_buffer().reserve(
         context().get_net_buffer_length());
@@ -2063,7 +2070,7 @@ void MysqlRoutingClassicConnection::server_send_first_client_greeting() {
   // the client greeting was received and will be forwarded to the server
   // soon.
   client_greeting_sent_ = true;
-  on_handshake_done(true);
+  on_handshake_received();
 
   if (dst_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::ssl)) {
@@ -2645,13 +2652,13 @@ void MysqlRoutingClassicConnection::forward_server_to_client(
 
       // if flush is optional and send-buffer is not too full, skip the flush.
       //
-      // force-send-buffer-size is a trade-off between latency, syscall-latency
-      // and memory usage:
+      // force-send-buffer-size is a trade-off between latency,
+      // syscall-latency and memory usage:
       //
       // - buffering more: less send()-syscalls which helps with small
       // resultset.
-      // - buffering less: faster forwarding of smaller packets if the server is
-      // send to generate packets.
+      // - buffering less: faster forwarding of smaller packets if the server
+      // is send to generate packets.
       constexpr const size_t kForceFlushAfterBytes{16 * 1024};
 
       if (flush_before_next_func_optional &&

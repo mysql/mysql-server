@@ -127,6 +127,8 @@ class MySQLRoutingConnectionBase {
 
   void disassociate() { remove_callback_(this); }
 
+  void accepted();
+
   void connected();
 
  protected:

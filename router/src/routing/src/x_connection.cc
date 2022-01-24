@@ -306,7 +306,7 @@ MysqlRoutingXConnection::encode_error_packet(std::vector<uint8_t> &error_frame,
 }
 
 void MysqlRoutingXConnection::async_run() {
-  this->connected();
+  this->accepted();
 
   // the server's greeting if:
   //
@@ -782,6 +782,8 @@ void MysqlRoutingXConnection::connect() {
 
   this->socket_splicer()->server_conn().assign_connection(
       std::move(server_connection));
+
+  this->connected();
 
   socket_splicer()->server_conn().channel()->recv_plain_buffer().reserve(16 *
                                                                          1024);

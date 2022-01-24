@@ -192,7 +192,8 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
       const uint16_t error_code, const std::string &msg,
       const std::string &sql_state);
 
-  void on_handshake_done(bool handshake_success);
+  void on_handshake_received();
+  void on_handshake_aborted();
 
   SslMode source_ssl_mode() const {
     return this->socket_splicer()->source_ssl_mode();
