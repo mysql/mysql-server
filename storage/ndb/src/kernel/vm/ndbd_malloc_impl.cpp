@@ -24,6 +24,7 @@
 
 
 #include "util/require.h"
+#include "ndbd_malloc.hpp"
 #include "ndbd_malloc_impl.hpp"
 
 #include <time.h>
@@ -75,8 +76,6 @@ extern void mt_mem_manager_unlock();
 
 #include <NdbOut.hpp>
 
-extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
-
 constexpr Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
 { /* bound in regions */
   ZONE_19_BOUND >> PAGES_PER_REGION_LOG,
@@ -84,6 +83,14 @@ constexpr Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
   ZONE_30_BOUND >> PAGES_PER_REGION_LOG,
   ZONE_32_BOUND >> PAGES_PER_REGION_LOG
 };
+
+/*
+ * Linux on ARM64 uses 64K as default memory page size.
+ * Most others still use 4K or 8K.
+ */
+static constexpr size_t MAX_SYSTEM_PAGE_SIZE = 65536;
+static constexpr size_t ALLOC_PAGES_PER_SYSTEM_PAGE =
+    MAX_SYSTEM_PAGE_SIZE / sizeof(Alloc_page);
 
 /**
  * do_virtual_alloc uses debug functions NdbMem_ReserveSpace and
@@ -159,6 +166,8 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                                    Uint32* watchCounter,
                                    Alloc_page** base_address)
 {
+  require(pages % ALLOC_PAGES_PER_SYSTEM_PAGE == 0);
+  require(pages > 0);
   if (watchCounter)
     *watchCounter = 9;
   constexpr Uint32 max_regions = zone_bound[ZONE_COUNT - 1];
@@ -186,6 +195,13 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
     {
       n = (zone_bound[i] - prev_bound) << PAGES_PER_REGION_LOG;
     }
+    if (n % ALLOC_PAGES_PER_SYSTEM_PAGE != 0)
+    {
+      // Always assign whole system pages
+      n -= n % ALLOC_PAGES_PER_SYSTEM_PAGE;
+    }
+    // Always have some pages in lowest zone
+    if (n == 0 && i == 0) n = ALLOC_PAGES_PER_SYSTEM_PAGE;
     page_count[i] = n;
     region_count[i] = (n + 256 * 1024 - 1) / (256 * 1024);
     prev_bound = zone_bound[i];
@@ -355,7 +371,9 @@ retry:
       if (watchCounter)
         *watchCounter = 9;
 
-      ptr = NdbMem_AlignedAlloc(sizeof(Alloc_page), sizeof(Alloc_page) * sz);
+      ptr = NdbMem_AlignedAlloc(ALLOC_PAGES_PER_SYSTEM_PAGE *
+                                  sizeof(Alloc_page),
+                                sizeof(Alloc_page) * sz);
       if (UintPtr(ptr) < UintPtr(baseaddress))
       {
         g_eventLogger->info(
@@ -619,6 +637,14 @@ Ndbd_mem_manager::Ndbd_mem_manager()
   m_mapped_pages_count(0),
   m_mapped_pages_new_count(0)
 {
+  size_t system_page_size = NdbMem_GetSystemPageSize();
+  if (system_page_size > MAX_SYSTEM_PAGE_SIZE)
+  {
+    g_eventLogger->error(
+        "Default system page size, %zu, is bigger than supported %zu\n",
+        system_page_size, MAX_SYSTEM_PAGE_SIZE);
+    abort();
+  }
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
 
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
@@ -815,7 +841,10 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 
 #ifdef USE_DO_VIRTUAL_ALLOC
   {
-    // Add one page per extra ZONE used due to using all zones even if not needed.
+    /*
+     * Add one page per extra ZONE used due to using all zones even if not
+     * needed.
+     */
     int zones_needed = 1;
     for (zones_needed = 1; zones_needed <= ZONE_COUNT; zones_needed++)
     {
@@ -823,6 +852,16 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
         break;
     }
     pages += ZONE_COUNT - zones_needed;
+    /*
+     * Always allocate even number of pages to cope with 64K system page size
+     * on ARM.
+     */
+    if (pages % ALLOC_PAGES_PER_SYSTEM_PAGE != 0)
+    {
+      // Round up page count
+      pages = (pages / ALLOC_PAGES_PER_SYSTEM_PAGE + 1) *
+              ALLOC_PAGES_PER_SYSTEM_PAGE;
+    }
     InitChunk chunks[ZONE_COUNT];
     if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
     {
@@ -959,10 +998,19 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
 
   if (resources != 0)
   {
+    /*
+     * To reduce start up time, only touch memory needed for selected resources.
+     * The rest of memory will be touched in a second call to map.
+     */
     limit = 0;
     for (Uint32 i = 0; resources[i] ; i++)
     {
       limit += m_resource_limits.get_resource_reserved(resources[i]);
+    }
+    if (limit % ALLOC_PAGES_PER_SYSTEM_PAGE != 0)
+    {
+      limit += ALLOC_PAGES_PER_SYSTEM_PAGE -
+               (limit % ALLOC_PAGES_PER_SYSTEM_PAGE);
     }
   }
 
@@ -999,7 +1047,8 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
 
     ndbd_alloc_touch_mem(chunk->m_ptr,
                          chunk->m_cnt * sizeof(Alloc_page),
-                         watchCounter);
+                         watchCounter,
+                         true /* make_readwritable */);
 
     g_eventLogger->info("Touch Memory Completed");
 
