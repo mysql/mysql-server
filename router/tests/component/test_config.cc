@@ -214,14 +214,12 @@ config_section_t keepalive_section(
 
 config_section_t routing_section(
     const std::string &name, const std::vector<config_option_t> &options = {}) {
-  TcpPortPool port_pool;
-
-  config_section_t result{
-      "routing:" + name,
-      {{"destinations", "127.0.0.1:3060"},
-       {"routing_strategy", "first-available"},
-       {"bind_address", "127.0.0.1"},
-       {"bind_port", std::to_string(port_pool.get_next_available())}}};
+  config_section_t result{"routing:" + name,
+                          {{"destinations", "127.0.0.1:3060"},
+                           {"routing_strategy", "first-available"},
+                           {"bind_address", "127.0.0.1"},
+                           // @bind_port@ is replaced by create_section()
+                           {"bind_port", "@bind_port@"}}};
 
   add_options(result, options);
 
@@ -235,11 +233,21 @@ class RouterConfigUnknownOptionTest : public RouterComponentTest {
 
     sections.emplace("DEFAULT", get_DEFAULT_defaults());
     for (const auto &section : conf_sections) {
+      ConfigWriter::section_type out_section;
+
+      // replace @place_holders@ in the section.
+      for (const auto &kv : section.second) {
+        auto val = kv.second;
+        if (val == "@bind_port@") {
+          val = std::to_string(port_pool_.get_next_available());
+        }
+        out_section.emplace(kv.first, val);
+      }
+
       if (sections.count(section.first) == 0) {
-        sections.emplace(section);
+        sections[section.first] = out_section;
       } else {
-        sections[section.first].insert(section.second.begin(),
-                                       section.second.end());
+        sections[section.first].insert(out_section.begin(), out_section.end());
       }
     }
 
