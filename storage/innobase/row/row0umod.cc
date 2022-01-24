@@ -466,16 +466,6 @@ introduced where a call to log_free_check() is bypassed. */
       ut_error;
   }
 
-  /* We should remove the index record if no prior version of the row,
-  which cannot be purged yet, requires its existence. If some requires,
-  we should delete mark the record. */
-
-  mtr_start(&mtr_vers);
-
-  success =
-      node->pcur.restore_position(BTR_SEARCH_LEAF, &mtr_vers, UT_LOCATION_HERE);
-  ut_a(success);
-
   /* If the key is delete marked then the statement could not modify the
   key yet and the transaction has no implicit lock on it. We must convert
   to explicit lock if and only if we are the transaction which has implicit
@@ -486,6 +476,16 @@ introduced where a call to log_free_check() is bypassed. */
   if (rec_deleted == 0) {
     row_convert_impl_to_expl_if_needed(btr_cur, node);
   }
+
+  /* We should remove the index record if no prior version of the row,
+  which cannot be purged yet, requires its existence. If some requires,
+  we should delete mark the record. */
+
+  mtr_start(&mtr_vers);
+
+  success =
+      node->pcur.restore_position(BTR_SEARCH_LEAF, &mtr_vers, UT_LOCATION_HERE);
+  ut_a(success);
 
   old_has = row_vers_old_has_index_entry(false, node->pcur.get_rec(), &mtr_vers,
                                          index, entry, 0, 0);

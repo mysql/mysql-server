@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -311,16 +311,15 @@ func_exit:
 }
 
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
-  ulint *offsets = nullptr;
   /* In case of partial rollback implicit lock on the
   record is released in the middle of transaction, which
   can break the serializability of IODKU and REPLACE
   statements. Normal rollback is not affected by this
-  becasue we release the locks after the rollback. So
+  because we release the locks after the rollback. So
   to prevent any other transaction modifying the record
   in between the partial rollback we convert the implicit
-  lock on the record to explict. When the record is actually
-  deleted this lock be inherited by the next record.  */
+  lock on the record to explicit. When the record is actually
+  deleted this lock will be inherited by the next record.  */
 
   if (!node->partial || (node->trx == nullptr) ||
       node->trx->isolation_level < trx_t::REPEATABLE_READ) {
@@ -335,8 +334,8 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
 
   if (heap_no != PAGE_HEAP_NO_SUPREMUM && !dict_index_is_spatial(index) &&
       !index->table->is_temporary() && !index->table->is_intrinsic()) {
-    lock_rec_convert_active_impl_to_expl(block, rec, index, offsets, node->trx,
-                                         heap_no);
+    lock_rec_convert_impl_to_expl(block, rec, index,
+                                  Rec_offsets().compute(rec, index));
   }
 }
 
