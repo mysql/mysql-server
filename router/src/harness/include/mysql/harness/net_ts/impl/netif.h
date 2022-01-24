@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -425,7 +425,7 @@ class NetworkInterfaceResolver {
           std::error_code{static_cast<int>(res), std::system_category()});
     }
 
-    return {std::move(ifs)};
+    return NetworkInterfaceResults{std::move(ifs)};
 #else
     ifaddrs *ifs = nullptr;
 
@@ -433,7 +433,7 @@ class NetworkInterfaceResolver {
       return stdx::make_unexpected(net::impl::socket::last_error_code());
     }
 
-    return {ifs};
+    return NetworkInterfaceResults{ifs};
 #endif
   }
 };
