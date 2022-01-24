@@ -8978,8 +8978,9 @@ struct my_option my_long_options[] = {
      "Use show-replica-auth-info instead.",
      &opt_show_replica_auth_info, &opt_show_replica_auth_info, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", nullptr,
-     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"skip-host-cache", OPT_SKIP_HOST_CACHE_DEPRECATED,
+     "Don't cache host names.", nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -10412,8 +10413,10 @@ bool mysqld_get_one_option(int optid,
       my_enable_symlinks = false;
       ha_open_options &= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
       break;
-    case (int)OPT_SKIP_HOST_CACHE:
+    case (int)OPT_SKIP_HOST_CACHE_DEPRECATED:
       opt_specialflag |= SPECIAL_NO_HOST_CACHE;
+      push_deprecated_warn(nullptr, "--skip-host-cache",
+                           "SET GLOBAL host_cache_size=0");
       break;
     case (int)OPT_SKIP_RESOLVE:
       if (argument && (argument == disabled_my_option ||
