@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -5000,7 +5000,7 @@ sub run_testcase ($) {
     return 1;
   }
 
-  my $test = start_mysqltest($tinfo, $config->group('mysqltest'));
+  my $test = start_mysqltest($tinfo);
 
   # Maintain a queue to keep track of server processes which have
   # died expectedly in order to wait for them to be restarted.
@@ -7013,9 +7013,8 @@ sub run_mysqltest ($$) {
   $proc->wait();
 }
 
-sub start_mysqltest ($$) {
+sub start_mysqltest ($) {
   my $tinfo = shift;
-  my $mysqltest = shift;
 
   my $exe = $exe_mysqltest;
   my $args;
@@ -7024,10 +7023,15 @@ sub start_mysqltest ($$) {
 
   mtr_init_args(\$args);
 
-  my $cpu_list = $mysqltest->if_exist('#cpubind');
-  if (defined $cpu_list) {
-    mtr_print("Applying cpu binding '$cpu_list' for mysqltest");
-    cpubind_arguments($args, \$exe, $cpu_list);
+  # Extract settings for [mysqltest] section that always exist in generated
+  # config, the exception here is with extern server there is no config.
+  if (defined $config) {
+    my $mysqltest = $config->group('mysqltest');
+    my $cpu_list = $mysqltest->if_exist('#cpubind');
+    if (defined $cpu_list) {
+      mtr_print("Applying cpu binding '$cpu_list' for mysqltest");
+      cpubind_arguments($args, \$exe, $cpu_list);
+    }
   }
 
   if ($opt_strace_client) {
