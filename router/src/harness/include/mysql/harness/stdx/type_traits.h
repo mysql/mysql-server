@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,15 @@ struct is_scoped_enum : __is_scoped_enum_helper<T> {};
 
 template <class E>
 inline constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
+
+// C++20
+template <class T>
+struct remove_cvref {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 }  // namespace stdx
 

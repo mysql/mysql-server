@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,9 @@ SET(TESTS
   test_net_ts_buffer.cc
   test_net_ts_executor.cc
   test_net_ts_impl_file.cc
-  test_net_ts_impl_linux_epoll_io_service.cc
   test_net_ts_impl_kqueue_io_service.cc
+  test_net_ts_impl_linux_epoll_io_service.cc
+  test_net_ts_impl_netif.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc

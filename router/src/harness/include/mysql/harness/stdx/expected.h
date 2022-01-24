@@ -25,12 +25,21 @@
 #ifndef MYSQL_HARNESS_STDX_EXPECTED_H_
 #define MYSQL_HARNESS_STDX_EXPECTED_H_
 
-// implementation of http://wg21.link/p0323
+// implementation of C++23's std::expected<> in C++17
 //
-// see http://wg21.link/p0762
+// and http://wg21.link/p2505 (r0) for .and_then(), .or_else() and .transform()
+//
+// See http://wg21.link/p0323
+//
+// missing: trivial destructors if T and E are trivial.
 
-#include <new>      // ::operator new
+#include <functional>  // invoke
+#include <initializer_list>
+#include <new>  // ::operator new
+#include <type_traits>
 #include <utility>  // std::forward
+
+#include "mysql/harness/stdx/type_traits.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define RESO_ASSUME(x) \
@@ -66,6 +75,13 @@ struct is_default_constructible<std::unique_ptr<T, void (*)(T *)>>
 
 namespace stdx {
 
+// inplace construction of unexpected values.
+struct unexpect_t {
+  explicit unexpect_t() = default;
+};
+
+inline constexpr unexpect_t unexpect{};
+
 template <typename E>
 class unexpected {
  public:
@@ -78,6 +94,13 @@ class unexpected {
   constexpr explicit unexpected(error_type &&e) : error_{std::move(e)} {}
 
   constexpr explicit unexpected(const error_type &e) : error_{e} {}
+
+  template <
+      class... Args,
+      std::enable_if_t<std::is_constructible_v<E, Args &&...>> * = nullptr>
+  constexpr explicit unexpected(std::in_place_t, Args &&... args) {
+    error_(std::forward<Args>(args)...);
+  }
 
   constexpr error_type &value() &noexcept { return error_; }
   constexpr const error_type &value() const &noexcept { return error_; }
@@ -94,6 +117,13 @@ template <typename E>
 constexpr auto make_unexpected(E &&e) -> unexpected<std::decay_t<E>> {
   return unexpected<std::decay_t<E>>(std::forward<E>(e));
 }
+
+// deduction guide
+template <class E>
+unexpected(E) -> unexpected<E>;
+
+template <class T, class E>
+class expected;
 
 namespace base {
 template <class T, class E>
@@ -124,10 +154,19 @@ union storage_t {
 
   // enable inplace construction of value_type, if the T supports it
   template <class... Args,
-            typename std::enable_if_t<
-                std::is_constructible<T, Args &&...>::value, void *> = nullptr>
+            std::enable_if_t<std::is_constructible_v<T, Args &&...>, void *> =
+                nullptr>
   void construct_value(std::in_place_t, Args &&... args) {
     new (&value_) value_type(std::forward<Args>(args)...);
+  }
+
+  template <class U, class... Args,
+            std::enable_if_t<std::is_constructible_v<
+                                 T, std::initializer_list<U> &, Args &&...>,
+                             void *> = nullptr>
+  void construct_value(std::in_place_t, std::initializer_list<U> il,
+                       Args &&... args) {
+    new (&value_) value_type(il, std::forward<Args>(args)...);
   }
 
   void destruct_value() { value_.~value_type(); }
@@ -138,8 +177,9 @@ union storage_t {
   }
 
   // enable inplace construction of error, if the E supports it
-  template <class... Args, typename std::enable_if_t<std::is_constructible<
-                               E, Args &&...>::value> * = nullptr>
+  template <
+      class... Args,
+      std::enable_if_t<std::is_constructible_v<E, Args &&...>> * = nullptr>
   void construct_error(std::in_place_t, Args &&... args) {
     new (&error_) error_type(std::forward<Args>(args)...);
   }
@@ -187,7 +227,7 @@ union storage_t<void, E> {
   // enable inplace construction of error, if the E supports it
   template <
       class... Args,
-      std::enable_if_t<std::is_constructible<E, Args &&...>::value> * = nullptr>
+      std::enable_if_t<std::is_constructible_v<E, Args &&...>> * = nullptr>
   void construct_error(std::in_place_t, Args &&... args) {
     new (&error_) error_type(std::forward<Args>(args)...);
   }
@@ -409,19 +449,123 @@ class ExpectedImpl : public ExpectedImplBase {
     storage_.construct_value();
   }
 
-  constexpr ExpectedImpl(const value_type &v) : ExpectedImplBase{true} {
-    storage_.construct_value(v);
+  template <class UF, class GF>
+  using constructor_is_explicit =
+      std::bool_constant<!std::is_convertible_v<UF, T> ||
+                         !std::is_convertible_v<GF, E>>;
+
+  //
+  template <class U, class G, class UF, class GF>
+  using can_value_convert_construct = std::bool_constant<
+      std::is_constructible_v<T, UF> && std::is_constructible_v<E, GF> &&
+      !std::is_constructible_v<T, ExpectedImpl<U, G> &> &&
+      !std::is_constructible_v<T, ExpectedImpl<U, G>> &&
+      !std::is_constructible_v<T, const ExpectedImpl<U, G> &> &&
+      !std::is_constructible_v<T, const ExpectedImpl<U, G>> &&
+      !std::is_convertible_v<ExpectedImpl<U, G> &, T> &&
+      !std::is_convertible_v<ExpectedImpl<U, G>, T> &&
+      !std::is_convertible_v<const ExpectedImpl<U, G> &, T> &&
+      !std::is_convertible_v<const ExpectedImpl<U, G>, T> &&
+      !std::is_constructible_v<unexpected<E>, ExpectedImpl<U, G> &> &&
+      !std::is_constructible_v<unexpected<E>, ExpectedImpl<U, G>> &&
+      !std::is_constructible_v<unexpected<E>, const ExpectedImpl<U, G> &> &&
+      !std::is_constructible_v<unexpected<E>, const ExpectedImpl<U, G>>>;
+
+  template <
+      class U, class G, class UF = const U &, class GF = const G &,
+      std::enable_if_t<can_value_convert_construct<U, G, UF, GF>::value &&
+                       !constructor_is_explicit<UF, GF>::value> * = nullptr>
+  constexpr ExpectedImpl(const ExpectedImpl<U, G> &rhs)
+      : ExpectedImplBase{rhs.has_value()} {
+    if (rhs.has_value()) {
+      storage_.construct_value(std::forward<UF>(*rhs));
+    } else {
+      storage_.construct_error(rhs.error());
+    }
   }
-  constexpr ExpectedImpl(value_type &&v) : ExpectedImplBase{true} {
-    storage_.construct_value(std::move(v));
+
+  template <
+      class U, class G, class UF = const U &, class GF = const G &,
+      std::enable_if_t<can_value_convert_construct<U, G, UF, GF>::value &&
+                       constructor_is_explicit<UF, GF>::value> * = nullptr>
+  explicit constexpr ExpectedImpl(const ExpectedImpl<U, G> &rhs)
+      : ExpectedImplBase{rhs.has_value()} {
+    if (rhs.has_value()) {
+      storage_.construct_value(std::forward<UF>(*rhs));
+    } else {
+      storage_.construct_error(rhs.error());
+    }
+  }
+
+  template <
+      class U, class G, class UF = U, class GF = G,
+      std::enable_if_t<can_value_convert_construct<U, G, UF, GF>::value &&
+                       !constructor_is_explicit<UF, GF>::value> * = nullptr>
+  constexpr ExpectedImpl(ExpectedImpl<U, G> &&rhs)
+      : ExpectedImplBase{rhs.has_value()} {
+    if (rhs.has_value()) {
+      storage_.construct_value(std::forward<UF>(*rhs));
+    } else {
+      storage_.construct_error(rhs.error());
+    }
+  }
+
+  template <
+      class U, class G, class UF = U, class GF = G,
+      std::enable_if_t<can_value_convert_construct<U, G, UF, GF>::value &&
+                       constructor_is_explicit<UF, GF>::value> * = nullptr>
+  explicit constexpr ExpectedImpl(ExpectedImpl<U, G> &&rhs)
+      : ExpectedImplBase{rhs.has_value()} {
+    if (rhs.has_value()) {
+      storage_.construct_value(std::forward<UF>(*rhs));
+    } else {
+      storage_.construct_error(rhs.error());
+    }
+  }
+
+  template <class U>
+  using can_construct_from_value_type = std::conjunction<
+      std::negation<std::is_same<std::in_place_t, stdx::remove_cvref_t<U>>>,
+      std::negation<std::is_same<ExpectedImpl<T, E>, stdx::remove_cvref_t<U>>>,
+      std::negation<std::is_same<unexpected<E>, stdx::remove_cvref_t<U>>>,
+      std::is_constructible<T, U>>;
+
+  template <class U>
+  using can_construct_from_value_type_explicit =
+      std::negation<std::is_convertible<U, T>>;
+
+  template <class U = T,
+            std::enable_if_t<can_construct_from_value_type<U>::value &&
+                             !can_construct_from_value_type_explicit<U>::value>
+                * = nullptr>
+  constexpr ExpectedImpl(U &&v) : ExpectedImplBase{true} {
+    storage_.construct_value(std::forward<U>(v));
+  }
+
+  template <class U = T,
+            std::enable_if_t<can_construct_from_value_type<U>::value &&
+                             can_construct_from_value_type_explicit<U>::value>
+                * = nullptr>
+  explicit constexpr ExpectedImpl(U &&v) : ExpectedImplBase{true} {
+    storage_.construct_value(std::in_place, std::forward<U>(v));
   }
 
   // enable inplace construction of value_type, if the T supports it
-  template <class... Args, typename std::enable_if_t<std::is_constructible<
-                               T, Args &&...>::value> * = nullptr>
+  template <
+      class... Args,
+      std::enable_if_t<std::is_constructible_v<T, Args &&...>> * = nullptr>
   constexpr ExpectedImpl(std::in_place_t, Args &&... args)
       : ExpectedImplBase{true} {
     storage_.construct_value(std::in_place, std::forward<Args>(args)...);
+  }
+
+  // enable inplace construction of error_type, if the E supports it
+  template <
+      class... Args,
+      std::enable_if_t<std::is_constructible_v<E, Args &&...>> * = nullptr>
+  constexpr ExpectedImpl(stdx::unexpect_t, Args &&... args)
+      : ExpectedImplBase{false} {
+    storage_.construct_error(std::in_place, std::forward<Args>(args)...);
   }
 
   constexpr ExpectedImpl(const ExpectedImpl &other)
@@ -444,11 +588,15 @@ class ExpectedImpl : public ExpectedImplBase {
     }
   }
 
-  constexpr ExpectedImpl(const unexpected<E> &e) : ExpectedImplBase{false} {
+  template <class G,
+            std::enable_if_t<std::is_constructible_v<E, const G &>> * = nullptr>
+  constexpr ExpectedImpl(const unexpected<G> &e) : ExpectedImplBase{false} {
     storage_.construct_error(e.value());
   }
 
-  constexpr ExpectedImpl(unexpected<E> &&e) : ExpectedImplBase{false} {
+  template <class G,
+            std::enable_if_t<std::is_constructible_v<E, G>> * = nullptr>
+  constexpr ExpectedImpl(unexpected<G> &&e) : ExpectedImplBase{false} {
     storage_.construct_error(std::move(e.value()));
   }
 
@@ -464,6 +612,23 @@ class ExpectedImpl : public ExpectedImplBase {
     return *this;
   }
 
+  template <class U = T,
+            std::enable_if_t<
+                !std::is_same_v<ExpectedImpl<T, E>, stdx::remove_cvref_t<U>> &&
+                !std::conjunction_v<std::is_scalar<T>,
+                                    std::is_same<T, std::decay_t<U>>> &&
+                std::is_constructible_v<T, U> && std::is_assignable_v<T &, U>>
+                * = nullptr>
+  ExpectedImpl &operator=(U &&v) {
+    if (bool(*this)) {
+      storage_.value() = std::forward<U>(v);
+    } else {
+      ExpectedImpl(std::forward<U>(v)).swap(*this);
+    }
+
+    return *this;
+  }
+
   // destruct
   ~ExpectedImpl() {
     if (has_value()) {
@@ -475,7 +640,7 @@ class ExpectedImpl : public ExpectedImplBase {
 
   //
   template <class U = T, class G = E>
-  typename std::enable_if_t<
+  std::enable_if_t<
 #if defined(__cpp_lib_is_swappable)
       std::is_swappable<U>::value && std::is_swappable<G>::value &&
 #endif
@@ -596,6 +761,15 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
 
   constexpr ExpectedImpl() noexcept : ExpectedImplBase{true} {}
 
+  // enable inplace construction of error_type, if the E supports it
+  template <
+      class... Args,
+      std::enable_if_t<std::is_constructible_v<E, Args &&...>> * = nullptr>
+  constexpr ExpectedImpl(stdx::unexpect_t, Args &&... args)
+      : ExpectedImplBase{false} {
+    storage_.construct_error(std::in_place, std::forward<Args>(args)...);
+  }
+
   constexpr ExpectedImpl(const ExpectedImpl &other)
       : ExpectedImplBase{other.has_value()} {
     if (!has_value()) {
@@ -695,6 +869,67 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
   base::storage_t<void, E> storage_;
 };
 
+template <class T>
+struct is_expected_impl : std::false_type {};
+
+template <class T, class E>
+struct is_expected_impl<expected<T, E>> : std::true_type {};
+
+template <class T>
+using is_expected = is_expected_impl<std::decay_t<T>>;
+
+namespace base {
+
+template <
+    class Exp, class Func,
+    typename value_type = typename std::decay_t<Exp>::value_type,
+    std::enable_if_t<std::is_void_v<value_type>
+                         ? std::is_invocable_v<Func>
+                         : std::is_invocable_v<Func, value_type>> * = nullptr>
+constexpr auto and_then_impl(Exp &&exp, Func &&func) {
+  if constexpr (std::is_void_v<value_type>) {
+    using Ret = std::invoke_result_t<Func>;
+
+    static_assert(stdx::is_expected<Ret>::value,
+                  "Func must return a stdx::expected<>");
+
+    if (exp.has_value()) {
+      return std::invoke(func);
+    } else {
+      return Ret{stdx::unexpect, std::forward<Exp>(exp).error()};
+    }
+  } else {
+    using Ret = std::invoke_result_t<Func, value_type>;
+
+    static_assert(stdx::is_expected<Ret>::value,
+                  "Func must return a stdx::expected<>");
+
+    if (exp.has_value()) {
+      return std::invoke(func, *std::forward<Exp>(exp));
+    } else {
+      return Ret{stdx::unexpect, std::forward<Exp>(exp).error()};
+    }
+  }
+}
+
+template <class Exp, class Func,
+          typename error_type = typename std::decay_t<Exp>::error_type,
+          std::enable_if_t<std::is_invocable_v<Func, error_type>> * = nullptr>
+constexpr auto or_else_impl(Exp &&exp, Func &&func) {
+  static_assert(
+      std::is_same_v<
+          stdx::remove_cvref_t<std::invoke_result_t<Func, error_type>>, Exp>,
+      "Func must return an expected<>");
+
+  if (exp.has_value()) {
+    return std::forward<Exp>(exp);
+  }
+
+  return std::invoke(std::forward<Func>(func), std::forward<Exp>(exp).error());
+}
+
+}  // namespace base
+
 template <class T, class E>
 class expected : public ExpectedImpl<T, E>,
                  private base::select_assign_base<T, E>,
@@ -710,7 +945,117 @@ class expected : public ExpectedImpl<T, E>,
 
   // inherit all the constructors of our base
   using ExpectedImpl<T, E>::ExpectedImpl;
+
+  //
+  // and_then
+  //
+
+  template <class Func>
+  constexpr auto and_then(Func &&func) & {
+    return base::and_then_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto and_then(Func &&func) && {
+    return base::and_then_impl(std::move(*this), std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto and_then(Func &&func) const & {
+    return base::and_then_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto and_then(Func &&func) const && {
+    return base::and_then_impl(std::move(*this), std::forward<Func>(func));
+  }
+
+  //
+  // or_else
+  //
+
+  template <class Func>
+  constexpr auto or_else(Func &&func) & {
+    return base::or_else_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto or_else(Func &&func) && {
+    return base::or_else_impl(std::move(*this), std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto or_else(Func &&func) const & {
+    return base::or_else_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto or_else(Func &&func) const && {
+    return base::or_else_impl(std::move(*this), std::forward<Func>(func));
+  }
+
+  //
+  // transform
+  //
+
+  template <class Func>
+  constexpr auto transform(Func &&func) & {
+    return expected_transform_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto transform(Func &&func) && {
+    return expected_transform_impl(std::move(*this), std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto transform(Func &&func) const & {
+    return expected_transform_impl(*this, std::forward<Func>(func));
+  }
+
+  template <class Func>
+  constexpr auto transform(Func &&func) const && {
+    return expected_transform_impl(std::move(*this), std::forward<Func>(func));
+  }
 };
+
+template <class Exp, class Func>
+constexpr auto expected_transform_impl(Exp &&exp, Func &&func) {
+  // type of the value that's passed to func
+  using func_value_type = typename std::decay_t<Exp>::value_type;
+
+  if constexpr (std::is_void_v<func_value_type>) {
+    using func_return_type = std::invoke_result_t<Func>;
+    using result_type =
+        stdx::expected<func_return_type, typename Exp::error_type>;
+
+    if (!exp.has_value()) {
+      return result_type{stdx::unexpect, std::forward<Exp>(exp).error()};
+    }
+
+    if constexpr (std::is_void_v<func_return_type>) {
+      std::invoke(func);
+      return result_type();
+    } else {
+      return result_type(std::invoke(func));
+    }
+  } else {
+    using func_return_type = std::invoke_result_t<Func, func_value_type>;
+    using result_type =
+        stdx::expected<func_return_type, typename Exp::error_type>;
+
+    if (!exp.has_value()) {
+      return result_type{stdx::unexpect, std::forward<Exp>(exp).error()};
+    }
+
+    if constexpr (std::is_void_v<func_return_type>) {
+      std::invoke(func, *std::forward<Exp>(exp));
+      return result_type();
+    } else {
+      return result_type(std::invoke(func, *std::forward<Exp>(exp)));
+    }
+  }
+}
 
 template <class E1, class E2>
 inline bool operator==(const unexpected<E1> &a, const unexpected<E2> &b) {
