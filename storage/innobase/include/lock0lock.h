@@ -1003,20 +1003,14 @@ struct lock_sys_t {
 #endif /* UNIV_DEBUG */
 };
 
-/*********************************************************************/ /**
-This function is kind of wrapper to lock_rec_convert_impl_to_expl_for_trx()
-function with functionailty added to facilitate lock conversion from implicit
-to explicit for partial rollback cases
-@param[in]      block           buffer block of rec
-@param[in]      rec             user record on page
-@param[in]      index           index of record
-@param[in]      offsets         rec_get_offsets(rec, index)
-@param[in,out]  trx             active transaction
-@param[in]      heap_no         rec heap number to lock */
-void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
-                                          const rec_t *rec, dict_index_t *index,
-                                          const ulint *offsets, trx_t *trx,
-                                          ulint heap_no);
+/** If a transaction has an implicit x-lock on a record, but no explicit x-lock
+set on the record, sets one for it.
+@param[in]  block     buffer block of rec
+@param[in]  rec       user record on page
+@param[in]  index     index of record
+@param[in]  offsets   rec_get_offsets(rec, index) */
+void lock_rec_convert_impl_to_expl(const buf_block_t *block, const rec_t *rec,
+                                   dict_index_t *index, const ulint *offsets);
 
 /** Removes a record lock request, waiting or granted, from the queue. */
 void lock_rec_discard(lock_t *in_lock); /*!< in: record lock object: all

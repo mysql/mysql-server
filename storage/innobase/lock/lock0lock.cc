@@ -5418,15 +5418,8 @@ static void lock_rec_convert_impl_to_expl_for_trx(
   DEBUG_SYNC_C("after_lock_rec_convert_impl_to_expl_for_trx");
 }
 
-/** If a transaction has an implicit x-lock on a record, but no explicit x-lock
-set on the record, sets one for it.
-@param[in]      block           buffer block of rec
-@param[in]      rec             user record on page
-@param[in]      index           index of record
-@param[in]      offsets         rec_get_offsets(rec, index) */
-static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
-                                          const rec_t *rec, dict_index_t *index,
-                                          const ulint *offsets) {
+void lock_rec_convert_impl_to_expl(const buf_block_t *block, const rec_t *rec,
+                                   dict_index_t *index, const ulint *offsets) {
   trx_t *trx;
 
   ut_ad(!locksys::owns_exclusive_global_latch());
@@ -5465,15 +5458,6 @@ static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
     lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets, trx,
                                           heap_no);
   }
-}
-
-void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
-                                          const rec_t *rec, dict_index_t *index,
-                                          const ulint *offsets, trx_t *trx,
-                                          ulint heap_no) {
-  trx_reference(trx);
-  lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets, trx,
-                                        heap_no);
 }
 
 /** Checks if locks of other transactions prevent an immediate modify (update,
