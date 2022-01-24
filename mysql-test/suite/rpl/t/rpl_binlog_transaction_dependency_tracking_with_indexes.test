@@ -309,6 +309,8 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc
+--disable_warnings
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc

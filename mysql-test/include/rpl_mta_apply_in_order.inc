@@ -281,5 +281,7 @@ while (!$json_order_of_statements_done) {
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
+--disable_warnings
 --source include/restore_sysvars.inc
+--enable_warnings
 --source include/start_slave.inc

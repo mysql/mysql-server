@@ -349,8 +349,9 @@ while ($n)
 
 --source include/sync_slave_sql_with_master.inc
 
-
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc
 

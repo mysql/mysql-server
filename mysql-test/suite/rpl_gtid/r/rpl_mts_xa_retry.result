@@ -141,6 +141,8 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 SET @@global.replica_parallel_workers = 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave_sql.inc
 [connection master]
 include/rpl_reset.inc

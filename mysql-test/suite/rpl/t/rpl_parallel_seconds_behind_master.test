@@ -118,7 +118,9 @@ drop tables t1, t2;
 --source include/sync_slave_sql_with_master.inc
 
 set @@global.replica_checkpoint_period= @save.replica_checkpoint_period;
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 
 --source include/rpl_end.inc

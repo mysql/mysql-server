@@ -228,7 +228,9 @@ DROP TABLE t1, t2;
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
+--disable_warnings
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+--enable_warnings
 --echo #
 --echo # 4.4 Clear debug point.
 --echo #

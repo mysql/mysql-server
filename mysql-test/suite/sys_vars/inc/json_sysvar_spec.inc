@@ -326,7 +326,6 @@ let $sysvar_specs =
     $persist_as_readonly,
     "default": 4,
     "values": [1, 2, 100],
-    "min": 0,
     "max": 1024,
     $int_invalid
   },

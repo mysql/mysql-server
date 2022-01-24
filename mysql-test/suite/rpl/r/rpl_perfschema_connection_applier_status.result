@@ -268,5 +268,7 @@ include/assert.inc [processing_gtid is cleared when a former STS slave restarts 
 include/assert.inc [last_processed_gtid is cleared when a former STS slave restarts with MTS enabled]
 include/stop_slave.inc
 SET GLOBAL replica_parallel_workers= 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave.inc
 include/rpl_end.inc

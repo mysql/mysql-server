@@ -77,7 +77,9 @@ SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 START GROUP_REPLICATION;
 
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+--disable_warnings
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+--enable_warnings
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @replica_preserve_commit_order;
 
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");

@@ -14,6 +14,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 include/start_slave.inc
 include/assert.inc [In non-MTS mode(SQL thread), the table should return one row as Single SQL applier thread will be part of replication_applier_status_by_worker table.]

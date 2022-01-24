@@ -2496,7 +2496,7 @@ sysvar:
 - persist=1
 - persist_as_readonly=1
 - dynamic=1
-- min=0
+- min=
 - max=1024
 - block_size=1
 - default=4
@@ -2529,21 +2529,6 @@ include/assert.inc [@@global.replica_parallel_workers should be 4]
 include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
 include/assert.inc [@@global.slave_parallel_workers should be 4]
 include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
-# Minimum value
-SET @@global.replica_parallel_workers = 0;
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [Expected min value should equal min value in performance_schema]
-# Less-than-minimum values
-SET @@global.replica_parallel_workers = -1;
-Warnings:
-Warning	1292	Truncated incorrect replica_parallel_workers value: '-1'
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
 # Maximum value
 SET @@global.replica_parallel_workers = 1024;
 include/assert.inc [@@global.replica_parallel_workers should be 1024]
@@ -2633,24 +2618,6 @@ include/assert.inc [@@global.slave_parallel_workers should be 4]
 include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
 include/assert.inc [@@global.replica_parallel_workers should be 4]
 include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
-# Minimum value
-SET @@global.slave_parallel_workers = 0;
-Warnings:
-Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [Expected min value should equal min value in performance_schema]
-# Less-than-minimum values
-SET @@global.slave_parallel_workers = -1;
-Warnings:
-Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-Warning	1292	Truncated incorrect replica_parallel_workers value: '-1'
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
 # Maximum value
 SET @@global.slave_parallel_workers = 1024;
 Warnings:

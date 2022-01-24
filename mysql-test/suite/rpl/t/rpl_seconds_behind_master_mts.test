@@ -44,7 +44,9 @@ SET GLOBAL replica_preserve_commit_order=1;
 --let $debug_point= dbug.mta.force_clock_diff_eq_0
 --source include/remove_debug_point.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+--disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 SET @@global.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@global.replica_preserve_commit_order= @save_replica_preserve_commit_order;
 --source include/start_slave.inc

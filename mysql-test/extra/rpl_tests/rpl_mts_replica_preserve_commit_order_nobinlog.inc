@@ -389,7 +389,9 @@ if ($mts_spco_cleanup_statement)
   --source include/stop_slave.inc
 
   SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+  --disable_warnings
   SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+  --enable_warnings
   SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
   --source include/start_slave.inc
 

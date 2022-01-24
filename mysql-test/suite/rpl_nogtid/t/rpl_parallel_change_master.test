@@ -101,8 +101,9 @@ let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
+--disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers; # cleanup
-
+--enable_warnings
 #
 # --relay-log-recovery= 1 and MTS gaps is handled similarly to Change-Master
 #

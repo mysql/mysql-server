@@ -130,6 +130,8 @@ drop database d0;
 
 drop view coord_wait_list;
 drop view worker_wait_list;
+--disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc

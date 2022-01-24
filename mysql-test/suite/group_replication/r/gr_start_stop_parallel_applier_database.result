@@ -78,6 +78,8 @@ SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

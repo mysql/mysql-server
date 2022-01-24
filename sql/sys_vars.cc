@@ -1675,6 +1675,16 @@ static bool master_info_repository_check(sys_var *self, THD *thd,
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
+static bool replica_parallel_workers_update(sys_var *, THD *thd,
+                                            enum_var_type) {
+  if (opt_mts_replica_parallel_workers == 0) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "0", "1");
+  }
+  return false;
+}
+
 static const char *repository_names[] = {"FILE", "TABLE",
 #ifndef NDEBUG
                                          "DUMMY",
@@ -6348,8 +6358,10 @@ static Sys_var_ulong Sys_replica_parallel_workers(
     "replica_parallel_workers",
     "Number of worker threads for executing events in parallel ",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_replica_parallel_workers),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4),
-    BLOCK_SIZE(1));
+    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_WORKERS),
+    VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(replica_parallel_workers_update));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_workers(
     "slave_parallel_workers", Sys_replica_parallel_workers);

@@ -47,7 +47,9 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 
 # Restore defaults
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+--disable_warnings
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+--enable_warnings
 SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 --source include/stop_group_replication.inc
 --source include/group_replication_end.inc

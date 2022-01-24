@@ -10652,6 +10652,12 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_REPLICA_PARALLEL_TYPE:
       push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");
+      break;
+    case OPT_REPLICA_PARALLEL_WORKERS:
+      if (opt_mts_replica_parallel_workers == 0) {
+        push_deprecated_warn(NULL, "--replica-parallel-workers=0",
+                             "'--replica-parallel-workers=1'");
+      }
   }
   return false;
 }

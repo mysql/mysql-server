@@ -146,8 +146,10 @@ EOF
 --echo ==== Clean up ====
 
 --source include/stop_slave.inc
+--disable_warnings
 --replace_result $old_replica_parallel_workers OLD_VALUE
 eval SET GLOBAL REPLICA_PARALLEL_WORKERS= $old_replica_parallel_workers;
+--enable_warnings
 --replace_result $old_replica_transaction_retries OLD_VALUE
 eval SET GLOBAL REPLICA_TRANSACTION_RETRIES= $old_replica_transaction_retries;
 

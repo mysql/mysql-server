@@ -1,8 +1,10 @@
 --source include/rpl_connection_slave.inc
 --replace_result '$saved_replica_parallel_type' SAVED_REPLICA_PARALLEL_TYPE
 --eval SET GLOBAL replica_parallel_type = '$saved_replica_parallel_type'
+--disable_warnings
 --replace_result $saved_replica_parallel_workers SAVED_REPLICA_PARALLEL_WORKERS
 --eval SET GLOBAL replica_parallel_workers = $saved_replica_parallel_workers
+--enable_warnings
 --replace_result $saved_replica_preserve_commit_order SAVED_REPLICA_PRESERVE_COMMIT_ORDER
 --eval SET GLOBAL replica_preserve_commit_order = $saved_replica_preserve_commit_order
 --replace_result $saved_replica_transaction_retries SAVED_REPLICA_TRANSACTION_RETRIES

@@ -52,6 +52,8 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/load_bug12982188.txt
 
 --sync_slave_with_master
+--disable_warnings
 SET @@global.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc
