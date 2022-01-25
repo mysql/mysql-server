@@ -30,6 +30,9 @@
 #pragma GCC diagnostic ignored "-Wsuggest-override"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextra-semi"
+
 
 
 #include <mysql/plugin_audit.h>

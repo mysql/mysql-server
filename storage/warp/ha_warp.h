@@ -27,6 +27,8 @@
 #pragma GCC diagnostic ignored "-Wsuggest-override"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextra-semi"
 #ifndef HA_WARP_HDR
 #define HA_WARP_HDR
 #define MYSQL_SERVER 1

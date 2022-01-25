@@ -19,9 +19,7 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 #include "storage/warp/warp_rewrite/warp_rewrite.h"
-
 #include "my_config.h"
 #include "mysql.h"
 #include <mysql/plugin_audit.h>
@@ -154,7 +152,7 @@ mysql_declare_plugin(audit_log){
 
 std::string strtolower(std::string in) {
   std::string out;
-  for(int i=0;i<in.length();++i) {
+  for(size_t i=0;i<in.length();++i) {
     out += tolower(in[i]);
   }
   return out;
@@ -168,7 +166,7 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
   bool in_comment = false;
   bool in_line_comment = false;
 
-  for(auto char_idx = 0; char_idx < sql.length(); ++char_idx) {
+  for(size_t char_idx = 0; char_idx < sql.length(); ++char_idx) {
     
     /* this block of statements handles SQL commenting */
     if( (sql[char_idx] == '\t' || sql[char_idx] == ' ' || sql[char_idx] == '\r' || sql[char_idx] == '\n') && sql.substr(char_idx+2, 2) == "--" ) {
@@ -657,7 +655,7 @@ bool is_remote_query(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(size_t i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -685,7 +683,7 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
   int remote_server_count = 0;
   int local_server_count = 0;
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(size_t i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -718,7 +716,7 @@ std::string get_remote_server(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
   
   bool next_is_table_name = false;
-  for(int i=0; i < tokens.size(); ++i) {
+  for(size_t i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     
     if((lower == "from") || (lower == "join")) {
@@ -748,7 +746,7 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   bool found_as = false;
   bool is_ddl = false;
   
-  int i=0;
+  size_t i=0;
   for(i=0;i<tokens.size();++i) {
     
     if(tokens[i] != " ") {
@@ -763,7 +761,7 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
   if((strtolower(tokens[0]) == "create") || (strtolower(tokens[0]) == "insert")){
     is_ddl=true;
   }
-  for(int i=0; i < tokens.size(); ++i) {
+  for(size_t i=0; i < tokens.size(); ++i) {
     std::string lower = strtolower(tokens[i]);
     if(is_ddl & !found_as && strip_ddl) {
       
@@ -788,7 +786,7 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
       const char* remote = strstr(tokens[i].c_str(), "@");
       if (remote != NULL) {
         std::string new_token = "";
-        for(int z=0;z<tokens[i].length();++z) {
+        for(size_t z=0;z<tokens[i].length();++z) {
           if(tokens[i][z] == '@') {
             out += "/*@";
             continue;
@@ -811,7 +809,7 @@ std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl 
 std::string extract_ddl(std::vector<std::string>* tokens) {
   std::string out;
   
-  for(int i=0; i < tokens->size(); ++i) {
+  for(size_t i=0; i < tokens->size(); ++i) {
     std::string lower = strtolower((*tokens)[i]);
     if(lower == "select") {
       break;
@@ -845,7 +843,7 @@ std::string get_local_root_password() {
   return "";
 }
 
-std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert_select = false) {
+std::string execute_remote_query(std::vector<std::string> tokens ) {
   std::string sqlstr = "";
   std::string remote_tmp_name = "remote_tmp" + std::to_string(std::rand());
 
@@ -862,11 +860,24 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       // get rid of the leading @
       servername = std::string(servername.c_str()+1);
       MYSQL *local = mysql_init(NULL);
-      MYSQL *remote = mysql_init(NULL);
+      /*FIXME HACK
+       * This is necessary in 8.0.28 on AWS outside of debug mode.  Instead of using mysql_init twice
+       * (the second time it returns NULL) we just call it once and copy the structure into the second
+       * connection before we establish it.  This appears to work properly, as long as the memory is
+       * allocated via the MySQL allocator.  However, since remote is a copy of local, we can only mysql_close
+       * the local copy later!
+       */
+      MYSQL *remote = (MYSQL *)my_malloc(key_memory_warp_rewrite, sizeof(MYSQL),
+		                                           MYF(MY_WME | MY_ZEROFILL));
+      memcpy(remote, local, sizeof(MYSQL));
       MYSQL_RES *result;
       MYSQL_ROW row = NULL;
-      if (local == NULL || remote == NULL) {
-        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not initialize database connections'";
+      if (local == NULL) {
+        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not initialize local database connection'";
+        return sqlstr;
+      }
+      if (remote == NULL) {
+        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not initialize remote database connection'";
         return sqlstr;
       }
         /* establish a connection to the local server to get the remote connection details*/
@@ -914,7 +925,8 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
           std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
         mysql_close(remote);
-        mysql_close(local);
+	//because of the hack above we can't close local but we shouldn't have to the extension will be freed above
+        //mysql_close(local);
         return sqlstr;
       }
       
@@ -925,7 +937,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while starting transaction]:(" + 
           std::to_string(myerrno) + ")" + std::string(mysql_error(remote)) + "';";
-        mysql_close(remote);
+        //mysql_close(remote);
         mysql_close(local);
         return sqlstr;
       }
@@ -939,7 +951,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(row == NULL || row[0] == NULL) {
         mysql_free_result(result);
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch remote server_id';";
       }
       THDVAR(current_thd, remote_server_id) = atoll(row[0]);
@@ -948,7 +960,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       //FIXME: this should no longer be needed
       if(tokens.size() > 5) {
         if(tokens[4] == ".") {
-          for(auto i=0;i<6;++i) {
+          for(size_t i=0;i<6;++i) {
             tokens[i] = "";
           }
         }
@@ -961,7 +973,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=\"Remote query error [while creating temporary table]:(" + 
           std::to_string(myerrno) + ")" + escape_for_call(std::string(mysql_error(remote))) + "\";";
-        mysql_close(remote);
+        //mysql_close(remote);
         mysql_close(local);
         return sqlstr;
       }
@@ -973,7 +985,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE \"45000\" SET MESSAGE_TEXT=\"Remote query error [unable to get remote query metadata]: " + std::string(mysql_error(remote)) + "\";";
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return sqlstr;
       }
       
@@ -982,7 +994,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(row == NULL || row[0] == NULL) {
         mysql_free_result(result);
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch temporary table metadata';";
       }
       sql = "drop table if exists leapdb." + remote_tmp_name + ";";
@@ -990,7 +1002,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(myerrno >0) {
         sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to drop local temporary table]: " + std::to_string(myerrno) + "';";
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return " " + sqlstr;
       }
 
@@ -1003,7 +1015,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       if(mysql_errno(local) > 0) {
         mysql_free_result(result);
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create local temporary table for remote query contents';";
       }
       
@@ -1011,7 +1023,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       mysql_real_query(remote, sql.c_str(), sql.length());
       if(mysql_errno(remote) > 0) {
         mysql_close(local);
-        mysql_close(remote);
+        //mysql_close(remote);
         return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create fetch remote temporary table contents';";
       }
       
@@ -1037,7 +1049,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
       mysql_close(local);
-      mysql_close(remote);
+      //mysql_close(remote);
       sqlstr =  "select * from leapdb." + remote_tmp_name + ";";
       return sqlstr;
     } else {
@@ -1134,7 +1146,7 @@ static int warp_rewrite_query_notify(
         if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
             std::string ddl = extract_ddl(&tokens);
             std::string tmp = strip_remote_server(tokens);
-            sqlstr = ddl + " " + execute_remote_query(tokens, strtolower(tokens[0])=="insert" ? true : false);
+            sqlstr = ddl + " " + execute_remote_query(tokens);
             is_create_table = true;
         }
       } else {
@@ -1171,7 +1183,7 @@ static int warp_rewrite_query_notify(
           prefix += "*/";
           sqlstr = prefix + strip_remote_server(tokens);
         } else {
-          for(int i=0;i<tokens.size();++i) {
+          for(size_t i=0;i<tokens.size();++i) {
             if(tokens[i] == mvname) {
               capture_sql = true;
               if(i+1 < tokens.size()) {
@@ -1442,7 +1454,7 @@ static int warp_rewrite_query_notify(
     /* handle GROUP BY */
     ORDER* group_pos = select_lex.group_list.first;
     expr_num = select_lex.get_fields_list()->size();
-    for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
+    for(auto i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
 
       // is this group item one of the select items?
       auto group_item = *(group_pos->item);
@@ -1482,7 +1494,7 @@ static int warp_rewrite_query_notify(
         coord_group += alias;
         // positional group by is discarded because the column is type 'GROUP'
         bool is_numeric = true;
-        for(int i=0;i<field_str.length();++i) {
+        for(size_t i=0;i<field_str.length();++i) {
           if(field_str[i] < '0' || field_str[i] > '9') {
             is_numeric = false;
           }
