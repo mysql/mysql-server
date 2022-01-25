@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,6 @@
 
 INCLUDE(libutils)
 INCLUDE(cmake_parse_arguments)
-
-SET(JAVAC_TARGET "1.7")
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
@@ -96,6 +94,15 @@ MACRO(CREATE_JAR)
   # Treat all deprecation warnings as errors
   SET(JAVA_ARGS -Xlint:deprecation -Xlint:-options -Werror)
 
+  # Set Java 1.7 as the target version
+  SET(_JAVAC_TARGET "7")
+  IF(${Java_VERSION} VERSION_LESS 9)
+    SET(JAVA_ARGS ${JAVA_ARGS} -target ${_JAVAC_TARGET} -source ${_JAVAC_TARGET})
+  ELSE()
+    # Use the newer 'release' argument if compiling with Java version 9 or above
+    SET(JAVA_ARGS ${JAVA_ARGS} --release ${_JAVAC_TARGET})
+  ENDIF()
+
   # Compile
   IF (JAVA_FILES)
     IF (ARG_BROKEN_JAVAC)
@@ -103,8 +110,8 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
-        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar"
@@ -114,8 +121,8 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar"
