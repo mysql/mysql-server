@@ -60,6 +60,29 @@ IF(APPLE)
     PATHS "${HOMEBREW_HOME}/bison/bin")
 ENDIF()
 
+# Look for winflexbison3, see e.g.
+# https://github.com/lexxmark/winflexbison/releases
+# or
+# https://chocolatey.org/install
+# choco install winflexbison3
+IF(WIN32 AND NOT DEFINED BISON_EXECUTABLE)
+  SET(MY_BISON_PATHS
+    c:/bin/bin
+    c:/bin/lib/winflexbison3/tools
+    c:/ProgramData/chocolatey/bin
+    )
+  FOREACH(_path ${MY_BISON_PATHS})
+    FILE(TO_NATIVE_PATH ${_path} NATIVE_PATH)
+    LIST(APPEND NATIVE_BISON_PATHS "${NATIVE_PATH}")
+  ENDFOREACH()
+  MESSAGE(STATUS "Looking for win_bison in ${NATIVE_BISON_PATHS}")
+  FIND_PROGRAM(BISON_EXECUTABLE
+    NAMES win_bison win-bison
+    NO_DEFAULT_PATH
+    PATHS ${NATIVE_BISON_PATHS}
+    )
+ENDIF()
+
 FIND_PACKAGE(BISON)
 
 IF(NOT BISON_FOUND)
