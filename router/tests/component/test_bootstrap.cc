@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/string_utils.h"  // split_lines
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/utils.h"  // getpwuid

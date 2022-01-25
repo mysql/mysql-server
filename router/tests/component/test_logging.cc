@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/string_utils.h"  // split_lines
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"  // rename_file
 #include "process_wrapper.h"
