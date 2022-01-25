@@ -593,11 +593,7 @@ const char *partition_get_tablespace(const char *tablespace,
 ha_innopart::ha_innopart(handlerton *hton, TABLE_SHARE *table_arg)
     : ha_innobase(hton, table_arg),
       Partition_helper(this),
-      m_ins_node_parts(),
-      m_upd_node_parts(),
-      m_blob_heap_parts(),
-      m_trx_id_parts(),
-      m_row_read_type_parts(),
+      m_parts(),
       m_bitset(),
       m_sql_stat_start_parts(),
       m_pcur(),
@@ -1104,31 +1100,26 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   }
 #endif /* HA_INNOPART_SUPPORTS_FULLTEXT */
 
-  size_t alloc_size = sizeof(*m_ins_node_parts) * m_tot_parts;
-  m_ins_node_parts = static_cast<ins_node_t **>(ut::zalloc_withkey(
-      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
-
-  alloc_size = sizeof(*m_upd_node_parts) * m_tot_parts;
-  m_upd_node_parts = static_cast<upd_node_t **>(ut::zalloc_withkey(
-      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
-
-  alloc_blob_heap_array();
-
-  alloc_size = sizeof(*m_trx_id_parts) * m_tot_parts;
-  m_trx_id_parts = static_cast<trx_id_t *>(ut::zalloc_withkey(
-      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
-
-  alloc_size = sizeof(*m_row_read_type_parts) * m_tot_parts;
-  m_row_read_type_parts = static_cast<ulint *>(ut::zalloc_withkey(
-      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
-
-  alloc_size = sizeof(*m_bitset) * UT_BITS_IN_BYTES(m_tot_parts);
+  m_parts = ut::make_unique<saved_prebuilt_t[]>(
+      ut::make_psi_memory_key(mem_key_partitioning), m_tot_parts);
+  /* Verify that ut::new_arr_withkey performs value-initialization, which should
+  zero-initialize built-in types such as pointers and integers. */
+#ifdef UNIV_DEBUG
+  for (size_t i = 0; i < m_tot_parts; ++i) {
+    const auto &part{m_parts[i]};
+    ut_a(part.m_ins_node == nullptr);
+    ut_a(part.m_upd_node == nullptr);
+    ut_a(part.m_row_read_type == 0);
+    ut_a(part.m_trx_id == 0);
+    ut_a(part.m_blob_heap == nullptr);
+    ut_a(0 == part.m_new_rec_lock.count());
+  }
+#endif
+  const size_t alloc_size = UT_BITS_IN_BYTES(m_tot_parts);
   m_bitset = static_cast<byte *>(ut::zalloc_withkey(
       ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
-  if (m_ins_node_parts == nullptr || m_upd_node_parts == nullptr ||
-      m_blob_heap_parts == nullptr || m_trx_id_parts == nullptr ||
-      m_row_read_type_parts == nullptr || m_bitset == nullptr) {
+  if (m_parts == nullptr || m_bitset == nullptr) {
     close();  // Frees all the above.
     return HA_ERR_OUT_OF_MEM;
   }
@@ -1164,11 +1155,12 @@ handler *ha_innopart::clone(const char *name, MEM_ROOT *mem_root) {
 
 /** Clear used ins_nodes and upd_nodes. */
 void ha_innopart::clear_ins_upd_nodes() {
-  /* Free memory from insert nodes. */
-  if (m_ins_node_parts != nullptr) {
+  if (m_parts != nullptr) {
     for (uint i = 0; i < m_tot_parts; i++) {
-      if (m_ins_node_parts[i] != nullptr) {
-        ins_node_t *ins = m_ins_node_parts[i];
+      auto &part{m_parts[i]};
+      /* Free memory from insert nodes. */
+      if (part.m_ins_node != nullptr) {
+        ins_node_t *ins = part.m_ins_node;
         if (ins->select != nullptr) {
           que_graph_free_recursive(ins->select);
           ins->select = nullptr;
@@ -1178,16 +1170,12 @@ void ha_innopart::clear_ins_upd_nodes() {
           mem_heap_free(ins->entry_sys_heap);
           ins->entry_sys_heap = nullptr;
         }
-        m_ins_node_parts[i] = nullptr;
+        part.m_ins_node = nullptr;
       }
-    }
-  }
 
-  /* Free memory from update nodes. */
-  if (m_upd_node_parts != nullptr) {
-    for (uint i = 0; i < m_tot_parts; i++) {
-      if (m_upd_node_parts[i] != nullptr) {
-        upd_node_t *upd = m_upd_node_parts[i];
+      /* Free memory from update nodes. */
+      if (part.m_upd_node != nullptr) {
+        upd_node_t *upd = part.m_upd_node;
         if (upd->cascade_heap) {
           mem_heap_free(upd->cascade_heap);
           upd->cascade_heap = nullptr;
@@ -1205,7 +1193,7 @@ void ha_innopart::clear_ins_upd_nodes() {
           mem_heap_free(upd->heap);
           upd->heap = nullptr;
         }
-        m_upd_node_parts[i] = nullptr;
+        part.m_upd_node = nullptr;
       }
     }
   }
@@ -1228,7 +1216,7 @@ int ha_innopart::close() {
     m_part_share = nullptr;
   }
   clear_ins_upd_nodes();
-  free_blob_heap_array();
+  clear_blob_heaps();
 
   /* Prevent double close of m_prebuilt->table. The real one was done
   done in m_part_share->close_table_parts(). */
@@ -1245,22 +1233,7 @@ int ha_innopart::close() {
     m_upd_buf_size = 0;
   }
 
-  if (m_ins_node_parts != nullptr) {
-    ut::free(m_ins_node_parts);
-    m_ins_node_parts = nullptr;
-  }
-  if (m_upd_node_parts != nullptr) {
-    ut::free(m_upd_node_parts);
-    m_upd_node_parts = nullptr;
-  }
-  if (m_trx_id_parts != nullptr) {
-    ut::free(m_trx_id_parts);
-    m_trx_id_parts = nullptr;
-  }
-  if (m_row_read_type_parts != nullptr) {
-    ut::free(m_row_read_type_parts);
-    m_row_read_type_parts = nullptr;
-  }
+  m_parts = nullptr;
 
   ut::free(m_bitset);
   m_bitset = nullptr;
@@ -1293,12 +1266,17 @@ void ha_innopart::set_partition(uint part_id) {
   if (m_clust_pcur_parts != nullptr) {
     m_prebuilt->clust_pcur = &m_clust_pcur_parts[m_pcur_map[part_id]];
   }
-  m_prebuilt->ins_node = m_ins_node_parts[part_id];
-  m_prebuilt->upd_node = m_upd_node_parts[part_id];
+
+  /* Restore all fields stored in m_parts[part_id] to corresponding m_prebuilt's
+  fields, except for m_blob_heap for which we have a special case: */
+
+  const auto &part{m_parts[part_id]};
+  m_prebuilt->ins_node = part.m_ins_node;
+  m_prebuilt->upd_node = part.m_upd_node;
 
   /* For unordered scan and table scan, use blob_heap from first
   partition as we need exactly one blob. */
-  m_prebuilt->blob_heap = m_blob_heap_parts[m_ordered ? part_id : 0];
+  m_prebuilt->blob_heap = m_parts[m_ordered ? part_id : 0].m_blob_heap;
 
 #ifdef UNIV_DEBUG
   if (m_prebuilt->blob_heap != nullptr) {
@@ -1308,8 +1286,12 @@ void ha_innopart::set_partition(uint part_id) {
   }
 #endif
 
-  m_prebuilt->trx_id = m_trx_id_parts[part_id];
-  m_prebuilt->row_read_type = m_row_read_type_parts[part_id];
+  m_prebuilt->trx_id = part.m_trx_id;
+  m_prebuilt->row_read_type = part.m_row_read_type;
+  m_prebuilt->new_rec_lock = part.m_new_rec_lock;
+
+  /* All fields from m_parts[part_id] should have been restored above. */
+
   m_prebuilt->sql_stat_start = m_sql_stat_start_parts.test(part_id);
   m_prebuilt->table = m_part_share->get_table_part(part_id);
   m_prebuilt->index = innopart_get_index(part_id, active_index);
@@ -1326,8 +1308,13 @@ void ha_innopart::update_partition(uint part_id) {
     ut_d(ut_error);
     ut_o(return );
   }
-  m_ins_node_parts[part_id] = m_prebuilt->ins_node;
-  m_upd_node_parts[part_id] = m_prebuilt->upd_node;
+
+  /* Update all m_parts[part_id] fields with corresponding m_prebuilt's fields,
+  except for m_blob_heap for which we have a special case: */
+
+  auto &part{m_parts[part_id]};
+  part.m_ins_node = m_prebuilt->ins_node;
+  part.m_upd_node = m_prebuilt->upd_node;
 
 #ifdef UNIV_DEBUG
   if (m_prebuilt->blob_heap != nullptr) {
@@ -1339,10 +1326,14 @@ void ha_innopart::update_partition(uint part_id) {
 
   /* For unordered scan and table scan, use blob_heap from first
   partition as we need exactly one blob anytime. */
-  m_blob_heap_parts[m_ordered ? part_id : 0] = m_prebuilt->blob_heap;
+  m_parts[m_ordered ? part_id : 0].m_blob_heap = m_prebuilt->blob_heap;
 
-  m_trx_id_parts[part_id] = m_prebuilt->trx_id;
-  m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
+  part.m_trx_id = m_prebuilt->trx_id;
+  part.m_row_read_type = m_prebuilt->row_read_type;
+  part.m_new_rec_lock = m_prebuilt->new_rec_lock;
+
+  /* All fields of m_parts[part_id] should have been updated above. */
+
   if (m_prebuilt->sql_stat_start == 0) {
     m_sql_stat_start_parts.set(part_id, false);
     m_reuse_mysql_template = true;
@@ -1376,7 +1367,7 @@ engine that the next read will be a locking re-read of the row.
 @see handler.h and row0mysql.h
 @return true if last read was semi consistent else false. */
 bool ha_innopart::was_semi_consistent_read() {
-  return (m_row_read_type_parts[m_last_part] == ROW_READ_DID_SEMI_CONSISTENT);
+  return m_parts[m_last_part].m_row_read_type == ROW_READ_DID_SEMI_CONSISTENT;
 }
 
 /** Try semi consistent read.
@@ -1390,7 +1381,7 @@ void ha_innopart::try_semi_consistent_read(bool yes) {
   ha_innobase::try_semi_consistent_read(yes);
   for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
        i = m_part_info->get_next_used_partition(i)) {
-    m_row_read_type_parts[i] = m_prebuilt->row_read_type;
+    m_parts[i].m_row_read_type = m_prebuilt->row_read_type;
   }
 }
 
@@ -4107,44 +4098,18 @@ int ha_innopart::cmp_ref(const uchar *ref1, const uchar *ref2) const {
   return (cmp);
 }
 
-/** Allocate the array to hold blob heaps for all partitions */
-mem_heap_t **ha_innopart::alloc_blob_heap_array() {
-  DBUG_TRACE;
-
-  const ulint len = sizeof(mem_heap_t *) * m_tot_parts;
-  m_blob_heap_parts = static_cast<mem_heap_t **>(
-      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_partitioning), len));
-  if (m_blob_heap_parts == nullptr) {
-    return nullptr;
-  }
-
-  return m_blob_heap_parts;
-}
-
-/** Free the array that holds blob heaps for all partitions */
-void ha_innopart::free_blob_heap_array() {
-  DBUG_TRACE;
-
-  if (m_blob_heap_parts != nullptr) {
-    clear_blob_heaps();
-    ut::free(m_blob_heap_parts);
-    m_blob_heap_parts = nullptr;
-  }
-}
-
 void ha_innopart::clear_blob_heaps() {
   DBUG_TRACE;
-
-  if (m_blob_heap_parts == nullptr) {
+  if (m_parts == nullptr) {
     return;
   }
 
   for (uint i = 0; i < m_tot_parts; i++) {
-    if (m_blob_heap_parts[i] != nullptr) {
-      DBUG_PRINT("ha_innopart",
-                 ("freeing blob_heap: %p", m_blob_heap_parts[i]));
-      mem_heap_free(m_blob_heap_parts[i]);
-      m_blob_heap_parts[i] = nullptr;
+    auto &part{m_parts[i]};
+    if (part.m_blob_heap != nullptr) {
+      DBUG_PRINT("ha_innopart", ("freeing blob_heap: %p", part.m_blob_heap));
+      mem_heap_free(part.m_blob_heap);
+      part.m_blob_heap = nullptr;
     }
   }
 

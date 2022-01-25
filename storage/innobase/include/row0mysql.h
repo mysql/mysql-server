@@ -704,41 +704,17 @@ struct row_prebuilt_t {
                                 cases; note that this breaks
                                 serializability. */
 
-  enum {
-    LOCK_PCUR,
-    LOCK_CLUST_PCUR,
-    LOCK_COUNT,
-  };
+  /** byte offset of the end of the last requested column*/
+  ulint mysql_prefix_len;
 
-  bool new_rec_lock[LOCK_COUNT]; /*!< normally false; if
-                        session is using READ COMMITTED or READ UNCOMMITTED
-                        isolation level, set in row_search_for_mysql() if we set
-                        a new record lock on the secondary or clustered index;
-                        this is used in row_try_unlock() when releasing
-                        the lock under the cursor if we determine after
-                        retrieving the row that it does not need to be locked
-                        ('mini-rollback')
-                        [LOCK_PCUR] corresponds to pcur, the first index we
-                        looked up (can be secondary or clustered!)
+  /** length in bytes of a row in the MySQL format */
+  ulint mysql_row_len;
 
-                        [LOCK_CLUST_PCUR] corresponds to clust_pcur, which if
-                        used at all, is always the clustered index.
+  /** number of rows fetched after positioning the current cursor  */
+  ulint n_rows_fetched;
 
-                        The meaning of these booleans is:
-                        true = we've created a rec lock, which we might
-                               release as we "own" it
-                        false = we should not release any lock for this
-                               index as we either reused some existing
-                               lock, or there is some other reason, we
-                               should keep it
-                        */
-  ulint mysql_prefix_len;        /*!< byte offset of the end of
-                                 the last requested column */
-  ulint mysql_row_len;           /*!< length in bytes of a row in the
-                                 MySQL format */
-  ulint n_rows_fetched;          /*!< number of rows fetched after
-                                 positioning the current cursor */
-  ulint fetch_direction;         /*!< ROW_SEL_NEXT or ROW_SEL_PREV */
+  /** ROW_SEL_NEXT or ROW_SEL_PREV */
+  ulint fetch_direction;
 
   byte *fetch_cache[MYSQL_FETCH_CACHE_SIZE];
   /*!< a cache for fetched rows if we
@@ -750,18 +726,43 @@ struct row_prebuilt_t {
   allocated mem buf start, because
   there is a 4 byte magic number at the
   start and at the end */
+  ulint fetch_cache_first;   /*!< position of the first not yet
+                           fetched row in fetch_cache */
+  ulint n_fetch_cached;      /*!< number of not yet fetched rows
+                             in fetch_cache */
+  mem_heap_t *blob_heap;     /*!< in SELECTS BLOB fields are copied
+                             to this heap */
+  mem_heap_t *old_vers_heap; /*!< memory heap where a previous
+                             version is built in consistent read */
+  enum {
+    LOCK_PCUR,
+    LOCK_CLUST_PCUR,
+    LOCK_COUNT,
+  };
+  /** normally false;
+  if session is using READ COMMITTED or READ UNCOMMITTED isolation level, set in
+  row_search_for_mysql() if we set a new record lock on the secondary or
+  clustered index;
+  this is used in row_try_unlock() when releasing the lock under the cursor if
+  we determine after retrieving the row that it does not need to be locked
+  ('mini-rollback')
+
+    [LOCK_PCUR] corresponds to pcur, the first index we looked up
+                (can be secondary or clustered!)
+
+    [LOCK_CLUST_PCUR] corresponds to clust_pcur, which if used at all, is always
+                      the clustered index.
+
+  The meaning of these booleans is:
+    true = we've created a rec lock, which we might release as we "own" it
+    false = we should not release any lock for this index as we either reused
+            some existing lock, or there is some other reason, we should keep it
+  */
+  std::bitset<LOCK_COUNT> new_rec_lock;
   bool keep_other_fields_on_keyread; /*!< when using fetch
                         cache with HA_EXTRA_KEYREAD, don't
                         overwrite other fields in mysql row
                         row buffer.*/
-  ulint fetch_cache_first;           /*!< position of the first not yet
-                                   fetched row in fetch_cache */
-  ulint n_fetch_cached;              /*!< number of not yet fetched rows
-                                     in fetch_cache */
-  mem_heap_t *blob_heap;             /*!< in SELECTS BLOB fields are copied
-                                     to this heap */
-  mem_heap_t *old_vers_heap;         /*!< memory heap where a previous
-                                     version is built in consistent read */
   bool in_fts_query;                 /*!< Whether we are in a FTS query */
   bool fts_doc_id_in_read_set;       /*!< true if table has externally
                              defined FTS_DOC_ID coulmn. */
@@ -887,9 +888,7 @@ struct row_prebuilt_t {
 
  public:
   /** Counts how many elements of @see new_rec_lock[] array are set to true. */
-  size_t new_rec_locks_count() const {
-    return std::count(std::begin(new_rec_lock), std::end(new_rec_lock), true);
-  }
+  size_t new_rec_locks_count() const { return new_rec_lock.count(); }
 
   /** Initializes search_tuple and m_stop_tuple shape so they match the index */
   void init_search_tuples_types() {
