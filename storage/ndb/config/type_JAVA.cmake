@@ -22,8 +22,6 @@
 
 INCLUDE(libutils)
 
-SET(JAVAC_TARGET "1.8")
-
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
 
@@ -108,6 +106,15 @@ MACRO(CREATE_JAR TARGET_ARG)
   # Treat all deprecation warnings as errors
   SET(JAVA_ARGS ${JAVA_ARGS} -Xlint:deprecation -Xlint:-options -Werror)
 
+  # Set Java 1.8 as the target version
+  SET(_JAVAC_TARGET "8")
+  IF(${Java_VERSION} VERSION_LESS 9)
+    SET(JAVA_ARGS ${JAVA_ARGS} -target ${_JAVAC_TARGET} -source ${_JAVAC_TARGET})
+  ELSE()
+    # Use the newer 'release' argument if compiling with Java version 9 or above
+    SET(JAVA_ARGS ${JAVA_ARGS} --release ${_JAVAC_TARGET})
+  ENDIF()
+
   # Compile
   IF (JAVA_FILES)
     IF (ARG_BROKEN_JAVAC)
@@ -115,8 +122,8 @@ MACRO(CREATE_JAR TARGET_ARG)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
-        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
@@ -126,8 +133,8 @@ MACRO(CREATE_JAR TARGET_ARG)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+        COMMAND echo \"${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+        COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
