@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -395,8 +395,6 @@ typedef struct st_mi_check_param
   const char *db_name, *table_name;
   const char *op_name;
   enum_mi_stats_method stats_method;
-  mysql_mutex_t print_msg_mutex;
-  my_bool need_print_msg_lock;
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf
@@ -418,10 +416,6 @@ typedef struct st_sort_info
   uchar *buff;
   SORT_KEY_BLOCKS *key_block,*key_block_end;
   SORT_FT_BUF *ft_buf;
-  /* sync things */
-  uint got_error, threads_running;
-  mysql_mutex_t mutex;
-  mysql_cond_t  cond;
 } SORT_INFO;
 
 /* functions in mi_check */
@@ -437,8 +431,6 @@ int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name,
                   my_bool no_copy_stat);
 int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
 		      const char * name, int rep_quick, my_bool no_copy_stat);
-int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
-                       const char * name, int rep_quick, my_bool no_copy_stat);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,

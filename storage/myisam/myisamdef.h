@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -331,10 +331,9 @@ typedef struct st_buffpek {
 
 typedef struct st_mi_sort_param
 {
-  my_thread_handle thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
-  MI_BIT_BUFF   bit_buff;               /* For parallel repair of packrec. */
+  MI_BIT_BUFF   bit_buff;               /* For sort repair of packrec. */
 
   /*
     The next two are used to collect statistics, see update_key_parts for
@@ -793,8 +792,6 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...);
 void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
-int thr_write_keys(MI_SORT_PARAM *sort_param);
-void *thr_find_all_keys(void *arg);
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
@@ -810,8 +807,7 @@ extern thread_local_key_t keycache_tls_key;
 
 #ifdef HAVE_PSI_INTERFACE
 C_MODE_START
-extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
-  mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
 
 extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
   mi_key_rwlock_MYISAM_SHARE_mmap_lock;

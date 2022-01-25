@@ -827,12 +827,6 @@ a	b
 xxxxxxxxx	bbbbbb
 xxxxxxxxx	bbbbbb
 DROP TABLE t1;
-SET @@myisam_repair_threads=2;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-SHOW VARIABLES LIKE 'myisam_repair%';
-Variable_name	Value
-myisam_repair_threads	2
 CREATE TABLE t1 (
 `_id` int(11) NOT NULL default '0',
 `url` text,
@@ -951,10 +945,6 @@ _id
 8
 9
 DROP TABLE t1;
-SET @@myisam_repair_threads=1;
-SHOW VARIABLES LIKE 'myisam_repair%';
-Variable_name	Value
-myisam_repair_threads	1
 CREATE TABLE t1(a VARCHAR(16));
 INSERT INTO t1 VALUES('aaaaaaaa'),(NULL);
 UPDATE t1 AS ta1, t1 AS ta2 SET ta1.a='aaaaaaaaaaaaaaaa';
@@ -1890,12 +1880,8 @@ SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
 # Enable keys with parallel repair
-SET @@myisam_repair_threads=2;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
-SET @@myisam_repair_threads=1;
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2413,11 +2399,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	error	myisam_sort_buffer_size is too small
 test.t1	repair	warning	Number of rows changed from 0 to 7168
 test.t1	repair	status	OK
-SET myisam_repair_threads=2;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2488,30 +2470,6 @@ SELECT * FROM t1, t1 AS a1 WHERE t1.a=1 AND a1.a=1;
 a	a
 1	1
 DROP TABLE t1;
-#
-# BUG#47444 - --myisam_repair_threads>1can result in all index
-#             cardinalities=1
-#
-SET myisam_repair_threads=2;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
-SET myisam_sort_buffer_size=4096;
-CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a));
-Warnings:
-Warning	1831	Duplicate index 'a_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
-Warning	1831	Duplicate index 'a_3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
-INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(0),(1),(2),(3);
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-CARDINALITY
-14
-14
-14
-DROP TABLE t1;
-SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 #
 # BUG#11757032 - 49030: OPTIMIZE TABLE BREAKS MYISAM TABLE WHEN
 #                USING MYISAM_USE_MMAP ON WINDOWS
