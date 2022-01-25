@@ -461,6 +461,10 @@ static const char *get_collation_name_alias(const char *name, char *buf,
     snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
   }
+  if (!native_strncasecmp(name, "utf8_", 5)) {
+    snprintf(buf, bufsize, "utf8mb3_%s", name + 5);
+    return buf;
+  }
   return nullptr;
 }
 

@@ -16,10 +16,10 @@ DROP TABLE IF EXISTS t1;
 '----check if collation_connection update character_set_connection---'
 SET @@session.collation_connection = utf8_spanish_ci;
 Warnings:
-Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@collation_connection, @@character_set_database;
 @@collation_connection	@@character_set_database
-utf8_spanish_ci	utf8mb4
+utf8mb3_spanish_ci	utf8mb4
 '---check if collation_connection works for literal string comparision--'
 SET @@session.collation_connection = latin1_swedish_ci;
 SELECT 'mysql'='MySql';
@@ -42,7 +42,7 @@ SELECT _latin2'mysql'COLLATE latin2_general_ci='MySql';
 _latin2'mysql'COLLATE latin2_general_ci='MySql'
 1
 SELECT _utf8'mysql'COLLATE utf8_danish_ci=_utf8'MySql'COLLATE utf8_unicode_ci;
-ERROR HY000: Illegal mix of collations (utf8_danish_ci,EXPLICIT) and (utf8_unicode_ci,EXPLICIT) for operation '='
+ERROR HY000: Illegal mix of collations (utf8mb3_danish_ci,EXPLICIT) and (utf8mb3_unicode_ci,EXPLICIT) for operation '='
 '---collation_connection does not effect comparision with column---'
 CREATE TABLE t1(a CHAR(20)CHARACTER SET latin1 COLLATE latin1_german2_ci);
 INSERT INTO t1 VALUES(_latin1'Müller');

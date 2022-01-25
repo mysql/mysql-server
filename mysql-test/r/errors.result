@@ -146,7 +146,7 @@ ERROR 22003: DOUBLE value is out of range in 'cot('v')'
 SET NAMES utf8 COLLATE utf8_latvian_ci ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
 ERROR 22003: BIGINT value is out of range in '(-(73) * -(2465717823867977728))'
 #
