@@ -1,0 +1,128 @@
+--source include/count_sessions.inc
+
+# This is the essense of the scenario from the report in Bug#33724166.
+# There are two rows:
+# c0000 | c0003 | c0004 | partition
+# ------+-------+-------+----------
+# 123   | 12    | 0     | 5
+# 122   | 13    | 0     | 2
+#
+# It's important that 5 is the last of 6 partitions.
+# A buggy implementation, would keep the internal state after the loop
+# over all partitions, and reuse this state when handling subsequent
+# unlock request from Server layer - in other words, will use state
+# of the locks of 5th partition 5, when reasoning about 2nd partition locks.
+# The con1 is only used to create an X lock on row from 2nd partition, so that
+# the con2 is forced to use semi-consistent read on it without a lock.
+# The InnoDB should correctly track which row needed a lock and which didn't,
+# during the initial phase of filling up the priority queue with one record from
+# each partition, and then correctly handle unlock requests from Server layer,
+# ignoring request for 2nd partition, and performing it for 5th partition only.
+
+CREATE TABLE t (
+  `c0000` INT NOT NULL,
+  `c0003` TINYINT NOT NULL,
+  `c0004` INT NOT NULL,
+  PRIMARY KEY (`c0000`,`c0003`,`c0004`)
+)
+PARTITION BY KEY (c0003) PARTITIONS 6;
+
+INSERT INTO t VALUES (123,12,0);
+INSERT INTO t VALUES (122,13,0);
+
+--connect (con1, localhost, root,,)
+  BEGIN;
+  SELECT * FROM t WHERE `c0000` = 122 AND `c0003` = 13 FOR UPDATE;
+
+--connect (con2, localhost, root,,)
+  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+  BEGIN;
+  # The WHERE condition intentionally doesn't match any record, but in a way
+  # which InnoDB can't determine (no condition push down) thus reporting the
+  # record to the Server layer
+  UPDATE t SET `c0003` = 16 WHERE `c0004`;
+  COMMIT;
+
+--connection con1
+  COMMIT;
+
+--connection default
+--disconnect con1
+--disconnect con2
+DROP TABLE t;
+
+--source include/wait_until_count_sessions.inc
+
+# Here again we have the same two rows:
+# c0000 | c0003 | c0004 | partition
+# ------+-------+-------+----------
+# 123   | 12    | 0     | 5
+# 122   | 13    | 0     | 2
+#
+# The transaction first locks the record from 2nd partition, which can be reused
+# in the subsequent UPDATE query. Such reused lock should not be released even
+# if a row doesn't match the UPDATE's WHERE condition, because this lock was
+# explicitly needed for a previous SELECT. InnoDB should correctly track that
+# it reused a lock for record in 2nd partition, but has created a new lock for
+# the record in 5th partition - and the latter can be released.
+
+CREATE TABLE t (
+  `c0000` INT NOT NULL,
+  `c0003` TINYINT NOT NULL,
+  `c0004` INT NOT NULL,
+  PRIMARY KEY (`c0000`,`c0003`,`c0004`)
+)
+PARTITION BY KEY (c0003) PARTITIONS 6;
+
+INSERT INTO t VALUES (121,13,0); # partition 2
+INSERT INTO t VALUES (123,12,0); # partition 5
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+# put an X REC_NOT_GAP lock on the first row in partition#2
+SELECT * FROM t WHERE `c0000` = 121 AND `c0003` = 13 AND `c0004` = 0 FOR UPDATE;
+SELECT LOCK_DATA
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE = 'RECORD' AND OBJECT_NAME = 't';
+# now try to iterate over rows from all partitions
+UPDATE t SET `c0003` = 16 WHERE `c0004`;
+SELECT LOCK_DATA
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE = 'RECORD' AND OBJECT_NAME = 't';
+COMMIT;
+
+DROP TABLE t;
+
+# Here we have one row in each of 6 partitions, except for the last one (5th).
+# InnoDB should properly track that it has created a lock in 5 of 6 partitions,
+# and then release them, as none of the records matches the WHERE condition.
+
+CREATE TABLE t (
+  `c0000` INT NOT NULL,
+  `c0003` TINYINT NOT NULL,
+  `c0004` INT NOT NULL,
+  PRIMARY KEY (`c0000`,`c0003`,`c0004`)
+)
+PARTITION BY KEY (c0003) PARTITIONS 6;
+
+INSERT INTO t VALUES (1,10,0);
+INSERT INTO t VALUES (2,11,0);
+#INSERT INTO t VALUES (3,12,0); this would be partition 5, but we omit it
+INSERT INTO t VALUES (4,13,0);
+INSERT INTO t VALUES (5,14,0);
+INSERT INTO t VALUES (6,15,0);
+INSERT INTO t VALUES (7,16,0);
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+SELECT LOCK_DATA
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE = 'RECORD' AND OBJECT_NAME = 't';
+# now try to iterate over rows from all partitions
+UPDATE t SET `c0003` = 16 WHERE `c0004`;
+SELECT LOCK_DATA
+  FROM performance_schema.data_locks
+  WHERE LOCK_TYPE = 'RECORD' AND OBJECT_NAME = 't';
+COMMIT;
+
+DROP TABLE t;

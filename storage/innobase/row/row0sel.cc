@@ -4449,7 +4449,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   /* Reset the new record lock info.
   Then we are able to remove the record locks set here on an
   individual row. */
-  std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
+  prebuilt->new_rec_lock.reset();
   /*-------------------------------------------------------------*/
   /* PHASE 1: Try to pop the row from the record buffer or from
   the prefetch cache */
@@ -5187,7 +5187,7 @@ rec_loop:
         be handled in sel_set_rtr_rec_lock() */
         ut_ad(!dict_index_is_spatial(index));
         /* Never unlock rows that were part of a conflict. */
-        std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
+        prebuilt->new_rec_lock.reset();
 
         if (UNIV_LIKELY(prebuilt->row_read_type !=
                         ROW_READ_TRY_SEMI_CONSISTENT) ||
@@ -5732,7 +5732,7 @@ next_rec:
     prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
   }
   did_semi_consistent_read = false;
-  std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
+  prebuilt->new_rec_lock.reset();
 
   vrow = nullptr;
 
@@ -5907,7 +5907,7 @@ lock_table_wait:
       rec_loop we will again try to set a lock, and
       new_rec_lock_info in trx will be right at the end. */
 
-      std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
+      prebuilt->new_rec_lock.reset();
     }
 
     mode = pcur->m_search_mode;

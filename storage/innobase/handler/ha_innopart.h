@@ -613,25 +613,34 @@ class ha_innopart : public ha_innobase,
   /** Pointer to Ha_innopart_share on the TABLE_SHARE. */
   Ha_innopart_share *m_part_share;
 
-  /** ins_node per partition. Synchronized with prebuilt->ins_node
-  when changing partitions. */
-  ins_node_t **m_ins_node_parts;
+  struct saved_prebuilt_t {
+    /** saved m_prebuilt->ins_node */
+    ins_node_t *m_ins_node;
 
-  /** upd_node per partition. Synchronized with prebuilt->upd_node
-  when changing partitions. */
-  upd_node_t **m_upd_node_parts;
+    /** saved m_prebuilt->upd_node */
+    upd_node_t *m_upd_node;
 
-  /** blob_heap per partition. Synchronized with prebuilt->blob_heap
-  when changing partitions. */
-  mem_heap_t **m_blob_heap_parts;
+    /** saved m_prebuilt->blob_heap */
+    mem_heap_t *m_blob_heap;
 
-  /** trx_id from the partitions table->def_trx_id. Keep in sync
-  with prebuilt->trx_id when changing partitions.
-  prebuilt only reflects the current partition! */
-  trx_id_t *m_trx_id_parts;
+    /** saved m_prebuilt->trx_id (which in turn reflects table->def_trx_id) */
+    trx_id_t m_trx_id;
 
-  /** row_read_type per partition. */
-  ulint *m_row_read_type_parts;
+    /** saved m_prebuilt->row_read_type  */
+    ulint m_row_read_type;
+
+    /** save m_prebuilt->new_rec_lock[] values */
+    decltype(row_prebuilt_t::new_rec_lock) m_new_rec_lock;
+  };
+  /* Per partition information storing last values of m_prebuilt when we've last
+  finished using given partition, so we can restore it when we return to it.
+  Synchronized with m_prebuilt when changing partitions:
+  set_partition(part_id) copies to m_prebuilt from m_parts[part_id]
+  update_partition(part_id) copies to m_parts[part_id] from m_prebuilt
+
+  NOTE: these are not the only fields synchronized with m_prebuilt.
+  */
+  ut::unique_ptr<saved_prebuilt_t[]> m_parts;
 
   /** byte array for sql_stat_start bitset */
   byte *m_bitset;
@@ -669,12 +678,6 @@ class ha_innopart : public ha_innobase,
   /** Reset state of file to after 'open'. This function is called
   after every statement for all tables used by that statement. */
   int reset() override;
-
-  /** Allocate the array to hold blob heaps for all partitions */
-  mem_heap_t **alloc_blob_heap_array();
-
-  /** Free the array that holds blob heaps for all partitions */
-  void free_blob_heap_array();
 
   /** Changes the active index of a handle.
   @param[in]    part_id Use this partition.
