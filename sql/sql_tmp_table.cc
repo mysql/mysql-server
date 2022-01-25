@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1034,10 +1034,24 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
           store_column = false;
       }
 
-      if (item->const_for_execution() &&
-          evaluate_during_optimization(item, thd->lex->current_query_block()) &&
-          hidden_field_count <= 0) {
-        continue;  // We don't have to store this
+      if (hidden_field_count <= 0) {
+        if (thd->lex->current_query_block()->is_implicitly_grouped() &&
+            (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0 &&
+            !item->has_rollup_expr()) {
+          /*
+            This will be evaluated exactly once, regardless of the number
+            of rows in the temporary table, as there is only one result row.
+          */
+          continue;
+        } else if (item->const_for_execution() &&
+                   evaluate_during_optimization(
+                       item, thd->lex->current_query_block())) {
+          /*
+             Constant for the duration of the query, so no need to store in
+             temporary table.
+          */
+          continue;
+        }
       }
     }
 
