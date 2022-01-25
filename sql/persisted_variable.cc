@@ -185,6 +185,14 @@ struct sort_tv_by_timestamp {
 
 Persisted_variables_cache *Persisted_variables_cache::m_instance = nullptr;
 
+namespace {
+std::string tolower_varname(const char *name) {
+  std::string str(name);
+  std::transform(str.begin(), str.end(), str.begin(), tolower);
+  return str;
+}
+}  // namespace
+
 /* Standard Constructors for st_persist_var */
 
 st_persist_var::st_persist_var() {
@@ -369,7 +377,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     String utf8_str;
     bool is_null = false;
 
-    std::string var_name{setvar->m_var_tracker.get_var_name()};
+    std::string var_name{tolower_varname(setvar->m_var_tracker.get_var_name())};
 
     // 1. Fetch value into local variable var_value.
 
@@ -2089,7 +2097,8 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
     clear_one(m_persisted_static_sensitive_variables);
   } else {
     auto erase_variable = [&](const char *name_cptr) -> bool {
-      string name_str{name_cptr};
+      string name_str{tolower_varname(name_cptr)};
+
       auto checkvariable = [&name_str](st_persist_var const &s) -> bool {
         return s.key == name_str;
       };
