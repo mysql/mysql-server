@@ -208,23 +208,22 @@ class ProcessWrapper {
    *
    * @param timeout timeout in milliseconds
    * @param autoresponder_enabled autoresponder is enabled if true (default)
-   * @returns true if at least one byte was read
+   * @retval true if at least one byte was read
    */
   bool read_and_autorespond_to_output(std::chrono::milliseconds timeout,
                                       bool autoresponder_enabled = true);
 
   /** @brief write() predefined responses on found predefined patterns
    *
-   * @param bytes_read buffer length
-   * @param cmd_output buffer containig output to be scanned for triggers and
+   * @param cmd_output buffer containing output to be scanned for triggers and
    * possibly autoresponded to
    */
-  void autorespond_to_matching_lines(int bytes_read, char *cmd_output);
+  void autorespond_to_matching_lines(const std::string_view &cmd_output);
 
   /** @brief write() a predefined response if a predefined pattern is matched
    *
    * @param line line of output that will trigger a response, if matched
-   * @returns true if an autoresponse was sent
+   * @retval true if an autoresponse was sent
    */
   bool autorespond_on_matching_pattern(const std::string &line);
 
