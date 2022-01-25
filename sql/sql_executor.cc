@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4337,8 +4337,20 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       Item *unwrapped_item = unwrap_rollup_group(item);
       unwrapped_item->hidden = item->hidden;
       thd->change_item_tree(&*it, unwrapped_item);
-    } else if (item->has_rollup_expr()) {
-      // Delay processing until below; see comment.
+
+    } else if ((select->is_implicitly_grouped() &&
+                ((item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) ==
+                 0)) ||                    // (1)
+               item->has_rollup_expr()) {  // (2)
+      /*
+        We go here when:
+        (1) The Query_block is implicitly grouped and 'item' does not
+            depend on any table. Then that field should be evaluated exactly
+            once, whether there are zero or more rows in the temporary table
+            (@see create_tmp_table()).
+        (2) 'item' has a rollup expression. Then we delay processing
+            until below; see comment further down.
+      */
       new_item = item->copy_or_same(thd);
       if (new_item == nullptr) return true;
     } else {
