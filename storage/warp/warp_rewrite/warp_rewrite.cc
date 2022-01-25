@@ -705,7 +705,7 @@ bool is_valid_remote_query(std::vector<std::string> tokens) {
       }
     }
   }
-  std::cout << "remote count:" << remote_server_count << " local count:" << local_server_count << "\n";
+  
   if((remote_server_count == 1) && (local_server_count == 0)) {
     return true;
   }
@@ -830,7 +830,7 @@ std::string get_local_root_password() {
   char password[65]="";
   fp = fopen("/usr/local/leapdb/config/.rootpw","r");
   if(fp == NULL) {
-    std::cerr << "file open error: " << errno << "\n";
+    sql_print_error("Could not open password file for reading.  Remote queries may not work");
     return "";
   }
   if(fgets(password, 64, fp)!=NULL) {
