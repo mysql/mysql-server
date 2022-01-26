@@ -3213,18 +3213,16 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
   assert(fixed);
   THD *thd = current_thd;
   if (compare_as_dates_with_strings) {
-    int ge_res, le_res;
-
-    ge_res = ge_cmp.compare();
+    int ge_res = ge_cmp.compare();
     if ((null_value = args[0]->null_value)) return 0;
-    le_res = le_cmp.compare();
+    int le_res = le_cmp.compare();
 
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong)((ge_res >= 0 && le_res <= 0) != negated);
     else if (args[1]->null_value) {
-      null_value = le_res > 0;  // not null if false range.
+      null_value = le_res <= 0;  // not null if false range.
     } else {
-      null_value = ge_res < 0;
+      null_value = ge_res >= 0;
     }
   } else if (cmp_type == STRING_RESULT) {
     const CHARSET_INFO *cs = cmp_collation.collation;

@@ -772,3 +772,32 @@ prepare stmt from "SELECT TIMESTAMP'2020-01-01 01:01:01' = ?";
 execute stmt using @dt_flt;
 deallocate prepare stmt;
 
+--echo # Bug#33788832: wrong result with COALESCE function
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  t0 TIME NOT NULL,
+  t1 TIME NOT NULL,
+  dt DATETIME
+);
+
+INSERT INTO t1 VALUES
+(1, TIME'08:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(2, TIME'12:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00'),
+(3, TIME'16:00:00', TIME'12:00:00', TIMESTAMP'2020-01-01 00:00:00');
+
+SELECT pk, t0, t1, dt,
+       t0 BETWEEN NULL AND t1 AS b1,
+       t0 NOT BETWEEN NULL AND t1 AS b2,
+       t0 BETWEEN NULL AND COALESCE(t1, dt) AS b3,
+       t0 NOT BETWEEN NULL AND COALESCE(t1, dt) AS b4
+FROM t1;
+
+SELECT pk, t0, t1, dt,
+       t1 BETWEEN t0 AND NULL AS b1,
+       t1 NOT BETWEEN t0 AND NULL AS b2,
+       t1 BETWEEN COALESCE(t0, dt) AND NULL AS b3,
+       t1 NOT BETWEEN COALESCE(t0, dt) AND NULL AS b4
+FROM t1;
+
+DROP TABLE t1;
