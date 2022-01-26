@@ -25,31 +25,13 @@
 #include "process_wrapper.h"
 
 #include <algorithm>
-#include <sstream>
+#include <array>
 #include <thread>
 #include <vector>
 
+#include "mysql/harness/string_utils.h"  // split_string
+
 using namespace std::chrono_literals;
-
-namespace {
-
-template <typename Out>
-void split_str(const std::string &input, Out result, char delim = ' ') {
-  std::stringstream ss;
-  ss.str(input);
-  std::string item;
-  while (std::getline(ss, item, delim)) {
-    *(result++) = item;
-  }
-}
-
-std::vector<std::string> split_str(const std::string &s, char delim = ' ') {
-  std::vector<std::string> elems;
-  split_str(s, std::back_inserter(elems), delim);
-  return elems;
-}
-
-}  // namespace
 
 ProcessWrapper::ProcessWrapper(
     const std::string &app_cmd, const std::vector<std::string> &args,
@@ -181,13 +163,12 @@ bool ProcessWrapper::output_contains(const std::string &str, bool regex) const {
 
 bool ProcessWrapper::read_and_autorespond_to_output(
     std::chrono::milliseconds timeout, bool autoresponder_enabled /*= true*/) {
-  char cmd_output[kReadBufSize] = {0};
-  int bytes_read;
+  std::array<char, kReadBufSize> read_buf = {0};
 
   // blocks until timeout expires (very likely) or until at least one byte is
   // read (unlikely) throws std::runtime_error on read error
-  bytes_read =
-      launcher_.read(cmd_output, kReadBufSize - 1,
+  int bytes_read =
+      launcher_.read(read_buf.data(), read_buf.size() - 1,
                      timeout);  // cmd_output may contain multiple lines
 
   if (bytes_read <= 0) return false;
@@ -198,28 +179,31 @@ bool ProcessWrapper::read_and_autorespond_to_output(
   // automatic conversion:
   // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
   {
-    char *new_end = std::remove(cmd_output, cmd_output + bytes_read, '\r');
+    char *new_end =
+        std::remove(read_buf.data(), read_buf.data() + bytes_read, '\r');
     *new_end = '\0';
-    bytes_read = new_end - cmd_output;
+    bytes_read = new_end - read_buf.data();
   }
 #endif
 
+  std::string_view cmd_output(read_buf.data(), bytes_read);
   {
     std::lock_guard<std::mutex> output_lock(output_mtx_);
     execute_output_raw_ += cmd_output;
   }
 
-  if (autoresponder_enabled)
-    autorespond_to_matching_lines(bytes_read, cmd_output);
+  if (autoresponder_enabled) {
+    autorespond_to_matching_lines(cmd_output);
+  }
 
   return true;
 }
 
-void ProcessWrapper::autorespond_to_matching_lines(int bytes_read,
-                                                   char *cmd_output) {
+void ProcessWrapper::autorespond_to_matching_lines(
+    const std::string_view &cmd_output) {
   // returned lines do not contain the \n
   std::vector<std::string> lines =
-      split_str(std::string(cmd_output, cmd_output + bytes_read), '\n');
+      mysql_harness::split_string(cmd_output, '\n');
   if (lines.empty()) return;
 
   // it is possible that the last line from the previous call did not match
