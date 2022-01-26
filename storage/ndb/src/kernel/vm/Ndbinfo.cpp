@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "Ndbinfo.hpp"
 #include "SimulatedBlock.hpp"
+#include "util/require.h"
 #include <kernel/AttributeHeader.hpp>
 #include <signaldata/TransIdAI.hpp>
 
@@ -67,8 +68,8 @@ Ndbinfo::Row::check_attribute_type(AttributeHeader& ah, ColumnType type) const
 #ifdef VM_TRACE
   const Table& tab = getTable(m_req.tableId);
   const Uint32 colid = ah.getAttributeId();
-  assert(colid < (Uint32)tab.m.ncols);
-  assert(tab.col[colid].coltype == type);
+  require(colid < (Uint32)tab.m.ncols);
+  require(tab.col[colid].coltype == type);
 #endif
 }
 

@@ -66,7 +66,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
    */
   //assert(totalSize != 0);
 #ifdef VM_TRACE
-  assert(lastSegIVal != RNIL); /* Should never be == RNIL */
+  require(lastSegIVal != RNIL); /* Should never be == RNIL */
 #endif
   /* We ignore m_ownerRef */
 
@@ -100,7 +100,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
      * Check that last segment is as stated in the first segment
      */
 #ifdef VM_TRACE
-    assert(currIVal == lastSegIVal);
+    require(currIVal == lastSegIVal);
 #endif
     // m_nextSegment not always set properly on last segment
     //assert(curr->m_nextSegment == RNIL);
