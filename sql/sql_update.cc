@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2304,7 +2304,9 @@ void Query_result_update::cleanup(THD *thd) {
   if (update_operations != nullptr)
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
 
-  if (main_table) main_table->file->try_semi_consistent_read(false);
+  if (main_table != nullptr && main_table->is_created()) {
+    main_table->file->try_semi_consistent_read(false);
+  }
   main_table = nullptr;
   // Reset state and statistics members:
   trans_safe = true;
