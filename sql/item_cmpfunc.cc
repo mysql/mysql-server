@@ -7595,25 +7595,28 @@ static bool append_hash_for_string_value(Item *comparand,
 // Append a decimal value to join_key_buffer, extracted from "comparand".
 static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
   my_decimal decimal_buffer;
-  my_decimal *decimal = comparand->val_decimal(&decimal_buffer);
+  const my_decimal *decimal = comparand->val_decimal(&decimal_buffer);
   if (comparand->null_value) {
     return true;
   }
 
-  // Normalize the number, to get same hash length for equal numbers.
-  if (decimal_is_zero(decimal))
-    decimal_make_zero(decimal);
-  else
-    decimal->intg = my_decimal_intg(decimal);
+  // Normalize the precision to get same hash length for equal numbers.
+  int scale, precision;
+  if (decimal_is_zero(decimal)) {
+    scale = 0;
+    precision = 1;
+  } else {
+    scale = decimal->frac;
+    precision = my_decimal_intg(decimal) + scale;
+  }
 
-  const int buffer_size =
-      my_decimal_get_binary_size(decimal->precision(), decimal->frac);
+  const int buffer_size = my_decimal_get_binary_size(precision, scale);
   join_key_buffer->reserve(buffer_size);
 
   uchar *write_position =
       pointer_cast<uchar *>(join_key_buffer->ptr()) + join_key_buffer->length();
-  my_decimal2binary(E_DEC_FATAL_ERROR, decimal, write_position,
-                    decimal->precision(), decimal->frac);
+  my_decimal2binary(E_DEC_FATAL_ERROR, decimal, write_position, precision,
+                    scale);
   join_key_buffer->length(join_key_buffer->length() + buffer_size);
   return false;
 }

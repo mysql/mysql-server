@@ -2522,3 +2522,13 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#33787914: int-decimal. using left join, the returned result is incorrect
+
+CREATE TABLE t(a DECIMAL(5, 3));
+INSERT INTO t VALUES (0.1), (0.2), (0.3), (0.01), (0.91), (0.001), (0.991);
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE 1 - t1.a = 1 - t2.a;
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a;
+DROP TABLE t;
