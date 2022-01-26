@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -792,7 +792,7 @@ TAPTEST(BaseString)
 
       BaseString base1("123abc");
       BaseString sub1("123abcdef");
-      OK(base1.starts_with(sub1) == false)
+      OK(base1.starts_with(sub1) == false);
 
       BaseString base2("123abcdef");
       BaseString sub2("");
