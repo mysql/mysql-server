@@ -427,7 +427,8 @@ IF(HAS_WARN_FLAG)
 ENDIF()
 
 # Verify that libmysql_api_test runs OK
-ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
+ADD_CUSTOM_TARGET(run_libmysql_api_test ALL
+  DEPENDS libmysql_api_test
   COMMAND libmysql_api_test
   > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   )
