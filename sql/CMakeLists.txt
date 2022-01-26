@@ -772,6 +772,7 @@ SET(SQL_SOURCE
   ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
+  ../sql-common/json_error_handler.cc
   command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc

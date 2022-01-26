@@ -7632,18 +7632,22 @@ type_conversion_status Field_json::store(const char *from, size_t length,
     return TYPE_ERR_BAD_VALUE;
   }
 
-  const char *parse_err;
-  size_t err_offset;
-  std::unique_ptr<Json_dom> dom(
-      Json_dom::parse(s, ss, &parse_err, &err_offset));
+  const char *err_table_name = *table_name;
+  const char *err_field_name = field_name;
+  std::unique_ptr<Json_dom> dom(Json_dom::parse(
+      s, ss,
+      [err_table_name, err_field_name](const char *parse_err,
+                                       size_t err_offset) {
+        String s_err;
+        s_err.append(err_table_name);
+        s_err.append('.');
+        s_err.append(err_field_name);
+        my_error(ER_INVALID_JSON_TEXT, MYF(0), parse_err, err_offset,
+                 s_err.c_ptr_safe());
+      },
+      JsonDocumentDefaultDepthHandler));
 
-  if (dom.get() == nullptr) {
-    if (parse_err != nullptr) {
-      // Syntax error.
-      invalid_text(parse_err, err_offset);
-    }
-    return TYPE_ERR_BAD_VALUE;
-  }
+  if (dom.get() == nullptr) return TYPE_ERR_BAD_VALUE;
 
   if (json_binary::serialize(current_thd, dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
@@ -7658,7 +7662,12 @@ type_conversion_status Field_json::store(const char *from, size_t length,
 */
 type_conversion_status Field_json::unsupported_conversion() {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  invalid_text("not a JSON text, may need CAST", 0);
+  String s;
+  s.append(*table_name);
+  s.append('.');
+  s.append(field_name);
+  my_error(ER_INVALID_JSON_TEXT, MYF(0), "not a JSON text, may need CAST", 0,
+           s.c_ptr_safe());
   return TYPE_ERR_BAD_VALUE;
 }
 
@@ -7807,7 +7816,9 @@ String *Field_json::val_str(String *buf1, String *) const {
   buf1->length(0);
 
   Json_wrapper wr;
-  if (val_json(&wr) || wr.to_string(buf1, true, field_name)) buf1->length(0);
+  if (val_json(&wr) ||
+      wr.to_string(buf1, true, field_name, JsonDocumentDefaultDepthHandler))
+    buf1->length(0);
 
   return buf1;
 }
@@ -9797,8 +9808,6 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
 
   set_null();
 
-  THD *thd = current_thd;
-
   try {
     // How to store values
     switch (data->type()) {
@@ -9826,7 +9835,7 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
         if (coerce_json_value(data, false, &coerced))
           return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
         coerced.set_alias();
-        if (array->append_alias(coerced.to_dom(thd))) {
+        if (array->append_alias(coerced.to_dom())) {
           return TYPE_ERR_OOM;
         }
         Json_wrapper wr(array, true);
@@ -9868,7 +9877,7 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
           if (coerce_json_value(&elt, false, &coerced))
             return TYPE_ERR_BAD_VALUE;
           coerced.set_alias();
-          if (array->append_alias(coerced.to_dom(thd))) {
+          if (array->append_alias(coerced.to_dom())) {
             return TYPE_ERR_OOM;
           }
           if (type() == MYSQL_TYPE_VARCHAR)

@@ -7653,7 +7653,7 @@ void TABLE::add_logical_diff(const Field_json *field,
   if (new_value == nullptr)
     diffs->add_diff(path, operation);
   else
-    diffs->add_diff(path, operation, new_value->clone_dom(current_thd));
+    diffs->add_diff(path, operation, new_value->clone_dom());
 
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
@@ -7663,7 +7663,8 @@ void TABLE::add_logical_diff(const Field_json *field,
   if (new_value == nullptr || new_value->type() == enum_json_type::J_ERROR)
     value_str.set_ascii("<none>", 6);
   else {
-    if (new_value->to_string(&value_str, false, "add_logical_diff"))
+    if (new_value->to_string(&value_str, false, "add_logical_diff",
+                             JsonDocumentDefaultDepthHandler))
       value_str.length(0); /* purecov: inspected */
   }
   DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",

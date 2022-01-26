@@ -1239,7 +1239,7 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
         found = nullptr;
         break;
       }
-      coerced_keys->append_clone(res.to_dom(thd));
+      coerced_keys->append_clone(res.to_dom());
     }
     if (can_use_index) break;
   }

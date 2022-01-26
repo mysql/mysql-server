@@ -5704,7 +5704,9 @@ String *Item_sum_json::val_str(String *str) {
   }
   if (null_value || m_wrapper->empty()) return nullptr;
   str->length(0);
-  if (m_wrapper->to_string(str, true, func_name())) return error_str();
+  if (m_wrapper->to_string(str, true, func_name(),
+                           JsonDocumentDefaultDepthHandler))
+    return error_str();
 
   return str;
 }
@@ -5728,7 +5730,7 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
     val_* functions are called more than once in aggregates and
     by passing the dom some function will destroy it so a clone is needed.
   */
-  *wr = Json_wrapper(m_wrapper->clone_dom(current_thd));
+  *wr = Json_wrapper(m_wrapper->clone_dom());
   return false;
 }
 
@@ -5919,7 +5921,7 @@ bool Item_sum_json_array::add() {
   try {
     if (m_is_window_function) {
       if (m_window->do_inverse()) {
-        auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
+        auto arr = down_cast<Json_array *>(m_wrapper->to_dom());
         arr->remove(0);  // Remove the first element from the array
         arr->size() == 0 ? null_value = true : null_value = false;
         return false;
@@ -5931,14 +5933,14 @@ bool Item_sum_json_array::add() {
                               &m_conversion_buffer, &value_wrapper))
       return error_json();
 
-    Json_dom_ptr value_dom(value_wrapper.to_dom(thd));
+    Json_dom_ptr value_dom(value_wrapper.to_dom());
     value_wrapper.set_alias();  // release the DOM
 
     /*
       The m_wrapper always points to m_json_array or the result of
       deserializing the result_field in reset/update_field.
     */
-    const auto arr = down_cast<Json_array *>(m_wrapper->to_dom(thd));
+    const auto arr = down_cast<Json_array *>(m_wrapper->to_dom());
     if (arr->append_alias(std::move(value_dom)))
       return error_json(); /* purecov: inspected */
 
@@ -5999,7 +6001,7 @@ bool Item_sum_json_object::add() {
         If the count is 0, remove the key/value pair from the Json_object.
       */
       if (m_window->do_inverse()) {
-        auto object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+        auto object = down_cast<Json_object *>(m_wrapper->to_dom());
         if (m_optimize)  // Option 1
         {
           if (m_window->is_last_row_in_peerset_within_frame())
@@ -6031,8 +6033,8 @@ bool Item_sum_json_object::add() {
       The m_wrapper always points to m_json_object or the result of
       deserializing the result_field in reset/update_field.
     */
-    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-    if (object->add_alias(key, value_wrapper.to_dom(thd)))
+    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom());
+    if (object->add_alias(key, value_wrapper.to_dom()))
       return error_json(); /* purecov: inspected */
     /*
       If rows in the window are not ordered based on "key", add this key

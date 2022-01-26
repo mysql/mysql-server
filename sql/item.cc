@@ -7172,7 +7172,7 @@ Item_json::~Item_json() = default;
 
 void Item_json::print(const THD *, String *str, enum_query_type) const {
   str->append("json'");
-  m_value->to_string(str, true, "");
+  m_value->to_string(str, true, "", JsonDocumentDefaultDepthHandler);
   str->append("'");
 }
 
@@ -7194,7 +7194,9 @@ longlong Item_json::val_int() { return m_value->coerce_int(item_name.ptr()); }
 
 String *Item_json::val_str(String *str) {
   str->length(0);
-  if (m_value->to_string(str, true, item_name.ptr())) return error_str();
+  if (m_value->to_string(str, true, item_name.ptr(),
+                         JsonDocumentDefaultDepthHandler))
+    return error_str();
   return str;
 }
 
@@ -7213,7 +7215,7 @@ bool Item_json::get_time(MYSQL_TIME *ltime) {
 Item *Item_json::clone_item() const {
   THD *const thd = current_thd;
   auto wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root,
-                                                   m_value->clone_dom(thd));
+                                                   m_value->clone_dom());
   if (wr == nullptr) return nullptr;
   return new Item_json(std::move(wr), item_name);
 }
@@ -9728,7 +9730,7 @@ bool Item_cache_json::cache_value() {
 
   if (value_cached && !null_value) {
     // the row buffer might change, so need own copy
-    m_value->to_dom(current_thd);
+    m_value->to_dom();
   }
   m_is_sorted = false;
   return value_cached;
@@ -9741,7 +9743,7 @@ void Item_cache_json::store_value(Item *expr, Json_wrapper *wr) {
   else {
     *m_value = *wr;
     // the row buffer might change, so need own copy
-    m_value->to_dom(current_thd);
+    m_value->to_dom();
   }
   m_is_sorted = false;
 }
@@ -9763,7 +9765,8 @@ inline static const char *whence(const Item_field *cached_field) {
 String *Item_cache_json::val_str(String *tmp) {
   if (has_value()) {
     tmp->length(0);
-    m_value->to_string(tmp, true, whence(cached_field));
+    m_value->to_string(tmp, true, whence(cached_field),
+                       JsonDocumentDefaultDepthHandler);
     return tmp;
   }
 

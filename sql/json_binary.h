@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,7 @@
 #include <stddef.h>
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <string>
 
 /*
@@ -151,6 +152,7 @@
   files that are INSTALLed.
 */
 #include "field_types.h"  // enum_field_types
+#include "sql-common/json_error_handler.h"
 
 #ifdef MYSQL_SERVER
 class Field_json;
@@ -388,11 +390,14 @@ class Value {
 
     @param[in,out] buffer      the formatted string is appended, so make sure
                                the length is set correctly before calling
+    @param[in] depth_handler   Pointer to a function that should handle error
+                               occurred when depth is exceeded.
 
     @return false formatting went well, else true
   */
   EXPORT_JSON_FUNCTION
-  bool to_std_string(std::string *buffer) const;
+  bool to_std_string(std::string *buffer,
+                     const JsonDocumentDepthHandler &depth_handler) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of
@@ -401,12 +406,15 @@ class Value {
     @param[in,out] buffer     the buffer that receives the formatted string
                               (the string is appended, so make sure the length
                               is set correctly before calling)
+    @param[in] depth_handler Pointer to a function that should handle error
+                             occurred when depth is exceeded.
 
     @retval false on success
     @retval true on error
   */
   EXPORT_JSON_FUNCTION
-  bool to_pretty_std_string(std::string *buffer) const;
+  bool to_pretty_std_string(
+      std::string *buffer, const JsonDocumentDepthHandler &depth_handler) const;
 
   /**
     Compare two Values

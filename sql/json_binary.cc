@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -506,7 +506,7 @@ static enum_serialization_result serialize_json_array(const THD *thd,
   const size_t start_pos = dest->length();
   const size_t size = array->size();
 
-  if (check_json_depth(++depth)) {
+  if (check_json_depth(++depth, JsonDocumentDefaultDepthHandler)) {
     return FAILURE;
   }
 
@@ -568,7 +568,7 @@ static enum_serialization_result serialize_json_object(
   const size_t start_pos = dest->length();
   const size_t size = object->cardinality();
 
-  if (check_json_depth(++depth)) {
+  if (check_json_depth(++depth, JsonDocumentDefaultDepthHandler)) {
     return FAILURE;
   }
 
@@ -1741,7 +1741,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
 
   if (inlined) {
     new_entry.length(value_entry_size(m_large));
-    Json_dom *dom = new_value->to_dom(current_thd);
+    Json_dom *dom = new_value->to_dom();
     if (dom == nullptr) return true; /* purecov: inspected */
     attempt_inline_value(dom, &new_entry, 0, m_large);
   } else {
@@ -2099,23 +2099,25 @@ int Value::eq(const Value &val) const {
 }
 #endif  // ifdef MYSQL_SERVER
 
-bool Value::to_std_string(std::string *buffer) const {
+bool Value::to_std_string(std::string *buffer,
+                          const JsonDocumentDepthHandler &depth_handler) const {
   buffer->clear();
   Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
   bool formatting_failed =
-      wrapper.to_string(&string_buffer, false, "to_std_string");
+      wrapper.to_string(&string_buffer, false, "to_std_string", depth_handler);
   if (!formatting_failed)
     *buffer = {string_buffer.ptr(), string_buffer.length()};
   return formatting_failed;
 }
 
-bool Value::to_pretty_std_string(std::string *buffer) const {
+bool Value::to_pretty_std_string(
+    std::string *buffer, const JsonDocumentDepthHandler &depth_handler) const {
   buffer->clear();
   Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
-  bool formatting_failed =
-      wrapper.to_pretty_string(&string_buffer, "to_pretty_std_string");
+  bool formatting_failed = wrapper.to_pretty_string(
+      &string_buffer, "to_pretty_std_string", depth_handler);
   if (!formatting_failed)
     *buffer = {string_buffer.ptr(), string_buffer.length()};
   return formatting_failed;

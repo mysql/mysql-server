@@ -160,9 +160,9 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
               col->m_default_empty_string->val_str(&buffer);
           assert(default_string != nullptr);
           Json_dom_ptr dom;  //@< we'll receive a DOM here
-          bool parse_error;
-          if (parse_json(*default_string, 0, "JSON_TABLE", &dom, true,
-                         &parse_error) ||
+          JsonParseDefaultErrorHandler parse_handler("JSON_TABLE", 0);
+          if (parse_json(*default_string, &dom, true, parse_handler,
+                         JsonDocumentDefaultDepthHandler) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;
@@ -174,9 +174,9 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
               col->m_default_error_string->val_str(&buffer);
           assert(default_string != nullptr);
           Json_dom_ptr dom;  //@< we'll receive a DOM here
-          bool parse_error;
-          if (parse_json(*default_string, 0, "JSON_TABLE", &dom, true,
-                         &parse_error) ||
+          JsonParseDefaultErrorHandler parse_handler("JSON_TABLE", 0);
+          if (parse_json(*default_string, &dom, true, parse_handler,
+                         JsonDocumentDefaultDepthHandler) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;
@@ -358,7 +358,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
             Json_array *a = new (std::nothrow) Json_array();
             if (!a) return true;
             for (Json_wrapper &w : data_v) {
-              if (a->append_alias(w.clone_dom(thd))) {
+              if (a->append_alias(w.clone_dom())) {
                 delete a; /* purecov: inspected */
                 return true;
               }
@@ -482,7 +482,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
 
 Json_table_column::~Json_table_column() {
   // Reset paths and wrappers to free allocated memory.
-  m_path_json = Json_path();
+  m_path_json = Json_path(key_memory_JSON);
   if (m_on_empty == Json_on_response_type::DEFAULT)
     m_default_empty_json = Json_wrapper();
   if (m_on_error == Json_on_response_type::DEFAULT)

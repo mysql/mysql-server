@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ bool Column_statistics_impl::restore_attributes(const Raw_record &r) {
   if (r.read_json(dd::tables::Column_statistics::FIELD_HISTOGRAM, &wrapper))
     return true; /* purecov: deadcode */
 
-  Json_dom *json_dom = wrapper.to_dom(current_thd);
+  Json_dom *json_dom = wrapper.to_dom();
   if (json_dom->json_type() != enum_json_type::J_OBJECT)
     return true; /* purecov: deadcode */
 

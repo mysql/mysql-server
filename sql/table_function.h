@@ -253,7 +253,7 @@ class Json_table_column : public Create_field {
   /// Nested path
   Item *m_path_string{nullptr};
   /// parsed nested path
-  Json_path m_path_json;
+  Json_path m_path_json{key_memory_JSON};
   /// An element in table function's data source array
   JT_data_source *m_jds_elt{nullptr};
   /**

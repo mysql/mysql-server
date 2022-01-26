@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <algorithm>
+#include <functional>
 #include <new>
 #include <string>
 #include <utility>
@@ -43,6 +44,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "prealloced_array.h"  // Prealloced_array
+#include "sql-common/json_error_handler.h"
 
 class String;
 
@@ -301,7 +303,7 @@ class Json_seekable_path {
   /** An array of pointers to the legs of the JSON path. */
   Json_path_leg_pointers m_path_legs;
 
-  Json_seekable_path();
+  explicit Json_seekable_path(PSI_memory_key key);
 
  public:
   /** Return the number of legs in this searchable path */
@@ -358,16 +360,23 @@ class Json_path final : public Json_seekable_path {
     #Json_seekable_path::m_path_legs are allocated.
   */
   MEM_ROOT m_mem_root;
+  /**
+    Key used to instrument memory usage.
+  */
+  PSI_memory_key m_psi_key;
 
  public:
-  Json_path();
+  explicit Json_path(PSI_memory_key key);
 
   ~Json_path() {
     for (const auto ptr : m_path_legs) ptr->~Json_path_leg();
   }
 
   /** Move constructor. */
-  Json_path(Json_path &&other) : m_mem_root(std::move(other.m_mem_root)) {
+  Json_path(Json_path &&other)
+      : Json_seekable_path(other.m_psi_key),
+        m_mem_root(std::move(other.m_mem_root)),
+        m_psi_key(other.m_psi_key) {
     // Move the contents of m_path_legs from other into this.
     m_path_legs = std::move(other.m_path_legs);
 
@@ -440,6 +449,7 @@ class Json_path final : public Json_seekable_path {
 */
 class Json_path_clone final : public Json_seekable_path {
  public:
+  explicit Json_path_clone(PSI_memory_key key) : Json_seekable_path(key) {}
   /**
     Add a path leg to the end of this cloned path.
     @param[in] leg the leg to add
@@ -466,10 +476,13 @@ class Json_path_clone final : public Json_seekable_path {
    @param[in] path_expression The string form of the path expression.
    @param[out] path The Json_path object to be initialized.
    @param[out] bad_index If null is returned, the parsing failed around here.
+   @param[in] depth_handler Pointer to a function that should handle error
+                            occurred when depth is exceeded.
    @return false on success, true on error
 */
 bool parse_path(size_t path_length, const char *path_expression,
-                Json_path *path, size_t *bad_index);
+                Json_path *path, size_t *bad_index,
+                const JsonDocumentDepthHandler &depth_handler);
 
 /**
   A helper function that uses the above one as workhorse. Entry point for

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,11 +69,13 @@ static bool is_ecmascript_identifier(const std::string &name);
 static bool is_digit(unsigned codepoint);
 static bool is_whitespace(char);
 
-static bool parse_path(Stream *, Json_path *);
-static bool parse_path_leg(Stream *, Json_path *);
+static bool parse_path(Stream *, Json_path *, const JsonDocumentDepthHandler &);
+static bool parse_path_leg(Stream *, Json_path *,
+                           const JsonDocumentDepthHandler &);
 static bool parse_ellipsis_leg(Stream *, Json_path *);
 static bool parse_array_leg(Stream *, Json_path *);
-static bool parse_member_leg(Stream *, Json_path *);
+static bool parse_member_leg(Stream *, Json_path *,
+                             const JsonDocumentDepthHandler &);
 
 static bool append_array_index(String *buf, size_t index, bool from_end) {
   if (!from_end) return buf->append_ulonglong(index);
@@ -159,11 +161,11 @@ Json_path_leg::Array_range Json_path_leg::get_array_range(
   return {begin, end};
 }
 
-Json_seekable_path::Json_seekable_path() : m_path_legs(key_memory_JSON) {}
+Json_seekable_path::Json_seekable_path(PSI_memory_key key) : m_path_legs(key) {}
 
 // Json_path
-
-Json_path::Json_path() : m_mem_root(key_memory_JSON, 256) {}
+Json_path::Json_path(PSI_memory_key key)
+    : Json_seekable_path(key), m_mem_root(key, 256), m_psi_key(key) {}
 
 bool Json_path::to_string(String *buf) const {
   if (buf->append(SCOPE)) return true;
@@ -253,9 +255,10 @@ class Stream {
 
 /** Top level parsing factory method */
 bool parse_path(size_t path_length, const char *path_expression,
-                Json_path *path, size_t *bad_index) {
+                Json_path *path, size_t *bad_index,
+                const JsonDocumentDepthHandler &depth_handler) {
   Stream stream(path_expression, path_length);
-  if (parse_path(&stream, path)) {
+  if (parse_path(&stream, path, depth_handler)) {
     *bad_index = stream.position() - path_expression;
     return true;
   }
@@ -274,10 +277,13 @@ static inline bool is_whitespace(char ch) {
 
    @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
+   @param[in] depth_handler Pointer to a function that should handle error
+                            occurred when depth is exceeded.
 
    @return true on error, false on success
 */
-static bool parse_path(Stream *stream, Json_path *path) {
+static bool parse_path(Stream *stream, Json_path *path,
+                       const JsonDocumentDepthHandler &depth_handler) {
   path->clear();
 
   // the first non-whitespace character must be $
@@ -287,7 +293,7 @@ static bool parse_path(Stream *stream, Json_path *path) {
   // now add the legs
   stream->skip_whitespace();
   while (!stream->exhausted()) {
-    if (parse_path_leg(stream, path)) return true;
+    if (parse_path_leg(stream, path, depth_handler)) return true;
     stream->skip_whitespace();
   }
 
@@ -304,15 +310,18 @@ static bool parse_path(Stream *stream, Json_path *path) {
 
    @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
+   @param[in] depth_handler Pointer to a function that should handle error
+                            occurred when depth is exceeded.
 
    @return true on error, false on success
 */
-static bool parse_path_leg(Stream *stream, Json_path *path) {
+static bool parse_path_leg(Stream *stream, Json_path *path,
+                           const JsonDocumentDepthHandler &depth_handler) {
   switch (stream->peek()) {
     case BEGIN_ARRAY:
       return parse_array_leg(stream, path);
     case BEGIN_MEMBER:
-      return parse_member_leg(stream, path);
+      return parse_member_leg(stream, path, depth_handler);
     case WILDCARD:
       return parse_ellipsis_leg(stream, path);
     default:
@@ -541,12 +550,16 @@ static const char *find_end_of_member_name(const char *start, const char *end) {
 
   @param str the input string
   @param len the length of the input string
+  @param depth_handler Pointer to a function that should handle error
+                       occurred when depth is exceeded.
   @return a Json_string that represents the member name, or NULL if
   the input string is not a valid name
 */
-static std::unique_ptr<Json_string> parse_name_with_rapidjson(const char *str,
-                                                              size_t len) {
-  Json_dom_ptr dom = Json_dom::parse(str, len, nullptr, nullptr);
+static std::unique_ptr<Json_string> parse_name_with_rapidjson(
+    const char *str, size_t len,
+    const JsonDocumentDepthHandler &depth_handler) {
+  Json_dom_ptr dom = Json_dom::parse(
+      str, len, [](const char *, size_t) {}, depth_handler);
 
   if (dom == nullptr || dom->json_type() != enum_json_type::J_STRING)
     return nullptr;
@@ -559,10 +572,13 @@ static std::unique_ptr<Json_string> parse_name_with_rapidjson(const char *str,
 
    @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
+   @param[in] depth_handler Pointer to a function that should handle error
+                            occurred when depth is exceeded.
 
    @return true on error, false on success
 */
-static bool parse_member_leg(Stream *stream, Json_path *path) {
+static bool parse_member_leg(Stream *stream, Json_path *path,
+                             const JsonDocumentDepthHandler &depth_handler) {
   // advance past the .
   assert(stream->peek() == BEGIN_MEMBER);
   stream->skip(1);
@@ -589,7 +605,8 @@ static bool parse_member_leg(Stream *stream, Json_path *path) {
         Send the quoted name through the parser to unquote and
         unescape it.
       */
-      jstr = parse_name_with_rapidjson(key_start, key_end - key_start);
+      jstr = parse_name_with_rapidjson(key_start, key_end - key_start,
+                                       depth_handler);
     } else {
       /*
         An unquoted name may contain escape sequences. Wrap it in
@@ -601,7 +618,8 @@ static bool parse_member_leg(Stream *stream, Json_path *path) {
           strbuff.append(key_start, key_end - key_start) ||
           strbuff.append(DOUBLE_QUOTE))
         return true; /* purecov: inspected */
-      jstr = parse_name_with_rapidjson(strbuff.ptr(), strbuff.length());
+      jstr = parse_name_with_rapidjson(strbuff.ptr(), strbuff.length(),
+                                       depth_handler);
     }
 
     if (jstr == nullptr) return true;

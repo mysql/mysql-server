@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ char *concat(char *dest, const char *left, const char *right) {
 void good_path_common(const char *path_expression, Json_path *json_path) {
   size_t bad_idx = 0;
   EXPECT_FALSE(parse_path(strlen(path_expression), path_expression, json_path,
-                          &bad_idx));
+                          &bad_idx, [] { ASSERT_TRUE(false); }));
 
   EXPECT_EQ(0U, bad_idx) << "bad_idx != 0 for " << path_expression;
 }
@@ -160,7 +160,7 @@ void good_path_common(const char *path_expression, Json_path *json_path) {
 /** Verify that a good path parses correctly */
 void good_path(bool check_path, const char *path_expression,
                std::string expected_path) {
-  Json_path json_path;
+  Json_path json_path(key_memory_JSON);
   good_path_common(path_expression, &json_path);
   if (check_path) {
     String str;
@@ -174,7 +174,7 @@ void good_path(bool check_path, const char *path_expression,
     EXPECT_EQ(expected_path, std::string(str.ptr(), str.length()));
 
     // Move-assign to a new path and verify that it's the same.
-    Json_path path3;
+    Json_path path3(key_memory_JSON);
     path3 = std::move(path2);
     str.length(0);
     EXPECT_FALSE(path3.to_string(&str));
@@ -193,7 +193,7 @@ void good_path(const char *path_expression) {
 
 /** Verify whether the path contains a wildcard, ellipsis or range token. */
 void contains_wildcard(const char *path_expression, bool expected_answer) {
-  Json_path json_path;
+  Json_path json_path(key_memory_JSON);
   good_path_common(path_expression, &json_path);
   EXPECT_EQ(expected_answer, json_path.can_match_many());
 }
@@ -202,7 +202,7 @@ void contains_wildcard(const char *path_expression, bool expected_answer) {
 void good_leg_at(const char *path_expression, int leg_index,
                  const std::string &expected_leg,
                  enum_json_path_leg_type expected_leg_type) {
-  Json_path json_path;
+  Json_path json_path(key_memory_JSON);
   good_path_common(path_expression, &json_path);
 
   const Json_path_leg *actual_leg = *(json_path.begin() + leg_index);
@@ -235,14 +235,14 @@ void compare_paths(Json_path &left, Json_path_clone &right) {
 /** Verify that clones look alike */
 void verify_clone(const char *path_expression_1,
                   const char *path_expression_2) {
-  Json_path real_path1;
+  Json_path real_path1(key_memory_JSON);
   good_path_common(path_expression_1, &real_path1);
 
-  Json_path_clone cloned_path;
+  Json_path_clone cloned_path(key_memory_JSON);
   for (const Json_path_leg *leg : real_path1) cloned_path.append(leg);
   compare_paths(real_path1, cloned_path);
 
-  Json_path real_path2;
+  Json_path real_path2(key_memory_JSON);
   good_path_common(path_expression_2, &real_path2);
   cloned_path.clear();
   for (const Json_path_leg *leg : real_path2) cloned_path.append(leg);
@@ -255,7 +255,7 @@ void verify_clone(const char *path_expression_1,
 void good_leg_types(const char *path_expression,
                     enum_json_path_leg_type *expected_leg_types,
                     size_t length) {
-  Json_path json_path;
+  Json_path json_path(key_memory_JSON);
   good_path_common(path_expression, &json_path);
 
   EXPECT_EQ(length, json_path.leg_count());
@@ -268,9 +268,9 @@ void good_leg_types(const char *path_expression,
 /** Verify that a bad path fails as expected */
 void bad_path(const char *path_expression, size_t expected_index) {
   size_t actual_index = 0;
-  Json_path json_path;
+  Json_path json_path(key_memory_JSON);
   EXPECT_TRUE(parse_path(strlen(path_expression), path_expression, &json_path,
-                         &actual_index))
+                         &actual_index, [] { ASSERT_TRUE(false); }))
       << "Unexpectedly parsed " << path_expression;
   EXPECT_EQ(expected_index, actual_index)
       << "Unexpected index for " << path_expression;
@@ -303,14 +303,16 @@ void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
   String result_buffer;
 
   if (hits.size() == 1) {
-    EXPECT_FALSE(hits[0].to_string(&result_buffer, true, "test"));
+    EXPECT_FALSE(hits[0].to_string(&result_buffer, true, "test",
+                                   [] { ASSERT_TRUE(false); }));
   } else {
     Json_array *a = new (std::nothrow) Json_array();
     for (uint i = 0; i < hits.size(); ++i) {
-      a->append_clone(hits[i].to_dom(thd()));
+      a->append_clone(hits[i].to_dom());
     }
     Json_wrapper w(a);
-    EXPECT_FALSE(w.to_string(&result_buffer, true, "test"));
+    EXPECT_FALSE(
+        w.to_string(&result_buffer, true, "test", [] { ASSERT_TRUE(false); }));
   }
 
   std::string actual = std::string(result_buffer.ptr(), result_buffer.length());
@@ -321,7 +323,8 @@ void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
 
     if (hits.size() > 0) {
       String source_buffer;
-      EXPECT_FALSE(wrapper->to_string(&source_buffer, true, "test"));
+      EXPECT_FALSE(wrapper->to_string(&source_buffer, true, "test",
+                                      [] { ASSERT_TRUE(false); }));
       source_output = source_buffer.ptr();
       result_output = actual.c_str();
     }
@@ -337,8 +340,9 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
                                     const char *path_text,
                                     const std::string &expected,
                                     bool expected_null) const {
-  Json_dom_ptr dom =
-      Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
+  Json_dom_ptr dom = Json_dom::parse(
+      json_text, std::strlen(json_text), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(thd(), dom.get(), &serialized_form));
@@ -348,16 +352,17 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
   Json_wrapper dom_wrapper(std::move(dom));
   Json_wrapper binary_wrapper(binary);
 
-  Json_path path;
+  Json_path path(key_memory_JSON);
   good_path_common(path_text, &path);
   vet_wrapper_seek(&dom_wrapper, path, expected, expected_null);
   vet_wrapper_seek(&binary_wrapper, path, expected, expected_null);
 }
 
 void vet_dom_location(const char *json_text, const char *path_text) {
-  Json_dom_ptr dom =
-      Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
-  Json_path path;
+  Json_dom_ptr dom = Json_dom::parse(
+      json_text, std::strlen(json_text), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
+  Json_path path(key_memory_JSON);
   good_path_common(path_text, &path);
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
 
@@ -404,8 +409,9 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
 */
 void vet_only_needs_one(const char *json_text, const char *path_text,
                         uint expected_hits, const THD *thd) {
-  Json_dom_ptr dom =
-      Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
+  Json_dom_ptr dom = Json_dom::parse(
+      json_text, std::strlen(json_text), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(thd, dom.get(), &serialized_form));
@@ -415,7 +421,7 @@ void vet_only_needs_one(const char *json_text, const char *path_text,
   Json_wrapper dom_wrapper(std::move(dom));
   Json_wrapper binary_wrapper(binary);
 
-  Json_path path;
+  Json_path path(key_memory_JSON);
   good_path_common(path_text, &path);
   vet_only_needs_one(dom_wrapper, path, expected_hits);
   vet_only_needs_one(binary_wrapper, path, expected_hits);
@@ -436,7 +442,8 @@ void vet_only_needs_one(const char *json_text, const char *path_text,
 std::string format(Json_dom *dom) {
   String buffer;
   Json_wrapper wrapper(dom->clone());
-  EXPECT_FALSE(wrapper.to_string(&buffer, true, "format"));
+  EXPECT_FALSE(
+      wrapper.to_string(&buffer, true, "format", [] { ASSERT_TRUE(false); }));
 
   return std::string(buffer.ptr(), buffer.length());
 }
@@ -1250,8 +1257,9 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   {
     SCOPED_TRACE("");
     std::string json_text = "[100, 200, 300]";
-    Json_dom_ptr dom =
-        Json_dom::parse(json_text.data(), json_text.length(), nullptr, nullptr);
+    Json_dom_ptr dom = Json_dom::parse(
+        json_text.data(), json_text.length(), [](const char *, size_t) {},
+        [] { ASSERT_TRUE(false); });
     auto array = static_cast<Json_array *>(dom.get());
     EXPECT_TRUE(array->remove(1));
     EXPECT_EQ("[100, 300]", format(array));
@@ -1259,8 +1267,9 @@ TEST_F(JsonPathTest, RemoveDomTest) {
     EXPECT_EQ("[100, 300]", format(array));
 
     json_text = "{\"a\": 100, \"b\": 200, \"c\": 300}";
-    dom =
-        Json_dom::parse(json_text.data(), json_text.length(), nullptr, nullptr);
+    dom = Json_dom::parse(
+        json_text.data(), json_text.length(), [](const char *, size_t) {},
+        [] { ASSERT_TRUE(false); });
     auto object = static_cast<Json_object *>(dom.get());
     EXPECT_TRUE(object->remove("b"));
     EXPECT_EQ("{\"a\": 100, \"c\": 300}", format(object));
@@ -1427,9 +1436,10 @@ TEST_P(JsonPathLegAutowrapP, Autowrap) {
   const std::string path_text = "$" + param.first + ".a";
   const bool expected_result = param.second;
 
-  Json_path path;
+  Json_path path(key_memory_JSON);
   size_t idx = 0;
-  EXPECT_FALSE(parse_path(path_text.length(), path_text.data(), &path, &idx));
+  EXPECT_FALSE(parse_path(path_text.length(), path_text.data(), &path, &idx,
+                          [] { ASSERT_TRUE(false); }));
   EXPECT_EQ(0U, idx);
   EXPECT_EQ(2U, path.leg_count());
   EXPECT_EQ(expected_result, (*path.begin())->is_autowrap());

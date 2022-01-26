@@ -32,6 +32,7 @@
 #include <cmath>       // std::isfinite
 #include <functional>  // std::function
 #include <new>
+#include <utility>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
@@ -76,15 +77,17 @@
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast, pointer_cast
 
-#ifdef MYSQL_SERVER
-static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
-static bool populate_object_or_array(const THD *thd, Json_dom *dom,
-                                     const json_binary::Value &v);
-static bool populate_object(const THD *thd, Json_object *jo,
-                            const json_binary::Value &v);
-static bool populate_array(const THD *thd, Json_array *ja,
-                           const json_binary::Value &v);
+#ifndef MYSQL_SERVER
+#define key_memory_JSON PSI_NOT_INSTRUMENTED
+#endif
 
+static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
+static bool populate_object_or_array(Json_dom *dom,
+                                     const json_binary::Value &v);
+static bool populate_object(Json_object *jo, const json_binary::Value &v);
+static bool populate_array(Json_array *ja, const json_binary::Value &v);
+
+#ifdef MYSQL_SERVER
 /**
   Auto-wrap a dom in an array if it is not already an array. Delete
   the dom if there is a memory allocation failure.
@@ -124,13 +127,7 @@ void *Json_dom::operator new(size_t size, const std::nothrow_t &) noexcept {
     Call my_malloc() with the MY_WME flag to make sure that it will
     write an error message if the memory could not be allocated.
   */
-  return my_malloc(
-#ifdef MYSQL_SERVER
-      key_memory_JSON,
-#else
-      PSI_NOT_INSTRUMENTED,
-#endif
-      size, MYF(MY_WME));
+  return my_malloc(key_memory_JSON, size, MYF(MY_WME));
 }
 
 void Json_dom::operator delete(void *ptr) noexcept { my_free(ptr); }
@@ -148,7 +145,6 @@ void Json_dom::operator delete(void *ptr, const std::nothrow_t &) noexcept {
 }
 /* purecov: end */
 
-#ifdef MYSQL_SERVER
 /**
   Add a value to a vector if it isn't already there.
 
@@ -352,17 +348,10 @@ static bool path_gives_duplicates(const Json_path_iterator &begin,
     return leg->get_type() == jpl_ellipsis || (auto_wrap && leg->is_autowrap());
   });
 }
-#endif  // ifdef MYSQL_SERVER
 
 Json_object::Json_object()
-    : m_map(Json_object_map::key_compare(), Json_object_map::allocator_type(
-#ifdef MYSQL_SERVER
-                                                key_memory_JSON
-#else
-                                                PSI_NOT_INSTRUMENTED
-#endif
-                                                )) {
-}
+    : m_map(Json_object_map::key_compare(),
+            Json_object_map::allocator_type(key_memory_JSON)) {}
 
 namespace {
 
@@ -387,7 +376,6 @@ namespace {
   </code>
   @see Json_dom::parse
 */
-#ifdef MYSQL_SERVER
 class Rapid_json_handler {
  private:
 // std::cerr << "callback " << name << ':' << state << '\n'; std::cerr.flush()
@@ -407,12 +395,13 @@ class Rapid_json_handler {
   size_t m_depth;     ///< The depth at which parsing currently happens.
   std::string m_key;  ///< The name of the current member of an object.
  public:
-  Rapid_json_handler()
+  explicit Rapid_json_handler(JsonDocumentDepthHandler m_depth_handler)
       : m_state(expect_anything),
         m_dom_as_built(nullptr),
         m_current_element(nullptr),
         m_depth(0),
-        m_key() {}
+        m_key(),
+        m_depth_handler(std::move(m_depth_handler)) {}
 
   /**
     @returns The built JSON DOM object.
@@ -548,8 +537,8 @@ class Rapid_json_handler {
  private:
   bool start_object_or_array(Json_dom_ptr value, enum_state next_state) {
     Json_dom *dom = value.get();
-    bool success =
-        seeing_value(std::move(value)) && !check_json_depth(++m_depth);
+    bool success = seeing_value(std::move(value)) &&
+                   !check_json_depth(++m_depth, m_depth_handler);
     m_current_element = dom;
     m_state = next_state;
     return success;
@@ -568,36 +557,29 @@ class Rapid_json_handler {
       m_state = expect_array_value;
     }
   }
+  JsonDocumentDepthHandler m_depth_handler{nullptr};
 };
-#endif  // ifdef MYSQL_SERVER
 
 }  // namespace
 
-#ifdef MYSQL_SERVER
 Json_dom_ptr Json_dom::parse(const char *text, size_t length,
-                             const char **syntaxerr, size_t *offset) {
-  Rapid_json_handler handler;
+                             const JsonParseErrorHandler &error_handler,
+                             const JsonDocumentDepthHandler &depth_handler) {
+  Rapid_json_handler handler(depth_handler);
   rapidjson::MemoryStream ss(text, length);
   rapidjson::Reader reader;
   bool success = reader.Parse<rapidjson::kParseDefaultFlags>(ss, handler);
 
-  if (success) {
-    Json_dom_ptr dom = handler.get_built_doc();
-    if (dom == nullptr && syntaxerr != nullptr) {
-      // The parsing failed for some other reason than a syntax error.
-      *syntaxerr = nullptr;
-    }
-    return dom;
-  }
+  if (success) return handler.get_built_doc();
 
   // Report the error offset and the error message if requested by the caller.
-  if (offset != nullptr) *offset = reader.GetErrorOffset();
-  if (syntaxerr != nullptr)
-    *syntaxerr = rapidjson::GetParseError_En(reader.GetParseErrorCode());
+  size_t offset = reader.GetErrorOffset();
+  const char *syntaxerr =
+      rapidjson::GetParseError_En(reader.GetParseErrorCode());
+  error_handler(syntaxerr, offset);
 
   return nullptr;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Map the JSON type used by the binary representation to the type
@@ -650,10 +632,9 @@ static enum_json_type bjson2json(const json_binary::Value::enum_type bintype) {
   return res;
 }
 
-#ifdef MYSQL_SERVER
-Json_dom_ptr Json_dom::parse(const THD *thd, const json_binary::Value &v) {
+Json_dom_ptr Json_dom::parse(const json_binary::Value &v) {
   Json_dom_ptr dom(json_binary_to_dom_template(v));
-  if (dom == nullptr || populate_object_or_array(thd, dom.get(), v))
+  if (dom == nullptr || populate_object_or_array(dom.get(), v))
     return nullptr; /* purecov: inspected */
   return dom;
 }
@@ -733,24 +714,29 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
   elements found in a binary JSON object or array. If the supplied
   value does not represent an object or an array, do nothing.
 
-  @param[in]     thd    THD handle
   @param[in,out] dom    the Json_dom object to populate
   @param[in]     v      the binary JSON value to read from
 
   @retval true on error
   @retval false on success
 */
-static bool populate_object_or_array(const THD *thd, Json_dom *dom,
+static bool populate_object_or_array(Json_dom *dom,
                                      const json_binary::Value &v) {
   switch (v.type()) {
     case json_binary::Value::OBJECT:
       // Check that we haven't run out of stack before we dive into the object.
-      return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
-             populate_object(thd, down_cast<Json_object *>(dom), v);
+      return
+#ifdef MYSQL_SERVER
+          check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr) ||
+#endif
+          populate_object(down_cast<Json_object *>(dom), v);
     case json_binary::Value::ARRAY:
       // Check that we haven't run out of stack before we dive into the array.
-      return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
-             populate_array(thd, down_cast<Json_array *>(dom), v);
+      return
+#ifdef MYSQL_SERVER
+          check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr) ||
+#endif
+          populate_array(down_cast<Json_array *>(dom), v);
     default:
       return false;
   }
@@ -760,20 +746,18 @@ static bool populate_object_or_array(const THD *thd, Json_dom *dom,
   Populate the DOM representation of a JSON object with the key/value
   pairs found in a binary JSON object.
 
-  @param[in]     thd    THD handle
   @param[in,out] jo     the JSON object to populate
   @param[in]     v      the binary JSON object to read from
 
   @retval true on error
   @retval false on success
 */
-static bool populate_object(const THD *thd, Json_object *jo,
-                            const json_binary::Value &v) {
+static bool populate_object(Json_object *jo, const json_binary::Value &v) {
   for (uint32 i = 0; i < v.element_count(); i++) {
     auto key = get_string_data(v.key(i));
     auto val = v.element(i);
     auto dom = json_binary_to_dom_template(val);
-    if (jo->add_alias(key, dom) || populate_object_or_array(thd, dom, val))
+    if (jo->add_alias(key, dom) || populate_object_or_array(dom, val))
       return true; /* purecov: inspected */
   }
   return false;
@@ -783,20 +767,18 @@ static bool populate_object(const THD *thd, Json_object *jo,
   Populate the DOM representation of a JSON array with the elements
   found in a binary JSON array.
 
-  @param[in]     thd    THD handle
   @param[in,out] ja     the JSON array to populate
   @param[in]     v      the binary JSON array to read from
 
   @retval true on error
   @retval false on success
 */
-static bool populate_array(const THD *thd, Json_array *ja,
-                           const json_binary::Value &v) {
+static bool populate_array(Json_array *ja, const json_binary::Value &v) {
   for (uint32 i = 0; i < v.element_count(); i++) {
     auto elt = v.element(i);
     auto dom = json_binary_to_dom_template(elt);
     if (ja->append_alias(dom)) return true; /* purecov: inspected */
-    if (populate_object_or_array(thd, dom, elt))
+    if (populate_object_or_array(dom, elt))
       return true; /* purecov: inspected */
   }
   return false;
@@ -835,7 +817,6 @@ void Json_object::replace_dom_in_container(const Json_dom *oldv,
     it->second = std::move(newv);
   }
 }
-#endif  // ifdef MYSQL_SERVER
 
 bool Json_object::add_alias(const std::string &key, Json_dom_ptr value) {
   if (!value) return true; /* purecov: inspected */
@@ -893,6 +874,7 @@ bool Json_object::consume(Json_object_ptr other) {
 
   return false;
 }
+#endif  // ifdef MYSQL_SERVER
 
 template <typename Key>
 static Json_dom *json_object_get(const Json_dom *object [[maybe_unused]],
@@ -915,8 +897,6 @@ Json_dom *Json_object::get(const MYSQL_LEX_CSTRING &key) const {
   return json_object_get(this, m_map, key);
 }
 
-#endif  // ifdef MYSQL_SERVER
-
 bool Json_object::remove(const std::string &key) {
   auto it = m_map.find(key);
   if (it == m_map.end()) return false;
@@ -927,7 +907,6 @@ bool Json_object::remove(const std::string &key) {
 
 size_t Json_object::cardinality() const { return m_map.size(); }
 
-#ifdef MYSQL_SERVER
 uint32 Json_object::depth() const {
   uint deepest_child = 0;
 
@@ -937,7 +916,6 @@ uint32 Json_object::depth() const {
   }
   return 1 + deepest_child;
 }
-#endif  // ifdef MYSQL_SERVER
 
 Json_dom_ptr Json_object::clone() const {
   Json_object_ptr o = create_dom_ptr<Json_object>();
@@ -1031,15 +1009,7 @@ bool Json_key_comparator::operator()(const std::string &key1,
   return json_key_less(key1.data(), key1.length(), key2.str, key2.length);
 }
 
-Json_array::Json_array()
-    : m_v(Malloc_allocator<Json_dom *>(
-#ifdef MYSQL_SERVER
-          key_memory_JSON
-#else
-          PSI_NOT_INSTRUMENTED
-#endif
-          )) {
-}
+Json_array::Json_array() : m_v(Malloc_allocator<Json_dom *>(key_memory_JSON)) {}
 
 bool Json_array::consume(Json_array_ptr other) {
   // We've promised to delete other before returning.
@@ -1072,7 +1042,6 @@ bool Json_array::remove(size_t index) {
   return false;
 }
 
-#ifdef MYSQL_SERVER
 uint32 Json_array::depth() const {
   uint deepest_child = 0;
 
@@ -1081,7 +1050,6 @@ uint32 Json_array::depth() const {
   }
   return 1 + deepest_child;
 }
-#endif  // ifdef MYSQL_SERVER
 
 Json_dom_ptr Json_array::clone() const {
   Json_array_ptr vv = create_dom_ptr<Json_array>();
@@ -1461,12 +1429,13 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper &from) {
 Json_wrapper &Json_wrapper::operator=(Json_wrapper &&from) noexcept {
   return assign_json_wrapper(std::move(from), this);
 }
+#endif  // ifdef MYSQL_SERVER
 
-Json_dom *Json_wrapper::to_dom(const THD *thd) {
+Json_dom *Json_wrapper::to_dom() {
   if (!m_is_dom) {
     // Build a DOM from the binary JSON value and
     // convert this wrapper to hold the DOM instead
-    m_dom.m_value = Json_dom::parse(thd, m_value).release();
+    m_dom.m_value = Json_dom::parse(m_value).release();
     m_is_dom = true;
     m_dom.m_alias = false;
   }
@@ -1474,14 +1443,15 @@ Json_dom *Json_wrapper::to_dom(const THD *thd) {
   return m_dom.m_value;
 }
 
-Json_dom_ptr Json_wrapper::clone_dom(const THD *thd) const {
+Json_dom_ptr Json_wrapper::clone_dom() const {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom) return m_dom.m_value ? m_dom.m_value->clone() : nullptr;
 
   // Otherwise, produce a new DOM tree from the binary representation.
-  return Json_dom::parse(thd, m_value);
+  return Json_dom::parse(m_value);
 }
 
+#ifdef MYSQL_SERVER
 bool Json_wrapper::to_binary(const THD *thd, String *str) const {
   if (empty()) {
     /* purecov: begin inspected */
@@ -1564,13 +1534,16 @@ static bool append_comma(String *buffer, bool pretty) {
   @param[in]     pretty      add newlines and indentation if true
   @param[in]     func_name   the name of the calling function
   @param[in]     depth       the nesting level of @a wr
+  @param[in]   depth_handler Pointer to a function that should handle error
+                             occurred when depth is exceeded.
 
   @retval false on success
   @retval true on error
 */
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
                               bool json_quoted, bool pretty,
-                              const char *func_name, size_t depth) {
+                              const char *func_name, size_t depth,
+                              const JsonDocumentDepthHandler &depth_handler) {
   enum_json_type type = wr.type();
   // Treat strings saved in opaque as plain json strings
   // @see val_json_func_field_subselect()
@@ -1598,7 +1571,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_ARRAY: {
-      if (check_json_depth(++depth)) return true;
+      if (check_json_depth(++depth, depth_handler)) return true;
 
       if (buffer->append('[')) return true; /* purecov: inspected */
 
@@ -1610,7 +1583,8 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (pretty && newline_and_indent(buffer, depth))
           return true; /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth))
+        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth,
+                              depth_handler))
           return true; /* purecov: inspected */
       }
 
@@ -1668,7 +1642,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true; /* purecov: inspected */
       break;
     case enum_json_type::J_OBJECT: {
-      if (check_json_depth(++depth)) return true;
+      if (check_json_depth(++depth, depth_handler)) return true;
 
       if (buffer->append('{')) return true; /* purecov: inspected */
 
@@ -1686,7 +1660,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (print_string(buffer, true, key.str, key.length) ||
             buffer->append(':') || buffer->append(' ') ||
             wrapper_to_string(iter.second, buffer, true, pretty, func_name,
-                              depth))
+                              depth, depth_handler))
           return true; /* purecov: inspected */
       }
 
@@ -1767,22 +1741,28 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
   return false;
 }
 
-bool Json_wrapper::to_string(String *buffer, bool json_quoted,
-                             const char *func_name) const {
+bool Json_wrapper::to_string(
+    String *buffer, bool json_quoted, const char *func_name,
+    const JsonDocumentDepthHandler &depth_handler) const {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0);
+  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0,
+                           depth_handler);
 }
 
-bool Json_wrapper::to_pretty_string(String *buffer,
-                                    const char *func_name) const {
+bool Json_wrapper::to_pretty_string(
+    String *buffer, const char *func_name,
+    const JsonDocumentDepthHandler &depth_handler) const {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+  return wrapper_to_string(*this, buffer, true, true, func_name, 0,
+                           depth_handler);
 }
 
-void Json_wrapper::dbug_print(const char *message [[maybe_unused]]) const {
+void Json_wrapper::dbug_print(const char *message [[maybe_unused]],
+                              const JsonDocumentDepthHandler &depth_handler
+                              [[maybe_unused]]) const {
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
-  if (to_string(&buf, false, "Json_wrapper::dbug_print"))
+  if (to_string(&buf, false, "Json_wrapper::dbug_print", depth_handler))
     assert(0); /* purecov: inspected */  // OOM
   DBUG_PRINT("info", ("%s[length=%zu]%s%.*s", message, buf.length(),
                       message[0] ? ": " : "", static_cast<int>(buf.length()),
@@ -1944,7 +1924,7 @@ bool Json_wrapper::get_boolean() const {
 #ifdef MYSQL_SERVER
 Json_path Json_dom::get_location() {
   if (m_parent == nullptr) {
-    Json_path result;
+    Json_path result(key_memory_JSON);
     return result;
   }
 
@@ -1969,6 +1949,7 @@ Json_path Json_dom::get_location() {
   return result;
 }
 
+#endif  // ifdef MYSQL_SERVER
 bool Json_dom::seek(const Json_seekable_path &path, size_t legs,
                     Json_dom_vector *hits, bool auto_wrap, bool only_need_one) {
   const auto begin = path.begin();
@@ -2215,7 +2196,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path, size_t legs,
     difficult on binary values.
   */
   if (is_dom() || path_gives_duplicates(begin, end, auto_wrap)) {
-    Json_dom *dom = to_dom(current_thd);
+    Json_dom *dom = to_dom();
     if (dom == nullptr) return true; /* purecov: inspected */
 
     Json_dom_vector dom_hits(key_memory_JSON);
@@ -2233,7 +2214,6 @@ bool Json_wrapper::seek(const Json_seekable_path &path, size_t legs,
   return seek_no_dup_elimination(
       m_value, begin, Json_seek_params(end, hits, auto_wrap, only_need_one));
 }
-#endif  // ifdef MYSQL_SERVER
 
 size_t Json_wrapper::length() const {
   if (empty()) {

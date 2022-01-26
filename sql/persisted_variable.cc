@@ -775,7 +775,8 @@ bool Persisted_variables_cache::write_persist_file_v2(String &dest,
   Json_wrapper json_wrapper(&main_json_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr());
+  json_wrapper.to_string(&str, true, String().ptr(),
+                         JsonDocumentDefaultDepthHandler);
   dest.append(str);
 
   if (encryption_success == return_status::SUCCESS) {
@@ -1819,8 +1820,6 @@ int Persisted_variables_cache::read_persist_file() {
   auto read_file = [&]() -> bool {
     string parsed_value;
     char buff[4096] = {0};
-    size_t offset = 0;
-    const char *error = nullptr;
     do {
       /* Read the persisted config file into a string buffer */
       parsed_value.append(buff);
@@ -1828,8 +1827,9 @@ int Persisted_variables_cache::read_persist_file() {
     } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
     close_persist_file();
     /* parse the file contents to check if it is in json format or not */
-    json = Json_dom::parse(parsed_value.c_str(), parsed_value.length(), &error,
-                           &offset);
+    json = Json_dom::parse(
+        parsed_value.c_str(), parsed_value.length(),
+        [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler);
     if (!json.get()) return true;
     return false;
   };
@@ -1846,7 +1846,6 @@ int Persisted_variables_cache::read_persist_file() {
       return 1;
     }
   }
-
   Json_object *json_obj = down_cast<Json_object *>(json.get());
   /* Check file version */
   Json_dom *version_dom = json_obj->get("Version");
@@ -2449,7 +2448,8 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
   Json_wrapper json_wrapper(&sensitive_variables_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr());
+  json_wrapper.to_string(&str, true, String().ptr(),
+                         JsonDocumentDefaultDepthHandler);
 
   /* Encrypt sensitive variables */
   unsigned char iv[16];
@@ -2521,11 +2521,9 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
   }
 
   /* Parse the decrypted blob */
-  const char *errormsg = nullptr;
-  size_t offset = 0;
-  std::unique_ptr<Json_dom> json(
-      Json_dom::parse(reinterpret_cast<char *>(decrypted_data.get()), error,
-                      &errormsg, &offset));
+  std::unique_ptr<Json_dom> json(Json_dom::parse(
+      reinterpret_cast<char *>(decrypted_data.get()), error,
+      [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler));
   if (!json.get()) return retval;
 
   if (json.get()->json_type() != enum_json_type::J_OBJECT) return retval;

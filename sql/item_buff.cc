@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ bool Cached_item_json::cmp() {
     representation pointed to by m_value. Convert to DOM so that we
     own the copy.
   */
-  m_value->to_dom(current_thd);
+  m_value->to_dom();
 
   return true;
 }

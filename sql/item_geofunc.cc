@@ -937,8 +937,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return error_str();
   }
-  const Json_object *root_obj =
-      down_cast<const Json_object *>(wr.to_dom(current_thd));
+  const Json_object *root_obj = down_cast<const Json_object *>(wr.to_dom());
 
   /*
     Set the default SRID to 4326. This will be overwritten if a valid CRS is

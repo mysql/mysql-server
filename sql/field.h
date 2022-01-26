@@ -3929,20 +3929,6 @@ class Field_json : public Field_blob {
   type_conversion_status unsupported_conversion();
   type_conversion_status store_binary(const char *ptr, size_t length);
 
-  /**
-    Diagnostics utility for ER_INVALID_JSON_TEXT.
-
-    @param err        error message argument for ER_INVALID_JSON_TEXT
-    @param err_offset location in text at which there is an error
-  */
-  void invalid_text(const char *err, size_t err_offset) const {
-    String s;
-    s.append(*table_name);
-    s.append('.');
-    s.append(field_name);
-    my_error(ER_INVALID_JSON_TEXT, MYF(0), err, err_offset, s.c_ptr_safe());
-  }
-
  public:
   Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
              uchar auto_flags_arg, const char *field_name_arg,

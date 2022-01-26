@@ -48,6 +48,7 @@
 #include "sql/json_path.h"       // Json_path
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_location.h"  // POS
+#include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql_string.h"
 
 class Json_schema_validator;
@@ -665,7 +666,8 @@ class Item_func_json_set_replace : public Item_func_modify_json_in_path {
   template <typename... Args>
   explicit Item_func_json_set_replace(bool json_set, Args &&... parent_args)
       : Item_func_modify_json_in_path(std::forward<Args>(parent_args)...),
-        m_json_set(json_set) {}
+        m_json_set(json_set),
+        m_path(key_memory_JSON) {}
 
  public:
   bool val_json(Json_wrapper *wr) override;
@@ -1236,8 +1238,9 @@ bool get_json_object_member_name(const THD *thd, Item *arg_item, String *value,
                                  size_t *safe_length);
 using Json_dom_ptr = std::unique_ptr<Json_dom>;
 
-bool parse_json(const String &res, uint arg_idx, const char *func_name,
-                Json_dom_ptr *dom, bool require_str_or_json, bool *parse_error);
+bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
+                const JsonParseErrorHandler &error_handler,
+                const JsonDocumentDepthHandler &depth_handler);
 
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);

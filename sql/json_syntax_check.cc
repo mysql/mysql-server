@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include "mysqld_error.h"
 
 bool Syntax_check_handler::StartObject() {
-  m_too_deep_error_raised = check_json_depth(++m_depth);
+  m_too_deep_error_raised = check_json_depth(++m_depth, m_depth_handler);
   return !m_too_deep_error_raised;
 }
 
@@ -46,7 +46,7 @@ bool Syntax_check_handler::EndObject(rapidjson::SizeType) {
 }
 
 bool Syntax_check_handler::StartArray() {
-  m_too_deep_error_raised = check_json_depth(++m_depth);
+  m_too_deep_error_raised = check_json_depth(++m_depth, m_depth_handler);
   return !m_too_deep_error_raised;
 }
 
@@ -54,10 +54,14 @@ bool Syntax_check_handler::EndArray(rapidjson::SizeType) {
   --m_depth;
   return true;
 }
+Syntax_check_handler::Syntax_check_handler(
+    JsonDocumentDepthHandler m_depth_handler)
+    : m_depth_handler(std::move(m_depth_handler)) {}
 
 bool is_valid_json_syntax(const char *text, size_t length, size_t *error_offset,
-                          std::string *error_message) {
-  Syntax_check_handler handler;
+                          std::string *error_message,
+                          const JsonDocumentDepthHandler &depth_handler) {
+  Syntax_check_handler handler(depth_handler);
   rapidjson::Reader reader;
   rapidjson::MemoryStream ms(text, length);
   const bool valid = reader.Parse<rapidjson::kParseDefaultFlags>(ms, handler);
@@ -79,9 +83,9 @@ bool is_valid_json_syntax(const char *text, size_t length, size_t *error_offset,
 /// The maximum number of nesting levels allowed in a JSON document.
 static constexpr int JSON_DOCUMENT_MAX_DEPTH = 100;
 
-bool check_json_depth(size_t depth) {
+bool check_json_depth(size_t depth, const JsonDocumentDepthHandler &handler) {
   if (depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+    handler();
     return true;
   }
   return false;

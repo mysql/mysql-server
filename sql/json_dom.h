@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>  // unique_ptr
@@ -36,7 +37,6 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_compiler.h"
-
 #include "my_inttypes.h"
 #include "my_time.h"  // my_time_flags_t
 #include "mysql/mysql_lex_string.h"
@@ -225,7 +225,6 @@ class Json_dom {
   */
   virtual bool is_number() const { return false; }
 
-#ifdef MYSQL_SERVER
   /**
     Compute the depth of a document. This is the value which would be
     returned by the JSON_DEPTH() system function.
@@ -241,7 +240,6 @@ class Json_dom {
     @return the depth of the document
   */
   virtual uint32 depth() const = 0;
-#endif
 
   /**
     Make a deep clone. The ownership of the returned object is
@@ -272,11 +270,17 @@ class Json_dom {
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
+    @param[in] error_handler Pointer to a function that should handle
+                             reporting of parsing error.
+    @param[in] depth_handler   Pointer to a function that should handle error
+                           occurred when depth is exceeded.
+
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom_ptr parse(const char *text, size_t length,
-                            const char **errmsg, size_t *offset);
+                            const JsonParseErrorHandler &error_handler,
+                            const JsonDocumentDepthHandler &depth_handler);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -286,7 +290,7 @@ class Json_dom {
     @param v    the binary value to parse
     @return a DOM representation of the binary value, or NULL on error
   */
-  static Json_dom_ptr parse(const THD *thd, const json_binary::Value &v);
+  static Json_dom_ptr parse(const json_binary::Value &v);
 
   /**
     Get the path location of this dom, measured from the outermost
@@ -323,7 +327,6 @@ class Json_dom {
 */
 class Json_container : public Json_dom {
  public:
-#ifdef MYSQL_SERVER
   /**
     Replace oldv contained inside this container array or object) with newv. If
     this container does not contain oldv, calling the method is a no-op.
@@ -333,7 +336,6 @@ class Json_container : public Json_dom {
   */
   virtual void replace_dom_in_container(const Json_dom *oldv,
                                         Json_dom_ptr newv) = 0;
-#endif  // ifdef MYSQL_SERVER
 };
 
 /**
@@ -460,16 +462,12 @@ class Json_object final : public Json_container {
   */
   size_t cardinality() const;
 
-#ifdef MYSQL_SERVER
   uint32 depth() const override;
-#endif
 
   Json_dom_ptr clone() const override;
 
-#ifdef MYSQL_SERVER
   void replace_dom_in_container(const Json_dom *oldv,
                                 Json_dom_ptr newv) override;
-#endif
 
   /**
     Remove all elements in the object.
@@ -619,9 +617,7 @@ class Json_array final : public Json_container {
   */
   size_t size() const { return m_v.size(); }
 
-#ifdef MYSQL_SERVER
   uint32 depth() const override;
-#endif
 
   Json_dom_ptr clone() const override;
 
@@ -655,10 +651,8 @@ class Json_array final : public Json_container {
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_v.end(); }
 
-#ifdef MYSQL_SERVER
   void replace_dom_in_container(const Json_dom *oldv,
                                 Json_dom_ptr newv) override;
-#endif
 
   /// Sort the array
   void sort(const CHARSET_INFO *cs = nullptr);
@@ -687,9 +681,7 @@ class Json_array final : public Json_container {
 */
 class Json_scalar : public Json_dom {
  public:
-#ifdef MYSQL_SERVER
   uint32 depth() const final { return 1; }
-#endif
 
   bool is_scalar() const final { return true; }
 };
@@ -1288,10 +1280,9 @@ class Json_wrapper {
     wrapper. If this wrapper originally held a value, it is now converted
     to hold (and eventually release) the DOM version.
 
-    @param thd current session (can be nullptr if is_dom() returns true)
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *to_dom(const THD *thd);
+  Json_dom *to_dom();
 
   /**
     Gets a pointer to the wrapped Json_dom object, if this wrapper holds a DOM.
@@ -1312,15 +1303,13 @@ class Json_wrapper {
     return m_value;
   }
 
-#ifdef MYSQL_SERVER
   /**
     Get the wrapped contents in DOM form. Same as to_dom(), except it returns
     a clone of the original DOM instead of the actual, internal DOM tree.
 
-    @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom_ptr clone_dom(const THD *thd) const;
+  Json_dom_ptr clone_dom() const;
 
   /**
     Get the wrapped contents in binary value form.
@@ -1331,7 +1320,6 @@ class Json_wrapper {
     @retval true  on error
   */
   bool to_binary(const THD *thd, String *str) const;
-#endif
 
   /**
     Check if the wrapped JSON document is a binary value (a
@@ -1363,7 +1351,8 @@ class Json_wrapper {
 
     @return false formatting went well, else true
   */
-  bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+  bool to_string(String *buffer, bool json_quoted, const char *func_name,
+                 const JsonDocumentDepthHandler &depth_handler) const;
 
   /**
     Print this JSON document to the debug trace.
@@ -1371,7 +1360,8 @@ class Json_wrapper {
     @param[in] message If given, the JSON document is prefixed with
     this message.
   */
-  void dbug_print(const char *message [[maybe_unused]] = "") const;
+  void dbug_print(const char *message,
+                  const JsonDocumentDepthHandler &depth_handler) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of
@@ -1385,7 +1375,8 @@ class Json_wrapper {
     @retval false on success
     @retval true on error
   */
-  bool to_pretty_string(String *buffer, const char *func_name) const;
+  bool to_pretty_string(String *buffer, const char *func_name,
+                        const JsonDocumentDepthHandler &depth_handler) const;
 
   // Accessors
 

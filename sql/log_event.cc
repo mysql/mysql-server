@@ -166,6 +166,7 @@ Error_log_throttle slave_ignored_err_throttle(
 #include "libbinlogevents/include/codecs/binary.h"
 #include "libbinlogevents/include/codecs/factory.h"
 #include "libbinlogevents/include/compression/iterator.h"
+#include "mysqld_error.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_record.h"  // enum_row_image_type, Bit_reader
 #include "sql/rpl_utility.h"
@@ -1660,7 +1661,7 @@ static const char *json_diff_operation_name(enum_json_diff_operation op,
 
 static bool json_wrapper_to_string(IO_CACHE *out, String *buf,
                                    Json_wrapper *wrapper, bool json_type) {
-  if (wrapper->to_string(buf, false, "json_wrapper_to_string"))
+  if (wrapper->to_string(buf, false, "json_wrapper_to_string", [] {}))
     return true; /* purecov: inspected */  // OOM
   if (json_type)
     return my_b_write_quoted(out, (uchar *)buf->ptr(), buf->length());

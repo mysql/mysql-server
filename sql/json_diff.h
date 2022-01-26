@@ -1,7 +1,7 @@
 #ifndef JSON_DIFF_INCLUDED
 #define JSON_DIFF_INCLUDED
 
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 
 #include "sql/json_path.h"
 #include "sql/mem_root_allocator.h"
+#include "sql/psi_memory_key.h"  // key_memory_JSON
 
 class Field_json;
 class Json_dom;
@@ -102,7 +103,9 @@ class Json_diff final {
   */
   Json_diff(const Json_seekable_path &path, enum_json_diff_operation operation,
             std::unique_ptr<Json_dom> value)
-      : m_path(), m_operation(operation), m_value(std::move(value)) {
+      : m_path(key_memory_JSON),
+        m_operation(operation),
+        m_value(std::move(value)) {
     for (const Json_path_leg *leg : path) m_path.append(*leg);
   }
 
