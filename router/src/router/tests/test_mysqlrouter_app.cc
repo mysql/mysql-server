@@ -239,7 +239,7 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
   }
 }
 
-TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
+TEST_F(AppTest, CmdLineExtraConfigNoDefaultFail) {
   /*
    * Check if mysqlrouter.conf does not exist in default locations.
    */
@@ -252,7 +252,9 @@ TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
     if (parse_ok) {
       std::string real_path =
           mysqlrouter::substitute_variable(path, "{origin}", g_program_name);
-      ASSERT_FALSE(mysql_harness::Path(real_path).exists());
+      ASSERT_FALSE(mysql_harness::Path(real_path).exists())
+          << "expected that '" << real_path << "' (part of CONFIG_FILES='"
+          << CONFIG_FILES << "') does not exist";
     }
   }
 
