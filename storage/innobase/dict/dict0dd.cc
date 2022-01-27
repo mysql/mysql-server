@@ -3256,18 +3256,28 @@ static void fill_dict_dropped_column(const dd::Column *column,
       &unsigned_type, &binary_type, &charset_no, column->type(), charset,
       column->is_unsigned());
 
-  /* Get column prtype */
-  ulint nulls_allowed = column->is_nullable() ? 0 : DATA_NOT_NULL;
-  ulint prtype =
-      dtype_form_prtype((ulint)dd_get_old_field_type(column->type()) |
-                            unsigned_type | binary_type | nulls_allowed,
-                        charset_no);
-
   /* Get column length */
   ulint col_len = calc_pack_length(
       column->type(), column->char_length(), column->elements_count(),
       /* InnoDB always treats BIT as char. */
       true, column->numeric_scale(), column->is_unsigned());
+
+  ulint long_true_varchar = 0;
+  if (column->type() == dd::enum_column_types::VARCHAR) {
+    size_t length_bytes = column->char_length() > 255 ? 2 : 1;
+    col_len -= length_bytes;
+
+    if (length_bytes == 2) {
+      long_true_varchar = DATA_LONG_TRUE_VARCHAR;
+    }
+  }
+
+  /* Get column prtype */
+  ulint nulls_allowed = column->is_nullable() ? 0 : DATA_NOT_NULL;
+  ulint prtype = dtype_form_prtype(
+      (ulint)dd_get_old_field_type(column->type()) | unsigned_type |
+          binary_type | nulls_allowed | long_true_varchar,
+      charset_no);
 
   /* Add column to InnoDB dictionary cache */
   dict_mem_table_add_col(dict_table, heap, column->name().c_str(), mtype,
