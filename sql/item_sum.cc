@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1264,9 +1264,16 @@ bool Aggregator_distinct::add() {
     }
 
     if (!check_unique_constraint(table)) return false;
-    if ((error = table->file->ha_write_row(table->record[0])) &&
-        !table->file->is_ignorable_error(error))
-      return true;
+    error = table->file->ha_write_row(table->record[0]);
+    if (error && !table->file->is_ignorable_error(error)) {
+      if (create_ondisk_from_heap(current_thd, table, error,
+                                  /*insert_last_record=*/true,
+                                  /*ignore_last_dup=*/true,
+                                  /*is_duplicate=*/nullptr) ||
+          table->file->ha_index_init(0, false)) {
+        return true;
+      }
+    }
     return false;
   } else {
     item_sum->get_arg(0)->save_in_field(table->field[0], false);
