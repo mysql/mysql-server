@@ -1623,7 +1623,7 @@ NdbEventBuffer::pollEvents(Uint64 *highestQueuedEpoch)
 #endif
 
   NdbMutex_Lock(m_mutex);
-  EventBufData *ev_data= move_data();
+  EventBufDataHead *ev_data= move_data();
   m_latest_poll_GCI= MonotonicEpoch(m_epoch_generation,m_latestGCI);
 #ifdef VM_TRACE
   if (ev_data && ev_data->m_event_op)
@@ -1763,7 +1763,7 @@ NdbEventBuffer::remove_consumed(MonotonicEpoch consumedGci)  //Need m_mutex lock
  * Return the next EventData deliverable to the client.
  * EpochData belonging to consumed epochs are deleted.
  */
-EventBufData *
+EventBufDataHead *
 NdbEventBuffer::nextEventData()
 {
   /**
@@ -1782,7 +1782,7 @@ NdbEventBuffer::nextEventData()
     NdbMutex_Unlock(m_mutex);
   }
 
-  EventBufData *data = m_event_queue.consume_first_event_data();
+  EventBufDataHead *data = m_event_queue.consume_first_event_data();
   m_current_data = data;
   return data;
 }
@@ -1796,9 +1796,11 @@ NdbEventBuffer::nextEvent2()
   m_latest_command= "NdbEventBuffer::nextEvent2";
 #endif
 
-  while (EventBufData *data= nextEventData())
+  while (EventBufDataHead *data= nextEventData())
   {
-    m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, data->get_size());
+    //assert(data->m_event_count == data->get_count());
+    assert(data->m_data_size == data->get_size());
+    m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, data->m_data_size);
 
     NdbEventOperationImpl *op= data->m_event_op;
     // Check event_op magic state to detect destructed
@@ -2399,7 +2401,7 @@ NdbEventBuffer::crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucke
 EpochData*
 NdbEventBuffer::create_empty_exceptional_epoch(Uint64 gci, Uint32 type)
 {
-  EventBufData *exceptional_event_data= alloc_data();
+  EventBufDataHead *exceptional_event_data= alloc_data_main();
 
   /** Add gci and event type to the inconsistent epoch event data,
    * such that nextEvent handles it correctly and makes it visible
@@ -2412,6 +2414,9 @@ NdbEventBuffer::create_empty_exceptional_epoch(Uint64 gci, Uint32 type)
     ptr[i].sz = 0;
   }
   alloc_mem(exceptional_event_data, ptr);
+  exceptional_event_data->m_main = exceptional_event_data;
+  exceptional_event_data->m_event_count = 1;
+  exceptional_event_data->m_data_size = exceptional_event_data->get_this_size();
 
   SubTableData *sdata = exceptional_event_data->sdata;
   assert(sdata);
@@ -3326,22 +3331,27 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     
     if (data == 0)
     {
-      // allocate new result buffer
-      data = alloc_data();  // alloc_data crashes if allocation fails.
-
       m_event_buffer_manager.onBufferingEpoch(gci);
 
-      if (unlikely(copy_data(sdata, len, ptr, data)))
-      {
-        crashMemAllocError("insertDataL : copy_data failed.");
-      }
-      data->m_event_op = op;
       if (! is_blob_event || ! is_data_event)
       {
-        bucket->append_data(data);
+        // allocate new result buffer 'Head', crashes if allocation fails.
+        EventBufDataHead* main_data = alloc_data_main();
+        if (unlikely(copy_data(sdata, len, ptr, main_data)))
+          crashMemAllocError("insertDataL : copy_data failed.");
+        main_data->m_event_op = op;
+
+        bucket->append_data(main_data);
+        data = main_data;
       }
       else
       {
+        // alloc and link blob event under main event
+        data = alloc_data();  // crashes if allocation fails.
+        if (unlikely(copy_data(sdata, len, ptr, data)))
+          crashMemAllocError("insertDataL : copy_data failed.");
+        data->m_event_op = op;
+
         // find or create main event for this blob event
         EventBufData_hash::Pos main_hpos;
         int ret = get_main_data(bucket, main_hpos, data);
@@ -3349,12 +3359,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         {
           crashMemAllocError("insertDataL : get_main_data failed.");
         }
-
-        EventBufData* main_data = main_hpos.data;
+        EventBufDataHead* main_data = main_hpos.main_data;
         if (ret != 0) // main event was created
         {
-          main_data->m_event_op = op->theMainOp;
-          bucket->append_data(main_data);
           if (use_hash)
           {
             main_data->m_pkhash = main_hpos.pkhash;
@@ -3375,11 +3382,13 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
     else
     {
-      // event with same op, PK found, merge into old buffer
+      // event with same op, PK found, merge into old buffer, changes size
+      data->m_main->m_data_size -= data->get_this_size();
       if (unlikely(merge_data(sdata, len, ptr, data)))
       {
         crashMemAllocError("insertDataL : merge_data failed.");
       }
+      data->m_main->m_data_size += data->get_this_size();
 
       // merge is on so we do not report blob part events
       if (! is_blob_event) {
@@ -3442,6 +3451,17 @@ NdbEventBuffer::alloc_data()
   EventBufData* data = new(memptr) EventBufData();
   DBUG_RETURN_EVENT(data);
 }
+
+EventBufDataHead*
+NdbEventBuffer::alloc_data_main()
+{
+  DBUG_ENTER_EVENT("alloc_data_main");
+  void* memptr = alloc(sizeof(EventBufDataHead));
+  assert(memptr != NULL);  // Alloc failures catched in ::alloc()
+  EventBufDataHead* data = new(memptr) EventBufDataHead();
+  DBUG_RETURN_EVENT(data);
+}
+
 
 // Allocate memory area for storing event data associated to the given
 // meta EventBufData. Takes sizes from given ptr and sets up data->ptr
@@ -4087,7 +4107,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
     DBUG_RETURN_EVENT(0);
 
   // not found, create a place-holder
-  EventBufData* main_data = alloc_data();
+  EventBufDataHead* main_data = alloc_data_main();
   if (main_data == NULL)
     DBUG_RETURN_EVENT(-1);
   SubTableData sdata = *blob_data->sdata;
@@ -4097,20 +4117,21 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
     DBUG_RETURN_EVENT(-1);
   hpos.data = main_data;
 
+  main_data->m_event_op = main_op;
+  bucket->append_data(main_data);
   DBUG_RETURN_EVENT(1);
 }
 
 void
 NdbEventBuffer::add_blob_data(Gci_container* bucket,
-                              EventBufData* main_data,
+                              EventBufDataHead* main_data,
                               EventBufData* blob_data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
   DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p 0x%x %s",
                             main_data, blob_data, m_ndb->getReference(),
                             m_ndb->getNdbObjectName()));
-  EventBufData* head;
-  head = main_data->m_next_blob;
+  EventBufData* head = main_data->m_next_blob;
   while (head != NULL)
   {
     if (head->m_event_op == blob_data->m_event_op)
@@ -4128,10 +4149,15 @@ NdbEventBuffer::add_blob_data(Gci_container* bucket,
     blob_data->m_next = head->m_next;
     head->m_next = blob_data;
   }
+
+  // Maintain aggregated event sizes in 'main'
+  blob_data->m_main = main_data;
+  main_data->m_event_count++;
+  main_data->m_data_size += blob_data->get_this_size();
   DBUG_VOID_RETURN_EVENT;
 }
 
-EventBufData *
+EventBufDataHead *
 NdbEventBuffer::move_data()
 {
   // handle received data
@@ -4156,7 +4182,7 @@ NdbEventBuffer::move_data()
 }
 
 void
-Gci_container::append_data(EventBufData *data)
+Gci_container::append_data(EventBufDataHead *data)
 {
   Gci_op g = {data->m_event_op,
               1U << SubTableData::getOperation(data->sdata->requestInfo),
@@ -4170,6 +4196,10 @@ Gci_container::append_data(EventBufData *data)
     m_head = data;
 
   m_tail = data;
+  // This is the 'Head', so no need to add:
+  data->m_main = data;
+  data->m_event_count = 1;
+  data->m_data_size = data->get_this_size();
 }
 
 void
@@ -4498,15 +4528,19 @@ NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage
   usage.usage_percent = ret;
 }
 
-Uint32
-EventBufData::get_size() const
+size_t
+EventBufData::get_this_size() const
 {
   // Calc size in aligned Uint32 words
-  Uint32 size = (sizeof(SubTableData) + 3) >> 2;
+  size_t size = (sizeof(SubTableData) + 3) >> 2;
   size += ptr[0].sz + ptr[1].sz + ptr[2].sz;
+  return (size << 2);  // Converted to bytes;
+}
 
-  // Convert to bytes;
-  size <<= 2;
+size_t
+EventBufData::get_size() const
+{
+  size_t size = get_this_size();
 
   // Add length of blob fragments.
   // Possibly multiple BLOBs are chained with 'next_blob' and
@@ -4533,15 +4567,16 @@ EventBufData::get_count() const
   return count;
 }
 
+#ifdef VM_TRACE
 Uint32
 Gci_container::count_event_data() const
 {
   Uint32 count = 0;
-  EventBufData* data = m_head;
+  EventBufDataHead* data = m_head;
   while (data != NULL)
   {
-    count += data->get_count();
-    data = data->m_next;
+    count += data->m_event_count;
+    data = data->m_next_main;
   }
   return count;
 }
@@ -4550,11 +4585,11 @@ Uint32
 EpochData::count_event_data() const
 {
   Uint32 count = 0;
-  EventBufData* data = m_data;
+  EventBufDataHead* data = m_data;
   while (data != NULL)
   {
-    count += data->get_count();
-    data = data->m_next;
+    count += data->m_event_count;
+    data = data->m_next_main;
   }
   return count;
 }
@@ -4571,6 +4606,7 @@ EpochDataList::count_event_data() const
   }
   return count;
 }
+#endif
 
 
 // hash table routines
