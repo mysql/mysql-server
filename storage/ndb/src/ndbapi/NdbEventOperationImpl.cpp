@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4502,7 +4502,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
   // hash registers
   ulong nr1 = 0;
-  ulong nr2 = 0;
+  ulong nr2 = 4;
   while (nkey-- != 0)
   {
     AttributeHeader ah(*hptr++);
@@ -4517,8 +4517,15 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
     bool ok = NdbSqlUtil::get_var_length(col->m_type, dptr, bytesize, lb, len);
     require(ok);
 
-    CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
-    (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
+    if (len == 0)  // hash empty string
+    {
+      nr1 ^= (nr1 << 1) | 1;
+    }
+    else
+    {
+      CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
+      (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
+    }
     dptr += ((bytesize + 3) / 4) * 4;
   }
   DBUG_PRINT_EVENT("info", ("hash result=%08x", nr1));
