@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@ basedir = CHOOSE_dir
 fix-nodeid = 1
 mt = 2
 mysqld = CHOOSE_host1
+
+[atrt.2ndbd2mgm]
+mt = 0
 
 [ndb_mgmd]
 
@@ -122,6 +125,25 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+
+#
+# .2ndbd2mgm
+#
+
+[cluster_config.2ndbd2mgm]
+ndb_mgmd = CHOOSE_host1,CHOOSE_host6
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,,
+
+NoOfReplicas = 2
+IndexMemory = 50M
+DataMemory = 100M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+Checksum=1
 
 #
 # .2node2mgm
