@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@ typedef enum ndb_logevent_event_buffer_status_report_reason ReportReason;
 
 class NdbEventOperationImpl;
 class EpochData;
+class EventBufDataHead;
 
 class EventBufData
 {
@@ -73,9 +74,12 @@ public:
    * Data item lists keep track of item count and sum(sz) and
    * these include both main items and blob parts.
    */
-
-  EventBufData *m_next; // Next wrt to global order or Next blob part
+  union {               // Next wrt to global order or Next blob part
+    EventBufData *m_next;
+    EventBufDataHead *m_next_main;
+  };
   EventBufData *m_next_blob; // First part in next blob
+  EventBufDataHead *m_main; // Head of set of events
 
   EventBufData *m_next_hash; // Next in per-GCI hash
   Uint32 m_pkhash; // PK hash (without op) for fast compare
@@ -85,11 +89,28 @@ public:
       m_event_op(NULL), m_next(NULL), m_next_blob(NULL)
   {}
 
+  size_t get_this_size() const;
+
+  // Debug/assert only, else prefer size/count in EventBufDataHead
   Uint32 get_count() const;
-  Uint32 get_size() const;
+  size_t get_size() const;
   Uint64 getGCI() const;
 };
 
+/**
+ * The 'main' EventBufData aggregates the total volume blob-parts
+ * available through the m_next_blob chains.
+ */
+class EventBufDataHead : public EventBufData
+{
+public:
+  EventBufDataHead()
+    : m_event_count(0), m_data_size(0)
+  {}
+
+  Uint32 m_event_count;
+  size_t m_data_size;
+};
 
 /**
  * The MonotonicEpoch class provides a monotonic increasing epoch
@@ -222,13 +243,17 @@ class EventBufData_hash
 {
 public:
   struct Pos { // search result
-    Uint32 index;       // index into hash array
-    EventBufData* data; // non-zero if found
-    Uint32 pkhash;      // PK hash
+    Uint32 index;         // index into hash array
+    union {               // hash either blob_data or main_data
+      EventBufData* data; // non-zero if found
+      EventBufDataHead* main_data;
+    };
+    Uint32 pkhash;        // PK hash
   };
 
   static Uint32 getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
-  static bool getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3], LinearSectionPtr ptr2[3]);
+  static bool getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3],
+                         LinearSectionPtr ptr2[3]);
 
   void search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
   void append(Pos& hpos, EventBufData* data);
@@ -308,7 +333,7 @@ public:
   Bitmask<(MAX_SUB_DATA_STREAMS+31)/32> m_gcp_complete_rep_sub_data_streams;
   Uint64 m_gci;                    // GCI
 
-  EventBufData *m_head, *m_tail;
+  EventBufDataHead *m_head, *m_tail;
   EventBufData_hash m_data_hash;
 
   Gci_op *m_gci_op_list;
@@ -325,7 +350,7 @@ public:
   void add_gci_op(Gci_op g);
 
   // append data and insert data into Gci_op list with add_gci_op
-  void append_data(EventBufData *data);
+  void append_data(EventBufDataHead *data);
 
   // Create an EpochData containing the Gci_op and event data added above.
   // This effectively 'completes' the epoch represented by this Gci_container
@@ -357,7 +382,7 @@ class EpochData
 public:
   EpochData(MonotonicEpoch gci,
             Gci_op *gci_op_list, Uint32 count,
-            EventBufData *data)
+            EventBufDataHead *data)
     : m_gci(gci),
       m_error(0),
       m_gci_op_count(count),
@@ -374,7 +399,7 @@ public:
   Uint32 m_error;
   Uint32 const m_gci_op_count;
   Gci_op* const m_gci_op_list;  //All event_op receiving an event
-  EventBufData* m_data;         //All event data within epoch
+  EventBufDataHead* m_data;     //All event data within epoch
   EpochData *m_next;            //Next completed epoch
 };
 
@@ -438,7 +463,7 @@ public:
   }
 
   // find first event data to be delivered.
-  EventBufData *get_first_event_data() const
+  EventBufDataHead *get_first_event_data() const
   {
     EpochData *epoch = m_head;
     while (epoch != NULL)
@@ -451,15 +476,14 @@ public:
   }
 
   // get and consume first EventData
-  EventBufData *consume_first_event_data()
+  EventBufDataHead *consume_first_event_data()
   {
     EpochData *epoch = m_head;
     if (epoch != NULL)
     {
-      EventBufData *data = epoch->m_data;
+      EventBufDataHead *data = epoch->m_data;
       if (data != NULL)
-        m_head->m_data = data->m_next;
-    
+        m_head->m_data = data->m_next_main;
       return data;
     }
     return NULL;
@@ -822,7 +846,7 @@ public:
   bool is_exceptional_epoch(EventBufData *data);
 
   // Consume current EventData and dequeue next for consumption 
-  EventBufData *nextEventData();
+  EventBufDataHead *nextEventData();
 
   // Dequeue event data from event queue and give it for consumption.
   NdbEventOperation *nextEvent2();
@@ -834,10 +858,11 @@ public:
                                                  Uint32* cumulative_any_value);
   void deleteUsedEventOperations(MonotonicEpoch last_consumed_gci);
 
-  EventBufData *move_data();
+  EventBufDataHead *move_data();
 
   // routines to copy/merge events
   EventBufData* alloc_data();
+  EventBufDataHead* alloc_data_main();
   int alloc_mem(EventBufData* data,
                 LinearSectionPtr ptr[3]);
   int copy_data(const SubTableData * const sdata, Uint32 len,
@@ -850,7 +875,7 @@ public:
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
   void add_blob_data(Gci_container* bucket,
-                     EventBufData* main_data,
+                     EventBufDataHead* main_data,
                      EventBufData* blob_data);
 
   void *alloc(Uint32 sz);
