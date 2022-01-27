@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,13 +55,11 @@ int Consensus_leaders_handler::after_view_change(
 }
 
 int Consensus_leaders_handler::after_primary_election(
-    std::string primary_uuid, bool primary_changed,
+    std::string primary_uuid,
+    enum_primary_election_primary_change_status primary_change_status,
     enum_primary_election_mode /*election_mode*/, int error) {
-  bool const successful_election =
-      (error == 0 && primary_changed && !primary_uuid.empty() &&
-       group_member_mgr->is_member_info_present(primary_uuid));
-
-  if (successful_election) {
+  if (enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE ==
+      primary_change_status) {
     Member_version const communication_protocol =
         convert_to_mysql_version(gcs_module->get_protocol_version());
 

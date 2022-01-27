@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,14 +59,14 @@ class Group_event_observer {
   /**
     Executed after primary election
     @param primary_uuid    the elected primary
-    @param primary_changed if the primary changed after the election
+    @param primary_change_status if the primary changed after the election
     @param election_mode   what was the election mode
     @param error           if there was and error on the process
   */
-  virtual int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error) = 0;
+  virtual int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) = 0;
 
   /**
     Executed before the message is processed
@@ -128,13 +128,14 @@ class Group_events_observation_manager {
   /**
     Executed after primary election
     @param primary_uuid    the elected primary
-    @param primary_changed if the primary changed after the election
+    @param primary_change_status if the primary changed after the election
     @param election_mode   what was the election mode
     @param error    if there was and error on the process
   */
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error = 0);
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error = 0);
 
   /**
     Executed before the message is processed
