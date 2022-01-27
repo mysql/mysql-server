@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,8 +108,11 @@ int Primary_election_handler::execute_primary_election(
       } else {
         // If the requested primary is not there, ignore the request.
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_APPOINTED_PRIMARY_NOT_PRESENT);
-        group_events_observation_manager->after_primary_election("", false,
-                                                                 mode);
+        group_events_observation_manager->after_primary_election(
+            "",
+            enum_primary_election_primary_change_status::
+                PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+            mode);
         goto end;
       }
       /* purecov: end */
@@ -130,7 +133,10 @@ int Primary_election_handler::execute_primary_election(
                    ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM); /* purecov: inspected */
     }
     group_events_observation_manager->after_primary_election(
-        "", false, mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
+        "",
+        enum_primary_election_primary_change_status::
+            PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
+        mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
@@ -196,7 +202,9 @@ int Primary_election_handler::execute_primary_election(
       legacy_primary_election(primary_uuid);
     }
   } else {
-    group_events_observation_manager->after_primary_election("", false, mode);
+    group_events_observation_manager->after_primary_election(
+        "", enum_primary_election_primary_change_status::PRIMARY_DID_NOT_CHANGE,
+        mode);
   }
 
 end:
@@ -317,8 +325,10 @@ int Primary_election_handler::legacy_primary_election(
                  primary_member_info->get_port());
   }
 
-  group_events_observation_manager->after_primary_election(primary_uuid, true,
-                                                           DEAD_OLD_PRIMARY);
+  group_events_observation_manager->after_primary_election(
+      primary_uuid,
+      enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
+      DEAD_OLD_PRIMARY);
   delete primary_member_info;
 
   return 0;
