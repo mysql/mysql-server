@@ -124,3 +124,14 @@ CREATE TEMPORARY TABLE tt1(i INT);
 CHECK TABLE tt1 FOR UPGRADE;
 DROP TABLE tt1;
 
+--echo #
+--echo # Bug#33777821 Memory leak when checking a view of a view
+--echo #
+CREATE VIEW w AS SELECT 1 AS a;
+CREATE VIEW v AS SELECT a FROM w;
+CHECK TABLE v;
+CREATE VIEW u AS SELECT * FROM v;
+CHECK TABLE u;
+DROP VIEW u, v, w;
+
+--echo # end Bug#33777821

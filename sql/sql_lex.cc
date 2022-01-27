@@ -4141,8 +4141,10 @@ void LEX::cleanup_after_one_table_open() {
   if (all_query_blocks_list != query_block) {
     /* cleunup underlying units (units of VIEW) */
     for (Query_expression *un = query_block->first_inner_query_expression(); un;
-         un = un->next_query_expression())
+         un = un->next_query_expression()) {
       un->cleanup(thd, true);
+      un->destroy();
+    }
     /* reduce all selects list to default state */
     all_query_blocks_list = query_block;
     /* remove underlying units (units of VIEW) subtree */
