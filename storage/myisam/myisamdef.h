@@ -336,10 +336,9 @@ struct BUFFPEK {
 };
 
 struct MI_SORT_PARAM {
-  my_thread_handle thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
-  MI_BIT_BUFF bit_buff; /* For parallel repair of packrec. */
+  MI_BIT_BUFF bit_buff; /* For sort repair of packrec. */
 
   /*
     The next two are used to collect statistics, see update_key_parts for
@@ -827,8 +826,6 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 2, 3)));
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
-int thr_write_keys(MI_SORT_PARAM *sort_param);
-void *thr_find_all_keys(void *arg);
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
@@ -843,8 +840,7 @@ extern thread_local st_keycache_thread_var *keycache_tls;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
-    mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
 
 extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
     mi_key_rwlock_MYISAM_SHARE_mmap_lock;

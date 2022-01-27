@@ -732,10 +732,6 @@ The following options may be given as the first argument:
  --myisam-recover-options[=name] 
  Syntax: myisam-recover-options[=option[,option...]],
  where option can be DEFAULT, BACKUP, FORCE, QUICK, or OFF
- --myisam-repair-threads=# 
- DEPRECATED. If larger than 1, when repairing a MyISAM
- table all indexes will be created in parallel, with one
- thread per index. The value of 1 disables parallel repair
  --myisam-sort-buffer-size=# 
  The buffer that is allocated when sorting the index when
  doing a REPAIR or when creating indexes with CREATE INDEX
@@ -1834,7 +1830,6 @@ myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
 myisam-mmap-size 18446744073709551615
 myisam-recover-options OFF
-myisam-repair-threads 1
 myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE

@@ -48,18 +48,6 @@ repair table t1 use_frm;
 drop table t1;
 
 #
-# BUG#18874 - Setting myisam_repair_threads > 1, index cardinality always 1
-#
-CREATE TABLE t1(a INT, KEY(a));
-INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
-SET myisam_repair_threads=2;
-REPAIR TABLE t1;
-ANALYZE TABLE t1;
-SHOW INDEX FROM t1;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
-DROP TABLE t1;
-
-#
 # BUG#22562 - REPAIR TABLE .. USE_FRM causes server crash on Windows and
 #             server hangs on Linux
 #
@@ -91,9 +79,7 @@ INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0');
-SET myisam_repair_threads=2;
 REPAIR TABLE t1;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 
@@ -120,9 +106,7 @@ INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0');
-SET myisam_repair_threads=2;
 REPAIR TABLE t1;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,16 +116,11 @@ PSI_memory_key mi_key_memory_stPageList_pages;
 PSI_memory_key mi_key_memory_keycache_thread_var;
 PSI_memory_key key_memory_QUEUE;
 
-PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
-    mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_myisam_mutexes[] = {
-    {&mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0, 0,
-     PSI_DOCUMENT_ME},
     {&mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0, 0,
      PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -140,15 +135,12 @@ static PSI_rwlock_info all_myisam_rwlocks[] = {
      PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
 PSI_cond_key mi_keycache_thread_var_suspend;
 
 #ifdef HAVE_PSI_COND_INTERFACE
-static PSI_cond_info all_myisam_conds[] = {
-    {&mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mi_keycache_thread_var_suspend, "keycache_thread_var::suspend", 0, 0,
-     PSI_DOCUMENT_ME}};
+static PSI_cond_info all_myisam_conds[] = {{&mi_keycache_thread_var_suspend,
+                                            "keycache_thread_var::suspend", 0,
+                                            0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_COND_INTERFACE */
 
 PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
