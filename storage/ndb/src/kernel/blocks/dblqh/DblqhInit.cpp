@@ -312,7 +312,7 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
                                           clogPageFileSize / clogPartFileSize,
                                           CFG_DB_REDO_BUFFER);
       Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+      ndbrequire(m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI));
       logPartPtr.p->logPageRecord = (LogPageRecord*)pagePtr.p;
       logPartPtr.p->logPageFileSize = clogPageFileSize / clogPartFileSize;
       logPartPtr.p->firstFreeLogPage = RNIL;
@@ -323,7 +323,7 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
         ndbrequire(cnt != 0);
 
         Ptr<GlobalPage> pagePtr;
-        m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+        ndbrequire(m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI));
         LogPageRecord * base = (LogPageRecord*)pagePtr.p;
         ndbrequire(base >= logPartPtr.p->logPageRecord);
         const Uint32 ptrI = Uint32(base - logPartPtr.p->logPageRecord);

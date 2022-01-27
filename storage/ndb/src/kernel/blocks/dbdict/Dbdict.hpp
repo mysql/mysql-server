@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -786,8 +786,7 @@ public:
       object.setNull();
       return false;
     }
-    get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
-    return !object.isNull();
+    return get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
   }
 
   template<typename T> bool find_object(Ptr<T>& object, Uint32 id)
@@ -803,8 +802,7 @@ public:
       object.setNull();
       return false;
     }
-    get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
-    return !object.isNull();
+    return get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
   }
 
   bool find_object(DictObjectPtr& object, Uint32 id)

@@ -9883,7 +9883,7 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
   
   ndbrequire(tcConnect_pool.getValidPtr(tcPtr));
   Ptr<Fragrecord> fragPtr;
-  c_fragment_pool.getPtr(fragPtr, tcPtr.p->fragmentptr);  
+  ndbrequire(c_fragment_pool.getPtr(fragPtr, tcPtr.p->fragmentptr));
 
   ndbassert(!m_is_in_query_thread);
   op->m_gci_hi = tcPtr.p->gci_hi;
@@ -9943,7 +9943,7 @@ Dblqh::nr_delete_complete(Signal* signal, Nr_op_info* op)
   {
     jam();
     const TcConnectionrecPtr tcConnectptr = tcPtr;
-    c_fragment_pool.getPtr(fragptr, tcPtr.p->fragmentptr);
+    ndbrequire(c_fragment_pool.getPtr(fragptr, tcPtr.p->fragmentptr));
     
     if (tcPtr.p->abortState != TcConnectionrec::ABORT_IDLE) 
     {
@@ -10319,7 +10319,7 @@ Uint32 Dblqh::decrDeallocRefCount(Signal* signal,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
     /* Verify that fragment used is a primary table fragment */
     FragrecordPtr fragPtr;
-    c_fragment_pool.getPtr(fragPtr, countOpPtr.p->fragmentptr);
+    ndbrequire(c_fragment_pool.getPtr(fragPtr, countOpPtr.p->fragmentptr));
     ndbrequire(fragPtr.p->tableFragptr == fragPtr.i);
 #endif
     /**
@@ -15074,7 +15074,7 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex, bool acquire_lock)
   ndbrequire(tcConnect_pool.getUncheckedPtrRW(tcConnectptr));
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec,
                             tcConnectptr.p->tupConnectPtrP);
-  c_fragment_pool.getPtr(fragPtr, tcConnectptr.p->fragmentptr);
+  ndbrequire(c_fragment_pool.getPtr(fragPtr, tcConnectptr.p->fragmentptr));
   fragptr = fragPtr;
   c_tup->prepare_tab_pointers(fragPtr.p->tupFragptr);
   m_tc_connect_ptr = tcConnectptr;
@@ -19324,7 +19324,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
      * distribution key again when restarted.
      */
     CopyFragRecordPtr copy_fragptr;
-    c_copy_fragment_pool.seize(copy_fragptr);
+    ndbrequire(c_copy_fragment_pool.seize(copy_fragptr));
     copy_fragptr.p->m_copy_fragreq = *copyFragReq;
     Uint32 nodeCount = copyFragReq->nodeCount;
     copy_fragptr.p->m_copy_fragreq.nodeCount = 0;
@@ -20459,7 +20459,7 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   {
     jam();
     CopyActiveRecordPtr copy_activeptr;
-    c_copy_active_pool.seize(copy_activeptr);
+    ndbrequire(c_copy_active_pool.seize(copy_activeptr));
     copy_activeptr.p->m_copy_activereq = *req;
     copy_activeptr.p->m_copy_activereq.flags =
       flags | CopyActiveReq::CAR_LOCAL_SEND;
@@ -25880,7 +25880,8 @@ Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   Ptr<GlobalPage> page_ptr;
   ndbrequire(req->getFormatFlag(req->operationFlag) ==
                req->fsFormatSharedPage);
-  m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber);
+  ndbrequire(m_shared_page_pool.getPtr(page_ptr,
+                                       req->data.sharedPage.pageNumber));
 
   LogFileRecordPtr currLogFilePtr;
   currLogFilePtr.i = req->userPointer;
@@ -27394,7 +27395,7 @@ Dblqh::execCOPY_FRAGCONF(Signal* signal)
   {
     const CopyFragConf* conf = CAST_CONSTPTR(CopyFragConf,
                                              signal->getDataPtr());
-    c_fragment_pool.getPtr(fragptr, conf->senderData);
+    ndbrequire(c_fragment_pool.getPtr(fragptr, conf->senderData));
     fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
 
     Uint32 rows_lo = conf->rows_lo;

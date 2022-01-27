@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -857,7 +857,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     {
       jam();
       Ptr<TakeOverRecord> takeOverPtr;
-      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
       sendStartTo(signal, takeOverPtr);
       return;
     }
@@ -865,7 +865,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     {
       jam();
       Ptr<TakeOverRecord> takeOverPtr;
-      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
       sendUpdateTo(signal, takeOverPtr);
       return;
     }
@@ -880,7 +880,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZTO_START_FRAGMENTS:
   {
     TakeOverRecordPtr takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
     nr_start_fragments(signal, takeOverPtr);
     return;
   }
@@ -903,7 +903,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   {
     jam();
     TakeOverRecordPtr takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]));
     nr_start_logging(signal, takeOverPtr);
     return;
   }
@@ -4864,7 +4864,7 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     jam();
     TakeOverRecordPtr takeOverPtr;
     
-    c_takeOverPool.seize(takeOverPtr);
+    ndbrequire(c_takeOverPool.seize(takeOverPtr));
     c_masterActiveTakeOverList.addFirst(takeOverPtr);
     takeOverPtr.p->toStartingNode = req.startingNodeId;
     takeOverPtr.p->m_senderRef = req.senderRef;
@@ -5003,7 +5003,7 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
 {
   jamEntry();
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
   
   Uint32 nodeId = takeOverPtr.p->toStartingNode;
 
@@ -5120,7 +5120,7 @@ Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   ndbrequire(retVal == 0);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
 
   Uint32 nodeId = takeOverPtr.p->toStartingNode;
   NodeRecordPtr nodePtr;
@@ -5154,7 +5154,7 @@ Dbdih::switchPrimaryMutex_unlocked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   ndbrequire(retVal == 0);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, toPtrI));
 
   UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
   conf->senderData = takeOverPtr.p->m_senderData;
@@ -8330,7 +8330,7 @@ Dbdih::execSTART_TOREF(Signal* signal)
   (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref->senderData));
   
   signal->theData[0] = DihContinueB::ZSEND_START_TO;
   signal->theData[1] = takeOverPtr.i;
@@ -8454,7 +8454,7 @@ Dbdih::execSTART_TOCONF(Signal* signal)
   StartToConf * conf = (StartToConf*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
 
   CRASH_INSERTION(7133);
 
@@ -8547,7 +8547,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
 {
   TabRecordPtr tabPtr;
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
 
   Uint32 loopCount;
   loopCount = 0;
@@ -8635,7 +8635,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
 void Dbdih::toCopyFragLab(Signal* signal, Uint32 takeOverPtrI) 
 {
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
 
   /**
    * Inform starting node that TakeOver is about to start
@@ -8680,7 +8680,7 @@ Dbdih::execPREPARE_COPY_FRAG_REF(Signal* signal)
   PrepareCopyFragRef ref = *(PrepareCopyFragRef*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref.senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref.senderData));
 
   ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_PREPARE_COPY);
   
@@ -8705,7 +8705,7 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
   PrepareCopyFragConf conf = *(PrepareCopyFragConf*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf.senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf.senderData));
 
   TabRecordPtr tabPtr;
   FragmentstorePtr fragPtr;
@@ -8817,7 +8817,7 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   ndbrequire(ref->senderData == c_mainTakeOverPtr.i);
   ndbrequire(c_activeThreadTakeOverPtr.i != RNIL);
 
-  c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i));
 
   g_eventLogger->info("UPDATE_TOREF: thread: %u, state:%u"
                       ", errCode: %u, extra: %u",
@@ -8849,7 +8849,7 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
   ndbrequire(conf->senderData == c_mainTakeOverPtr.i);
   ndbrequire(c_activeThreadTakeOverPtr.i != RNIL);
 
-  c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i));
  
   g_eventLogger->debug("UPDATE_TOCONF: thread: %u, state:%u",
                        takeOverPtr.i,
@@ -8988,7 +8988,7 @@ void Dbdih::execUPDATE_FRAG_STATECONF(Signal* signal)
   
   TakeOverRecordPtr takeOverPtr;
 
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
 
   g_eventLogger->debug("Updated frag state for inst:%u,tab:%u,frag:%u,state:%u",
                        takeOverPtr.i,
@@ -9037,7 +9037,7 @@ void Dbdih::execCOPY_FRAGREF(Signal* signal)
   Uint32 errorCode = ref->errorCode;
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);  
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI));
   ndbrequire(ref->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(ref->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(ref->startingNodeId == takeOverPtr.p->toStartingNode);
@@ -9066,7 +9066,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   CRASH_INSERTION(7142);
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->userPtr));
 
   Uint32 rows_lo = conf->rows_lo;
   Uint32 bytes_lo = conf->bytes_lo;
@@ -9142,7 +9142,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
   CRASH_INSERTION(7143);
 
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->userPtr));
 
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
@@ -9376,7 +9376,7 @@ Dbdih::execEND_TOREF(Signal* signal)
   EndToRef* ref = (EndToRef*)signal->getDataPtr();
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, ref->senderData));
 
   ndbabort();
 }
@@ -9390,7 +9390,7 @@ Dbdih::execEND_TOCONF(Signal* signal)
   CRASH_INSERTION(7144);
   
   TakeOverRecordPtr takeOverPtr;
-  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->senderData));
   
   Uint32 senderData = takeOverPtr.p->m_senderData;
   Uint32 senderRef = takeOverPtr.p->m_senderRef;
@@ -13164,9 +13164,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::HashMapPartition:
       {
         jam();
-        ndbrequire(map_ptr_i != RNIL);
         Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
+        ndbrequire(g_hash_map.getPtr(ptr, map_ptr_i));
         if (noOfFragments == 0 ||
             partitionCount != ptr.p->m_fragments ||
             noOfFragments % partitionCount != 0)
@@ -13351,9 +13350,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::HashMapPartition:
       {
         jam();
-        ndbrequire(map_ptr_i != RNIL);
         Ptr<Hash2FragmentMap> ptr;
-        g_hash_map.getPtr(ptr, map_ptr_i);
+        ndbrequire(g_hash_map.getPtr(ptr, map_ptr_i));
         if (noOfFragments == 0 ||
             partitionCount != ptr.p->m_fragments ||
             noOfFragments % partitionCount != 0)
@@ -14379,7 +14377,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     tabPtr.p->m_map_ptr_i = req->hashMapPtrI;
     tabPtr.p->m_new_map_ptr_i = RNIL;
     Ptr<Hash2FragmentMap> mapPtr;
-    g_hash_map.getPtr(mapPtr, tabPtr.p->m_map_ptr_i);
+    ndbrequire(g_hash_map.getPtr(mapPtr, tabPtr.p->m_map_ptr_i));
     ndbrequire(tabPtr.p->totalfragments >= mapPtr.p->m_fragments);
   }
 
@@ -15034,7 +15032,7 @@ void Dbdih::releaseReplicas(Uint32 * replicaPtrI)
 
 void Dbdih::seizeReplicaRec(ReplicaRecordPtr& replicaPtr) 
 {
-  c_replicaRecordPool.seize(replicaPtr);
+  ndbrequire(c_replicaRecordPool.seize(replicaPtr));
   cnoFreeReplicaRec--;
   replicaPtr.p->nextPool = RNIL;
 }//Dbdih::seizeReplicaRec()
@@ -16179,8 +16177,7 @@ loop:
     if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
     {
       thrjamDebug(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i, false);
-      if (unlikely(ptr.p == nullptr))
+      if (unlikely(!g_hash_map.getPtr(ptr, map_ptr_i)))
       {
         thrjam(jambuf);
         goto crash_check_exit;
@@ -16190,8 +16187,7 @@ loop:
       if (unlikely(new_map_ptr_i != RNIL))
       {
         thrjam(jambuf);
-        g_hash_map.getPtr(ptr, new_map_ptr_i, false);
-        if (unlikely(ptr.p == nullptr))
+        if (unlikely(!g_hash_map.getPtr(ptr, new_map_ptr_i)))
         {
           thrjam(jambuf);
           goto crash_check_exit;
@@ -16217,8 +16213,7 @@ loop:
        *   We want the first new fragment.
        */
       thrjam(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i, false);
-      if (unlikely(ptr.p == nullptr))
+      if (unlikely(!g_hash_map.getPtr(ptr, map_ptr_i)))
       {
         thrjam(jambuf);
         goto crash_check_exit;
@@ -20597,7 +20592,7 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
      * This is node restart
      */
     Ptr<TakeOverRecord> takeOverPtr;
-    c_takeOverPool.getPtr(takeOverPtr, senderData);
+    ndbrequire(c_takeOverPool.getPtr(takeOverPtr, senderData));
     sendStartTo(signal, takeOverPtr);
     return;
   }
@@ -25272,7 +25267,8 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       for (initReplicaPtr.i = 0; initReplicaPtr.i < creplicaFileSize;
 	   initReplicaPtr.i++) {
         refresh_watch_dog();
-        c_replicaRecordPool.seizeId(initReplicaPtr, initReplicaPtr.i);
+        ndbrequire(c_replicaRecordPool.seizeId(initReplicaPtr,
+                                               initReplicaPtr.i));
 	initReplicaPtr.p->lcpIdStarted = 0;
 	initReplicaPtr.p->lcpOngoingFlag = false;
         c_replicaRecordPool.releaseLast(initReplicaPtr);
@@ -29475,8 +29471,7 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
   DictLockReq* req = (DictLockReq*)&signal->theData[0];
   DictLockSlavePtr lockPtr;
 
-  c_dictLockSlavePool.seize(lockPtr);
-  ndbrequire(lockPtr.i != RNIL);
+  ndbrequire(c_dictLockSlavePool.seize(lockPtr));
 
   req->userPtr = lockPtr.i;
   req->lockType = lockType;
@@ -29512,7 +29507,7 @@ Dbdih::recvDictLockConf(Signal* signal)
   const DictLockConf* conf = (const DictLockConf*)&signal->theData[0];
 
   DictLockSlavePtr lockPtr;
-  c_dictLockSlavePool.getPtr(lockPtr, conf->userPtr);
+  ndbrequire(c_dictLockSlavePool.getPtr(lockPtr, conf->userPtr));
   
   lockPtr.p->lockPtr = conf->lockPtr;
   ndbrequire(lockPtr.p->lockType == conf->lockType);
@@ -29529,7 +29524,7 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
   DictUnlockOrd* ord = (DictUnlockOrd*)&signal->theData[0];
 
   DictLockSlavePtr lockPtr;
-  c_dictLockSlavePool.getPtr(lockPtr, lockSlavePtrI);
+  ndbrequire(c_dictLockSlavePool.getPtr(lockPtr, lockSlavePtrI));
 
   ord->lockPtr = lockPtr.p->lockPtr;
   ord->lockType = lockPtr.p->lockType;

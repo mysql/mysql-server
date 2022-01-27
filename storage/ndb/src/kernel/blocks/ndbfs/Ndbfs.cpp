@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1066,7 +1066,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   else if (format == FsReadWriteReq::fsFormatGlobalPage)
   {
     Ptr<GlobalPage> ptr;
-    m_global_page_pool.getPtr(ptr, fsRWReq->data.globalPage.pageNumber);
+    ndbrequire(m_global_page_pool.getPtr(ptr, fsRWReq->data.globalPage.pageNumber));
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
@@ -1076,7 +1076,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   {
     ndbrequire(format == FsReadWriteReq::fsFormatSharedPage);
     Ptr<GlobalPage> ptr;
-    m_shared_page_pool.getPtr(ptr, fsRWReq->data.sharedPage.pageNumber);
+    ndbrequire(m_shared_page_pool.getPtr(ptr, fsRWReq->data.sharedPage.pageNumber));
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;

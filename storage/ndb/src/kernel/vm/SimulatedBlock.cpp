@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -496,13 +496,13 @@ static void
 linkSegments(Uint32 head, Uint32 tail){
   
   Ptr<SectionSegment> headPtr;
-  g_sectionSegmentPool.getPtr(headPtr, head);
+  require(g_sectionSegmentPool.getPtr(headPtr, head));
   
   Ptr<SectionSegment> tailPtr;
-  g_sectionSegmentPool.getPtr(tailPtr, tail);
+  require(g_sectionSegmentPool.getPtr(tailPtr, tail));
   
   Ptr<SectionSegment> oldTailPtr;
-  g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
+  require(g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment));
   
   /* Can only efficiently link segments if linking to the end of a 
    * multiple-of-segment-size sized chunk
@@ -5078,7 +5078,7 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
 {
   jamEntry();
   Ptr<SyncThreadRecord> ptr;
-  c_syncThreadPool.getPtr(ptr, signal->theData[1]);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, signal->theData[1]));
 
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
@@ -5207,7 +5207,7 @@ SimulatedBlock::execSYNC_PATH_CONF(Signal* signal)
   SyncPathConf conf = * CAST_CONSTPTR(SyncPathConf, signal->getDataPtr());
   Ptr<SyncThreadRecord> ptr;
 
-  c_syncThreadPool.getPtr(ptr, conf.senderData);
+  ndbrequire(c_syncThreadPool.getPtr(ptr, conf.senderData));
 
   if (ptr.p->m_cnt == 0)
   {

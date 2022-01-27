@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ Cmvmi::execSYNC_CONF(Signal* signal)
   SyncConf conf = * CAST_CONSTPTR(SyncConf, signal->getDataPtr());
 
   Ptr<SyncRecord> ptr;
-  c_syncReqPool.getPtr(ptr, conf.senderData);
+  ndbrequire(c_syncReqPool.getPtr(ptr, conf.senderData));
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
   if (ptr.p->m_cnt == 0)
@@ -326,7 +326,7 @@ Cmvmi::execSYNC_REF(Signal* signal)
   SyncRef ref = * CAST_CONSTPTR(SyncRef, signal->getDataPtr());
 
   Ptr<SyncRecord> ptr;
-  c_syncReqPool.getPtr(ptr, ref.senderData);
+  ndbrequire(c_syncReqPool.getPtr(ptr, ref.senderData));
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
 
@@ -922,7 +922,7 @@ Cmvmi::init_global_page_pool()
     for (Uint32 i = 0; i<cnt; i++)
     {
       Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, ptrI + i);
+      ndbrequire(m_shared_page_pool.getPtr(pagePtr, ptrI + i));
       m_global_page_pool.release(pagePtr);
     }
     rl.m_max -= cnt;

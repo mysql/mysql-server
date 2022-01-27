@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ bool Dbspj::getGuardedPtr(Ptr<TreeNode> &treeNodePtr, Uint32 ptrI)
   if (found)
   {
     Ptr<TreeNode> check;
-    m_treenode_pool.getPtr(check, ptrI);
+    ndbrequire(m_treenode_pool.getPtr(check, ptrI));
     ndbassert(check.p == treeNodePtr.p);
     ndbassert(check.i == treeNodePtr.i);
   }
@@ -182,7 +182,7 @@ bool Dbspj::getGuardedPtr(Ptr<ScanFragHandle> &scanFragPtr, Uint32 ptrI)
   if (found)
   {
     Ptr<ScanFragHandle> check;
-    m_scanfraghandle_pool.getPtr(check, ptrI);
+    ndbrequire(m_scanfraghandle_pool.getPtr(check, ptrI));
     ndbassert(check.p == scanFragPtr.p);
     ndbassert(check.i == scanFragPtr.i);
   }
@@ -244,7 +244,7 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
     Ptr<TreeNode> treeNodePtr;
     ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
     Ptr<Request> requestPtr;
-    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+    ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
     /**
      * Register signal as arrived -> 'done' if this completed this treeNode
@@ -899,7 +899,7 @@ Dbspj::execCONTINUEB(Signal* signal)
     Ptr<TreeNode> treeNodePtr;
     Ptr<Request> requestPtr;
     ndbrequire(getGuardedPtr(treeNodePtr, signal->theData[1]));
-    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+    ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
     scanFrag_sendDihGetNodesReq(signal, requestPtr, treeNodePtr);
     checkPrepareComplete(signal, requestPtr);
     return;
@@ -1831,7 +1831,7 @@ Dbspj::setupAncestors(Ptr<Request>  requestPtr,
   {
     jam();
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, *it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, *it.data));
 
     childPtr.p->m_ancestors = treeNodePtr.p->m_ancestors;
     childPtr.p->m_ancestors.set(treeNodePtr.p->m_node_no);
@@ -1959,7 +1959,7 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
   for (child.first(it); !it.isNull(); child.next(it))
   {
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, *it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, *it.data));
     if (unlikely(!execList.append(&childPtr.i, 1)))
     {
       jam();
@@ -2258,7 +2258,8 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
       treeNodePtr.p->m_scanAncestorPtrI != RNIL)
   {
     Ptr<TreeNode> scanAncestorPtr;
-    m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+    ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                      treeNodePtr.p->m_scanAncestorPtrI));
     Ptr<TreeNode> ancestorPtr(scanAncestorPtr);
 
     // Note that scans are always added to exec plan such that their
@@ -2317,7 +2318,7 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
      * such that they can be located when needed.
      */
     Ptr<TreeNode> parentPtr;
-    m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+    ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
     parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                            TreeNode::T_BUFFER_ROW;
   }
@@ -2380,7 +2381,7 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
   {
     Ptr<TreeNode> nextPtr;
-    m_treenode_pool.getPtr(nextPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(nextPtr, * it.data));
     DEBUG("  TreeNode no: " << treeNodePtr.p->m_node_no
        << ", has nextExec: " << nextPtr.p->m_node_no);
   }
@@ -2388,7 +2389,7 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
   {
     Ptr<TreeNode> nextPtr;
-    m_treenode_pool.getPtr(nextPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(nextPtr, * it.data));
     dumpExecPlan(requestPtr, nextPtr);
   }
 }
@@ -3058,7 +3059,7 @@ Dbspj::reportAncestorsComplete(Signal * signal, Ptr<Request> requestPtr,
     {
       jam();
       Ptr<TreeNode> nextTreeNodePtr;
-      m_treenode_pool.getPtr(nextTreeNodePtr, *it.data);
+      ndbrequire(m_treenode_pool.getPtr(nextTreeNodePtr, *it.data));
 
       /**
        * Notify all TreeNodes which depends on the completed predecessors.
@@ -3398,7 +3399,7 @@ Dbspj::execLQHKEYREF(Signal* signal)
   ndbrequire(getGuardedPtr(treeNodePtr, ref->connectPtr));
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   ndbassert(checkRequest(requestPtr));
@@ -3427,7 +3428,7 @@ Dbspj::execLQHKEYCONF(Signal* signal)
   ndbrequire(getGuardedPtr(treeNodePtr, conf->opPtr));
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   DEBUG("execLQHKEYCONF"
@@ -3452,9 +3453,10 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
   Ptr<ScanFragHandle> scanFragHandlePtr;
   ndbrequire(getGuardedPtr(scanFragHandlePtr, ref->senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr,
+                                    scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
 
   ndbassert(checkRequest(requestPtr));
@@ -3493,9 +3495,9 @@ Dbspj::execSCAN_HBREP(Signal* signal)
   Ptr<ScanFragHandle> scanFragHandlePtr;
   ndbrequire(getGuardedPtr(scanFragHandlePtr, senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   DEBUG("execSCAN_HBREP"
      << ", node: " << treeNodePtr.p->m_node_no
      << ", request: " << requestPtr.i
@@ -3562,9 +3564,9 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
   Ptr<ScanFragHandle> scanFragHandlePtr;
   ndbrequire(getGuardedPtr(scanFragHandlePtr, conf->senderData));
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
   ndbassert(checkRequest(requestPtr));
 
@@ -3735,7 +3737,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   Ptr<TreeNode> treeNodePtr;
   ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   
   ndbassert(checkRequest(requestPtr));
   ndbassert(!requestPtr.p->m_completed_tree_nodes.get(treeNodePtr.p->m_node_no));
@@ -3825,7 +3827,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
       {
         jam();
         Ptr<TreeNode> scanAncestorPtr;
-        m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI);
+        ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI));
         if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
         {
           jam();
@@ -4096,7 +4098,7 @@ Uint32 *
 Dbspj::get_row_ptr(RowRef pos)
 {
   Ptr<RowPage> ptr;
-  m_page_pool.getPtr(ptr, pos.m_page_id);
+  ndbrequire(m_page_pool.getPtr(ptr, pos.m_page_id));
   return ptr.p->m_data + pos.m_page_pos;
 }
 
@@ -4566,7 +4568,7 @@ Dbspj::resumeBufferedNode(Signal* signal,
                           Ptr<TreeNode> treeNodePtr)
 {
   Ptr<TreeNode> parentPtr;
-  m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+  ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
   ndbassert(treeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE);
   ndbassert(parentPtr.p->m_bits & TreeNode::T_BUFFER_ROW);
 
@@ -4592,7 +4594,8 @@ Dbspj::resumeBufferedNode(Signal* signal,
     if (treeNodePtr.p->m_parentPtrI != treeNodePtr.p->m_scanAncestorPtrI)
     {
       jam();
-      m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+      ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                        treeNodePtr.p->m_scanAncestorPtrI));
       getBufferedRow(scanAncestorPtr, (parentRow.m_src_correlation >> 16),
                      &scanAncestorRow);
     }
@@ -4616,7 +4619,8 @@ Dbspj::resumeBufferedNode(Signal* signal,
       }
 
       // Has to consult grand-ancestors to verify their matches.
-      m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtr.p->m_scanAncestorPtrI);
+      ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                        scanAncestorPtr.p->m_scanAncestorPtrI));
 
       if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
       {
@@ -4761,7 +4765,7 @@ Dbspj::startNextNodes(Signal *signal,
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
   {
     Ptr<TreeNode> nextTreeNodePtr;
-    m_treenode_pool.getPtr(nextTreeNodePtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(nextTreeNodePtr, * it.data));
 
     /**
      * Execution of 'next' TreeNode may have to be delayed as we
@@ -4783,7 +4787,8 @@ Dbspj::startNextNodes(Signal *signal,
       {
         Ptr<TreeNode> parentPtr;
         const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
-        m_treenode_pool.getPtr(parentPtr, nextTreeNodePtr.p->m_parentPtrI);
+        ndbrequire(m_treenode_pool.getPtr(parentPtr,
+                                          nextTreeNodePtr.p->m_parentPtrI));
         getBufferedRow(parentPtr, parentRowId, &parentRow);
       }
 
@@ -4965,7 +4970,8 @@ Dbspj::lookup_build(Build_context& ctx,
     {
       jam();
       Ptr<TreeNode> parentPtr;
-      m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+      ndbrequire(m_treenode_pool.getPtr(parentPtr,
+                                        treeNodePtr.p->m_parentPtrI));
       treeNodePtr.p->m_batch_size = parentPtr.p->m_batch_size;
     }
 
@@ -5352,7 +5358,8 @@ Dbspj::lookup_countSignal(Signal* signal,
     // Had congestion: Can we resume some suspended operations?
     // First try to resume from the scan ancestor of this TreeNode.
     Ptr<TreeNode> scanAncestorPtr;
-    m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+    ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                      treeNodePtr.p->m_scanAncestorPtrI));
     if (likely(requestPtr.p->m_suspended_tree_nodes.get(scanAncestorPtr.p->m_node_no)))
     {
       jam();
@@ -5492,7 +5499,7 @@ Dbspj::lookup_stop_branch(Signal* signal,
     ndbrequire(list.first(it));
     ndbrequire(list.getSize() == 1); // should only be 1 child
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, * it.data);
+    ndbrequire(m_treenode_pool.getPtr(childPtr, * it.data));
     if (childPtr.p->isLeaf())
     {
       jam();
@@ -6707,7 +6714,7 @@ Dbspj::execDIH_SCAN_TAB_REF(Signal* signal)
   Ptr<TreeNode> treeNodePtr;
   ndbrequire(getGuardedPtr(treeNodePtr, ref->senderData));
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
 
   ndbrequire(requestPtr.p->isScan());
   ndbrequire(requestPtr.p->m_outstanding >= 1);
@@ -6755,7 +6762,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     (tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0;
 
   Ptr<Request> requestPtr;
-  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
   ndbassert(requestPtr.p->m_outstanding > 0);
   requestPtr.p->m_outstanding--;
 
@@ -9328,7 +9335,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
 {
   jam();
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI);
+  ndbrequire(m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI));
   Uint32 corrVal = rowptr.m_src_correlation;
   RowPtr targetRow;
   DEBUG("appendFromParent-of"
@@ -9341,7 +9348,8 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
       DEBUG_CRASH();
       return DbspjErr::InvalidPattern;
     }
-    m_treenode_pool.getPtr(treeNodePtr, treeNodePtr.p->m_parentPtrI);
+    ndbrequire(m_treenode_pool.getPtr(treeNodePtr,
+                                      treeNodePtr.p->m_parentPtrI));
     DEBUG("appendFromParent"
        << ", node: " << treeNodePtr.p->m_node_no);
     if (unlikely(treeNodePtr.p->m_rows.m_type != RowCollection::COLLECTION_MAP))
@@ -9682,17 +9690,16 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       // Locate requested grandparent and request it to
       // T_BUFFER_ROW its result rows
       Ptr<TreeNode> parentPtr;
-      m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+      ndbrequire(m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI));
       while (val--)
       {
         jam();
-        ndbassert(parentPtr.p->m_parentPtrI != RNIL);
-        m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI);
+        ndbrequire(m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI));
         parentPtr.p->m_bits |= TreeNode::T_BUFFER_ROW;
         parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP;
       }
       Ptr<Request> requestPtr;
-      m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+      ndbrequire(m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI));
       break;
     }
     default:
