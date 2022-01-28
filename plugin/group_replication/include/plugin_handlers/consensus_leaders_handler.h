@@ -61,16 +61,15 @@ class Consensus_leaders_handler : public Group_event_observer {
    * @brief Sets the newly elected primary as the single preferred "consensus
    * leader" in GCS.
    *
-   * @param primary_uuid the elected primary
-   * @param primary_change_status if the primary changed after the election
-   * @param election_mode what was the election mode
-   * @param error if there was and error on the process
-   * @return int 0 on success
+   * @param primary_uuid
+   * @param primary_changed
+   * @param election_mode
+   * @param error
+   * @return int
    */
-  int after_primary_election(
-      std::string primary_uuid,
-      enum_primary_election_primary_change_status primary_change_status,
-      enum_primary_election_mode election_mode, int error) override;
+  int after_primary_election(std::string primary_uuid, bool primary_changed,
+                             enum_primary_election_mode election_mode,
+                             int error) override;
 
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,

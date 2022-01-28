@@ -153,10 +153,9 @@ class Remote_clone_handler : public Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(
-      std::string primary_uuid,
-      enum_primary_election_primary_change_status primary_change_status,
-      enum_primary_election_mode election_mode, int error) override;
+  int after_primary_election(std::string primary_uuid, bool primary_changed,
+                             enum_primary_election_mode election_mode,
+                             int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
