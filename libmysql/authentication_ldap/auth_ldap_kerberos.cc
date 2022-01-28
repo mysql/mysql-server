@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -284,6 +284,23 @@ EXIT:
     ldap_server_host = ldap_host.oracle.com
     ldap_destroy_tgt = true
   }
+
+  kdc:
+  The name or address of a host running a KDC for that realm.
+  An optional port number, separated from the hostname by a colon, may
+  be included. If the name or address contains colons (for example, if it is
+  an IPv6 address), enclose it in square brackets to distinguish the colon
+  from a port separator.
+
+  For example:
+  kdchost.example.com:88
+  [2001:db8:3333:4444:5555:6666:7777:8888]:88
+
+  Details from:
+  https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html
+
+  Host information is used by LDAP SASL client API while initialization.
+  LDAP SASL API doesn't need port information and port is not used any where.
 */
 bool Kerberos::get_kerberos_config() {
   log_dbg("Getting kerberos configuration.");
@@ -343,8 +360,33 @@ bool Kerberos::get_kerberos_config() {
       goto EXIT;
     }
   }
-  m_ldap_server_host = host_value;
-  log_info(host_value);
+  if (host_value) {
+    std::stringstream log_stream;
+    m_ldap_server_host = host_value;
+    log_stream << "Kerberos configuration KDC : " << m_ldap_server_host;
+    log_info(log_stream.str());
+    log_stream.str("");
+    size_t pos = m_ldap_server_host.npos;
+    /* IPV6 */
+    if (m_ldap_server_host[0] == '[') {
+      pos = m_ldap_server_host.find("]");
+      if (pos != m_ldap_server_host.npos &&
+          (m_ldap_server_host.length() > (pos + 1)) &&
+          (m_ldap_server_host[pos + 1] == ':')) {
+        m_ldap_server_host = m_ldap_server_host.substr(1, pos - 1);
+      }
+    }
+    /* IPV4 */
+    else {
+      pos = m_ldap_server_host.find(":");
+      if (pos != m_ldap_server_host.npos) {
+        m_ldap_server_host.erase(pos);
+      }
+    }
+    log_stream << "Processed Kerberos KDC: " << m_ldap_server_host;
+    log_info(log_stream.str());
+    log_stream.str("");
+  }
 
   /*
     Get the LDAP destroy TGT from MySQL app section.
