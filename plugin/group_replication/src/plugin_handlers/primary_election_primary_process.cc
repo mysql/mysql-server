@@ -263,10 +263,8 @@ int Primary_election_primary_process::primary_election_process_handler() {
       goto end;
       /* purecov: end */
     }
-    group_events_observation_manager->after_primary_election(
-        primary_uuid,
-        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
-        election_mode);
+    group_events_observation_manager->after_primary_election(primary_uuid, true,
+                                                             election_mode);
     goto wait_for_queued_message;
   }
 
@@ -350,10 +348,7 @@ end:
 
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
-        primary_uuid,
-        enum_primary_election_primary_change_status::
-            PRIMARY_DID_CHANGE_WITH_ERROR,
-        election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
+        primary_uuid, true, election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
     kill_transactions_and_leave_on_election_error(err_msg);
   }
 
@@ -406,10 +401,8 @@ int Primary_election_primary_process::after_view_change(
   if (known_members_addresses.empty() && !group_in_read_mode) {
     group_in_read_mode = true;
     mysql_cond_broadcast(&election_cond);
-    group_events_observation_manager->after_primary_election(
-        primary_uuid,
-        enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
-        election_mode);
+    group_events_observation_manager->after_primary_election(primary_uuid, true,
+                                                             election_mode);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -417,8 +410,7 @@ int Primary_election_primary_process::after_view_change(
 }
 
 int Primary_election_primary_process::after_primary_election(
-    std::string, enum_primary_election_primary_change_status,
-    enum_primary_election_mode, int) {
+    std::string, bool, enum_primary_election_mode, int) {
   return 0;
 }
 
@@ -465,9 +457,7 @@ int Primary_election_primary_process::before_message_handling(
         group_in_read_mode = true;
         mysql_cond_broadcast(&election_cond);
         group_events_observation_manager->after_primary_election(
-            primary_uuid,
-            enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE,
-            election_mode);
+            primary_uuid, true, election_mode);
       }
       mysql_mutex_unlock(&election_lock);
     }
