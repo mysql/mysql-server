@@ -88,23 +88,6 @@ static const uint NO_FK_RENAME = 1 << 4;
 /** Don't change generated check constraint names while renaming table. */
 static const uint NO_CC_RENAME = 1 << 5;
 
-// MDL lock types used for ALTER TABLE SECONDARY_LOAD.
-
-/** The MDL type used when initially opening a table for SECONDARY_LOAD */
-constexpr enum_mdl_type SECLOAD_SCAN_START_MDL = MDL_SHARED_NO_WRITE;
-
-/**
-  The weaker MDL which the secondary engine plugin may downgrade to after
-  a parallel scan has been started
-*/
-constexpr enum_mdl_type SECLOAD_PAR_SCAN_MDL = MDL_SHARED_UPGRADABLE;
-
-/**
-  The MDL which must be acquired before the old table definition
-  can be evicted from the table definition cache.
-*/
-constexpr enum_mdl_type SECLOAD_TDC_EVICT_MDL = MDL_EXCLUSIVE;
-
 handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
                                              const HA_CREATE_INFO &ci);
 

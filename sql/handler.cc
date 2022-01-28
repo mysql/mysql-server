@@ -4960,8 +4960,6 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 
 /**
  * Loads a table into its defined secondary storage engine: public interface.
- * This call may downgrade the table lock. Do not make any assumptions on the
- * MDL.
  *
  * @param table The table to load into the secondary engine. Its read_set tells
  * which columns to load.
