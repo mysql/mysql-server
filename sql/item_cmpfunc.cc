@@ -7492,9 +7492,10 @@ bool Item_func_trig_cond::contains_only_equi_join_condition() const {
 // In general, we append the sort key from the Item, which makes it memcmp-able.
 //
 // For strings with NO_PAD collations, we also prepend the string value with the
-// number of bytes written to the buffer. This is needed when the join key
-// consists of multiple columns. Otherwise, we would get the same join key for
-// ('abc', 'def') and ('ab', 'cdef'), so that a join condition such as
+// number of bytes written to the buffer if "is_multi_column_key" is true. This
+// is needed when the join key consists of multiple columns. Otherwise, we would
+// get the same join key for ('abc', 'def') and ('ab', 'cdef'), so that a join
+// condition such as
 //
 //     t1.a = t2.a AND t1.b = t2.b
 //
@@ -7506,6 +7507,7 @@ static bool append_string_value(Item *comparand,
                                 const CHARSET_INFO *character_set,
                                 size_t max_char_length,
                                 bool pad_char_to_full_length,
+                                bool is_multi_column_key,
                                 String *join_key_buffer) {
   // String results must be extracted using the correct character set and
   // collation. This is given by the Arg_comparator, so we call strnxfrm
@@ -7531,12 +7533,14 @@ static bool append_string_value(Item *comparand,
   const size_t buffer_size = character_set->coll->strnxfrmlen(
       character_set, char_length * character_set->mbmaxlen);
 
-  // If we don't pad strings, we need to include the length of the string, so
-  // that it's unambiguous where the string ends and where the next part of the
-  // key begins in case of multi-column join keys. Reserve space for it here.
+  // If we don't pad strings, we need to include the length of the string when
+  // we have multi-column keys, so that it's unambiguous where the string ends
+  // and where the next part of the key begins in case of multi-column join
+  // keys. Reserve space for it here.
+  const bool prepend_length = !use_padding && is_multi_column_key;
   using KeyLength = std::uint32_t;
   const size_t orig_buffer_size = join_key_buffer->length();
-  if (!use_padding) {
+  if (prepend_length) {
     if (join_key_buffer->reserve(sizeof(KeyLength))) {
       return true;
     }
@@ -7562,7 +7566,7 @@ static bool append_string_value(Item *comparand,
     join_key_buffer->length(join_key_buffer->length() + actual_length);
   }
 
-  if (!use_padding) {
+  if (prepend_length) {
     const KeyLength key_length =
         join_key_buffer->length() - (orig_buffer_size + sizeof(KeyLength));
     memcpy(join_key_buffer->ptr() + orig_buffer_size, &key_length,
@@ -7624,8 +7628,9 @@ static bool append_hash_for_string_value(Item *comparand,
 // The number of bytes written depends on the actual value. (Leading zero digits
 // are stripped off, and for +/- 0 even trailing zeros are stripped off.) In
 // order to prevent ambiguity in case of multi-column join keys, the length in
-// bytes is prepended to the value.
-static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
+// bytes is prepended to the value if "is_multi_column_key" is true.
+static bool append_decimal_value(Item *comparand, bool is_multi_column_key,
+                                 String *join_key_buffer) {
   my_decimal decimal_buffer;
   const my_decimal *decimal = comparand->val_decimal(&decimal_buffer);
   if (comparand->null_value) {
@@ -7634,8 +7639,10 @@ static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
 
   if (decimal_is_zero(decimal)) {
     // Encode zero as an empty string. Write length = 0 to indicate that.
-    if (join_key_buffer->append(char{0})) {
-      return true;
+    if (is_multi_column_key) {
+      if (join_key_buffer->append(char{0})) {
+        return true;
+      }
     }
     return false;
   }
@@ -7648,7 +7655,9 @@ static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
   if (join_key_buffer->reserve(buffer_size + 1)) {
     return true;
   }
-  join_key_buffer->append(static_cast<char>(buffer_size));
+  if (is_multi_column_key) {
+    join_key_buffer->append(static_cast<char>(buffer_size));
+  }
 
   uchar *write_position =
       pointer_cast<uchar *>(join_key_buffer->ptr()) + join_key_buffer->length();
@@ -7685,16 +7694,16 @@ static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
 /// @param store_full_sort_key if false, will store only a hash of string
 ///   fields, instead of the string itself.
 ///   @see HashJoinCondition::m_store_full_sort_key
+/// @param is_multi_column_key true if the hash join key has multiple columns
+///   (that is, the hash join condition is a conjunction)
 /// @param[out] join_key_buffer the output buffer where the extracted value
 ///   is appended
 ///
 /// @returns true if a SQL NULL value was found
-static bool extract_value_for_hash_join(THD *thd, Item *comparand,
-                                        const Arg_comparator *comparator,
-                                        bool is_left_argument,
-                                        size_t max_char_length,
-                                        bool store_full_sort_key,
-                                        String *join_key_buffer) {
+static bool extract_value_for_hash_join(
+    THD *thd, Item *comparand, const Arg_comparator *comparator,
+    bool is_left_argument, size_t max_char_length, bool store_full_sort_key,
+    bool is_multi_column_key, String *join_key_buffer) {
   if (comparator->get_compare_type() == ROW_RESULT) {
     // If the comparand returns a row via a subquery or a row value expression,
     // the comparator will be set up with child comparators (one for each column
@@ -7734,7 +7743,7 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
         return append_string_value(
             comparand, comparator->cmp_collation.collation, max_char_length,
             (thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) > 0,
-            join_key_buffer);
+            is_multi_column_key, join_key_buffer);
       } else {
         return append_hash_for_string_value(
             comparand, comparator->cmp_collation.collation, join_key_buffer);
@@ -7751,7 +7760,8 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
                               comparand->unsigned_flag, join_key_buffer);
     }
     case DECIMAL_RESULT: {
-      return append_decimal_value(comparand, join_key_buffer);
+      return append_decimal_value(comparand, is_multi_column_key,
+                                  join_key_buffer);
     }
     default: {
       // This should not happen.
@@ -7765,19 +7775,21 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
 
 bool Item_func_eq::append_join_key_for_hash_join(
     THD *thd, const table_map tables, const HashJoinCondition &join_condition,
-    String *join_key_buffer) const {
+    bool is_multi_column_key, String *join_key_buffer) const {
   if (join_condition.left_uses_any_table(tables)) {
     assert(!join_condition.right_uses_any_table(tables));
-    return extract_value_for_hash_join(
-        thd, join_condition.left_extractor(), &cmp, true,
-        join_condition.max_character_length(),
-        join_condition.store_full_sort_key(), join_key_buffer);
+    return extract_value_for_hash_join(thd, join_condition.left_extractor(),
+                                       &cmp, true,
+                                       join_condition.max_character_length(),
+                                       join_condition.store_full_sort_key(),
+                                       is_multi_column_key, join_key_buffer);
   } else if (join_condition.right_uses_any_table(tables)) {
     assert(!join_condition.left_uses_any_table(tables));
-    return extract_value_for_hash_join(
-        thd, join_condition.right_extractor(), &cmp, false,
-        join_condition.max_character_length(),
-        join_condition.store_full_sort_key(), join_key_buffer);
+    return extract_value_for_hash_join(thd, join_condition.right_extractor(),
+                                       &cmp, false,
+                                       join_condition.max_character_length(),
+                                       join_condition.store_full_sort_key(),
+                                       is_multi_column_key, join_key_buffer);
   }
 
   assert(false);
