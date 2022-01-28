@@ -2005,6 +2005,24 @@ ADD_CUSTOM_TARGET(plugin_all)
 # Utility target to build every target added with MYSQL_ADD_COMPONENT.
 ADD_CUSTOM_TARGET(component_all)
 
+# Utility target to generate all sources from .proto files.
+ADD_CUSTOM_TARGET(protobuf_generated_all)
+
+# Utility target to generate sources needed for clang-tidy.
+# Example usage:
+#
+# export CC=clang
+# export CXX=clang++
+# mkdir build-clang-tidy; cd build-clang-tidy
+# cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_SYSTEM_LIBS=1
+# make clang_tidy_prerequisites
+# clang-tidy -p .
+#     --checks=modernize-use-nullptr,-clang-analyzer-core.NullDereference
+#     ../sql/sys_vars.cc
+ADD_CUSTOM_TARGET(clang_tidy_prerequisites)
+ADD_DEPENDENCIES(clang_tidy_prerequisites protobuf_generated_all)
+ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
+
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
