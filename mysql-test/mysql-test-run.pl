@@ -1034,7 +1034,7 @@ sub run_test_server ($$$) {
                           mtr_report(" - found '$core_name' again, keeping it");
                           return;
                         }
-                        my $num_saved_cores = %saved_cores_paths;
+                        my $num_saved_cores = keys %saved_cores_paths;
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 
