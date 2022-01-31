@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,16 +494,6 @@ bool copy_contexts(THD *thd, Item *orig_expr, Item *cloned_expr) {
                [&info, &field_contexts](Item *inner_item) {
                  if (info.is_stopped(inner_item)) {
                    return false;
-                 } else if (inner_item->type() == Item::REF_ITEM &&
-                            down_cast<Item_ref *>(inner_item)->ref_type() ==
-                                Item_ref::VIEW_REF) {
-                   if (field_contexts.push_back(
-                           down_cast<Item_view_ref *>(inner_item)->context))
-                     return true;
-                   // Do not look inside the view reference. We do not need
-                   // the context of the field it points to.
-                   info.stop_at(inner_item);
-                   return false;
                  } else if (inner_item->type() == Item::FIELD_ITEM) {
                    if (field_contexts.push_back(
                            down_cast<Item_field *>(inner_item)->context))
@@ -534,14 +524,13 @@ bool copy_contexts(THD *thd, Item *orig_expr, Item *cloned_expr) {
 
   @param thd            Current thread.
   @param item           Item to be reparsed to get a clone.
-  @param query_type     query type to be used by Item::print
   @param query_block    query block where expression is being parsed
   @param is_system_view If this expression is part of a system view
 
   @returns A copy of the original item (unresolved) on success else nullptr.
 */
-static Item *parse_expression(THD *thd, Item *item, enum_query_type query_type,
-                              Query_block *query_block, bool is_system_view) {
+static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
+                              bool is_system_view) {
   // Set up for parsing item
   LEX *const old_lex = thd->lex;
   LEX new_lex;
@@ -550,9 +539,12 @@ static Item *parse_expression(THD *thd, Item *item, enum_query_type query_type,
     thd->lex = old_lex;
     return nullptr;  // OOM
   }
+  // Take care not to print the variable index for stored procedure variables.
+  // Also do not write a cloned stored procedure variable to query logs.
+  thd->lex->reparse_derived_table_condition = true;
   // Get the printout of the expression
   StringBuffer<1024> str;
-  item->print(thd, &str, query_type);
+  item->print(thd, &str, QT_ORDINARY);
   str.append('\0');
 
   Derived_expr_parser_state parser_state;
@@ -576,8 +568,6 @@ static Item *parse_expression(THD *thd, Item *item, enum_query_type query_type,
   // correctly.
   thd->lex->set_sp_current_parsing_ctx(old_lex->get_sp_current_parsing_ctx());
   thd->lex->sphead = old_lex->sphead;
-  // Take care not to write a cloned stored procedure variable to query logs.
-  thd->lex->reparse_derived_table_condition = true;
 
   // If this is a prepare statement, we need to set prepare_mode correctly
   // so that parser does not raise errors for "params(?)".
@@ -711,19 +701,7 @@ Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
 */
 
 Item *Query_block::clone_expression(THD *thd, Item *item, bool is_system_view) {
-  // We must use this QT flag - QT_DERIVED_TABLE_ORIG_FIELD_NAMES
-  // for such case:
-  // SELECT * FROM
-  // (SELECT f1 FROM (SELECT f1 FROM t1) AS dt1 GROUP BY f1) AS dt2
-  // WHERE f1 > 3;
-  // When we push dt2.f1>3 down into dt2, 'item' to clone is dt1.f1;
-  // but dt1 has been merged and this item is Item_view_ref; without
-  // this QT flag, Item_ref::print() would print the underlying,
-  // merged expression (t1.f1) which we cannot properly resolve in
-  // the context of the definition of dt2. The printout we need is
-  // dt1.f1.
-  Item *cloned_item = parse_expression(
-      thd, item, QT_DERIVED_TABLE_ORIG_FIELD_NAMES, this, is_system_view);
+  Item *cloned_item = parse_expression(thd, item, this, is_system_view);
   if (cloned_item == nullptr) return nullptr;
   if (item->item_name.is_set())
     cloned_item->item_name.set(item->item_name.ptr(), item->item_name.length());

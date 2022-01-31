@@ -1794,16 +1794,13 @@ bool Item_splocal::val_json(Json_wrapper *result) {
   return ret;
 }
 
-void Item_splocal::print(const THD *, String *str,
-                         enum_query_type query_type) const {
-  // With QT_DERIVED_TABLE_ORIG_FIELD_NAMES, print the SP variable name.
-  // Without QT_DERIVED_TABLE_ORIG_FIELD_NAMES, print the SP variable
-  // name, followed by '@' and the variable index.
-  // The first is used when cloning this item during condition pushdown
-  // to derived tables.
+void Item_splocal::print(const THD *thd, String *str, enum_query_type) const {
+  // While reparsing a derived table condition, print the SP variable name.
+  // Otherwise, print the SP variable name, followed by '@' and the variable
+  // index.
   str->reserve(m_name.length() + 8);
   str->append(m_name);
-  if (!(query_type & QT_DERIVED_TABLE_ORIG_FIELD_NAMES)) {
+  if (!thd->lex->reparse_derived_table_condition) {
     str->append('@');
     qs_append(m_var_idx, str);
   }
@@ -8224,18 +8221,11 @@ Item *Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
 void Item_ref::print(const THD *thd, String *str,
                      enum_query_type query_type) const {
-  bool is_view_ref;
-
-  if (  // Unresolved reference: print reference
-      !ref ||
-      // Reference to column of merged derived table, and we want to see the
-      // derived table's name, not that of the underlying table.
-      ((is_view_ref = (ref_type() == VIEW_REF)) &&
-       (query_type & QT_DERIVED_TABLE_ORIG_FIELD_NAMES)))
+  if (ref == nullptr)  // Unresolved reference: print reference
     return Item_ident::print(thd, str, query_type);
 
-  if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM && !is_view_ref &&
-      !table_name && item_name.ptr()) {
+  if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
+      ref_type() != VIEW_REF && table_name == nullptr && item_name.ptr()) {
     Simple_cstring str1 = (*ref)->real_item()->item_name;
     append_identifier(thd, str, str1.ptr(), str1.length());
   } else

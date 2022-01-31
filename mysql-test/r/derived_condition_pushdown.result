@@ -1890,3 +1890,35 @@ CREATE TABLE t1(f1 VARBINARY(10000));
 SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) as dt WHERE f1 > '10';
 f1
 DROP TABLE t1;
+#
+# Bug#33791802: Query with multiple JOINs stopped working
+#
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+CREATE VIEW v1 AS SELECT * FROM t1 UNION SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT t1.f1 FROM t1 JOIN v2 USING(f2) WHERE v2.f2 = 1;
+f1
+DROP TABLE t1;
+DROP VIEW v1;
+DROP VIEW v2;
+SELECT a.table_name, d.table_name
+FROM information_schema.key_column_usage a
+JOIN information_schema.table_constraints b
+USING (table_schema , table_name , constraint_name)
+JOIN information_schema.referential_constraints c
+ON (c.constraint_name = b.constraint_name AND
+c.table_name = b.table_name AND
+c.constraint_schema = b.table_schema)
+LEFT JOIN information_schema.table_constraints d
+ON (a.referenced_table_schema = d.table_schema AND
+a.referenced_table_name = d.table_name AND
+d.constraint_type IN ('UNIQUE' , 'PRIMARY KEY'))
+WHERE b.constraint_type = 'FOREIGN KEY'
+ORDER BY a.table_name , a.ordinal_position;
+TABLE_NAME	TABLE_NAME
+SELECT a.table_name
+FROM information_schema.key_column_usage a
+JOIN information_schema.table_constraints b
+USING (table_schema)
+WHERE b.constraint_type = 'FOREIGN KEY';
+TABLE_NAME
