@@ -188,7 +188,7 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   SET_PROPERTY(TARGET ${TARGET_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
 
   # Run protoc to generate .pb.h and .pb.cc files, for clang-tidy.
-  IF(CMAKE_VERSION VERSION_GREATER "3.19")
+  IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
     # New in version 3.19:
     # An interface library target may be created with source files.
     ADD_LIBRARY(${TARGET_NAME}_HEADERS INTERFACE ${PROTO_HDRS})

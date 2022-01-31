@@ -220,7 +220,7 @@ ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # but pick up symbols from the server:
 # TARGET_LINK_LIBRARIES(mysqlgcs mysys)
 
-IF(CMAKE_VERSION VERSION_GREATER "3.19")
+IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
   # New in version 3.19:
   # An interface library target may be created with source files.
   ADD_LIBRARY(xcom_rpcgen_headers INTERFACE ${GEN_RPC_H_FILES})
