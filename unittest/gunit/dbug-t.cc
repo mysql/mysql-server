@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +155,18 @@ TEST(DebugSetTest, DebugKeywordsTest) {
   DBUG_EXPLAIN(buf, sizeof(buf));
   EXPECT_STREQ("d,keyword1,keyword2,keyword3", buf);
   DBUG_SET("");
+}
+
+class DbugLogThread : public Thread {
+ public:
+  void run() override { DBUG_LOG("TEST", "The test has been run"); }
+};
+TEST(DebugLogTest, DbugLogFromAFreshThreadTest) {
+  DBUG_SET_INITIAL("+d,foo");
+  DbugLogThread debug_thread{};
+  debug_thread.start();
+  debug_thread.join();
+  DBUG_SET_INITIAL("");
 }
 #endif /* NDEBUG */
 }  // namespace dbug_unittest
