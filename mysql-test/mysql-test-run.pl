@@ -1874,9 +1874,7 @@ sub command_line_setup {
   }
 
   foreach my $arg (@ARGV) {
-    if ($arg =~ /^--skip-/) {
-      push(@opt_extra_mysqld_opt, $arg);
-    } elsif ($arg =~ /^--$/) {
+    if ($arg =~ /^--$/) {
       # It is an effect of setting 'pass_through' in option processing
       # that the lone '--' separating options from arguments survives,
       # simply ignore it.
