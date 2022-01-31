@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -707,6 +707,15 @@ class Client {
   @param[in]	length	length of error buffer
   @return error code */
   int set_error(const uchar *buffer, size_t length);
+
+  /** Suspends client thread for the specified time
+  @param[in]	Time_Sec Time in seconds
+  @return error code */
+  int wait(Time_Sec wait_time);
+
+  /** Check if delay is requested from the user
+  @return error code */
+  int delay_if_needed();
 
   /** If PFS table and mutex is initialized. */
   static bool s_pfs_initialized;

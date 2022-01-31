@@ -18,4 +18,6 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data
 --let clone_remote_replace = 1
 --let clone_inst_number = 2
 
+# Check the functionality of variable clone_delay_after_data_drop
+--let delay_after_data_drop = 1
 --source local_basic.test

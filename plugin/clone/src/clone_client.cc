@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -751,6 +751,12 @@ int Client::clone() {
     /* Negotiate clone protocol and SE versions */
     err = remote_command(rpc_com, false);
 
+    /* Delay clone after dropping database if requested */
+
+    if (err == 0 && rpc_com == COM_INIT) {
+      assert(is_master());
+      err = delay_if_needed();
+    }
     snprintf(
         info_mesg, 128, "Command %s",
         is_master() ? (restart ? "COM_REINIT" : "COM_INIT") : "COM_ATTACH");
@@ -1732,6 +1738,78 @@ int Client::set_error(const uchar *buffer, size_t length) {
   }
 
   return (err);
+}
+
+int Client::wait(Time_Sec wait_time) {
+  int ret_error = 0;
+  auto start_time = Clock::now();
+  auto print_time = start_time;
+  auto sec = wait_time;
+  auto min = std::chrono::duration_cast<Time_Min>(wait_time);
+  std::ostringstream log_strm;
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "Begin Delay after data drop");
+
+  sec -= std::chrono::duration_cast<Time_Sec>(min);
+  log_strm << "Wait time remaining is " << min.count() << " minutes and "
+           << sec.count() << " seconds.";
+  std::string log_str(log_strm.str());
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+  log_strm.str("");
+
+  for (;;) {
+    Time_Msec sleep_time(100);
+    std::this_thread::sleep_for(sleep_time);
+    auto cur_time = Clock::now();
+
+    auto duration_sec =
+        std::chrono::duration_cast<Time_Sec>(cur_time - start_time);
+
+    /* Check for total time elapsed. */
+    if (duration_sec >= wait_time) {
+      break;
+    }
+
+    auto duration_print =
+        std::chrono::duration_cast<Time_Min>(cur_time - print_time);
+
+    if (duration_print.count() >= 1) {
+      print_time = Clock::now();
+      auto remaining_time = wait_time - duration_sec;
+      min = std::chrono::duration_cast<Time_Min>(remaining_time);
+      log_strm << "Wait time remaining is " << min.count() << " minutes.";
+      std::string log_str(log_strm.str());
+      LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+      log_strm.str("");
+    }
+
+    /* Check for interrupt */
+    if (thd_killed(get_thd())) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      ret_error = ER_QUERY_INTERRUPTED;
+      break;
+    }
+  }
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "End Delay after data drop");
+  return ret_error;
+}
+
+int Client::delay_if_needed() {
+  /* Delay only if replacing current data directory. */
+  if (get_data_dir() != nullptr) {
+    return 0;
+  }
+
+  if (clone_delay_after_data_drop == 0) {
+    return 0;
+  }
+
+  auto err = wait(Time_Sec(clone_delay_after_data_drop));
+
+  return err;
 }
 
 int Client_Cbk::file_cbk(Ha_clone_file from_file [[maybe_unused]],

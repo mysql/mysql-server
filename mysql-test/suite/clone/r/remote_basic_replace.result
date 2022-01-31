@@ -100,7 +100,9 @@ clone	ACTIVE
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+SET GLOBAL clone_delay_after_data_drop = 2;
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+SET GLOBAL clone_delay_after_data_drop = 0;
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Completed	0
@@ -184,8 +186,10 @@ UNINSTALL PLUGIN example;
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+SET GLOBAL clone_delay_after_data_drop = 2;
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
 ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SET GLOBAL clone_delay_after_data_drop = 0;
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Failed	3989
@@ -202,7 +206,9 @@ ALTER SCHEMA schema_read_only READ ONLY=0;
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+SET GLOBAL clone_delay_after_data_drop = 2;
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+SET GLOBAL clone_delay_after_data_drop = 0;
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Completed	0
