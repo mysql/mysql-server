@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class ThreadContext : public Ndb_local_connection {
 
   bool get_local_user(const std::string &) const;
   int get_grants_for_user(std::string);
-  bool show_create_user(std::string, std::string &);
+  bool show_create_user(std::string, std::string &, bool use_hex = true);
   void get_create_user(std::string, int);
   void create_user(std::string &, std::string &);
 
@@ -295,9 +295,19 @@ bool ThreadContext::exec_sql(const std::string &statement) {
 /* Run SHOW CREATE USER, and place the result SQL in result.
    Return true on success.
 */
-bool ThreadContext::show_create_user(std::string user, std::string &result) {
+bool ThreadContext::show_create_user(std::string user, std::string &result,
+                                     bool use_hex) {
   std::string statement("SHOW CREATE USER " + user);
-  if (exec_sql(statement)) {
+  int exec_return_val;
+
+  {
+    bool saved_val = m_thd->variables.print_identified_with_as_hex;
+    m_thd->variables.print_identified_with_as_hex = use_hex;
+    exec_return_val = exec_sql(statement);
+    m_thd->variables.print_identified_with_as_hex = saved_val;
+  }
+
+  if (exec_return_val) {
     ndb_log_error("Failed SHOW CREATE USER for %s", user.c_str());
     return false;
   }
@@ -627,7 +637,13 @@ int ThreadContext::drop_users(ChangeNotice *notice,
 }
 
 /* Stored in the snapshot is a CREATE USER statement. This statement has come
-   from SHOW CREATE USER, so its exact format is known. For idempotence, it
+   from SHOW CREATE USER, so its exact format is known.
+
+   If the user already exists locally and the local SHOW CREATE USER exactly
+   matches the snapshot, then return without doing anything, so that the
+   last_mod timestamp on the user's password does not get unnecessarily reset.
+
+   Otherwise apply the statement to create the user. For idempotence, it
    must be rewritten as several statements. The final result is:
       CREATE USER IF NOT EXISTS user@host;
       REVOKE ALL ON *.* FROM user@host;
@@ -646,8 +662,14 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   const bool exists_local = get_local_user(name);
 
   if (exists_local) {
+    /* Compare the snapshot user to the local one. Before comparing, we must
+       detect whether the password hash stored in the snapshot used hex encoding
+       or a plain string.  In statement.find(), 36 characters skips past
+       "CREATE USER `a`@`%` IDENTIFIED WITH".
+    */
     std::string show_create;
-    if (show_create_user(name, show_create) && show_create == statement)
+    bool is_hex = (statement.find(" AS 0x", 36) != std::string::npos);
+    if (show_create_user(name, show_create, is_hex) && show_create == statement)
       return;  // Current SHOW CREATE USER already matches snapshot
   }
 
@@ -675,7 +697,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   }
 
   /* Locate the part between DEFAULT ROLE and REQUIRE */
-  size_t require_pos = statement.find("REQUIRE ", default_role_pos + 14);
+  size_t require_pos = statement.find(" REQUIRE ", default_role_pos + 14);
   assert(require_pos != std::string::npos);
   size_t role_clause_len = require_pos - default_role_pos;
 
