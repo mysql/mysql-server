@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,8 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
   for (const HashJoinCondition &hash_join_condition : m_join_conditions) {
     bool null_in_join_condition =
         hash_join_condition.join_condition()->append_join_key_for_hash_join(
-            thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer);
+            thd, m_tables.tables_bitmap(), hash_join_condition,
+            m_join_conditions.size() > 1, &m_buffer);
 
     if (thd->is_error()) {
       // An error was raised while evaluating the join condition.

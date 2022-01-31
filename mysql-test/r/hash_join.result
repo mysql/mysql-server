@@ -3959,3 +3959,45 @@ FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
 wstr_name	str_name
 9337a53f-cfd6-4a68-a1fc-e2d84eba8079	9337a53f-cfd6-4a68-a1fc-e2d84eba8079
 DROP TABLE t1, t2;
+# Bug#33787914: int-decimal. using left join, the returned result is incorrect
+CREATE TABLE t(a DECIMAL(5, 3));
+INSERT INTO t VALUES (0.1), (0.2), (0.3), (0.01), (0.91), (0.001), (0.991);
+SELECT * FROM t AS t1, t AS t2 WHERE 1 - t1.a = 1 - t2.a;
+a	a
+0.001	0.001
+0.010	0.010
+0.100	0.100
+0.200	0.200
+0.300	0.300
+0.910	0.910
+0.991	0.991
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a;
+a	a
+0.001	0.001
+0.010	0.010
+0.100	0.100
+0.200	0.200
+0.300	0.300
+0.910	0.910
+0.991	0.991
+DROP TABLE t;
+# Bug#33794977: Wrong results from hash join with compound hash keys
+CREATE TABLE t(a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES ('x', 'xx'), ('xx', 'x');
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+a	b	a	b
+x	xx	x	xx
+xx	x	xx	x
+DROP TABLE t;
+CREATE TABLE t(a DECIMAL(3,0), b DECIMAL(3,0));
+INSERT INTO t
+VALUES (0, 128), (128, 0), (382, 1), (1, 382), (-1, 385), (385, -1);
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+a	b	a	b
+-1	385	-1	385
+0	128	0	128
+1	382	1	382
+128	0	128	0
+382	1	382	1
+385	-1	385	-1
+DROP TABLE t;

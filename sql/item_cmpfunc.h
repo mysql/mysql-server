@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -997,10 +997,13 @@ class Item_func_eq : public Item_func_comparison {
   ///   with some pre-calculated values
   /// @param[out] join_key_buffer a buffer where the value from the join
   ///   condition will be appended
+  /// @param is_multi_column_key true if the hash join key has multiple columns
+  ///   (that is, the hash join condition is a conjunction)
   ///
   /// @returns true if an SQL NULL was encountered, false otherwise
   bool append_join_key_for_hash_join(THD *thd, table_map tables,
                                      const HashJoinCondition &join_condition,
+                                     bool is_multi_column_key,
                                      String *join_key_buffer) const;
 
   /// Wrap the argument in a typecast, if needed.
