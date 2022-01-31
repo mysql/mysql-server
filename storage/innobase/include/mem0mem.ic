@@ -180,7 +180,7 @@ static inline void *mem_heap_alloc(mem_heap_t *heap, ulint n) {
   UNIV_MEM_FREE(start_no_mans_land, MEM_NO_MANS_LAND);
 
   memset(end_no_mans_land, MEM_NO_MANS_LAND_AFTER_BYTE, MEM_NO_MANS_LAND);
-  UNIV_MEM_FREE(end_no_mans_land, MEM_NO_MANS_LAND);
+  UNIV_MEM_FREE(buf + n, MEM_SPACE_NEEDED(n) - n - MEM_NO_MANS_LAND);
 #endif
 
   return (buf);
