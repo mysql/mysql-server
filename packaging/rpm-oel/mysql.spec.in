@@ -53,6 +53,9 @@
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 %{?with_ssl: %global ssl_bundled 1}
 
+# Tell build not to use minimal debug
+%{?full_debug: %global no_mini_debug 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -66,7 +69,10 @@
 %global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
 # - Ship debuginfo for community
 %if 0%{?commercial}
+%if 0%{?no_mini_debug}
+%else
 %global mini_debug_option -DMINIMAL_RELWITHDEBINFO=1
+%endif # no_mini_debug
 %else
 %global with_debuginfo 1
 %endif # commercial
