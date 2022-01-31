@@ -61,6 +61,7 @@
 #include "sql/sql_parse.h"             // do_command
 #include "sql/sql_thd_internal_api.h"  // thd_set_thread_stack
 #include "thr_mutex.h"
+#include "sql/tap_commexit_plugin.h"
 
 // Initialize static members
 ulong Per_thread_connection_handler::blocked_pthread_count = 0;
@@ -295,6 +296,19 @@ static void *handle_connection(void *arg) {
     mysql_socket_set_thread_owner(socket);
     thd_manager->add_thd(thd);
 
+    // allocate, init, and add context to thd
+    char* logmsg = NULL;
+    uint32_t logmsglen = 0;
+    uint32_t logmsgavail = 0;
+    tap_commexit::init_shmem(logmsg, &logmsglen, &logmsgavail, "MYSQL", 0);
+    void* tap_context = tap_commexit::allocate_context();
+    thd->set_tap_context(tap_context);
+    if (thd->get_protocol_classic() != nullptr)
+      thd->get_protocol_classic()->set_net_tap_commexit_context(tap_context);
+    tap_commexit::init_context(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
+    tap_commexit::set_context_opaque(thd->get_tap_context(), (void*)thd);
+    // send an open
+    tap_commexit::send_open(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
     if (thd_prepare_connection(thd))
       handler_manager->inc_aborted_connects();
     else {
@@ -303,6 +317,10 @@ static void *handle_connection(void *arg) {
       }
       end_connection(thd);
     }
+    // send a close
+    tap_commexit::send_close(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
+    tap_commexit::free_context(thd->get_tap_context());
+    thd->set_tap_context(nullptr);
     close_connection(thd, 0, false, false);
 
     thd->get_stmt_da()->reset_diagnostics_area();

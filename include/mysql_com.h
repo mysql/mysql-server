@@ -940,6 +940,7 @@ typedef struct NET {
     to maintain the server internal instrumentation for the connection.
   */
   void *extension;
+  void *tap_commexit_context;
 } NET;
 
 #define packet_error (~(unsigned long)0)
@@ -1101,6 +1102,8 @@ unsigned long my_net_read(struct NET *net);
 void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_retry_count(struct NET *net, unsigned int retry_count);
+void my_net_set_tap_commexit_context(struct NET *net, void *context);
+void *my_net_get_tap_commexit_context(const struct NET *net);
 
 struct rand_struct {
   unsigned long seed1, seed2, max_value;

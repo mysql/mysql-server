@@ -38,6 +38,7 @@
 #include "sql/sql_connect.h"           // close_connection
 #include "sql/sql_parse.h"             // do_command
 #include "sql/sql_thd_internal_api.h"  // thd_set_thread_stack
+#include "sql/tap_commexit_plugin.h"
 
 bool One_thread_connection_handler::add_connection(Channel_info *channel_info) {
   if (my_thread_init()) {
@@ -75,6 +76,20 @@ bool One_thread_connection_handler::add_connection(Channel_info *channel_info) {
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
 
+  // allocate, init, and add context to thd
+  char* logmsg = NULL;
+  uint32_t logmsglen = 0;
+  uint32_t logmsgavail = 0;
+  tap_commexit::init_shmem(logmsg, &logmsglen, &logmsgavail, "MYSQL", 0);
+  void* tap_context = tap_commexit::allocate_context();
+  thd->set_tap_context(tap_context);
+  if (thd->get_protocol_classic() != nullptr)
+    thd->get_protocol_classic()->set_net_tap_commexit_context(tap_context);
+  tap_commexit::init_context(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
+  tap_commexit::set_context_opaque(thd->get_tap_context(), (void*)thd);
+  // send an open
+  tap_commexit::send_open(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
+
   bool error = false;
   if (thd_prepare_connection(thd))
     error = true;  // Returning true causes inc_aborted_connects() to be called.
@@ -85,6 +100,10 @@ bool One_thread_connection_handler::add_connection(Channel_info *channel_info) {
     }
     end_connection(thd);
   }
+  // send a close
+  tap_commexit::send_close(logmsg, &logmsglen, &logmsgavail, thd->get_tap_context(), (void*)thd);
+  tap_commexit::free_context(thd->get_tap_context());
+  thd->set_tap_context(nullptr);
   close_connection(thd, 0, false, false);
   thd->release_resources();
   thd_manager->remove_thd(thd);

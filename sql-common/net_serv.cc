@@ -59,6 +59,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "violite.h"
+#include "sql/tap_commexit_plugin.h"
 
 using std::max;
 using std::min;
@@ -144,6 +145,18 @@ static mysql_compress_context *compress_context(NET *net) {
   return mysql_compress_ctx;
 }
 
+void my_net_set_tap_commexit_context(struct NET *net, void *context) {
+  if (net == nullptr)
+    return;
+  net->tap_commexit_context = context;
+}
+
+void *my_net_get_tap_commexit_context(const struct NET *net) {
+  if (net == nullptr)
+    return nullptr;
+  return net->tap_commexit_context;
+}
+
 /** Init with packet info. */
 
 bool my_net_init(NET *net, Vio *vio) {
@@ -180,6 +193,7 @@ bool my_net_init(NET *net, Vio *vio) {
   ext->compress_ctx.algorithm = enum_compression_algorithm::MYSQL_UNCOMPRESSED;
   net->extension = ext;
 #endif
+  net->tap_commexit_context = NULL;
   if (vio) {
     /* For perl DBI/DBD. */
     net->fd = vio_fd(vio);
@@ -434,6 +448,15 @@ static bool net_should_retry(NET *net, uint *retry_count [[maybe_unused]]) {
 */
 
 bool my_net_write(NET *net, const uchar *packet, size_t len) {
+#ifdef MYSQL_SERVER
+  char* logmsg = nullptr;
+  uint32_t logmsglen = 0;
+  uint32_t logmsgavail = 0;
+  int64_t flags = 0;
+  char* tmp_packet = nullptr;
+  int packet_len = NET_HEADER_SIZE;
+  TAPCOMMEXIT_RC tap_rc = TAPCOMMEXIT_SUCCESS;
+#endif
   uchar buff[NET_HEADER_SIZE];
 
   DBUG_DUMP("net write", packet, len);
@@ -457,23 +480,113 @@ bool my_net_write(NET *net, const uchar *packet, size_t len) {
     const ulong z_size = MAX_PACKET_LENGTH;
     int3store(buff, z_size);
     buff[3] = (uchar)net->pkt_nr++;
+#ifdef MYSQL_SERVER
+    tmp_packet = nullptr;
+    packet_len = NET_HEADER_SIZE;
+    tap_rc = tap_commexit::send_server_data(logmsg, &logmsglen, &logmsgavail, net->tap_commexit_context, tap_commexit::get_context_opaque(net->tap_commexit_context), &flags, reinterpret_cast<const char*>(buff), NET_HEADER_SIZE, &tmp_packet, &packet_len);
+    if (tap_rc == TAPCOMMEXIT_SCRUB) {
+        if (net_write_buff(net, const_cast<const uchar*>(reinterpret_cast<uchar*>(tmp_packet)), packet_len)) {
+          free(tmp_packet);
+          return true;
+        }
+        free(tmp_packet);
+        tmp_packet = nullptr;
+    } else if (tap_rc == TAPCOMMEXIT_KILL) {
+      vio_delete(net->vio);
+      net->error = NET_ERROR_SOCKET_UNUSABLE;
+      net->last_errno = ER_NET_ERROR_ON_WRITE;
+      my_error(net->last_errno, MYF(0));
+      return true;
+    } else {
+      if (net_write_buff(net, buff, NET_HEADER_SIZE)) {
+        return true;
+      }
+    }
+    tmp_packet = nullptr;
+    packet_len = z_size;
+    tap_commexit::send_server_data(logmsg, &logmsglen, &logmsgavail, net->tap_commexit_context, tap_commexit::get_context_opaque(net->tap_commexit_context), &flags, reinterpret_cast<const char*>(packet), ((int)z_size), &tmp_packet, &packet_len);
+    if (tap_rc == TAPCOMMEXIT_SCRUB) {
+        if (net_write_buff(net, const_cast<const uchar*>(reinterpret_cast<uchar*>(tmp_packet)), packet_len)) {
+          free(tmp_packet);
+          return true;
+        }
+        free(tmp_packet);
+		tmp_packet = nullptr;
+    } else if (tap_rc == TAPCOMMEXIT_KILL) {
+      vio_delete(net->vio);
+      net->error = NET_ERROR_SOCKET_UNUSABLE;
+      net->last_errno = ER_NET_ERROR_ON_WRITE;
+      my_error(net->last_errno, MYF(0));
+      return true;
+    } else {
+      if (net_write_buff(net, packet, z_size)) {
+        return true;
+      }
+    }
+#else
     if (net_write_buff(net, buff, NET_HEADER_SIZE) ||
         net_write_buff(net, packet, z_size)) {
       return true;
     }
+#endif
     packet += z_size;
     len -= z_size;
   }
   /* Write last packet */
   int3store(buff, static_cast<uint>(len));
   buff[3] = (uchar)net->pkt_nr++;
+#ifdef MYSQL_SERVER
+  tmp_packet = nullptr;
+  packet_len = NET_HEADER_SIZE;
+  tap_commexit::send_server_data(logmsg, &logmsglen, &logmsgavail, net->tap_commexit_context, tap_commexit::get_context_opaque(net->tap_commexit_context), &flags, reinterpret_cast<const char*>(buff), NET_HEADER_SIZE, &tmp_packet, &packet_len);
+  if (tap_rc == TAPCOMMEXIT_SCRUB) {
+	  if (net_write_buff(net, const_cast<const uchar*>(reinterpret_cast<uchar*>(tmp_packet)), packet_len)) {
+		  free(tmp_packet);
+		  return true;
+	  }
+	  free(tmp_packet);
+	  tmp_packet = nullptr;
+  } else if (tap_rc == TAPCOMMEXIT_KILL) {
+    vio_delete(net->vio);
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
+    net->last_errno = ER_NET_ERROR_ON_WRITE;
+    my_error(net->last_errno, MYF(0));
+    return true;
+  } else {
+    if (net_write_buff(net, buff, NET_HEADER_SIZE)) {
+      return true;
+    }
+  }
+#else
   if (net_write_buff(net, buff, NET_HEADER_SIZE)) {
     return true;
   }
+#endif
 #ifdef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
+#ifdef MYSQL_SERVER
+  bool ret = false;
+  tmp_packet = nullptr;
+  packet_len = len;
+  tap_rc = tap_commexit::send_server_data(logmsg, &logmsglen, &logmsgavail, net->tap_commexit_context, tap_commexit::get_context_opaque(net->tap_commexit_context), &flags, reinterpret_cast<const char*>(packet), ((int)len), &tmp_packet, &packet_len);
+  if (tap_rc == TAPCOMMEXIT_SCRUB) {
+    ret = net_write_buff(net, const_cast<const uchar*>(reinterpret_cast<uchar*>(tmp_packet)), packet_len);
+    free(tmp_packet);
+	tmp_packet = nullptr;
+  } else if (tap_rc == TAPCOMMEXIT_KILL) {
+    vio_delete(net->vio);
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
+    net->last_errno = ER_NET_ERROR_ON_WRITE;
+    my_error(net->last_errno, MYF(0));
+    return true;
+  } else {
+    ret = net_write_buff(net, packet, len);
+  }
+  return ret;
+#else
   return net_write_buff(net, packet, len);
+#endif
 }
 
 static void reset_packet_write_state(NET *net) {
@@ -1341,6 +1454,14 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
 */
 
 static bool net_read_raw_loop(NET *net, size_t count) {
+#ifdef MYSQL_SERVER
+  char* logmsg = nullptr;
+  uint32_t logmsglen = 0;
+  uint32_t logmsgavail = 0;
+  int64_t flags = 0;
+  char* tmp_packet = nullptr;
+  int packet_len = 0;
+#endif
   DBUG_TRACE;
   bool eof = false;
   unsigned int retry_count = 0;
@@ -1362,6 +1483,11 @@ static bool net_read_raw_loop(NET *net, size_t count) {
       eof = true;
       break;
     }
+#ifdef MYSQL_SERVER
+  tmp_packet = nullptr;
+  packet_len = recvcnt;
+  tap_commexit::send_client_data(logmsg, &logmsglen, &logmsgavail, net->tap_commexit_context, tap_commexit::get_context_opaque(net->tap_commexit_context), &flags, reinterpret_cast<const char*>(buf), recvcnt, &tmp_packet, &packet_len);
+#endif
 
     count -= recvcnt;
     buf += recvcnt;
@@ -1453,7 +1579,9 @@ static bool net_read_packet_header(NET *net) {
     rc = net_read_raw_loop(net, count);
   }
 
-  if (rc) return true;
+  if (rc) {
+    return true;
+  }
 
   DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
 

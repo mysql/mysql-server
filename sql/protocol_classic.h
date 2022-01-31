@@ -201,6 +201,7 @@ class Protocol_classic : public Protocol {
   virtual void set_read_timeout(ulong read_timeout);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
+  void set_net_tap_commexit_context(void *context);
 
   /**
    * Sets the character set expected by the client. This function is for unit

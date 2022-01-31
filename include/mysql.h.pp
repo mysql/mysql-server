@@ -154,6 +154,7 @@ typedef struct NET {
   char last_error[512];
   char sqlstate[5 + 1];
   void *extension;
+  void *tap_commexit_context;
 } NET;
 enum mysql_enum_shutdown_level {
   SHUTDOWN_DEFAULT = 0,
@@ -205,6 +206,8 @@ unsigned long my_net_read(struct NET *net);
 void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_retry_count(struct NET *net, unsigned int retry_count);
+void my_net_set_tap_commexit_context(struct NET *net, void *context);
+void *my_net_get_tap_commexit_context(const struct NET *net);
 struct rand_struct {
   unsigned long seed1, seed2, max_value;
   double max_value_dbl;

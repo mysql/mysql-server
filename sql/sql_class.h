@@ -820,6 +820,15 @@ class THD : public MDL_context_owner,
             public Query_arena,
             public Open_tables_state {
  private:
+ void* tap_context;
+ public:
+  void* get_tap_context() const {
+	return tap_context;
+  }
+  void set_tap_context(void* context) {
+    tap_context = context;
+  }
+ private:
   inline bool is_stmt_prepare() const {
     assert(0);
     return Query_arena::is_stmt_prepare();

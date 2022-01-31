@@ -614,6 +614,7 @@ SET(SQL_SHARED_SOURCES
   table_cache.cc
   table_function.cc
   table_trigger_dispatcher.cc
+  tap_commexit_plugin.cc
   tc_log.cc
   thr_malloc.cc
   time_zone_common.cc

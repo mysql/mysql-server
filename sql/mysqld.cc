@@ -872,6 +872,7 @@ MySQL clients support the protocol:
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
+#include "sql/tap_commexit_plugin.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -959,6 +960,7 @@ MySQL clients support the protocol:
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
+#include "sql/tap_commexit_plugin.h"
 
 using std::max;
 using std::min;
@@ -7138,6 +7140,12 @@ int mysqld_main(int argc, char **argv)
 
   my_init_signals();
 
+  tap_commexit::load_plugin();
+  char* logmsg = NULL;
+  uint32_t logmsglen = 0;
+  uint32_t logmsgavail = 0;
+  tap_commexit::init(logmsg, &logmsglen, &logmsgavail);
+
   size_t guardize = 0;
 #ifndef _WIN32
   int retval = pthread_attr_getguardsize(&connection_attrib, &guardize);
@@ -8504,6 +8512,10 @@ struct my_option my_long_options[] = {
      "Client error messages in given language. May be given as a full path. "
      "Deprecated. Use --lc-messages-dir instead.",
      &lc_messages_dir_ptr, &lc_messages_dir_ptr, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
+    {"tap-commexit-library", 0,
+     "Full path to TAP COMMEXIT shared library",
+     &tap_commexit::config::library_path, &tap_commexit::config::library_path, nullptr, GET_STR, OPT_ARG,
      0, 0, 0, nullptr, 0, nullptr},
     {"lc-messages", 0, "Set the language used for the error messages.",
      &lc_messages, &lc_messages, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,

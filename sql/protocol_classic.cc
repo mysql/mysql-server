@@ -4108,3 +4108,7 @@ static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     }
   }
 }
+
+void Protocol_classic::set_net_tap_commexit_context(void *context) {
+	my_net_set_tap_commexit_context(get_net(), context);
+}
