@@ -360,23 +360,22 @@ DROP TABLE t1;
 --echo #
 
 # We need to create a deadlock in which xa transaction will be chosen as
-# a victim and rolled back. To keep it simple we will use this scenario:
-# 1. connection default obtains LOCK_S on a record
-# 2. connection con2 waits for LOCK_X on the same record
-# 3. connection default tries to obtain LOCK_X on the record which causes
-#    a cycle, which is resolved by choosing con2 as a victim.
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+# a victim and rolled back. We will use this scenario:
+# 1. connection default obtains LOCK_X on t1 record
+# 2. connection con2 obtains LOCK_X on t2 and waits for LOCK_X on t1
+# 3. connection default tries to obtain LOCK_X on t2 which causes
+#    a cycle, which is resolved by choosing con2 as a victim, because
+#    default is "heavier" due to writes made in t1
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1);
 
 START TRANSACTION;
 
 # Step 1.
-SELECT a FROM t1 WHERE a=1 FOR SHARE;
+DELETE FROM t1;
 
 --echo # Connection con2
 --connect (con2,localhost,root)
@@ -384,6 +383,7 @@ XA START 'xid1';
 --echo # Sending:
 
 # Step 2.
+SELECT a FROM t2 WHERE a=1 FOR SHARE;
 --send SELECT a FROM t1 WHERE a=1 FOR UPDATE
 
 --echo # Connection default
@@ -399,7 +399,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 # Step 3.
-SELECT a FROM t1 WHERE a=1 FOR UPDATE;
+SELECT a FROM t2 WHERE a=1 FOR UPDATE;
 
 --echo # Connection con2
 --connection con2
@@ -426,6 +426,7 @@ XA ROLLBACK 'xid1';
 --echo # Connection default
 connection default;
 DROP TABLE t1;
+DROP TABLE t2;
 disconnect con2;
 
 

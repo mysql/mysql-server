@@ -998,7 +998,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
   char blocking_engine_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
   size_t blocking_engine_lock_id_length;
   ut_ad(locksys::owns_exclusive_global_latch());
-  lock_t *wait_lock = trx->lock.wait_lock;
+  const lock_t *wait_lock = trx->lock.wait_lock;
   const lock_t *curr_lock;
   int requesting_record_type;
   size_t found = 0;
@@ -1039,7 +1039,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
 
   requesting_identity = wait_lock;
   lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
-
+  locksys::Trx_locks_cache wait_lock_cache{};
   for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
        curr_lock = lock_queue_iterator_get_prev(&iter)) {
     if (with_filter &&
@@ -1047,7 +1047,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
       continue;
     }
 
-    if (lock_has_to_wait(wait_lock, curr_lock)) {
+    if (locksys::has_to_wait(wait_lock, curr_lock, wait_lock_cache)) {
       blocking_trx_id = lock_get_trx_id(curr_lock);
       if (!container->accept_blocking_transaction_id(blocking_trx_id)) {
         continue;

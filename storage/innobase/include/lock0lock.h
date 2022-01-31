@@ -695,12 +695,12 @@ static inline ulint lock_rec_hash(const page_id_t &page_id);
 /** Get the lock hash table */
 static inline hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */
 
-/** Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
- if none found.
- @return bit index == heap number of the record, or ULINT_UNDEFINED if
- none found */
-ulint lock_rec_find_set_bit(const lock_t *lock); /*!< in: record lock with at
-                                                 least one bit set */
+/** Looks for a set bit in a record lock bitmap.
+Returns ULINT_UNDEFINED, if none found.
+@param[in]  lock    A record lock
+@return bit index == heap number of the record, or ULINT_UNDEFINED if none
+found */
+ulint lock_rec_find_set_bit(const lock_t *lock);
 
 /** Looks for the next set bit in the record lock bitmap.
 @param[in] lock         record lock with at least one bit set
@@ -710,12 +710,60 @@ if none found */
 ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no);
 
 /** Checks if a lock request lock1 has to wait for request lock2.
- @return true if lock1 has to wait for lock2 to be removed */
-bool lock_has_to_wait(const lock_t *lock1,  /*!< in: waiting lock */
-                      const lock_t *lock2); /*!< in: another lock; NOTE that it
-                                            is assumed that this has a lock bit
-                                            set on the same record as in lock1
-                                            if the locks are record locks */
+@param[in]  lock1   A waiting lock
+@param[in]  lock2   Another lock;
+                    NOTE that it is assumed that this has a lock bit set on the
+                    same record as in lock1 if the locks are record lock
+@return true if lock1 has to wait for lock2 to be removed */
+bool lock_has_to_wait(const lock_t *lock1, const lock_t *lock2);
+
+namespace locksys {
+/** An object which can be passed to consecutive calls to
+rec_lock_has_to_wait(trx, mode, lock, is_supremum, trx_locks_cache) for the same
+trx and heap_no (which is implicitly the bit common to all lock objects passed)
+which can be used by this function to cache some partial results. */
+class Trx_locks_cache {
+ private:
+  bool m_computed{false};
+  bool m_has_s_lock_on_record{false};
+#ifdef UNIV_DEBUG
+  const trx_t *m_cached_trx{};
+  page_id_t m_cached_page_id{0, 0};
+  size_t m_cached_heap_no{};
+#endif /* UNIV_DEBUG*/
+ public:
+  /* Checks if trx has a granted lock which is blocking the waiting_lock.
+  @param[in]  trx           The trx object for which we want to know if one of
+                            its granted locks is one of the locks directly
+                            blocking the waiting_lock.
+                            It must not change between invocations of this
+                            method.
+  @param[in]  waiting_lock  A waiting record lock. Multiple calls to this method
+                            must query the same heap_no and page_id. Currently
+                            only X and X|REC_NOT_GAP are supported.
+  @return true iff the trx holds a granted record lock which is one of the
+  reasons waiting_lock has to wait.
+  */
+  bool has_granted_blocker(const trx_t *trx, const lock_t *waiting_lock);
+};
+
+/** Checks if a lock request lock1 has to wait for request lock2. It returns the
+same result as @see lock_has_to_wait(lock1, lock2), but in case these are record
+locks, it might use lock1_cache object to speed up the computation.
+If the same lock1_cache is passed to multiple calls of this method, then lock1
+also needs to be the same.
+@param[in]  lock1         A waiting lock
+@param[in]  lock2         Another lock;
+                          NOTE that it is assumed that this has a lock bit set
+                          on the same record as in lock1 if the locks are record
+                          locks.
+@param[in]  lock1_cache   An object which can be passed to consecutive calls to
+                          this function for the same lock1 which can be used by
+                          this function to cache some partial results.
+@return true if lock1 has to wait for lock2 to be removed */
+bool has_to_wait(const lock_t *lock1, const lock_t *lock2,
+                 Trx_locks_cache &lock1_cache);
+}  // namespace locksys
 
 /** Reports that a transaction id is insensible, i.e., in the future.
 @param[in] trx_id Trx id

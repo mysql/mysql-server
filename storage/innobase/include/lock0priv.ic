@@ -57,11 +57,7 @@ static inline trx_id_t lock_clust_rec_some_has_impl(const rec_t *rec,
   return (row_get_rec_trx_id(rec, index, offsets));
 }
 
-/** Gets the number of bits in a record lock bitmap.
- @return        number of bits */
-static inline ulint lock_rec_get_n_bits(
-    const lock_t *lock) /*!< in: record lock */
-{
+static inline uint32_t lock_rec_get_n_bits(const lock_t *lock) {
   return (lock->rec_lock.n_bits);
 }
 

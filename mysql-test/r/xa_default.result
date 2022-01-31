@@ -238,20 +238,23 @@ DROP TABLE t1;
 #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
 #                FAILED
 #
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1);
 START TRANSACTION;
-SELECT a FROM t1 WHERE a=1 FOR SHARE;
-a
-1
+DELETE FROM t1;
 connect  con2,localhost,root;
 XA START 'xid1';
 # Sending:
+SELECT a FROM t2 WHERE a=1 FOR SHARE;
+a
+1
 SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 connection default;
 # Waiting for until a transaction with 'SELECT...FOR UPDATE'
 # will be locked inside innodb subsystem.
-SELECT a FROM t1 WHERE a=1 FOR UPDATE;
+SELECT a FROM t2 WHERE a=1 FOR UPDATE;
 a
 1
 connection con2;
@@ -268,6 +271,7 @@ XA PREPARE 'xid1';
 XA ROLLBACK 'xid1';
 connection default;
 DROP TABLE t1;
+DROP TABLE t2;
 disconnect con2;
 #
 # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED

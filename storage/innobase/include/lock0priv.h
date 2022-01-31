@@ -83,6 +83,7 @@ struct lock_rec_t {
   located. */
   page_id_t page_id;
   /** number of bits in the lock bitmap;
+  Must be divisible by 8.
   NOTE: the lock bitmap is placed immediately after the lock struct */
   uint32_t n_bits;
 
@@ -105,13 +106,17 @@ inline std::ostream &operator<<(std::ostream &out, const lock_rec_t &lock) {
 }
 
 /**
-Checks if the `mode` is LOCK_S or LOCK_X, which means the lock is a
+Checks if the `mode` is LOCK_S or LOCK_X (possibly ORed with LOCK_WAIT or
+LOCK_REC) which means the lock is a
 Next Key Lock, a.k.a. LOCK_ORDINARY, as opposed to Predicate Lock,
 GAP lock, Insert Intention or Record Lock.
-@param  mode  A mode and flags, of a non-waiting lock.
-@return true iff the only bits set in `mode` are LOCK_S or LOCK_X */
+@param  mode  A mode and flags, of a lock.
+@return true iff the only bits set in `mode` are LOCK_S or LOCK_X and optionally
+LOCK_WAIT or LOCK_REC */
 static inline bool lock_mode_is_next_key_lock(ulint mode) {
   static_assert(LOCK_ORDINARY == 0, "LOCK_ORDINARY must be 0 (no flags)");
+  ut_ad((mode & LOCK_TABLE) == 0);
+  mode &= ~(LOCK_WAIT | LOCK_REC);
   ut_ad((mode & LOCK_WAIT) == 0);
   ut_ad((mode & LOCK_TYPE_MASK) == 0);
   ut_ad(((mode & ~(LOCK_MODE_MASK)) == LOCK_ORDINARY) ==
@@ -197,8 +202,7 @@ struct lock_t {
 
   /** @return true iff the lock is a Next Key Lock */
   bool is_next_key_lock() const {
-    return is_record_lock() &&
-           lock_mode_is_next_key_lock(type_mode & ~(LOCK_WAIT | LOCK_REC));
+    return is_record_lock() && lock_mode_is_next_key_lock(type_mode);
   }
 
   /** @return true if the insert intention bit is set */
@@ -910,9 +914,9 @@ static inline const lock_t *lock_rec_get_next_on_page_const(
     const lock_t *lock); /*!< in: a record lock */
 
 /** Gets the number of bits in a record lock bitmap.
- @return number of bits */
-static inline ulint lock_rec_get_n_bits(
-    const lock_t *lock); /*!< in: record lock */
+@param[in]  lock  The record lock
+@return number of bits */
+static inline uint32_t lock_rec_get_n_bits(const lock_t *lock);
 
 /** Sets the nth bit of a record lock to true.
 @param[in]      lock    record lock
