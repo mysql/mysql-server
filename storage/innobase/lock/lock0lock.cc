@@ -451,24 +451,31 @@ static inline ulint lock_rec_get_insert_intention(
 
   return (lock->type_mode & LOCK_INSERT_INTENTION);
 }
+namespace locksys {
+/** Checks if a new request for a record lock has to wait for existing request.
+@param[in]  trx                   The trx requesting the new lock
+@param[in]  type_mode             precise mode of the new lock to set: LOCK_S or
+                                  LOCK_X, possibly ORed to LOCK_GAP or
+                                  LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION
+@param[in]  lock2                 another record lock;
+                                  NOTE that it is assumed that this has a lock
+                                  bit set on the same record as in the new lock
+                                  we are setting
+@param[in]  lock_is_on_supremum   true if we are setting the lock on the
+                                  'supremum' record of an index page: we know
+                                  then that the lock request is really for a
+                                  'gap' type lock
+@param[in]  trx_locks_cache       An object which can be passed to consecutive
+                                  calls to this function for the same trx and
+                                  heap_no (which is implicitly the bit common to
+                                  all lock2 objects passed) which can be used by
+                                  this function to cache some partial results.
+@return true if new lock has to wait for lock2 to be removed */
+static inline bool rec_lock_has_to_wait(const trx_t *trx, ulint type_mode,
+                                        const lock_t *lock2,
+                                        bool lock_is_on_supremum,
+                                        Trx_locks_cache &trx_locks_cache)
 
-/** Checks if a lock request for a new lock has to wait for request lock2.
- @return true if new lock has to wait for lock2 to be removed */
-static inline bool lock_rec_has_to_wait(
-    const trx_t *trx,    /*!< in: trx of new lock */
-    ulint type_mode,     /*!< in: precise mode of the new lock
-                       to set: LOCK_S or LOCK_X, possibly
-                       ORed to LOCK_GAP or LOCK_REC_NOT_GAP,
-                       LOCK_INSERT_INTENTION */
-    const lock_t *lock2, /*!< in: another record lock; NOTE that
-                         it is assumed that this has a lock bit
-                         set on the same record as in the new
-                         lock we are setting */
-    bool lock_is_on_supremum)
-/*!< in: true if we are setting the
-lock on the 'supremum' record of an
-index page: we know then that the lock
-request is really for a 'gap' type lock */
 {
   ut_ad(trx && lock2);
   ut_ad(lock_get_type_low(lock2) == LOCK_REC);
@@ -525,34 +532,28 @@ request is really for a 'gap' type lock */
       return (false);
     }
 
-    return (true);
-  }
-
-  return (false);
-}
-
-/** Checks if a lock request lock1 has to wait for request lock2.
- @return true if lock1 has to wait for lock2 to be removed */
-bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
-                      const lock_t *lock2) /*!< in: another lock; NOTE that it
-                                           is assumed that this has a lock bit
-                                           set on the same record as in lock1 if
-                                           the locks are record locks */
-{
-  if (lock1->trx != lock2->trx &&
-      !lock_mode_compatible(lock_get_mode(lock1), lock_get_mode(lock2))) {
-    if (lock_get_type_low(lock1) == LOCK_REC) {
-      ut_ad(lock_get_type_low(lock2) == LOCK_REC);
-
-      /* If this lock request is for a supremum record
-      then the second bit on the lock bitmap is set */
-
-      if (lock1->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE)) {
-        return (lock_prdt_has_to_wait(lock1->trx, lock1->type_mode,
-                                      lock_get_prdt_from_lock(lock1), lock2));
-      } else {
-        return (lock_rec_has_to_wait(lock1->trx, lock1->type_mode, lock2,
-                                     lock1->includes_supremum()));
+    /* This is very important that LOCK_INSERT_INTENTION should not overtake a
+    WAITING Gap or Next-Key lock on the same heap_no, because the following
+    insertion of the record would split the gap duplicating the waiting lock,
+    violating the rule that a transaction can have at most one waiting lock. */
+    if (!(type_mode & LOCK_INSERT_INTENTION) && lock2->is_waiting() &&
+        lock2->mode() == LOCK_X && (type_mode & LOCK_MODE_MASK) == LOCK_X) {
+      // We would've already returned false if it was a gap lock.
+      ut_ad(!(type_mode & LOCK_GAP));
+      // Similarly, since locks on supremum are either LOCK_INSERT_INTENTION or
+      // gap locks, we would've already returned false if it's about supremum.
+      ut_ad(!lock_is_on_supremum);
+      // If lock2 was a gap lock (in particular: insert intention), it could
+      // only block LOCK_INSERT_INTENTION, which we've ruled out.
+      ut_ad(!lock_rec_get_gap(lock2));
+      // So, both locks are REC_NOT_GAP or Next-Key locks
+      ut_ad(lock2->is_record_not_gap() || lock2->is_next_key_lock());
+      ut_ad((type_mode & LOCK_REC_NOT_GAP) ||
+            lock_mode_is_next_key_lock(type_mode));
+      /* In this case, we should ignore lock2, if trx already has a GRANTED lock
+      blocking lock2 from being granted. */
+      if (trx_locks_cache.has_granted_blocker(trx, lock2)) {
+        return false;
       }
     }
 
@@ -562,22 +563,101 @@ bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
   return (false);
 }
 
+/** Checks if a record lock request lock1 has to wait for request lock2.
+@param[in]  lock1         waiting record lock
+@param[in]  lock2         another record lock;
+                          NOTE that it is assumed that this has a lock bit set
+                          on the same record as in lock1
+@param[in]  lock1_cache   Cached info gathered during calls with lock1
+@return true if lock1 has to wait for lock2 to be removed */
+static inline bool rec_lock_has_to_wait(const lock_t *lock1,
+                                        const lock_t *lock2,
+                                        Trx_locks_cache &lock1_cache) {
+  ut_ad(lock1->is_waiting());
+  ut_ad(lock_rec_get_nth_bit(lock2, lock_rec_find_set_bit(lock1)));
+  return rec_lock_has_to_wait(lock1->trx, lock1->type_mode, lock2,
+                              lock1->includes_supremum(), lock1_cache);
+}
+
+bool has_to_wait(const lock_t *lock1, const lock_t *lock2,
+                 Trx_locks_cache &lock1_cache) {
+  if (lock_get_type_low(lock1) == LOCK_REC) {
+    ut_ad(lock_get_type_low(lock2) == LOCK_REC);
+
+    if (lock1->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE)) {
+      return lock_prdt_has_to_wait(lock1->trx, lock1->type_mode,
+                                   lock_get_prdt_from_lock(lock1), lock2);
+    }
+    return rec_lock_has_to_wait(lock1, lock2, lock1_cache);
+  }
+  // Rules for LOCK_TABLE are much simpler:
+  return (lock1->trx != lock2->trx &&
+          !lock_mode_compatible(lock_get_mode(lock1), lock_get_mode(lock2)));
+}
+}  // namespace locksys
+
+bool lock_has_to_wait(const lock_t *lock1, const lock_t *lock2) {
+  /* We assume that the caller doesn't expect lock2 to be waiting, or record
+  lock or to execute multiple calls for the same lock1, or doesn't care about
+  performance too much, thus we create a single-use cache */
+  locksys::Trx_locks_cache trx_locks_cache{};
+  return locksys::has_to_wait(lock1, lock2, trx_locks_cache);
+}
+
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
-/** Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
- if none found.
- @return bit index == heap number of the record, or ULINT_UNDEFINED if
- none found */
-ulint lock_rec_find_set_bit(
-    const lock_t *lock) /*!< in: record lock with at least one bit set */
-{
-  for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
-    if (lock_rec_get_nth_bit(lock, i)) {
-      return (i);
+/** A helper function for lock_rec_find_set_bit() which checks if the next S
+bits starting from i-th bit of the bitmap are zeros, where S is the
+sizeof(T) and T is uint64_t,uint32_t,uint16_t or uint8_t.
+This function assumes that i is divisible by S, and bitmap is properly aligned.
+@param[in,out]  i       The position of the first bit to check. Will be advanced
+                        by sizeof(T), if sizeof(T) bits are zero.
+@param[in]      bitmap  The bitmap to scan
+@param[in]      n       The size of the bitmap
+@return true iff next sizeof(T) bits starting from i-th of bitmap are zeros. In
+particular returns false if n is too short.
+*/
+template <typename T>
+static bool lock_bit_skip_if_zero(uint32_t &i, const byte *const bitmap,
+                                  const uint32_t n) {
+  constexpr size_t SIZE_IN_BITS = sizeof(T) * 8;
+  if (n < i + SIZE_IN_BITS ||
+      (reinterpret_cast<const T *>(bitmap))[i / SIZE_IN_BITS]) {
+    return false;
+  }
+  i += SIZE_IN_BITS;
+  return true;
+}
+
+ulint lock_rec_find_set_bit(const lock_t *lock) {
+  static_assert(alignof(uint64_t) <= alignof(lock_t),
+                "lock_t and thus the bitmap after lock_t should be aligned for "
+                "64-bit access");
+  const byte *bitmap = (const byte *)&lock[1];
+  ut_a(ut::is_aligned_as<uint64_t>(bitmap));
+  uint32_t i = 0;
+  const uint32_t n = lock_rec_get_n_bits(lock);
+  ut_ad(n % 8 == 0);
+  while (lock_bit_skip_if_zero<uint64_t>(i, bitmap, n)) {
+  }
+  lock_bit_skip_if_zero<uint32_t>(i, bitmap, n);
+  lock_bit_skip_if_zero<uint16_t>(i, bitmap, n);
+  lock_bit_skip_if_zero<byte>(i, bitmap, n);
+  ut_ad(i == n || i == n - 8);
+  if (i < n) {
+    /* This could use std::countr_zero once we switch to C++20, as n and i are
+    guaranteed to be divisible by 8.*/
+    byte v = bitmap[i / 8];
+    ut_ad(v != 0);
+    while (i < n) {
+      if (v & 1) {
+        return i;
+      }
+      i++;
+      v >>= 1;
     }
   }
-
-  return (ULINT_UNDEFINED);
+  return ULINT_UNDEFINED;
 }
 
 /** Looks for the next set bit in the record lock bitmap.
@@ -644,14 +724,12 @@ bool lock_rec_expl_exist_on_page(const page_id_t &page_id) {
  and resetting. */
 static void lock_rec_bitmap_reset(lock_t *lock) /*!< in: record lock */
 {
-  ulint n_bytes;
-
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
   /* Reset to zero the bitmap which resides immediately after the lock
   struct */
 
-  n_bytes = lock_rec_get_n_bits(lock) / 8;
+  const auto n_bytes = lock_rec_get_n_bits(lock) / 8;
 
   ut_ad((lock_rec_get_n_bits(lock) % 8) == 0);
 
@@ -709,14 +787,15 @@ const lock_t *lock_rec_get_prev(
 @param[in]    precise_mode  LOCK_S or LOCK_X possibly ORed to LOCK_GAP or
                             LOCK_REC_NOT_GAP, for a supremum record we regard
                             this always a gap type request
-@param[in]    block         buffer block containing the record
+@param[in]    page_id       id of the page containing the record
 @param[in]    heap_no       heap number of the record
 @param[in]    trx           transaction
 @return lock or NULL */
 static inline const lock_t *lock_rec_has_expl(ulint precise_mode,
-                                              const buf_block_t *block,
-                                              ulint heap_no, const trx_t *trx) {
-  ut_ad(locksys::owns_page_shard(block->get_page_id()));
+                                              const page_id_t page_id,
+                                              uint32_t heap_no,
+                                              const trx_t *trx) {
+  ut_ad(locksys::owns_page_shard(page_id));
   ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S ||
         (precise_mode & LOCK_MODE_MASK) == LOCK_X);
   ut_ad(
@@ -724,23 +803,59 @@ static inline const lock_t *lock_rec_has_expl(ulint precise_mode,
   ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
   ut_ad(!(precise_mode & LOCK_PREDICATE));
   ut_ad(!(precise_mode & LOCK_PRDT_PAGE));
-  const RecID rec_id{block, heap_no};
+  const RecID rec_id{page_id, heap_no};
   const bool is_on_supremum = rec_id.is_supremum();
   const bool is_rec_not_gap = 0 != (precise_mode & LOCK_REC_NOT_GAP);
   const bool is_gap = 0 != (precise_mode & LOCK_GAP);
   const auto mode = static_cast<lock_mode>(precise_mode & LOCK_MODE_MASK);
   const auto p_implies_q = [](bool p, bool q) { return q || !p; };
-
-  return (Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
-    return (!(lock->trx == trx && !lock->is_insert_intention() &&
+  /* Stop iterating on first matching record or first WAITING lock */
+  const auto first = Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
+    return !(lock->is_waiting() ||
+             (lock->trx == trx && !lock->is_insert_intention() &&
               lock_mode_stronger_or_eq(lock_get_mode(lock), mode) &&
-              !lock->is_waiting() &&
               (is_on_supremum ||
                (p_implies_q(lock->is_record_not_gap(), is_rec_not_gap) &&
                 p_implies_q(lock->is_gap(), is_gap)))));
-  }));
+  });
+  /* There are no GRANTED locks after the first WAITING lock in the queue. */
+  return first == nullptr || first->is_waiting() ? nullptr : first;
 }
-
+static inline const lock_t *lock_rec_has_expl(ulint precise_mode,
+                                              const buf_block_t *block,
+                                              ulint heap_no, const trx_t *trx) {
+  return lock_rec_has_expl(precise_mode, block->get_page_id(), heap_no, trx);
+}
+namespace locksys {
+bool Trx_locks_cache::has_granted_blocker(const trx_t *trx,
+                                          const lock_t *waiting_lock) {
+  ut_ad(waiting_lock->is_waiting());
+  ut_ad(waiting_lock->trx != trx);
+  /* We only support case where waiting_lock is on a record or record and gap,
+  and has mode X. This allows for very simple implementation and state. */
+  ut_ad(waiting_lock->is_record_lock());
+  ut_ad(waiting_lock->is_next_key_lock() || waiting_lock->is_record_not_gap());
+  ut_ad(waiting_lock->mode() == LOCK_X);
+  if (!m_computed) {
+    const auto page_id = waiting_lock->rec_lock.page_id;
+    const auto heap_no = lock_rec_find_set_bit(waiting_lock);
+    /* A lock is blocking an X or X|REC_NOT_GAP lock, if and only if it is
+    stronger or equal to LOCK_S|LOCK_REC_NOT_GAP */
+    m_has_s_lock_on_record =
+        lock_rec_has_expl(LOCK_S | LOCK_REC_NOT_GAP, page_id, heap_no, trx);
+    m_computed = true;
+#ifdef UNIV_DEBUG
+    m_cached_trx = trx;
+    m_cached_page_id = page_id;
+    m_cached_heap_no = heap_no;
+#endif /* UNIV_DEBUG*/
+  }
+  ut_ad(m_cached_trx == trx);
+  ut_ad(m_cached_page_id == waiting_lock->rec_lock.page_id);
+  ut_ad(lock_rec_get_nth_bit(waiting_lock, m_cached_heap_no));
+  return m_has_s_lock_on_record;
+}
+}  // namespace locksys
 #ifdef UNIV_DEBUG
 /** Checks if some other transaction has a lock request in the queue.
  @return lock or NULL */
@@ -797,10 +912,11 @@ static const lock_t *lock_rec_other_has_conflicting(
 
   RecID rec_id{block, heap_no};
   const bool is_supremum = rec_id.is_supremum();
-
-  return (Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
-    return (!(lock_rec_has_to_wait(trx, mode, lock, is_supremum)));
-  }));
+  locksys::Trx_locks_cache trx_locks_cache{};
+  return Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
+    return !locksys::rec_lock_has_to_wait(trx, mode, lock, is_supremum,
+                                          trx_locks_cache);
+  });
 }
 
 /** Checks if the (-infinity,max_old_active_id] range contains an id of
@@ -1036,8 +1152,9 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
       sizeof(*lock) + size > REC_LOCK_SIZE) {
     ulint n_bytes = size + sizeof(*lock);
     mem_heap_t *heap = trx->lock.lock_heap;
-
-    lock = reinterpret_cast<lock_t *>(mem_heap_alloc(heap, n_bytes));
+    auto ptr = mem_heap_alloc(heap, n_bytes);
+    ut_a(ut::is_aligned_as<lock_t>(ptr));
+    lock = reinterpret_cast<lock_t *>(ptr);
   } else {
     lock = trx->lock.rec_pool[trx->lock.rec_cached];
     ++trx->lock.rec_cached;
@@ -1843,14 +1960,14 @@ static const lock_t *lock_rec_has_to_wait_in_queue(
   bit_mask = static_cast<ulint>(1) << (heap_no % 8);
 
   hash = lock_hash_get(wait_lock->type_mode);
-
+  locksys::Trx_locks_cache wait_lock_cache{};
   for (lock = lock_rec_get_first_on_page_addr(hash, page_id); lock != wait_lock;
        lock = lock_rec_get_next_on_page_const(lock)) {
     const byte *p = (const byte *)&lock[1];
 
     if ((blocking_trx == nullptr || blocking_trx == lock->trx) &&
         heap_no < lock_rec_get_n_bits(lock) && (p[bit_offset] & bit_mask) &&
-        lock_has_to_wait(wait_lock, lock)) {
+        locksys::rec_lock_has_to_wait(wait_lock, lock, wait_lock_cache)) {
       return (lock);
     }
   }
@@ -3320,8 +3437,9 @@ static inline lock_t *lock_table_create(
   } else if (trx->lock.table_cached < trx->lock.table_pool.size()) {
     lock = trx->lock.table_pool[trx->lock.table_cached++];
   } else {
-    lock = static_cast<lock_t *>(
-        mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock)));
+    auto ptr = mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock));
+    ut_a(ut::is_aligned_as<lock_t>(ptr));
+    lock = static_cast<lock_t *>(ptr);
   }
   lock->type_mode = uint32_t(type_mode | LOCK_TABLE);
   lock->trx = trx;
@@ -6451,6 +6569,7 @@ void lock_trx_alloc_locks(trx_t *trx) {
   at index 0. */
 
   for (ulint i = 0; i < REC_LOCK_CACHE; ++i, ptr += REC_LOCK_SIZE) {
+    ut_a(ut::is_aligned_as<lock_t>(ptr));
     trx->lock.rec_pool.push_back(reinterpret_cast<ib_lock_t *>(ptr));
   }
 
@@ -6459,6 +6578,7 @@ void lock_trx_alloc_locks(trx_t *trx) {
       ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sz));
 
   for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
+    ut_a(ut::is_aligned_as<lock_t>(ptr));
     trx->lock.table_pool.push_back(reinterpret_cast<ib_lock_t *>(ptr));
   }
   trx_mutex_exit(trx);

@@ -771,14 +771,14 @@ static bool add_trx_relevant_locks_to_cache(
     ulint wait_lock_heap_no;
     i_s_locks_row_t *blocking_lock_row;
     lock_queue_iterator_t iter;
+    const lock_t *wait_lock = trx->lock.wait_lock;
+    ut_a(wait_lock != nullptr);
 
-    ut_a(trx->lock.wait_lock != nullptr);
-
-    wait_lock_heap_no = wait_lock_get_heap_no(trx->lock.wait_lock);
+    wait_lock_heap_no = wait_lock_get_heap_no(wait_lock);
 
     /* add the requested lock */
     *requested_lock_row =
-        add_lock_to_cache(cache, trx->lock.wait_lock, wait_lock_heap_no);
+        add_lock_to_cache(cache, wait_lock, wait_lock_heap_no);
 
     /* memory could not be allocated */
     if (*requested_lock_row == nullptr) {
@@ -788,11 +788,11 @@ static bool add_trx_relevant_locks_to_cache(
     /* then iterate over the locks before the wait lock and
     add the ones that are blocking it */
 
-    lock_queue_iterator_reset(&iter, trx->lock.wait_lock, ULINT_UNDEFINED);
-
+    lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
+    locksys::Trx_locks_cache wait_lock_cache{};
     for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
          curr_lock = lock_queue_iterator_get_prev(&iter)) {
-      if (lock_has_to_wait(trx->lock.wait_lock, curr_lock)) {
+      if (locksys::has_to_wait(wait_lock, curr_lock, wait_lock_cache)) {
         /* add the lock that is
         blocking trx->lock.wait_lock */
         blocking_lock_row = add_lock_to_cache(cache, curr_lock,

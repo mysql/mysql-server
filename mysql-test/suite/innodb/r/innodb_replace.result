@@ -18,8 +18,9 @@ SET DEBUG_SYNC='now WAIT_FOR default_will_wait';
 SET DEBUG_SYNC='now SIGNAL select1';
 ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES(3,3) ON DUPLICATE KEY UPDATE b=b+10;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 COMMIT;
+a	b
+3	11
 SET DEBUG_SYNC='write_row_replace SIGNAL insert2 WAIT_FOR select2';
 REPLACE INTO t1 VALUES(3,4);
 SET DEBUG_SYNC='now WAIT_FOR insert2';

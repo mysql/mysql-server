@@ -38,15 +38,15 @@ connection con1;
 --error ER_DUP_ENTRY
 reap;
 # We are still holding an S-lock on (3,1) after the failed INSERT.
-# The following will upgrade it to an X-lock, causing a deadlock.
-# InnoDB should resolve the deadlock by aborting the blocked SELECT.
+# The following will upgrade it to an X-lock, which used to cause a
+# deadlock, but with the new "by-pasing blocked by us" heuristic, it
+# should succeed, without aborting the blocked SELECT.
 INSERT INTO t1 VALUES(3,3) ON DUPLICATE KEY UPDATE b=b+10;
+COMMIT;
 
 connection default;
---error ER_LOCK_DEADLOCK
 reap;
 connection con1;
-COMMIT;
 
 SET DEBUG_SYNC='write_row_replace SIGNAL insert2 WAIT_FOR select2';
 --send

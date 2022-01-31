@@ -122,6 +122,20 @@ bytes from "str" are discarded.
 static inline ulint ut_str_sql_format(const char *str, ulint str_len, char *buf,
                                       ulint buf_size);
 
+namespace ut {
+/** Checks if the pointer has address aligned properly for a given type.
+@param[in]  ptr   The pointer, address of which we want to check if it could be
+                  pointing to object of type T.
+@return true iff ptr address is aligned w.r.t. alignof(T) */
+template <typename T>
+bool is_aligned_as(void const *const ptr) {
+  /* Implementation note: the type of the argument of this function needs to be
+  void *, not T *, because, due to C++ rules, a pointer of type T* needs to be
+  aligned. In other words, compiler could optimize out the whole function. */
+  return reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0;
+}
+}  // namespace ut
+
 #include "ut0mem.ic"
 
 #endif

@@ -1,52 +1,60 @@
 SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
 SET @@global.innodb_lock_wait_timeout = 20;
-CREATE TABLE t0 (
-id INT PRIMARY KEY,
-trx_mysql_thread_id BIGINT
+CREATE TABLE connections (
+trx_mysql_thread_id BIGINT PRIMARY KEY,
+name VARCHAR(200)
 ) ENGINE=InnoDB;
 CREATE PROCEDURE show_locks ()
 BEGIN
+# this is needed because INFORMATION_SCHEMA.INNODB_TRX is refreshed with debounce 100ms
+SELECT SLEEP(1);
 SELECT
-t0.id, object_name, index_name, lock_type, lock_mode, lock_status, lock_data
-FROM t0
+connections.name, object_name, index_name, lock_type, lock_mode, lock_status, lock_data
+FROM connections
 JOIN INFORMATION_SCHEMA.INNODB_TRX USING (trx_mysql_thread_id)
 JOIN performance_schema.data_locks ON (trx_id=engine_transaction_id)
 ORDER BY 1,2,3,4,5,6,7;
 END //
+CREATE PROCEDURE register_connection (name VARCHAR(200))
+BEGIN
+INSERT INTO connections VALUES (CONNECTION_ID(), name);
+END //
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val CHAR(200));
 INSERT INTO t1 (id,val) VALUES (1, "a"),  (3, "c"), (1998,"x"), (2000, "z");
-INSERT INTO t0 VALUES (1, CONNECTION_ID());
+CALL register_connection("con1");
 BEGIN;
 SELECT * FROM t1 WHERE id<=3 FOR SHARE;
 id	val
 1	a
 3	c
-INSERT INTO t0 VALUES (2, CONNECTION_ID());
+CALL register_connection("con2");
 BEGIN;
 SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
 INSERT INTO t1 VALUES (2,"b");
 SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
-INSERT INTO t0 VALUES (3, CONNECTION_ID());
+CALL register_connection("con3");
 BEGIN;
 SELECT * FROM t1 WHERE id=2000 FOR UPDATE;
 id	val
 2000	z
-INSERT INTO t0 VALUES (4, CONNECTION_ID());
+CALL register_connection("con4");
 BEGIN;
 SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con4_will_wait';
 SELECT * FROM t1 WHERE 1999<=id FOR SHARE;
 SET DEBUG_SYNC='now WAIT_FOR con4_will_wait';
 CALL show_locks();
-id	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
-1	t1	NULL	TABLE	IS	GRANTED	NULL
-1	t1	PRIMARY	RECORD	S	GRANTED	1
-1	t1	PRIMARY	RECORD	S	GRANTED	3
-2	t1	NULL	TABLE	IX	GRANTED	NULL
-2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
-3	t1	NULL	TABLE	IX	GRANTED	NULL
-3	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	2000
-4	t1	NULL	TABLE	IS	GRANTED	NULL
-4	t1	PRIMARY	RECORD	S	WAITING	2000
+SLEEP(1)
+0
+name	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	t1	NULL	TABLE	IS	GRANTED	NULL
+con1	t1	PRIMARY	RECORD	S	GRANTED	1
+con1	t1	PRIMARY	RECORD	S	GRANTED	3
+con2	t1	NULL	TABLE	IX	GRANTED	NULL
+con2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con3	t1	NULL	TABLE	IX	GRANTED	NULL
+con3	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	2000
+con4	t1	NULL	TABLE	IS	GRANTED	NULL
+con4	t1	PRIMARY	RECORD	S	WAITING	2000
 INSERT INTO t1 (id,val) VALUES (10,"x");
 INSERT INTO t1 (id,val) VALUES (11,"x");
 INSERT INTO t1 (id,val) VALUES (12,"x");
@@ -138,16 +146,18 @@ INSERT INTO t1 (id,val) VALUES (97,"x");
 INSERT INTO t1 (id,val) VALUES (98,"x");
 INSERT INTO t1 (id,val) VALUES (99,"x");
 CALL show_locks();
-id	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
-1	t1	NULL	TABLE	IS	GRANTED	NULL
-1	t1	PRIMARY	RECORD	S	GRANTED	1
-1	t1	PRIMARY	RECORD	S	GRANTED	3
-2	t1	NULL	TABLE	IX	GRANTED	NULL
-2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
-3	t1	NULL	TABLE	IX	GRANTED	NULL
-3	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	2000
-4	t1	NULL	TABLE	IS	GRANTED	NULL
-4	t1	PRIMARY	RECORD	S	WAITING	2000
+SLEEP(1)
+0
+name	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	t1	NULL	TABLE	IS	GRANTED	NULL
+con1	t1	PRIMARY	RECORD	S	GRANTED	1
+con1	t1	PRIMARY	RECORD	S	GRANTED	3
+con2	t1	NULL	TABLE	IX	GRANTED	NULL
+con2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con3	t1	NULL	TABLE	IX	GRANTED	NULL
+con3	t1	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	2000
+con4	t1	NULL	TABLE	IS	GRANTED	NULL
+con4	t1	PRIMARY	RECORD	S	WAITING	2000
 COMMIT;
 id	val
 2000	z
@@ -156,21 +166,24 @@ id	val
 1	a
 3	c
 CALL show_locks();
-id	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
-1	t1	NULL	TABLE	IS	GRANTED	NULL
-1	t1	PRIMARY	RECORD	S	GRANTED	1
-1	t1	PRIMARY	RECORD	S	GRANTED	3
-2	t1	NULL	TABLE	IX	GRANTED	NULL
-2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
-4	t1	NULL	TABLE	IS	GRANTED	NULL
-4	t1	PRIMARY	RECORD	S	GRANTED	1
-4	t1	PRIMARY	RECORD	S	GRANTED	2000
-4	t1	PRIMARY	RECORD	S	GRANTED	3
-4	t1	PRIMARY	RECORD	S	GRANTED	supremum pseudo-record
+SLEEP(1)
+0
+name	object_name	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	t1	NULL	TABLE	IS	GRANTED	NULL
+con1	t1	PRIMARY	RECORD	S	GRANTED	1
+con1	t1	PRIMARY	RECORD	S	GRANTED	3
+con2	t1	NULL	TABLE	IX	GRANTED	NULL
+con2	t1	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con4	t1	NULL	TABLE	IS	GRANTED	NULL
+con4	t1	PRIMARY	RECORD	S	GRANTED	1
+con4	t1	PRIMARY	RECORD	S	GRANTED	2000
+con4	t1	PRIMARY	RECORD	S	GRANTED	3
+con4	t1	PRIMARY	RECORD	S	GRANTED	supremum pseudo-record
 COMMIT;
 COMMIT;
 COMMIT;
 DROP TABLE t1;
 DROP PROCEDURE show_locks;
-DROP TABLE t0;
+DROP PROCEDURE register_connection;
+DROP TABLE connections;
 SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;
