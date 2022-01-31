@@ -643,7 +643,7 @@ ulint lock_rec_find_set_bit(const lock_t *lock) {
   lock_bit_skip_if_zero<uint32_t>(i, bitmap, n);
   lock_bit_skip_if_zero<uint16_t>(i, bitmap, n);
   lock_bit_skip_if_zero<byte>(i, bitmap, n);
-  ut_ad(i == n || i == n - 8);
+  ut_ad(i % 8 == 0);
   if (i < n) {
     /* This could use std::countr_zero once we switch to C++20, as n and i are
     guaranteed to be divisible by 8.*/
