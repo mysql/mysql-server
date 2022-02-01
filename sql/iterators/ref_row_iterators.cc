@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -340,9 +340,16 @@ static bool init_index(TABLE *table, handler *file, uint idx, bool sorted) {
 template <bool Reverse>
 bool RefIterator<Reverse>::Init() {
   m_first_record_since_init = true;
+  m_is_mvi_unique_filter_enabled = false;
   if (table()->file->inited) return false;
   if (init_index(table(), table()->file, m_ref->key, m_use_order)) {
     return true;
+  }
+  // Enable & reset unique record filter for multi-valued index
+  if (table()->key_info[m_ref->key].flags & HA_MULTI_VALUED_KEY) {
+    table()->file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
+    table()->prepare_for_position();
+    m_is_mvi_unique_filter_enabled = true;
   }
   return set_record_buffer(table(), m_expected_rows);
 }
@@ -381,8 +388,12 @@ int RefIterator<false>::Read() {  // Forward read.
       return HandleError(error);
     }
   } else {
-    int error = table()->file->ha_index_next_same(
-        table()->record[0], m_ref->key_buff, m_ref->key_length);
+    int error = 0;
+    // Fetch unique rows matching the Ref Key in case of multi-value index
+    do {
+      error = table()->file->ha_index_next_same(
+          table()->record[0], m_ref->key_buff, m_ref->key_length);
+    } while (error == HA_ERR_KEY_NOT_FOUND && m_is_mvi_unique_filter_enabled);
     if (error) {
       return HandleError(error);
     }
@@ -451,6 +462,14 @@ int RefIterator<true>::Read() {  // Reverse read.
     ++*m_examined_rows;
   }
   return 0;
+}
+
+template <bool Reverse>
+RefIterator<Reverse>::~RefIterator() {
+  if (table()->key_info[m_ref->key].flags & HA_MULTI_VALUED_KEY &&
+      table()->file) {
+    table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
+  }
 }
 
 template class RefIterator<true>;
@@ -698,10 +717,17 @@ RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref,
 
 bool RefOrNullIterator::Init() {
   m_reading_first_row = true;
+  m_is_mvi_unique_filter_enabled = false;
   *m_ref->null_ref_key = false;
   if (table()->file->inited) return false;
   if (init_index(table(), table()->file, m_ref->key, m_use_order)) {
     return true;
+  }
+  // Enable & reset unique record filter for multi-valued index
+  if (table()->key_info[m_ref->key].flags & HA_MULTI_VALUED_KEY) {
+    table()->file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
+    table()->prepare_for_position();
+    m_is_mvi_unique_filter_enabled = true;
   }
   return set_record_buffer(table(), m_expected_rows);
 }
@@ -726,8 +752,11 @@ int RefOrNullIterator::Read() {
         table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
         HA_READ_KEY_EXACT);
   } else {
-    error = table()->file->ha_index_next_same(
-        table()->record[0], key_buff_and_map.first, m_ref->key_length);
+    // Fetch unique rows matching the Ref Key in case of multi-value index
+    do {
+      error = table()->file->ha_index_next_same(
+          table()->record[0], key_buff_and_map.first, m_ref->key_length);
+    } while (error == HA_ERR_KEY_NOT_FOUND && m_is_mvi_unique_filter_enabled);
   }
 
   if (error == 0) {
@@ -748,6 +777,13 @@ int RefOrNullIterator::Read() {
     }
   } else {
     return HandleError(error);
+  }
+}
+
+RefOrNullIterator::~RefOrNullIterator() {
+  if (table()->key_info[m_ref->key].flags & HA_MULTI_VALUED_KEY &&
+      table()->file) {
+    table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
   }
 }
 
