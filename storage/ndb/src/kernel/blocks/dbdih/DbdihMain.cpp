@@ -10957,6 +10957,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
      */
     gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbabort();
+  default:
+    ndbabort();
   }
 
   MasterGCPConf::SaveState saveState;
@@ -10977,6 +10979,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     jam();
     saveState = MasterGCPConf::GCP_SAVE_COPY_GCI;
     break;
+  default:
+    ndbabort();
   }
 
   MasterGCPConf * const masterGCPConf = (MasterGCPConf *)&signal->theData[0];  
