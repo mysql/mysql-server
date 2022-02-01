@@ -485,7 +485,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
       ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = scanptr.p->scanApiRec;
       ndbrequire(Magic::check_ptr(scanptr.p));
-      c_apiConnectRecordPool.getValidPtr(apiConnectptr);
+      ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
       sendDihGetNodesLab(signal, scanptr, apiConnectptr);
     }
     return;
@@ -500,7 +500,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
       ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = scanptr.p->scanApiRec;
       ndbrequire(Magic::check_ptr(scanptr.p));
-      c_apiConnectRecordPool.getValidPtr(apiConnectptr);
+      ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
       sendFragScansLab(signal, scanptr, apiConnectptr);
     }
     return;
@@ -10216,7 +10216,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
   ndbrequire(Magic::check_ptr(scanptr.p));
-  c_apiConnectRecordPool.getUncheckedPtrRW(apiConnectptr);
+  ndbrequire(c_apiConnectRecordPool.getUncheckedPtrRW(apiConnectptr));
   Uint32 compare_transid1 = apiConnectptr.p->transid[0] - signal->theData[1];
   Uint32 compare_transid2 = apiConnectptr.p->transid[1] - signal->theData[2];
   ndbrequire(Magic::check_ptr(apiConnectptr.p));
@@ -12864,8 +12864,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
       else
       {
         jam();
-        m_commitAckMarkerPool.seize(tmp);
-        ndbrequire(tmp.i != RNIL);
+        ndbrequire(m_commitAckMarkerPool.seize(tmp));
         tmp.p->transid1      = transid1;
         tmp.p->transid2      = transid2;
         m_commitAckMarkerHash.add(tmp);
@@ -13036,8 +13035,7 @@ void Dbtc::updateApiStateFail(Signal* signal,
     {
       jam();
 
-      m_commitAckMarkerPool.seize(tmp);
-      ndbrequire(tmp.i != RNIL);
+      ndbrequire(m_commitAckMarkerPool.seize(tmp));
       
       apiConnectptr.p->commitAckMarker = tmp.i;
       tmp.p->transid1      = transid1;
@@ -17064,8 +17062,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     recordNo++;
     if (numRecords > 0)
     {
-      (void) tcConnectRecord.getUncheckedPtrs(&recordNo, &tc, 1);
-      if (recordNo != RNIL)
+      if (tcConnectRecord.getUncheckedPtrs(&recordNo, &tc, 1))
       {
         dumpState->args[0] = DumpStateOrd::TcDumpSetOfTcConnectRec;
         dumpState->args[1] = recordNo;
@@ -17198,8 +17195,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
 
     numRecords--;
-    (void) c_apiConnectRecordPool.getUncheckedPtrs(&recordNo, &ap, 1);
-    if (recordNo != RNIL && numRecords > 0)
+    if (numRecords > 0 &&
+        c_apiConnectRecordPool.getUncheckedPtrs(&recordNo, &ap, 1))
     {
       dumpState->args[0] = DumpStateOrd::TcDumpSetOfApiConnectRec;
       dumpState->args[1] = recordNo;

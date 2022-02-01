@@ -9275,7 +9275,7 @@ void Dbacc::releaseFreeOpRec()
     OperationrecPtr opPtr;
     opPtr.i = cfreeopRec;
     cfreeopRec = RNIL;
-    oprec_pool.getValidPtr(opPtr);
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
     ndbrequire(opPtr.p->m_op_bits == Operationrec::OP_INITIAL);
     oprec_pool.release(opPtr);
     checkPoolShrinkNeed(DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX,
