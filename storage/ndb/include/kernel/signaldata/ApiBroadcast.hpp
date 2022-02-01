@@ -32,7 +32,7 @@
 
 struct ApiBroadcastRep
 {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
   Uint32 gsn;
   Uint32 minVersion;

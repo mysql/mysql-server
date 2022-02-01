@@ -45,7 +45,7 @@ class Box {
   Box &operator=(const Box &) = default;
   Box &operator=(Box &&) = default;
 
-  virtual ~Box() = default;
+  virtual ~Box() {}
 
   /// Gets the coordinate system.
   ///

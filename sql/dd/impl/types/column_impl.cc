@@ -123,7 +123,7 @@ Column_impl::Column_impl(Abstract_table_impl *table)
       m_is_explicit_collation(false),
       m_column_key(CK_NONE) {}
 
-Column_impl::~Column_impl() = default;
+Column_impl::~Column_impl() {}
 
 ///////////////////////////////////////////////////////////////////////////
 

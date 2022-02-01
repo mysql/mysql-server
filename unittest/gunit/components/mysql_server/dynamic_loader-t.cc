@@ -382,7 +382,8 @@ TEST_F(dynamic_loader, metadata) {
 
   for (; !query_service->is_valid(iterator); query_service->next(iterator)) {
     ASSERT_FALSE(query_service->get(iterator, &name, &urn));
-    if (!strcmp(urn, absolute_urns[0])) {
+
+    if (!strcmp(urn, "file://component_example_component1")) {
       ASSERT_FALSE(
           metadata_query_service->get_value(iterator, "mysql.author", &value));
       ASSERT_STREQ(value, "Oracle Corporation");
@@ -414,7 +415,7 @@ TEST_F(dynamic_loader, metadata) {
         ASSERT_FALSE(metadata_service->get(metadata_iterator, &name, &value));
 
         count++;
-        property_found |= (strcmp(name, "test_property") == 0);
+        property_found |= strcmp(name, "test_property");
       }
       ASSERT_TRUE(metadata_service->get(metadata_iterator, &name, &value));
       ASSERT_TRUE(metadata_service->next(metadata_iterator));

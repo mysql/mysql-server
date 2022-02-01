@@ -24,8 +24,6 @@
 
 #include "LogHandler.hpp"
 
-#include <time.h>
-
 #include <NdbTick.h>
 
 //
@@ -60,8 +58,8 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
       append_impl(m_last_category, m_last_level, m_last_message, now);
 
     m_last_level= level;
-    snprintf(m_last_category, sizeof(m_last_category), "%s", pCategory);
-    snprintf(m_last_message, sizeof(m_last_message), "%s", pMsg);
+    strncpy(m_last_category, pCategory, sizeof(m_last_category));
+    strncpy(m_last_message, pMsg, sizeof(m_last_message));
   }
   else // repeated message
   {

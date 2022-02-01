@@ -64,8 +64,8 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
 
   ut_ad(tuple1 != nullptr);
   ut_ad(tuple2 != nullptr);
-  ut_ad(tuple1->magic_n == dtuple_t::MAGIC_N);
-  ut_ad(tuple2->magic_n == dtuple_t::MAGIC_N);
+  ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
   ut_ad(dtuple_check_typed(tuple2));
 
@@ -146,7 +146,7 @@ static bool dtuple_check_typed_no_assert(const dtuple_t *tuple) {
 bool dfield_check_typed(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_158)
+    ib::fatal(ER_IB_MSG_158)
         << "Data field type " << dfield_get_type(field)->mtype << ", len "
         << dfield_get_len(field);
   }
@@ -168,7 +168,7 @@ bool dtuple_check_typed(const dtuple_t *tuple) {
 }
 
 bool dtuple_validate(const dtuple_t *tuple) {
-  ut_ad(tuple->magic_n == dtuple_t::MAGIC_N);
+  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
   auto n_fields = dtuple_get_n_fields(tuple);
 
@@ -330,7 +330,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
       }
 
       data = static_cast<byte *>(dfield_get_data(dfield));
-      [[fallthrough]];
+      /* fall through */
 
     case DATA_BINARY:
     default:

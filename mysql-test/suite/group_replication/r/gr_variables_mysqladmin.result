@@ -14,7 +14,7 @@ group_replication_auto_increment_increment
 group_replication_bootstrap_group
 OFF
 group_replication_components_stop_timeout
-300
+31536000
 group_replication_compression_threshold
 1000000
 group_replication_force_members

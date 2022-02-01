@@ -22,19 +22,10 @@
 
 #include <sys/types.h>
 
-#include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/handler.h" /* handler */
-#include "sql/key.h"
-#include "sql/table.h" /* TABLE_SHARE */
-#include "thr_lock.h"  /* THR_LOCK */
-
-class String;
-class THD;
-struct FT_INFO;
-namespace dd {
-class Table;
-}
+#include "sql/table.h"   /* TABLE_SHARE */
+#include "thr_lock.h"    /* THR_LOCK */
 
 /*
   Shared structure for correct LOCK operation
@@ -56,7 +47,7 @@ class ha_blackhole : public handler {
 
  public:
   ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_blackhole() override = default;
+  ~ha_blackhole() override {}
   /* The name that will be used for display purposes */
   const char *table_type() const override { return "BLACKHOLE"; }
   enum ha_key_alg get_default_index_algorithm() const override {
@@ -78,15 +69,15 @@ class ha_blackhole : public handler {
                       HA_KEYREAD_ONLY);
   }
   /* The following defines can be increased if necessary */
-#define BLACKHOLE_MAX_KEY 64          /* Max allowed keys */
-#define BLACKHOLE_MAX_KEY_SEG 16      /* Max segments for key */
-#define BLACKHOLE_MAX_KEY_LENGTH 3072 /* Keep compatible with innoDB */
+#define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
+#define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
+#define BLACKHOLE_MAX_KEY_LENGTH 1000
   uint max_supported_keys() const override { return BLACKHOLE_MAX_KEY; }
   uint max_supported_key_length() const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
   }
-  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
-                                     [[maybe_unused]]) const override {
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
   }
   int open(const char *name, int mode, uint test_if_locked,
@@ -113,11 +104,6 @@ class ha_blackhole : public handler {
              dd::Table *table_def) override;
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override;
-  FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override;
-  int ft_init() override;
-
- protected:
-  int ft_read(uchar *buf) override;
 
  private:
   int write_row(uchar *buf) override;

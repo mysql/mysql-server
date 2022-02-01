@@ -38,38 +38,43 @@ const char *log_error_dest = "stderr";
 
 void THD::debug_assert_query_locked() const {}
 
-my_thread_id log_get_thread_id(THD *thd [[maybe_unused]]) { return -1; }
+my_thread_id log_get_thread_id(THD *thd MY_ATTRIBUTE((unused))) { return -1; }
 
-void log_write_errstream(const char *buffer [[maybe_unused]],
-                         size_t length [[maybe_unused]]) {}
+void log_write_errstream(const char *buffer MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused))) {}
 
-const char *mysql_errno_to_symbol(int mysql_errno [[maybe_unused]]) {
+const char *mysql_errno_to_symbol(int mysql_errno MY_ATTRIBUTE((unused))) {
   return nullptr;
 }
 
-int mysql_symbol_to_errno(const char *error_symbol [[maybe_unused]]) {
+int mysql_symbol_to_errno(const char *error_symbol MY_ATTRIBUTE((unused))) {
   return -1;
 }
 
-const char *mysql_errno_to_sqlstate(uint mysql_errno [[maybe_unused]]) {
+const char *mysql_errno_to_sqlstate(uint mysql_errno MY_ATTRIBUTE((unused))) {
   return nullptr;
 }
 
-int mysql_errno_to_builtin(uint mysql_errno [[maybe_unused]]) { return 0; }
+int mysql_errno_to_builtin(uint mysql_errno MY_ATTRIBUTE((unused))) {
+  return 0;
+}
 
-int log_vmessage(int log_type [[maybe_unused]], va_list lili [[maybe_unused]]) {
+int log_vmessage(int log_type MY_ATTRIBUTE((unused)),
+                 va_list lili MY_ATTRIBUTE((unused))) {
   return -1;
 }
 
-int log_message(int log_type [[maybe_unused]], ...) { return -1; }
+int log_message(int log_type MY_ATTRIBUTE((unused)), ...) { return -1; }
 
-const char *error_message_for_error_log(int mysql_errno [[maybe_unused]]) {
+const char *error_message_for_error_log(
+    int mysql_errno MY_ATTRIBUTE((unused))) {
   return nullptr;
 }
 
-void push_warning(THD *thd [[maybe_unused]],
-                  Sql_condition::enum_severity_level severity [[maybe_unused]],
-                  uint code [[maybe_unused]],
-                  const char *message_text [[maybe_unused]]) {}
+void push_warning(THD *thd MY_ATTRIBUTE((unused)),
+                  Sql_condition::enum_severity_level severity
+                      MY_ATTRIBUTE((unused)),
+                  uint code MY_ATTRIBUTE((unused)),
+                  const char *message_text MY_ATTRIBUTE((unused))) {}
 
 #endif

@@ -139,8 +139,8 @@ int Handshake_client::write_packet(Blob &data) {
       which can be used to allocate buffer of appropriate size.
   */
 
-  size_t len2 = 0;      // length of the second part of first data payload
-  byte saved_byte = 0;  // for saving byte 255 in which data length is stored
+  size_t len2 = 0;  // length of the second part of first data payload
+  byte saved_byte;  // for saving byte 255 in which data length is stored
 
   if (m_round == 1 && data.len() > 254) {
     len2 = data.len() - 254;

@@ -528,8 +528,8 @@ static struct my_option my_long_options[] = {
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt [[maybe_unused]],
-                           char *argument [[maybe_unused]]) {
+                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           char *argument MY_ATTRIBUTE((unused))) {
   switch (optid) {
     case 'a':
       key_type = HA_KEYTYPE_TEXT;

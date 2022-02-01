@@ -140,7 +140,7 @@ class Rpl_applier_reader {
 
      @retval    false     Success
      @retval    true      Error. The thread is killed or flush failed while
-                          executing mta_checkpoint_routine.
+                          executing mts_checkpoint_routine.
 
      @note the The caller must hold m_rli->data_lock and
            relaylog.lock_binlog_end_pos().

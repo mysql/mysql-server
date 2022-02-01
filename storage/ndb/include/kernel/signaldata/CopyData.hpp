@@ -31,7 +31,7 @@
 struct CopyDataReq
 {
 
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   enum RequestType {
     ReorgCopy = 0,
@@ -64,7 +64,7 @@ struct CopyDataReq
 struct CopyDataConf
 {
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 senderRef;
   union {
@@ -76,7 +76,7 @@ struct CopyDataConf
 
 struct CopyDataRef
 {
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 senderRef;
   Uint32 senderData;

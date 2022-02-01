@@ -32,7 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdlib.h>
 
-#include "my_dbug.h"
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
@@ -53,7 +52,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
 @param[in] file Source file containing the assertion
 @param[in] line Line number of the assertion */
 [[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
-                                          uint64_t line) {
+                                          ulint line) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line
@@ -70,7 +69,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   }
 
   fprintf(stderr,
-          "InnoDB: Assertion failure: %s:" UINT64PF
+          "InnoDB: Assertion failure: %s:" ULINTPF
           "%s%s\n"
           "InnoDB: thread %s",
           filename, line, expr != nullptr ? ":" : "",
@@ -82,7 +81,8 @@ void ut_set_assert_callback(std::function<void()> &callback) {
       "InnoDB: We intentionally generate a memory trap.\n"
       "InnoDB: Submit a detailed bug report"
       " to http://bugs.mysql.com.\n"
-      "InnoDB: If you get repeated assertion failures or crashes, even\n"
+      "InnoDB: If you get repeated assertion failures"
+      " or crashes, even\n"
       "InnoDB: immediately after the mysqld startup, there may be\n"
       "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
       "InnoDB: " REFMAN
@@ -96,5 +96,5 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   if (assert_callback) {
     assert_callback();
   }
-  my_abort();
+  abort();
 }

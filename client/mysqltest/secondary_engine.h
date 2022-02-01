@@ -30,8 +30,8 @@
 
 class Secondary_engine {
  public:
-  Secondary_engine() = default;
-  ~Secondary_engine() = default;
+  Secondary_engine() {}
+  ~Secondary_engine() {}
 
   /// Get the secondary engine execution count value.
   ///

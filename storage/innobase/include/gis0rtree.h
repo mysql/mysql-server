@@ -94,9 +94,9 @@ rec_t *rtr_page_split_and_insert(
 @param[in]	block	bufer block
 @param[out]	mbr	MBR encapsulates the page
 @param[in]	heap	heap for the memory allocation */
-static inline void rtr_page_cal_mbr(const dict_index_t *index,
-                                    const buf_block_t *block, rtr_mbr_t *mbr,
-                                    mem_heap_t *heap);
+UNIV_INLINE
+void rtr_page_cal_mbr(const dict_index_t *index, const buf_block_t *block,
+                      rtr_mbr_t *mbr, mem_heap_t *heap);
 
 /** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
@@ -168,10 +168,10 @@ void rtr_get_father_node(
 @param[in]	child_no	child page no
 @param[in]	cursor		position cursor
 @param[in]	mbr_inc		MBR needs to be enlarged */
-static inline void rtr_non_leaf_stack_push(rtr_node_path_t *path,
-                                           page_no_t pageno, node_seq_t seq_no,
-                                           ulint level, page_no_t child_no,
-                                           btr_pcur_t *cursor, double mbr_inc);
+UNIV_INLINE
+void rtr_non_leaf_stack_push(rtr_node_path_t *path, page_no_t pageno,
+                             node_seq_t seq_no, ulint level, page_no_t child_no,
+                             btr_pcur_t *cursor, double mbr_inc);
 
 /** Push a nonleaf index node to the search path for insertion
 @param[in]	index	index descriptor
@@ -186,12 +186,13 @@ void rtr_non_leaf_insert_stack_push(dict_index_t *index, rtr_node_path_t *path,
 
 /** Allocates a new Split Sequence Number.
  @return new SSN id */
-static inline node_seq_t rtr_get_new_ssn_id(
-    dict_index_t *index); /*!< in: the index struct */
+UNIV_INLINE
+node_seq_t rtr_get_new_ssn_id(dict_index_t *index); /*!< in: the index struct */
 
 /** Get the current Split Sequence Number.
  @return current SSN id */
-static inline node_seq_t rtr_get_current_ssn_id(
+UNIV_INLINE
+node_seq_t rtr_get_current_ssn_id(
     dict_index_t *index); /*!< in/out: the index struct */
 
 /** Create a RTree search info structure
@@ -298,16 +299,18 @@ struct btr_cur_t;
 @param[in]	level		index level of buffer page
 @param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
-static inline node_visit_t *rtr_get_parent_node(btr_cur_t *btr_cur, ulint level,
-                                                ulint is_insert);
+UNIV_INLINE
+node_visit_t *rtr_get_parent_node(btr_cur_t *btr_cur, ulint level,
+                                  ulint is_insert);
 
 /** Returns the R-Tree cursor stored in the parent search path
 @param[in]	btr_cur		persistent cursor
 @param[in]	level		index level of buffer page
 @param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
-static inline btr_pcur_t *rtr_get_parent_cursor(btr_cur_t *btr_cur, ulint level,
-                                                ulint is_insert);
+UNIV_INLINE
+btr_pcur_t *rtr_get_parent_cursor(btr_cur_t *btr_cur, ulint level,
+                                  ulint is_insert);
 
 /** Copy recs from a page to new_block of rtree.
 Differs from page_copy_rec_list_end, because this function does not
@@ -416,12 +419,14 @@ bool rtr_check_same_block(
 /** Sets pointer to the data and length in a field.
 @param[out]	data	data
 @param[in]	mbr	data */
-static inline void rtr_write_mbr(byte *data, const rtr_mbr_t *mbr);
+UNIV_INLINE
+void rtr_write_mbr(byte *data, const rtr_mbr_t *mbr);
 
 /** Sets pointer to the data and length in a field.
 @param[in]	data	data
 @param[out]	mbr	data */
-static inline void rtr_read_mbr(const byte *data, rtr_mbr_t *mbr);
+UNIV_INLINE
+void rtr_read_mbr(const byte *data, rtr_mbr_t *mbr);
 
 /** Check whether a discarding page is in anyone's search path
 @param[in] index Index
@@ -434,9 +439,9 @@ void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
 @param[in,out]	cursor		tree cursor
 @param[in]	index		index struct
 @param[in]	need_prdt	Whether predicate lock is needed */
-static inline void rtr_info_reinit_in_cursor(btr_cur_t *cursor,
-                                             dict_index_t *index,
-                                             bool need_prdt);
+UNIV_INLINE
+void rtr_info_reinit_in_cursor(btr_cur_t *cursor, dict_index_t *index,
+                               bool need_prdt);
 
 /** Estimates the number of rows in a given area.
 @param[in]	index	index

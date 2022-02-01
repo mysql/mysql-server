@@ -166,30 +166,20 @@ NdbPack::Type::complete()
     set_error(TypeNullableNotBool, __LINE__);
     return -1;
   }
-  if (unlikely(info.m_charType))
+  if (unlikely(info.m_charType && m_csNumber == 0))
   {
-    if (unlikely(m_csNumber == 0))
-    {
-      set_error(CharsetNotSpecified, __LINE__);
-      return -1;
-    }
-
-    if (unlikely(m_csNumber >= NDB_ARRAY_SIZE(all_charsets)))
+    set_error(CharsetNotSpecified, __LINE__);
+    return -1;
+  }
+  if (info.m_charType && all_charsets[m_csNumber] == 0)
+  {
+    CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
+    if (unlikely(cs == 0))
     {
       set_error(CharsetNotFound, __LINE__);
       return -1;
     }
-
-    if (unlikely(all_charsets[m_csNumber] == 0))
-    {
-      CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-      if (unlikely(cs == 0))
-      {
-        set_error(CharsetNotFound, __LINE__);
-        return -1;
-      }
-      all_charsets[m_csNumber] = cs; // yes caller must do this
-    }
+    all_charsets[m_csNumber] = cs; // yes caller must do this
   }
   if (unlikely(!info.m_charType && m_csNumber != 0))
   {
@@ -2125,7 +2115,8 @@ extern void NdbOut_Init();
 static int
 testmain()
 {
-  ndb_init();
+  my_init();
+  NdbOut_Init();
   signal(SIGABRT, SIG_DFL);
   { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)0, 0);
     if (p != 0)
@@ -2149,7 +2140,6 @@ testmain()
   }
   // do not print "ok" in TAPTEST
   ndbout << "passed" << endl;
-  ndb_end(0);
   return 0;
 }
 

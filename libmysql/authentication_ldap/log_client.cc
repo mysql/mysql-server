@@ -45,8 +45,8 @@ void Ldap_log_writer_error::write(std::string data) {
   This class writes error into default error streams.
   We needed this constructor because of template class usage.
 */
-Ldap_log_writer_error::Ldap_log_writer_error() = default;
+Ldap_log_writer_error::Ldap_log_writer_error() {}
 
 /**
  */
-Ldap_log_writer_error::~Ldap_log_writer_error() = default;
+Ldap_log_writer_error::~Ldap_log_writer_error() {}

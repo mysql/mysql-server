@@ -149,7 +149,6 @@ protected:
   SsPool<Ss_ABORT_BACKUP_ORD> c_ss_ABORT_BACKUP_ORD;
   void execABORT_BACKUP_ORD(Signal*);
   void sendABORT_BACKUP_ORD(Signal*, Uint32 ssId, SectionHandle*);
-  void execNODE_START_REP(Signal* signal);
 };
 
 

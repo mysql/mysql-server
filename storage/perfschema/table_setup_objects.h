@@ -73,7 +73,7 @@ class PFS_index_setup_objects : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_setup_objects() override = default;
+  ~PFS_index_setup_objects() override {}
 
   virtual bool match(PFS_setup_object *pfs);
   virtual bool match(row_setup_objects *row);
@@ -117,7 +117,7 @@ class table_setup_objects : public PFS_engine_table {
   table_setup_objects();
 
  public:
-  ~table_setup_objects() override = default;
+  ~table_setup_objects() override {}
 
  private:
   int make_row(PFS_setup_object *pfs);

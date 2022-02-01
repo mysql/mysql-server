@@ -127,15 +127,11 @@ int innodb_clone_apply_end(handlerton *hton, THD *thd, const byte *loc,
 /** Check and delete any old list files. */
 void clone_init_list_files();
 
-/** Add file name to clone list file for future replacement or rollback.
+/** Add fine name to clone list file for future replacement or rollback.
 @param[in]	list_file_name	list file name where to add the file
 @param[in]	file_name	file name to add to the list
 @return error code */
 int clone_add_to_list_file(const char *list_file_name, const char *file_name);
-
-/** Remove one of the clone list files.
-@param[in]	file_name	list file name to delete */
-void clone_remove_list_file(const char *file_name);
 
 /** Revert back clone changes in case of an error. */
 void clone_files_error();
@@ -161,108 +157,34 @@ dberr_t clone_init();
 /** Uninitialize Clone system */
 void clone_free();
 
+/** Mark clone system for abort to disallow database clone
+@param[in]	force	abort running database clones
+@return true if successful. */
+bool clone_mark_abort(bool force);
+
+/** Mark clone system as active to allow database clone. */
+void clone_mark_active();
+
 /** Check if active clone is running.
 @return true, if any active clone is found. */
 bool clone_check_active();
 
-/** @return true, if clone provisioning in progress. */
-bool clone_check_provisioning();
-#endif /* !UNIV_HOTBACKUP */
+/** Check for any active clone. If none, set a marker so that new clones
+operation waits till the marker is freed.
+@return true, if no active clone and marker is set successfully. */
+bool clone_mark_wait();
+
+/** Free the wait marker set earlier and allow clone to proceed. */
+void clone_mark_free();
+
+#else                         /* !UNIV_HOTBACKUP */
+#define clone_mark_abort(_P_) /*clone_mark_abort()*/
+#define clone_mark_active()   /*clone_mark_active()*/
+#endif                        /* !UNIV_HOTBACKUP */
 
 /** Fix cloned non-Innodb tables during recovery.
 @param[in,out]  thd     current THD
 @return true if error */
 bool fix_cloned_tables(THD *thd);
-
-/** Clone Notification handler. */
-class Clone_notify {
- public:
-  /** Notification type. Currently used by various DDL commands. */
-  enum class Type {
-    /* Space is being created. */
-    SPACE_CREATE,
-    /* Space is being dropped. */
-    SPACE_DROP,
-    /* Space is being renamed. */
-    SPACE_RENAME,
-    /* Space is being discarded or imported. */
-    SPACE_IMPORT,
-    /* Space encryption property is altered. */
-    SPACE_ALTER_ENCRYPT,
-    /* Space encryption property of general tablespace is altered. */
-    SPACE_ALTER_ENCRYPT_GENERAL,
-    /* Space encryption flags of general tablespace are altered. */
-    SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
-    /* In place Alter general notification. */
-    SPACE_ALTER_INPLACE,
-    /* Inplace Alter bulk operation. */
-    SPACE_ALTER_INPLACE_BULK,
-    /* Special consideration is needed for UNDO as these DDLs
-    don't use DDL log and needs special consideration during recovery. */
-    SPACE_UNDO_DDL,
-    /* Redo logging is being disabled. */
-    SYSTEM_REDO_DISABLE
-  };
-
-#ifdef UNIV_HOTBACKUP
-  Clone_notify(Type, space_id_t, bool) : m_error() {}
-  ~Clone_notify() {}
-#else
-  /** Constructor to initiate notification.
-  @param[in]	type	notification type
-  @param[in]	space	tablespace ID for which notification is sent
-  @param[in]	no_wait	set error and return immediately if needs to wait */
-  Clone_notify(Type type, space_id_t space, bool no_wait);
-
-  /** Destructor to automatically end notification. */
-  ~Clone_notify();
-#endif /* UNIV_HOTBACKUP */
-
-  /** Get notification message for printing.
-  @param[in]	begin	 true if notification begin otherwise end
-  @param[out]	mesg	notification message */
-  void get_mesg(bool begin, std::string &mesg);
-
-  /** @return true iff notification failed. */
-  bool failed() const { return m_error != 0; }
-
-  /** @return saved error code. */
-  int get_error() const { return m_error; }
-
-  /** Disable copy construction */
-  Clone_notify(Clone_notify &) = delete;
-
-  /** Disable assignment */
-  Clone_notify &operator=(Clone_notify const &) = delete;
-
- private:
-  /** Notification wait type set. */
-  enum class Wait_at {
-    /* Clone doesn't need to wait. */
-    NONE,
-    /* Clone needs to wait before entering. */
-    ENTER,
-    /* Clone needs to wait before state change. */
-    STATE_CHANGE,
-    /* Clone needs to abort. */
-    ABORT
-  };
-
- private:
-  /** Tablespace ID for which notification is sent. */
-  space_id_t m_space_id;
-
-  /** Notification type. */
-  Type m_type;
-
-  /** Wait type set. */
-  Wait_at m_wait;
-
-  /** Blocked clone state if clone is blocked. */
-  uint32_t m_blocked_state;
-
-  /** Saved error. */
-  int m_error;
-};
 
 #endif /* CLONE_API_INCLUDE */

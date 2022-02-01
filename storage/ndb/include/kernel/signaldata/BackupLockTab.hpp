@@ -38,7 +38,7 @@ class BackupLockTab {
   friend class Dbdict;
 
 public:
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
 private:
   /* Values for m_lock_unlock. */

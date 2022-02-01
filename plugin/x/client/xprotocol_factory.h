@@ -39,7 +39,7 @@ namespace xcl {
 
 class Protocol_factory {
  public:
-  virtual ~Protocol_factory() = default;
+  virtual ~Protocol_factory() {}
 
   virtual std::shared_ptr<XProtocol> create_protocol(
       std::shared_ptr<Context> context) = 0;

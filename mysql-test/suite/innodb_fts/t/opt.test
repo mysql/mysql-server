@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc   # Does not support FTS.
+
 #  
 # Tests for optimizations for InnoDB fulltext search (WL#6043)
 #
@@ -48,6 +50,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting for this query even if MATCH is part of an expression
@@ -59,6 +62,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting even if there are several MATCH expressions as long as the
@@ -73,6 +77,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No Sorting since FT table is first table in query
@@ -84,6 +89,7 @@ FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since there is no WHERE clause
@@ -94,6 +100,7 @@ SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering on multiple columns
@@ -104,6 +111,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC, FTS_DOC_ID;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering is not descending
@@ -114,6 +122,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score ASC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting because one is ordering on a different MATCH expression
@@ -125,6 +134,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 #
@@ -137,6 +147,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo Revert to table scan and sorting for this query since not
@@ -147,7 +158,9 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 3;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since no LIMIT clause
@@ -157,6 +170,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since there is a WHERE clause
@@ -167,6 +181,7 @@ FROM wp
 WHERE dummy IS NULL
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering is not on a simple MATCH expressions
@@ -176,6 +191,7 @@ SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 #
@@ -185,21 +201,21 @@ SHOW SESSION STATUS LIKE 'Sort_rows%';
 --echo No ordinary handler accesses when only accessing FTS_DOC_ID and MATCH
 FLUSH STATUS;
 
---sorted_result
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when adding FTS_DOC_ID to WHERE clause
 FLUSH STATUS;
 
---sorted_result
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when ordering by MATCH expression
@@ -210,6 +226,7 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization is disabled when ordering on FTS_DOC_ID
@@ -220,17 +237,18 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY 1 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization also work with several MATCH expressions
 FLUSH STATUS;
 
---sorted_result
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
        MATCH(title, text) AGAINST ('mysql') AS score2
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization does not apply if sorting on a different MATCH expressions
@@ -243,19 +261,19 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score2 DESC;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 FLUSH STATUS;
 
 --echo Optimization does not apply for GROUP BY
 --source include/turn_off_only_full_group_by.inc
---sorted_result
 SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 
---skip_if_hypergraph  # Different handler calls.
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -270,7 +288,9 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 #
@@ -282,12 +302,12 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo If count optimization applies, EXPLAIN shows
---echo "Rows fetched before execution."
---skip_if_hypergraph  # Does not do const table optimization.
-eval EXPLAIN FORMAT=TREE $query;
+--echo "Select tables optimized away."
+eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 --echo Verify that there was no table access
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 let $query =
@@ -296,8 +316,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo Optimization applies also to COUNT(expr) as long as expr is not nullable
---skip_if_hypergraph  # Does not do const table optimization.
-eval EXPLAIN FORMAT=TREE $query;
+eval EXPLAIN $query;
 eval $query;
 
 let $query = 
@@ -306,9 +325,7 @@ FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database');
 
 --echo Optimization does not apply if not a single table query.
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = -> Aggregate
---source include/search_pattern_on_variable.inc
+eval EXPLAIN $query;
 eval $query;
 
 let $query = 
@@ -317,9 +334,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 
 --echo Optimization does not apply if MATCH is part of an expression
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = -> Aggregate
---source include/search_pattern_on_variable.inc
+eval EXPLAIN $query;
 eval $query;
 
 let $query = 
@@ -328,9 +343,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 
 --echo Optimization does not apply if MATCH is part of an expression
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = -> Aggregate
---source include/search_pattern_on_variable.inc
+eval EXPLAIN $query;
 eval $query;
 
 let $query = 
@@ -339,9 +352,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo Optimization does not apply if COUNT expression is nullable
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = -> Aggregate
---source include/search_pattern_on_variable.inc
+eval EXPLAIN $query;
 eval $query;
 
 #
@@ -355,6 +366,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -363,11 +375,11 @@ SELECT title,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
 FLUSH STATUS;
---sorted_result
 SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
@@ -380,7 +392,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -391,6 +405,7 @@ WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -404,6 +419,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -412,11 +428,11 @@ SELECT title,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
 FLUSH STATUS;
---sorted_result
 SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
@@ -429,7 +445,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -440,6 +458,7 @@ WHERE MATCH(title,text) AGAINST ('+MySQL -database' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 
@@ -455,6 +474,7 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -463,6 +483,7 @@ SELECT title,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -479,7 +500,9 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -490,6 +513,7 @@ WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -525,6 +549,7 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -532,11 +557,11 @@ FLUSH STATUS;
 SELECT title, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
 FLUSH STATUS;
---sorted_result
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database');
@@ -547,7 +572,9 @@ FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
+--skip_if_hypergraph   # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -558,6 +585,7 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 
@@ -615,7 +643,6 @@ SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('+fast +datab
 
 EXPLAIN
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION);
---sorted_result
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION);
 
 EXPLAIN
@@ -623,14 +650,11 @@ SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN BOOLEAN MODE);
 
 # check case with 'for' stopword
-let $query =
+EXPLAIN SELECT FTS_DOC_ID  FROM t1
+WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
 SELECT FTS_DOC_ID  FROM t1
 WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
-eval EXPLAIN $query;
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = Full-text covering index search on t1 using ft_idx
---source include/search_pattern_on_variable.inc
-eval $query;
+
 
 --echo # No sorting by rank
 
@@ -659,7 +683,6 @@ SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@
 EXPLAIN SELECT FTS_DOC_ID, TITLE FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 LIMIT 3;
---sorted_result
 SELECT FTS_DOC_ID, TITLE FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 LIMIT 3;
@@ -694,7 +717,6 @@ SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGU
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 ORDER BY `rank`
 LIMIT 3;
---sorted_result
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 ORDER BY `rank`
@@ -728,25 +750,16 @@ FROM t1
 ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
-let $query =
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
+FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
+ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
+LIMIT 3;
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
-eval EXPLAIN $query;
---let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
---let SEARCH_PATTERN = Full-text covering index search on t1 using ft_idx
---source include/search_pattern_on_variable.inc
-eval $query;
 
 EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
-FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
-ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
-LIMIT 3;
-# Cost differs between old optimizer and hypergraph optimizer. The filter differs too.
---replace_regex / *\(cost=.*// /-> Filter:.*/-> Filter:/
-EXPLAIN FORMAT=TREE
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
@@ -792,7 +805,6 @@ LIMIT 1;
 EXPLAIN SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) > 0.1;
 
---sorted_result
 SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) > 0.1;
 
@@ -801,7 +813,6 @@ WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) > 0
 
 EXPLAIN SELECT * FROM t1 ORDER BY MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) DESC LIMIT 10;
 
---sorted_result
 SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) AND
 MATCH (title, text) AGAINST ('mysql' IN NATURAL LANGUAGE MODE)
@@ -888,7 +899,6 @@ FROM t1
 ORDER BY `rank` DESC
 LIMIT 3;
 
---sorted_result
 SELECT a.FTS_DOC_ID, b.FTS_DOC_ID
 FROM t1 a, t1 b
 WHERE MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE) and
@@ -900,7 +910,6 @@ WHERE MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE) and
       MATCH(b.title, b.text) AGAINST ('+mysql' IN BOOLEAN MODE)  and
       a.FTS_DOC_ID = b.FTS_DOC_ID;
 
---sorted_result
 SELECT a.FTS_DOC_ID, MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE),
        b.FTS_DOC_ID, MATCH(b.title, b.text) AGAINST ('+database' IN BOOLEAN MODE)
 FROM t1 a, t1 b
@@ -1117,38 +1126,3 @@ MATCH (body) AGAINST ('table' IN BOOLEAN MODE));
 DROP TABLE t1;
 
 --echo # End of test for Bug#22679209
-
---echo #
---echo # Bug#32685616: WRONG RESULTS WITH FTS COVERING INDEX SCAN
---echo #
-
-CREATE TABLE t(FTS_DOC_ID BIGINT UNSIGNED PRIMARY KEY,
-               x VARCHAR(10),
-               FULLTEXT KEY (x));
-INSERT INTO t VALUES (1, 'abc'), (2, 'abc xyz'), (3, 'xyz abc'), (4, 'xyz');
-ANALYZE TABLE t;
-
-# These three queries used to return wrong results (zero matches
-# found). The IF() around the first predicate is to prevent it from
-# being used as the key for the covering index scan. The bug is seen
-# if the non-key MATCH predicate is evaluated before the key MATCH
-# predicate.
---sorted_result
-SELECT FTS_DOC_ID FROM t WHERE
-  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
-SELECT 1 FROM t WHERE
-  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
-SELECT COUNT(*) FROM t WHERE
-  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
-
-# Changing the order of the predicates made the queries return correct
-# results even before the bug fix. Test them for completeness.
---sorted_result
-SELECT FTS_DOC_ID FROM t WHERE
-  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
-SELECT 1 FROM t WHERE
-  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
-SELECT COUNT(*) FROM t WHERE
-  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
-
-DROP TABLE t;

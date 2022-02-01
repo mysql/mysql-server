@@ -37,7 +37,7 @@ struct data_page_t : public basic_page_t {
   static const ulint OFFSET_TRX_ID = OFFSET_DATA_LEN + 4;
   static const ulint LOB_PAGE_DATA = OFFSET_TRX_ID + 6;
 
-  data_page_t() = default;
+  data_page_t() {}
 
   /** Contructor. */
   data_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {

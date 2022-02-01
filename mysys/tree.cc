@@ -133,12 +133,11 @@ void init_tree(TREE *tree, ulong memory_limit, int element_size,
     tree->size_of_element += sizeof(void *);
   }
   if (!(tree->with_delete = with_delete)) {
-    ::new ((void *)&tree->mem_root)
-        MEM_ROOT(key_memory_TREE, DEFAULT_ALLOC_SIZE);
+    init_alloc_root(key_memory_TREE, &tree->mem_root, DEFAULT_ALLOC_SIZE, 0);
   }
 }
 
-static void free_tree(TREE *tree, bool reuse) {
+static void free_tree(TREE *tree, myf free_flags) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("tree: %p", tree));
 
@@ -154,11 +153,7 @@ static void free_tree(TREE *tree, bool reuse) {
         if (tree->memory_limit)
           (*tree->free)(nullptr, free_end, tree->custom_arg);
       }
-      if (reuse) {
-        tree->mem_root.ClearForReuse();
-      } else {
-        tree->mem_root.Clear();
-      }
+      free_root(&tree->mem_root, free_flags);
     }
   }
   tree->root = &tree->null_element;
@@ -167,12 +162,12 @@ static void free_tree(TREE *tree, bool reuse) {
 }
 
 void delete_tree(TREE *tree) {
-  free_tree(tree, /*reuse=*/false); /* my_free() mem_root if applicable */
+  free_tree(tree, MYF(0)); /* my_free() mem_root if applicable */
 }
 
 void reset_tree(TREE *tree) {
   /* do not free mem_root, just mark blocks as free */
-  free_tree(tree, /*reuse=*/true);
+  free_tree(tree, MYF(MY_MARK_BLOCKS_FREE));
 }
 
 static void delete_tree_element(TREE *tree, TREE_ELEMENT *element) {

@@ -102,7 +102,7 @@ class DD_bootstrap_ctx {
   uint m_actual_I_S_version = 0;
 
  public:
-  DD_bootstrap_ctx() = default;
+  DD_bootstrap_ctx() {}
 
   static DD_bootstrap_ctx &instance();
 

@@ -234,11 +234,11 @@ bool my_gethwaddr(uchar *to) {
 
 #else /* __FreeBSD__ || __linux__ || _WIN32 */
 /* just fail */
-bool my_gethwaddr(uchar *to [[maybe_unused]]) { return 1; }
+bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused))) { return 1; }
 #endif
 
 #else /* MAIN */
-int main(int argc [[maybe_unused]], char **argv) {
+int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
   uchar mac[6];
   uint i;
   MY_INIT(argv[0]);

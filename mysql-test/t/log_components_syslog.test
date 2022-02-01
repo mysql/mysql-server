@@ -133,7 +133,8 @@ SELECT @@syseventlog.tag;
 SET GLOBAL log_error_services= default;
 --echo
 
-UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+--echo # cleanup
+# UNINSTALL COMPONENT "file://component_log_syseventlog";
 
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";
@@ -163,9 +164,6 @@ FLUSH ERROR LOGS;
 EOF
 
 --remove_file $LOG_FILE
-
---let restart_parameters="restart:"
---source include/restart_mysqld.inc
 
 --echo
 --echo ###

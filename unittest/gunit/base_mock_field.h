@@ -23,8 +23,10 @@
 #ifndef BASE_MOCK_FIELD_INCLUDED
 #define BASE_MOCK_FIELD_INCLUDED
 
+// First include (the generated) my_config.h, to get correct platform defines.
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include "my_config.h"
 
 #include "sql/field.h"
 #include "sql/json_dom.h"
@@ -61,16 +63,6 @@ class Base_mock_field_varstring : public Field_varstring {
                         share,               // share
                         &my_charset_latin1)  // char set
   {}
-};
-
-class Base_mock_field_blob : public Field_blob {
- public:
-  Base_mock_field_blob(uint32 length)
-      : Field_blob(length,              // len_arg
-                   false,               // maybe_null_arg
-                   "field_NAME",        // field_name_arg
-                   &my_charset_latin1,  // char set
-                   true) {}             // set_packlength
 };
 
 class Base_mock_field_json : public Field_json {

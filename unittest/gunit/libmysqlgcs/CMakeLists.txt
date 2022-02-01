@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
-  RETURN()
-ENDIF()
-
 IF(NOT WIN32)
   MYSQL_CHECK_RPC()
 ENDIF()
@@ -83,22 +79,7 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_message_stage_fragmentation
   xcom/gcs_xcom_site_def
   xcom/gcs_xcom_expels_in_progress
-  xcom/gcs_xcom_network_provider
-  xcom/gcs_xcom_network_provider_manager
-  xcom/gcs_xcom_xcom_single_writer
-)
-
-# When binding using IPv6 the way XCom does (dual stack IPv4/IPv6), it
-# does not detect that a port is busy when binding and overruns the
-# previous port. As such, this test cannot run on Solaris
-IF(SOLARIS)
-  LIST(REMOVE_ITEM GCS_XCOM_TESTS xcom/gcs_xcom_network_provider)
-ENDIF()
-
-IF(WIN32)
-  # UINT8_MAX: macro redefinition
-  ADD_COMPILE_FLAGS(xcom/gcs_xcom_site_def-t.cc COMPILE_FLAGS "/wd4005")
-ENDIF()
+  )
 
 ###
 ### Configure the tests and add target

@@ -80,13 +80,13 @@
 #include "sql/item_func.h"  // Item_func
 #include "sql/key.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"  // mysql_tmpdir
+#include "sql/mysqld.h"     // mysql_tmpdir
+#include "sql/opt_range.h"  // store_key_image_to_rec
 #include "sql/parse_tree_node_base.h"
 #include "sql/partition_info.h"                  // partition_info
 #include "sql/partitioning/partition_handler.h"  // Partition_handler
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/range_optimizer/range_optimizer.h"  // store_key_image_to_rec
 #include "sql/sql_alter.h"
 #include "sql/sql_base.h"   // wait_while_table_is_used
 #include "sql/sql_class.h"  // THD
@@ -312,7 +312,7 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
 */
 
 int get_parts_for_update(const uchar *old_data,
-                         const uchar *new_data [[maybe_unused]],
+                         const uchar *new_data MY_ATTRIBUTE((unused)),
                          const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
                          longlong *new_func_value) {
@@ -4265,7 +4265,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
-                           Alter_table_ctx *alter_ctx [[maybe_unused]],
+                           Alter_table_ctx *alter_ctx MY_ATTRIBUTE((unused)),
                            bool *partition_changed,
                            partition_info **new_part_info) {
   DBUG_TRACE;
@@ -5702,7 +5702,7 @@ static int get_part_iter_for_interval_cols_via_map(
 */
 
 static int get_part_iter_for_interval_via_mapping(
-    partition_info *part_info, bool is_subpart [[maybe_unused]],
+    partition_info *part_info, bool is_subpart MY_ATTRIBUTE((unused)),
     uint32 *store_length_array, /* ignored */
     uchar *min_value, uchar *max_value, uint min_len,
     uint max_len, /* ignored */

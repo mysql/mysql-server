@@ -61,7 +61,12 @@ const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
                                  const char * status,
                                  char *buf, unsigned sz)
 {
-  const char * tmp = (status == nullptr) ? "" : status;
+  char tmp[NDB_VERSION_STRING_BUF_SZ];
+  if (status && status[0] != 0)
+    snprintf(tmp, sizeof(tmp), "%s", status);
+  else
+    tmp[0] = 0;
+
   if (mysql_version)
   {
     snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",

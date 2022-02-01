@@ -77,7 +77,7 @@
 char *get_tty_password(const char *opt_message) {
   char to[80];
   char *pos = to, *end = to + sizeof(to) - 1;
-
+  int i = 0;
   DBUG_TRACE;
   _cputs(opt_message ? opt_message : "Enter password: ");
   for (;;) {

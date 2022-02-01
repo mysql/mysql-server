@@ -32,7 +32,6 @@
 
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql_optimizer.h"
 
 class Cost_model_server;
 class JOIN;
@@ -45,15 +44,6 @@ struct TABLE_LIST;
 struct POSITION;
 
 typedef ulonglong nested_join_map;
-
-/**
-   Find the lateral dependencies of 'tab'.
-*/
-inline table_map get_lateral_deps(const JOIN_TAB &tab) {
-  return (tab.table_ref != nullptr && tab.table_ref->is_derived())
-             ? tab.table_ref->derived_query_expression()->m_lateral_deps
-             : 0;
-}
 
 /**
   This class determines the optimal join order for tables within
@@ -74,7 +64,7 @@ inline table_map get_lateral_deps(const JOIN_TAB &tab) {
 class Optimize_table_order {
  public:
   Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg);
-  ~Optimize_table_order() = default;
+  ~Optimize_table_order() {}
   /**
     Entry point to table join order optimization.
     For further description, see class header and private function headers.
@@ -82,10 +72,6 @@ class Optimize_table_order {
     @return false if successful, true if error
   */
   bool choose_table_order();
-
-  void recalculate_lateral_deps(uint first_tab_no);
-
-  void recalculate_lateral_deps_incrementally(uint first_tab_no);
 
  private:
   THD *const thd;           // Pointer to current THD
@@ -188,8 +174,6 @@ class Optimize_table_order {
                               const double prefix_rowcount,
                               const Cost_model_server *cost_model);
 
-  table_map calculate_lateral_deps_of_final_plan(uint tab_no) const;
-  bool plan_has_duplicate_tabs() const;
   static uint determine_search_depth(uint search_depth, uint table_count);
 };
 

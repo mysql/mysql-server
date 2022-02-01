@@ -41,7 +41,7 @@ struct ArenaBlock
 
   Uint32 m_data[1];
 
-  static constexpr Uint32 HeaderSize = 2;
+  STATIC_CONST( HeaderSize = 2 );
 
   static Uint32 computeBlockSizeInWords(Uint32 datasz) {
     return 16 * (((datasz + 2) + 8) / 16);
@@ -179,8 +179,8 @@ require(sizeof(T) <= sz*sizeof(Uint32));
   Uint32 off = m_record_info.m_offset_magic;
 
   if (0)
-    g_eventLogger->info("pos: %u sz: %u (sum: %u) bs: %u", pos, sz, (pos + sz),
-                        bs);
+    ndbout_c("pos: %u sz: %u (sum: %u) bs: %u",
+             pos, sz, (pos + sz), bs);
 
   if (pos + sz <= bs)
   {

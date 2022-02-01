@@ -304,7 +304,6 @@ class ACL_USER : public ACL_ACCESS {
 
   void set_user(MEM_ROOT *mem, const char *user_arg);
   void set_host(MEM_ROOT *mem, const char *host_arg);
-  void set_mfa(MEM_ROOT *mem, I_multi_factor_auth *m);
   size_t get_username_length() const { return user ? strlen(user) : 0; }
   class Password_locked_state {
    public:
@@ -342,7 +341,6 @@ class ACL_USER : public ACL_ACCESS {
     /** The day the account is locked, 0 if not locked */
     long m_daynr_locked;
   } password_locked_state;
-  I_multi_factor_auth *m_mfa;
 };
 
 class ACL_DB : public ACL_ACCESS {
@@ -370,7 +368,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   } old_acl_proxy_users;
 
  public:
-  ACL_PROXY_USER() = default;
+  ACL_PROXY_USER() {}
 
   void init(const char *host_arg, const char *user_arg,
             const char *proxied_host_arg, const char *proxied_user_arg,
@@ -408,7 +406,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
          (host.get_host() && host_arg && !strcmp(host.get_host(), host_arg))));
   }
 
-  void print_grant(THD *thd, String *str);
+  void print_grant(String *str);
 
   void set_data(ACL_PROXY_USER *grant) { with_grant = grant->with_grant; }
 
@@ -423,12 +421,6 @@ class ACL_PROXY_USER : public ACL_ACCESS {
                                const LEX_CSTRING &proxied_host,
                                const LEX_CSTRING &proxied_user, bool with_grant,
                                const char *grantor);
-
-  size_t get_user_length() const { return user ? strlen(user) : 0; }
-
-  size_t get_proxied_user_length() const {
-    return proxied_user ? strlen(proxied_user) : 0;
-  }
 };
 
 class acl_entry {
@@ -457,7 +449,7 @@ class GRANT_NAME {
   GRANT_NAME(const char *h, const char *d, const char *u, const char *t,
              ulong p, bool is_routine);
   GRANT_NAME(TABLE *form, bool is_routine);
-  virtual ~GRANT_NAME() = default;
+  virtual ~GRANT_NAME() {}
   virtual bool ok() { return privs != 0; }
   void set_user_details(const char *h, const char *d, const char *u,
                         const char *t, bool is_routine);
@@ -495,12 +487,13 @@ class Acl_cache_allocator : public Malloc_allocator<T> {
   };
 
   template <class U>
-  Acl_cache_allocator(const Acl_cache_allocator<U> &other [[maybe_unused]])
+  Acl_cache_allocator(
+      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused)))
       : Malloc_allocator<T>(key_memory_acl_cache) {}
 
   template <class U>
-  Acl_cache_allocator &operator=(const Acl_cache_allocator<U> &other
-                                 [[maybe_unused]]) {}
+  Acl_cache_allocator &operator=(
+      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused))) {}
 };
 typedef Acl_cache_allocator<ACL_USER *> Acl_user_ptr_allocator;
 typedef std::list<ACL_USER *, Acl_user_ptr_allocator> Acl_user_ptr_list;

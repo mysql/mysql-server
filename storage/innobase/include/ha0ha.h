@@ -45,8 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	fold	folded value of the searched data
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
-static inline const rec_t *ha_search_and_get_data(hash_table_t *table,
-                                                  ulint fold);
+UNIV_INLINE
+const rec_t *ha_search_and_get_data(hash_table_t *table, ulint fold);
 
 /** Looks for an element when we know the pointer to the data and updates
  the pointer to data if found.
@@ -84,16 +84,25 @@ updates the pointer to data if found.
 
 /** Creates a hash table with at least n array cells.  The actual number
  of cells is chosen to be a prime number slightly bigger than n.
- @param[in] n           number of array cells
- @param[in] id          latch ID
- @param[in] n_sync_obj  Number of sync objects protecting the hash table.
-                        Must be a power of 2, or 0.
- @param[in] type        type of datastructure for which the memory heap is going
-                        to be used:
-                        MEM_HEAP_FOR_BTR_SEARCH or
-                        MEM_HEAP_FOR_PAGE_HASH
  @return own: created table */
-hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type);
+hash_table_t *ib_create(
+    ulint n,         /*!< in: number of array cells */
+    latch_id_t id,   /*!< in: latch ID */
+    ulint n_mutexes, /*!< in: number of mutexes to protect the
+                   hash table: must be a power of 2, or 0 */
+    ulint type);     /*!< in: type of datastructure for which
+                     the memory heap is going to be used e.g.:
+                     MEM_HEAP_FOR_BTR_SEARCH or
+                     MEM_HEAP_FOR_PAGE_HASH */
+
+/** Recreate a hash table with at least n array cells. The actual number
+of cells is chosen to be a prime number slightly bigger than n.
+The new cells are all cleared. The heaps are recreated.
+The sync objects are reused.
+@param[in,out]	table	hash table to be resuzed (to be freed later)
+@param[in]	n	number of array cells
+@return	resized new table */
+hash_table_t *ib_recreate(hash_table_t *table, ulint n);
 
 /** Empties a hash table and frees the memory heaps. */
 void ha_clear(hash_table_t *table); /*!< in, own: hash table */
@@ -151,9 +160,9 @@ from the hash table if found.
 @param[in]	fold	folded value of the searched data
 @param[in]	data	pointer to the data
 @return true if found */
-static inline ibool ha_search_and_delete_if_found(hash_table_t *table,
-                                                  ulint fold,
-                                                  const rec_t *data);
+UNIV_INLINE
+ibool ha_search_and_delete_if_found(hash_table_t *table, ulint fold,
+                                    const rec_t *data);
 
 #ifndef UNIV_HOTBACKUP
 
@@ -189,6 +198,28 @@ struct ha_node_t {
 #endif                /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   const rec_t *data;  /*!< pointer to the data */
 };
+
+#ifdef UNIV_DEBUG
+/** Assert that the synchronization object in a hash operation involving
+possible change in the hash table is held.
+Note that in case of mutexes we assert that mutex is owned while in case of
+rw-locks we assert that it is held in exclusive mode.
+@param[in]	table	hash table
+@param[in]	fold	fold value */
+UNIV_INLINE
+void hash_assert_can_modify(hash_table_t *table, ulint fold);
+
+/** Assert that the synchronization object in a hash search operation is held.
+Note that in case of mutexes we assert that mutex is owned while in case of
+rw-locks we assert that it is held either in x-mode or s-mode.
+@param[in]	table	hash table
+@param[in]	fold	fold value */
+UNIV_INLINE
+void hash_assert_can_search(hash_table_t *table, ulint fold);
+#else /* UNIV_DEBUG */
+#define hash_assert_can_modify(t, f)
+#define hash_assert_can_search(t, f)
+#endif /* UNIV_DEBUG */
 
 #include "ha0ha.ic"
 

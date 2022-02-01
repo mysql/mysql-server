@@ -178,7 +178,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
 
   if (field->has_charset()) {
     type_str->append(STRING_WITH_LEN(" CHARSET "));
-    type_str->append(replace_utf8_utf8mb3(field->charset()->csname));
+    type_str->append(field->charset()->csname);
     if (!(field->charset()->state & MY_CS_PRIMARY)) {
       type_str->append(STRING_WITH_LEN(" COLLATE "));
       type_str->append(field->charset()->name);

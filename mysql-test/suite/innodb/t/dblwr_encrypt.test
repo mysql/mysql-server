@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/not_valgrind.inc
 
 --echo #
 --echo # WL#13775 - InnoDB: Encrypt DBLWR files

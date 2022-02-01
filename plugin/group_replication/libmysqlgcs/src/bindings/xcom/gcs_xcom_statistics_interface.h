@@ -64,7 +64,7 @@ class Gcs_xcom_statistics_updater {
 
   virtual void update_message_received(long message_length) = 0;
 
-  virtual ~Gcs_xcom_statistics_updater() = default;
+  virtual ~Gcs_xcom_statistics_updater() {}
 };
 
 /**

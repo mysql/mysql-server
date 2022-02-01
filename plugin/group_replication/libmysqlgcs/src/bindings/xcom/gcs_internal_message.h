@@ -118,11 +118,6 @@ class Gcs_packet {
    */
   Gcs_xcom_synode m_delivery_synode;
 
-  /**
-   The XCom synode in which this packet was delivered.
-   */
-  Gcs_xcom_synode m_origin_synode;
-
  public:
   /**
    This factory method is to be used when sending a packet.
@@ -167,15 +162,13 @@ class Gcs_packet {
 
    @param buffer Buffer with a serialized packet
    @param buffer_size Size of the buffer
-   @param delivery_synode The XCom synode where the packet was decided on
-   @param origin_synode The XCom synode that identifies the origin of the packet
+   @param synode The XCom synode where the packet was decided on
    @param pipeline The message pipeline
    @returns A packet initialized from the buffer
    */
   static Gcs_packet make_incoming_packet(buffer_ptr &&buffer,
                                          unsigned long long buffer_size,
-                                         synode_no const &delivery_synode,
-                                         synode_no const &origin_synode,
+                                         synode_no const &synode,
                                          Gcs_message_pipeline const &pipeline);
 
   Gcs_packet() noexcept;
@@ -268,8 +261,6 @@ class Gcs_packet {
 
   Gcs_xcom_synode const &get_delivery_synode() const;
 
-  Gcs_xcom_synode const &get_origin_synode() const;
-
  private:
   /**
    Constructor called by @c make_to_send.
@@ -300,12 +291,9 @@ class Gcs_packet {
   /**
    Constructor called by @c make_from_serialized_buffer.
 
-   @param delivery_synode The XCom synode where the packet was decided on
-   @param origin_synode The XCom synode that identifieis the origin of this
-                        packet
+   @param synode The XCom synode where the packet was decided on
    */
-  explicit Gcs_packet(synode_no const &delivery_synode,
-                      synode_no const &origin_synode);
+  explicit Gcs_packet(synode_no const &synode);
 
   /**
    Allocates the underlying buffer where the packet will be serialized to using

@@ -45,6 +45,7 @@
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
 
+extern EventLogger * g_eventLogger;
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;
@@ -206,7 +207,7 @@ static void mgmd_sigterm_handler(int signum)
 }
 #endif
 
-struct ThdData
+struct ThreadData
 {
   FILE* f;
   LogBuffer* logBuf;
@@ -220,7 +221,7 @@ struct ThdData
 
 void* async_local_log_func(void* args)
 {
-  ThdData* data = (ThdData*)args;
+  ThreadData* data = (ThreadData*)args;
   FILE* f = data->f;
   LogBuffer* logBuf = data->logBuf;
   const size_t get_bytes = 512;
@@ -262,7 +263,7 @@ static void mgmd_run()
   LogBuffer* logBufLocalLog = new LogBuffer(32768); // 32kB
 
   struct NdbThread* locallog_threadvar= NULL;
-  ThdData thread_args=
+  ThreadData thread_args=
   {
     stdout,
     logBufLocalLog,
@@ -348,21 +349,6 @@ static int mgmd_main(int argc, char** argv)
   if ((ho_error=ndb_opts.handle_options()))
     mgmd_exit(ho_error);
 
-  if (argc > 0) {
-    std::string invalid_args;
-    for (int i = 0; i < argc; i++) invalid_args += ' ' + std::string(argv[i]);
-    fprintf(stderr, "ERROR: Unknown option -%s specified.\n",
-            invalid_args.c_str());
-    mgmd_exit(1);
-  }
-
-  /**
-    config_filename is set to nullptr when --skip-config-file is specified
-   */
-  if (opts.config_filename == disabled_my_option) {
-    opts.config_filename = nullptr;
-  }
-
   if (opts.interactive ||
       opts.non_interactive ||
       opts.print_full_config) {
@@ -373,30 +359,6 @@ static int mgmd_main(int argc, char** argv)
   {
     fprintf(stderr, "ERROR: Both --mycnf and -f is not supported\n");
     mgmd_exit(1);
-  }
-
-  /* Validation to prevent using relative path for config-dir */
-  if (opts.config_cache && (opts.configdir != disabled_my_option) &&
-      (strcmp(opts.configdir, MYSQLCLUSTERDIR) != 0)) {
-    bool absolute_path = false;
-    if (strncmp(opts.configdir, "/", 1) == 0) absolute_path = true;
-#ifdef _WIN32
-    if (strncmp(opts.configdir, "\\", 1) == 0) absolute_path = true;
-    if (strlen(opts.configdir) >= 3 &&
-        ((opts.configdir[0] >= 'a' && opts.configdir[0] <= 'z') ||
-         (opts.configdir[0] >= 'A' && opts.configdir[0] <= 'Z')) &&
-        opts.configdir[1] == ':' &&
-        (opts.configdir[2] == '\\' || opts.configdir[2] == '/'))
-      absolute_path = true;
-#endif
-    if (!absolute_path) {
-      fprintf(
-          stderr,
-          "ERROR: Relative path ('%s') not supported for configdir, specify "
-          "absolute path.\n",
-          opts.configdir);
-      mgmd_exit(1);
-    }
   }
 
   /*validation is added to prevent user using
@@ -410,13 +372,6 @@ static int mgmd_main(int argc, char** argv)
       fprintf(stderr, "ERROR: --ndb-connectstring can't start with '.' or"
           " '/'\n");
       mgmd_exit(1);
-    }
-
-    // ndb-connectstring is ignored when config file option is provided
-    if (opts.config_filename) {
-      fprintf(stderr,
-              "WARNING: --ndb-connectstring is ignored when mgmd is started "
-              "with -f or config-file.\n");
     }
   }
 

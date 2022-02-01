@@ -51,7 +51,8 @@ byte *eval_node_alloc_val_buf(
 
 /** Allocates a new buffer if needed.
  @return pointer to buffer */
-static inline byte *eval_node_ensure_val_buf(
+UNIV_INLINE
+byte *eval_node_ensure_val_buf(
     que_node_t *node, /*!< in: query graph node; sets the val field
                       data field to point to the new buffer, and
                       len field equal to size */
@@ -73,7 +74,8 @@ static inline byte *eval_node_ensure_val_buf(
 }
 
 /** Evaluates a symbol table symbol. */
-static inline void eval_sym(sym_node_t *sym_node) /*!< in: symbol table node */
+UNIV_INLINE
+void eval_sym(sym_node_t *sym_node) /*!< in: symbol table node */
 {
   ut_ad(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
 
@@ -87,7 +89,8 @@ static inline void eval_sym(sym_node_t *sym_node) /*!< in: symbol table node */
 }
 
 /** Evaluates an expression. */
-static inline void eval_exp(que_node_t *exp_node) /*!< in: expression */
+UNIV_INLINE
+void eval_exp(que_node_t *exp_node) /*!< in: expression */
 {
   if (que_node_get_type(exp_node) == QUE_NODE_SYMBOL) {
     eval_sym((sym_node_t *)exp_node);
@@ -99,9 +102,9 @@ static inline void eval_exp(que_node_t *exp_node) /*!< in: expression */
 }
 
 /** Sets an integer value as the value of an expression node. */
-static inline void eval_node_set_int_val(
-    que_node_t *node, /*!< in: expression node */
-    lint val)         /*!< in: value to set */
+UNIV_INLINE
+void eval_node_set_int_val(que_node_t *node, /*!< in: expression node */
+                           lint val)         /*!< in: value to set */
 {
   dfield_t *dfield;
   byte *data;
@@ -121,8 +124,8 @@ static inline void eval_node_set_int_val(
 
 /** Gets an integer non-SQL null value from an expression node.
  @return integer value */
-static inline lint eval_node_get_int_val(
-    que_node_t *node) /*!< in: expression node */
+UNIV_INLINE
+lint eval_node_get_int_val(que_node_t *node) /*!< in: expression node */
 {
   const byte *ptr;
   dfield_t *dfield;
@@ -137,8 +140,8 @@ static inline lint eval_node_get_int_val(
 
 /** Gets a iboolean value from a query node.
  @return iboolean value */
-static inline ibool eval_node_get_ibool_val(
-    que_node_t *node) /*!< in: query graph node */
+UNIV_INLINE
+ibool eval_node_get_ibool_val(que_node_t *node) /*!< in: query graph node */
 {
   dfield_t *dfield;
   byte *data;
@@ -153,9 +156,9 @@ static inline ibool eval_node_get_ibool_val(
 }
 
 /** Sets a iboolean value as the value of a function node. */
-static inline void eval_node_set_ibool_val(
-    func_node_t *func_node, /*!< in: function node */
-    ibool val)              /*!< in: value to set */
+UNIV_INLINE
+void eval_node_set_ibool_val(func_node_t *func_node, /*!< in: function node */
+                             ibool val)              /*!< in: value to set */
 {
   dfield_t *dfield;
   byte *data;
@@ -177,7 +180,8 @@ static inline void eval_node_set_ibool_val(
 
 /** Copies a binary string value as the value of a query graph node. Allocates a
  new buffer if necessary. */
-static inline void eval_node_copy_and_alloc_val(
+UNIV_INLINE
+void eval_node_copy_and_alloc_val(
     que_node_t *node, /*!< in: query graph node */
     const byte *str,  /*!< in: binary string */
     ulint len)        /*!< in: string length or UNIV_SQL_NULL */
@@ -196,9 +200,9 @@ static inline void eval_node_copy_and_alloc_val(
 }
 
 /** Copies a query node value to another node. */
-static inline void eval_node_copy_val(
-    que_node_t *node1, /*!< in: node to copy to */
-    que_node_t *node2) /*!< in: node to copy from */
+UNIV_INLINE
+void eval_node_copy_val(que_node_t *node1, /*!< in: node to copy to */
+                        que_node_t *node2) /*!< in: node to copy from */
 {
   dfield_t *dfield2;
 

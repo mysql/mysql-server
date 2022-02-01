@@ -74,7 +74,7 @@ static bool bk_thd_exited = true;
 /** The SDI buffer length for storing list of SDI keys. Example output
 looks like "1:2|2:2|3:4|..". So SDI list of key retrieval has this limit of
 characters from memcached plugin. This is sufficent for testing. */
-const uint32_t SDI_LIST_BUF_MAX_LEN [[maybe_unused]] = 10000;
+const uint32_t SDI_LIST_BUF_MAX_LEN MY_ATTRIBUTE((unused)) = 10000;
 
 /** Tells whether all connections need to release MDL locks */
 bool release_mdl_lock = false;
@@ -303,7 +303,7 @@ static void innodb_commit_and_release_crsr_trx(innodb_conn_data_t *conn_data) {
   assert(!conn_data->mysql_tbl);
   innodb_close_cursors(conn_data);
   innodb_cb_trx_commit(conn_data->crsr_trx);
-  auto err [[maybe_unused]] = ib_cb_trx_release(conn_data->crsr_trx);
+  auto err MY_ATTRIBUTE((unused)) = ib_cb_trx_release(conn_data->crsr_trx);
   assert(err == DB_SUCCESS);
   conn_data->crsr_trx = nullptr;
 }
@@ -367,9 +367,6 @@ static void *innodb_bk_thread(
       if (conn_data->is_stale) {
         assert(!conn_data->in_use);
         UT_LIST_REMOVE(conn_list, innodb_eng->conn_data, conn_data);
-        if (conn_data->thd) {
-          handler_thd_attach(conn_data->thd, nullptr);
-        }
         innodb_conn_clean_data(conn_data, true, true);
       } else if (!conn_data->in_use) {
         if (conn_data->thd) {
@@ -508,21 +505,14 @@ void innodb_close_mysql_table(
 
 #define NUM_MAX_MEM_SLOT 1024
 
-static void innodb_conn_free_used_buffers(innodb_conn_data_t *conn_data) {
-  mem_buf_t *mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-  while (mem_buf) {
-    UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
-    free(mem_buf->mem);
-    free(mem_buf);
-    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-  }
-}
 /*******************************************************************/ /**
  Cleanup idle connections if "clear_all" is false, and clean up all
  connections if "clear_all" is true. */
 static void innodb_conn_clean_data(
     /*===================*/
     innodb_conn_data_t *conn_data, bool has_lock, bool free_all) {
+  mem_buf_t *mem_buf;
+
   if (!conn_data) {
     return;
   }
@@ -532,7 +522,7 @@ static void innodb_conn_clean_data(
   innodb_close_cursors(conn_data);
 
   if (conn_data->crsr_trx) {
-    ib_err_t err [[maybe_unused]];
+    ib_err_t err MY_ATTRIBUTE((unused));
     innodb_cb_trx_commit(conn_data->crsr_trx);
     err = ib_cb_trx_release(conn_data->crsr_trx);
     assert(err == DB_SUCCESS);
@@ -605,7 +595,13 @@ static void innodb_conn_clean_data(
       conn_data->mul_col_buf_len = 0;
     }
 
-    innodb_conn_free_used_buffers(conn_data);
+    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+
+    while (mem_buf) {
+      UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
+      free(mem_buf->mem);
+      mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+    }
 
     pthread_mutex_destroy(&conn_data->curr_conn_mutex);
     free(conn_data);
@@ -1519,6 +1515,7 @@ static void innodb_release(ENGINE_HANDLE *handle, const void *cookie,
                            item *item) {
   struct innodb_engine *innodb_eng = innodb_handle(handle);
   innodb_conn_data_t *conn_data;
+  mem_buf_t *mem_buf;
 
   conn_data =
       (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(
@@ -1535,7 +1532,13 @@ static void innodb_release(ENGINE_HANDLE *handle, const void *cookie,
   conn_data->multi_get = false;
   conn_data->mul_col_buf_used = 0;
 
-  innodb_conn_free_used_buffers(conn_data);
+  mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+
+  while (mem_buf) {
+    UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
+    free(mem_buf->mem);
+    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+  }
 
   /* If item's memory comes from Memcached default engine, release it
   through Memcached APIs */
@@ -1628,24 +1631,6 @@ static void innodb_free_item(
   if (result->col_value[MCI_COL_VALUE].allocated) {
     free(result->col_value[MCI_COL_VALUE].value_str);
     result->col_value[MCI_COL_VALUE].allocated = false;
-  }
-}
-static void innodb_ensure_mul_col_buf_capacity(innodb_conn_data_t *conn_data,
-                                               size_t total_len) {
-  if (conn_data->mul_col_buf_len < total_len + conn_data->mul_col_buf_used) {
-    /* Need to keep the old result buffer, since its
-    point is already registered with memcached output
-    buffer. These result buffers will be release
-    once results are all reported */
-    if (conn_data->mul_col_buf) {
-      mem_buf_t *new_temp = (mem_buf_t *)malloc(sizeof(mem_buf_t));
-      new_temp->mem = conn_data->mul_col_buf;
-      UT_LIST_ADD_LAST(mem_list, conn_data->mul_used_buf, new_temp);
-    }
-
-    conn_data->mul_col_buf = (char *)malloc(total_len);
-    conn_data->mul_col_buf_len = total_len;
-    conn_data->mul_col_buf_used = 0;
   }
 }
 /*******************************************************************/ /**
@@ -1879,26 +1864,12 @@ search_done:
     snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
 #endif
 
-    if (conn_data->row_buf_used + strlen(table_name) >= REC_BUF_SLOT_SIZE) {
-      conn_data->row_buf_slot++;
-
-      /* Limit the record buffer size to 16 MB */
-      if (conn_data->row_buf_slot >= 1024) {
-        err_ret = ENGINE_KEY_ENOENT;
-        goto func_exit;
-      }
-
-      if (conn_data->row_buf[conn_data->row_buf_slot] == nullptr) {
-        conn_data->row_buf[conn_data->row_buf_slot] = malloc(REC_BUF_SLOT_SIZE);
-      }
-
-      conn_data->row_buf_used = 0;
-    }
-
+    assert(!conn_data->result_in_use);
     conn_data->result_in_use = true;
     result = (mci_item_t *)(conn_data->result);
 
     memset(result, 0, sizeof(*result));
+    assert(conn_data->row_buf_used + strlen(table_name) < REC_BUF_SLOT_SIZE);
     memcpy((char *)(conn_data->row_buf[conn_data->row_buf_slot]) +
                conn_data->row_buf_used,
            table_name, strlen(table_name));
@@ -1933,7 +1904,7 @@ search_done:
   if (result->extra_col_value) {
     int i;
     char *c_value;
-    char *value_end [[maybe_unused]];
+    char *value_end MY_ATTRIBUTE((unused));
     unsigned int total_len = 0;
     char int_buf[MAX_INT_CHAR_LEN];
     GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter, option_length);
@@ -1965,7 +1936,21 @@ search_done:
     /* No need to add the last separator */
     total_len -= option_length;
 
-    innodb_ensure_mul_col_buf_capacity(conn_data, total_len);
+    if (conn_data->mul_col_buf_len < total_len + conn_data->mul_col_buf_used) {
+      /* Need to keep the old result buffer, since its
+      point is already registered with memcached output
+      buffer. These result buffers will be release
+      once results are all reported */
+      if (conn_data->mul_col_buf) {
+        mem_buf_t *new_temp = (mem_buf_t *)malloc(sizeof(mem_buf_t));
+        new_temp->mem = conn_data->mul_col_buf;
+        UT_LIST_ADD_LAST(mem_list, conn_data->mul_used_buf, new_temp);
+      }
+
+      conn_data->mul_col_buf = (char *)malloc(total_len);
+      conn_data->mul_col_buf_len = total_len;
+      conn_data->mul_col_buf_used = 0;
+    }
 
     c_value = &conn_data->mul_col_buf[conn_data->mul_col_buf_used];
     assert(conn_data->mul_col_buf_used + total_len <=
@@ -2034,14 +2019,23 @@ search_done:
                               result->col_value[MCI_COL_VALUE].value_len,
                               result->col_value[MCI_COL_VALUE].is_unsigned);
 
-    assert(int_len > 0);
-    innodb_ensure_mul_col_buf_capacity(conn_data, int_len);
-    result->col_value[MCI_COL_VALUE].value_str =
-        conn_data->mul_col_buf + conn_data->mul_col_buf_used;
+    assert(conn_data->mul_col_buf_used == 0);
+    if (int_len > conn_data->mul_col_buf_len) {
+      if (conn_data->mul_col_buf) {
+        free(conn_data->mul_col_buf);
+      }
+
+      conn_data->mul_col_buf = (char *)malloc(int_len);
+      conn_data->mul_col_buf_len = int_len;
+    }
+
+    if (int_len > 0) {
+      memcpy(conn_data->mul_col_buf, int_buf, int_len);
+      conn_data->mul_col_buf_used += int_len;
+    }
+    result->col_value[MCI_COL_VALUE].value_str = conn_data->mul_col_buf;
+
     result->col_value[MCI_COL_VALUE].value_len = int_len;
-    conn_data->mul_col_buf_used += int_len;
-    memcpy(result->col_value[MCI_COL_VALUE].value_str, int_buf,
-           result->col_value[MCI_COL_VALUE].value_len);
     result->col_value[MCI_COL_VALUE].is_str = true;
     result->col_value[MCI_COL_VALUE].is_valid = true;
   }

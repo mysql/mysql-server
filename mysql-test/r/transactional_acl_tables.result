@@ -1251,7 +1251,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
+GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
 SET debug="-d,wl7158_replace_proxies_priv_table_3";
 SET debug="+d,wl7158_replace_proxies_priv_table_4";
 REVOKE PROXY ON plug_dest FROM u1@h;
@@ -1262,7 +1262,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
+GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
 SET debug="-d,wl7158_replace_proxies_priv_table_4";
 DROP USER u1@h;
 CREATE TABLE t1 (a INT);
@@ -1858,22 +1858,17 @@ RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
 RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
-DROP USER 'mysql.session'@localhost;
-CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' ACCOUNT LOCK;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
-GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
-GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
-GRANT SUPER ON *.* TO 'mysql.session'@localhost;
-Warnings:
-Warning	1287	The SUPER privilege identifier is deprecated
-GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
-GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
-GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
+'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
+'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
+'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
+'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
+INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
+'mysql.session', 'user', 'root\@localhost',
+CURRENT_TIMESTAMP, 'Select', '');
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema',
+'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
+'N','N','N','N','N','N','N');
 FLUSH PRIVILEGES;
 DROP USER u1@h;
 DROP TABLE t1;

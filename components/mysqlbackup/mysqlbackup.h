@@ -34,7 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_registration.h>
 #include <string>
-#include "mysql/components/services/mysql_runtime_error_service.h"
 
 /* A place to specify component-wide declarations, including declarations of
   placeholders for Service dependencies. */
@@ -47,7 +46,6 @@ extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
-extern REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 extern REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);

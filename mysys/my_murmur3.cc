@@ -112,10 +112,10 @@ uint32 murmur3_32(const uchar *key, size_t len, uint32 seed) {
   switch (len % 4) {
     case 3:
       k1 ^= static_cast<uint32>(tail[2]) << 16;
-      [[fallthrough]];
+      /* Fall through. */
     case 2:
       k1 ^= static_cast<uint32>(tail[1]) << 8;
-      [[fallthrough]];
+      /* Fall through. */
     case 1:
       k1 ^= tail[0];
       k1 *= c1;

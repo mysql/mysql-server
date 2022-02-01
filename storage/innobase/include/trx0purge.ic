@@ -35,7 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Calculates the file address of an undo log header when we have the file
  address of its history list node.
  @return file address of the log */
-static inline fil_addr_t trx_purge_get_log_from_hist(
+UNIV_INLINE
+fil_addr_t trx_purge_get_log_from_hist(
     fil_addr_t node_addr) /*!< in: file address of the history
                           list node of the log */
 {
@@ -46,7 +47,8 @@ static inline fil_addr_t trx_purge_get_log_from_hist(
 
 /** address of its history list node.
  @return true if purge_sys_t::limit <= purge_sys_t::iter */
-static inline bool trx_purge_check_limit(void) {
+UNIV_INLINE
+bool trx_purge_check_limit(void) {
   /* limit is used to track till what point purge element has been
   processed and so limit <= iter.
   undo_no ordering is enforced only within the same rollback segment.

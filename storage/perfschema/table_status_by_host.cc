@@ -173,7 +173,7 @@ int table_status_by_host::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_host::index_init(uint idx [[maybe_unused]], bool) {
+int table_status_by_host::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */
   m_status_cache.initialize_client_session();

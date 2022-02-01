@@ -29,7 +29,7 @@
 #include "mysql/harness/net_ts/socket.h"  // net::impl::socket::init
 
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "test/temp_directory.h"
+#include "test/helpers.h"  // TmpDir
 
 #ifndef _WIN32
 
@@ -156,7 +156,7 @@ std::ostream &operator<<(std::ostream &os,
 }  // namespace net
 
 TEST(NetTS_local, stream_socket_bind_accept_connect) {
-  TempDirectory tmpdir;
+  TmpDir tmpdir;
 
   std::string socket_path = tmpdir.file("stream-protocol.test.socket");
 
@@ -228,7 +228,7 @@ TEST(NetTS_local, stream_socket_bind_accept_connect) {
 }
 
 TEST(NetTS_local, datagram_socket_bind_sendmsg_recvmsg) {
-  TempDirectory tmpdir;
+  TmpDir tmpdir;
 
   net::io_context io_ctx;
 
@@ -485,28 +485,30 @@ TEST(NetTS_local, socketpair_unsupported_protocol) {
 // - move-constructible
 // - move-assignable
 
-static_assert(std::is_destructible<local::stream_protocol::socket>::value);
+static_assert(std::is_destructible<local::stream_protocol::socket>::value, "");
 static_assert(
-    !std::is_copy_constructible<local::stream_protocol::socket>::value);
-static_assert(
-    std::is_move_constructible<local::stream_protocol::socket>::value);
-static_assert(!std::is_copy_assignable<local::stream_protocol::socket>::value);
-static_assert(std::is_move_assignable<local::stream_protocol::socket>::value);
+    !std::is_copy_constructible<local::stream_protocol::socket>::value, "");
+static_assert(std::is_move_constructible<local::stream_protocol::socket>::value,
+              "");
+static_assert(!std::is_copy_assignable<local::stream_protocol::socket>::value,
+              "");
+static_assert(std::is_move_assignable<local::stream_protocol::socket>::value,
+              "");
 
 // check constexpr
-static_assert(local::stream_protocol().family() != AF_UNSPEC);
-static_assert(local::datagram_protocol().family() != AF_UNSPEC);
-static_assert(local::seqpacket_protocol().family() != AF_UNSPEC);
+static_assert(local::stream_protocol().family() != AF_UNSPEC, "");
+static_assert(local::datagram_protocol().family() != AF_UNSPEC, "");
+static_assert(local::seqpacket_protocol().family() != AF_UNSPEC, "");
 
-static_assert(local::stream_protocol::endpoint().size() > 0);
-static_assert(local::stream_protocol::endpoint().capacity() > 0);
-static_assert(local::datagram_protocol::endpoint().size() > 0);
-static_assert(local::datagram_protocol::endpoint().capacity() > 0);
-static_assert(local::seqpacket_protocol::endpoint().size() > 0);
-static_assert(local::seqpacket_protocol::endpoint().capacity() > 0);
+static_assert(local::stream_protocol::endpoint().size() > 0, "");
+static_assert(local::stream_protocol::endpoint().capacity() > 0, "");
+static_assert(local::datagram_protocol::endpoint().size() > 0, "");
+static_assert(local::datagram_protocol::endpoint().capacity() > 0, "");
+static_assert(local::seqpacket_protocol::endpoint().size() > 0, "");
+static_assert(local::seqpacket_protocol::endpoint().capacity() > 0, "");
 
 // in C++20, this could succeed
-// static_assert(local::stream_protocol::endpoint("foo").size() > 0);
+// static_assert(local::stream_protocol::endpoint("foo").size() > 0, "");
 #endif
 
 int main(int argc, char *argv[]) {

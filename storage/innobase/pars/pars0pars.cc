@@ -101,7 +101,8 @@ void pars_close() { mutex_free(&pars_mutex); }
 
 /********************************************************************
 Get user function with the given name.*/
-static inline pars_user_func_t *pars_info_lookup_user_func(
+UNIV_INLINE
+pars_user_func_t *pars_info_lookup_user_func(
     /* out: user func, or NULL if not
     found */
     pars_info_t *info, /* in: info struct */
@@ -127,7 +128,8 @@ static inline pars_user_func_t *pars_info_lookup_user_func(
 
 /********************************************************************
 Get bound identifier with the given name.*/
-static inline pars_bound_id_t *pars_info_lookup_bound_id(
+UNIV_INLINE
+pars_bound_id_t *pars_info_lookup_bound_id(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */
@@ -153,7 +155,8 @@ static inline pars_bound_id_t *pars_info_lookup_bound_id(
 
 /********************************************************************
 Get bound literal with the given name.*/
-static inline pars_bound_lit_t *pars_info_lookup_bound_lit(
+UNIV_INLINE
+pars_bound_lit_t *pars_info_lookup_bound_lit(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */
@@ -868,7 +871,7 @@ sel_node_t *pars_select_statement(
          que_node_list_get_len(select_node->select_list));
   }
 
-  UT_LIST_INIT(select_node->copy_variables);
+  UT_LIST_INIT(select_node->copy_variables, &sym_node_t::col_var_list);
 
   pars_resolve_exp_list_columns(table_list, select_node->select_list);
   pars_resolve_exp_list_variables_and_types(select_node,
@@ -1087,7 +1090,7 @@ upd_node_t *pars_update_statement(
   pars_retrieve_table_def(table_sym);
   node->table = table_sym->table;
 
-  UT_LIST_INIT(node->columns);
+  UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
 
   /* Make the single table node into a list of table nodes of length 1 */
 
@@ -1606,7 +1609,7 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
 @return table create subgraph */
 tab_node_t *pars_create_table(sym_node_t *table_sym, sym_node_t *column_defs,
                               sym_node_t *compact, sym_node_t *block_size,
-                              void *not_fit_in_memory [[maybe_unused]]) {
+                              void *not_fit_in_memory MY_ATTRIBUTE((unused))) {
   return (nullptr);
 }
 
@@ -1695,13 +1698,12 @@ int pars_get_lex_chars(char *buf, size_t max_size) {
 }
 
 /** Called by yyparse on error. */
-void yyerror(const char *s [[maybe_unused]])
+void yyerror(const char *s MY_ATTRIBUTE((unused)))
 /*!< in: error message string */
 {
   ut_ad(s);
 
-  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_917)
-      << "PARSER: Syntax error in SQL string";
+  ib::fatal(ER_IB_MSG_917) << "PARSER: Syntax error in SQL string";
 }
 
 /** Parses an SQL string returning the query graph.
@@ -1709,6 +1711,7 @@ void yyerror(const char *s [[maybe_unused]])
 que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str)   /*!< in: SQL string */
 {
+  sym_node_t *sym_node;
   mem_heap_t *heap;
   que_t *graph;
 
@@ -1718,7 +1721,7 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   /* Currently, the parser is not reentrant: */
   ut_ad(mutex_own(&pars_mutex));
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   pars_sym_tab_global = sym_tab_create(heap);
 
@@ -1730,8 +1733,12 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   yyparse();
 
-  for (auto sym_node : pars_sym_tab_global->sym_list) {
+  sym_node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
+
+  while (sym_node) {
     ut_a(sym_node->resolved);
+
+    sym_node = UT_LIST_GET_NEXT(sym_list, sym_node);
   }
 
   graph = pars_sym_tab_global->query_graph;

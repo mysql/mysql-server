@@ -29,5 +29,5 @@ Description: MySQL client library
 Version: @LIBMYSQL_OS_SHLIB_VERSION@
 Cflags: -I${includedir} @CFLAGS@
 Libs: -L${libdir}@RPATH_OPTION_PC@ -l@LIBMYSQL_OS_OUTPUT_NAME@
-Libs.private: @CONFIG_LIBS_PRIVATE@
+Libs.private: @QUOTED_CMAKE_CXX_LINK_FLAGS@ @CONFIG_LIBS_PRIVATE@
 Requires.private: @CONFIG_REQUIRES_PRIVATE@

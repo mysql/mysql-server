@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -34,7 +33,6 @@
 #include <Bitmask.hpp>
 #include <DbUtil.hpp>
 #include <NdbMgmd.hpp>
-#include <NdbSleep.h>
 
 #define CHK(b,e) \
   if (!(b)) { \
@@ -3008,10 +3006,10 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     
     do 
     {
-      std::memset(&event, 0, sizeof(event));
+      bzero(&event, sizeof(event));
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted)
-        std::memset(&event, 0, sizeof(event));
+        bzero(&event, sizeof(event));
       
       if (event.type == NDB_LE_LocalCheckpointCompleted &&
           event.LocalCheckpointCompleted.lci < LCP + 3)
@@ -3328,7 +3326,7 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
   {
     printf("checking nodegroups of getNextMasterNodeId(): ");
     int nodes[256];
-    std::memset(nodes, 0, sizeof(nodes));
+    bzero(nodes, sizeof(nodes));
     nodes[0] = res.getMasterNodeId();
     printf("%d ", nodes[0]);
     for (Uint32 i = 1; i<nodeCount; i++)
@@ -3433,7 +3431,7 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
       ndbout_c("Wait for a while to allow the first set of nodes to stop");
-      NdbSleep_SecSleep(6);
+      sleep(6);
       ndbout_c("Cluster restart");
       res.restartAll(false, true, true, true);
       res.waitClusterNoStart();
@@ -3441,7 +3439,7 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
       {
         ndbout_c("Start node %u", nodes[i]);
         res.startNodes(&nodes[i], 1);
-        NdbSleep_SecSleep(4);
+        sleep(4);
       }
     }
     if (res.waitClusterStarted())
@@ -3498,7 +3496,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
       case 0:
       case 1:
         res.dumpStateAllNodes(&val, 1);
-        [[fallthrough]];
+        // Fall through
       case 2:
       case 3:
       case 4:
@@ -3508,7 +3506,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         res.dumpStateOneNode(nodes[0], val2, 2);
         res.insertErrorInNode(nodes[0], 5054); // crash during restart
         res.startAll();
-        NdbSleep_SecSleep(3);
+        sleep(3);
         res.waitNodesNoStart(nodes+0,1);
         res.startAll();
         break;
@@ -3519,14 +3517,14 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         break;
       case 7:
         res.dumpStateAllNodes(&val, 1);
-        [[fallthrough]];
+        // Fall through
       case 8:
         res.restartOneDbNode(nodes[1], false, true, true);
         res.waitNodesNoStart(nodes+1,1);
         res.dumpStateOneNode(nodes[1], val2, 2);
         res.insertErrorInNode(nodes[1], 5054); // crash during restart
         res.startAll();
-        NdbSleep_SecSleep(3);
+        sleep(3);
         res.waitNodesNoStart(nodes+1,1);
         res.startAll();
         break;
@@ -3756,9 +3754,6 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
-
-  DbUtil::thread_end();
-
   return NDBT_OK;
 }
 

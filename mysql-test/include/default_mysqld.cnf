@@ -50,7 +50,6 @@ loose-performance-schema-instrument='%=ON'
 loose-performance-schema-consumer-events-stages-current=ON
 loose-performance-schema-consumer-events-stages-history=ON
 loose-performance-schema-consumer-events-stages-history-long=ON
-loose-performance-schema-consumer-events-statements-cpu=ON
 loose-performance-schema-consumer-events-statements-current=ON
 loose-performance-schema-consumer-events-statements-history=ON
 loose-performance-schema-consumer-events-statements-history-long=ON

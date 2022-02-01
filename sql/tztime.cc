@@ -40,11 +40,11 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "guard.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"  // strmake
 #include "map_helpers.h"
-#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
@@ -57,7 +57,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "my_time.h"
+#include "my_time.h"  // MY_TIME_T_MIN
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -186,11 +186,11 @@ void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset) {
 }
 
 /*
-  Find time range which contains given time value
+  Find time range wich contains given my_time_t value
 
   SYNOPSIS
     find_time_range()
-      t                - time value for which we looking for containing range
+      t                - my_time_t value for which we looking for range
       range_boundaries - sorted array of range starts.
       higher_bound     - number of ranges
 
@@ -198,7 +198,7 @@ void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset) {
     Performs binary search for range which contains given my_time_t value.
     It has sense if number of ranges is greater than zero and my_time_t value
     is greater or equal than beginning of first range. It also assumes that
-    t belongs to some range specified or end of last is MYTIME_MAX_VALUE.
+    t belongs to some range specified or end of last is MY_TIME_T_MAX.
 
     With this localtime_r on real data may takes less time than with linear
     search (I've seen 30% speed up).
@@ -331,6 +331,31 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
   tmp->second += hit;
 }
 
+/**
+  Converts time from a MYSQL_TIME struct to a unix timestamp-like 64 bit
+  integer. The function is guaranteed to use 64 bits on any platform.
+
+  @todo Make sec_since_epoch() call this function instead of duplicating the
+  code.
+
+  @param mt The time to convert.
+  @return A value compatible with a 64 bit Unix timestamp.
+*/
+static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
+  assert(mt.month > 0 && mt.month < 13);
+  // The year can be negative wrt to the epoch, hence the cast to signed.
+  auto year = static_cast<int64_t>(mt.year);
+  int64_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
+                 LEAPS_THRU_END_OF(year - 1) -
+                 LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
+  days += mon_starts[isleap(year)][mt.month - 1];
+  days += mt.day - 1;
+
+  return ((days * HOURS_PER_DAY + mt.hour) * MINS_PER_HOUR + mt.minute) *
+             SECS_PER_MIN +
+         mt.second;
+}
+
 /*
   Converts local time in broken down representation to local
   time zone analog of my_time_t represenation.
@@ -341,45 +366,29 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
 
   DESCRIPTION
     Converts time in broken down representation to my_time_t representation
-    ignoring time zone.
+    ignoring time zone. Note that we cannot convert back some valid _local_
+    times near ends of my_time_t range because of my_time_t  overflow. But we
+    ignore this fact now since MySQL will never pass such argument.
 
   RETURN VALUE
     Seconds since epoch time representation.
 */
 static my_time_t sec_since_epoch(int year, int mon, int mday, int hour, int min,
                                  int sec) {
+  /* Guard against my_time_t overflow(on system with 32 bit my_time_t) */
+  assert(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
   /*
     It turns out that only whenever month is normalized or unnormalized
     plays role.
   */
-  assert(mon > 0 && mon < 13 && year <= 9999);
-  my_time_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
-                   LEAPS_THRU_END_OF(year - 1) -
-                   LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
+  assert(mon > 0 && mon < 13);
+  long days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
+              LEAPS_THRU_END_OF(year - 1) - LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
   days += mon_starts[isleap(year)][mon - 1];
   days += mday - 1;
 
-  my_time_t result =
-      ((days * HOURS_PER_DAY + hour) * MINS_PER_HOUR + min) * SECS_PER_MIN +
-      sec;
-  return result;
-}
-
-/**
- Converts time from a MYSQL_TIME struct to a unix timestamp-like 64 bit
- integer. The function is guaranteed to use 64 bits on any platform.
-
- @todo Make sec_since_epoch() call this function instead of duplicating the
- code.
-
- @param mt The time to convert.
- @return A value compatible with a 64 bit Unix timestamp.
-*/
-static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
-  assert(mt.month > 0 && mt.month < 13);
-  // The year can be negative wrt to the epoch, hence the cast to signed.
-  auto year = static_cast<int64_t>(mt.year);
-  return sec_since_epoch(year, mt.month, mt.day, mt.hour, mt.minute, mt.second);
+  return ((days * HOURS_PER_DAY + hour) * MINS_PER_HOUR + min) * SECS_PER_MIN +
+         sec;
 }
 
 static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
@@ -395,7 +404,7 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
 
   SYNOPSIS
     TIME_to_gmt_sec()
-      t               - pointer to structure for broken down representation
+      t               - pointer to structure for broken down represenatation
       sp              - pointer to struct with time zone description
       in_dst_time_gap - pointer to bool which is set to true if datetime
                         value passed doesn't really exist (i.e. falls into
@@ -411,8 +420,7 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
     - It can give wrong results near the ends of my_time_t due to
       overflows, but we are safe since in MySQL we will never
       call this function for such dates (its restriction for year
-      between 1970 and 2038 gives us several days of reserve for 32 bit
-      time platforms).
+      between 1970 and 2038 gives us several days of reserve).
     - By default it doesn't support un-normalized input. But if
       sec_since_epoch() function supports un-normalized dates
       then this function should handle un-normalized input right,
@@ -464,14 +472,14 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
 */
 static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                                  bool *in_dst_time_gap) {
-  my_time_t local_t;
+  longlong local_t;
   uint saved_seconds;
   uint i;
   int shift = 0;
 
   DBUG_TRACE;
 
-  if (!validate_my_time(*t)) return 0;
+  if (!validate_timestamp_range(*t)) return 0;
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -491,11 +499,11 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
     => we negative values of local_t are ok.
   */
 
-  if ((t->year == MYTIME_MAX_YEAR) && (t->month == 1) && t->day > 4) {
+  if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4) {
     /*
       We will pass (t->day - shift) to sec_since_epoch(), and
       want this value to be a positive number, so we shift
-      only dates > 2038-01-04 (to avoid overflow).
+      only dates > 4.01.2038 (to avoid owerflow).
     */
     shift = 2;
   }
@@ -518,13 +526,13 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   i = find_time_range(local_t, sp->revts, sp->revcnt);
 
   /*
-    As there are no offset switches at the end of my_time_t range,
+    As there are no offset switches at the end of TIMESTAMP range,
     we could simply check for overflow here (and don't need to bother
     about DST gaps etc)
   */
   if (shift) {
-    if (local_t > MYTIME_MAX_VALUE - shift * SECS_PER_DAY +
-                      sp->revtis[i].rt_offset - saved_seconds) {
+    if (local_t > (my_time_t)(TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
+                              sp->revtis[i].rt_offset - saved_seconds)) {
       return 0; /* my_time_t overflow */
     }
     local_t += shift * SECS_PER_DAY;
@@ -542,10 +550,10 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   } else
     local_t = local_t + saved_seconds - sp->revtis[i].rt_offset;
 
-  if (is_time_t_valid_for_timestamp(local_t))
-    return static_cast<my_time_t>(local_t);
-  else
-    return 0;
+  /* check for TIMESTAMP_MAX_VALUE was already done above */
+  if (local_t < TIMESTAMP_MIN_VALUE) local_t = 0;
+
+  return static_cast<my_time_t>(local_t);
 }
 
 /*
@@ -684,7 +692,7 @@ my_time_t Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *mt,
   if (mt->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
     return sec_since_epoch(*mt) - mt->time_zone_displacement;
 
-  my_time_t not_used;
+  long not_used;
   return my_system_gmt_sec(*mt, &not_used, in_dst_time_gap);
 }
 
@@ -709,17 +717,6 @@ void Time_zone_system::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   time_t tmp_t = (time_t)t;
 
   localtime_r(&tmp_t, &tmp_tm);
-  if (tmp_tm.tm_year <= 0) {  // Windows sets -1 if timestamp is too high.
-    tmp->year = 0;
-    tmp->month = 0;
-    tmp->day = 0;
-    tmp->hour = 0;
-    tmp->minute = 0;
-    tmp->second = 0;
-    tmp->second_part = 0;
-    tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
-    return;
-  }
   localtime_to_TIME(tmp, &tmp_tm);
   tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
   adjust_leap_second(tmp);
@@ -772,9 +769,8 @@ class Time_zone_utc : public Time_zone {
   RETURN VALUE
     Corresponding my_time_t value, or 0 in case of error.
 */
-my_time_t Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *mt,
-                                         bool *in_dst_time_gap
-                                         [[maybe_unused]]) const {
+my_time_t Time_zone_utc::TIME_to_gmt_sec(
+    const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
   return sec_since_epoch(*mt);
 }
 
@@ -794,18 +790,6 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   struct tm tmp_tm;
   time_t tmp_t = (time_t)t;
   gmtime_r(&tmp_t, &tmp_tm);
-
-  if (tmp_tm.tm_year <= 0) {  // Windows sets -1 if timestamp is too high.
-    tmp->year = 0;
-    tmp->month = 0;
-    tmp->day = 0;
-    tmp->hour = 0;
-    tmp->minute = 0;
-    tmp->second = 0;
-    tmp->second_part = 0;
-    tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
-    return;
-  }
   localtime_to_TIME(tmp, &tmp_tm);
   tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
   adjust_leap_second(tmp);
@@ -969,21 +953,25 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg) : offset(tz_offset_arg) {
 
   @return Corresponding my_time_t value or 0 for invalid datetime values.
 */
-my_time_t Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                            bool *in_dst_time_gap
-                                            [[maybe_unused]]) const {
-  if (!validate_my_time(*t)) return 0;
+my_time_t Time_zone_offset::TIME_to_gmt_sec(
+    const MYSQL_TIME *t, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+  /*
+    Check timestamp range. We have to do this as the caller relies on
+    us to make all validation checks here.
+  */
+  if (!validate_timestamp_range(*t)) return 0;
 
   /*
     Do a temporary shift of the boundary dates to avoid
     overflow of my_time_t if the time value is near its
     maximum range
   */
-  int shift =
-      ((t->year == MYTIME_MAX_YEAR) && (t->month == 1) && t->day > 4) ? 2 : 0;
+  int shift = ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4)
+                  ? 2
+                  : 0;
 
-  my_time_t local_t = sec_since_epoch(t->year, t->month, (t->day - shift),
-                                      t->hour, t->minute, t->second);
+  longlong local_t = sec_since_epoch(t->year, t->month, (t->day - shift),
+                                     t->hour, t->minute, t->second);
 
   if (t->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
     local_t -= t->time_zone_displacement;
@@ -995,8 +983,8 @@ my_time_t Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t,
     local_t += shift * SECS_PER_DAY;
   }
 
-  if (local_t >= MYTIME_MIN_VALUE && local_t <= MYTIME_MAX_VALUE)
-    return local_t;
+  if (local_t >= TIMESTAMP_MIN_VALUE && local_t <= TIMESTAMP_MAX_VALUE)
+    return static_cast<my_time_t>(local_t);
 
   /* range error*/
   return 0;
@@ -1358,7 +1346,7 @@ void my_tz_free() {
     mysql_mutex_destroy(&tz_LOCK);
     offset_tzs.clear();
     tz_names.clear();
-    tz_storage.Clear();
+    free_root(&tz_storage, MYF(0));
   }
 }
 
@@ -1805,7 +1793,7 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   if (!name || name->is_empty()) return nullptr;
 
-  MUTEX_LOCK(guard, &tz_LOCK);
+  Mutex_guard guard(&tz_LOCK);
 
   int displacement;
   if (!str_to_offset(name->ptr(), name->length(), &displacement)) {

@@ -115,8 +115,6 @@ struct st_row_connect_config {
   */
   std::pair<bool, std::string> tls_ciphersuites = {true, ""};
   enum_rpl_yes_no source_connection_auto_failover{PS_RPL_NO};
-  /*PS_RPL_NO if gtid_only is disabled, PS_RPL_YES if enabled */
-  enum_rpl_yes_no gtid_only{PS_RPL_NO};
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {
@@ -124,7 +122,7 @@ class PFS_index_rpl_connection_config : public PFS_engine_index {
   PFS_index_rpl_connection_config()
       : PFS_engine_index(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_connection_config() override = default;
+  ~PFS_index_rpl_connection_config() override {}
 
   virtual bool match(Master_info *mi);
 

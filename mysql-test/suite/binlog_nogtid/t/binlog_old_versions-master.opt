@@ -1,1 +1,1 @@
---replica_type_conversions=ALL_NON_LOSSY --local-infile=true
+--slave_type_conversions=ALL_NON_LOSSY --local-infile=true

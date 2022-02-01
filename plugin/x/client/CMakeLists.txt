@@ -26,9 +26,7 @@ SET(CLIENT_FULL_LIB_NAME mysqlxclient)
 SET(CLIENT_LITE_LIB_NAME mysqlxclient_lite)
 
 INCLUDE(source_files.cmake)
-IF(HAVE_SETNS)
-  LIST(APPEND CLIENT_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
-ENDIF()
+LIST(APPEND CLIENT_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}

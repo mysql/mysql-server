@@ -1,1 +1,1 @@
---replica-parallel-workers=0
+--slave-parallel-workers=0

@@ -39,8 +39,7 @@ class mpmc_bq {
   /** Constructor
   @param[in]	n_elems		Max number of elements allowed */
   explicit mpmc_bq(size_t n_elems)
-      : m_ring(reinterpret_cast<Cell *>(ut::new_arr_withkey<Aligned>(
-            UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_elems}))),
+      : m_ring(reinterpret_cast<Cell *>(UT_NEW_ARRAY_NOKEY(Aligned, n_elems))),
         m_capacity(n_elems - 1) {
     /* Should be a power of 2 */
     ut_a((n_elems >= 2) && ((n_elems & (n_elems - 1)) == 0));
@@ -54,12 +53,12 @@ class mpmc_bq {
   }
 
   /** Destructor */
-  ~mpmc_bq() { ut::delete_arr(m_ring); }
+  ~mpmc_bq() { UT_DELETE_ARRAY(m_ring); }
 
   /** Enqueue an element
   @param[in]	data		Element to insert, it will be copied
   @return true on success */
-  [[nodiscard]] bool enqueue(T const &data) {
+  bool enqueue(T const &data) MY_ATTRIBUTE((warn_unused_result)) {
     /* m_enqueue_pos only wraps at MAX(m_enqueue_pos), instead
     we use the capacity to convert the sequence to an array
     index. This is why the ring buffer must be a size which
@@ -114,7 +113,7 @@ class mpmc_bq {
   /** Dequeue an element
   @param[out]	data		Element read from the queue
   @return true on success */
-  [[nodiscard]] bool dequeue(T &data) {
+  bool dequeue(T &data) MY_ATTRIBUTE((warn_unused_result)) {
     Cell *cell;
     size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
 
@@ -157,10 +156,12 @@ class mpmc_bq {
   }
 
   /** @return the capacity of the queue */
-  [[nodiscard]] size_t capacity() const { return (m_capacity + 1); }
+  size_t capacity() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_capacity + 1);
+  }
 
   /** @return true if the queue is empty. */
-  [[nodiscard]] bool empty() const {
+  bool empty() const MY_ATTRIBUTE((warn_unused_result)) {
     size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
 
     for (;;) {
@@ -178,6 +179,8 @@ class mpmc_bq {
         pos = m_dequeue_pos.load(std::memory_order_relaxed);
       }
     }
+
+    return (false);
   }
 
  private:

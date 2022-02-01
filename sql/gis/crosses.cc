@@ -243,16 +243,18 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
       if (!shared_interior) return false;
 
       // At least one point of g1 must be in g2's exterior.
-      std::unique_ptr<Geometry> pt_diff;
+      std::unique_ptr<Multipoint> mpt_diff;
       Difference d(f.semi_major(), f.semi_minor());
-      pt_diff = d(g1_mpt.get(), g2_mpt.get());
-      pt_diff = d(pt_diff.get(), g2_mls.get());
-      pt_diff = d(pt_diff.get(), g2_mpy.get());
-      if (!pt_diff->is_empty()) return true;
-      std::unique_ptr<Geometry> ls_diff;
-      ls_diff = d(g1_mls.get(), g2_mls.get());
-      ls_diff = d(ls_diff.get(), g2_mpy.get());
-      return (!ls_diff->is_empty());
+      mpt_diff.reset(down_cast<Multipoint *>(d(g1_mpt.get(), g2_mpt.get())));
+      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mls.get())));
+      mpt_diff.reset(down_cast<Multipoint *>(d(mpt_diff.get(), g2_mpy.get())));
+      if (mpt_diff->size() > 0) return true;
+      std::unique_ptr<Multilinestring> mls_diff;
+      mls_diff.reset(
+          down_cast<Multilinestring *>(d(g1_mls.get(), g2_mls.get())));
+      mls_diff.reset(
+          down_cast<Multilinestring *>(d(mls_diff.get(), g2_mpy.get())));
+      return (mls_diff->size() > 0);
     } else {
       if (g1->coordinate_system() == Coordinate_system::kCartesian) {
         Cartesian_geometrycollection gc;

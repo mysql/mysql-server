@@ -44,7 +44,7 @@ class Raw_table {
  public:
   Raw_table(thr_lock_type lock_type, const String_type &name);
 
-  virtual ~Raw_table() = default;
+  virtual ~Raw_table() {}
 
  public:
   TABLE *get_table() { return m_table_list.table; }

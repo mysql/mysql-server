@@ -304,7 +304,7 @@ static struct wordvalue doubles[] = {
 */
 
 extern "C" {
-static int my_strnncoll_czech(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_strnncoll_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                               const uchar *s1, size_t len1, const uchar *s2,
                               size_t len2, bool s2_is_prefix) {
   int v1, v2;
@@ -343,8 +343,8 @@ static int my_strnncollsp_czech(const CHARSET_INFO *cs, const uchar *s,
 /*
   Returns the number of bytes required for strnxfrm().
 */
-static size_t my_strnxfrmlen_czech(const CHARSET_INFO *cs [[maybe_unused]],
-                                   size_t len) {
+static size_t my_strnxfrmlen_czech(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), size_t len) {
   return len * 4 + 4;
 }
 
@@ -353,9 +353,9 @@ static size_t my_strnxfrmlen_czech(const CHARSET_INFO *cs [[maybe_unused]],
   the length of the strings being specified
 */
 
-static size_t my_strnxfrm_czech(const CHARSET_INFO *cs [[maybe_unused]],
+static size_t my_strnxfrm_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 uchar *dest, size_t len,
-                                uint nweights_arg [[maybe_unused]],
+                                uint nweights_arg MY_ATTRIBUTE((unused)),
                                 const uchar *src, size_t srclen, uint flags) {
   int value;
   const uchar *p, *store;

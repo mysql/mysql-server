@@ -54,6 +54,7 @@
 #include <signaldata/CloseComReqConf.hpp>
 #include <EventLogger.hpp>
 
+extern EventLogger *g_eventLogger;
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -92,15 +93,15 @@ TransporterFacade::reportError(NodeId nodeId,
                                TransporterError errorCode, const char *info)
 {
 #ifdef REPORT_TRANSPORTER
-  g_eventLogger->info("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s",
-                      (int)nodeId, (int)errorCode, info ? info : "");
+  ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s", 
+	   (int)nodeId, (int)errorCode, info ? info : "");
 #endif
   if(errorCode & TE_DO_DISCONNECT) {
-    g_eventLogger->info("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
-                        info ? info : "");
+    ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
+	     info ? info : "");
     if (nodeId == ownId())
     {
-      g_eventLogger->info("Fatal error on Loopback transporter, aborting.");
+      ndbout_c("Fatal error on Loopback transporter, aborting.");
       abort();
     }
     DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n",
@@ -116,9 +117,8 @@ void
 TransporterFacade::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
 #ifdef REPORT_TRANSPORTER
-  g_eventLogger->info(
-      "REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", (int)nodeId,
-      (Uint32)(bytes / count));
+  ndbout_c("REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", 
+	   (int)nodeId, (Uint32)(bytes/count));
 #endif
   (void)nodeId;
   (void)count;
@@ -132,9 +132,8 @@ void
 TransporterFacade::reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
 #ifdef REPORT_TRANSPORTER
-  g_eventLogger->info(
-      "REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)",
-      (int)nodeId, (Uint32)(bytes / count));
+  ndbout_c("REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)", 
+	   (int)nodeId, (Uint32)(bytes/count));
 #endif
   (void)nodeId;
   (void)count;
@@ -148,8 +147,7 @@ void
 TransporterFacade::reportConnect(NodeId nodeId)
 {
 #ifdef REPORT_TRANSPORTER
-  g_eventLogger->info("REPORT_TRANSP: API reportConnect (nodeId=%d)",
-                      (int)nodeId);
+  ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportConnect(%u)\n", ownId(), nodeId));
   reportConnected(nodeId);
@@ -163,8 +161,7 @@ TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
                          ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
-  g_eventLogger->info("REPORT_TRANSP: API reportDisconnect (nodeId=%d)",
-                      (int)nodeId);
+  ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
   reportDisconnected(nodeId);
 }
@@ -391,8 +388,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
     else if(header->theVerId_signalNumber != GSN_API_REGREQ)
     {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
-      g_eventLogger->info("BLOCK NO: %u sig %u", tRecBlockNo,
-                          header->theVerId_signalNumber);
+      ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
+             << header->theVerId_signalNumber  << endl;
       ndbout << *header << "-- Signal Data --" << endl;
       ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
@@ -454,9 +451,8 @@ TransporterFacade::handleMissingClnt(const SignalHeader * header,
     return;
   }
 
-  // g_eventLogger->info(
-  //     "KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
-  //     transId[0], transId[1], gsn);
+  // ndbout_c("KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
+  //         transId[0], transId[1], gsn);
 
   Uint32 ownBlockNo = header->theReceiversBlockNumber;
   Uint32 aTCRef = header->theSendersBlockRef;
@@ -546,9 +542,7 @@ TransporterFacade::start_instance(NodeId nodeId,
                                       NDB_THREAD_PRIO_LOW);
   if (theReceiveThread == NULL)
   {
-    g_eventLogger->info(
-        "TransporterFacade::start_instance:"
-        " Failed to create thread for receive.");
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for receive.");
     assert(theReceiveThread != NULL);
     DBUG_RETURN(-1);
   }
@@ -559,9 +553,7 @@ TransporterFacade::start_instance(NodeId nodeId,
                                    NDB_THREAD_PRIO_LOW);
   if (theSendThread == NULL)
   {
-    g_eventLogger->info(
-        "TransporterFacade::start_instance:"
-        " Failed to create thread for send.");
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for send.");
     assert(theSendThread != NULL);
     DBUG_RETURN(-1);
   }
@@ -1134,8 +1126,7 @@ void TransporterFacade::threadMainSend(void)
   }
   theTransporterRegistry->startSending();
   if (theTransporterRegistry->start_clients() == 0){
-    g_eventLogger->info(
-        "Unable to start theTransporterRegistry->start_clients");
+    ndbout_c("Unable to start theTransporterRegistry->start_clients");
     exit(0);
   }
 
@@ -1243,7 +1234,7 @@ ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
   Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
-    g_eventLogger->info("Failed to register receive thread, ret = %d", ret);
+    ndbout_c("Failed to register receive thread, ret = %d", ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -1278,9 +1269,8 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
     }
     default:
     {
-      g_eventLogger->info(
-          "Receive thread block should not receive signals, gsn: %d",
-          signal->theVerId_signalNumber);
+      ndbout_c("Receive thread block should not receive signals, gsn: %d",
+               signal->theVerId_signalNumber);
       abort();
     }
   }
@@ -1348,8 +1338,9 @@ TransporterFacade::unlock_recv_thread_cpu()
     int ret_code = Ndb_UnlockCPU(theReceiveThread);
     if (ret_code)
     {
-      g_eventLogger->info("Failed to unlock thread %d, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), ret_code);
+      fprintf(stderr, "Failed to unlock thread %d, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              ret_code);
       return ret_code;
     }
   }
@@ -1365,8 +1356,10 @@ TransporterFacade::lock_recv_thread_cpu()
     int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
     if (ret_code)
     {
-      g_eventLogger->info("Failed to lock thread %d to CPU %u, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
+      fprintf(stderr, "Failed to lock thread %d to CPU %u, ret_code: %d",
+              NdbThread_GetTid(theReceiveThread),
+              cpu_id,
+              ret_code);
       return ret_code;
     }
   }
@@ -1839,9 +1832,9 @@ TransporterFacade::configure(NodeId nodeId,
     if (!m_send_buffer.init(total_send_buffer_size_t,
                             reserved_send_buffer_size_t))
     {
-      g_eventLogger->info(
-          "Unable to allocate %lu bytes of memory for send buffers!!",
-          total_send_buffer_size_t);
+      ndbout << "Unable to allocate "
+             << total_send_buffer_size_t
+             << " bytes of memory for send buffers!!" << endl;
       DBUG_RETURN(false);
     }
   }
@@ -1873,7 +1866,7 @@ TransporterFacade::configure(NodeId nodeId,
   iter.get(CFG_MIXOLOGY_LEVEL, &mixologyLevel);
   if (mixologyLevel)
   {
-    g_eventLogger->info("Mixology level set to 0x%x", mixologyLevel);
+    ndbout_c("Mixology level set to 0x%x", mixologyLevel);
     theTransporterRegistry->setMixologyLevel(mixologyLevel);
   }
 #endif
@@ -2328,8 +2321,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
   }
   else
   {
-    g_eventLogger->info("ERR: SigLen = %u BlockRec = %u SignalNo = %d", Tlen,
-                        TBno, aSignal->theVerId_signalNumber);
+    ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
+    ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
     assert(0);
   }//if
   return -1; // Node Dead
@@ -3306,7 +3299,7 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
         break;
       case trp_client::PollQueue::PQ_IDLE:
         dbg("%p - PQ_IDLE", clnt);
-        [[fallthrough]];
+        // fall-through
       default:
         require(false); // should not happen!!
         break;
@@ -4597,7 +4590,7 @@ TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
 {
   if (consumed_sendbuff)
   {
-    g_eventLogger->info("SendBuff already consumed, release first");
+    ndbout_c("SendBuff already consumed, release first");
     return;
   }
 
@@ -4622,10 +4615,11 @@ TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
     }
     used = m_send_buffer.get_total_used_send_buffer_size();
   }
-
-  g_eventLogger->info("Consumed %u pages, remaining bytes : %llu", page_count,
-                      m_send_buffer.get_total_send_buffer_size() -
-                          m_send_buffer.get_total_used_send_buffer_size());
+    
+  ndbout_c("Consumed %u pages, remaining bytes : %llu",
+           page_count,
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
 }
 
 void
@@ -4633,7 +4627,7 @@ TransporterFacade::release_consumed_sendbuffer()
 {
   if (!consumed_sendbuff)
   {
-    g_eventLogger->info("No sendbuffer consumed");
+    ndbout_c("No sendbuffer consumed");
     return;
   }
   
@@ -4641,9 +4635,9 @@ TransporterFacade::release_consumed_sendbuffer()
   
   consumed_sendbuff = NULL;
 
-  g_eventLogger->info("Remaining bytes : %llu",
-                      m_send_buffer.get_total_send_buffer_size() -
-                          m_send_buffer.get_total_used_send_buffer_size());
+  ndbout_c("Remaining bytes : %llu",
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
 }
 
 #endif

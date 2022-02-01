@@ -1,7 +1,8 @@
 !include suite/ndb/my.cnf
 
 [cluster_config.1]
-DataMemory=100M
+#DataMemory=300M
+#IndexMemory=30M
 NoOfFragmentLogFiles=16
 BuildIndexThreads=8
 TwoPassInitialNodeRestartCopy=1

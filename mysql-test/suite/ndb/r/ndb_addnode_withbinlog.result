@@ -34,8 +34,6 @@ Call the normal ndb_addnode test
 *        322-Invalid node(s) specified for new nodegroup, node already in nodegroup: Permanent error: Application error
 *   322: Error
 *        322-Invalid node(s) specified for new nodegroup, node already in nodegroup: Permanent error: Application error
-*   326: Error
-*        326-Same node(s) specified for new nodegroup: Permanent error: Application error
 ndbd(s)
 id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
 id=2	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)

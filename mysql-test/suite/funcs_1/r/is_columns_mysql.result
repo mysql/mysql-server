@@ -124,14 +124,6 @@ def	mysql	replication_asynchronous_connection_failover_managed	Channel_name	1	NU
 def	mysql	replication_asynchronous_connection_failover_managed	Managed_name	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the source which needs to be managed.		NULL
 def	mysql	replication_asynchronous_connection_failover_managed	Managed_type	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	Determines the managed type.		NULL
 def	mysql	replication_asynchronous_connection_failover_managed	Configuration	4	NULL	YES	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references	The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {"Primary_weight": 80, "Secondary_weight": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.		NULL
-def	mysql	replication_group_configuration_version	name	1	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The configuration name.		NULL
-def	mysql	replication_group_configuration_version	version	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	The version of the configuration name.		NULL
-def	mysql	replication_group_member_actions	name	1	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The action name.		NULL
-def	mysql	replication_group_member_actions	event	2	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)	PRI		select,insert,update,references	The event that will trigger the action.		NULL
-def	mysql	replication_group_member_actions	enabled	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Whether the action is enabled.		NULL
-def	mysql	replication_group_member_actions	type	4	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)			select,insert,update,references	The action type.		NULL
-def	mysql	replication_group_member_actions	priority	5	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references	The order on which the action will be run, value between 1 and 100, lower values first.		NULL
-def	mysql	replication_group_member_actions	error_handling	6	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)			select,insert,update,references	On errors during the action will be handled: IGNORE, CRITICAL.		NULL
 def	mysql	role_edges	FROM_HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	TO_HOST	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
@@ -154,7 +146,7 @@ def	mysql	server_cost	default_value	5	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL
 def	mysql	slave_master_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Number of lines in the file.		NULL
 def	mysql	slave_master_info	Master_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the master binary log currently being read from the master.		NULL
 def	mysql	slave_master_info	Master_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	The master log position of the last read event.		NULL
-def	mysql	slave_master_info	Host	4	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references	The host name of the source.		NULL
+def	mysql	slave_master_info	Host	4	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references	The host name of the master.		NULL
 def	mysql	slave_master_info	User_name	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The user name used to connect to the master.		NULL
 def	mysql	slave_master_info	User_password	6	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The password used to connect to the master.		NULL
 def	mysql	slave_master_info	Port	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	The network port used to connect to the master.		NULL
@@ -174,16 +166,15 @@ def	mysql	slave_master_info	Retry_count	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NU
 def	mysql	slave_master_info	Ssl_crl	21	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The file used for the Certificate Revocation List (CRL)		NULL
 def	mysql	slave_master_info	Ssl_crlpath	22	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The path used for Certificate Revocation List (CRL) files		NULL
 def	mysql	slave_master_info	Enabled_auto_position	23	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether GTIDs will be used to retrieve events from the master.		NULL
-def	mysql	slave_master_info	Channel_name	24	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	The channel on which the replica is connected to a source. Used in Multisource Replication		NULL
+def	mysql	slave_master_info	Channel_name	24	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The channel on which the slave is connected to a source. Used in Multisource Replication		NULL
 def	mysql	slave_master_info	Tls_version	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Tls version		NULL
 def	mysql	slave_master_info	Public_key_path	26	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The file containing public key of master server.		NULL
 def	mysql	slave_master_info	Get_public_key	27	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Preference to get public key from master.		NULL
 def	mysql	slave_master_info	Network_namespace	28	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Network namespace used for communication with the master server.		NULL
-def	mysql	slave_master_info	Master_compression_algorithm	29	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select,insert,update,references	Compression algorithm supported for data transfer between source and replica.		NULL
+def	mysql	slave_master_info	Master_compression_algorithm	29	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	Compression algorithm supported for data transfer between master and slave.		NULL
 def	mysql	slave_master_info	Master_zstd_compression_level	30	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Compression level associated with zstd compression algorithm.		NULL
 def	mysql	slave_master_info	Tls_ciphersuites	31	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Ciphersuites used for TLS 1.3 communication with the master server.		NULL
 def	mysql	slave_master_info	Source_connection_auto_failover	32	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the channel connection failover is enabled.		NULL
-def	mysql	slave_master_info	Gtid_only	33	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates if this channel only uses GTIDs and does not persist positions.		NULL
 def	mysql	slave_relay_log_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Number of lines in the file or rows in the table. Used to version table definitions.		NULL
 def	mysql	slave_relay_log_info	Relay_log_name	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the current relay log file.		NULL
 def	mysql	slave_relay_log_info	Relay_log_pos	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	The relay log position of the last executed event.		NULL
@@ -192,9 +183,9 @@ def	mysql	slave_relay_log_info	Master_log_pos	5	NULL	YES	bigint	NULL	NULL	20	0	N
 def	mysql	slave_relay_log_info	Sql_delay	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	The number of seconds that the slave must lag behind the master.		NULL
 def	mysql	slave_relay_log_info	Number_of_workers	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	mysql	slave_relay_log_info	Id	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Internal Id that uniquely identifies this record.		NULL
-def	mysql	slave_relay_log_info	Channel_name	9	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	The channel on which the replica is connected to a source. Used in Multisource Replication		NULL
-def	mysql	slave_relay_log_info	Privilege_checks_username	10	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_bin	varchar(32)			select,insert,update,references	Username part of PRIVILEGE_CHECKS_USER.		NULL
-def	mysql	slave_relay_log_info	Privilege_checks_hostname	11	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references	Hostname part of PRIVILEGE_CHECKS_USER.		NULL
+def	mysql	slave_relay_log_info	Channel_name	9	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The channel on which the slave is connected to a source. Used in Multisource Replication		NULL
+def	mysql	slave_relay_log_info	Privilege_checks_username	10	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	Username part of PRIVILEGE_CHECKS_USER.		NULL
+def	mysql	slave_relay_log_info	Privilege_checks_hostname	11	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references	Hostname part of PRIVILEGE_CHECKS_USER.		NULL
 def	mysql	slave_relay_log_info	Require_row_format	12	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the channel shall only accept row based events.		NULL
 def	mysql	slave_relay_log_info	Require_table_primary_key_check	13	STREAM	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STREAM','ON','OFF')			select,insert,update,references	Indicates what is the channel policy regarding tables having primary keys on create and alter table queries		NULL
 def	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	14	OFF	NO	enum	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	enum('OFF','LOCAL','UUID')			select,insert,update,references	Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value		NULL
@@ -211,7 +202,7 @@ def	mysql	slave_worker_info	Checkpoint_master_log_pos	9	NULL	NO	bigint	NULL	NULL
 def	mysql	slave_worker_info	Checkpoint_seqno	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	mysql	slave_worker_info	Checkpoint_group_size	11	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	mysql	slave_worker_info	Checkpoint_group_bitmap	12	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references			NULL
-def	mysql	slave_worker_info	Channel_name	13	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	The channel on which the replica is connected to a source. Used in Multisource Replication		NULL
+def	mysql	slave_worker_info	Channel_name	13	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The channel on which the slave is connected to a source. Used in Multisource Replication		NULL
 def	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)		DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)	select,insert,update,references			NULL
 def	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references			NULL
 def	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	6	NULL	NULL	time(6)			select,insert,update,references			NULL
@@ -313,7 +304,6 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	blob	NULL	NULL
 1.0000	mediumblob	NULL	NULL
 1.0000	char	ascii	ascii_general_ci
-1.0000	varchar	ascii	ascii_general_ci
 1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
@@ -488,14 +478,6 @@ NULL	mysql	replication_asynchronous_connection_failover	Weight	tinyint	NULL	NULL
 3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_type	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	replication_asynchronous_connection_failover_managed	Configuration	json	NULL	NULL	NULL	NULL	json
-1.0000	mysql	replication_group_configuration_version	name	char	255	255	ascii	ascii_general_ci	char(255)
-NULL	mysql	replication_group_configuration_version	version	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-1.0000	mysql	replication_group_member_actions	name	char	255	255	ascii	ascii_general_ci	char(255)
-1.0000	mysql	replication_group_member_actions	event	char	64	64	ascii	ascii_general_ci	char(64)
-NULL	mysql	replication_group_member_actions	enabled	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-1.0000	mysql	replication_group_member_actions	type	char	64	64	ascii	ascii_general_ci	char(64)
-NULL	mysql	replication_group_member_actions	priority	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
-1.0000	mysql	replication_group_member_actions	error_handling	char	64	64	ascii	ascii_general_ci	char(64)
 1.0000	mysql	role_edges	FROM_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
 1.0000	mysql	role_edges	TO_HOST	char	255	255	ascii	ascii_general_ci	char(255)
@@ -518,7 +500,7 @@ NULL	mysql	server_cost	default_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	slave_master_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_master_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-1.0000	mysql	slave_master_info	Host	varchar	255	255	ascii	ascii_general_ci	varchar(255)
+1.0000	mysql	slave_master_info	Host	char	255	255	ascii	ascii_general_ci	char(255)
 1.0000	mysql	slave_master_info	User_name	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	User_password	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Port	int	NULL	NULL	NULL	NULL	int unsigned
@@ -538,16 +520,15 @@ NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint unsig
 1.0000	mysql	slave_master_info	Ssl_crl	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-3.0000	mysql	slave_master_info	Channel_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	slave_master_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
 1.0000	mysql	slave_master_info	Tls_version	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Public_key_path	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Get_public_key	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 1.0000	mysql	slave_master_info	Network_namespace	text	65535	65535	utf8	utf8_bin	text
-3.0000	mysql	slave_master_info	Master_compression_algorithm	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	mysql	slave_master_info	Master_compression_algorithm	char	64	192	utf8	utf8_bin	char(64)
 NULL	mysql	slave_master_info	Master_zstd_compression_level	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_master_info	Tls_ciphersuites	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Source_connection_auto_failover	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-NULL	mysql	slave_master_info	Gtid_only	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint unsigned
@@ -556,9 +537,9 @@ NULL	mysql	slave_relay_log_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint
 NULL	mysql	slave_relay_log_info	Sql_delay	int	NULL	NULL	NULL	NULL	int
 NULL	mysql	slave_relay_log_info	Number_of_workers	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	mysql	slave_relay_log_info	Id	int	NULL	NULL	NULL	NULL	int unsigned
-3.0000	mysql	slave_relay_log_info	Channel_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-3.0000	mysql	slave_relay_log_info	Privilege_checks_username	varchar	32	96	utf8	utf8_bin	varchar(32)
-1.0000	mysql	slave_relay_log_info	Privilege_checks_hostname	varchar	255	255	ascii	ascii_general_ci	varchar(255)
+3.0000	mysql	slave_relay_log_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	slave_relay_log_info	Privilege_checks_username	char	32	96	utf8	utf8_bin	char(32)
+1.0000	mysql	slave_relay_log_info	Privilege_checks_hostname	char	255	255	ascii	ascii_general_ci	char(255)
 NULL	mysql	slave_relay_log_info	Require_row_format	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	slave_relay_log_info	Require_table_primary_key_check	enum	6	18	utf8	utf8_general_ci	enum('STREAM','ON','OFF')
 3.0000	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	enum	5	15	utf8	utf8_general_ci	enum('OFF','LOCAL','UUID')
@@ -575,7 +556,7 @@ NULL	mysql	slave_worker_info	Checkpoint_master_log_pos	bigint	NULL	NULL	NULL	NUL
 NULL	mysql	slave_worker_info	Checkpoint_seqno	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	mysql	slave_worker_info	Checkpoint_group_size	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_worker_info	Checkpoint_group_bitmap	blob	65535	65535	NULL	NULL	blob
-3.0000	mysql	slave_worker_info	Channel_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	slave_worker_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp(6)
 1.0000	mysql	slow_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time(6)

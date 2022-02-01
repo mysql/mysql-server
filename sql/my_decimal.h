@@ -45,7 +45,6 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_time_t.h"
 
 class String;
 struct MYSQL_TIME;
@@ -178,7 +177,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #endif
 
 bool str_set_decimal(uint mask, const my_decimal *val, String *str,
-                     const CHARSET_INFO *cs, uint decimals);
+                     const CHARSET_INFO *cs);
 
 extern my_decimal decimal_zero;
 
@@ -226,7 +225,6 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
   assert(precision || !scale);
   uint32 retval = (uint32)(precision + (scale > 0 ? 1 : 0) +
                            (unsigned_flag || !precision ? 0 : 1));
-  if (retval == 0) return 1;
   return retval;
 }
 
@@ -347,7 +345,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
-my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec);
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
 
 inline int double2my_decimal(uint mask, double val, my_decimal *d) {
   return check_result_and_overflow(mask, double2decimal(val, d), d);

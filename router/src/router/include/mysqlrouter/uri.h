@@ -25,6 +25,8 @@
 #ifndef URI_ROUTING_INCLUDED
 #define URI_ROUTING_INCLUDED
 
+#include "router_config.h"
+
 #include <cstdint>
 #include <exception>
 #include <map>

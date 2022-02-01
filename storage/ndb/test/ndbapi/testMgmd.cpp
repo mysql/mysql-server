@@ -35,8 +35,6 @@
 
 static const char * exe_valgrind = 0;
 static const char * arg_valgrind = 0;
-static int no_node_config = 0;
-static bool with_nodeid = true;
 
 static bool file_exists(const char* path, Uint32 timeout = 1)
 {
@@ -103,14 +101,6 @@ public:
     NDBT_find_ndb_mgmd(m_exe);
   }
 
-  Mgmd() :
-  m_proc(NULL)
-  {
-    no_node_config = no_node_config + 1;
-    m_name.assfmt("ndb_mgmd_autonode_%d", no_node_config);
-    NDBT_find_ndb_mgmd(m_exe);
-  }
-
   ~Mgmd()
   {
     if (m_proc)
@@ -167,12 +157,9 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=", working_dir);
+    args.add("--configdir=.");
     args.add("-f config.ini");
-    if (with_nodeid)
-    {
-      args.add("--ndb-nodeid=", m_nodeid);
-    }
+    args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
     args.add("--log-name=", name());
     args.add("--verbose");
@@ -198,7 +185,7 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=", working_dir);
+    args.add("--configdir=.");
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
     args.add("--log-name=", name());
@@ -398,54 +385,6 @@ public:
     return Mgmd::start(working_dir, args);
   }
 };
-
-
-#include <fstream>
-#include <iostream>
-#include <string>
-
-bool Print_find_in_file(const char* path, Vector<BaseString> search_string)
-{
-  std::ifstream indata;
-  indata.open(path);
-  Vector<bool> found;
-  for (unsigned int i = 0; i < search_string.size(); i++)
-  {
-    found.push_back(false);
-  }
-
-  if (indata.is_open())
-  {
-    std::string read_line;
-    while (std::getline(indata, read_line))
-    {
-      for (unsigned int i = 0; i < search_string.size(); i++)
-      {
-        if (found[i] == false)
-        {
-          if (read_line.find(search_string[i].c_str(), 0) != std::string::npos) {
-            {
-              found[i] = true;
-              break;
-            }
-          }
-        }
-      }
-      printf("%s\n", read_line.c_str());
-    }
-  }
-  else
-  {
-    return false;
-  }
-  indata.close();
-  bool ret = true;
-  for (unsigned int i = 0; i < search_string.size(); i++)
-  {
-    ret = ret && found[i];
-  }
-  return ret;
-}
 
 #define CHECK(x)                                            \
   if (!(x)) {                                               \
@@ -1579,96 +1518,6 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
-{
-  NDBT_Workingdir wd("test_mgmd");
-  Vector<BaseString> search_list;
-
-  Properties config, mgm, mgm2, mgm3, ndb, api;
-  mgm.put("HostName", "190.10.10.4");
-  ndb.put("HostName", "190.10.10.1");
-  ndb.put("NoOfReplicas", 1);
-  config.put("ndb_mgmd", 1, &mgm);
-  config.put("ndbd", 2, &ndb);
-  config.put("mysqld", 3, &api);
-
-  CHECK(ConfigFactory::write_config_ini(config,
-    path(wd.path(),
-      "config.ini",
-      NULL).c_str()));
-
-  Mgmd mgmd;
-  int exit_value;
-  //write the stdout to temp file
-  BaseString out_file = path(wd.path(), "out.txt", NULL);
-  FILE* temp_file = fopen(out_file.c_str(), "w");
-  int file_desc = open(out_file.c_str(), O_WRONLY | O_APPEND);
-  int stdoutCopy = dup(1);
-  if (dup2(file_desc, 1) < 0) return NDBT_FAILED;
-  close(file_desc);
-
-  //TEST 1: start mgmd without nodeid and unknown address
-  with_nodeid = false;
-  CHECK(mgmd.start_from_config_ini(wd.path()));
-  CHECK(mgmd.wait(exit_value, 300));
-  CHECK(exit_value == 1);
-  with_nodeid = true;
-  search_list.push_back("At least one hostname in the configuration does not match a local interface");
-
-  //TEST 2:start mgmd without nodeid and config containing 2 mgmd
-  //sections with same valid hostname
-  char hostname[200];
-  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
-  mgm2.put("HostName", hostname);
-  mgm2.put("PortNumber", 1011);
-  mgm3.put("HostName", hostname);
-  config.put("ndb_mgmd", 4, &mgm2);
-  config.put("ndb_mgmd", 5, &mgm3);
-  CHECK(ConfigFactory::write_config_ini(config,
-    path(wd.path(),
-      "config2.ini",
-      NULL).c_str()));
-  with_nodeid = false;
-  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config2.ini",
-    "--initial", NULL));
-  CHECK(mgmd.wait(exit_value, 300));
-  CHECK(exit_value == 1);
-  with_nodeid = true;
-  search_list.push_back("More than one hostname matches a local interface, including node ids");
-
-  //TEST 3: Check if the error message truncate if the length of hostnames are too big
-  Properties config3, ndb3, api3;
-  ndb3.put("HostName", "190.10.10.1");
-  ndb3.put("NoOfReplicas", 1);
-  for (int i = 1; i < 80; i++) {
-    Properties p1 = new Properties;
-    std::string host_generated = "190.100.100." + std::to_string(i);
-    p1.put("HostName", host_generated.c_str());
-    config3.put("ndb_mgmd", i, &p1);
-  }
-  config3.put("ndbd", 80, &ndb3);
-  config3.put("mysqld", 81, &api3);
-  CHECK(ConfigFactory::write_config_ini(
-      config3, path(wd.path(), "config3.ini", NULL).c_str()));
-  with_nodeid = false;
-  CHECK(mgmd.start_from_config_ini(wd.path(), "-f config3.ini", "--initial",
-                                   NULL));
-  CHECK(mgmd.wait(exit_value, 300));
-  CHECK(exit_value == 1);
-  with_nodeid = true;
-
-  //Write the stdout back to the screen
-  if (dup2(stdoutCopy, 1) < 0) return NDBT_FAILED;
-  close(stdoutCopy);
-
-  // Search output log for the matching error message
-  CHECK(Print_find_in_file(out_file.c_str(), search_list) == true);
-  fclose(temp_file);
-  remove(out_file.c_str());
-  return NDBT_OK;
-}
-
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -1728,13 +1577,6 @@ TESTCASE("Bug56844",
 {
   INITIALIZER(runBug56844);
 }
-TESTCASE("Mgmdwithoutnodeid",
-         "Test that mgmd reports proper error message "
-         "when configuration contains unresolvable ip address "
-         " and does not include node ids")
-{
-  INITIALIZER(runTestMgmdwithoutnodeid);
-}
 TESTCASE("Bug12352191",
          "Test mgmd status for other mgmd")
 {
@@ -1767,7 +1609,6 @@ int main(int argc, const char** argv)
   testMgmd.setCreateTable(false);
   testMgmd.setRunAllTables(true);
   testMgmd.setConnectCluster(false);
-  testMgmd.setEnsureIndexStatTables(false);
 
 #ifdef NDB_USE_GET_ENV
   char buf1[255], buf2[255];

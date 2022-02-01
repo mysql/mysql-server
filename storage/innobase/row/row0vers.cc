@@ -257,7 +257,7 @@ static bool row_vers_find_matching(
     delete-marked, because we never start a transaction by
     inserting a delete-marked record. */
     ut_ad(prev_version || !rec_get_deleted_flag(version, comp) ||
-          !trx_rw_is_active(trx_id, false));
+          !trx_rw_is_active(trx_id, nullptr, false));
 
     /* Free version and clust_offsets. */
     mem_heap_free(old_heap);
@@ -294,11 +294,15 @@ static bool row_vers_find_matching(
  NOTE that this function can return false positives but never false
  negatives. The caller must confirm all positive results by calling checking if
  the trx is still active.*/
-static inline trx_t *row_vers_impl_x_locked_low(
-    const rec_t *const clust_rec, const dict_index_t *const clust_index,
-    const rec_t *const sec_rec, const dict_index_t *const sec_index,
-    const ulint *const sec_offsets, mtr_t *const mtr) {
+UNIV_INLINE
+trx_t *row_vers_impl_x_locked_low(const rec_t *const clust_rec,
+                                  const dict_index_t *const clust_index,
+                                  const rec_t *const sec_rec,
+                                  const dict_index_t *const sec_index,
+                                  const ulint *const sec_offsets,
+                                  mtr_t *const mtr) {
   trx_id_t trx_id;
+  ibool corrupt;
   ulint comp;
 
   ulint *clust_offsets;
@@ -494,15 +498,16 @@ static inline trx_t *row_vers_impl_x_locked_low(
       rec_get_offsets(clust_rec, clust_index, nullptr, ULINT_UNDEFINED, &heap);
 
   trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
+  corrupt = FALSE;
 
-  trx_t *trx = trx_rw_is_active(trx_id, true);
+  trx_t *trx = trx_rw_is_active(trx_id, &corrupt, true);
 
   if (trx == nullptr) {
     /* The transaction that modified or inserted clust_rec is no
     longer active, or it is corrupt: no implicit lock on rec */
-    if (trx_sys_id_is_corrupted(trx_id)) {
+    if (corrupt) {
       lock_report_trx_id_insanity(trx_id, clust_rec, clust_index, clust_offsets,
-                                  trx_sys_get_next_trx_id_or_no());
+                                  trx_sys_get_max_trx_id());
     }
     mem_heap_free(heap);
     return nullptr;
@@ -1382,6 +1387,7 @@ void row_vers_build_for_semi_consistent_read(
   ut_ad(!vrow || !(*vrow));
 
   for (;;) {
+    const trx_t *version_trx;
     mem_heap_t *heap2;
     rec_t *prev_version;
     trx_id_t version_trx_id;
@@ -1390,7 +1396,20 @@ void row_vers_build_for_semi_consistent_read(
     if (rec == version) {
       rec_trx_id = version_trx_id;
     }
-    if (!trx_rw_is_active(version_trx_id, false)) {
+
+    trx_sys_mutex_enter();
+    version_trx = trx_get_rw_trx_by_id(version_trx_id);
+    /* Because version_trx is a read-write transaction,
+    its state cannot change from or to NOT_STARTED while
+    we are holding the trx_sys->mutex.  It may change from
+    ACTIVE to PREPARED or COMMITTED. */
+    if (version_trx &&
+        trx_state_eq(version_trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+      version_trx = nullptr;
+    }
+    trx_sys_mutex_exit();
+
+    if (!version_trx) {
     committed_version_trx:
       /* We found a version that belongs to a
       committed transaction: return it. */

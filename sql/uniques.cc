@@ -153,7 +153,7 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
 static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                          IO_CACHE *to_file, Sort_buffer sort_buffer,
                          Merge_chunk *last_chunk, Merge_chunk_array chunk_array,
-                         int flag [[maybe_unused]]) {
+                         int flag MY_ATTRIBUTE((unused))) {
   int error = 0;
   uint rec_length;
   ha_rows maxcount;
@@ -978,9 +978,7 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;
-    if (create_ondisk_from_heap(thd, m_table, res, /*insert_last_record=*/true,
-                                /*ignore_last_dup=*/false, &dup) ||
-        dup)
+    if (create_ondisk_from_heap(thd, m_table, res, false, &dup) || dup)
       return true;
   }
   return false;

@@ -237,7 +237,7 @@ bool Reload_keyring::execute() {
     return true;
   }
 
-  if (srv_keyring_load->load(opt_plugin_dir, mysql_real_data_home) != 0) {
+  if (srv_keyring_load->load(opt_plugin_dir, mysql_real_data_home) == true) {
     /* We encountered an error. Figure out what it is. */
     my_error(ER_RELOAD_KEYRING_FAILURE, MYF(0));
     return true;

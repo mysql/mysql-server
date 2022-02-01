@@ -26,8 +26,6 @@
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
 
-#include <cstring>
-
 /* Query-related error codes. */
 #define QRY_REQ_ARG_IS_NULL 4800
 #define QRY_TOO_FEW_KEY_VALUES 4801
@@ -106,9 +104,9 @@ public:
 //#define TEST_Uint32Buffer
 
 #if defined(TEST_Uint32Buffer)
-  static constexpr Uint32 initSize = 1;  // Small size to force test of buffer expand.
+  STATIC_CONST(initSize = 1);  // Small size to force test of buffer expand.
 #else
-  static constexpr Uint32 initSize = 32; // Initial buffer size, extend on demand but probably sufficent
+  STATIC_CONST(initSize = 32); // Initial buffer size, extend on demand but probably sufficent
 #endif
 
   explicit Uint32Buffer():
@@ -224,7 +222,7 @@ public:
         memcpy(start, src, len);
         m_bytesLeft = (m_bytesLeft - len) % sizeof(Uint32);
         // Make sure that any trailing bytes in the last word are zero.
-        std::memset(start + len, 0, m_bytesLeft);
+        bzero(start + len, m_bytesLeft);
       }
     }
   }
@@ -284,8 +282,7 @@ public:
     m_parent(nullptr),
     m_firstUpper(nullptr),
     m_firstInner(nullptr),
-    m_interpretedCode(nullptr),
-    m_parameters(0)
+    m_interpretedCode(nullptr)
   {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
@@ -300,7 +297,6 @@ private:
   NdbQueryOperationDefImpl*      m_firstUpper;   //First in upper nest
   NdbQueryOperationDefImpl*      m_firstInner;   //First in this (inner-)nest
   const NdbInterpretedCode*      m_interpretedCode;
-  Vector<const NdbQueryOperandImpl*> m_parameters;
 
   /**
    * Assign NdbInterpretedCode by taking a deep copy of 'src'
@@ -391,9 +387,6 @@ public:
 
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
-
-  const Vector<const NdbQueryOperandImpl*>& getInterpretedParams() const
-  { return m_options.m_parameters; }
 
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
@@ -510,8 +503,6 @@ protected:
 
   // Append list of columns required by SPJ to instantiate child operations.
   Uint32 appendChildProjection(Uint32Buffer& serializedDef) const;
-
-  Uint32 appendParamConstructor(Uint32Buffer& serializedDef) const;
 
 protected:
   /** True if enclosing query has been prepared.*/
@@ -975,7 +966,7 @@ protected:
       return dst;
     }
 
-    static constexpr Uint32 maxShortChar = 32;
+    STATIC_CONST(maxShortChar = 32);
 
     union
     {

@@ -90,8 +90,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('nd');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
@@ -114,47 +114,47 @@ MATCH(title_char) AGAINST('West');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('first');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('United');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('in');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('St');
 seq	title_char	title_varchar	title_text
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -165,8 +165,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -175,10 +175,10 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -186,28 +186,28 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('s+ Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -224,43 +224,43 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1
 WHERE MATCH (title_text)
 AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -273,9 +273,9 @@ SELECT * FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
 AND t1.seq = t2.seq ;
 seq	title_char	title_varchar	title_text	seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand	7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT COUNT(*) FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t1.title_char) AGAINST('la')
 AND t1.seq = t2.seq
@@ -305,11 +305,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -511,8 +511,8 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
-2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
 ANALYZE TABLE articles;
@@ -560,9 +560,9 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
+3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
-3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST('"我幾 火啊"@3' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -1320,8 +1320,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('nd');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
@@ -1344,47 +1344,47 @@ MATCH(title_char) AGAINST('West');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('first');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('United');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('in');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('St');
 seq	title_char	title_varchar	title_text
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -1395,8 +1395,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -1405,10 +1405,10 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -1416,28 +1416,28 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('s+ Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -1454,43 +1454,43 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1
 WHERE MATCH (title_text)
 AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -1503,9 +1503,9 @@ SELECT * FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
 AND t1.seq = t2.seq ;
 seq	title_char	title_varchar	title_text	seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand	7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT COUNT(*) FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t1.title_char) AGAINST('la')
 AND t1.seq = t2.seq
@@ -1535,11 +1535,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -1741,8 +1741,8 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
-2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
 ANALYZE TABLE articles;
@@ -1790,9 +1790,9 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
+3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
-3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST('"我幾 火啊"@3' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -2550,8 +2550,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('nd');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
@@ -2574,47 +2574,47 @@ MATCH(title_char) AGAINST('West');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('first');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('United');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('in');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('St');
 seq	title_char	title_varchar	title_text
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -2625,8 +2625,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -2635,10 +2635,10 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -2646,28 +2646,28 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('s+ Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -2684,43 +2684,43 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1
 WHERE MATCH (title_text)
 AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -2733,9 +2733,9 @@ SELECT * FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
 AND t1.seq = t2.seq ;
 seq	title_char	title_varchar	title_text	seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand	7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT COUNT(*) FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t1.title_char) AGAINST('la')
 AND t1.seq = t2.seq
@@ -2765,11 +2765,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -2971,8 +2971,8 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
-2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
 ANALYZE TABLE articles;
@@ -3020,9 +3020,9 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
+3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
-3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST('"我幾 火啊"@3' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -3780,8 +3780,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('nd');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
@@ -3804,47 +3804,47 @@ MATCH(title_char) AGAINST('West');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('first');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('United');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('in');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('St');
 seq	title_char	title_varchar	title_text
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -3855,8 +3855,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -3865,10 +3865,10 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -3876,28 +3876,28 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('s+ Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -3914,43 +3914,43 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1
 WHERE MATCH (title_text)
 AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -3963,9 +3963,9 @@ SELECT * FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
 AND t1.seq = t2.seq ;
 seq	title_char	title_varchar	title_text	seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand	7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT COUNT(*) FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t1.title_char) AGAINST('la')
 AND t1.seq = t2.seq
@@ -3995,11 +3995,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -4201,8 +4201,8 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
-2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
 ANALYZE TABLE articles;
@@ -4250,9 +4250,9 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
+3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
-3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST('"我幾 火啊"@3' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
@@ -5010,8 +5010,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('nd');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('50');
 seq	title_char	title_varchar	title_text
@@ -5034,47 +5034,47 @@ MATCH(title_char) AGAINST('West');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('first');
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('United');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('in');
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('St');
 seq	title_char	title_varchar	title_text
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En -la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -5085,8 +5085,8 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('+En +la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
@@ -5095,10 +5095,10 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('in nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in -nc' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -5106,28 +5106,28 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+in <la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('+la >la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('~in la' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('Ca Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar,title_text) AGAINST('s+ Ox' IN BOOLEAN MODE);
 seq	title_char	title_varchar	title_text
@@ -5144,43 +5144,43 @@ seq	title_char	title_varchar	title_text
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('la'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SELECT * FROM articles_1 WHERE
 MATCH(title_varchar) AGAINST('po'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
 1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT * FROM articles_1 WHERE
 MATCH(title_text) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
 SELECT * FROM articles_1 WHERE
 MATCH(title_char,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1 WHERE
 MATCH(title_text,title_varchar) AGAINST('Ca'  WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
-7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
 SELECT * FROM articles_1
 WHERE MATCH (title_text)
 AGAINST ('"Ca da"@2' IN BOOLEAN MODE);
@@ -5193,9 +5193,9 @@ SELECT * FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t2.title_varchar,t2.title_text) AGAINST('Ca Ox' IN BOOLEAN MODE)
 AND t1.seq = t2.seq ;
 seq	title_char	title_varchar	title_text	seq	title_char	title_varchar	title_text
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand	7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life	5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland	2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
 SELECT COUNT(*) FROM articles_1 t1,articles_1 t2
 WHERE MATCH(t1.title_char) AGAINST('la')
 AND t1.seq = t2.seq
@@ -5225,11 +5225,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -5431,8 +5431,8 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST("<我幾 >火啊" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
-2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
+2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
 ANALYZE TABLE articles;
@@ -5480,9 +5480,9 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
 MATCH(e1) AGAINST('testing' WITH QUERY EXPANSION) ;
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
+3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
-3	救命啊!	火啊! 你好	生日快樂	雨季	雨が降りそう つやってみよう	雨雲	저분은 영어를 잘 합니다	저는 서울에서 살고 있습니다.	recording test
 SELECT * FROM articles WHERE
 MATCH(c2) AGAINST('"我幾 火啊"@3' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1

@@ -32,7 +32,6 @@ class Table;
 }
 class Ndb_sync_pending_objects_table;
 class Ndb_sync_excluded_objects_table;
-struct NDB_SHARE;
 
 /*
   Initialize the binlog part of the ndbcluster plugin
@@ -43,7 +42,7 @@ int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
                                   const dd::Table *table_def);
 
-int ndbcluster_binlog_wait_synch_drop_table(THD *thd, const NDB_SHARE *share);
+int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
 
 int ndbcluster_binlog_start();
 
@@ -58,8 +57,6 @@ int ndbcluster_binlog_end();
   mode to avoid writes before the binlog is ready to record them.
  */
 bool ndb_binlog_is_read_only(void);
-
-bool ndb_binlog_is_initialized(void);
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);

@@ -252,7 +252,7 @@ class table_def {
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
-  table_def() = default;
+  table_def() {}
 
   /**
     Constructor.
@@ -403,7 +403,7 @@ class table_def {
 
       - Each column on the master that also exists on the slave can be
         converted according to the current settings of @c
-        REPLICA_TYPE_CONVERSIONS.
+        SLAVE_TYPE_CONVERSIONS.
 
     @param thd   Current thread
     @param rli   Pointer to relay log info

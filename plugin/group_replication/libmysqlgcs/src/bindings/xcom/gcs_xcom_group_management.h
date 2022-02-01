@@ -24,7 +24,6 @@
 #define GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_management_interface.h"  // Base class: Gcs_group_management_interface
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
@@ -45,13 +44,6 @@ class Gcs_xcom_group_management : public Gcs_group_management_interface {
   enum_gcs_error get_write_concurrency(uint32_t &event_horizon) const override;
 
   enum_gcs_error set_write_concurrency(uint32_t event_horizon) override;
-
-  enum_gcs_error set_single_leader(
-      Gcs_member_identifier const &leader) override;
-  enum_gcs_error set_everyone_leader() override;
-  enum_gcs_error get_leaders(
-      std::vector<Gcs_member_identifier> &preferred_leaders,
-      std::vector<Gcs_member_identifier> &actual_leaders) override;
 
   uint32_t get_minimum_write_concurrency() const override;
 

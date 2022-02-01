@@ -47,7 +47,7 @@ class AccScanReq {
   friend class Dbtux;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 8;
+  STATIC_CONST( SignalLength = 8 );
   
 private:
   Uint32 senderData;
@@ -239,7 +239,7 @@ class AccScanConf {
   };
 
 public:
-  static constexpr Uint32 SignalLength = 8;
+  STATIC_CONST( SignalLength = 8 );
   
 private:
   Uint32 scanPtr;
@@ -261,6 +261,7 @@ class AccScanRef {
   enum ErrorCode {
     TuxNoFreeScanOp = 909,
     TuxIndexNotOnline = 910,
+    TuxInvalidKeySize = 911,
     TuxInvalidLockMode = 912,
     TuxNoFreeStatOp = 915,
     TupNoFreeScanOp = 925,
@@ -268,7 +269,7 @@ class AccScanRef {
   };
 
 public:
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
 private:
   Uint32 scanPtr;
@@ -287,7 +288,7 @@ class AccCheckScan {
   };
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 accPtr;                // scanptr.i in ACC/TUX/TUP
   Uint32 checkLcpStop;          // from enum
@@ -315,7 +316,7 @@ class CheckLcpStop
     ZABORT_SCAN = 0
   };
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
 private:
   Uint32 scanPtrI;            // scanptr.i from ACC/TUX/TUP
   Uint32 scanState;

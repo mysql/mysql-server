@@ -115,8 +115,8 @@ int AsyncFile::init()
     nz_mempool.size = nz_mempool.mfree = zlib.MEMORY_NEED;
   }
 
-  g_eventLogger->info("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
-                      (unsigned int)nz_mempool.size);
+  ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
+           (unsigned int)nz_mempool.size);
   nz_mempool.mem = (char*) ndbd_malloc(nz_mempool.size);
 
   nzf.stream.opaque= &nz_mempool;
@@ -129,7 +129,7 @@ void
 AsyncFile::attach(AsyncIoThread* thr)
 {
 #if 0
-  g_eventLogger->info("%p:%s attach to %p (m_thread: %p)", this, theFileName.c_str(), thr,
+  ndbout_c("%p:%s attach to %p (m_thread: %p)", this, theFileName.c_str(), thr,
              m_thread);
 #endif
   assert(m_thread_bound);
@@ -141,7 +141,7 @@ void
 AsyncFile::detach(AsyncIoThread* thr)
 {
 #if 0
-  g_eventLogger->info("%p:%s detach from %p", this, theFileName.c_str(), thr);
+  ndbout_c("%p:%s detach from %p", this, theFileName.c_str(), thr);
 #endif
   assert(m_thread_bound);
   assert(m_thread == thr);
@@ -327,10 +327,7 @@ require(!"m_file.extend");
         req->userPointer = request->theUserPointer;          // DATA 2
         req->numberOfPages = 1;        // DATA 5
         req->varIndex = index++;
-        req->operationFlag = 0;
-        FsReadWriteReq::setFormatFlag(req->operationFlag,
-                                      FsReadWriteReq::fsFormatSharedPage);
-        req->data.sharedPage.pageNumber = m_page_ptr.i + cnt;
+        req->data.pageData[0] = m_page_ptr.i + cnt;
 
         m_fs.callFSWRITEREQ(request->theUserReference, req);
 
@@ -348,8 +345,8 @@ require(!"m_file.extend");
         n = m_file.write_forward(buf, size);
         if (n == -1 || n == 0)
         {
-          g_eventLogger->info("write returned %d: errno: %d my_errno: %d", n,
-                              get_last_os_error(), my_errno());
+          ndbout_c("write returned %d: errno: %d my_errno: %d",
+                   n, get_last_os_error(), my_errno());
           break;
         }
         size -= n;
@@ -378,10 +375,12 @@ require(!"m_file.sync() != -1");
     Uint64 diff = NdbTick_Elapsed(start, stop).milliSec();
     if (diff == 0)
       diff = 1;
-    g_eventLogger->info(
-        "wrote %umb in %u writes %us -> %ukb/write %umb/s",
-        Uint32(file_size / (1024 * 1024)), write_cnt, Uint32(diff / 1000),
-        Uint32(file_size / 1024 / write_cnt), Uint32(file_size / diff));
+    ndbout_c("wrote %umb in %u writes %us -> %ukb/write %umb/s",
+             Uint32(file_size / (1024 * 1024)),
+             write_cnt,
+             Uint32(diff / 1000),
+             Uint32(file_size / 1024 / write_cnt),
+             Uint32(file_size / diff));
 #endif
 
     if (m_file.set_pos(0) == -1)
@@ -421,13 +420,13 @@ require(!"m_file.sync() != -1");
       const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
       if (m_file.set_direct_io(direct_sync) == -1)
       {
-        g_eventLogger->info("%s Failed to set ODirect errno: %u",
-                            theFileName.c_str(), get_last_os_error());
+        ndbout_c("%s Failed to set ODirect errno: %u",
+                 theFileName.c_str(), get_last_os_error());
       }
 #ifdef DEBUG_ODIRECT
       else
       {
-        g_eventLogger->info("%s ODirect is set.", theFileName.c_str());
+        ndbout_c("%s ODirect is set.", theFileName.c_str());
       }
 #endif
     }
@@ -528,8 +527,8 @@ require(!"m_file.sync() != -1");
       m_file_format = FF_RAW;
       if ((err= ndbzdopen(&nzf, m_file.get_os_handle(), ndbz_flags)) < 1)
       {
-        g_eventLogger->info("Stewart's brain broke: %d %d %s", err, my_errno(),
-                            theFileName.c_str());
+        ndbout_c("Stewart's brain broke: %d %d %s",
+                 err, my_errno(), theFileName.c_str());
         require(!"ndbzdopen");
       }
 #else
@@ -610,9 +609,10 @@ remove_if_created:
   m_file_format = FF_UNKNOWN;
   if (created && m_file.remove(theFileName.c_str()) == -1)
   {
-    g_eventLogger->info(
-        "Could not remove '%s' (err %u) after open failure (err %u).",
-        theFileName.c_str(), get_last_os_error(), request->error);
+    ndbout_c("Could not remove '%s' (err %u) after open failure (err %u).\n",
+             theFileName.c_str(),
+             get_last_os_error(),
+             request->error);
   }
 }
 
@@ -631,7 +631,7 @@ AsyncFile::closeReq(Request *request)
 #ifndef NDEBUG
   if (!m_file.is_open())
   {
-    DEBUG(g_eventLogger->info("close on already closed file"));
+    DEBUG(ndbout_c("close on already closed file"));
     abort();
   }
 #endif
@@ -876,7 +876,7 @@ AsyncFile::writeReq(Request * request)
             off_t tmp=(off_t)(page_offset+request->par.readWrite.pages[i].size);
             if (tmp != request->par.readWrite.pages[i+1].offset) {
               // Next page is not aligned with previous, not allowed
-              DEBUG(g_eventLogger->info("Page offsets are not aligned"));
+              DEBUG(ndbout_c("Page offsets are not aligned"));
               request->error = EINVAL;
               return;
             }
@@ -928,11 +928,13 @@ bool AsyncFile::check_odirect_request(const char* buf,
         (((UintPtr)buf) % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
         (offset % NDB_O_DIRECT_WRITE_ALIGNMENT))
     {
-      g_eventLogger->info(
-          "Error r/w of size %llu using buf %p to offset %llu in "
-          "file %s not O_DIRECT aligned",
-          (long long unsigned)sz, buf, (long long unsigned)offset,
-          theFileName.c_str());
+      fprintf(stderr,
+              "Error r/w of size %llu using buf %p to offset %llu in "
+              "file %s not O_DIRECT aligned\n",
+              (long long unsigned) sz,
+              buf,
+              (long long unsigned) offset,
+              theFileName.c_str());
       return false;
     }
   }
@@ -982,8 +984,8 @@ int AsyncFile::readBuffer(Request *req, char *buf,
         {
           return 0;
         }
-        DEBUG(g_eventLogger->info("Read underflow %d %d %x %d %d", size, offset,
-                                  buf, bytes_read, return_value));
+        DEBUG(ndbout_c("Read underflow %d %d\n %x\n%d %d",
+                        size, offset, buf, bytes_read, return_value));
         return ERR_ReadUnderflow;
       }
       return FsRef::fsErrInvalidParameters;
@@ -1007,8 +1009,8 @@ int AsyncFile::readBuffer(Request *req, char *buf,
       {
         if (nzf.z_eof != 1 && nzf.z_err != Z_STREAM_END)
         {
-          g_eventLogger->info("ERROR IN PosixAsyncFile::readBuffer %d %d %d",
-                              my_errno(), nzf.z_err, error);
+          ndbout_c("ERROR IN PosixAsyncFile::readBuffer %d %d %d",
+                   my_errno(), nzf.z_err, error);
           require(my_errno() != 0);
           set_last_os_error(my_errno());
           return_value = -1;
@@ -1027,15 +1029,15 @@ int AsyncFile::readBuffer(Request *req, char *buf,
       {
 	return 0;
       }
-      DEBUG(g_eventLogger->info("Read underflow %d %d %x %d %d", size,
-                                offset, buf, bytes_read, return_value));
+      DEBUG(ndbout_c("Read underflow %d %d\n %x\n%d %d",
+		     size, offset, buf, bytes_read, return_value));
       return ERR_ReadUnderflow;
     }
 
     if (bytes_read != size)
     {
-      DEBUG(g_eventLogger->info("Warning partial read %d != %d on %s",
-                                bytes_read, size, theFileName.c_str()));
+      DEBUG(ndbout_c("Warning partial read %d != %d on %s",
+		     bytes_read, size, theFileName.c_str()));
     }
 
     buf += bytes_read;
@@ -1072,9 +1074,8 @@ int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
     if (return_value == -1)
     {
-      g_eventLogger->info("ERROR IN PosixAsyncFile::writeBuffer %d %d",
-                          get_last_os_error() /*m_file.get_error()*/,
-                          nzf.z_err);
+      ndbout_c("ERROR IN PosixAsyncFile::writeBuffer %d %d",
+               get_last_os_error()/*m_file.get_error()*/, nzf.z_err);
       return get_last_os_error();
     }
     else
@@ -1083,14 +1084,14 @@ int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
       if (bytes_written == 0)
       {
-        DEBUG(g_eventLogger->info("no bytes written"));
-        require(bytes_written > 0);
+        DEBUG(ndbout_c("no bytes written"));
+	require(bytes_written > 0);
       }
 
       if (bytes_written != bytes_to_write)
       {
-        DEBUG(g_eventLogger->info("Warning partial write %d != %d",
-                                  bytes_written, bytes_to_write));
+	DEBUG(ndbout_c("Warning partial write %d != %d",
+		 bytes_written, bytes_to_write));
       }
     }
 
@@ -1212,7 +1213,7 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
 #if 0
   if (n == 0)
   {
-    DEBUG(g_eventLogger->info("append with n=0"));
+    DEBUG(ndbout_c("append with n=0"));
     require(n != 0);
   }
 #endif
@@ -1321,7 +1322,8 @@ void printErrorAndFlags(Uint32 used_flags) {
   if((used_flags & O_SYNC)==O_SYNC)
     strcat(buf, "O_SYNC, ");
 #endif
-  DEBUG(g_eventLogger->info(buf));
+  DEBUG(ndbout_c(buf));
+
 }
 #endif
 

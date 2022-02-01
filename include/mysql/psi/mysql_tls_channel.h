@@ -54,7 +54,7 @@ static void inline_mysql_tls_channel_register(
 #ifdef HAVE_PSI_TLS_CHANNEL_INTERFACE
     TLS_channel_property_iterator *i
 #else
-    TLS_channel_property_iterator *i [[maybe_unused]]
+    TLS_channel_property_iterator *i MY_ATTRIBUTE((unused))
 #endif /* HAVE_PSI_TLS_CHANNEL_INTERFACE */
 ) {
 #ifdef HAVE_PSI_TLS_CHANNEL_INTERFACE
@@ -68,7 +68,7 @@ static void inline_mysql_tls_channel_unregister(
 #ifdef HAVE_PSI_TLS_CHANNEL_INTERFACE
     TLS_channel_property_iterator *i
 #else
-    TLS_channel_property_iterator *i [[maybe_unused]]
+    TLS_channel_property_iterator *i MY_ATTRIBUTE((unused))
 #endif /* HAVE_PSI_TLS_CHANNEL_INTERFACE */
 ) {
 #ifdef HAVE_PSI_TLS_CHANNEL_INTERFACE

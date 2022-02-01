@@ -45,6 +45,7 @@
 
 #define JAM_FILE_ID 329
 
+extern EventLogger * g_eventLogger;
 
 /**
  * Declare the global variables 
@@ -142,7 +143,7 @@ static const char* const jamFileNames[] =
    "ConfigChange.hpp",                   // 7
    "CreateIndx.hpp",                     // 8
    "StartInfo.hpp",                      // 9
-   "GetTableId.hpp",                     // 10 DELETED FILE
+   "GetTableId.hpp",                     // 10
    "NextScan.hpp",                       // 11
    "DihFragCount.hpp",                   // 12
    "CmInit.hpp",                         // 13 DELETED FILE
@@ -673,8 +674,6 @@ static const char* const jamFileNames[] =
    "QRestore.cpp",                       // 538
    "QRestoreProxy.hpp",                  // 539
    "QRestoreProxy.cpp",                  // 540
-   "TrpKeepAlive.hpp",                   // 541
-   "TrpKeepAlive.cpp",                   // 542
    };
 
 bool 

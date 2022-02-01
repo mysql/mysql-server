@@ -104,13 +104,7 @@ struct sync_cell_t {
                            wait call. */
 
   /** Time when the thread reserved the wait cell. */
-  std::chrono::steady_clock::time_point reservation_time{};
-  /** Odd value means it is currently on-stack in a DFS search for cycles.
-  Even value means it was completely processed.
-  It is set to (odd) arr->last_scan when first visited, and then incremented
-  again when all of its children are processed (and thus it is processed, too).
-  @see arr->last_scan */
-  uint64_t last_scan{0};
+  ib_time_monotonic_t reservation_time = 0;
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for
@@ -145,14 +139,6 @@ struct sync_array_t {
                          since creation of the array */
   ulint next_free_slot;  /*!< the next free cell in the array */
   ulint first_free_slot; /*!< the last slot that was freed */
-  /** It is incremented by one at the beginning of search for deadlock cycles,
-  and then again after the scan has finished.
-  If during a scan we visit a cell with cell->last_scan == arr->last_scan it
-  means it is already on the stack, and thus a cycle was found.
-  If we visit a cell with cell->last_scan == arr->last_scan+1 it means it was
-  already fully processed and no deadlock was found "below" it.
-  If it has some other value, the cell wasn't visited by this scan before.*/
-  uint64_t last_scan{0};
 };
 
 /** Locally stored copy of srv_sync_array_size */
@@ -175,4 +161,4 @@ sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, ulint n);
  @param[in] file File where to print.
  @param[in] cell Sync array cell to report.
  */
-void sync_array_cell_print(FILE *file, const sync_cell_t *cell);
+void sync_array_cell_print(FILE *file, sync_cell_t *cell);

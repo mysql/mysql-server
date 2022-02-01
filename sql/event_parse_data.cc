@@ -439,18 +439,8 @@ bool Event_parse_data::check_parse_data(THD *thd) {
              ("execute_at: %p  expr=%p  starts=%p  ends=%p", item_execute_at,
               item_expression, item_starts, item_ends));
 
-  // Validate event comment string
-  std::string invalid_sub_str;
-  if (is_invalid_string(to_lex_cstring(comment), system_charset_info,
-                        invalid_sub_str)) {
-    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "event",
-             (std::string(identifier->m_db.str) + "." +
-              std::string(identifier->m_name.str))
-                 .c_str(),
-             replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
+  if (is_invalid_string(to_lex_cstring(comment), system_charset_info))
     return true;
-  }
 
   init_name(thd, identifier);
 

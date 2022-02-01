@@ -21,6 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 
 #include "plugin/group_replication/include/compatibility_module.h"
@@ -29,7 +32,7 @@ namespace compatibility_module_unittest {
 
 class CompatibilityModuleTest : public ::testing::Test {
  protected:
-  CompatibilityModuleTest() = default;
+  CompatibilityModuleTest() {}
 
   void SetUp() override {
     local_version = new Member_version(0x010203);  // version: 1.2.3

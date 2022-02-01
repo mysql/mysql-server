@@ -24,42 +24,19 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
 
-DISABLE_MISSING_PROFILE_WARNING()
-
-MYSQL_ADD_PLUGIN(semisync_source
-  semisync.cc
-  semisync_source.cc
-  semisync_source_ack_receiver.cc
-  semisync_source_plugin.cc
-  MODULE_ONLY
-  MODULE_OUTPUT_NAME "semisync_source"
-  VISIBILITY_HIDDEN
-  )
-
-MYSQL_ADD_PLUGIN(semisync_replica
-  semisync.cc
-  semisync_replica.cc
-  semisync_replica_plugin.cc
-  MODULE_ONLY
-  MODULE_OUTPUT_NAME "semisync_replica"
-  VISIBILITY_HIDDEN
-  )
-
 MYSQL_ADD_PLUGIN(semisync_master
   semisync.cc
-  semisync_source.cc
-  semisync_source_ack_receiver.cc
-  semisync_source_plugin_old.cc
+  semisync_master.cc
+  semisync_master_ack_receiver.cc
+  semisync_master_plugin.cc
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_master"
-  VISIBILITY_HIDDEN
   )
 
 MYSQL_ADD_PLUGIN(semisync_slave
   semisync.cc
-  semisync_replica.cc
-  semisync_replica_plugin_old.cc
+  semisync_slave.cc 
+  semisync_slave_plugin.cc
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_slave"
-  VISIBILITY_HIDDEN
   )

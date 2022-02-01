@@ -45,10 +45,10 @@ class ScanFragReq {
   friend class Dblqh;
   friend class Dbspj;
 public:
-  static constexpr Uint32 SignalLength = 12;
+  STATIC_CONST( SignalLength = 12 );
 
-  static constexpr Uint32 AttrInfoSectionNum = 0; //Mandatory part
-  static constexpr Uint32 KeyInfoSectionNum = 1;  //Optional
+  STATIC_CONST( AttrInfoSectionNum = 0 ); //Mandatory part
+  STATIC_CONST( KeyInfoSectionNum = 1 );  //Optional
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
@@ -161,8 +161,8 @@ class KeyInfo20 {
   friend class NdbOperation;
   friend class NdbScanReceiver;
 public:
-  static constexpr Uint32 HeaderLength = 5;
-  static constexpr Uint32 DataLength = 20;
+  STATIC_CONST( HeaderLength = 5);
+  STATIC_CONST( DataLength = 20 );
 
   
   static Uint32 setScanInfo(Uint32 noOfOps, Uint32 scanNo);
@@ -204,9 +204,9 @@ class ScanFragConf {
   friend class Backup;
   friend class Suma;
 public:
-  static constexpr Uint32 SignalLength = 6;
-  static constexpr Uint32 SignalLength_ext = 7;
-  static constexpr Uint32 SignalLength_query = 8;
+  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength_ext = 7 );
+  STATIC_CONST( SignalLength_query = 8);
   
 public:
   Uint32 senderData;
@@ -243,8 +243,8 @@ class ScanFragRef {
   friend class Backup;
   friend class Suma;
 public:
-  static constexpr Uint32 SignalLength = 4;
-  static constexpr Uint32 SignalLength_query = 5;
+  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength_query = 5 );
 public:
   enum ErrorCode {
     ZNO_FREE_TC_CONREC_ERROR = 484,
@@ -289,7 +289,7 @@ class ScanFragNextReq {
   friend bool printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, 
 				   Uint32 len, Uint16 receiverBlockNo);
 public:
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 
 public:
   Uint32 senderData;

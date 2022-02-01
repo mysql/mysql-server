@@ -779,7 +779,7 @@ int ha_tina::find_current_row(uchar *buf) {
         Thus, for enums we silence the warning, as it doesn't really mean
         an invalid value.
       */
-      if ((*field)->store(buffer.ptr(), buffer.length(), (*field)->charset(),
+      if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }

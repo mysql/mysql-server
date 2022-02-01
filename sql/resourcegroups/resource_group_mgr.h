@@ -466,7 +466,7 @@ class Resource_group_mgr {
         m_resource_group_support(false),
         m_num_vcpus(0) {}
 
-  ~Resource_group_mgr() = default;
+  ~Resource_group_mgr() {}
 
   // Disable copy construction and assignment for Resource_group_mgr class.
   Resource_group_mgr(const Resource_group_mgr &) = delete;

@@ -28,6 +28,7 @@
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Slave I/O .*: Master command COM_REGISTER_SLAVE failed: .*");
+SET @debug_saved=@@global.debug;
 --source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -38,9 +39,7 @@ DROP TABLE t1;
 --echo #
 --echo # Active injected error during getting server id from master
 --echo #
-
---let $debug_point= get_source_server_id.ER_NET_READ_INTERRUPTED
---source include/add_debug_point.inc
+SET GLOBAL DEBUG='d,get_master_server_id.ER_NET_READ_INTERRUPTED';
 
 START SLAVE;
 # Crash if error happens during getting server id from master
@@ -62,8 +61,7 @@ START SLAVE;
 
 --source include/stop_slave.inc
 
---let $debug_point= get_source_server_id.ER_NET_READ_INTERRUPTED
---source include/remove_debug_point.inc
+SET GLOBAL DEBUG= @save_debug;
 
 # Cleanup
 --source include/start_slave.inc

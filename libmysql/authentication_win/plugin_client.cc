@@ -60,6 +60,4 @@ extern "C" auth_plugin_t win_auth_client_plugin = {
     win_auth_client_plugin_init,
     win_auth_client_plugin_deinit,
     NULL,  // option handling
-    NULL,
-    win_auth_handshake_client,
-    nullptr};
+    win_auth_handshake_client};

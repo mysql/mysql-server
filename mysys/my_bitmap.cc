@@ -315,22 +315,6 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2) {
   return false;
 }
 
-/**
-   Check if 'map' is valid.
-   @param map The map that we wish to verify.
-   @returns 'true' if 'map' passes a consistency check.
-*/
-bool bitmap_is_valid(const MY_BITMAP *map) {
-  if (map->bitmap == nullptr) {
-    return false;
-  }
-
-  // Check that last_word_mask is set correctly.
-  MY_BITMAP copy = *map;
-  create_last_word_mask(&copy);
-  return map->last_word_mask == copy.last_word_mask;
-}
-
 void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
   assert(to->bitmap && from->bitmap);
 
@@ -502,44 +486,4 @@ uint bitmap_get_first(const MY_BITMAP *map) {
     if (*data_ptr != 0xFFFFFFFF) return get_first_not_set(*data_ptr, word_pos);
 
   return get_first_not_set(*map->last_word_ptr | map->last_word_mask, word_pos);
-}
-
-/**
-    Copy as many bits as 'dst' can hold from 'src', but no more than
-    max_bits_to_copy bits. 'src' and 'dst' should not overlap. If 'dst'
-    and 'src' have the same size (in bits), and this is less or equal than
-    max_bits_to_copy, this function behaves identical to bitmap_copy().
-
-    @param dst The destination bitmap.
-    @param src The source bitmap.
-    @param max_bits_to_copy The maximal number of bits to copy.
-    @return The number of bits copied.
-*/
-uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
-                   uint max_bits_to_copy) {
-  assert(bitmap_is_valid(dst));
-  assert(bitmap_is_valid(src));
-  // Since bitmap_copy() also does this.
-  assert(dst->n_bits > 0);
-  assert(src->n_bits > 0);
-  const uint input_bits = std::min(src->n_bits, max_bits_to_copy);
-  if (input_bits >= dst->n_bits) {
-    memcpy(dst->bitmap, src->bitmap, bitmap_buffer_size(dst->n_bits));
-    return dst->n_bits;
-  } else {
-    const uint full_words = input_bits / 32;
-    // Number of bits in the last (incomplete) word.
-    const uint tail_bits = input_bits % 32;
-    memcpy(dst->bitmap, src->bitmap, full_words * 4);
-    /*
-       We must not overwrite bits in the range [input_bits..dst->n_bits-1]
-       in 'dst'.
-    */
-    if (tail_bits > 0) {
-      dst->bitmap[full_words] =
-          (dst->bitmap[full_words] & (~0U << tail_bits)) |
-          (src->bitmap[full_words] & (~0U >> (32 - tail_bits)));
-    }
-    return input_bits;
-  }
 }

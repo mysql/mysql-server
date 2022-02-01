@@ -84,7 +84,7 @@ class Trigger {
       const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
       enum_trigger_event_type trg_event_type,
       enum_trigger_action_time_type trg_time_type, uint action_order,
-      my_timeval created_timestamp);
+      timeval created_timestamp);
 
  public:
   bool execute(THD *thd);
@@ -140,11 +140,10 @@ class Trigger {
   const LEX_CSTRING &get_action_time_as_string() const;
 
   bool is_created_timestamp_null() const {
-    return m_created_timestamp.m_tv_sec == 0 &&
-           m_created_timestamp.m_tv_usec == 0;
+    return m_created_timestamp.tv_sec == 0 && m_created_timestamp.tv_usec == 0;
   }
 
-  my_timeval get_created_timestamp() const { return m_created_timestamp; }
+  timeval get_created_timestamp() const { return m_created_timestamp; }
 
   ulonglong get_action_order() const { return m_action_order; }
 
@@ -184,7 +183,7 @@ class Trigger {
           const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
           enum_trigger_event_type event_type,
           enum_trigger_action_time_type action_time, uint action_order,
-          my_timeval created_timestamp);
+          timeval created_timestamp);
 
  public:
   ~Trigger();
@@ -204,8 +203,8 @@ class Trigger {
 
   void set_parse_error_message(const char *error_message) {
     m_has_parse_error = true;
-    snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
-             error_message);
+    strncpy(m_parse_error_message, error_message,
+            sizeof(m_parse_error_message));
   }
 
   /**
@@ -274,7 +273,7 @@ class Trigger {
 
     There is special value -- zero means CREATED is not set (NULL).
   */
-  my_timeval m_created_timestamp;
+  timeval m_created_timestamp;
 
   /**
     Action_order value for the trigger. Action_order is the ordinal position

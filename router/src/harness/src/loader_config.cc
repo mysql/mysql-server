@@ -22,18 +22,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "mysql/harness/loader_config.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
 
+////////////////////////////////////////
+// Package include files
+#include "utilities.h"
+
+////////////////////////////////////////
+// Standard include files
 #include <algorithm>
-#include <cassert>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging/logging.h"
-#include "utilities.h"  // find_range_first
+// <cassert> places assert() in global namespace on Ubuntu14.04, but might
+// place it in std:: on other platforms
+#include <assert.h>
 
 using mysql_harness::utility::find_range_first;
+using std::ostringstream;
 
 namespace mysql_harness {
 

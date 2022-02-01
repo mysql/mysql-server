@@ -100,7 +100,7 @@ enum Extra_tag {
 */
 class Lazy {
  public:
-  virtual ~Lazy() = default;
+  virtual ~Lazy() {}
 
   /**
     Deferred evaluation of encapsulated expression
@@ -357,7 +357,7 @@ class qep_row {
         derived_clone_id(0),
         m_windows(nullptr) {}
 
-  virtual ~qep_row() = default;
+  virtual ~qep_row() {}
 
   void cleanup() {
     col_id.cleanup();
@@ -411,8 +411,8 @@ class qep_row {
 
     @param subquery     WHERE clause subquery's unit
   */
-  virtual void register_where_subquery(Query_expression *subquery
-                                       [[maybe_unused]]) {}
+  virtual void register_where_subquery(
+      Query_expression *subquery MY_ATTRIBUTE((unused))) {}
 
   void format_extra(Opt_trace_object *obj);
 };
@@ -511,7 +511,7 @@ class Explain_format {
 
  public:
   Explain_format() : output(nullptr) {}
-  virtual ~Explain_format() = default;
+  virtual ~Explain_format() {}
 
   /**
     A hierarchical text or a plain table

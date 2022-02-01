@@ -107,7 +107,7 @@ class ha_tina : public handler {
   ~ha_tina() override {
     if (chain_alloced) my_free(chain);
     if (file_buff) delete file_buff;
-    blobroot.Clear();
+    free_root(&blobroot, MYF(0));
   }
   const char *table_type() const override { return "CSV"; }
   ulonglong table_flags() const override {

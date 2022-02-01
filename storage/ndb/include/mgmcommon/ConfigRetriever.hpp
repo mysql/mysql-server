@@ -27,7 +27,6 @@
 
 #include <ndb_types.h>
 #include <mgmapi.h>
-#include "mgmcommon/NdbMgm.hpp"
 #include <BaseString.hpp>
 
 /**
@@ -58,7 +57,7 @@ public:
    * 
    * @return ndb_mgm_config_unique_ptr which may be empty on failure
    */
-  ndb_mgm::config_ptr getConfig(Uint32 nodeid);
+  ndb_mgm_config_unique_ptr getConfig(Uint32 nodeid);
   
   void resetError();
   int hasError();
@@ -76,12 +75,12 @@ public:
   /**
    * Get config using socket
    */
-  ndb_mgm::config_ptr getConfig(NdbMgmHandle handle);
+  ndb_mgm_config_unique_ptr getConfig(NdbMgmHandle handle);
   
   /**
    * Get config from file
    */
-  ndb_mgm::config_ptr getConfig(const char * file);
+  ndb_mgm_config_unique_ptr getConfig(const char * file);
 
   /**
    * Verify config

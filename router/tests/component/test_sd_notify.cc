@@ -51,7 +51,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
-#include "router_test_helpers.h"
 
 #define EXPECT_NO_ERROR(x) \
   EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
@@ -99,7 +98,7 @@ class NotifyTest : public RestApiComponentTest {
     UNREFERENCED_PARAMETER(router);
     return true;
 #else
-    return wait_log_contains(router, " ready 'signal_handler'", 5s);
+    return wait_log_contains(router, "Service 'signal handler' ready", 5s);
 #endif
   }
 
@@ -107,20 +106,24 @@ class NotifyTest : public RestApiComponentTest {
       const std::vector<std::string> &config_file_sections) {
     auto default_section = prepare_config_defaults();
 
-    const std::string config_file_content =
-        mysql_harness::join(config_file_sections, "");
+    std::string config_file_content;
+    for (const auto &section : config_file_sections) {
+      config_file_content += section + "\n";
+    }
 
     return ProcessManager::create_config_file(
         get_test_temp_dir_name(), config_file_content, &default_section);
   }
 
-  auto &launch_router(const std::string &conf_file,
+  auto &launch_router(const std::vector<std::string> &config_file_sections,
                       bool wait_for_ready_expected_result = true,
                       std::chrono::milliseconds wait_for_ready_timeout = 5s,
                       const std::string &notification_socket_node = "default",
                       bool do_create_notify_socket = true,
                       int expected_exit_code = EXIT_SUCCESS,
                       bool wait_on_notify_socket = true) {
+    const std::string conf_file = create_config_file(config_file_sections);
+
     std::vector<std::pair<std::string, std::string>> env_vars;
 
     std::string socket_node;
@@ -176,13 +179,11 @@ class NotifyTest : public RestApiComponentTest {
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params,
       const std::vector<std::pair<std::string, std::string>> &env_vars,
-      int expected_exit_code,
-      ProcessWrapper::OutputResponder output_responder =
-          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
+      int expected_exit_code) {
     // wait_for_notify_ready is false as we do it manually in those tests
     auto &router =
         launch_command(get_mysqlrouter_exec().str(), params, expected_exit_code,
-                       /*catch_stderr*/ true, env_vars, output_responder);
+                       /*catch_stderr*/ true, env_vars);
     router.set_logging_path(get_logging_dir().str(), "mysqlrouter.log");
 
     return router;
@@ -222,7 +223,7 @@ TEST_F(NotifyTest, NotifyReadyBasic) {
       ConfigBuilder::build_section("keepalive", {}),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 
@@ -233,7 +234,7 @@ TEST_F(NotifyTest, NotifyReadyBasic) {
 TEST_F(NotifyTest, NotifyReadyNoPlugin) {
   SCOPED_TRACE("// Launch the Router with no plugin configured");
 
-  auto &router = launch_router(create_config_file({}),
+  auto &router = launch_router({},
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 200ms, "default",
                                true, EXIT_FAILURE);
@@ -263,7 +264,7 @@ TEST_F(NotifyTest, NotifyReadyHttpBackend) {
                                    }),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 
@@ -306,7 +307,7 @@ TEST_F(NotifyTest, NotifyReadyMetadataCache) {
                                    }),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 
@@ -338,7 +339,7 @@ TEST_F(NotifyTest, NotifyReadyHttpPlugins) {
                                    }),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 
@@ -409,7 +410,7 @@ TEST_F(NotifyTest, NotifyReadyManyPlugins) {
                                    {{"require_realm", "somerealm"}}),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 
@@ -423,38 +424,30 @@ TEST_F(NotifyTest, NotifyReadyMetadataCacheNoServer) {
       "we pick a socket where on which there is noone accepting to mimic "
       "unavailable cluster");
 
-  const auto nodes =
+  std::string nodes =
       "mysql://localhost:" + std::to_string(port_pool_.get_next_available());
 
-  auto writer =
-      config_writer(get_test_temp_dir_name())
-          .section(
-              "routing:rw",
-              {{"bind_port", std::to_string(port_pool_.get_next_available())},
-               {"routing_strategy", "first-available"},
-               {"destinations", "metadata-cache://test/default?role=PRIMARY"},
-               {"protocol", "classic"}})
-          .section("metadata_cache", {
-                                         {"cluster_type", "gr"},
-                                         {"router_id", "1"},
-                                         {"bootstrap_server_addresses", nodes},
-                                         {"user", "mysql_router1_user"},
-                                         {"connect_timeout", "1"},
-                                         {"metadata_cluster", "test"},
-                                     });
+  const std::vector<std::string> config_sections{
+      ConfigBuilder::build_section(
+          "routing:rw",
+          {{"bind_port", std::to_string(port_pool_.get_next_available())},
+           {"routing_strategy", "first-available"},
+           {"destinations", "metadata-cache://test/default?role=PRIMARY"},
+           {"protocol", "classic"}}),
+      ConfigBuilder::build_section("metadata_cache",
+                                   {
+                                       {"cluster_type", "gr"},
+                                       {"router_id", "1"},
+                                       {"bootstrap_server_addresses", nodes},
+                                       {"user", "mysql_router1_user"},
+                                       {"connect_timeout", "1"},
+                                       {"metadata_cluster", "test"},
+                                   }),
+  };
 
-  // prepare keyring
-  init_keyring(writer.sections()["DEFAULT"], get_test_temp_dir_name());
-
-  // check that router never becomes READY (within a reasonable time) as
-  // metadata-cache fails to connect
-  //
-  // if we could wait for 'STATUS=running' and then for "not READY=1", the test
-  // could be faster. Until then the test needs a later timeout.
-
-  /*auto &router =*/launch_router(writer.write(),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ false,
-                                  /*wait_for_ready_timeout*/ 5s);
+                                  /*wait_for_ready_timeout*/ 500ms);
 }
 
 /**
@@ -473,7 +466,7 @@ TEST_F(NotifyTest, NotifyReadySocketEmpty) {
   SCOPED_TRACE(
       "// Notification socket is empty so we should not get ready "
       "notification, still the Router should start and close successfully");
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                false,  // wait_for_ready_expected_result
                                500ms,  // wait_for_ready_timeout
                                "",     // notification_socket_node
@@ -503,7 +496,7 @@ TEST_F(NotifyTest, NotifyReadyNonExistingNotifySocket) {
       "// We set the notification socket to some nonexisting socket, error "
       "should get reported but the Router should still start and close as "
       "expected");
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 500ms,
                                /*notifiication_socket_node*/ "default",
@@ -546,7 +539,7 @@ TEST_P(NotifyTestInvalidSocketNameTest, NotifyTestInvalidSocketName) {
       "// We set the notification socket to some nonexisting socket with some "
       "invalid name, error should get reported but the Router should still "
       "start and close as expected");
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 500ms,
                                /*notifiication_socket_node*/ GetParam(),
@@ -606,7 +599,7 @@ TEST_F(NotifyTest, NotifyReadyNotRelatedSocket) {
   ASSERT_NO_ERROR(notify_socket.open());
   ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 500ms,
                                /*notification_socket_node*/ socket_name,
@@ -660,7 +653,7 @@ TYPED_TEST(NotifyReadyNotRelatedSocketNonDatagramTest, check) {
   ASSERT_NO_ERROR(notify_socket.open());
   ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
-  auto &router = this->launch_router(this->create_config_file(config_sections),
+  auto &router = this->launch_router(config_sections,
                                      /*wait_for_ready_expected_result*/ false,
                                      /*wait_for_ready_timeout*/ 500ms,
                                      /*notifiication_socket_node*/ socket_name,
@@ -690,7 +683,7 @@ TEST_F(NotifyTest, NotifyTestSocketNameTooLong) {
   SCOPED_TRACE("// We use very long name for the notify socket name");
   const auto socket_name =
       generate_notify_socket_path(get_test_temp_dir_name(), 260);
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 500ms,
                                /*notifiication_socket_node*/ socket_name,
@@ -725,7 +718,7 @@ TEST_F(NotifyTest, NotifyTestSocketDirNameTooLong) {
   socket_path.append(mysql_harness::RandomGenerator().generate_identifier(
       12, mysql_harness::RandomGenerator::AlphabetLowercase));
   auto &router =
-      launch_router(create_config_file(config_sections),
+      launch_router(config_sections,
                     /*wait_for_ready_expected_result*/ false,
                     /*wait_for_ready_timeout*/ 500ms,
                     /*notifiication_socket_node*/ socket_path.c_str(),
@@ -855,7 +848,7 @@ TEST_F(NotifyTest, NotifyStoppingBasic) {
   ASSERT_NO_ERROR(notify_socket.open());
   ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
-  auto &router = launch_router(create_config_file(config_sections),
+  auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 5s,
                                /*notifiication_socket_node*/ socket_name,
@@ -924,8 +917,9 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
        "-d=" + temp_test_dir.name()},
-      env_vars, EXIT_SUCCESS,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      env_vars, EXIT_SUCCESS);
+  router.register_response("Please enter MySQL password for root: ",
+                           "fake-pass\n");
 
   SCOPED_TRACE("// Bootstrap should be successful");
   check_exit_code(router, EXIT_SUCCESS, 10s);
@@ -962,7 +956,7 @@ TEST_F(NotifyTest, NotifyReadyMockServerPlugin) {
           }),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
+  /*auto &router =*/launch_router(config_sections,
                                   /*wait_for_ready_expected_result*/ true);
 }
 

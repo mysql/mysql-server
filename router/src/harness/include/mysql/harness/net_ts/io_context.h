@@ -139,107 +139,6 @@ class io_context : public execution_context {
   }
 
  private:
-  /**
-   * queued work from io_context::executor_type::dispatch()/post()/defer().
-   */
-  class DeferredWork {
-   public:
-    // simple, generic storage of callable.
-    //
-    // std::function<void()> is similar, but doesn't work for move-only
-    // callables like lambda's that capture a move-only type
-    class BasicCallable {
-     public:
-      virtual ~BasicCallable() = default;
-
-      virtual void invoke() = 0;
-    };
-
-    template <class Func>
-    class Callable : public BasicCallable {
-     public:
-      Callable(Func &&f) : f_{std::forward<Func>(f)} {}
-
-      void invoke() override { f_(); }
-
-     private:
-      Func f_;
-    };
-
-    using op_type = std::unique_ptr<BasicCallable>;
-
-    /**
-     * run a deferred work item.
-     *
-     * @returns number work items run.
-     * @retval 0 work queue was empty, nothing was run.
-     */
-    size_t run_one() {
-      // tmp list to hold the current operation to run.
-      //
-      // makes it simple and fast to move the head element and shorten the time
-      // the lock is held.
-      decltype(work_) tmp;
-
-      // lock is only needed as long as we modify the work-queue.
-      {
-        std::lock_guard<std::mutex> lk(work_mtx_);
-
-        if (work_.empty()) return 0;
-
-        // move the head of the work queue out and release the lock.
-        //
-        // note: std::list.splice() moves pointers.
-        tmp.splice(tmp.begin(), work_, work_.begin());
-      }
-
-      // run the deferred work.
-      tmp.front()->invoke();
-
-      // and destruct the list at the end.
-
-      return 1;
-    }
-
-    /**
-     * queue work for later execution.
-     */
-    template <class Func, class ProtoAllocator>
-    void post(Func &&f, const ProtoAllocator & /* a */) {
-      std::lock_guard<std::mutex> lk(work_mtx_);
-
-      work_.emplace_back(
-          std::make_unique<Callable<Func>>(std::forward<Func>(f)));
-    }
-
-    /**
-     * check if work is queued for later execution.
-     *
-     * @retval true if some work is queued.
-     */
-    bool has_outstanding_work() const {
-      std::lock_guard<std::mutex> lk(work_mtx_);
-      return !work_.empty();
-    }
-
-   private:
-    mutable std::mutex work_mtx_;
-    std::list<op_type> work_;
-  };
-
-  DeferredWork deferred_work_;
-
-  /**
-   * defer work for later execution.
-   */
-  template <class Func, class ProtoAllocator>
-  void defer_work(Func &&f, const ProtoAllocator &a) {
-    deferred_work_.post(std::forward<Func>(f), a);
-
-    // wakeup the possibly blocked io-thread.
-    io_service()->notify();
-  }
-
   template <class Clock, class Duration>
   count_type do_one_until(
       std::unique_lock<std::mutex> &lk,
@@ -282,7 +181,6 @@ class io_context : public execution_context {
   bool has_outstanding_work() const {
     if (!cancelled_ops_.empty()) return true;
     if (active_ops_.has_outstanding_work()) return true;
-    if (deferred_work_.has_outstanding_work()) return true;
 
     if (work_count_ > 0) return true;
 
@@ -352,6 +250,11 @@ class io_context : public execution_context {
         : async_op{fd, wt}, op_{std::forward<Op>(op)} {}
 
     void run(io_context & /* io_ctx */) override {
+      // for later: integrate with io_ctx.dispatch() to execute it in another
+      // execution context if required.
+      //
+      // currently, we only need it to executor directly in the current thread.
+
       if (is_cancelled()) {
         op_(make_error_code(std::errc::operation_canceled));
       } else {
@@ -996,54 +899,29 @@ class io_context::executor_type {
   void on_work_started() const noexcept { ++io_ctx_->work_count_; }
   void on_work_finished() const noexcept { --io_ctx_->work_count_; }
 
-  /**
-   * execute function.
-   *
-   * Effect:
-   *
-   * The executor
-   *
-   * - MAY block forward progress of the caller until f() finishes.
-   */
   template <class Func, class ProtoAllocator>
   void dispatch(Func &&f, const ProtoAllocator &a) const {
     if (running_in_this_thread()) {
       // run it in this thread.
       std::decay_t<Func>(std::forward<Func>(f))();
     } else {
-      // queue function call for later execution.
+      // run it in a worker thread
       post(std::forward<Func>(f), a);
     }
   }
 
-  /**
-   * queue function for execution.
-   *
-   * Effects:
-   *
-   * The executor
-   *
-   * - SHALL NOT block forward progress of the caller pending completion of f().
-   * - MAY begin f() progress before the call to post completes.
-   */
+  // TODO: implement
   template <class Func, class ProtoAllocator>
-  void post(Func &&f, const ProtoAllocator &a) const {
-    io_ctx_->defer_work(std::forward<Func>(f), a);
+  void post(Func &&f, const ProtoAllocator & /* a */) const {
+    // supposed to call the function in another thread, but as we only have it
+    // in one thread right now ... execute directly
+
+    std::decay_t<Func>(std::forward<Func>(f))();
   }
 
-  /**
-   * defer function call for later execution.
-   *
-   * Effect:
-   *
-   * The executor:
-   *
-   * - SHALL NOT block forward progress of the caller pending completion of f().
-   * - SHOULD NOT begin f()'s progress before the call to defer()
-   *   completes.
-   */
   template <class Func, class ProtoAllocator>
   void defer(Func &&f, const ProtoAllocator &a) const {
+    // same as post
     post(std::forward<Func>(f), a);
   }
 
@@ -1107,11 +985,6 @@ inline io_context::count_type io_context::do_one(
   }
 
   while (true) {
-    // 1. deferred work.
-    // 2. timer
-    // 3. triggered events.
-
-    // timer (2nd round)
     if (timer_q) {
       if (timer_q->run_one()) {
         wake_one_runner_(lk);
@@ -1121,13 +994,6 @@ inline io_context::count_type io_context::do_one(
       }
     }
 
-    // deferred work
-    if (deferred_work_.run_one()) {
-      wake_one_runner_(lk);
-      return 1;
-    }
-
-    // timer
     std::chrono::milliseconds min_duration{0};
     {
       std::lock_guard<std::mutex> lk(mtx_);

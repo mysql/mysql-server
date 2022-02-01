@@ -34,7 +34,7 @@ namespace gcs_xcom_packet_unittest {
 
 class GcsPacketTest : public GcsBaseTest {
  protected:
-  GcsPacketTest() = default;
+  GcsPacketTest() {}
 
   void SetUp() override { lz4_stage = new Gcs_message_stage_lz4(true, 1024); }
 

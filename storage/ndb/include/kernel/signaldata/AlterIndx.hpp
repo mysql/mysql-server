@@ -33,7 +33,7 @@
 
 
 struct AlterIndxReq {
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
   enum RequestFlag {
     RF_BUILD_OFFLINE = 1 << 8
@@ -49,7 +49,7 @@ struct AlterIndxReq {
 };
 
 struct AlterIndxConf {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -72,7 +72,7 @@ struct AlterIndxRef {
     InvalidIndexVersion = 241
   };
 
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

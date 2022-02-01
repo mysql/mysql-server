@@ -60,8 +60,8 @@ class Mock_field_timestamp : public Field_timestamp {
     initialize();
   }
 
-  my_timeval to_timeval() {
-    my_timeval tm;
+  timeval to_timeval() {
+    timeval tm;
     int warnings = 0;
     get_timestamp(&tm, &warnings);
     EXPECT_EQ(0, warnings);
@@ -72,7 +72,7 @@ class Mock_field_timestamp : public Field_timestamp {
   void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
-  void store_timestamp(const my_timeval *tm) override {
+  void store_timestamp(const timeval *tm) override {
     make_writable();
     Field_temporal_with_date_and_time::store_timestamp(tm);
     store_timestamp_called = true;

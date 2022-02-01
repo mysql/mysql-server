@@ -816,6 +816,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
         (*keys) += tmp_keys - 1;
         continue;
       }
+      /* fall through */
     }
     if (record >= info->state->data_file_length) {
 #ifndef NDEBUG
@@ -2109,8 +2110,8 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
   sort_param.wordlist = nullptr;
-  ::new ((void *)&sort_param.wordroot) MEM_ROOT(
-      mi_key_memory_MI_SORT_PARAM_wordroot, FTPARSER_MEMROOT_ALLOC_SIZE);
+  init_alloc_root(mi_key_memory_MI_SORT_PARAM_wordroot, &sort_param.wordroot,
+                  FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
     length =
@@ -2212,7 +2213,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
     }
     /* No need to calculate checksum again. */
     sort_param.calc_checksum = false;
-    sort_param.wordroot.Clear();
+    free_root(&sort_param.wordroot, MYF(0));
 
     /* Set for next loop */
     sort_info.max_records = (ha_rows)info->state->records;
@@ -2393,7 +2394,7 @@ err:
 int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
                        int rep_quick, bool no_copy_stat) {
   int got_error;
-  uint i, key, istep;
+  uint i, key, total_key_length, istep;
   ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length, del;
@@ -2563,6 +2564,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
     mi_check_print_error(param, "Not enough memory for key!");
     goto err;
   }
+  total_key_length = 0;
   rec_per_key_part = param->rec_per_key_part;
   info->state->records = info->state->del = share->state.split = 0;
   info->state->empty = 0;
@@ -2620,14 +2622,15 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
         sort_param[i].key_length += 2 + (keyseg->length >= 127);
       if (keyseg->flag & HA_NULL_PART) sort_param[i].key_length++;
     }
+    total_key_length += sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT) {
       uint ft_max_word_len_for_sort =
           FT_MAX_WORD_LEN_FOR_SORT *
           sort_param[i].keyinfo->seg->charset->mbmaxlen;
       sort_param[i].key_length += ft_max_word_len_for_sort - HA_FT_MAXBYTELEN;
-      ::new ((void *)&sort_param[i].wordroot) MEM_ROOT(
-          mi_key_memory_MI_SORT_PARAM_wordroot, FTPARSER_MEMROOT_ALLOC_SIZE);
+      init_alloc_root(mi_key_memory_MI_SORT_PARAM_wordroot,
+                      &sort_param[i].wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     }
   }
   sort_info.total_keys = i;
@@ -2862,7 +2865,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
 
   if (!sort_param->wordlist) {
     for (;;) {
-      sort_param->wordroot.ClearForReuse();
+      free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
       if ((error = sort_get_next_record(sort_param))) return error;
       if (!(wptr = _mi_ft_parserecord(info, sort_param->key, sort_param->record,
                                       &sort_param->wordroot)))
@@ -2881,7 +2884,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
                                              (uchar *)key, wptr++,
                                              sort_param->filepos));
   if (!wptr->pos) {
-    sort_param->wordroot.ClearForReuse();
+    free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
     sort_param->wordlist = nullptr;
     error = sort_write_record(sort_param);
   } else

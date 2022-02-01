@@ -60,7 +60,7 @@ class channel_imp : public Cache_malloced {
       : m_has_ignore_list(false), m_valid{true}, m_reference_count{0} {
     m_service_names = service_names;
   }
-  ~channel_imp() = default;
+  ~channel_imp() {}
 
   bool operator==(channel_imp &other) const {
     return m_service_names == other.m_service_names;

@@ -176,7 +176,7 @@ class Object_table {
   virtual void set_hidden(bool hidden) = 0;
 
  public:
-  virtual ~Object_table() = default;
+  virtual ~Object_table() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////

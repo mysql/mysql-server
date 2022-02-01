@@ -73,8 +73,7 @@ std::ostream &undo_data_t::print(std::ostream &out) const {
 @return pointer past the old data. */
 const byte *undo_data_t::copy_old_data(const byte *undo_ptr, ulint len) {
   m_length = len;
-  m_old_data =
-      ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_length});
+  m_old_data = UT_NEW_ARRAY_NOKEY(byte, m_length);
   if (m_old_data == nullptr) {
     return (nullptr);
   }
@@ -85,7 +84,7 @@ const byte *undo_data_t::copy_old_data(const byte *undo_ptr, ulint len) {
 /** Free allocated memory for old data. */
 void undo_data_t::destroy() {
   if (m_old_data != nullptr) {
-    ut::delete_arr(m_old_data);
+    UT_DELETE_ARRAY(m_old_data);
     m_old_data = nullptr;
   }
 }

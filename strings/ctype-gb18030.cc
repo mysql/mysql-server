@@ -19277,7 +19277,7 @@ static inline uint gb18030_4_chs_to_diff(const uchar *src) {
                 0 if not
 */
 extern "C" {
-static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
+static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 const char *p, const char *e) {
   assert(e > p);
 
@@ -19301,7 +19301,7 @@ static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
   @retval       1/2/4 accordingly if the leading byte(s) indicate
                 the code would be gb18030, otherwise 0
 */
-static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
+static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                  uint c) {
   if (c <= 0xFF)
     /* We use is_mb_odd instead of is_mb_1 here, because in other cs,
@@ -19327,7 +19327,7 @@ static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                     space is too small
                  3) MY_CS_ILUNI if we can't encode unicode to gb18030
 */
-static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 my_wc_t wc, uchar *s, uchar *e) {
   uint idx = 0;
   uint len;
@@ -19418,7 +19418,7 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
                   3) MY_CS_ILSEQ if gb18030 code is
                      wrong by sequence
 */
-static int my_mb_wc_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             my_wc_t *pwc, const uchar *s, const uchar *e) {
   uint idx = 0;
   uint cp = 0;
@@ -19504,10 +19504,9 @@ static int my_mb_wc_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
   @param[out] error 0 if every gb18030 code we get is correct, otherwise 1
   @return           the length of all well formed bytes
 */
-static size_t my_well_formed_len_gb18030(const CHARSET_INFO *cs
-                                         [[maybe_unused]],
-                                         const char *b, const char *e,
-                                         size_t pos, int *error) {
+static size_t my_well_formed_len_gb18030(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
+    size_t pos, int *error) {
   const char *b0 = b;
   const char *emb = e - 1;
 

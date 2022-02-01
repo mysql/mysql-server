@@ -27,7 +27,6 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <system_error>
 
@@ -48,14 +47,9 @@ class HTTP_AUTH_REALM_LIB_EXPORT HttpAuthRealmComponent {
   static HttpAuthRealmComponent &get_instance();
 
   /**
-   * register a realm with a handler.
+   * init component from realms.
    */
-  void add_realm(const std::string &name, std::shared_ptr<HttpAuthRealm> realm);
-
-  /**
-   * unregister a realm.
-   */
-  void remove_realm(const std::string &name);
+  void init(std::shared_ptr<value_type> realms);
 
   /**
    * authenticate user with authdata against realm.
@@ -80,8 +74,7 @@ class HTTP_AUTH_REALM_LIB_EXPORT HttpAuthRealmComponent {
   HttpAuthRealmComponent(HttpAuthRealmComponent const &) = delete;
   void operator=(HttpAuthRealmComponent const &) = delete;
 
-  std::mutex realms_m_;
-  value_type auth_realms_;
+  std::weak_ptr<value_type> auth_realms_;
 
   HttpAuthRealmComponent() = default;
 };

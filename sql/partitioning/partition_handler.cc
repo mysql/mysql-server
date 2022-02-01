@@ -144,8 +144,8 @@ Partition_share::~Partition_share() {
     @retval false Success.
 */
 
-bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share
-                                          [[maybe_unused]]) {
+bool Partition_share::init_auto_inc_mutex(
+    TABLE_SHARE *table_share MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   assert(!auto_inc_mutex);
 #ifndef NDEBUG
@@ -171,7 +171,7 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share
   @param max_reserved    End of reserved auto inc range.
 */
 void Partition_share::release_auto_inc_if_possible(
-    THD *thd, TABLE_SHARE *table_share [[maybe_unused]],
+    THD *thd, TABLE_SHARE *table_share MY_ATTRIBUTE((unused)),
     const ulonglong next_insert_id, const ulonglong max_reserved) {
   assert(auto_inc_mutex);
 
@@ -200,6 +200,7 @@ void Partition_share::release_auto_inc_if_possible(
 */
 
 bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
+  uint tot_names;
   uint num_subparts = part_info->num_subparts;
   DBUG_TRACE;
   assert(!part_info->is_sub_partitioned() || num_subparts);
@@ -220,6 +221,10 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
 #endif
   if (partition_name_hash != nullptr) {
     return false;
+  }
+  tot_names = part_info->num_parts;
+  if (part_info->is_sub_partitioned()) {
+    tot_names += part_info->num_parts * num_subparts;
   }
   partition_names = static_cast<const uchar **>(my_malloc(
       key_memory_Partition_share,
@@ -474,7 +479,7 @@ int Partition_helper::ph_write_row(uchar *buf) {
     /*
       If we have failed to set the auto-increment value for this row,
       it is highly likely that we will not be able to insert it into
-      the correct partition. We must check and fail if necessary.
+      the correct partition. We must check and fail if neccessary.
     */
     if (error) return error;
 
@@ -2100,7 +2105,7 @@ int Partition_helper::ph_index_next(uchar *buf) {
 */
 
 int Partition_helper::ph_index_next_same(uchar *buf,
-                                         uint keylen [[maybe_unused]]) {
+                                         uint keylen MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
 
   assert(keylen == m_start_key.length);

@@ -58,7 +58,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
         return new (thd->mem_root) Cached_item_temporal(item);
       if (item->data_type() == MYSQL_TYPE_JSON)
         return new (thd->mem_root) Cached_item_json(item);
-      return new (thd->mem_root) Cached_item_str(item);
+      return new (thd->mem_root) Cached_item_str(thd, item);
     case INT_RESULT:
       return new (thd->mem_root) Cached_item_int(item);
     case REAL_RESULT:
@@ -72,11 +72,13 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   }
 }
 
-Cached_item_str::Cached_item_str(Item *arg)
+Cached_item::~Cached_item() {}
+
+Cached_item_str::Cached_item_str(THD *thd, Item *arg)
     : Cached_item(arg),
-      // Make sure value.data() is never nullptr, as not all collation functions
-      // are prepared for that (even with empty strings).
-      value(16) {}
+      value_max_length(
+          min<uint32>(arg->max_length, thd->variables.max_sort_length)),
+      value(value_max_length) {}
 
 /**
   Compare with old value and replace value with new value.
@@ -85,12 +87,14 @@ Cached_item_str::Cached_item_str(Item *arg)
     Return true if values have changed
 */
 bool Cached_item_str::cmp(void) {
+  String *res;
   bool tmp;
 
   DBUG_TRACE;
   assert(!item->is_temporal());
   assert(item->data_type() != MYSQL_TYPE_JSON);
-  String *res = item->val_str(&tmp_value);
+  if ((res = item->val_str(&tmp_value)))
+    res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
                       res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value) {
@@ -150,6 +154,10 @@ bool Cached_item_json::cmp() {
   return true;
 }
 
+void Cached_item_json::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_json *>(i_c)->store_value(item, m_value);
+}
+
 bool Cached_item_real::cmp(void) {
   DBUG_TRACE;
   double nr = item->val_real();
@@ -190,6 +198,26 @@ bool Cached_item_temporal::cmp(void) {
 
 Cached_item_decimal::Cached_item_decimal(Item *it) : Cached_item(it) {
   my_decimal_set_zero(&value);
+}
+
+void Cached_item_real::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_real *>(i_c)->store_value(item, value);
+}
+
+void Cached_item_int::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_int *>(i_c)->store_value(item, value);
+}
+
+void Cached_item_temporal::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_datetime *>(i_c)->store_value(item, value);
+}
+
+void Cached_item_str::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_str *>(i_c)->store_value(item, value);
+}
+
+void Cached_item_decimal::copy_to_Item_cache(Item_cache *i_c) {
+  down_cast<Item_cache_decimal *>(i_c)->store_value(item, &value);
 }
 
 bool Cached_item_decimal::cmp() {

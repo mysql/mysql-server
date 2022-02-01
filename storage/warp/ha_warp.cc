@@ -449,7 +449,7 @@ int ha_warp::set_column_set() {
 
   int count = 0;
   for (Field **field = table->field; *field; field++) {
-    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE || current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI) {
+    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE || current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI || current_thd->lex->sql_command == SQLCOM_DELETE || current_thd->lex->sql_command == SQLCOM_DELETE_MULTI ) {
       ++count;
 
       /* this column must be read from disk */
@@ -510,7 +510,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
 
   for (Field **field = table->field; *field; field++) {
     buffer.length(0);
-    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE ||  current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI ) {
+    if(bitmap_is_set(table->read_set, (*field)->field_index()) || current_thd->lex->sql_command == SQLCOM_UPDATE ||  current_thd->lex->sql_command == SQLCOM_UPDATE_MULTI  || current_thd->lex->sql_command == SQLCOM_DELETE || current_thd->lex->sql_command == SQLCOM_DELETE_MULTI ) {
       
       bool is_unsigned = (*field)->all_flags() & UNSIGNED_FLAG;
       std::string cname = "c" + std::to_string((*field)->field_index());
@@ -1520,7 +1520,7 @@ int ha_warp::rnd_init(bool) {
   */
   set_column_set();
 
-  /* push_where_clause is populated in ha_warp::prep_cond_push() which is the
+  /* push_where_clause is populated in ha_warp::cond_push() which is the
      handler function invoked by engine condition pushdown.  When ECP is
      used, then push_where_clause will be a non-empty string.  If it
      isn't used, then the WHERE clause is set such that Fastbit will
@@ -2480,10 +2480,10 @@ int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
 */
 
 /**
- * This function replaces (for SELECT queries) the handler::prep_cond_push
+ * This function replaces (for SELECT queries) the handler::cond_push
  * function.  Instead of using an array of ITEM* it uses an
  * abstract query plan.
- * This function now calls ha_warp::prep_cond_push to do the work that it used
+ * This function now calls ha_warp::cond_push to do the work that it used
  * to do in 8.0.20
  * @param table_aqp The specific table in the join plan to examine.
  * @return Possible error code, '0' if no errors.
@@ -2510,14 +2510,14 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
     str.reserve(1024*1024);
     cond2->print(current_thd, &str, QT_ORDINARY);
     // the pushdown information should already have been created in ::info
-    remainder = prep_cond_push(cond, true);
+    remainder = cond_push(cond, true);
     
     //if(remainder == nullptr) {
     //  pushed_cond = cond;
     //}
     
     table_aqp->set_condition(const_cast<Item *>(remainder));
-
+  
     // used later to select rows from a table for bitmap index join optimzation
     pushdown_info->filter = push_where_clause;
   }
@@ -2531,7 +2531,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
 
    This code is called from ha_warp::engine_push in 8.0.20+
 */
-const Item *ha_warp::prep_cond_push(const Item *cond, bool other_tbls_ok) {
+const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
   
   static int depth=0;
   static int unpushed_condition_count = 0;
@@ -2585,7 +2585,7 @@ const Item *ha_warp::prep_cond_push(const Item *cond, bool other_tbls_ok) {
       */
       ++depth;
       
-      if(prep_cond_push(item, other_tbls_ok) != NULL) {
+      if(cond_push(item, other_tbls_ok) != NULL) {
         unpushed_condition_count++;
         //items->push_back(item);
       }
@@ -2696,7 +2696,6 @@ int ha_warp::append_column_filter(const Item *cond,
         if(arg[arg_num]->used_tables() == 0) continue;
         
         auto str = ItemToString(arg[arg_num]);
-        std::cerr << str << "| ";
         const char* dot_pos = strstr(str.c_str(), ".");
         auto alias=str.substr(0, dot_pos - str.c_str());
         
@@ -3242,10 +3241,10 @@ int ha_warp::external_lock(THD *thd, int lock_type){
     }
 
     enum_sql_command sql_command = (enum_sql_command)thd_sql_command(thd);
-    if(sql_command == SQLCOM_UPDATE || 
+    if(sql_command == SQLCOM_UPDATE || sql_command == SQLCOM_UPDATE_MULTI ||
       sql_command == SQLCOM_INSERT ||
       sql_command == SQLCOM_REPLACE ||
-      sql_command == SQLCOM_DELETE ||
+      sql_command == SQLCOM_DELETE || sql_command == SQLCOM_DELETE_MULTI ||
       sql_command == SQLCOM_INSERT_SELECT ||
       sql_command == SQLCOM_LOAD ||
       sql_command == SQLCOM_ALTER_TABLE ||

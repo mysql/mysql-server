@@ -35,6 +35,7 @@
 #include <sys/shm.h>
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -53,8 +54,7 @@ SHM_Transporter::ndb_shm_create()
 {
   if (!isServer)
   {
-    g_eventLogger->info(
-        "Trying to create shared memory segment on the client side");
+    ndbout_c("Trying to create shared memory segment on the client side");
     return false;
   }
   shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
@@ -68,9 +68,9 @@ SHM_Transporter::ndb_shm_create()
                    shmId,
                    errno,
                    strerror(errno)));
-    g_eventLogger->info(
-        "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)",
-        shmSize, errno, strerror(errno));
+    fprintf(stderr,
+      "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)\n",
+      shmSize, errno, strerror(errno));
     require(false);
     return false;
   }
@@ -93,9 +93,9 @@ SHM_Transporter::ndb_shm_get()
                    strerror(errno)));
     if (errno != ENOENT)
     {
-      g_eventLogger->info(
-          "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)",
-          shmSize, errno, strerror(errno));
+      fprintf(stderr,
+        "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)\n",
+        shmSize, errno, strerror(errno));
       require(false);
     }
     return false;

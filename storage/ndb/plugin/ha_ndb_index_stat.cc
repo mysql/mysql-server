@@ -27,8 +27,6 @@
 #include <ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
-#include <time.h>
-#include <atomic>
 
 #include "my_dbug.h"
 #include "sql/field.h"
@@ -127,20 +125,10 @@ struct Ndb_index_stat {
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
+  uint ref_count;     /* from client requests */
   bool to_delete;     /* detached from share and marked for delete */
   bool abort_request; /* abort all requests and allow no more */
   Ndb_index_stat();
-
- private:
-  std::atomic<uint> m_ref_count{0}; /* from client requests */
- public:
-  void acquire_client_ref() { m_ref_count++; }
-  void release_client_ref() {
-    const uint prev_count [[maybe_unused]] = m_ref_count--;
-    // Detect decrement from zero, indicates mismatch
-    assert(prev_count > 0);
-  }
-  bool has_client_ref() const { return m_ref_count != 0; }
 };
 
 struct Ndb_index_stat_list {
@@ -658,8 +646,6 @@ void Ndb_index_stat_glob::set_status() {
   mysql_mutex_unlock(&LOCK_global_system_variables);
 }
 
-static long g_ndb_status_index_stat_event_count = 0;
-
 /* Zero accumulating counters */
 void Ndb_index_stat_glob::zero_total() {
   analyze_count = 0;
@@ -677,7 +663,6 @@ void Ndb_index_stat_glob::zero_total() {
   evict_count = 0;
   /* Reset highest use seen to current */
   cache_high_bytes = cache_query_bytes + cache_clean_bytes;
-  g_ndb_status_index_stat_event_count = 0;
 }
 
 /* Shared index entries */
@@ -707,6 +692,7 @@ Ndb_index_stat::Ndb_index_stat() {
   list_next = 0;
   list_prev = 0;
   share = 0;
+  ref_count = 0;
   to_delete = false;
   abort_request = false;
 }
@@ -718,7 +704,7 @@ Ndb_index_stat::Ndb_index_stat() {
   Argument "from" is 0=stats thread 1=client.
 */
 static void ndb_index_stat_error(Ndb_index_stat *st, int from,
-                                 const char *place [[maybe_unused]]) {
+                                 const char *place MY_ATTRIBUTE((unused))) {
   time_t now = ndb_index_stat_time();
   NdbIndexStat::Error error = st->is->getNdbError();
   if (error.code == 0) {
@@ -848,6 +834,19 @@ static void ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag) {
   }
 }
 
+static void ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag) {
+  uint old_count = st->ref_count;
+  (void)old_count;  // USED
+  if (flag) {
+    st->ref_count++;
+  } else {
+    assert(st->ref_count != 0);
+    st->ref_count--;
+  }
+  DBUG_PRINT("index_stat",
+             ("st %s ref_count:%u->%u", st->id, old_count, st->ref_count));
+}
+
 /* Find or add entry under the share */
 
 /* Saved in ndb_index_stat_get_share() under stat_mutex */
@@ -962,7 +961,8 @@ static Ndb_index_stat *ndb_index_stat_get_share(NDB_SHARE *share,
   } while (0);
 
   if (err_out == 0) {
-    st->acquire_client_ref();
+    assert(st != 0);
+    ndb_index_stat_ref_count(st, true);
   } else
     st = 0;
 
@@ -1177,14 +1177,9 @@ struct Ndb_index_stat_proc {
   uint cache_clean_bytes;
 #endif
   Ndb_index_stat_proc()
-      : is_util(nullptr),
-        ndb(nullptr),
-        now(0),
-        lt(0),
-        busy(false),
-        end(false) {}
+      : is_util(0), ndb(0), now(0), lt(0), busy(false), end(false) {}
 
-  ~Ndb_index_stat_proc() { assert(ndb == nullptr); }
+  ~Ndb_index_stat_proc() { assert(ndb == NULL); }
 };
 
 static void ndb_index_stat_proc_new(Ndb_index_stat_proc &pr,
@@ -1626,12 +1621,12 @@ static void ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr) {
 
     /*
       Do not wait for requests to terminate since this could
-      risk stats thread hanging. Instead try again next time.
+      risk stats thread hanging.  Instead try again next time.
       Presumably clients will eventually notice abort_request.
     */
-    if (st->has_client_ref()) {
-      DBUG_PRINT("index_stat",
-                 ("st %s proc %s: referenced by client", st->id, list.name));
+    if (st->ref_count != 0) {
+      DBUG_PRINT("index_stat", ("st %s proc %s: ref_count:%u", st->id,
+                                list.name, st->ref_count));
       continue;
     }
 
@@ -1764,12 +1759,6 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat", ("next_listener eventType: %d indexId: %u",
                               head.m_eventType, head.m_indexId));
 
-    if (head.m_eventType == 4) {
-      // Event that denotes that the stats have been updated in the kernel
-      g_ndb_status_index_stat_event_count++;
-      DBUG_PRINT("index_stat", ("Incremented stat_event_count to %ld",
-                                g_ndb_status_index_stat_event_count));
-    }
     Ndb_index_stat *st = find_entry(head.m_indexId, head.m_indexVersion);
     /*
       Another process can update stats for an index which is not found
@@ -1800,11 +1789,11 @@ static void ndb_index_stat_proc_control() {
   Ndb_index_stat_opt &opt = ndb_index_stat_opt;
 
   /* Request to zero accumulating counters */
-  if (opt.get(Ndb_index_stat_opt::Izero_total) == 1) {
+  if (opt.get(Ndb_index_stat_opt::Izero_total) == true) {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.zero_total();
     glob.set_status();
-    opt.set(Ndb_index_stat_opt::Izero_total, 0);
+    opt.set(Ndb_index_stat_opt::Izero_total, false);
     mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
 }
@@ -1967,8 +1956,7 @@ void ndb_index_stat_end() {
 
 /* Index stats thread */
 
-int Ndb_index_stat_thread::check_or_create_systables(
-    const Ndb_index_stat_proc &pr) const {
+int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -1984,8 +1972,10 @@ int Ndb_index_stat_thread::check_or_create_systables(
     return 0;
   }
 
-  if (is->getNdbError().code == 4009) {
-    // No connection
+  if (is->getNdbError().code == 721 || is->getNdbError().code == 4244 ||
+      is->getNdbError().code == 4009)  // no connection
+  {
+    // probably race between mysqlds
     DBUG_PRINT("index_stat",
                ("create index stats tables failed: error %d line %d",
                 is->getNdbError().code, is->getNdbError().line));
@@ -1997,8 +1987,7 @@ int Ndb_index_stat_thread::check_or_create_systables(
   return -1;
 }
 
-int Ndb_index_stat_thread::check_or_create_sysevents(
-    const Ndb_index_stat_proc &pr) const {
+int Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr) {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -2027,53 +2016,55 @@ int Ndb_index_stat_thread::check_or_create_sysevents(
   return -1;
 }
 
-int Ndb_index_stat_thread::create_ndb(
-    Ndb_index_stat_proc *const pr,
-    Ndb_cluster_connection *const connection) const {
+int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
+                                      Ndb_cluster_connection *connection) {
   DBUG_TRACE;
-  assert(pr->ndb == nullptr);
-  assert(connection != nullptr);
+  assert(pr.ndb == NULL);
+  assert(connection != NULL);
 
-  pr->ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
-  if (pr->ndb == nullptr) {
-    log_error("Failed to create Ndb object");
-    return -1;
-  }
+  Ndb *ndb = NULL;
+  do {
+    ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
+    if (ndb == nullptr) {
+      log_error("failed to create Ndb object");
+      break;
+    }
 
-  if (pr->ndb->setNdbObjectName("Ndb Index Stat")) {
-    log_error("Failed to set Ndb object name. Error = %d: %s",
-              pr->ndb->getNdbError().code, pr->ndb->getNdbError().message);
-    delete pr->ndb;
-    pr->ndb = nullptr;
-    return -1;
-  }
+    if (ndb->setNdbObjectName("Ndb Index Stat")) {
+      log_error("failed to set Ndb object name, error: %d",
+                ndb->getNdbError().code);
+      break;
+    }
 
-  if (pr->ndb->init() != 0) {
-    log_error("Failed to init Ndb. Error = %d:%s", pr->ndb->getNdbError().code,
-              pr->ndb->getNdbError().message);
-    delete pr->ndb;
-    pr->ndb = nullptr;
-    return -1;
-  }
+    if (ndb->init() != 0) {
+      log_error("failed to init Ndb, error: %d", ndb->getNdbError().code);
+      break;
+    }
 
-  log_info("Created Ndb object '%s', ref: 0x%x", pr->ndb->getNdbObjectName(),
-           pr->ndb->getReference());
-  return 0;
+    log_info("created Ndb object '%s', ref: 0x%x", ndb->getNdbObjectName(),
+             ndb->getReference());
+
+    pr.ndb = ndb;
+    return 0;
+  } while (0);
+
+  if (ndb != NULL) delete ndb;
+  return -1;
 }
 
-void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc *const pr) const {
+void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc &pr) {
   DBUG_TRACE;
 
-  if (pr->is_util->has_listener()) {
-    stop_listener(*pr);
+  if (pr.is_util->has_listener()) {
+    stop_listener(pr);
   }
-  if (pr->ndb != nullptr) {
-    delete pr->ndb;
-    pr->ndb = nullptr;
+  if (pr.ndb != NULL) {
+    delete pr.ndb;
+    pr.ndb = NULL;
   }
 }
 
-int Ndb_index_stat_thread::start_listener(const Ndb_index_stat_proc &pr) const {
+int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -2096,9 +2087,13 @@ int Ndb_index_stat_thread::start_listener(const Ndb_index_stat_proc &pr) const {
   return 0;
 }
 
-void Ndb_index_stat_thread::stop_listener(const Ndb_index_stat_proc &pr) const {
+void Ndb_index_stat_thread::stop_listener(Ndb_index_stat_proc &pr) {
   DBUG_TRACE;
-  (void)pr.is_util->drop_listener(pr.ndb);
+
+  NdbIndexStat *is = pr.is_util;
+  Ndb *ndb = pr.ndb;
+
+  (void)is->drop_listener(ndb);
 }
 
 /* Restart things after system restart */
@@ -2112,7 +2107,7 @@ void ndb_index_stat_restart() {
 }
 
 bool Ndb_index_stat_thread::is_setup_complete() {
-  if (ndb_index_stat_get_enable(nullptr)) {
+  if (ndb_index_stat_get_enable(NULL)) {
     return ndb_index_stat_get_allow();
   }
   return true;
@@ -2137,8 +2132,8 @@ void Ndb_index_stat_thread::do_run() {
   /*
     Wait for cluster to start
   */
-  while (!ndb_connection_is_ready(g_ndb_cluster_connection, 1)) {
-    /* NDB not connected yet */
+  while (!ndbcluster_is_connected(1)) {
+    /* ndb not connected yet */
     if (is_stop_requested()) {
       /* Terminated with a stop_request */
       mysql_mutex_lock(&LOCK_client_waiting);
@@ -2163,33 +2158,9 @@ void Ndb_index_stat_thread::do_run() {
   bool enable_ok;
   enable_ok = false;
 
-  // Set up Ndb object, stats tables and events, and the listener. This is done
-  // as an initial step. They could be re-created later after an initial start.
-  // See the check_sys flag used below
-  if (create_ndb(&pr, g_ndb_cluster_connection) == -1) {
-    log_error("Could not create Ndb object");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Check or create stats tables and events
-  if (check_or_create_systables(pr) == -1 ||
-      check_or_create_sysevents(pr) == -1) {
-    log_error("Could not create index stat system tables");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Listener is not critical. There's a reattempt to start it as part of the
-  // normal processing below should it fail here
-  if (start_listener(pr) == -1) {
-    log_info("Could not start listener");
-  }
-
-  // Flag used to indicate if there's a need to check for creation of index
-  // stat tables and events. Initially off since they've just been created
+  // do we need to check or re-check sys objects (expensive)
   bool check_sys;
-  check_sys = false;
+  check_sys = true;
 
   struct timespec abstime;
   set_timespec(&abstime, 0);
@@ -2218,25 +2189,22 @@ void Ndb_index_stat_thread::do_run() {
      * created.  If not, drop out and try again next time.
      *
      * It is allowed to do initial restart of cluster while we are
-     * running. In such cases, the listener must be restarted for the event
-     * functionality to work correctly
+     * running.  In such case the Ndb object must be recycled to avoid
+     * some event-related asserts (bug#20888668),
      */
     do {
-      // An initial restart may have occurred while this mysqld was left running
+      // initial restart was done while this mysqld was left running
       if (ndb_index_stat_restart_flag) {
-        log_info("Restart flag is true inside do_run()");
         ndb_index_stat_restart_flag = false;
         ndb_index_stat_set_allow(false);
-        // Stop the listener thus enforcing that it's started again further
-        // down in the loop
-        if (pr.is_util->has_listener()) stop_listener(pr);
-        check_sys = true;  // check if sys objects are gone
-        log_info("Initial restart detected");
+        drop_ndb(pr);
+        check_sys = true;  // sys objects are gone
       }
 
       // check enable flag
       {
-        const bool enable_ok_new = ndb_index_stat_get_enable(nullptr);
+        /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
+        const bool enable_ok_new = ndb_index_stat_get_enable(NULL);
 
         if (enable_ok != enable_ok_new) {
           DBUG_PRINT("index_stat",
@@ -2249,13 +2217,13 @@ void Ndb_index_stat_thread::do_run() {
       if (!enable_ok) {
         DBUG_PRINT("index_stat", ("Index stats is not enabled"));
         ndb_index_stat_set_allow(false);
-        drop_ndb(&pr);
+        drop_ndb(pr);
         break;
       }
 
       // the Ndb object is needed first
-      if (pr.ndb == nullptr) {
-        if (create_ndb(&pr, g_ndb_cluster_connection) == -1) break;
+      if (pr.ndb == NULL) {
+        if (create_ndb(pr, g_ndb_cluster_connection) == -1) break;
       }
 
       // sys objects
@@ -2308,7 +2276,7 @@ ndb_index_stat_thread_end:
   ndb_index_stat_set_allow(false);
 
   if (pr.is_util) {
-    drop_ndb(&pr);
+    drop_ndb(pr);
     delete pr.is_util;
     pr.is_util = 0;
   }
@@ -2530,8 +2498,9 @@ int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
   } while (0);
 
   /* Release reference to st */
-  st->release_client_ref();
-
+  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  ndb_index_stat_ref_count(st, false);
+  mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   return err;
 }
 
@@ -2548,35 +2517,6 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
      * 'pruned-scan' ranges. Need to be solved in a way similar to
      * ::ndb_index_stat_set_rpk()
      */
-    const Uint32 fragments = m_table->getFragmentCount();
-
-    /**
-     * Check quality of index_stat before it is used to set RPK.
-     * There might have been too much update activity on the table,
-     * not yet reflected by the statistics, or the single fragment sample
-     * being too skeewed such that it does not represent the real data.
-     */
-    if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
-      DBUG_PRINT("index_stat",
-                 ("Too few rows in: %s", m_index[inx].index->getName()));
-      return NdbIndexStat::NoIndexStats;
-    }
-    Uint32 rows_in_sample;
-    NdbIndexStat::get_numrows(stat, &rows_in_sample);
-    const ha_rows estm_rows = rows_in_sample * fragments;
-    if (estm_rows * 2 < stats.records || estm_rows / 2 > stats.records) {
-      /**
-       * Number of estimated rows in statistics deviated too much from
-       * what we have recorded on the table stats level. Thus we choose
-       * to not use it, handle it as 'NoIndexStats'.
-       */
-      DBUG_PRINT("index_stat",
-                 ("Ignored outdated statistics: %s"
-                  ", estm_rows:%llu, records:%llu",
-                  m_index[inx].index->getName(), estm_rows, stats.records));
-      return NdbIndexStat::NoIndexStats;
-    }
     double rir = -1.0;
     NdbIndexStat::get_rir(stat, &rir);
     ha_rows rows = ndb_index_stat_round(rir);
@@ -2602,34 +2542,22 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
   const key_range *max_key = 0;
   const int err = ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0) {
-    Uint32 rows_in_sample;
-    NdbIndexStat::get_numrows(stat, &rows_in_sample);
-    const Uint32 fragments = m_table->getFragmentCount();
-    const ha_rows estm_rows = rows_in_sample * fragments;
-
     /**
-     * Check quality of index_stat before it is used to get RPK.
-     * There might have been too much update activity on the table,
-     * not yet reflected by the statistics, or the single fragment sample
-     * being too skeewed such that it does not represent the real data.
+     * Check quality of index_stat before it is used to set RPK.
+     * Index_stat is sampled over only one of the fragments of the table.
+     * Thus it might not correctly represent the table contents if
+     * the number of rows sampled is too small.
      */
-    if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
-      DBUG_PRINT("index_stat",
-                 ("Too few rows in: %s", m_index[inx].index->getName()));
-      return NdbIndexStat::NoIndexStats;
-    }
-    if (estm_rows * 2 < stats.records || estm_rows / 2 > stats.records) {
+    Uint32 rows;
+    NdbIndexStat::get_numrows(stat, &rows);
+    if (rows <= 2) {  // '2' is just picked as some very small number
       /**
-       * Number of estimated rows in statistics deviated too much from
-       * what we have recorded on the table stats level. Thus we choose
-       * to not use it, handle it as 'NoIndexStats'.
+       * Decided to not use this index statistics. Optimizer will instead
+       * use heuristics based on the total number of records in the table.
        */
-      DBUG_PRINT("index_stat",
-                 ("Ignored outdated statistics: %s"
-                  ", estm_rows:%llu, records:%llu",
-                  m_index[inx].index->getName(), estm_rows, stats.records));
-      return NdbIndexStat::NoIndexStats;
+      DBUG_PRINT("index_stat", ("Too few rows sampled for: %s",
+                                m_index[inx].index->getName()));
+      return 0;
     }
     KEY *key_info = table->key_info + inx;
     const KEY_PART_INFO *key_part_info = key_info->key_part;
@@ -2722,7 +2650,9 @@ int ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list, uint inx_count) {
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
       r.err = ndb_index_stat_wait_analyze(r.st, r.snap);
       /* Release reference to r.st */
-      r.st->release_client_ref();
+      mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      ndb_index_stat_ref_count(r.st, false);
+      mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     }
   }
 
@@ -2745,8 +2675,6 @@ static SHOW_VAR ndb_status_vars_index_stat[] = {
     {"cache_query", (char *)&g_ndb_status_index_stat_cache_query, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"cache_clean", (char *)&g_ndb_status_index_stat_cache_clean, SHOW_LONG,
-     SHOW_SCOPE_GLOBAL},
-    {"event_count", (char *)&g_ndb_status_index_stat_event_count, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

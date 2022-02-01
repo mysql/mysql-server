@@ -24,15 +24,13 @@
 #ifndef NDBINFO_SCAN_VIRTUAL_HPP
 #define NDBINFO_SCAN_VIRTUAL_HPP
 
-#include <map>
-
 #include "NdbInfo.hpp"
 #include "NdbInfoScanOperation.hpp"
 
 /*
   Scan implementation for retrieving rows from a virtual table. The table does
   not exist in the data nodes, instead it return hardcoded information or
-  retrieves information from the cluster using NdbApi.
+  retrieves inrormation from the cluster using NdbApi.
 */
 class NdbInfoScanVirtual : public NdbInfoScanOperation {
 public:
@@ -48,7 +46,6 @@ public:
                      const NdbInfo::Table *table,
                      const class VirtualTable *virt);
   int init();
-  bool seek(NdbInfoScanOperation::Seek, int) override;
 
   static bool create_virtual_tables(Vector<NdbInfo::Table*> &list);
   static void delete_virtual_tables(Vector<NdbInfo::Table*> &list);
@@ -68,7 +65,6 @@ private:
   Uint32 m_row_counter; // Current row
 
   class VirtualScanContext* m_ctx;
-  std::map<int, int>::const_iterator m_index_pos;
 };
 
 #endif

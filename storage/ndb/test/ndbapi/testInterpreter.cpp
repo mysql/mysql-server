@@ -22,7 +22,6 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -508,7 +507,7 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
 
   const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
   Uint8 * pRow = new Uint8[len];
-  std::memset(pRow, 0, len);
+  bzero(pRow, len);
 
   HugoCalculator calc(* pTab);
   calc.equalForRow(pRow, pRowRecord, 0);
@@ -521,7 +520,7 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
   code.finalise();
 
   NdbOperation::OperationOptions opts;
-  std::memset(&opts, 0, sizeof(opts));
+  bzero(&opts, sizeof(opts));
   opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
   opts.interpretedCode = &code;
 

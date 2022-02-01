@@ -115,15 +115,7 @@ int log_buffering_flushworthy = false;
   during buffered mode (while starting up). New items must
   receive a LOG_ITEM_LOG_BUFFERED timestamp greater than this.
 */
-static ulonglong log_sink_buffer_latest_buffered = 0;
-
-/**
-  Timestamp of most recent event we flushed to the built-in sink
-  (which happens when start-up takes very long and we're asked to
-  report status even though external log-components have not been
-  loaded yet).
-*/
-static log_line_buffer *log_sink_buffer_latest_event_shown = nullptr;
+static ulonglong log_sink_buffer_last = 0;
 
 /**
   Duplicate a log-event. This is a deep copy where the items (key/value pairs)
@@ -214,7 +206,7 @@ fail:                           /* purecov: begin inspected */
   @retval          -1                   can not add event to buffer (OOM?)
   @retval          >0                   number of added fields
 */
-int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
+int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   log_line_buffer *llb = nullptr;  ///< log-line buffer
   ulonglong now = 0;
   int count = 0;
@@ -266,10 +258,10 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
       Prevent two events from receiving the exact same timestamp on
       systems with low resolution clocks.
     */
-    if (now > log_sink_buffer_latest_buffered)
-      log_sink_buffer_latest_buffered = now;
+    if (now > log_sink_buffer_last)
+      log_sink_buffer_last = now;
     else
-      log_sink_buffer_latest_buffered++;
+      log_sink_buffer_last++;
 
     /*
       Save the current time so we can regenerate the textual timestamp
@@ -278,7 +270,7 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
     */
     if (!log_line_full(&llb->ll)) {
       log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer =
-          log_sink_buffer_latest_buffered;
+          log_sink_buffer_last;
     }
 
     *log_line_buffer_tail = llb;
@@ -369,16 +361,6 @@ int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
 */
 void log_sink_buffer_check_timeout(void) { log_sink_buffer(nullptr, nullptr); }
 
-/**
-  Test whether we are still in buffered mode,
-  which is implied by the chain of log-components being empty
-  (before the logger is set up), or by the first (and only)
-  configured component being the buffer sink.
-*/
-static bool log_sink_buffer_is_buffered_mode(log_service_instance *lsi) {
-  return ((lsi == nullptr) || (lsi->sce->chistics & LOG_SERVICE_BUFFER));
-}
-
 void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   log_line_buffer *llp, *local_head, *local_tail = nullptr;
 
@@ -422,29 +404,6 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   // get head element from list of buffered log events
   llp = local_head;
 
-  /*
-    If we're in "intermediate update" mode, we continue
-    after the last event we printed, rather that starting
-    from the head of the list.
-  */
-  if (mode == LOG_BUFFER_REPORT_AND_KEEP) {
-    // If we have a continue address, use it.
-    if (log_sink_buffer_latest_event_shown != nullptr) {
-      /*
-        The continue- address is the last event we previously logged
-        to log_sink_trad(). If there are no new events after that,
-        we never enter the loop below, so we make sure to set up
-        local_tail here so it will have the correct value after the
-        loop, whether the loop was entered or not.
-      */
-      local_tail = log_sink_buffer_latest_event_shown;
-      llp = local_tail->next;
-    }
-  } else {
-    // Any mode that may free list-elements invalidates the continue pointer.
-    log_sink_buffer_latest_event_shown = nullptr;
-  }
-
   while (llp != nullptr) {
     /*
       Forward the buffered lines to log-writers
@@ -453,28 +412,27 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
       we'll just throw the information away.
     */
     if (mode != LOG_BUFFER_DISCARD_ONLY) {
-      // Fetch integer timestamp of when we buffered the event.
-      ulonglong now = 0;
+      log_service_instance *lsi = log_service_instances;
+
+      // regenerate timestamp with the correct options
+      char local_time_buff[iso8601_size];
       int index_buff = log_line_index_by_type(&llp->ll, LOG_ITEM_LOG_BUFFERED);
+      int index_time = log_line_index_by_type(&llp->ll, LOG_ITEM_LOG_TIMESTAMP);
+      ulonglong now;
 
-      if (index_buff >= 0) now = llp->ll.item[index_buff].data.data_integer;
-
-      // We failed to set a timestamp earlier (OOM?). Use current time!
-      if (now == 0) now = my_micro_time(); /* purecov: inspected */
+      if (index_buff >= 0)
+        now = llp->ll.item[index_buff].data.data_integer;
+      else  // we failed to set a timestamp earlier (OOM?), use current time!
+        now = my_micro_time(); /* purecov: inspected */
 
       DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
 
-      // Regenerate timestamp with the correct options.
-      char local_time_buff[iso8601_size];
       make_iso8601_timestamp(local_time_buff, now,
                              iso8601_sysvar_logtimestamps);
       char *date = my_strndup(key_memory_log_error_stack, local_time_buff,
                               strlen(local_time_buff) + 1, MYF(0));
 
       if (date != nullptr) {
-        int index_time =
-            log_line_index_by_type(&llp->ll, LOG_ITEM_LOG_TIMESTAMP);
-
         if (index_time >= 0) {
           // release old timestamp value
           if (llp->ll.item[index_time].alloc & LOG_ITEM_FREE_VALUE) {
@@ -513,7 +471,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
         goes wrong, information with undesired formatting is still
         better than not knowing about the issue at all.
       */
-      if (log_sink_buffer_is_buffered_mode(log_service_instances)) {
+      if ((lsi == nullptr) || (lsi->sce->chistics & LOG_SERVICE_BUFFER)) {
         /*
           This is a fallback used when start-up takes very long.
 
@@ -545,21 +503,11 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
 
           log_line_item_free_all(&temp_line);  // release our temporary copy
 
-          /*
-            Optimization: When giving intermediate updates during long
-            start-ups, we'll remember the first event we haven't yet
-            printed, so we can continue from that element later. This
-            way we won't have to traverse the head of the list to skip
-            the events we've already shown.
-          */
-          log_sink_buffer_latest_event_shown = llp;
-
           local_tail = llp;
           llp = llp->next;  // go to next element, keep head pointer the same
+          continue;         // skip the free()-ing
 
-          continue;  // skip the free()-ing
-
-        } else {  // mode == LOG_BUFFER_PROCESS_AND_DISCARD
+        } else {  // LOG_BUFFER_PROCESS_AND_DISCARD
           /*
             This is a fallback used primarily when start-up is aborted.
 
@@ -583,24 +531,24 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
             log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
 
           log_sink_trad(nullptr, &llp->ll);
-        }  // LOG_BUFFER_REPORT_AND_KEEP? or LOG_BUFFER_PROCESS_AND_DISCARD?
-      } else {  // !log_sink_buffer_is_buffered_mode()
+        }
+      } else {  // !LOG_SERVICE_BUFFER
         /*
           If we get here, logging has left the buffered phase, and
           we can write out the log-events using the configuration
           requested by the user, as it should be!
         */
         log_line_submit(&llp->ll);  // frees keys + values (but not llp itself)
-        goto kv_freed;              // skip freeing of keys + values
+        goto kv_freed;
       }
-    }  // !LOG_BUFFER_DISCARD_ONLY
+    }
 
     log_line_item_free_all(&local_head->ll);  // free key/value pairs
   kv_freed:
     local_head = local_head->next;  // delist event
     my_free(llp);                   // free buffered event
     llp = local_head;
-  }  // while (any_more_buffered_events_to_process)
+  }
 
   if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
     mysql_mutex_lock(&THR_LOCK_log_buffered);
@@ -618,12 +566,6 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   */
 
   if (local_head != nullptr) {
-    /*
-      Since local_head was non-NULL, we started with a non-empty
-      (local) list. Therefore, local_tail should point at the last
-      element in that list (as it is only allowed to be NULL if
-      the list is empty).
-    */
     assert(local_tail != nullptr);
 
     /*

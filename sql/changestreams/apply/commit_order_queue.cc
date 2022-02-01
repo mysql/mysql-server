@@ -58,7 +58,8 @@ cs::apply::Commit_order_queue::Iterator::Iterator(Commit_order_queue &queue,
                                                   index_type current)
     : m_target{&queue}, m_current{queue.m_commit_queue, current} {}
 
-cs::apply::Commit_order_queue::Iterator::Iterator(const Iterator &) = default;
+cs::apply::Commit_order_queue::Iterator::Iterator(const Iterator &rhs)
+    : m_target{rhs.m_target}, m_current{rhs.m_current} {}
 
 cs::apply::Commit_order_queue::Iterator::Iterator(Iterator &&rhs)
     : m_target{rhs.m_target}, m_current{rhs.m_current} {
@@ -67,7 +68,11 @@ cs::apply::Commit_order_queue::Iterator::Iterator(Iterator &&rhs)
 }
 
 cs::apply::Commit_order_queue::Iterator &
-cs::apply::Commit_order_queue::Iterator::operator=(const Iterator &) = default;
+cs::apply::Commit_order_queue::Iterator::operator=(const Iterator &rhs) {
+  this->m_target = rhs.m_target;
+  this->m_current = rhs.m_current;
+  return (*this);
+}
 
 cs::apply::Commit_order_queue::Iterator &
 cs::apply::Commit_order_queue::Iterator::operator=(Iterator &&rhs) {
@@ -120,10 +125,6 @@ cs::apply::Commit_order_queue::Commit_order_queue(size_t n_workers)
   for (size_t w = 0; w != this->m_workers.size(); ++w) {
     this->m_workers[w].m_worker_id = w;
   }
-  DBUG_EXECUTE_IF("commit_order_queue_seq_wrap_around", {
-    this->m_commit_sequence_generator->store(
-        std::numeric_limits<unsigned long long>::max() - 2);
-  });
 }
 
 cs::apply::Commit_order_queue::Node &cs::apply::Commit_order_queue::operator[](
@@ -164,11 +165,8 @@ void cs::apply::Commit_order_queue::push(value_type index) {
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   assert(this->m_workers[index].m_commit_sequence_nr == Node::NO_SEQUENCE_NR);
-  sequence_type next{Node::NO_SEQUENCE_NR};
-  do {
-    next = this->m_commit_sequence_generator->fetch_add(1);
-  } while (next <= Node::SEQUENCE_NR_FROZEN);
-  this->m_workers[index].m_commit_sequence_nr->store(next);
+  this->m_workers[index].m_commit_sequence_nr->store(
+      this->m_commit_sequence_generator->fetch_add(1));
   this->m_commit_queue << index;
   assert(this->m_commit_queue.get_state() !=
          Commit_order_queue::queue_type::enum_queue_state::NO_SPACE_AVAILABLE);
@@ -202,14 +200,4 @@ cs::apply::Commit_order_queue::Iterator cs::apply::Commit_order_queue::end() {
 
 std::string cs::apply::Commit_order_queue::to_string() {
   return this->m_commit_queue.to_string();
-}
-
-cs::apply::Commit_order_queue::sequence_type
-cs::apply::Commit_order_queue::get_next_sequence_nr(
-    sequence_type current_seq_nr) {
-  sequence_type next{current_seq_nr};
-  do {
-    ++next;
-  } while (next <= Node::SEQUENCE_NR_FROZEN);
-  return next;
 }

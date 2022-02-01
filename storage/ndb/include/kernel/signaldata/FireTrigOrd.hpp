@@ -64,9 +64,9 @@ class FireTrigOrd {
   friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  static constexpr Uint32 SignalLength = 11;
-  static constexpr Uint32 SignalWithGCILength = 9;
-  static constexpr Uint32 SignalLengthSuma = 14;
+  STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalWithGCILength = 9 );
+  STATIC_CONST( SignalLengthSuma = 14 );
 
 private:
   Uint32 m_connectionPtr;
@@ -232,7 +232,7 @@ void FireTrigOrd::setAnyValue(Uint32 any_value)
 
 struct FireTrigReq
 {
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 tcOpRec;
   Uint32 transId[2];
@@ -241,7 +241,7 @@ struct FireTrigReq
 
 struct FireTrigRef
 {
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 tcOpRec;
   Uint32 transId[2];
@@ -256,7 +256,7 @@ struct FireTrigRef
 
 struct FireTrigConf
 {
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 tcOpRec;
   Uint32 transId[2];

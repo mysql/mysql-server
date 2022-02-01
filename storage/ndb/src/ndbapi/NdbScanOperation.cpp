@@ -24,7 +24,6 @@
 
 #include "API.hpp"
 
-#include <cstring>
 #include <NdbSqlUtil.hpp>
 #include <AttributeHeader.hpp>
 
@@ -1616,8 +1615,9 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
 void
 NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
   if(theError.code == 0){
-    if (DEBUG_NEXT_RESULT) g_eventLogger->info("receiver_delivered");
-
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver_delivered");
+    
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -1639,8 +1639,9 @@ NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
 void
 NdbScanOperation::receiver_completed(NdbReceiver* tRec){
   if(theError.code == 0){
-    if (DEBUG_NEXT_RESULT) g_eventLogger->info("receiver_completed");
-
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("receiver_completed");
+    
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -1976,7 +1977,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case 2:
     return retVal;
   case -1:
-    g_eventLogger->info("1:4008 on connection %d", theNdbCon->ptr2int());
+    ndbout << "1:4008 on connection " << theNdbCon->ptr2int() << endl;
     setErrorCode(4008); // Timeout
     break;
   case -2:
@@ -2077,14 +2078,15 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   if (theNdbCon != NULL)
   {
     if(DEBUG_NEXT_RESULT)
-      g_eventLogger->info(
-          "close() theError.code = %d "
-          "m_api_receivers_count = %d "
-          "m_conf_receivers_count = %d "
-          "m_sent_receivers_count = %d",
-          theError.code, m_api_receivers_count, m_conf_receivers_count,
-          m_sent_receivers_count);
-
+      ndbout_c("close() theError.code = %d "
+               "m_api_receivers_count = %d "
+               "m_conf_receivers_count = %d "
+               "m_sent_receivers_count = %d",
+               theError.code, 
+               m_api_receivers_count,
+               m_conf_receivers_count,
+               m_sent_receivers_count);
+    
     /*
       The PollGuard has an implicit call of unlock_and_signal through the
       ~PollGuard method. This method is called implicitly by the compiler
@@ -2413,11 +2415,13 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   assert(theParallelism > 0);
   const Uint32 alloc_size = ((full_rowsize+bufsize)*theParallelism) / sizeof(Uint32);
   Uint32 *buf= new Uint32[alloc_size];
-  DBUG_EXECUTE_IF("ndb_scanbuff_oom", {
-    g_eventLogger->info("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
-    delete[] buf;
-    buf = NULL;
-  });
+  DBUG_EXECUTE_IF("ndb_scanbuff_oom",
+                  {
+                    ndbout_c("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
+                    delete[] buf;
+                    buf = NULL;
+                  }
+  );
   if (!buf)
   {
     setErrorCodeAbort(4000); // "Memory allocation error"
@@ -2713,7 +2717,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
   switch (opType) {
   case (ReadRequest):
     newOp->theLockMode = theLockMode;
-    [[fallthrough]];
+    // Fall through
   case (DeleteRequest):
     newOp->theStatus = GetValue;
     break;
@@ -3889,7 +3893,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
-        g_eventLogger->info("2:4008 on connection %d", theNdbCon->ptr2int());
+        ndbout << "2:4008 on connection " << theNdbCon->ptr2int() << endl;
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -3941,7 +3945,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   if((prep_array[0] = tRec->m_tcPtrI) == RNIL)
   {
     if(DEBUG_NEXT_RESULT)
-      g_eventLogger->info("receiver completed, don't send");
+      ndbout_c("receiver completed, don't send");
     return 0;
   }
   
@@ -4014,9 +4018,9 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      g_eventLogger->info("3:4008 on connection %d", theNdbCon->ptr2int());
+      ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
-      [[fallthrough]];
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4052,11 +4056,10 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   }
   
   if(DEBUG_NEXT_RESULT)
-    g_eventLogger->info(
-        "close_impl: [order api conf sent curr parr] %d %d %d %d %d %d",
-        m_ordered, api, conf, m_sent_receivers_count, m_current_api_receiver,
-        theParallelism);
-
+    ndbout_c("close_impl: [order api conf sent curr parr] %d %d %d %d %d %d",
+             m_ordered, api, conf, 
+             m_sent_receivers_count, m_current_api_receiver, theParallelism);
+  
   if(api+conf)
   {
     /**
@@ -4086,9 +4089,9 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      g_eventLogger->info("4:4008 on connection %d", theNdbCon->ptr2int());
+      ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
-      [[fallthrough]];
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4197,7 +4200,7 @@ NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
   /* Default is to not read any attributes, just take over the lock. */
   if (!result_row)
   {
-    std::memset(empty_mask, 0, sizeof(empty_mask));
+    bzero(empty_mask, sizeof(empty_mask));
     result_mask= &empty_mask[0];
   }
   OperationType takeoverOpType = NdbOperation::ReadRequest;

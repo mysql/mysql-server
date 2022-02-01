@@ -65,7 +65,7 @@ class PFS_index_tiws_by_table : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_tiws_by_table() override = default;
+  ~PFS_index_tiws_by_table() override {}
 
   virtual bool match(const PFS_table_share *table);
 
@@ -99,7 +99,7 @@ class table_tiws_by_table : public PFS_engine_table {
   table_tiws_by_table();
 
  public:
-  ~table_tiws_by_table() override = default;
+  ~table_tiws_by_table() override {}
 
  protected:
   int make_row(PFS_table_share *table_share);

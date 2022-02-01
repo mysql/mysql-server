@@ -51,7 +51,7 @@ struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
-#if !defined(_WIN32) && !defined(HAVE_KQUEUE)
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE) && !defined(__SUNPRO_CC)
 #define USE_PPOLL_IN_VIO
 #endif
 
@@ -271,8 +271,6 @@ long process_tls_version(const char *tls_version);
 int set_fips_mode(const uint fips_mode, char *err_string);
 
 uint get_fips_mode();
-
-int test_ssl_fips_mode(char *err_string);
 
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,

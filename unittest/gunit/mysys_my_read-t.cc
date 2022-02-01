@@ -48,7 +48,7 @@ using ::testing::SetErrnoAndReturn;
 
 class MockRead {
  public:
-  virtual ~MockRead() = default;
+  virtual ~MockRead() {}
   MOCK_METHOD3(mockread, ssize_t(int, void *, size_t));
 };
 

@@ -55,7 +55,7 @@
 #include "sql/events.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"              // my_localhost replica_net_timeout
+#include "sql/mysqld.h"              // my_localhost slave_net_timeout
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -185,7 +185,7 @@ bool post_init_event_thread(THD *thd) {
 void deinit_event_thread(THD *thd) {
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
 
-  thd->set_proc_info("Clearing");
+  thd->proc_info = "Clearing";
   thd->get_protocol_classic()->end_net();
   DBUG_PRINT("exit", ("Event thread finishing"));
   thd->release_resources();
@@ -216,7 +216,7 @@ void pre_init_event_thread(THD *thd) {
                                               strlen(my_localhost));
   thd->get_protocol_classic()->init_net(nullptr);
   thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
-  thd->get_protocol_classic()->get_net()->read_timeout = replica_net_timeout;
+  thd->get_protocol_classic()->get_net()->read_timeout = slave_net_timeout;
   thd->slave_thread = false;
   thd->variables.option_bits |= OPTION_AUTO_IS_NULL;
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
@@ -228,7 +228,7 @@ void pre_init_event_thread(THD *thd) {
     vio is NULL.
   */
 
-  thd->set_proc_info("Initialized");
+  thd->proc_info = "Initialized";
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */
@@ -277,7 +277,7 @@ static void *event_scheduler_thread(void *arg) {
     if (!res)
       scheduler->run(thd);
     else {
-      thd->set_proc_info("Clearing");
+      thd->proc_info = "Clearing";
       thd->get_protocol_classic()->end_net();
       delete thd;
     }
@@ -526,7 +526,7 @@ bool Event_scheduler::start(int *err_no) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_SCHEDULER_THREAD, *err_no)
         .os_errno(*err_no);
 
-    new_thd->set_proc_info("Clearing");
+    new_thd->proc_info = "Clearing";
     new_thd->get_protocol_classic()->end_net();
 
     state = INITIALIZED;
@@ -668,7 +668,7 @@ bool Event_scheduler::execute_top(Event_queue_element_for_exec *event_name) {
 
     LogErr(ERROR_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_CREATE_WORKER, res);
 
-    new_thd->set_proc_info("Clearing");
+    new_thd->proc_info = "Clearing";
     new_thd->get_protocol_classic()->end_net();
 
     goto error;

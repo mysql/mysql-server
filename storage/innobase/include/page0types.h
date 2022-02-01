@@ -228,10 +228,10 @@ struct page_zip_stat_t {
   ulint compressed_ok;
   /** Number of page decompressions */
   ulint decompressed;
-  /** Duration of page compressions */
-  std::chrono::microseconds compress_time;
-  /** Duration of page decompressions */
-  std::chrono::microseconds decompress_time;
+  /** Duration of page compressions in microseconds */
+  ib_uint64_t compressed_usec;
+  /** Duration of page decompressions in microseconds */
+  ib_uint64_t decompressed_usec;
   page_zip_stat_t()
       : /* Initialize members to 0 so that when we do
         stlmap[key].compressed++ and element with "key" does not
@@ -239,13 +239,13 @@ struct page_zip_stat_t {
         compressed(0),
         compressed_ok(0),
         decompressed(0),
-        compress_time{},
-        decompress_time{} {}
+        compressed_usec(0),
+        decompressed_usec(0) {}
 };
 
 /** Compression statistics types */
 typedef std::map<index_id_t, page_zip_stat_t, std::less<index_id_t>,
-                 ut::allocator<std::pair<const index_id_t, page_zip_stat_t>>>
+                 ut_allocator<std::pair<const index_id_t, page_zip_stat_t>>>
     page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */

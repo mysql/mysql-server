@@ -42,7 +42,7 @@ public:
     m_log_parts(0),
     m_type(INVALID),
     m_connectCount(0),
-    m_connected(false)
+    m_connected(FALSE)
   {}
 
   /**
@@ -127,7 +127,7 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
 
 struct NodeVersionInfo
 {
-  static constexpr Uint32 DataLength = 6;
+  STATIC_CONST( DataLength = 6 );
   struct 
   {
     Uint32 m_min_version;

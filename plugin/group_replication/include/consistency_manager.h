@@ -466,9 +466,7 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   std::list<Transaction_consistency_manager_key>
       m_prepared_transactions_on_my_applier;
   std::list<my_thread_id> m_new_transactions_waiting;
-  std::list<std::pair<Pipeline_event *, Transaction_consistency_manager_key>>
-      m_delayed_view_change_events;
-  Transaction_consistency_manager_key m_last_local_transaction;
+  std::list<Pipeline_event *> m_delayed_view_change_events;
 
   std::atomic<bool> m_plugin_stopping;
   std::atomic<bool> m_primary_election_active;

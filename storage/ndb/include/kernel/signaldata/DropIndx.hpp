@@ -32,7 +32,7 @@
 
 
 struct DropIndxReq {
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
   Uint32 clientRef;
   Uint32 clientData;
@@ -44,7 +44,7 @@ struct DropIndxReq {
 };
 
 struct DropIndxConf {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 clientData;
@@ -54,7 +54,7 @@ struct DropIndxConf {
 };
 
 struct DropIndxRef {
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   enum ErrorCode {
     NoError = 0,

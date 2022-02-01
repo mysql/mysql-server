@@ -97,42 +97,42 @@ Excercising multiple code paths.
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(running_number)
 OVER()  FROM table_simple_aggregation GROUP BY running_number;
 geo	SUM(running_number)
-MULTIPOINT((0 0))	55
-MULTIPOINT((0 0))	55
+OVER()
 MULTIPOINT((0 0))	55
 MULTIPOINT((0 0))	55
 MULTIPOINT((1 0))	55
 MULTIPOINT((2 0))	55
 MULTIPOINT((3 0))	55
+MULTIPOINT((0 0))	55
+NULL	55
+MULTIPOINT((0 0))	55
 NULL	55
 NULL	55
-NULL	55
-OVER()
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(grouping_condition)
 OVER(), grouping_condition FROM table_simple_aggregation GROUP BY
 grouping_condition;
 geo	SUM(grouping_condition)
+OVER()	grouping_condition
 MULTIPOINT((0 0))	1	NULL
 MULTIPOINT((0 0),(1 0),(3 0))	1	0
 MULTIPOINT((0 0),(2 0))	1	1
-OVER()	grouping_condition
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(grouping_condition) OVER(),
 grouping_condition FROM table_simple_aggregation GROUP BY grouping_condition;
 geo	SUM(grouping_condition) OVER()	grouping_condition
-MULTIPOINT((0 0),(0 0))	1	NULL
 MULTIPOINT((0 0),(1 0),(3 0))	1	0
 MULTIPOINT((0 0),(2 0))	1	1
+MULTIPOINT((0 0),(0 0))	1	NULL
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(running_number) OVER()  FROM
 table_simple_aggregation GROUP BY running_number;
 geo	SUM(running_number) OVER()
 MULTIPOINT((0 0))	55
 MULTIPOINT((0 0))	55
-MULTIPOINT((0 0))	55
-MULTIPOINT((0 0))	55
 MULTIPOINT((1 0))	55
 MULTIPOINT((2 0))	55
 MULTIPOINT((3 0))	55
+MULTIPOINT((0 0))	55
 NULL	55
+MULTIPOINT((0 0))	55
 NULL	55
 NULL	55
 # Teardown of testing NULL data
@@ -157,8 +157,8 @@ ERROR 22S05: Arguments to function st_collect contains geometries with different
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 st_srid(geometry)	t
-0	MULTIPOINT((38 77))
 4326	MULTIPOINT((60 -24),(61.00000000000001 -24))
+0	MULTIPOINT((38 77))
 Rollup needs all SRIDs to be the same. 
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry) WITH ROLLUP;
@@ -169,8 +169,8 @@ INSERT INTO multi_srs_table( geometry ) VALUES
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 st_srid(geometry)	t
-0	MULTIPOINT((38 77))
 4326	GEOMETRYCOLLECTION(POINT(60 -24),POINT(61.00000000000001 -24),GEOMETRYCOLLECTION(POINT(60 -24)))
+0	MULTIPOINT((38 77))
 #teardown of testing handling of multiple SRS
 DROP TABLE multi_srs_table;
 # setup of testing handling different geometry types
@@ -235,10 +235,3 @@ SELECT CAST(ST_COLLECT(geo) AS DECIMAL ) FROM simple_table;
 CAST(ST_COLLECT(geo) AS DECIMAL )
 0
 DROP TABLE simple_table;
-set @d:=repeat(1,228);
-select st_collect(substr(@d,110,47));
-ERROR SR001: There's no spatial reference system with SRID 825307441.
-select st_collect(left(@d,42));
-ERROR SR001: There's no spatial reference system with SRID 825307441.
-select st_collect(right(@d,42));
-ERROR SR001: There's no spatial reference system with SRID 825307441.

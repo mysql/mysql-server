@@ -396,9 +396,8 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        * Data is 'short', send short signal
        */
       jam();
-      const JobBufferLevel prioLevel = req_struct->m_prio_a_flag ? JBA : JBB;
       sendSignal(recBlockref, GSN_TRANSID_AI, signal,
-                 TransIdAI::HeaderLength+ToutBufIndex, prioLevel);
+                 TransIdAI::HeaderLength+ToutBufIndex, JBB);
     }
     else
     {

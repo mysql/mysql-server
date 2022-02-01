@@ -33,7 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 /** Reads from an undo log record the record type.
  @return record type */
-static inline ulint trx_undo_rec_get_type(
+UNIV_INLINE
+ulint trx_undo_rec_get_type(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   return (mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
@@ -41,7 +42,8 @@ static inline ulint trx_undo_rec_get_type(
 
 /** Reads from an undo log record the record compiler info.
  @return compiler info */
-static inline ulint trx_undo_rec_get_cmpl_info(
+UNIV_INLINE
+ulint trx_undo_rec_get_cmpl_info(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   return (mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
@@ -49,7 +51,8 @@ static inline ulint trx_undo_rec_get_cmpl_info(
 
 /** Returns TRUE if an undo log record contains an extern storage field.
  @return true if extern */
-static inline ibool trx_undo_rec_get_extern_storage(
+UNIV_INLINE
+ibool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
@@ -61,7 +64,8 @@ static inline ibool trx_undo_rec_get_extern_storage(
 
 /** Reads the undo log record number.
  @return undo no */
-static inline undo_no_t trx_undo_rec_get_undo_no(
+UNIV_INLINE
+undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   const byte *ptr = undo_rec + 2;
@@ -79,9 +83,9 @@ static inline undo_no_t trx_undo_rec_get_undo_no(
   return (mach_u64_read_much_compressed(ptr));
 }
 
-static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
-                                                uint32_t undo_offset,
-                                                mem_heap_t *heap) {
+UNIV_INLINE
+trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
+                                  mem_heap_t *heap) {
   ut_ad(undo_offset < UNIV_PAGE_SIZE);
   trx_undo_rec_t *undo_rec = (trx_undo_rec_t *)(undo_page + undo_offset);
 

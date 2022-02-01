@@ -44,7 +44,7 @@ class Registry_module_interface {
   static const std::string SVC_NAME_REGISTRY_QUERY;
 
  public:
-  virtual ~Registry_module_interface() = default;
+  virtual ~Registry_module_interface() {}
 
   /**
     Initializes the registry handles. It acquires registry handles

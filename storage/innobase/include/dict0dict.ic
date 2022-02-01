@@ -40,7 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Gets the column number.
  @return col->ind, table column position (starting from 0) */
-static inline ulint dict_col_get_no(const dict_col_t *col) /*!< in: column */
+UNIV_INLINE
+ulint dict_col_get_no(const dict_col_t *col) /*!< in: column */
 {
   ut_ad(col);
 
@@ -48,7 +49,8 @@ static inline ulint dict_col_get_no(const dict_col_t *col) /*!< in: column */
 }
 
 /** Gets the column position in the clustered index. */
-static inline ulint dict_col_get_clust_pos(
+UNIV_INLINE
+ulint dict_col_get_clust_pos(
     const dict_col_t *col,           /*!< in: table column */
     const dict_index_t *clust_index) /*!< in: clustered index */
 {
@@ -73,8 +75,8 @@ static inline ulint dict_col_get_clust_pos(
 @param[in]	col	table column
 @param[in]	index	index to be searched for column
 @return position of column in the given index. */
-static inline ulint dict_col_get_index_pos(const dict_col_t *col,
-                                           const dict_index_t *index) {
+UNIV_INLINE
+ulint dict_col_get_index_pos(const dict_col_t *col, const dict_index_t *index) {
   ulint i;
 
   for (i = 0; i < index->n_def; i++) {
@@ -92,7 +94,8 @@ static inline ulint dict_col_get_index_pos(const dict_col_t *col,
 @param[in]	index  index tree
 @retval true if index has any descending column
 @retval false if index has only ascending columns */
-static inline bool dict_index_has_desc(const dict_index_t *index) {
+UNIV_INLINE
+bool dict_index_has_desc(const dict_index_t *index) {
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
   for (ulint i = 0; i < index->n_def; i++) {
@@ -110,14 +113,15 @@ static inline bool dict_index_has_desc(const dict_index_t *index) {
 @param[in]	index	index
 
 @return true if index is auto-generated clustered index. */
-static inline bool dict_index_is_auto_gen_clust(const dict_index_t *index) {
+UNIV_INLINE
+bool dict_index_is_auto_gen_clust(const dict_index_t *index) {
   return (index->type == DICT_CLUSTERED);
 }
 
 /** Check whether the index is unique.
  @return nonzero for unique index, zero for other indexes */
-static inline ulint dict_index_is_unique(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+ulint dict_index_is_unique(const dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -127,8 +131,8 @@ static inline ulint dict_index_is_unique(
 
 /** Check whether the index is a Spatial Index.
  @return	nonzero for Spatial Index, zero for other indexes */
-static inline ulint dict_index_is_spatial(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+ulint dict_index_is_spatial(const dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -139,7 +143,8 @@ static inline ulint dict_index_is_spatial(
 /** Check whether the index contains a virtual column
 @param[in]	index	index
 @return	nonzero for the index has virtual column, zero for other indexes */
-static inline ulint dict_index_has_virtual(const dict_index_t *index) {
+UNIV_INLINE
+ulint dict_index_has_virtual(const dict_index_t *index) {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
@@ -148,8 +153,8 @@ static inline ulint dict_index_has_virtual(const dict_index_t *index) {
 
 /** Check whether the index is the insert buffer tree.
  @return nonzero for insert buffer, zero for other indexes */
-static inline ulint dict_index_is_ibuf(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+ulint dict_index_is_ibuf(const dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -159,8 +164,8 @@ static inline ulint dict_index_is_ibuf(
 
 /** Check whether the index is a secondary index or the insert buffer tree.
  @return nonzero for insert buffer, zero for other indexes */
-static inline ulint dict_index_is_sec_or_ibuf(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+ulint dict_index_is_sec_or_ibuf(const dict_index_t *index) /*!< in: index */
 {
   ulint type;
 
@@ -176,7 +181,8 @@ static inline ulint dict_index_is_sec_or_ibuf(
 in the dictionary cache.
 @param[in]	table	table
 @return number of user-defined (e.g., not ROW_ID) columns of a table */
-static inline ulint dict_table_get_n_tot_u_cols(const dict_table_t *table) {
+UNIV_INLINE
+ulint dict_table_get_n_tot_u_cols(const dict_table_t *table) {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -186,7 +192,8 @@ static inline ulint dict_table_get_n_tot_u_cols(const dict_table_t *table) {
 /** Gets the number of virtual columns in a table in the dictionary cache.
 @param[in]	table	the table to check
 @return number of virtual columns of a table */
-static inline ulint dict_table_get_n_v_cols(const dict_table_t *table) {
+UNIV_INLINE
+ulint dict_table_get_n_v_cols(const dict_table_t *table) {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -196,7 +203,8 @@ static inline ulint dict_table_get_n_v_cols(const dict_table_t *table) {
 /** Check if a table has indexed virtual columns
 @param[in]	table	the table to check
 @return true is the table has indexed virtual columns */
-static inline bool dict_table_has_indexed_v_cols(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_has_indexed_v_cols(const dict_table_t *table) {
   for (ulint i = 0; i < table->n_v_cols; i++) {
     const dict_v_col_t *col = dict_table_get_nth_v_col(table, i);
     if (col->m_col.ord_part) {
@@ -210,8 +218,8 @@ static inline bool dict_table_has_indexed_v_cols(const dict_table_t *table) {
 #ifndef UNIV_HOTBACKUP
 /** Gets the approximately estimated number of rows in the table.
  @return estimated number of rows */
-static inline ib_uint64_t dict_table_get_n_rows(
-    const dict_table_t *table) /*!< in: table */
+UNIV_INLINE
+ib_uint64_t dict_table_get_n_rows(const dict_table_t *table) /*!< in: table */
 {
   ut_ad(table->stat_initialized);
 
@@ -221,8 +229,8 @@ static inline ib_uint64_t dict_table_get_n_rows(
 /** Increment the number of rows in the table by one.
  Notice that this operation is not protected by any latch, the number is
  approximate. */
-static inline void dict_table_n_rows_inc(
-    dict_table_t *table) /*!< in/out: table */
+UNIV_INLINE
+void dict_table_n_rows_inc(dict_table_t *table) /*!< in/out: table */
 {
   if (table->stat_initialized) {
     ib_uint64_t n_rows = table->stat_n_rows;
@@ -235,8 +243,8 @@ static inline void dict_table_n_rows_inc(
 /** Decrement the number of rows in the table by one.
  Notice that this operation is not protected by any latch, the number is
  approximate. */
-static inline void dict_table_n_rows_dec(
-    dict_table_t *table) /*!< in/out: table */
+UNIV_INLINE
+void dict_table_n_rows_dec(dict_table_t *table) /*!< in/out: table */
 {
   if (table->stat_initialized) {
     ib_uint64_t n_rows = table->stat_n_rows;
@@ -252,8 +260,8 @@ static inline void dict_table_n_rows_dec(
 @param[in]	table	table
 @param[in]	pos	position of virtual column
 @return pointer to virtual column object */
-static inline dict_v_col_t *dict_table_get_nth_v_col(const dict_table_t *table,
-                                                     ulint pos) {
+UNIV_INLINE
+dict_v_col_t *dict_table_get_nth_v_col(const dict_table_t *table, ulint pos) {
   ut_ad(table);
   ut_ad(pos < table->n_v_def);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -264,9 +272,9 @@ static inline dict_v_col_t *dict_table_get_nth_v_col(const dict_table_t *table,
 
 /** Gets the given system column number of a table.
  @return column number */
-static inline ulint dict_table_get_sys_col_no(
-    const dict_table_t *table, /*!< in: table */
-    ulint sys)                 /*!< in: DATA_ROW_ID, ... */
+UNIV_INLINE
+ulint dict_table_get_sys_col_no(const dict_table_t *table, /*!< in: table */
+                                ulint sys) /*!< in: DATA_ROW_ID, ... */
 {
   ut_ad(table);
   ut_ad(sys < table->get_n_sys_cols());
@@ -277,8 +285,8 @@ static inline ulint dict_table_get_sys_col_no(
 
 /** Check whether the table uses the compact page format.
  @return true if table uses the compact page format */
-static inline ibool dict_table_is_comp(
-    const dict_table_t *table) /*!< in: table */
+UNIV_INLINE
+ibool dict_table_is_comp(const dict_table_t *table) /*!< in: table */
 {
   ut_ad(table);
 
@@ -292,7 +300,8 @@ static inline ibool dict_table_is_comp(
 #ifndef UNIV_HOTBACKUP
 /************************************************************************
 Check if the table has an FTS index. */
-static inline ibool dict_table_has_fts_index(
+UNIV_INLINE
+ibool dict_table_has_fts_index(
     /* out: TRUE if table has an FTS index */
     dict_table_t *table) /* in: table */
 {
@@ -304,7 +313,8 @@ static inline ibool dict_table_has_fts_index(
 /** Validate the table flags.
 @param[in]	flags	Table flags
 @return true if valid. */
-static inline bool dict_tf_is_valid(uint32_t flags) {
+UNIV_INLINE
+bool dict_tf_is_valid(uint32_t flags) {
   bool compact = DICT_TF_GET_COMPACT(flags);
   uint32_t zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
   bool atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
@@ -355,7 +365,8 @@ are compatible.
 @param[in]	flags	Table flags
 @param[in]	flags2	Table flags2
 @return true if valid. */
-static inline bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2) {
+UNIV_INLINE
+bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2) {
   if (!dict_tf_is_valid(flags)) {
     return (false);
   }
@@ -376,7 +387,8 @@ static inline bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2) {
 /** Validate a SYS_TABLES TYPE field and return it.
  @return Same as input after validating it as a SYS_TABLES TYPE field.
  If there is an error, return ULINT_UNDEFINED. */
-static inline uint32_t dict_sys_tables_type_validate(
+UNIV_INLINE
+uint32_t dict_sys_tables_type_validate(
     uint32_t type,   /*!< in: SYS_TABLES.TYPE */
     uint32_t n_cols) /*!< in: SYS_TABLES.N_COLS */
 {
@@ -446,7 +458,8 @@ static inline uint32_t dict_sys_tables_type_validate(
  The low order bit will be zero for REDUNDANT and 1 for COMPACT. For any
  other row_format, flags is nonzero and DICT_TF_COMPACT will also be set.
  @return file format version */
-static inline rec_format_t dict_tf_get_rec_format(
+UNIV_INLINE
+rec_format_t dict_tf_get_rec_format(
     uint32_t flags) /*!< in: dict_table_t::flags */
 {
   ut_a(dict_tf_is_valid(flags));
@@ -470,7 +483,8 @@ static inline rec_format_t dict_tf_get_rec_format(
 /** Determine if a table uses atomic BLOBs (no locally stored prefix).
 @param[in]	table	InnoDB table
 @return whether BLOBs are atomic */
-static inline bool dict_table_has_atomic_blobs(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_has_atomic_blobs(const dict_table_t *table) {
   return (DICT_TF_HAS_ATOMIC_BLOBS(table->flags));
 }
 
@@ -481,9 +495,9 @@ static inline bool dict_table_has_atomic_blobs(const dict_table_t *table) {
 @param[in]	zip_ssize	Zip Shift Size
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
-static inline void dict_tf_set(uint32_t *flags, rec_format_t format,
-                               uint32_t zip_ssize, bool use_data_dir,
-                               bool shared_space) {
+UNIV_INLINE
+void dict_tf_set(uint32_t *flags, rec_format_t format, uint32_t zip_ssize,
+                 bool use_data_dir, bool shared_space) {
   switch (format) {
     case REC_FORMAT_REDUNDANT:
       *flags = 0;
@@ -518,9 +532,9 @@ static inline void dict_tf_set(uint32_t *flags, rec_format_t format,
 @param[in]	atomic_blobs	Table uses Compressed or Dynamic
 @param[in]	data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
-static inline uint32_t dict_tf_init(bool compact, ulint zip_ssize,
-                                    bool atomic_blobs, bool data_dir,
-                                    bool shared_space) {
+UNIV_INLINE
+uint32_t dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
+                      bool data_dir, bool shared_space) {
   uint32_t flags = 0;
 
   if (compact) {
@@ -557,7 +571,8 @@ static inline uint32_t dict_tf_init(bool compact, ulint zip_ssize,
  dict_table_t::flags |     0     |    1    |     1
  ==================================================================
  @return ulint containing SYS_TABLES.TYPE */
-static inline uint32_t dict_sys_tables_type_to_tf(
+UNIV_INLINE
+uint32_t dict_sys_tables_type_to_tf(
     uint32_t type,   /*!< in: SYS_TABLES.TYPE field */
     uint32_t n_cols) /*!< in: SYS_TABLES.N_COLS field */
 {
@@ -585,8 +600,8 @@ static inline uint32_t dict_sys_tables_type_to_tf(
  SYS_TABLES.TYPE     |     1     |    1    |     1
  ==================================================================
  @return ulint containing SYS_TABLES.TYPE */
-static inline ulint dict_tf_to_sys_tables_type(
-    uint32_t flags) /*!< in: dict_table_t::flags */
+UNIV_INLINE
+ulint dict_tf_to_sys_tables_type(uint32_t flags) /*!< in: dict_table_t::flags */
 {
   ulint type;
 
@@ -607,7 +622,8 @@ static inline ulint dict_tf_to_sys_tables_type(
 @param[in]	flags	flags
 @return a structure containing the compressed and uncompressed
 page sizes and a boolean indicating if the page is compressed. */
-static inline const page_size_t dict_tf_get_page_size(uint32_t flags) {
+UNIV_INLINE
+const page_size_t dict_tf_get_page_size(uint32_t flags) {
   const uint32_t zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
 
   if (zip_ssize == 0) {
@@ -625,8 +641,8 @@ static inline const page_size_t dict_tf_get_page_size(uint32_t flags) {
 @param[in]	table	table
 @return a structure containing the compressed and uncompressed
 page sizes and a boolean indicating if the page is compressed */
-static inline const page_size_t dict_table_page_size(
-    const dict_table_t *table) {
+UNIV_INLINE
+const page_size_t dict_table_page_size(const dict_table_t *table) {
   ut_ad(table != nullptr);
 
   return (dict_tf_get_page_size(table->flags));
@@ -636,13 +652,13 @@ static inline const page_size_t dict_table_page_size(
 /** Obtain exclusive locks on all index trees of the table. This is to prevent
  accessing index trees while InnoDB is updating internal metadata for
  operations such as FLUSH TABLES. */
-static inline void dict_table_x_lock_indexes(
-    dict_table_t *table) /*!< in: table */
+UNIV_INLINE
+void dict_table_x_lock_indexes(dict_table_t *table) /*!< in: table */
 {
   dict_index_t *index;
 
   ut_a(table);
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
 
   /* Loop through each index of the table and lock them */
   for (index = table->first_index(); index != nullptr; index = index->next()) {
@@ -651,13 +667,13 @@ static inline void dict_table_x_lock_indexes(
 }
 
 /** Release the exclusive locks on all index tree. */
-static inline void dict_table_x_unlock_indexes(
-    dict_table_t *table) /*!< in: table */
+UNIV_INLINE
+void dict_table_x_unlock_indexes(dict_table_t *table) /*!< in: table */
 {
   dict_index_t *index;
 
   ut_a(table);
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
 
   for (index = table->first_index(); index != nullptr; index = index->next()) {
     rw_lock_x_unlock(dict_index_get_lock(index));
@@ -668,7 +684,8 @@ static inline void dict_table_x_unlock_indexes(
 /** Gets the number of fields in the internal representation of an index,
  including fields added by the dictionary system.
  @return number of fields */
-static inline ulint dict_index_get_n_fields(
+UNIV_INLINE
+ulint dict_index_get_n_fields(
     const dict_index_t *index) /*!< in: an internal
                                representation of index (in
                                the dictionary cache) */
@@ -684,7 +701,8 @@ static inline ulint dict_index_get_n_fields(
  we do not take multiversioning into account: in the B-tree use the value
  returned by dict_index_get_n_unique_in_tree.
  @return number of fields */
-static inline ulint dict_index_get_n_unique(
+UNIV_INLINE
+ulint dict_index_get_n_unique(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
 {
@@ -699,7 +717,8 @@ static inline ulint dict_index_get_n_unique(
  which uniquely determine the position of an index entry in the index, if
  we also take multiversioning into account.
  @return number of fields */
-static inline ulint dict_index_get_n_unique_in_tree(
+UNIV_INLINE
+ulint dict_index_get_n_unique_in_tree(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
 {
@@ -721,8 +740,8 @@ index, if we also take multiversioning into account. Note, it doesn't
 include page no field.
 @param[in]	index	index
 @return number of fields */
-static inline uint16_t dict_index_get_n_unique_in_tree_nonleaf(
-    const dict_index_t *index) {
+UNIV_INLINE
+uint16_t dict_index_get_n_unique_in_tree_nonleaf(const dict_index_t *index) {
   ut_ad(index != nullptr);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
   ut_ad(index->cached);
@@ -742,7 +761,8 @@ static inline uint16_t dict_index_get_n_unique_in_tree_nonleaf(
  fields to make a clustered index unique, but this function returns the number
  of fields the user defined in the index as ordering fields.
  @return number of fields */
-static inline ulint dict_index_get_n_ordering_defined_by_user(
+UNIV_INLINE
+ulint dict_index_get_n_ordering_defined_by_user(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
 {
@@ -767,8 +787,8 @@ inline bool dict_table_is_compressed_temporary(const dict_table_t *table) {
 
 /** Gets the space id of the root of the index tree.
  @return space id */
-static inline space_id_t dict_index_get_space(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+space_id_t dict_index_get_space(const dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -777,9 +797,9 @@ static inline space_id_t dict_index_get_space(
 }
 
 /** Sets the space id of the root of the index tree. */
-static inline void dict_index_set_space(
-    dict_index_t *index, /*!< in/out: index */
-    space_id_t space)    /*!< in: space id */
+UNIV_INLINE
+void dict_index_set_space(dict_index_t *index, /*!< in/out: index */
+                          space_id_t space)    /*!< in: space id */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -789,8 +809,8 @@ static inline void dict_index_set_space(
 
 /** Gets the page number of the root of the index tree.
  @return page number */
-static inline page_no_t dict_index_get_page(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+page_no_t dict_index_get_page(const dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -800,8 +820,8 @@ static inline page_no_t dict_index_get_page(
 
 /** Gets the read-write lock of the index tree.
  @return read-write lock */
-static inline rw_lock_t *dict_index_get_lock(
-    dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+rw_lock_t *dict_index_get_lock(dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -813,13 +833,13 @@ static inline rw_lock_t *dict_index_get_lock(
  relevant only in the case of many consecutive inserts, as updates
  which make the records bigger might fragment the index.
  @return number of free bytes on page, reserved for updates */
-static inline ulint dict_index_get_space_reserve(void) {
-  return (UNIV_PAGE_SIZE / 16);
-}
+UNIV_INLINE
+ulint dict_index_get_space_reserve(void) { return (UNIV_PAGE_SIZE / 16); }
 
 /** Gets the status of online index creation.
  @return the status */
-static inline enum online_index_status dict_index_get_online_status(
+UNIV_INLINE
+enum online_index_status dict_index_get_online_status(
     const dict_index_t *index) /*!< in: secondary index */
 {
   enum online_index_status status;
@@ -842,13 +862,13 @@ static inline enum online_index_status dict_index_get_online_status(
       return (status);
   }
   ut_error;
-#else /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
   return (status);
-#endif
 }
 
 /** Sets the status of online index creation. */
-static inline void dict_index_set_online_status(
+UNIV_INLINE
+void dict_index_set_online_status(
     dict_index_t *index,             /*!< in/out: index */
     enum online_index_status status) /*!< in: status */
 {
@@ -879,8 +899,8 @@ static inline void dict_index_set_online_status(
  if this is a clustered index and the table is being or has been rebuilt online
  @retval false if the index has been created or the table has been
  rebuilt completely */
-static inline bool dict_index_is_online_ddl(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+bool dict_index_is_online_ddl(const dict_index_t *index) /*!< in: index */
 {
 #ifdef UNIV_DEBUG
   if (index->is_clustered()) {
@@ -904,7 +924,8 @@ static inline bool dict_index_is_online_ddl(
 
 /** Check whether a column exists in an FTS index.
  @return ULINT_UNDEFINED if no match else the offset within the vector */
-static inline ulint dict_table_is_fts_column(
+UNIV_INLINE
+ulint dict_table_is_fts_column(
     ib_vector_t *indexes, /*!< in: vector containing only FTS indexes */
     ulint col_no,         /*!< in: col number to search for */
     bool is_virtual)      /*!< in: whether it is a virtual column */
@@ -929,7 +950,8 @@ static inline ulint dict_table_is_fts_column(
  note that if !dict_table_has_atomic_blobs(table), no prefix
  needs to be stored in the undo log.
  @return bytes of column prefix to be stored in the undo log */
-static inline ulint dict_max_field_len_store_undo(
+UNIV_INLINE
+ulint dict_max_field_len_store_undo(
     dict_table_t *table,   /*!< in: table */
     const dict_col_t *col) /*!< in: column which index prefix
                            is based on */
@@ -950,8 +972,8 @@ in the undo log.
 @param[in]	table		dict_table_t for the table
 @param[in]	col_no		virtual column number
 @return maximum bytes of virtual column to be stored in the undo log */
-static inline ulint dict_max_v_field_len_store_undo(dict_table_t *table,
-                                                    ulint col_no) {
+UNIV_INLINE
+ulint dict_max_v_field_len_store_undo(dict_table_t *table, ulint col_no) {
   const dict_col_t *col = &dict_table_get_nth_v_col(table, col_no)->m_col;
   ulint max_log_len;
 
@@ -976,10 +998,11 @@ static inline ulint dict_max_v_field_len_store_undo(dict_table_t *table,
 #ifndef UNIV_HOTBACKUP
 /** Prevent table eviction by moving a table to the non-LRU list from the
  LRU list if it is not already there. */
-static inline void dict_table_prevent_eviction(
+UNIV_INLINE
+void dict_table_prevent_eviction(
     dict_table_t *table) /*!< in: table to prevent eviction */
 {
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
   if (table->can_be_evicted) {
     dict_table_move_from_lru_to_non_lru(table);
   }
@@ -989,8 +1012,9 @@ static inline void dict_table_prevent_eviction(
 /** Allow the table to be evicted by moving a table to the LRU list from
 the non-LRU list if it is not already there.
 @param[in]      table   InnoDB table object can be evicted */
-static inline void dict_table_allow_eviction(dict_table_t *table) {
-  ut_ad(dict_sys_mutex_own());
+UNIV_INLINE
+void dict_table_allow_eviction(dict_table_t *table) {
+  ut_ad(mutex_own(&dict_sys->mutex));
   if (!table->can_be_evicted) {
     dict_table_move_from_non_lru_to_lru(table);
   }
@@ -1001,8 +1025,9 @@ static inline void dict_table_allow_eviction(dict_table_t *table) {
 currently not there. This also prevents later opening table via DD objects,
 when the table name in InnoDB doesn't match with DD object.
 @param[in,out]	table	Table to put in non-LRU list */
-static inline void dict_table_ddl_acquire(dict_table_t *table) {
-  ut_ad(dict_sys_mutex_own());
+UNIV_INLINE
+void dict_table_ddl_acquire(dict_table_t *table) {
+  ut_ad(mutex_own(&dict_sys->mutex));
   if (table->can_be_evicted) {
     ut_ad(!table->ddl_not_evictable);
     dict_table_prevent_eviction(table);
@@ -1013,8 +1038,9 @@ static inline void dict_table_ddl_acquire(dict_table_t *table) {
 /** Move this table to LRU list after DDL operations if it was moved
 to non-LRU list
 @param[in,out]	table	Table to put in LRU list */
-static inline void dict_table_ddl_release(dict_table_t *table) {
-  ut_ad(dict_sys_mutex_own());
+UNIV_INLINE
+void dict_table_ddl_release(dict_table_t *table) {
+  ut_ad(mutex_own(&dict_sys->mutex));
   if (table->ddl_not_evictable) {
     ut_ad(!table->can_be_evicted);
     dict_table_allow_eviction(table);
@@ -1025,7 +1051,8 @@ static inline void dict_table_ddl_release(dict_table_t *table) {
 
 /** Check if the tablespace for the table has been discarded.
  @return true if the tablespace has been discarded. */
-static inline bool dict_table_is_discarded(
+UNIV_INLINE
+bool dict_table_is_discarded(
     const dict_table_t *table) /*!< in: table to check */
 {
   return (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_DISCARDED));
@@ -1035,7 +1062,8 @@ static inline bool dict_table_is_discarded(
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer
 @param[in]	table	table to check
 @return true if this is a DDTableBuffer table. */
-static inline bool dict_table_is_table_buffer(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_is_table_buffer(const dict_table_t *table) {
   return (table == dict_sys->dynamic_metadata);
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -1043,7 +1071,8 @@ static inline bool dict_table_is_table_buffer(const dict_table_t *table) {
 /** Check if the table is in a shared tablespace (System or General).
 @param[in]	table	table to check
 @return true if table is in shared tablespace, false if not. */
-static inline bool dict_table_in_shared_tablespace(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_in_shared_tablespace(const dict_table_t *table) {
   return (fsp_is_system_or_temp_tablespace(table->space) ||
           DICT_TF_HAS_SHARED_SPACE(table->flags));
 }
@@ -1056,13 +1085,15 @@ dict_persist->mutex.
 
 @param[in]	table	table to check
 @return true if locking is disabled. */
-static inline bool dict_table_is_locking_disabled(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_is_locking_disabled(const dict_table_t *table) {
   return (table->is_intrinsic() || dict_table_is_table_buffer(table));
 }
 #endif /* !UNIV_HOTBACKUP */
 
 /** Turn-off redo-logging if temporary table. */
-static inline void dict_disable_redo_if_temporary(
+UNIV_INLINE
+void dict_disable_redo_if_temporary(
     const dict_table_t *table, /*!< in: table to check */
     mtr_t *mtr)                /*!< out: mini-transaction */
 {
@@ -1087,7 +1118,8 @@ This test cannot be done on a table in the process of being created
 because the space_id will be zero until the tablespace is created.
 @param[in]	table	An existing open table to check
 @return true if this table was created as a file-per-table tablespace. */
-static inline bool dict_table_is_file_per_table(
+UNIV_INLINE
+bool dict_table_is_file_per_table(
     const dict_table_t *table) /*!< in: table to check */
 {
   bool is_file_per_table = !fsp_is_system_or_temp_tablespace(table->space) &&
@@ -1106,7 +1138,8 @@ static inline bool dict_table_is_file_per_table(
 /** Get index by first field of the index
  @return index which is having first field matches
  with the field present in field_index position of table */
-static inline dict_index_t *dict_table_get_index_on_first_col(
+UNIV_INLINE
+dict_index_t *dict_table_get_index_on_first_col(
     dict_table_t *table, /*!< in: table */
     ulint col_index)     /*!< in: position of column
                          in table */
@@ -1142,24 +1175,24 @@ static inline dict_index_t *dict_table_get_index_on_first_col(
 /** Get table session row-id and increment the row-id counter for next use.
 @param[in,out]	table	table handler
 @return next table session row-id. */
-static inline row_id_t dict_table_get_next_table_sess_row_id(
-    dict_table_t *table) {
+UNIV_INLINE
+row_id_t dict_table_get_next_table_sess_row_id(dict_table_t *table) {
   return (++table->sess_row_id);
 }
 
 /** Get table session trx-id and increment the trx-id counter for next use.
 @param[in,out]	table	table handler
 @return next table session trx-id. */
-static inline trx_id_t dict_table_get_next_table_sess_trx_id(
-    dict_table_t *table) {
+UNIV_INLINE
+trx_id_t dict_table_get_next_table_sess_trx_id(dict_table_t *table) {
   return (++table->sess_trx_id);
 }
 
 /** Get current session trx-id.
 @param[in]	table	table handler
 @return table session trx-id. */
-static inline trx_id_t dict_table_get_curr_table_sess_trx_id(
-    const dict_table_t *table) {
+UNIV_INLINE
+trx_id_t dict_table_get_curr_table_sess_trx_id(const dict_table_t *table) {
   return (table->sess_trx_id);
 }
 
@@ -1169,13 +1202,13 @@ inline uint64_t dict_table_t::get_ref_count() const { return (n_ref_count); }
 
 /** Acquire the table handle. */
 inline void dict_table_t::acquire() {
-  ut_ad(dict_sys_mutex_own() || is_intrinsic());
+  ut_ad(mutex_own(&dict_sys->mutex) || is_intrinsic());
   MONITOR_INC(MONITOR_TABLE_REFERENCE);
   ++n_ref_count;
 }
 
 inline void dict_table_t::acquire_with_lock() {
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
   ut_ad(!is_intrinsic());
 
   /* Acquiring the lock first, to prevent race between n_ref_count and
@@ -1203,7 +1236,7 @@ This function must not be called concurrently on the same table object.
 inline void dict_table_mutex_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->mutex = ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  table->mutex = UT_NEW_NOKEY(ib_mutex_t());
   ut_ad(table->mutex != nullptr);
   mutex_create(LATCH_ID_DICT_TABLE, table->mutex);
 }
@@ -1240,8 +1273,9 @@ inline bool dict_table_has_temp_general_tablespace_name(
 autoinc_persisted_mutex.
 @param[in,out]	table	table
 @param[in]	autoinc	set autoinc_persisted to this value */
-static inline void dict_table_autoinc_persisted_update(dict_table_t *table,
-                                                       ib_uint64_t autoinc) {
+UNIV_INLINE
+void dict_table_autoinc_persisted_update(dict_table_t *table,
+                                         ib_uint64_t autoinc) {
 #ifndef UNIV_HOTBACKUP
   ut_ad(dict_table_has_autoinc_col(table));
   ut_ad(mutex_own(table->autoinc_persisted_mutex));
@@ -1253,15 +1287,16 @@ static inline void dict_table_autoinc_persisted_update(dict_table_t *table,
 /** Check if a table has an autoinc counter column.
 @param[in]	table	table
 @return true if there is an autoinc column in the table, otherwise false. */
-static inline bool dict_table_has_autoinc_col(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_has_autoinc_col(const dict_table_t *table) {
   return (table->autoinc_field_no != ULINT_UNDEFINED);
 }
 
 /** Set the column position of autoinc column in clustered index for a table.
 @param[in]	table	table
 @param[in]	pos	column position in table definition */
-static inline void dict_table_autoinc_set_col_pos(dict_table_t *table,
-                                                  ulint pos) {
+UNIV_INLINE
+void dict_table_autoinc_set_col_pos(dict_table_t *table, ulint pos) {
   ulint innodb_pos = dict_table_mysql_pos_to_innodb(table, pos);
 
   ulint idx = dict_table_get_nth_col_pos(table, innodb_pos);
@@ -1275,7 +1310,8 @@ InnoDB is limited to 1017
 @param[in]      n_col   number of non-virtual column
 @param[in]      n_v_col number of virtual column
 @return encoded value */
-static inline ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col) {
+UNIV_INLINE
+ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col) {
   return (n_col + (n_v_col << 16));
 }
 
@@ -1283,8 +1319,9 @@ static inline ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col) {
 @param[in]      encoded encoded value
 @param[in,out]     n_col   number of non-virtual column
 @param[in,out]     n_v_col number of virtual column */
-static inline void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
-                                           uint32_t *n_v_col) {
+UNIV_INLINE
+void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
+                             uint32_t *n_v_col) {
   uint32_t num = encoded & ~DICT_N_COLS_COMPACT;
   *n_v_col = num >> 16;
   *n_col = num & 0xFFFF;
@@ -1292,16 +1329,17 @@ static inline void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */
-static inline void dict_free_vc_templ(dict_vcol_templ_t *vc_templ) {
+UNIV_INLINE
+void dict_free_vc_templ(dict_vcol_templ_t *vc_templ) {
   if (vc_templ->vtempl != nullptr) {
     ut_ad(vc_templ->n_v_col > 0);
     for (ulint i = 0; i < vc_templ->n_col + vc_templ->n_v_col; i++) {
       if (vc_templ->vtempl[i] != nullptr) {
-        ut::free(vc_templ->vtempl[i]);
+        ut_free(vc_templ->vtempl[i]);
       }
     }
-    ut::free(vc_templ->default_rec);
-    ut::free(vc_templ->vtempl);
+    ut_free(vc_templ->default_rec);
+    ut_free(vc_templ->vtempl);
     vc_templ->vtempl = nullptr;
   }
 }
@@ -1309,7 +1347,8 @@ static inline void dict_free_vc_templ(dict_vcol_templ_t *vc_templ) {
 /** Check whether the table have virtual index.
 @param[in]	table	InnoDB table
 @return true if the table have virtual index, false otherwise. */
-static inline bool dict_table_have_virtual_index(dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_have_virtual_index(dict_table_t *table) {
   for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(table); col_no++) {
     const dict_v_col_t *col = dict_table_get_nth_v_col(table, col_no);
 
@@ -1322,7 +1361,8 @@ static inline bool dict_table_have_virtual_index(dict_table_t *table) {
 }
 /** Allocate memory for intrinsic cache elements in the index
 @param[in]      index   index object */
-static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index) {
+UNIV_INLINE
+void dict_allocate_mem_intrinsic_cache(dict_index_t *index) {
   index->last_ins_cur = static_cast<last_ops_cur_t *>(
       mem_heap_alloc(index->heap, sizeof(last_ops_cur_t)));
 
@@ -1337,28 +1377,32 @@ static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index) {
 /** Generate a table_id from space id for SDI Index.
 @param[in]	space_id	InnoDB tablespace id
 @return table_id */
-static inline uint64_t dict_sdi_get_table_id(space_id_t space_id) {
+UNIV_INLINE
+uint64_t dict_sdi_get_table_id(space_id_t space_id) {
   return ((~0ULL << 32) | space_id);
 }
 
 /** Extract space_id from table_id for SDI Index.
 @param[in]	table_id	InnoDB table id
 @return space_id */
-static inline space_id_t dict_sdi_get_space_id(table_id_t table_id) {
+UNIV_INLINE
+space_id_t dict_sdi_get_space_id(table_id_t table_id) {
   return (static_cast<space_id_t>(table_id));
 }
 
 /** Check if the index is SDI index
 @param[in]	index	in-memory index structure
 @return true if index is SDI index else false */
-static inline bool dict_index_is_sdi(const dict_index_t *index) {
+UNIV_INLINE
+bool dict_index_is_sdi(const dict_index_t *index) {
   return (index->type & DICT_SDI);
 }
 
 /** Check if an table id belongs SDI table
 @param[in]	table_id	dict_table_t id
 @return true if table_id is SDI table_id else false */
-static inline bool dict_table_is_sdi(table_id_t table_id) {
+UNIV_INLINE
+bool dict_table_is_sdi(table_id_t table_id) {
   /* The lowest possible SDI table_id is for space 0.
   So any table id greater than system tablespace
   table id is SDI table id. */
@@ -1367,7 +1411,8 @@ static inline bool dict_table_is_sdi(table_id_t table_id) {
 
 /** Return a SDI Index id for given SDI copy
 @return index_id for SDI copy */
-static inline space_index_t dict_sdi_get_index_id() { return (IB_UINT64_MAX); }
+UNIV_INLINE
+space_index_t dict_sdi_get_index_id() { return (IB_UINT64_MAX); }
 
 /* GAP locks are skipped for DD tables and SDI tables
 @return true if table is DD table or SDI table, else false */
@@ -1377,9 +1422,9 @@ inline bool dict_table_t::skip_gap_locks() const {
 
 /** Determine if the table can support instant ADD COLUMN */
 inline bool dict_table_t::support_instant_add() const {
-  return (
-      !DICT_TF_GET_ZIP_SSIZE(flags) && space != dict_sys_t::s_dict_space_id &&
-      !DICT_TF2_FLAG_IS_SET(this, DICT_TF2_FTS_HAS_DOC_ID) && !is_temporary());
+  return (!DICT_TF_GET_ZIP_SSIZE(flags) && space != dict_sys_t::s_space_id &&
+          !DICT_TF2_FLAG_IS_SET(this, DICT_TF2_FTS_HAS_DOC_ID) &&
+          !is_temporary());
 }
 
 /** Check whether the dict_table_t is a partition.
@@ -1388,6 +1433,7 @@ where each InnoDB table is a [sub]partition including its secondary indexes
 which belongs to the partition.
 @param[in]	table	Table to check.
 @return true if the dict_table_t is a partition else false. */
-static inline bool dict_table_is_partition(const dict_table_t *table) {
+UNIV_INLINE
+bool dict_table_is_partition(const dict_table_t *table) {
   return (dict_name::is_partition(table->name.m_name));
 }

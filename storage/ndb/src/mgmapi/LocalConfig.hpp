@@ -51,6 +51,9 @@ struct LocalConfig {
   int _ownNodeId;
   Vector<MgmtSrvrId> ids;
   
+  int error_line;
+  char error_msg[256];
+
   BaseString bind_address;
   unsigned int bind_address_port;
 
@@ -58,34 +61,18 @@ struct LocalConfig {
   ~LocalConfig();
   bool init(const char *connectString = 0,
 	    const char *fileName = 0);
-  char * makeConnectString(char *buf, int sz);
-
-private:
-  int error_line;
-  char error_msg[256];
 
   void setError(int lineNumber, const char * _msg);
   bool readConnectString(const char *, const char *info);
   bool readFile(const char * file, bool &fopenError);
   bool parseLine(char * line, int lineNumber);
   
-  bool parseNodeId(const char *buf, const char * value);
-  bool parseHostName(const char *buf, const char * value);
-  bool parseBindAddress(const char *buf, const char * value);
-  bool parseFileName(const char *buf, const char * value);
-  bool parseComment(const char *buf, const char * value);
+  bool parseNodeId(const char *buf);
+  bool parseHostName(const char *buf);
+  bool parseBindAddress(const char *buf);
+  bool parseFileName(const char *buf);
   bool parseString(const char *buf, BaseString &err);
-
-  struct param_prefix
-  {
-    const char* prefix;
-    size_t prefix_len;
-    bool (LocalConfig::*param_func)(const char * buf, const char * value);
-    template<size_t N> param_prefix(const char (&str)[N],
-                                    decltype(param_func) func)
-      : prefix(str), prefix_len(N - 1), param_func(func) {}
-  };
-  static const param_prefix param_prefixes[];
+  char * makeConnectString(char *buf, int sz);
 };
 
 #endif // LocalConfig_H

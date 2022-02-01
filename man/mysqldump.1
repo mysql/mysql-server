@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: mysqldump
+.\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -546,7 +546,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -580,67 +580,6 @@ To explicitly specify that there is no password and that
 should not prompt for one, use the
 \fB\-\-skip\-password\fR
 option\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password1[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 1 of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
-\fBmysqldump\fR
-prompts for one\&. If given, there must be
-\fIno space\fR
-between
-\fB\-\-password1=\fR
-and the password following it\&. If no password option is specified, the default is to send no password\&.
-.sp
-Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
-.sp
-To explicitly specify that there is no password and that
-\fBmysqldump\fR
-should not prompt for one, use the
-\fB\-\-skip\-password1\fR
-option\&.
-.sp
-\fB\-\-password1\fR
-and
-\fB\-\-password\fR
-are synonymous, as are
-\fB\-\-skip\-password1\fR
-and
-\fB\-\-skip\-password\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password2[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 2 of the MySQL account used for connecting to the server\&. The semantics of this option are similar to the semantics for
-\fB\-\-password1\fR; see the description of that option for details\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password3[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 3 of the MySQL account used for connecting to the server\&. The semantics of this option are similar to the semantics for
-\fB\-\-password1\fR; see the description of that option for details\&.
 .RE
 .sp
 .RS 4
@@ -733,22 +672,6 @@ caching_sha2_password
 plugins, see
 Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
 Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-skip\-mysql\-schema\fR
-Do not drop the
-mysql
-schema when the dump file is restored\&. By default, the schema is dropped\&.
-.sp
-This option was added in MySQL 8\&.0\&.27\&.
 .RE
 .sp
 .RS 4
@@ -1022,7 +945,7 @@ is used\&. To create
 \&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1541,18 +1464,13 @@ command is frequently used to create an empty instance, or an instance including
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-apply\-replica\-statements\fR
-From MySQL 8\&.0\&.26, use
-\fB\-\-apply\-replica\-statements\fR, and before MySQL 8\&.0\&.26, use
-\fB\-\-apply\-slave\-statements\fR\&. Both options have the same effect\&. For a replica dump produced with the
-\fB\-\-dump\-replica\fR
-or
+\fB\-\-apply\-slave\-statements\fR
+For a replica dump produced with the
 \fB\-\-dump\-slave\fR
-option, the options add a
-STOP REPLICA
-(or before MySQL 8\&.0\&.22,
-STOP SLAVE) statement before the statement with the binary log coordinates, and a
-START REPLICA
+option, add a
+STOP REPLICA | SLAVE
+statement before the statement with the binary log coordinates, and a
+START REPLICA | SLAVE
 statement at the end of the output\&.
 .RE
 .sp
@@ -1564,29 +1482,12 @@ statement at the end of the output\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-apply\-slave\-statements\fR
-Use this option before MySQL 8\&.0\&.26 rather than
-\fB\-\-apply\-replica\-statements\fR\&. Both options have the same effect\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-delete\-source\-logs\fR
-From MySQL 8\&.0\&.26, use
-\fB\-\-delete\-source\-logs\fR, and before MySQL 8\&.0\&.26, use
-\fB\-\-delete\-master\-logs\fR\&. Both options have the same effect\&. On a replication source server, the options delete the binary logs by sending a
+\fB\-\-delete\-master\-logs\fR
+On a replication source server, delete the binary logs by sending a
 PURGE BINARY LOGS
-statement to the server after performing the dump operation\&. The options require the
+statement to the server after performing the dump operation\&. This option requires the
 RELOAD
-privilege as well as privileges sufficient to execute that statement\&. The options automatically enable
-\fB\-\-source\-data\fR
-or
+privilege as well as privileges sufficient to execute that statement\&. This option automatically enables
 \fB\-\-master\-data\fR\&.
 .RE
 .sp
@@ -1598,24 +1499,10 @@ or
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-delete\-master\-logs\fR
-Use this option before MySQL 8\&.0\&.26 rather than
-\fB\-\-delete\-source\-logs\fR\&. Both options have the same effect\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-dump\-replica[=\fR\fB\fIvalue\fR\fR\fB]\fR
-From MySQL 8\&.0\&.26, use
-\fB\-\-dump\-replica\fR, and before MySQL 8\&.0\&.26, use
-\fB\-\-dump\-slave\fR\&. Both options have the same effect\&. The options are similar to
-\fB\-\-source\-data\fR, except that they are used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. The options cause the dump output to include a
+\fB\-\-dump\-slave[=\fR\fB\fIvalue\fR\fR\fB]\fR
+This option is similar to
+\fB\-\-master\-data\fR
+except that it is used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. It causes the dump output to include a
 CHANGE REPLICATION SOURCE TO
 statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
@@ -1626,7 +1513,7 @@ Relay_Master_Log_File
 and
 Exec_Master_Log_Pos
 from the
-SHOW REPLICA STATUS
+SHOW REPLICA | SLAVE STATUS
 output and uses them for
 SOURCE_LOG_FILE
 and
@@ -1649,16 +1536,10 @@ Section\ \&17.5.1.34, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
-\fB\-\-dump\-replica\fR
-or
 \fB\-\-dump\-slave\fR
-cause the coordinates from the source to be used rather than those of the dumped server, as is done by the
-\fB\-\-source\-data\fR
-or
+causes the coordinates from the source to be used rather than those of the dumped server, as is done by the
 \fB\-\-master\-data\fR
-option\&. In addition, specifying this option causes the
-\fB\-\-source\-data\fR
-or
+option\&. In addition, specifiying this option causes the
 \fB\-\-master\-data\fR
 option to be overridden, if used, and effectively ignored\&.
 .if n \{\
@@ -1673,90 +1554,36 @@ option to be overridden, if used, and effectively ignored\&.
 \fBWarning\fR
 .ps -1
 .br
-\fB\-\-dump\-replica\fR
-and
-\fB\-\-dump\-slave\fR
-should not be used if the server where the dump is going to be applied uses
+This option should not be used if the server where the dump is going to be applied uses
 gtid_mode=ON
 and
-SOURCE_AUTO_POSITION=1
-or
-MASTER_AUTO_POSITION=1\&.
+MASTER_AUTOPOSITION=1\&.
 .sp .5v
 .RE
 The option value is handled the same way as for
-\fB\-\-source\-data\fR\&. Setting no value or 1 causes a
+\fB\-\-master\-data\fR\&. Setting no value or 1 causes a
 CHANGE REPLICATION SOURCE TO
 statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
 statement (before MySQL 8\&.0\&.23) to be written to the dump\&. Setting 2 causes the statement to be written but encased in SQL comments\&. It has the same effect as
-\fB\-\-source\-data\fR
+\fB\-\-master\-data\fR
 in terms of enabling or disabling other options and in how locking is handled\&.
 .sp
-\fB\-\-dump\-replica\fR
-and
-\fB\-\-dump\-slave\fR
-cause
+This option causes
 \fBmysqldump\fR
 to stop the replication SQL thread before the dump and restart it again after\&.
 .sp
-\fB\-\-dump\-replica\fR
-and
 \fB\-\-dump\-slave\fR
-send a
-SHOW REPLICA STATUS
-statement to the server to obtain information, so they require privileges sufficient to execute that statement\&.
+sends a
+SHOW REPLICA | SLAVE STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&.
 .sp
-\fB\-\-apply\-replica\-statements\fR
+In conjunction with
+\fB\-\-dump\-slave\fR, the
+\fB\-\-apply\-slave\-statements\fR
 and
-\fB\-\-include\-source\-host\-port\fR
-options can be used in conjunction with
-\fB\-\-dump\-replica\fR
-and
-\fB\-\-dump\-slave\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-dump\-slave[=\fR\fB\fIvalue\fR\fR\fB]\fR
-Use this option before MySQL 8\&.0\&.26 rather than
-\fB\-\-dump\-replica\fR\&. Both options have the same effect\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-include\-source\-host\-port\fR
-From MySQL 8\&.0\&.26, use
-\fB\-\-include\-source\-host\-port\fR, and before MySQL 8\&.0\&.26, use
-\fB\-\-include\-master\-host\-port\fR\&. Both options have the same effect\&. The options add the
-SOURCE_HOST
-|
-MASTER_HOST
-and
-SOURCE_PORT
-|
-MASTER_PORT
-options for the host name and TCP/IP port number of the replica\*(Aqs source, to the
-CHANGE REPLICATION SOURCE TO
-statement (from MySQL 8\&.0\&.23) or
-CHANGE MASTER TO
-statement (before MySQL 8\&.0\&.23) in a replica dump produced with the
-\fB\-\-dump\-replica\fR
-or
-\fB\-\-dump\-slave\fR
-option\&.
+\fB\-\-include\-master\-host\-port\fR
+options can also be used\&.
 .RE
 .sp
 .RS 4
@@ -1768,61 +1595,21 @@ option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-include\-master\-host\-port\fR
-Use this option before MySQL 8\&.0\&.26 rather than
-\fB\-\-include\-source\-host\-port\fR\&. Both options have the same effect\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-source\-data[=\fR\fB\fIvalue\fR\fR\fB]\fR
-From MySQL 8\&.0\&.26, use
-\fB\-\-source\-data\fR, and before MySQL 8\&.0\&.26, use
-\fB\-\-master\-data\fR\&. Both options have the same effect\&. The options are used to dump a replication source server to produce a dump file that can be used to set up another server as a replica of the source\&. The options cause the dump output to include a
+For the
 CHANGE REPLICATION SOURCE TO
 statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement (before MySQL 8\&.0\&.23) that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the replication source server coordinates from which the replica should start replicating after you load the dump file into the replica\&.
-.sp
-If the option value is 2, the
-CHANGE REPLICATION SOURCE TO
-|
-CHANGE MASTER TO
-statement is written as an SQL comment, and thus is informative only; it has no effect when the dump file is reloaded\&. If the option value is 1, the statement is not written as a comment and takes effect when the dump file is reloaded\&. If no option value is specified, the default value is 1\&.
-.sp
-\fB\-\-source\-data\fR
-and
-\fB\-\-master\-data\fR
-send a
-SHOW MASTER STATUS
-statement to the server to obtain information, so they require privileges sufficient to execute that statement\&. This option also requires the
-RELOAD
-privilege and the binary log must be enabled\&.
-.sp
-\fB\-\-source\-data\fR
-and
-\fB\-\-master\-data\fR
-automatically turn off
-\fB\-\-lock\-tables\fR\&. They also turn on
-\fB\-\-lock\-all\-tables\fR, unless
-\fB\-\-single\-transaction\fR
-also is specified, in which case, a global read lock is acquired only for a short time at the beginning of the dump (see the description for
-\fB\-\-single\-transaction\fR)\&. In all cases, any action on logs happens at the exact moment of the dump\&.
-.sp
-It is also possible to set up a replica by dumping an existing replica of the source, using the
-\fB\-\-dump\-replica\fR
-or
+statement (before MySQL 8\&.0\&.23) in a replica dump produced with the
 \fB\-\-dump\-slave\fR
-option, which overrides
-\fB\-\-source\-data\fR
+option, add
+SOURCE_HOST
+|
+MASTER_HOST
 and
-\fB\-\-master\-data\fR
-and causes them to be ignored\&.
+SOURCE_PORT
+|
+MASTER_PORT
+options for the host name and TCP/IP port number of the replica\*(Aqs source\&.
 .RE
 .sp
 .RS 4
@@ -1834,8 +1621,39 @@ and causes them to be ignored\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-master\-data[=\fR\fB\fIvalue\fR\fR\fB]\fR
-Use this option before MySQL 8\&.0\&.26 rather than
-\fB\-\-source\-data\fR\&. Both options have the same effect\&.
+Use this option to dump a replication source server to produce a dump file that can be used to set up another server as a replica of the source\&. It causes the dump output to include a
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
+CHANGE MASTER TO
+statement (before MySQL 8\&.0\&.23) that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the replication source server coordinates from which the replica should start replicating after you load the dump file into the replica\&.
+.sp
+If the option value is 2, the
+CHANGE REPLICATION SOURCE TO
+|
+CHANGE MASTER TO
+statement is written as an SQL comment, and thus is informative only; it has no effect when the dump file is reloaded\&. If the option value is 1, the statement is not written as a comment and takes effect when the dump file is reloaded\&. If no option value is specified, the default value is 1\&.
+.sp
+\fB\-\-master\-data\fR
+sends a
+SHOW MASTER STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&. This option also requires the
+RELOAD
+privilege and the binary log must be enabled\&.
+.sp
+The
+\fB\-\-master\-data\fR
+option automatically turns off
+\fB\-\-lock\-tables\fR\&. It also turns on
+\fB\-\-lock\-all\-tables\fR, unless
+\fB\-\-single\-transaction\fR
+also is specified, in which case, a global read lock is acquired only for a short time at the beginning of the dump (see the description for
+\fB\-\-single\-transaction\fR)\&. In all cases, any action on logs happens at the exact moment of the dump\&.
+.sp
+It is also possible to set up a replica by dumping an existing replica of the source, using the
+\fB\-\-dump\-slave\fR
+option, which overrides
+\fB\-\-master\-data\fR
+and causes it to be ignored if both options are used\&.
 .RE
 .sp
 .RS 4
@@ -2331,7 +2149,7 @@ includes the XML namespace, as shown here:
 .RS 4
 .\}
 .nf
-$> \fBmysqldump \-\-xml \-u root world City\fR
+shell> \fBmysqldump \-\-xml \-u root world City\fR
 <?xml version="1\&.0"?>
 <mysqldump xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <database name="world">
@@ -2869,16 +2687,12 @@ privilege\&. If you use this option in combination with the
 option, the logs are flushed
 \fIfor each database dumped\fR\&. The exception is when using
 \fB\-\-lock\-all\-tables\fR,
-\fB\-\-source\-data\fR
-or
 \fB\-\-master\-data\fR, or
-\fB\-\-single\-transaction\fR\&. In these cases, the logs are flushed only once, corresponding to the moment that all tables are locked by
+\fB\-\-single\-transaction\fR: In this case, the logs are flushed only once, corresponding to the moment that all tables are locked by
 FLUSH TABLES WITH READ LOCK\&. If you want your dump and the log flush to happen at exactly the same moment, you should use
 \fB\-\-flush\-logs\fR
 together with
 \fB\-\-lock\-all\-tables\fR,
-\fB\-\-source\-data\fR
-or
 \fB\-\-master\-data\fR, or
 \fB\-\-single\-transaction\fR\&.
 .RE
@@ -3206,8 +3020,6 @@ provides a way of making an online backup:
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-master\-data \-\-single\-transaction > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
-mysqldump \-\-all\-databases \-\-source\-data \-\-single\-transaction > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3228,8 +3040,6 @@ Section\ \&5.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordi
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-master\-data=2 > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
-mysqldump \-\-all\-databases \-\-source\-data=2 > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3242,20 +3052,16 @@ Or:
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-flush\-logs \-\-master\-data=2 > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
-mysqldump \-\-all\-databases \-\-flush\-logs \-\-source\-data=2 > all_databases\&.sql
 .fi
 .if n \{\
 .RE
 .\}
 .PP
 The
-\fB\-\-source\-data\fR
-or
 \fB\-\-master\-data\fR
-option can be used simultaneously with the
+and
 \fB\-\-single\-transaction\fR
-option, which provides a convenient way to make an online backup suitable for use prior to point\-in\-time recovery if tables are stored using the
+options can be used simultaneously, which provides a convenient way to make an online backup suitable for use prior to point\-in\-time recovery if tables are stored using the
 InnoDB
 storage engine\&.
 .PP

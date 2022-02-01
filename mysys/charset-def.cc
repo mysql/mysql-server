@@ -253,7 +253,7 @@ extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
-bool init_compiled_charsets(myf flags [[maybe_unused]]) {
+bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused))) {
   CHARSET_INFO *cs;
 
   add_compiled_collation(&my_charset_bin);

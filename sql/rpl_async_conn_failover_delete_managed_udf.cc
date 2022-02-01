@@ -27,8 +27,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/rpl_async_conn_failover_delete_managed_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
-#include "sql/rpl_group_replication.h"
 #include "sql/rpl_io_monitor.h"
+
+const std::string Rpl_async_conn_failover_delete_managed::m_udf_name =
+    "asynchronous_connection_failover_delete_managed";
 
 bool Rpl_async_conn_failover_delete_managed::init() {
   DBUG_TRACE;
@@ -68,7 +70,7 @@ char *Rpl_async_conn_failover_delete_managed::delete_managed(
 
   if (err_val) {
     *error = 1;
-    my_error(ER_UDF_ERROR, MYF(0), m_udf_name, err_msg.c_str());
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
   } else {
     err_msg.assign(
         "The UDF asynchronous_connection_failover_delete_managed() "
@@ -137,18 +139,11 @@ bool Rpl_async_conn_failover_delete_managed::delete_managed_init(
     return true;
   }
 
-  if (is_group_replication_member_secondary()) {
-    my_stpcpy(message,
-              "Can't execute the given operation on a Group Replication "
-              "secondary member.");
-    return true;
-  }
-
   if (Udf_charset_service::set_return_value_charset(init_id) ||
       Udf_charset_service::set_args_charset(args))
     return true;
 
-  init_id->maybe_null = false;
+  init_id->maybe_null = 0;
   return false;
 }
 

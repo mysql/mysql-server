@@ -155,7 +155,7 @@ table_binary_log_transaction_compression_stats::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_binary_log_transaction_compression_stats::
-    ~table_binary_log_transaction_compression_stats() = default;
+    ~table_binary_log_transaction_compression_stats() {}
 
 void table_binary_log_transaction_compression_stats::reset_position(void) {
   m_pos.m_index = 0;

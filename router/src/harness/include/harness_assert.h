@@ -41,8 +41,7 @@
  * This is essentially the assert(0) idiom, but with more explicit name
  * to clarify the intent.
  */
-[[noreturn]] inline void harness_assert_this_should_not_execute() {
-  harness_assert("If execution reached this line, you have a bug" == nullptr);
-}
+#define harness_assert_this_should_not_execute() \
+  harness_assert("If execution reached this line, you have a bug" == nullptr)
 
 #endif /* MYSQL_HARNESS_HARNESS_ASSERT_INCLUDED */

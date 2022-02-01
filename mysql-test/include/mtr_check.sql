@@ -179,7 +179,7 @@ BEGIN
   SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
     ORDER BY name;
 
-  SHOW GLOBAL STATUS LIKE 'replica_open_temp_tables';
+  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Check for number of active connections before & after the test run.
 
@@ -209,7 +209,6 @@ BEGIN
     mysql.default_roles,
     mysql.db,
     mysql.func,
-    mysql.general_log,
     mysql.global_grants,
     mysql.help_category,
     mysql.help_keyword,
@@ -219,10 +218,7 @@ BEGIN
     mysql.proxies_priv,
     mysql.replication_asynchronous_connection_failover,
     mysql.replication_asynchronous_connection_failover_managed,
-    mysql.replication_group_configuration_version,
-    mysql.replication_group_member_actions,
     mysql.role_edges,
-    mysql.slow_log,
     mysql.tables_priv,
     mysql.time_zone,
     mysql.time_zone_leap_second,

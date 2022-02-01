@@ -11,7 +11,6 @@
 # 4. Clean up.
 ################################################################################
 --source include/big_test.inc
---source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -39,7 +38,6 @@ CREATE TABLE grvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), var
 INSERT INTO grvars (varname, varvalue)
  SELECT * FROM performance_schema.global_variables
  WHERE VARIABLE_NAME LIKE '%group_replication%'
- AND VARIABLE_NAME NOT LIKE 'group_replication_force_members'
  ORDER BY VARIABLE_NAME;
 
 --let $countvars= `SELECT COUNT(*) FROM grvars;`
@@ -57,6 +55,7 @@ while ( $varid <= $countvars )
 --let $assert_text= 'Expect $countvars persisted variables.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $countvars
 --source include/assert.inc
+
 
 --echo
 --echo ############################################################

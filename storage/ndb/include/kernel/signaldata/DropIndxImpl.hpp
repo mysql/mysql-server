@@ -29,7 +29,7 @@
 
 
 struct DropIndxImplReq {
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -41,7 +41,7 @@ struct DropIndxImplReq {
 };
 
 struct DropIndxImplConf {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -60,7 +60,7 @@ struct DropIndxImplRef {
     NotAnIndex = 4254,
     InconsistentTC = 292
   };
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 
   Uint32 senderRef;
   Uint32 senderData;

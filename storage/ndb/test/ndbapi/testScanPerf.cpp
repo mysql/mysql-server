@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -327,7 +326,7 @@ run_scan(){
     }
 
     NdbScanOperation::ScanOptions options;
-    std::memset(&options, 0, sizeof(options));
+    bzero(&options, sizeof(options));
 
     options.optionsPresent= 
       NdbScanOperation::ScanOptions::SO_SCANFLAGS |

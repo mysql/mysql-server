@@ -14,14 +14,12 @@
 ################################################################################
 --source include/have_log_bin.inc
 --source include/have_semisync_plugin.inc
-# Test is agnostic to binlog_format.
---source include/have_binlog_format_row.inc
 
 
 --echo ############################################################
 --echo # 0. Check that there are no persisted variable settings.
---let $assert_text = Expect 0 persisted variables.
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
 --source include/assert.inc
 
 
@@ -33,10 +31,10 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log");
 
 --echo # Install semi-sync related plugins
---replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_SOURCE_PLUGIN
-eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
---replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN
-eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+--disable_query_log
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+--enable_query_log
 
 CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
 # Disable warning to avoid printing of ER_BINLOG_UNSAFE_STATEMENT
@@ -48,23 +46,22 @@ INSERT INTO rplvars (varname, varvalue)
         VARIABLE_NAME LIKE '%log_bin%' OR
         VARIABLE_NAME LIKE '%master%' OR
         VARIABLE_NAME LIKE '%relay%' OR
-        VARIABLE_NAME LIKE '%replica%' OR
         VARIABLE_NAME LIKE '%rpl%' OR
         VARIABLE_NAME LIKE '%semi_sync%' OR
-        VARIABLE_NAME LIKE '%slave%' OR
-        VARIABLE_NAME LIKE '%source%') AND
+        VARIABLE_NAME LIKE '%slave%') AND
        (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
+        'innodb_master_thread_disabled_debug',
+        'skip_slave_start'))
        ORDER BY VARIABLE_NAME;
 --enable_warnings
---let $countvars = `SELECT COUNT(*) FROM rplvars;`
+--let $countvars= `SELECT COUNT(*) FROM rplvars;`
 
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $expected = 113
---let $assert_text = Expect $expected variables in the table.
---let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
+--let $expected=85
+--let $assert_text= 'Expect $expected variables in the table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
 
 --echo
@@ -72,10 +69,10 @@ INSERT INTO rplvars (varname, varvalue)
 --let $varid=1
 while ( $varid <= $countvars )
 {
-  --let $varnames = `SELECT varname FROM rplvars WHERE id=$varid;`
+  --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid;`
 
-  # The following variables are either non persistent or read only variables.
-  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_replica_updates', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'replica_load_tmpdir', 'slave_load_tmpdir', 'replica_skip_errors', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup', 'skip_replica_start', 'skip_slave_start')`)
+  # Following variables are either non persistent or read only variables.
+  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
@@ -85,9 +82,9 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $expected = 90
---let $assert_text = Expect $expected persisted variables in persisted_variables table.
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
+--let $expected=67
+--let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
 
 --echo
@@ -98,16 +95,16 @@ while ( $varid <= $countvars )
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text = Expect $expected persisted variables in persisted_variables table.'
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
+--let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
 
---let $assert_text = Expect $expected persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source = "PERSISTED", count, 1] = $expected
+--let $assert_text= 'Expect $expected persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $expected
 --source include/assert.inc
 
---let $assert_text = Expect $expected persisted variables with matching persisted and global values.
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $expected
+--let $assert_text= 'Expect $expected persisted variables with matching persisted and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $expected
 --source include/assert.inc
 
 
@@ -124,8 +121,8 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $assert_text = Expect 0 persisted variables.
---let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
 --source include/assert.inc
 
 --echo
@@ -135,6 +132,6 @@ while ( $varid <= $countvars )
 --let $varid=
 --let $varnames=
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
-UNINSTALL PLUGIN rpl_semi_sync_source;
-UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_slave;
 DROP TABLE rplvars;

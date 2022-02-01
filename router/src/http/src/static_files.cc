@@ -77,8 +77,9 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  const auto unescaped = HttpUri::decode(parsed_uri.get_path(), 1);
-  file_path += http_uri_path_canonicalize(unescaped);
+  std::unique_ptr<char, decltype(&free)> unescaped{
+      evhttp_uridecode(parsed_uri.get_path().c_str(), 1, nullptr), &free};
+  file_path += http_uri_path_canonicalize(unescaped.get());
 
   auto out_hdrs = req.get_output_headers();
 

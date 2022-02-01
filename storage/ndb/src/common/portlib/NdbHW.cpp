@@ -1215,7 +1215,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
   {
     DWORD res = glpi(relationship, buf, &buf_len);
 
-    if (!res)
+    if (res == FALSE) 
     {
       if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) 
       {
@@ -1239,7 +1239,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
     }
     else
     {
-       done = true;
+       done = TRUE;
     }
   }
   return buf;
@@ -1318,7 +1318,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
     return -1;
   }
 
-  BOOL done = false;
+  BOOL done = FALSE;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buf = nullptr;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = nullptr;
   DWORD buf_len = 0;
@@ -2881,7 +2881,6 @@ TAPTEST(NdbCPU)
     return 0;
   }
 
-  ndb_init();
   long sysconf_ncpu_conf = 0;
 #ifdef _SC_NPROCESSORS_CONF
   {
@@ -2918,7 +2917,6 @@ TAPTEST(NdbCPU)
   }
   Ndb_FreeHWInfo();
   NdbHW_End();
-  ndb_end(0);
   return 1; // OK
 }
 #endif

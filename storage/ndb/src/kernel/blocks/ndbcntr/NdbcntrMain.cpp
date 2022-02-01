@@ -25,7 +25,6 @@
 #define NDBCNTR_C
 #include "Ndbcntr.hpp"
 
-#include <cstring>
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
@@ -87,6 +86,7 @@
 #define JAM_FILE_ID 458
 
 
+extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_NODE_STOP 1
@@ -2063,7 +2063,6 @@ void
 Ndbcntr::execCM_ADD_REP(Signal* signal)
 {
   jamEntry();
-  ndbrequire(signal->theData[0] < MAX_NDB_NODES);
   c_clusterNodes.set(signal->theData[0]);
 }
 
@@ -2137,7 +2136,7 @@ Ndbcntr::StartRecord::reset(){
   m_startFailureTimeout = ~0;
   
   m_logNodesCount = 0;
-  std::memset(m_wait_sp, 0, sizeof(m_wait_sp));
+  bzero(m_wait_sp, sizeof(m_wait_sp));
 }
 
 void
@@ -2467,7 +2466,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
 
     {
       char buf[NdbNodeBitmask::TextLength + 1];
-      g_eventLogger->info("starting (TO) %s", c_start.m_waitTO.getText(buf));
+      ndbout_c("starting (TO) %s", c_start.m_waitTO.getText(buf));
     }
 
     /**
@@ -3297,7 +3296,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     g_eventLogger->info("Start NDB start phase 5 (only to DBDIH)");
     //#define TRACE_STTOR
 #ifdef TRACE_STTOR
-    g_eventLogger->info("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
+    ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
 #endif
     sendSignal(DBDIH_REF, GSN_NDB_STTOR, signal, 
 	       NdbSttor::SignalLength, JBB);
@@ -3354,7 +3353,7 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
     req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
 #ifdef TRACE_STTOR
-    g_eventLogger->info("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
+    ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
 #endif
     sendSignal(DBDIH_REF, GSN_NDB_STTOR, signal, 
 	       NdbSttor::SignalLength, JBB);
@@ -3556,7 +3555,6 @@ Ndbcntr::wait_sp_rep(Signal* signal)
     return;
   }
 
-  ndbrequire(rep.nodeId < NDB_ARRAY_SIZE(c_start.m_wait_sp));
   c_start.m_wait_sp[rep.nodeId] = rep.sp;
 
   /**
@@ -3630,7 +3628,6 @@ void Ndbcntr::execCNTR_WAITREP(Signal* signal)
       SectionHandle handle(this, signal);
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, 0);
-      ndbrequire(ptr.sz <= c_start.m_starting.Size);
       copy(c_start.m_starting.rep.data, ptr);
       releaseSections(handle);
     }
@@ -4411,8 +4408,9 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
   
   //#define MAX_STARTPHASE 2
 #ifdef TRACE_STTOR
-  g_eventLogger->info("sending NDB_STTOR(%d) to %s", cinternalStartphase,
-                      getBlockName(refToBlock(ndbBlocksPtr.p->blockref)));
+  ndbout_c("sending NDB_STTOR(%d) to %s",
+	   cinternalStartphase, 
+	   getBlockName( refToBlock(ndbBlocksPtr.p->blockref)));
 #endif
   if (refToBlock(ndbBlocksPtr.p->blockref) == DBDIH)
     req->typeOfStart = cdihStartType;
@@ -4671,7 +4669,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
       ERROR_INSERTED(1024))
   {
     jam();
-    g_eventLogger->info("Extending TcTimeout by 5000 millis");
+    ndbout_c("Extending TcTimeout by 5000 millis");
     c_stopRec.stopReq.transactionTimeout += 5000;
   }
 
@@ -4689,7 +4687,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
     NdbNodeBitmask mask;
     mask.assign(NdbNodeBitmask::Size, c_stopRec.stopReq.nodes);
     infoEvent("Initiating shutdown abort of %s", mask.getText(buf));
-    g_eventLogger->info("Initiating shutdown abort of %s", mask.getText(buf));
+    ndbout_c("Initiating shutdown abort of %s", mask.getText(buf));    
 
     WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
     req->senderRef = reference();
@@ -5275,7 +5273,7 @@ Ndbcntr::execSTOP_CONF(Signal* signal)
     NdbNodeBitmask mask;
     mask.assign(NdbNodeBitmask::Size, c_stopRec.stopReq.nodes);
     infoEvent("Stopping of %s", mask.getText(buf));
-    g_eventLogger->info("Stopping of %s", mask.getText(buf));
+    ndbout_c("Stopping of %s", mask.getText(buf));    
 
     /**
      * Kill any node...
@@ -5535,9 +5533,11 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal)
 #endif
 
 #ifdef TRACE_STTOR
-        g_eventLogger->info("sending STTOR(%d) to %s(ref=%x index=%d)",
-                            currentStartPhase, getBlockName(refToBlock(ref)),
-                            ref, currentBlockIndex);
+	ndbout_c("sending STTOR(%d) to %s(ref=%x index=%d)", 
+		 currentStartPhase,
+		 getBlockName( refToBlock(ref)),
+		 ref,
+		 currentBlockIndex);
 #endif
         if (refToBlock(ref) == DBDIH)
           signal->theData[7] = cntr.cdihStartType;
@@ -5640,7 +5640,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal)
               break;
             case NodeState::ST_INITIAL_START:
               g_eventLogger->info("Phase 5 Created the System Table");
-              [[fallthrough]];
+              // Fall through
             case NodeState::ST_SYSTEM_RESTART:
               g_eventLogger->info("Phase 5 waited for local checkpoint to"
                                   " complete");
@@ -5847,7 +5847,7 @@ Ndbcntr::init_local_sysfile()
   c_local_sysfile.m_initial_read_done = false;
   c_local_sysfile.m_last_write_done = false;
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
-  std::memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
+  memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
 
   NewVARIABLE *bat = allocateBat(1);
   bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].WA = &c_local_sysfile.m_data[0];
@@ -6123,6 +6123,7 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
   ndbabort();
 }
 
+#define ZLIST_OF_PAIRS 0
 void
 Ndbcntr::read_local_sysfile(Signal *signal)
 {
@@ -6130,12 +6131,11 @@ Ndbcntr::read_local_sysfile(Signal *signal)
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
   req->userPointer = 0;
-  req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
+  req->operationFlag = ZLIST_OF_PAIRS;
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.arrayOfPages.varIndex = 0;
-  req->data.arrayOfPages.fileOffset = 0;
+  req->data.pageData[0] = 0;
+  req->data.pageData[1] = 0;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 }
 
@@ -6146,12 +6146,11 @@ Ndbcntr::write_local_sysfile(Signal *signal)
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
   req->userPointer = 0;
-  req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
+  req->operationFlag = ZLIST_OF_PAIRS;
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.arrayOfPages.varIndex = 0;
-  req->data.arrayOfPages.fileOffset = 0;
+  req->data.pageData[0] = 0;
+  req->data.pageData[1] = 0;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }
 

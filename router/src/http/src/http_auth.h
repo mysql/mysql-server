@@ -28,7 +28,7 @@
 #include <string>
 #include <system_error>
 
-#include "mysqlrouter/http_request.h"
+#include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_export.h"
 
 #include "http_auth_realm.h"

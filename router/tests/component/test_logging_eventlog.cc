@@ -23,25 +23,18 @@
 */
 
 // These tests are specific to Windows Eventlog
-
 #ifdef _WIN32
 
-#include <windows.h>
-
-#include <winevt.h>
-
-#include <cstdlib>
-#include <functional>
-#include <mutex>
-#include <string>
-#include <system_error>
-
-#include <gmock/gmock.h>
-
+#include "gmock/gmock.h"
 #include "harness_assert.h"
 #include "mysqlrouter/utils.h"
 #include "router_component_test.h"
 
+#include <stdlib.h>
+#include <winevt.h>
+#include <functional>
+#include <mutex>
+#include <string>
 #pragma comment( \
     lib, "wevtapi.lib")  // needed for linker to see stuff from winevt.h
 
@@ -55,7 +48,8 @@ using testing::HasSubstr;
 using namespace std::chrono_literals;
 Path g_origin_path;
 
-namespace {
+class RouterEventlogTest : public RouterComponentTest {};
+
 // throws std::runtime_error
 std::string wchar_to_string(const wchar_t *text) {
   char buf[16 * 1024];
@@ -78,13 +72,6 @@ std::string wchar_to_string_noexcept(const wchar_t *text) noexcept {
     return std::string("<") + e.what() + ">";
   }
 }
-
-std::error_code last_win32_error_code() {
-  return {static_cast<int>(GetLastError()), std::system_category()};
-}
-}  // namespace
-
-class RouterEventlogTest : public RouterComponentTest {};
 
 /** @class EventlogSubscription
  *
@@ -224,8 +211,15 @@ class EventlogSubscription {
   void unsubscribe_from_eventlog() noexcept {
     BOOL ok = EvtClose(subscription_);
     if (!ok) {
-      std::cerr << "WARNING: EvtClose() failed: " << last_win32_error_code()
-                << std::endl;
+      std::cerr << "WARNING: EvtClose() failed: "
+                << get_last_error(GetLastError()) << std::endl;
+
+      auto err = GetLastError();
+      char err_msg[512];
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                    nullptr, err, LANG_NEUTRAL, err_msg, sizeof(err_msg),
+                    nullptr);
+      std::cerr << "WARNING: EvtClose() failed: " << err_msg << std::endl;
     }
   }
 

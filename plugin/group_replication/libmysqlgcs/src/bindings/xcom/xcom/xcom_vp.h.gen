@@ -49,8 +49,7 @@ enum xcom_proto {
 	x_1_5 = 6,
 	x_1_6 = 7,
 	x_1_7 = 8,
-	x_1_8 = 9,
-	x_1_9 = 10
+	x_1_8 = 9
 };
 typedef enum xcom_proto xcom_proto;
 
@@ -88,10 +87,7 @@ enum cargo_type {
 	get_event_horizon_type = 21,
 	set_event_horizon_type = 22,
 	get_synode_app_data_type = 23,
-	convert_into_local_server_type = 24,
-	set_max_leaders = 25,
-	set_leaders_type = 26,
-	get_leaders_type = 27
+	convert_into_local_server_type = 24
 };
 typedef enum cargo_type cargo_type;
 
@@ -127,9 +123,7 @@ enum pax_op {
 	gcs_snapshot_op = 21,
 	xcom_client_reply = 22,
 	tiny_learn_op = 23,
-	synode_request = 24,
-	synode_allocated = 25,
-	LAST_OP = 25 + 1
+	LAST_OP = 23 + 1
 };
 typedef enum pax_op pax_op;
 
@@ -143,8 +137,7 @@ typedef enum pax_msg_type pax_msg_type;
 enum client_reply_code {
 	REQUEST_OK = 0,
 	REQUEST_FAIL = 1,
-	REQUEST_RETRY = 2,
-	REQUEST_REDIRECT = 3
+	REQUEST_RETRY = 2
 };
 typedef enum client_reply_code client_reply_code;
 
@@ -222,18 +215,10 @@ struct trans_id {
 };
 typedef struct trans_id trans_id;
 
-enum paxos_role {
-	P_PROP = 1,
-	P_ACC = 2,
-	P_LEARN = 4
-};
-typedef enum paxos_role paxos_role;
-
 struct node_address {
 	char *address;
 	blob uuid;
 	x_proto_range proto;
-	uint32_t services;
 };
 typedef struct node_address node_address;
 
@@ -280,16 +265,6 @@ struct trans_data {
 };
 typedef struct trans_data trans_data;
 
-struct leader {
-	char *address;
-};
-typedef struct leader leader;
-
-typedef struct {
-	u_int leader_array_len;
-	leader *leader_array_val;
-} leader_array;
-
 struct app_u {
 	cargo_type c_t;
 	union {
@@ -300,8 +275,6 @@ struct app_u {
 		uint64_t cache_limit;
 		xcom_event_horizon event_horizon;
 		synode_no_array synodes;
-		node_no max_leaders;
-		leader_array leaders;
 	} app_u_u;
 };
 typedef struct app_u app_u;
@@ -356,8 +329,6 @@ struct config {
 	node_list nodes;
 	node_set global_node_set;
 	xcom_event_horizon event_horizon;
-	node_no max_active_leaders;
-	leader_array leaders;
 };
 typedef struct config config;
 
@@ -379,7 +350,6 @@ typedef struct gcs_snapshot gcs_snapshot;
 struct synode_app_data {
 	synode_no synode;
 	checked_data data;
-	synode_no origin;
 };
 typedef struct synode_app_data synode_app_data;
 
@@ -387,26 +357,6 @@ typedef struct {
 	u_int synode_app_data_array_len;
 	synode_app_data *synode_app_data_array_val;
 } synode_app_data_array;
-
-enum reply_type {
-	leader_info = 0
-};
-typedef enum reply_type reply_type;
-
-struct leader_info_data {
-	node_no max_nr_leaders;
-	leader_array preferred_leaders;
-	leader_array actual_leaders;
-};
-typedef struct leader_info_data leader_info_data;
-
-struct reply_data {
-	reply_type rt;
-	union {
-		leader_info_data leaders;
-	} reply_data_u;
-};
-typedef struct reply_data reply_data;
 
 struct pax_msg {
 	node_no to;
@@ -429,26 +379,8 @@ struct pax_msg {
 	synode_no delivered_msg;
 	xcom_event_horizon event_horizon;
 	synode_app_data_array requested_synode_app_data;
-	reply_data *rd;
 };
 typedef struct pax_msg pax_msg;
-bool_t xdr_pax_msg_1_0(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_1(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_2(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_3(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_8(XDR *, pax_msg *);
-bool_t xdr_pax_msg_1_9(XDR *, pax_msg *);
-#ifdef __cplusplus
-extern "C" void synthesize_leaders(leader_array *leaders);
-extern "C" synode_no get_delivered_msg();
-#else
-extern void synthesize_leaders(leader_array *leaders);
-extern synode_no get_delivered_msg();
-#endif
 
 /* the xdr functions */
 
@@ -471,7 +403,6 @@ extern  bool_t xdr_blob (XDR *, blob*);
 extern  bool_t xdr_x_proto_range (XDR *, x_proto_range*);
 extern  bool_t xdr_synode_no (XDR *, synode_no*);
 extern  bool_t xdr_trans_id (XDR *, trans_id*);
-extern  bool_t xdr_paxos_role (XDR *, paxos_role*);
 extern  bool_t xdr_node_address (XDR *, node_address*);
 extern  bool_t xdr_node_list (XDR *, node_list*);
 extern  bool_t xdr_node_no_array (XDR *, node_no_array*);
@@ -480,8 +411,6 @@ extern  bool_t xdr_uncommitted_list (XDR *, uncommitted_list*);
 extern  bool_t xdr_repository (XDR *, repository*);
 extern  bool_t xdr_x_error (XDR *, x_error*);
 extern  bool_t xdr_trans_data (XDR *, trans_data*);
-extern  bool_t xdr_leader (XDR *, leader*);
-extern  bool_t xdr_leader_array (XDR *, leader_array*);
 extern  bool_t xdr_app_u (XDR *, app_u*);
 extern  bool_t xdr_app_data (XDR *, app_data*);
 extern  bool_t xdr_app_data_ptr (XDR *, app_data_ptr*);
@@ -496,9 +425,6 @@ extern  bool_t xdr_configs (XDR *, configs*);
 extern  bool_t xdr_gcs_snapshot (XDR *, gcs_snapshot*);
 extern  bool_t xdr_synode_app_data (XDR *, synode_app_data*);
 extern  bool_t xdr_synode_app_data_array (XDR *, synode_app_data_array*);
-extern  bool_t xdr_reply_type (XDR *, reply_type*);
-extern  bool_t xdr_leader_info_data (XDR *, leader_info_data*);
-extern  bool_t xdr_reply_data (XDR *, reply_data*);
 extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
 
 #else /* K&R C */
@@ -520,7 +446,6 @@ extern bool_t xdr_blob ();
 extern bool_t xdr_x_proto_range ();
 extern bool_t xdr_synode_no ();
 extern bool_t xdr_trans_id ();
-extern bool_t xdr_paxos_role ();
 extern bool_t xdr_node_address ();
 extern bool_t xdr_node_list ();
 extern bool_t xdr_node_no_array ();
@@ -529,8 +454,6 @@ extern bool_t xdr_uncommitted_list ();
 extern bool_t xdr_repository ();
 extern bool_t xdr_x_error ();
 extern bool_t xdr_trans_data ();
-extern bool_t xdr_leader ();
-extern bool_t xdr_leader_array ();
 extern bool_t xdr_app_u ();
 extern bool_t xdr_app_data ();
 extern bool_t xdr_app_data_ptr ();
@@ -545,9 +468,6 @@ extern bool_t xdr_configs ();
 extern bool_t xdr_gcs_snapshot ();
 extern bool_t xdr_synode_app_data ();
 extern bool_t xdr_synode_app_data_array ();
-extern bool_t xdr_reply_type ();
-extern bool_t xdr_leader_info_data ();
-extern bool_t xdr_reply_data ();
 extern bool_t xdr_pax_msg ();
 
 #endif /* K&R C */

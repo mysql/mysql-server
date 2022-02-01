@@ -25,6 +25,8 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)  # bypass Warning C4996 (getenv)
 ENDIF()
 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter)
+
 SET(lib_source_files
   auto_cleaner.cc
   certificate_generator.cc
@@ -34,11 +36,10 @@ SET(lib_source_files
   cluster_metadata.cc
   cluster_metadata_dynamic_state.cc
   router_app.cc
-  sys_user_operations.cc
   utils.cc
   uri.cc
   keyring_info.cc
-  default_paths.cc
+  plugin_config.cc
   common/log_filter.cc
   common/mysql_session.cc
   common/utils_sqlstring.cc
@@ -48,7 +49,6 @@ IF(WIN32)
     windows/main-windows.cc
     windows/nt_servc.cc
     windows/password_vault.cc
-    windows/service_operations.cc
     )
 ENDIF()
 
@@ -60,12 +60,12 @@ IF(WIN32)
     ../../harness/src/logging/eventlog_rc/MSG00001.bin)
 ENDIF()
 
-IF(WIN32)
+IF(NOT WIN32)
+  ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
+ELSE()
   # on Windows, we statically link the router lib to otherwise avoid
   # exporting a bunch of symbols
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
-ELSE()
-  ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
@@ -75,24 +75,21 @@ TARGET_LINK_LIBRARIES(router_lib
   ${SSL_LIBRARIES}
   io_component
   )
-TARGET_INCLUDE_DIRECTORIES(router_lib
-  PUBLIC
-  ../include
-  )
+TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
 )
 
-IF(WIN32)
+IF(NOT WIN32)
   SET_TARGET_PROPERTIES(router_lib PROPERTIES
-    OUTPUT_NAME "mysqlrouter_lib"
+    OUTPUT_NAME "mysqlrouter"
     SOVERSION 1
   )
 ELSE()
   SET_TARGET_PROPERTIES(router_lib PROPERTIES
-    OUTPUT_NAME "mysqlrouter"
+    OUTPUT_NAME "mysqlrouter_lib"
     SOVERSION 1
   )
 ENDIF()

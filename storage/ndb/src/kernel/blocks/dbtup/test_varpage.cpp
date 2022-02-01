@@ -23,9 +23,6 @@
 */
 
 #include <ndb_global.h>
-
-#include <time.h>
-
 #include "tuppage.hpp"
 #include <Vector.hpp>
 

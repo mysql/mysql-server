@@ -131,7 +131,7 @@ class Value_map_base {
   Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
                  Value_map_type data_type);
 
-  virtual ~Value_map_base() = default;
+  virtual ~Value_map_base() {}
 
   /**
     Returns the number of [value, count] pairs in the Value_map.

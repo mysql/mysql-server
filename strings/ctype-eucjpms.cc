@@ -279,7 +279,7 @@ static const uchar sort_order_eucjpms[] = {
 #define iseucjpms_ss3(c) (((c)&0xff) == 0x8f)
 
 extern "C" {
-static uint ismbchar_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
+static uint ismbchar_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                              const char *p, const char *e) {
   return ((static_cast<uchar>(*p) < 0x80)
               ? 0
@@ -294,7 +294,8 @@ static uint ismbchar_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
                                 : 0);
 }
 
-static uint mbcharlen_eucjpms(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
+static uint mbcharlen_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                              uint c) {
   return (iseucjpms(c) ? 2 : iseucjpms_ss2(c) ? 2 : iseucjpms_ss3(c) ? 3 : 1);
 }
 }  // extern "C"
@@ -36312,7 +36313,7 @@ static const uint16 unicode_to_jisx0212_eucjpms[65536] = {
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 extern "C" {
-static int my_mb_wc_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_mb_wc_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -36366,8 +36367,8 @@ static int my_mb_wc_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in EUCJPMS
 */
-static int my_wc_mb_eucjpms(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                            uchar *s, uchar *e) {
+static int my_wc_mb_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                            my_wc_t wc, uchar *s, uchar *e) {
   int jp;
 
   if ((int)wc < 0x80) /* ASCII [00-7F] */
@@ -36413,10 +36414,9 @@ static int my_wc_mb_eucjpms(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
-static size_t my_well_formed_len_eucjpms(const CHARSET_INFO *cs
-                                         [[maybe_unused]],
-                                         const char *beg, const char *end,
-                                         size_t pos, int *error) {
+static size_t my_well_formed_len_eucjpms(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *beg,
+    const char *end, size_t pos, int *error) {
   const uchar *b = pointer_cast<const uchar *>(beg);
   *error = 0;
 
@@ -36456,7 +36456,7 @@ static size_t my_well_formed_len_eucjpms(const CHARSET_INFO *cs
   return (size_t)(b - pointer_cast<const uchar *>(beg));
 }
 
-static size_t my_numcells_eucjpms(const CHARSET_INFO *cs [[maybe_unused]],
+static size_t my_numcells_eucjpms(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                   const char *str, const char *str_end) {
   size_t clen;
   const uchar *b = (const uchar *)str;

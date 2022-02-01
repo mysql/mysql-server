@@ -73,7 +73,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
     case HA_EXTRA_PREPARE_FOR_UPDATE:
       if (info->s->data_file_type != DYNAMIC_RECORD) break;
       /* Remove read/write cache if dynamic rows */
-      [[fallthrough]];
+      // Fall through.
     case HA_EXTRA_NO_READCHECK:
       info->opt_flag &= ~READ_CHECK_USED; /* No readcheck */
       break;
@@ -90,7 +90,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       info->save_lastpos = info->lastpos;
       info->save_lastkey_length = info->lastkey_length;
       if (function == HA_EXTRA_REMEMBER_POS) break;
-      [[fallthrough]];
+      /* fall through */
     case HA_EXTRA_KEYREAD_CHANGE_POS:
       info->opt_flag |= KEY_READ_USED;
       info->read_record = _mi_read_key_record;

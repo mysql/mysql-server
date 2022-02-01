@@ -245,13 +245,6 @@ void set_log_level_for_all_loggers(Registry &registry, LogLevel level) {
   }
 }
 
-void set_log_level_for_all_handlers(const Registry &registry, LogLevel level) {
-  for (const std::string &handler_name : registry.get_handler_names()) {
-    std::shared_ptr<Handler> handler = registry.get_handler(handler_name);
-    handler->set_level(level);
-  }
-}
-
 void set_timestamp_precision_for_all_loggers(Registry &registry,
                                              LogTimestampPrecision precision) {
   for (const std::string &logger_name : registry.get_logger_names()) {
@@ -467,12 +460,6 @@ void set_log_level_for_all_loggers(LogLevel level) {
   mysql_harness::logging::Registry &registry =
       mysql_harness::DIM::instance().get_LoggingRegistry();
   set_log_level_for_all_loggers(registry, level);
-}
-
-void set_log_level_for_all_handlers(LogLevel level) {
-  mysql_harness::logging::Registry &registry =
-      mysql_harness::DIM::instance().get_LoggingRegistry();
-  set_log_level_for_all_handlers(registry, level);
 }
 
 bool log_level_is_handled(LogLevel level, const char *module) {

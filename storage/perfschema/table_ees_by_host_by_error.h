@@ -53,7 +53,7 @@ class PFS_index_ees_by_host_by_error : public PFS_engine_index {
         m_key_1("HOST"),
         m_key_2("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_by_host_by_error() override = default;
+  ~PFS_index_ees_by_host_by_error() override {}
 
   virtual bool match(PFS_host *pfs);
   virtual bool match_error_index(uint error_index);
@@ -125,7 +125,7 @@ class table_ees_by_host_by_error : public PFS_engine_table {
   table_ees_by_host_by_error();
 
  public:
-  ~table_ees_by_host_by_error() override = default;
+  ~table_ees_by_host_by_error() override {}
 
  protected:
   int make_row(PFS_host *host, int error_index);

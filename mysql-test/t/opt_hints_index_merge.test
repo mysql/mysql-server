@@ -200,10 +200,6 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 # union(intersect(f2,f3),f7), since only indexes specified in the hint are applicable for index merge.
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
-# Demonstrates EXPLAIN ANALYZE (and thus, also the tree format) of unions of intersections. The filter is redundant.
---skip_if_hypergraph  # Does not support INDEX_MERGE yet.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
-EXPLAIN ANALYZE SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 # intersect(f4,PRIMARY), since it's the cheapest access method.
 EXPLAIN SELECT f3 FROM t1 WHERE f4 = 'f' AND f2 = 3 AND f5 > '';
 # intersect(f4,PRIMARY), since it's the cheapest index merge.

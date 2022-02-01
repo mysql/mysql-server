@@ -42,7 +42,7 @@ class TamperOrd  {
   friend class Cmvmi;
   
 private:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
   
   UintR errorNo;
 };

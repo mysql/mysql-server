@@ -35,7 +35,7 @@ namespace unittests {
 
 class Aligned_atomic_test : public ::testing::Test {
  protected:
-  Aligned_atomic_test() = default;
+  Aligned_atomic_test() {}
   virtual void SetUp() {}
   virtual void TearDown() {}
 };

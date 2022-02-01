@@ -36,7 +36,7 @@ struct AlterIndxImplReq {
     AlterIndexBuilding = 4
   };
 
-  static constexpr Uint32 SignalLength = 8;
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -49,7 +49,7 @@ struct AlterIndxImplReq {
 };
 
 struct AlterIndxImplConf {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -69,7 +69,7 @@ struct AlterIndxImplRef {
     InconsistentTC = 292
   };
 
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 
   Uint32 senderRef;
   Uint32 senderData;

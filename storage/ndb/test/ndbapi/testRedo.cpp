@@ -23,15 +23,12 @@
 */
 
 #include <cstdint>
-#include <time.h>
-
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoOperations.hpp>
 #include <NdbRestarter.hpp>
 #include <mgmapi.h>
 #include <ndb_logevent.h>
-#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <NDBT_Stats.hpp>
 #include <random.h>
@@ -194,7 +191,7 @@ runLongtrans(NDBT_Context* ctx, NDBT_Step* step)
         if (sleep410 > 0)
         {
           info("longtrans: sleep " << sleep410);
-          NdbSleep_SecSleep(sleep410);
+          sleep(sleep410);
         }
 
         CHK2(ops.execute_Rollback(pNdb) == 0, ops.getNdbError());
@@ -213,11 +210,11 @@ runLongtrans(NDBT_Context* ctx, NDBT_Step* step)
             info("longtrans: 410 cleared");
             break;
           }
-          NdbSleep_SecSleep(1);
+          sleep(1);
         }
         break;
       }
-      NdbSleep_SecSleep(1);
+      sleep(1);
     }
     CHK1(result == NDBT_OK);
 
@@ -243,16 +240,6 @@ run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err, bool
 
   const NdbDictionary::Table* pTab = g_tabptr[1];
   require(pTab != 0);
-  int startRecord = 0;
-  int stopRecord = records;
-  if (ctx->getProperty("RANGE_PER_STEP", (Uint32) 0) != 0)
-  {
-    NDBT_Context::getRecordSubRange(records,
-                                    step->getStepTypeCount(),
-                                    step->getStepTypeNo(),
-                                    startRecord,
-                                    stopRecord);
-  }
 
   while (!ctx->isTestStopped())
   {
@@ -260,7 +247,7 @@ run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err, bool
     ops.setQuiet();
     CHK2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
 
-    for (int record = startRecord; record < stopRecord; record++)
+    for (int record = 0; record < records; record++)
     {
       CHK2(ops.pkWriteRecord(pNdb, record, 1, upval) == 0, ops.getNdbError());
     }
@@ -298,9 +285,6 @@ runWriteOK(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
 
-  const bool write_count_rounds =
-    (ctx->getProperty("WRITE_COUNT_ROUNDS", (Uint32)0) != 0);
-
   info("write: start");
   int loop = 0;
   int upval = 0;
@@ -312,19 +296,11 @@ runWriteOK(NDBT_Context* ctx, NDBT_Step* step)
 
     NdbError err;
     CHK2(run_write_ops(ctx, step, upval++, err) == 0, err);
-    if (ctx->isTestStopped())
-    {
-      break;
-    }
     require(err.code == 0 || err.code == 410);
     CHK2(err.code == 0, err);
     NdbSleep_MilliSleep(100);
 
     loop++;
-    if (write_count_rounds)
-    {
-      ctx->incProperty("WRITE_ROUNDS");
-    }
   }
 
   return result;
@@ -370,7 +346,7 @@ runWrite410(NDBT_Context* ctx, NDBT_Step* step)
         info("write: longtrans rollback seen");
         break;
       }
-      NdbSleep_SecSleep(1);
+      sleep(1);
     }
 
     while (!ctx->isTestStopped())
@@ -739,8 +715,6 @@ get_redostatus(NdbMgmHandle h, LogInfo& li)
         CHK1(rs.log_part < 4);
         LogPart& lp = ln.m_logpart[rs.log_part];
 
-        info("RedoStatus from node " << ev.source_nodeid << " log part " << rs.log_part);
-
         CHK1(!lp.m_set);
         LogPos& head = lp.m_head;
         LogPos& tail = lp.m_tail;
@@ -807,10 +781,7 @@ get_redostatus(NdbMgmHandle h, LogInfo& li)
       CHK1(result == 0);
     }
     CHK1(result == 0);
-    CHK2(rescnt == maxcnt, "got events (after " << Int64(time(0) - start)
-                                                << "s of "
-                                                << maxwait << "s) "
-                                                << rescnt << " != " << maxcnt);
+    CHK2(rescnt == maxcnt, "got events " << rescnt << " != " << maxcnt);
     require(li.isset()); // already implied by counts
 
     for (int n = 0; n < li.m_nodes; n++)
@@ -1016,7 +987,7 @@ runRestartOK(NDBT_Context* ctx, NDBT_Step* step)
     info("restart01: cluster up again");
 
     // let write run until redo wraps (no check yet)
-    NdbSleep_SecSleep(300);
+    sleep(300);
     loop++;
   }
 
@@ -1290,7 +1261,7 @@ runRestartFD(NDBT_Context* ctx, NDBT_Step* step)
     }
     CHK1(result == NDBT_OK);
 
-    NdbSleep_SecSleep(1 + myRandom48(10));
+    sleep(1 + myRandom48(10));
     loop++;
   }
 
@@ -1407,7 +1378,7 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Restarting nodes to apply config change..." << endl;
-    NdbSleep_SecSleep(3); //Give MGM server time to restart
+    sleep(3); //Give MGM server time to restart
     if (restarter.restartAll(true))
     {
       g_err << "Failed to restart node." << endl;
@@ -2039,74 +2010,6 @@ runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
-static int
-runShowWrites(NDBT_Context* ctx, NDBT_Step* step)
-{
-  while(!ctx->isTestStopped())
-  {
-    NdbSleep_SecSleep(1);
-    const Uint32 round_count = ctx->getProperty("WRITE_ROUNDS", (Uint32) 0);
-    ndbout_c("Write rounds %u", round_count);
-  }
-  return NDBT_OK;
-}
-
-static int
-runTempRedoError(NDBT_Context* ctx, NDBT_Step* step)
-{
-  /**
-   * Assuming that there is some background load writing
-   * to the cluster, this test will :
-   * 1) Wait a short time
-   * 2) Use ERROR INSERT 5083 to stall redo logging
-   * 3) Wait a short time
-   * 4) Remove ERROR INSERT 5083
-   * 5) Verify that writes to the cluster resume in
-   *    a reasonable time
-   * This gives some coverage of issues related to redo
-   * problems not being automatically cleared
-   */
-  NdbRestarter restarter;
-  int result = NDBT_FAILED;
-
-  ndbout_c("RunTempRedoError");
-  ndbout_c("Give some time for writes to get underway");
-  const int DELAY_SECONDS=10;
-  NdbSleep_SecSleep(DELAY_SECONDS);
-
-  ndbout_c("Triggering redo issue");
-  CHK3(restarter.insertErrorInAllNodes(5083) == 0, "Error insertion 1 failed");
-  ndbout_c("Waiting for writes to stall");
-  NdbSleep_SecSleep(DELAY_SECONDS);
-
-  const Uint32 stalled_round_count = ctx->getProperty("WRITE_ROUNDS", (Uint32) 0);
-  ndbout_c("Stalled write round count %u", stalled_round_count);
-  ndbout_c("Removing redo issue");
-  CHK3(restarter.insertErrorInAllNodes(0) == 0, "Error insertion 2 failed");
-
-  /**
-   * Write rounds should resume increasing within a reasonable time
-   * otherwise we're stuck in the stalled state
-   */
-  ndbout_c("Waiting for write rounds to resume");
-  Uint32 round_count = 0;
-  Uint32 maxTimeToResumeSeconds = 60;
-  do
-  {
-    NdbSleep_SecSleep(1);
-    round_count = ctx->getProperty("WRITE_ROUNDS", (Uint32) 0);
-    if (round_count > stalled_round_count)
-    {
-      ndbout_c("Write rounds increased within time limit : Success");
-      result = NDBT_OK;
-      break;
-    }
-  } while (--maxTimeToResumeSeconds > 0);
-
-  ctx->stopTest();
-  return result;
-}
-
 NDBT_TESTSUITE(testRedo);
 TESTCASE("WriteOK", 
 	 "Run only write to verify REDO size is adequate"){
@@ -2201,21 +2104,6 @@ TESTCASE("CheckNextRedoFileOpened",
   FINALIZER(runDrop);
   FINALIZER(resizeRedoLog);
 }
-TESTCASE("RedoStallRecover",
-         "Simulate redo problem, resulting in transaction "
-         "timeouts, then check the problem clears")
-{
-  TC_PROPERTY("TABMASK", (Uint32)(3));
-  TC_PROPERTY("WRITE_COUNT_ROUNDS", (Uint32) 1);
-  TC_PROPERTY("WRITE_ROUNDS", (Uint32) 0);
-  TC_PROPERTY("RANGE_PER_STEP", (Uint32) 1);
-  INITIALIZER(runCreate);
-  STEPS(runWriteOK, 8);
-  STEP(runShowWrites);
-  STEP(runTempRedoError);
-  FINALIZER(runDrop);
-}
-
 NDBT_TESTSUITE_END(testRedo)
 
 int

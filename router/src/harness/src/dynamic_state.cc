@@ -24,11 +24,11 @@
 
 #include "mysql/harness/dynamic_state.h"
 
+#include "common.h"
+
 #include <fstream>
 #include <stdexcept>
-#include <system_error>
 
-#include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/istreamwrapper.h>
@@ -51,28 +51,14 @@ using JsonSchemaValidator =
     rapidjson::GenericSchemaValidator<JsonSchemaDocument>;
 
 constexpr const char *kVersionFieldName = "version";
+constexpr unsigned kVersionMajor = 1;
+constexpr unsigned kVersionMinor = 0;
+constexpr unsigned kVersionPatch = 0;
 
-struct SchemaVersion {
-  unsigned major;
-  unsigned minor;
-  unsigned patch;
-
-  std::string str() const {
-    return std::to_string(major) + "." + std::to_string(minor) + "." +
-           std::to_string(patch);
-  }
-
-  // the major should match exactly the expected value
-  // the minor has to be more or equal than expected
-  // different patch version is ok
-  bool is_compatible(const SchemaVersion &file_version) const {
-    return file_version.major == major && file_version.minor <= minor;
-  }
-};
-
-const SchemaVersion kVersionCluster{1, 0, 0};
-const SchemaVersion kVersionClusterSet{1, 1, 0};
-const SchemaVersion kCurrentVersion = kVersionClusterSet;
+std::string to_string(unsigned major, unsigned minor, unsigned patch) {
+  return std::to_string(major) + "." + std::to_string(minor) + "." +
+         std::to_string(patch);
+}
 
 }  // namespace
 
@@ -109,14 +95,14 @@ DynamicState::DynamicState(const std::string &file_name)
   pimpl_->json_state_doc_.SetObject();
 }
 
-DynamicState::~DynamicState() = default;
+DynamicState::~DynamicState() {}
 
 std::ifstream DynamicState::open_for_read() {
   std::ifstream input_file(file_name_);
   if (input_file.fail()) {
-    throw std::system_error(
-        errno, std::generic_category(),
-        "Could not open dynamic state file '" + file_name_ + "' for reading");
+    throw std::runtime_error(
+        "Could not open dynamic state file '" + file_name_ +
+        "' for reading: " + mysql_harness::get_strerror(errno));
   }
 
   return input_file;
@@ -125,9 +111,9 @@ std::ifstream DynamicState::open_for_read() {
 std::ofstream DynamicState::open_for_write() {
   std::ofstream output_file(file_name_);
   if (output_file.fail()) {
-    throw std::system_error(
-        errno, std::generic_category(),
-        "Could not open dynamic state file '" + file_name_ + "' for writing");
+    throw std::runtime_error(
+        "Could not open dynamic state file '" + file_name_ +
+        "' for writing: " + mysql_harness::get_strerror(errno));
   }
 
   return output_file;
@@ -178,42 +164,41 @@ void DynamicState::ensure_version_compatibility() {
 
   // the whole document has to be an object:
   if (!json_doc.IsObject()) {
-    throw std::runtime_error("Invalid json structure: not an object");
+    throw std::runtime_error(
+        std::string("Invalid json structure: not an object"));
   }
 
   // it has to have version field
-  auto it = json_doc.FindMember(kVersionFieldName);
-  if (it == json_doc.MemberEnd()) {
+  if (!json_doc.GetObject().HasMember(kVersionFieldName)) {
     throw std::runtime_error(
         std::string("Invalid json structure: missing field: ") +
         kVersionFieldName);
   }
 
   // this field should be string
-  if (!it->value.IsString()) {
+  auto &version_field = json_doc.GetObject()[kVersionFieldName];
+  if (!version_field.IsString()) {
     throw std::runtime_error(std::string("Invalid json structure: field ") +
                              kVersionFieldName + " should be a string type");
   }
 
   // the format od the string should be MAJOR.MINOR.PATCH
-  std::string version_str = it->value.GetString();
-  SchemaVersion version;
-  int res = sscanf(version_str.c_str(), "%u.%u.%u", &version.major,
-                   &version.minor, &version.patch);
+  std::string version = version_field.GetString();
+  unsigned major{0}, minor{0}, patch{0};
+  int res = sscanf(version.c_str(), "%u.%u.%u", &major, &minor, &patch);
   if (res != 3) {
     throw std::runtime_error(
         std::string("Invalid version field format, expected MAJOR.MINOR.PATCH, "
                     "found: ") +
-        version_str);
+        version);
   }
 
-  // the major should match match exactly the expected value
-  // the minor has to be more or equal than expected
-  // different patch is fine
-  if (!kCurrentVersion.is_compatible(version)) {
+  // the major and minor should match match exactly, different patch is fine
+  if (major != kVersionMajor || minor != kVersionMinor) {
     throw std::runtime_error(
         std::string("Unsupported state file version, expected: ") +
-        kCurrentVersion.str() + ", found: " + version.str());
+        to_string(kVersionMajor, kVersionMinor, kVersionPatch) +
+        ", found: " + to_string(major, minor, patch));
   }
 
   // all good, version matches, go back to the caller with no exception
@@ -239,24 +224,21 @@ bool DynamicState::load_from_stream(std::istream &input_stream) {
   return true;
 }
 
-bool DynamicState::save(bool is_clusterset, bool pretty) {
+bool DynamicState::save(bool pretty) {
   std::unique_lock<std::mutex> lock(pimpl_->json_file_lock_);
 
   auto output_file = open_for_write();
 
-  return save_to_stream(output_file, is_clusterset, pretty);
+  return save_to_stream(output_file, pretty);
 }
 
-bool DynamicState::save_to_stream(std::ostream &output_stream,
-                                  bool is_clusterset, bool pretty) {
+bool DynamicState::save_to_stream(std::ostream &output_stream, bool pretty) {
   JsonStringBuffer out_buffer;
 
   // save/update the version
-  const std::string ver_str =
-      is_clusterset ? kVersionClusterSet.str() : kVersionCluster.str();
+  std::string ver_str = to_string(kVersionMajor, kVersionMinor, kVersionPatch);
   JsonValue version(rapidjson::kStringType);
   version.SetString(ver_str.c_str(), ver_str.length());
-
   update_section(kVersionFieldName, std::move(version));
 
   std::unique_lock<std::mutex> lock(pimpl_->json_state_doc_lock_);
@@ -277,13 +259,12 @@ std::unique_ptr<JsonValue> DynamicState::get_section(
   std::unique_lock<std::mutex> lock(pimpl_->json_state_doc_lock_);
 
   auto &json_doc = pimpl_->json_state_doc_;
-  auto it = json_doc.FindMember(
-      rapidjson::Value{section_name.data(), section_name.size()});
-  if (it == json_doc.MemberEnd()) return nullptr;
+  if (!json_doc.HasMember(section_name.c_str())) return nullptr;
 
   auto &allocator = json_doc.GetAllocator();
+  auto &section = json_doc[section_name.c_str()];
 
-  return std::make_unique<JsonValue>(it->value, allocator);
+  return std::unique_ptr<JsonValue>(new JsonValue(section, allocator));
 }
 
 bool DynamicState::update_section(const std::string &section_name,
@@ -293,15 +274,12 @@ bool DynamicState::update_section(const std::string &section_name,
   auto &json_doc = pimpl_->json_state_doc_;
   auto &allocator = json_doc.GetAllocator();
 
-  auto it = json_doc.FindMember(
-      rapidjson::Value{section_name.data(), section_name.size()});
-
-  if (it == json_doc.MemberEnd()) {
-    json_doc.AddMember(
-        JsonValue(section_name.data(), section_name.size(), allocator), value,
-        allocator);
+  if (!json_doc.HasMember(section_name.c_str())) {
+    json_doc.AddMember(JsonValue(section_name.c_str(), allocator), value,
+                       allocator);
   } else {
-    it->value = std::move(value);
+    auto &section = json_doc[section_name.c_str()];
+    section = std::move(value);
   }
 
   return true;

@@ -127,8 +127,8 @@ static void usage(bool version) {
 }
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt [[maybe_unused]],
-                           char *argument [[maybe_unused]]) {
+                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           char *argument MY_ATTRIBUTE((unused))) {
   switch (optid) {
     case 'c':
       opt_defaults_file_used = 1;

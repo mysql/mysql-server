@@ -66,7 +66,7 @@ void log_error_stage_set(enum log_error_stage les);
 enum log_error_stage log_error_stage_get(void);
 
 /// Write a log-event to the buffer sink.
-int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll);
+int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)), log_line *ll);
 
 /**
   Release all buffered log-events (discard_error_log_messages()),

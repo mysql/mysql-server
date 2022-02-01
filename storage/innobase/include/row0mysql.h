@@ -40,7 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <algorithm>
 
 #include "btr0pcur.h"
 #include "data0data.h"
@@ -219,9 +218,10 @@ void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
  It is not compatible with another AUTO_INC or exclusive lock on the
  table.
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_lock_table_autoinc_for_mysql(
-    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in the MySQL
+dberr_t row_lock_table_autoinc_for_mysql(
+    row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in the MySQL
                               table handle */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets a table lock on the table mentioned in prebuilt.
 @param[in,out]	prebuilt	table handle
@@ -232,8 +232,8 @@ dberr_t row_lock_table(row_prebuilt_t *prebuilt);
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
-[[nodiscard]] dberr_t row_insert_for_mysql(const byte *mysql_rec,
-                                           row_prebuilt_t *prebuilt);
+dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Builds a dummy query graph used in selects. */
 void row_prebuild_sel_graph(row_prebuilt_t *prebuilt); /*!< in: prebuilt struct
@@ -255,19 +255,34 @@ ibool row_table_got_default_clust_index(
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_update_for_mysql(const byte *mysql_rec,
-                                           row_prebuilt_t *prebuilt);
+dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
 @param[in,out]	table	table handler */
 void row_delete_all_rows(dict_table_t *table);
 
+/** This can only be used when this session is using a READ COMMITTED or READ
+UNCOMMITTED isolation level.  Before calling this function
+row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
+the information which new record locks really were set. This function removes
+a newly set clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
+the latest clustered index record lock we set.
+
+@param[in,out]	prebuilt		prebuilt struct in MySQL handle
+@param[in]	has_latches_on_recs	TRUE if called so that we have the
+                                        latches on the records under pcur
+                                        and clust_pcur, and we do not need
+                                        to reposition the cursors. */
+void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Checks if a table name contains the string "/#sql" which denotes temporary
  tables in MySQL.
  @return true if temporary table */
-[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name);
+bool row_is_mysql_tmp_table_name(const char *name)
+    MY_ATTRIBUTE((warn_unused_result));
 /*!< in: table name in the form
 'database/tablename' */
 
@@ -280,12 +295,12 @@ upd_node_t *row_create_update_node_for_mysql(
     mem_heap_t *heap);   /*!< in: mem heap from which allocated */
 /** Does a cascaded delete or set null in a foreign key operation.
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_update_cascade_for_mysql(
+dberr_t row_update_cascade_for_mysql(
     que_thr_t *thr,      /*!< in: query thread */
     upd_node_t *node,    /*!< in: update node used in the cascade
                          or set null operation */
     dict_table_t *table) /*!< in: table where we do the operation */
-    MY_ATTRIBUTE((nonnull));
+    MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /** Locks the data dictionary exclusively for performing a table create or other
  data dictionary modification operation.
@@ -321,15 +336,16 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	create_info     HA_CREATE_INFO object
 @param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_create_table_for_mysql(
-    dict_table_t *table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx);
+dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+                                   const HA_CREATE_INFO *create_info,
+                                   trx_t *trx)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem
  currently as all indexes must be created at the same time as the table.
  @return error number or DB_SUCCESS */
-[[nodiscard]] dberr_t row_create_index_for_mysql(
+dberr_t row_create_index_for_mysql(
     dict_index_t *index,        /*!< in, own: index definition
                                 (will be freed) */
     trx_t *trx,                 /*!< in: transaction handle */
@@ -339,7 +355,8 @@ kept in non-LRU list while on failure the 'table' object will be freed.
                                 index columns, which are
                                 then checked for not being too
                                 large. */
-    dict_table_t *handler);     /* ! in/out: table handler. */
+    dict_table_t *handler)      /* ! in/out: table handler. */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Loads foreign key constraints for the table being created. This
  function should be called after the indexes for a table have been
@@ -351,22 +368,28 @@ kept in non-LRU list while on failure the 'table' object will be freed.
  @param[in]	name		table full name in normalized form
  @param[in]	dd_table	MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_table_load_foreign_constraints(
-    trx_t *trx, const char *name, const dd::Table *dd_table);
+dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
+                                           const dd::Table *dd_table)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** The master thread in srv0srv.cc calls this regularly to drop tables which
  we must drop in background after queries to them have ended. Such lazy
  dropping of tables is needed in ALTER TABLE on Unix.
  @return how many tables dropped + remaining tables in list */
 ulint row_drop_tables_for_mysql_in_background(void);
+/** Get the background drop list length. NOTE: the caller must own the kernel
+ mutex!
+ @return how many tables in list */
+ulint row_get_background_drop_list_len_low(void);
 
 /** Sets an exclusive lock on a table.
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_mysql_lock_table(
-    trx_t *trx,           /*!< in/out: transaction */
-    dict_table_t *table,  /*!< in: table to lock */
-    enum lock_mode mode,  /*!< in: LOCK_X or LOCK_S */
-    const char *op_info); /*!< in: string for trx->op_info */
+dberr_t row_mysql_lock_table(
+    trx_t *trx,          /*!< in/out: transaction */
+    dict_table_t *table, /*!< in: table to lock */
+    enum lock_mode mode, /*!< in: LOCK_X or LOCK_S */
+    const char *op_info) /*!< in: string for trx->op_info */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
@@ -400,15 +423,17 @@ inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
  means that this function deletes the .ibd file and assigns a new table id for
  the table. Also the flag table->ibd_file_missing is set TRUE.
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_discard_tablespace_for_mysql(
+dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
-    trx_t *trx);      /*!< in: transaction handle */
+    trx_t *trx)       /*!< in: transaction handle */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Imports a tablespace. The space id in the .ibd file must match the space id
  of the table in the data dictionary.
  @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_import_tablespace_for_mysql(
-    dict_table_t *table,       /*!< in/out: table */
-    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in MySQL */
+dberr_t row_import_tablespace_for_mysql(
+    dict_table_t *table,      /*!< in/out: table */
+    row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in MySQL */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -424,10 +449,10 @@ dberr_t row_drop_database_for_mysql(const char *name, trx_t *trx, ulint *found);
 @param[in,out]	trx		transaction
 @param[in]      replay          whether in replay stage
 @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t row_rename_table_for_mysql(const char *old_name,
-                                                 const char *new_name,
-                                                 const dd::Table *dd_table,
-                                                 trx_t *trx, bool replay);
+dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
+                                   const dd::Table *dd_table, trx_t *trx,
+                                   bool replay)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Read the total number of records in a consistent view.
 @param[in,out]  trx             Covering transaction.
@@ -449,10 +474,10 @@ in the read view of the current transaction.
 @param[in]      check_keys  True if called form check table.
 @param[out]     n_rows      Number of entries seen in the consistent read.
 @return DB_SUCCESS or other error */
-[[nodiscard]] dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt,
-                                               dict_index_t *index,
-                                               size_t n_threads,
-                                               bool check_keys, ulint *n_rows);
+dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
+                                 size_t n_threads, bool check_keys,
+                                 ulint *n_rows)
+    MY_ATTRIBUTE((warn_unused_result));
 /** Initialize this module */
 void row_mysql_init(void);
 
@@ -727,7 +752,7 @@ struct row_prebuilt_t {
                         session is using READ COMMITTED or READ UNCOMMITTED
                         isolation level, set in row_search_for_mysql() if we set
                         a new record lock on the secondary or clustered index;
-                        this is used in row_try_unlock() when releasing
+                        this is used in row_unlock_for_mysql() when releasing
                         the lock under the cursor if we determine after
                         retrieving the row that it does not need to be locked
                         ('mini-rollback')
@@ -875,20 +900,6 @@ struct row_prebuilt_t {
   @return true iff duplicated values should be allowed */
   bool allow_duplicates() { return (replace || on_duplicate_key_update); }
 
-  /** This is an no-op unless trx is using a READ COMMITTED or READ UNCOMMITTED
-  isolation level.
-  Before calling this function row_search_for_mysql() must have stored to
-  new_rec_locks[] the information which new record locks really were set.
-  This function removes a newly set index record locks under pcur or clust_pcur.
-  Thus, this implements a 'mini-rollback' that releases the latest index record
-  locks we've just set.
-
-  @param[in]	has_latches_on_recs	true if called so that we have the
-                                        latches on the records under pcur
-                                        and clust_pcur, and we do not need
-                                        to reposition the cursors. */
-  void try_unlock(bool has_latches_on_recs);
-
  private:
   /** A helper function for init_search_tuples_types() which prepares the shape
   of the tuple to match the index
@@ -899,11 +910,6 @@ struct row_prebuilt_t {
   }
 
  public:
-  /** Counts how many elements of @see new_rec_lock[] array are set to true. */
-  size_t new_rec_locks_count() const {
-    return std::count(std::begin(new_rec_lock), std::end(new_rec_lock), true);
-  }
-
   /** Initializes search_tuple and m_stop_tuple shape so they match the index */
   void init_search_tuples_types() {
     init_tuple_types(search_tuple);
@@ -930,22 +936,13 @@ struct row_prebuilt_t {
 
 /** Callback for row_mysql_sys_index_iterate() */
 struct SysIndexCallback {
-  virtual ~SysIndexCallback() = default;
+  virtual ~SysIndexCallback() {}
 
   /** Callback method
   @param mtr current mini-transaction
   @param pcur persistent cursor. */
   virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
-
-/** Get the updated parent field value from the update vector for the
-given col_no.
-@param[in]      foreign         foreign key information
-@param[in]      update          updated parent vector.
-@param[in]      col_no          base column position of the child table to check
-@return updated field from the parent update vector, else NULL */
-dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
-                                                upd_t *update, uint32_t col_no);
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]	row		the data row

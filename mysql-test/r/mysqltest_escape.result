@@ -22,25 +22,24 @@
 \hu\hu
 
 >
-==== R5: escape shall work with multiple characters ====
-<He\l\l\o, w\or\ld>
-<Hell\o\, w\orld>
-==== R6: escape(C,S) shall fail when C is newline ====
+==== R5.1: escape(C,S) shall fail when C is newline ====
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(
 ,
 foo
 )>
-==== R7.1: escape shall fail when opening parenthesis is wrong ====
+==== R5.2: escape(C,S) shall fail when C contains more than one character ====
+mysqltest: At line 1: Invalid format of 'escape' arguments: <(zzz,grizzzly)>
+==== R6.1: escape shall fail when open parenthesis is wrong ====
 mysqltest: At line 1: Invalid format of 'escape' arguments: < (a,aa)>
 mysqltest: At line 1: Invalid format of 'escape' arguments: < a,aa)>
-==== R7.2: escape shall fail when comma is wrong ====
+==== R6.2: escape shall fail when comma is wrong ====
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(aaa)>
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(,aaa)>
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(,)>
-==== R7.3: escape shall fail when closing parenthesis is wrong ====
+==== R6.3: escape shall fail when closing paranethesis is wrong ====
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(a,aa>
 mysqltest: At line 1: Invalid format of 'escape' arguments: <(a,aa)a>
-==== R7.4: escape shall fail when parentheses and comma are out of order ====
+==== R6.4: escape shall fail when paranetheses and comma are out of order ====
 mysqltest: At line 1: Invalid format of 'escape' arguments: <,()>
 mysqltest: At line 1: Invalid format of 'escape' arguments: <,)(>
 mysqltest: At line 1: Invalid format of 'escape' arguments: <),(>

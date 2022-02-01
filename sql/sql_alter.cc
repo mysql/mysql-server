@@ -213,7 +213,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   }
 }
 
-Alter_table_ctx::~Alter_table_ctx() = default;
+Alter_table_ctx::~Alter_table_ctx() {}
 
 bool Sql_cmd_alter_table::execute(THD *thd) {
   /* Verify that none one of the DISCARD and IMPORT flags are set. */

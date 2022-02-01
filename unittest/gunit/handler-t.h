@@ -39,8 +39,6 @@ class Mock_HANDLER : public Base_mock_HANDLER {
 
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : Base_mock_HANDLER(ht_arg, share_arg) {}
-
-  void set_ha_table_flags(Table_flags flags) { cached_table_flags = flags; }
 };
 
 /**

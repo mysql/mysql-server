@@ -147,7 +147,7 @@ TEST_F(MysysMyGetopTest, Signed) {
   EXPECT_EQ(m_error, 0);
 
   result = eval_num_suffix<long long>("-1E", &m_error, "");
-  EXPECT_EQ(result, -static_cast<long long>(one_exa));
+  EXPECT_EQ(result, -one_exa);
   EXPECT_EQ(m_error, 0);
 
   result = eval_num_suffix<long long>("-1000000E", &m_error, "");

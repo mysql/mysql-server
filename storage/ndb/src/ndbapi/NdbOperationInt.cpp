@@ -1151,8 +1151,7 @@ NdbOperation::branch_col(Uint32 type,
     val = tempData;
   }
 
-  const Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
-  if (insertATTRINFO(Interpreter::BranchCol(c, nulls)) == -1)
+  if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0)) == -1)
     DBUG_RETURN(-1);
   
   if (insertBranch(Label) == -1)

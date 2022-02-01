@@ -235,7 +235,7 @@ Event_basic::Event_basic()
 
 Event_basic::~Event_basic() {
   DBUG_TRACE;
-  mem_root.Clear();
+  free_root(&mem_root, MYF(0));
 }
 
 /*
@@ -265,7 +265,7 @@ Event_queue_element::Event_queue_element()
   SYNOPSIS
     Event_queue_element::Event_queue_element()
 */
-Event_queue_element::~Event_queue_element() = default;
+Event_queue_element::~Event_queue_element() {}
 
 /*
   Constructor
@@ -286,7 +286,7 @@ Event_timed::Event_timed() : m_created(0), m_modified(0), m_sql_mode(0) {
     Event_timed::~Event_timed()
 */
 
-Event_timed::~Event_timed() = default;
+Event_timed::~Event_timed() {}
 
 /*
   Constructor

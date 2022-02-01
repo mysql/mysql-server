@@ -38,7 +38,7 @@ class OptionalString {
  public:
   OptionalString() : value_(), empty_(true) {}
   OptionalString(const char *s) : value_(s ? s : ""), empty_(!s) {}
-  ~OptionalString() = default;
+  ~OptionalString() {}
   OptionalString(const OptionalString &) = default;
 
   const char *c_str() const { return empty_ ? nullptr : value_.c_str(); }
@@ -67,7 +67,7 @@ class Ssl_init_callback {
 
   virtual bool warn_self_signed_ca() = 0;
 
-  virtual ~Ssl_init_callback() = default;
+  virtual ~Ssl_init_callback() {}
 };
 
 /**
@@ -86,7 +86,7 @@ class Ssl_init_callback_server_main final : public Ssl_init_callback {
 
   bool warn_self_signed_ca() override;
 
-  ~Ssl_init_callback_server_main() override = default;
+  ~Ssl_init_callback_server_main() override {}
 
  private:
   ssl_artifacts_status auto_detect_ssl();
@@ -114,14 +114,10 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
 
   bool warn_self_signed_ca() override;
 
-  ~Ssl_init_callback_server_admin() override = default;
+  ~Ssl_init_callback_server_admin() override {}
 };
 
 extern Ssl_init_callback_server_main server_main_callback;
 extern Ssl_init_callback_server_admin server_admin_callback;
 
-/**
-  Helper method to validate values of --tls-version and --admin-tls-version
-*/
-bool validate_tls_version(const char *val);
 #endif  // !SSL_INIT_CALLBACK_INCLUDED

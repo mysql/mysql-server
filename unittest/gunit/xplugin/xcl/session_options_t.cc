@@ -72,7 +72,7 @@ TEST_P(Xcl_session_impl_tests_param_int_option, set_not_supported_combination) {
 }
 
 INSTANTIATE_TEST_SUITE_P(InstantiationNotSupportedIntOptions,
-                         Xcl_session_impl_tests_param_int_option,
+                         Xcl_session_impl_tests_param_bool_option,
                          Values(XSession::Mysqlx_option::Read_timeout,
                                 XSession::Mysqlx_option::Write_timeout,
                                 XSession::Mysqlx_option::Connect_timeout));

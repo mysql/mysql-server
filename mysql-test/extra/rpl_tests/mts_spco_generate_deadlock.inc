@@ -191,17 +191,17 @@ if ($mts_spco_gd_trx_assigned_worker_3 != '')
 --let $client = `SELECT CONNECTION_ID()`
 
 --let $assert_text = Replica parallel type is LOGICAL_CLOCK
---let $assert_cond = "[SELECT @@GLOBAL.replica_parallel_type]" = "LOGICAL_CLOCK"
+--let $assert_cond = "[SELECT @@GLOBAL.slave_parallel_type]" = "LOGICAL_CLOCK"
 --source include/assert.inc
---let $worker_count = `SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "thread/sql/replica_worker"`
+--let $worker_count = `SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "thread/sql/slave_worker"`
 --let $assert_text = MTS worker thread count is correct
 --let $assert_cond = "3" = "$worker_count"
 --source include/assert.inc
 --let $assert_text = Replica preserve commit order is 1
---let $assert_cond = "[SELECT @@GLOBAL.replica_preserve_commit_order]" = "1"
+--let $assert_cond = "[SELECT @@GLOBAL.slave_preserve_commit_order]" = "1"
 --source include/assert.inc
 --let $assert_text = Replica transaction retries has correct configured value
---let $assert_cond = "[SELECT @@GLOBAL.replica_transaction_retries]" = "$mts_spco_gd_transaction_retries"
+--let $assert_cond = "[SELECT @@GLOBAL.slave_transaction_retries]" = "$mts_spco_gd_transaction_retries"
 --source include/assert.inc
 --let $assert_text = InnoDB lock wait timeout has correct configured value
 --let $assert_cond = "[SELECT @@GLOBAL.innodb_lock_wait_timeout]" = "$mts_spco_gd_innodb_wait_timeout"

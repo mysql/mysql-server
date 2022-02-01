@@ -50,7 +50,7 @@ class TcRollbackRep {
   friend bool printTCROLBACKREP(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
 private:
   Uint32 connectPtr;

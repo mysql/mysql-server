@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <map>
 #include <string>
-#include <unordered_set>
+#include <vector>
 
 #include "my_alloc.h"
 #include "my_inttypes.h"
@@ -60,21 +60,6 @@ struct st_persist_var {
   st_persist_var(const std::string key, const std::string value,
                  const ulonglong timestamp, const std::string user,
                  const std::string host, const bool is_null);
-  /* This is custom comparision function used to make the unordered_set
-     to work with the default std::hash for userdefined types. */
-  bool operator==(const st_persist_var &persist_var) const {
-    return key == persist_var.key;
-  }
-};
-
-/**
-  STRUCT st_persist_var_hash
-
-  This structure has a custom hasher function used to make the unordered_set
-  to work with the default std::hash for userdefined types.
-*/
-struct st_persist_var_hash {
-  size_t operator()(const st_persist_var &pv) const { return pv.key.length(); }
 };
 
 /**
@@ -86,7 +71,7 @@ struct st_persist_var_hash {
   --------
   When first SET PERSIST statement is executed we instantiate
   Persisted_variables_cache which loads the config file if present into
-  m_persist_variables set. This is a singleton operation. m_persist_variables
+  m_persist_variables vector. This is a singleton operation. m_persist_variables
   is an in-memory copy of config file itself. If the SET statement passes then
   this in-memory is updated and flushed to file as an atomic operation.
 
@@ -118,7 +103,10 @@ class Persisted_variables_cache {
     Search for persisted config file and if found read persistent options
   */
   bool load_persist_file();
-  bool set_persist_options(bool plugin_options, bool lock_vars);
+  /**
+    Set persisted options
+  */
+  bool set_persist_options(bool plugin_options = false);
   /**
     Reset persisted options
   */
@@ -126,8 +114,7 @@ class Persisted_variables_cache {
   /**
     Get persisted variables
   */
-  std::unordered_set<st_persist_var, st_persist_var_hash>
-      *get_persisted_variables();
+  std::vector<st_persist_var> *get_persisted_variables();
   /**
     Get persisted static variables
   */
@@ -160,12 +147,7 @@ class Persisted_variables_cache {
   static String *get_variable_value(THD *thd, sys_var *system_var, String *str,
                                     bool *is_null);
   /* Helper function to get variable name */
-  static const char *get_variable_name(const sys_var *system_var);
-  /**
-    If the variable has an alias, return the name for the alias.
-  */
-  static const char *get_variable_alias(const sys_var *system_var);
-  static const char *get_variable_alias(const char *system_var);
+  static const char *get_variable_name(sys_var *system_var);
   /* Helper function to construct json formatted string */
   static String *construct_json_string(std::string name, std::string value,
                                        ulonglong timestamp, std::string user,
@@ -174,11 +156,6 @@ class Persisted_variables_cache {
   /* Helper function to extract variables from json formatted string */
   bool extract_variables_from_json(const Json_dom *dom,
                                    bool is_read_only = false);
-  /**
-    After extracting the variables from the JSON, we duplicate any
-    variable definition that relates to an alias.
-  */
-  void load_aliases();
 
  private:
   /* Helper functions for file IO */
@@ -187,10 +164,9 @@ class Persisted_variables_cache {
 
  private:
   /* In memory copy of persistent config file */
-  std::unordered_set<st_persist_var, st_persist_var_hash> m_persist_variables;
+  std::vector<st_persist_var> m_persist_variables;
   /* copy of plugin variables whose plugin is not yet installed */
-  std::unordered_set<st_persist_var, st_persist_var_hash>
-      m_persist_plugin_variables;
+  std::vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
   std::map<std::string, st_persist_var> m_persist_ro_variables;
 

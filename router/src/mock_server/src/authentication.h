@@ -25,10 +25,10 @@
 #ifndef MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 #define MYSQL_PROTOCOL_AUTHENTICATION_INCLUDED
 
-#include <string_view>
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/string_view.h"
 
 class MySQLNativePassword {
  public:
@@ -36,7 +36,7 @@ class MySQLNativePassword {
 
   // client-side scrambling of the password
   static stdx::expected<std::vector<uint8_t>, void> scramble(
-      std::string_view nonce, std::string_view password);
+      stdx::string_view nonce, stdx::string_view password);
 };
 
 class CachingSha2Password {
@@ -45,7 +45,7 @@ class CachingSha2Password {
 
   // client-side scrambling of the password
   static stdx::expected<std::vector<uint8_t>, void> scramble(
-      std::string_view nonce, std::string_view password);
+      stdx::string_view nonce, stdx::string_view password);
 };
 
 class ClearTextPassword {
@@ -54,7 +54,7 @@ class ClearTextPassword {
 
   // client-side scrambling of the password
   static stdx::expected<std::vector<uint8_t>, void> scramble(
-      std::string_view nonce, std::string_view password);
+      stdx::string_view nonce, stdx::string_view password);
 };
 
 #endif

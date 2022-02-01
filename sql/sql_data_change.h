@@ -277,7 +277,7 @@ class COPY_INFO {
                   my_error has already been called so the calling function
                   only needs to bail out.
   */
-  [[nodiscard]] bool set_function_defaults(TABLE *table);
+  bool set_function_defaults(TABLE *table);
 
   /**
      Adds the columns that are bound to receive default values from a function
@@ -341,7 +341,7 @@ class COPY_INFO {
      This class allocates its memory in a MEM_ROOT, so there's nothing to
      delete.
   */
-  virtual ~COPY_INFO() = default;
+  virtual ~COPY_INFO() {}
 };
 
 #endif  // SQL_DATA_CHANGE_INCLUDED

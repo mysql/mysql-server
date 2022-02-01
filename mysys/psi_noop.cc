@@ -91,15 +91,13 @@ static void register_thread_noop(const char *, PSI_thread_info *, int) {
   return;
 }
 
-static int spawn_thread_noop(PSI_thread_key, unsigned int,
-                             my_thread_handle *thread,
+static int spawn_thread_noop(PSI_thread_key, my_thread_handle *thread,
                              const my_thread_attr_t *attr,
                              my_start_routine start_routine, void *arg) {
   return my_thread_create(thread, attr, start_routine, arg);
 }
 
-static PSI_thread *new_thread_noop(PSI_thread_key, unsigned int, const void *,
-                                   ulonglong) {
+static PSI_thread *new_thread_noop(PSI_thread_key, const void *, ulonglong) {
   return nullptr;
 }
 
@@ -152,9 +150,10 @@ static void delete_current_thread_noop(void) { return; }
 
 static void delete_thread_noop(PSI_thread *) { return; }
 
-static int set_thread_connect_attrs_noop(const char *buffer [[maybe_unused]],
-                                         uint length [[maybe_unused]],
-                                         const void *from_cs [[maybe_unused]]) {
+static int set_thread_connect_attrs_noop(
+    const char *buffer MY_ATTRIBUTE((unused)),
+    uint length MY_ATTRIBUTE((unused)),
+    const void *from_cs MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
@@ -190,11 +189,6 @@ static void notify_session_disconnect_noop(PSI_thread *) { return; }
 
 static void notify_session_change_user_noop(PSI_thread *) { return; }
 
-static void set_mem_cnt_THD_noop(THD *, THD **backup_thd) {
-  *backup_thd = nullptr;
-  return;
-}
-
 static PSI_thread_service_t psi_thread_noop = {
     register_thread_noop,
     spawn_thread_noop,
@@ -229,8 +223,7 @@ static PSI_thread_service_t psi_thread_noop = {
     unregister_notification_noop,
     notify_session_connect_noop,
     notify_session_disconnect_noop,
-    notify_session_change_user_noop,
-    set_mem_cnt_THD_noop};
+    notify_session_change_user_noop};
 
 struct PSI_thread_bootstrap *psi_thread_hook = nullptr;
 PSI_thread_service_t *psi_thread_service = &psi_thread_noop;

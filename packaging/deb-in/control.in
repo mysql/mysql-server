@@ -19,6 +19,7 @@ Build-Depends: debhelper (>= 9.0.0),
  fakeroot,
  libnuma-dev,
  libmecab-dev,
+ dh-systemd
  @DEB_CONTROL_BDEPS@ @DEB_CONTROL_BDEPS_COMMERCIAL@ @DEB_CONTROL_BDEPS_SSL@
 
 

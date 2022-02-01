@@ -31,6 +31,7 @@ namespace xpl {
 namespace test {
 
 const char *const EMPTY_SCHEMA = "";
+const char *const EMPTY = "";
 enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 
 using Octets = Scalar::Octets;

@@ -54,8 +54,8 @@ class Command_delegate {
   using Field_types = std::vector<Field_type>;
 
  public:
-  Command_delegate() = default;
-  virtual ~Command_delegate() = default;
+  Command_delegate() {}
+  virtual ~Command_delegate() {}
 
   Command_delegate(const Command_delegate &) = default;
   Command_delegate(Command_delegate &&) = default;
@@ -140,10 +140,9 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int start_result_metadata(uint32_t num_cols,
-                                    uint32_t flags [[maybe_unused]],
-                                    const CHARSET_INFO *resultcs
-                                    [[maybe_unused]]) {
+  virtual int start_result_metadata(
+      uint32_t num_cols, uint32_t flags MY_ATTRIBUTE((unused)),
+      const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
     m_field_types.clear();
 
     /*
@@ -185,7 +184,8 @@ class Command_delegate {
     false ok
   */
   virtual int field_metadata(struct st_send_field *field,
-                             const CHARSET_INFO *charset [[maybe_unused]]) {
+                             const CHARSET_INFO *charset
+                                 MY_ATTRIBUTE((unused))) {
     Field_type type = {field->type, field->flags};
     m_field_types.push_back(type);
 
@@ -199,8 +199,8 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int end_result_metadata(uint server_status [[maybe_unused]],
-                                  uint warn_count [[maybe_unused]]) {
+  virtual int end_result_metadata(uint server_status MY_ATTRIBUTE((unused)),
+                                  uint warn_count MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -264,7 +264,9 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int get_integer(longlong value [[maybe_unused]]) { return false; }
+  virtual int get_integer(longlong value MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get LONGLONG value from server
@@ -276,8 +278,8 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int get_longlong(longlong value [[maybe_unused]],
-                           uint unsigned_flag [[maybe_unused]]) {
+  virtual int get_longlong(longlong value MY_ATTRIBUTE((unused)),
+                           uint unsigned_flag MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -290,7 +292,7 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int get_decimal(const decimal_t *value [[maybe_unused]]) {
+  virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -307,8 +309,8 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int get_double(double value [[maybe_unused]],
-                         uint32 decimals [[maybe_unused]]) {
+  virtual int get_double(double value MY_ATTRIBUTE((unused)),
+                         uint32 decimals MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -321,7 +323,7 @@ class Command_delegate {
     true  an error occurred during storing, server will abort the command
     false ok
   */
-  virtual int get_date(const MYSQL_TIME *value [[maybe_unused]]) {
+  virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -335,8 +337,8 @@ class Command_delegate {
     true  an error occurred during storing, server will abort the command
     false ok
   */
-  virtual int get_time(const MYSQL_TIME *value [[maybe_unused]],
-                       uint decimals [[maybe_unused]]) {
+  virtual int get_time(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
+                       uint decimals MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -350,8 +352,8 @@ class Command_delegate {
     true  an error occurred during storing, server will abort the command
     false ok
   */
-  virtual int get_datetime(const MYSQL_TIME *value [[maybe_unused]],
-                           uint decimals [[maybe_unused]]) {
+  virtual int get_datetime(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
+                           uint decimals MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -366,9 +368,10 @@ class Command_delegate {
     true  an error occurred, server will abort the command
     false ok
   */
-  virtual int get_string(const char *const value [[maybe_unused]],
-                         size_t length [[maybe_unused]],
-                         const CHARSET_INFO *const valuecs [[maybe_unused]]) {
+  virtual int get_string(const char *const value MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused)),
+                         const CHARSET_INFO *const valuecs
+                             MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -411,7 +414,7 @@ class Command_delegate {
    Session was shutdown while command was running
 
   */
-  virtual void shutdown(int flag [[maybe_unused]]) { m_killed = true; }
+  virtual void shutdown(int flag MY_ATTRIBUTE((unused))) { m_killed = true; }
 
   /*
    Check if connection bound to this srv_session is alive

@@ -71,7 +71,7 @@ table_session_connect::~table_session_connect() {
   my_free(m_copy_session_connect_attrs);
 }
 
-int table_session_connect::index_init(uint idx [[maybe_unused]], bool) {
+int table_session_connect::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   assert(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_session_connect);
   m_index = m_opened_index;

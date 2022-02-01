@@ -117,7 +117,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  ut::free(table->name.m_name);
+  ut_free(table->name.m_name);
   table->name.m_name = nullptr;
 
 #ifndef UNIV_HOTBACKUP
@@ -127,19 +127,19 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
   for (ulint i = 0; i < table->n_v_def; i++) {
     dict_v_col_t *vcol = dict_table_get_nth_v_col(table, i);
 
-    ut::delete_(vcol->v_indexes);
+    UT_DELETE(vcol->v_indexes);
   }
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
   if (table->s_cols != nullptr) {
-    ut::delete_(table->s_cols);
+    UT_DELETE(table->s_cols);
   }
 
 #ifndef UNIV_HOTBACKUP
   if (table->temp_prebuilt != nullptr) {
     ut_ad(table->is_intrinsic());
-    ut::delete_(table->temp_prebuilt);
+    UT_DELETE(table->temp_prebuilt);
   }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -206,11 +206,11 @@ dict_table_t *dict_mem_table_create(
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
-  UT_LIST_INIT(table->locks);
+  lock_table_lock_list_init(&table->locks);
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  UT_LIST_INIT(table->indexes);
+  UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
 
   table->heap = heap;
 
@@ -314,8 +314,7 @@ dict_index_t *dict_mem_index_create(
         mem_heap_alloc(heap, sizeof(*index->rtr_track)));
     mutex_create(LATCH_ID_RTR_ACTIVE_MUTEX,
                  &index->rtr_track->rtr_active_mutex);
-    index->rtr_track->rtr_active =
-        ut::new_withkey<rtr_info_active>(UT_NEW_THIS_FILE_PSI_KEY);
+    index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
   }
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */

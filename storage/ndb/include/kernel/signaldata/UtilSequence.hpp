@@ -46,7 +46,7 @@ class UtilSequenceReq {
 
   friend bool printUTIL_SEQUENCE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
   
   enum RequestType {
     NextVal = 1, // Return uniq value
@@ -75,7 +75,7 @@ class UtilSequenceConf {
 
   friend bool printUTIL_SEQUENCE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   Uint32 senderData;
@@ -98,7 +98,7 @@ class UtilSequenceRef {
   
   friend bool printUTIL_SEQUENCE_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
   
   enum ErrorCode {
     NoSuchSequence = 1,

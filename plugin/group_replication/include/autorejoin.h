@@ -129,9 +129,9 @@ class Autorejoin_thread {
 
     @param[in] arg a pointer to an Autorejoin_thread instance.
 
-    @return Does not return.
+    @return nullptr, since the return value is not used.
   */
-  static void *launch_thread(void *arg);
+  [[noreturn]] static void *launch_thread(void *arg);
 
   /**
     The thread handle, i.e. setups and tearsdown the infrastructure for this

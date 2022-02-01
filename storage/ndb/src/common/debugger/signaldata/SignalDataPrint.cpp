@@ -311,7 +311,6 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_DROP_FK_CONF, printDROP_FK_CONF }
   ,{ GSN_PROCESSINFO_REP, printPROCESSINFO_REP }
 
-  ,{ GSN_TRP_KEEP_ALIVE, printTRP_KEEP_ALIVE }
   ,{ 0, 0 }
 };
 

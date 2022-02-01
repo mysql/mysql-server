@@ -252,7 +252,7 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
 
 bool Histogram::histogram_to_json(Json_object *json_object) const {
   // Get the current time in GMT timezone with microsecond accuray.
-  my_timeval time_value;
+  timeval time_value;
   my_micro_time_to_timeval(my_micro_time(), &time_value);
 
   MYSQL_TIME current_time;
@@ -742,11 +742,8 @@ static bool fill_value_maps(
   for (auto &value_map : value_maps)
     value_map.second->set_sampling_rate(sample_percentage / 100.0);
 
-  /* This is not a tablesample request. */
-  bool tablesample = false;
-
   if (table->file->ha_sample_init(scan_ctx, sample_percentage, sampling_seed,
-                                  enum_sampling_method::SYSTEM, tablesample)) {
+                                  enum_sampling_method::SYSTEM)) {
     return true;
   }
 
@@ -1025,7 +1022,8 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
       The MEM_ROOT is transferred to the dictionary object when
       histogram->store_histogram is called.
     */
-    MEM_ROOT local_mem_root(key_memory_histograms, 256);
+    MEM_ROOT local_mem_root;
+    init_alloc_root(key_memory_histograms, &local_mem_root, 256, 0);
 
     std::string col_name(field->field_name);
     histograms::Histogram *histogram =
@@ -1056,69 +1054,30 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   return ret;
 }
 
-bool drop_all_histograms(THD *thd, TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
                          const dd::Table &table_definition,
                          results_map &results) {
   columns_set columns;
   for (const auto &col : table_definition.columns())
     columns.emplace(col->name().c_str());
 
-  return drop_histograms(thd, table, columns, false, results);
+  return drop_histograms(thd, table, columns, results);
 }
 
-bool drop_histograms(THD *thd, TABLE_LIST &table, const columns_set &columns,
-                     bool needs_lock, results_map &results) {
+bool drop_histograms(THD *thd, const TABLE_LIST &table,
+                     const columns_set &columns, results_map &results) {
   dd::cache::Dictionary_client *client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(client);
 
-  if (needs_lock) {
-    /*
-      At this point ANALYZE TABLE DROP HISTOGRAM is the only caller of this
-      function that requires it to acquire lock on table and individual
-      column statistics.
-
-      Error out on temporary table for consistency with update histograms case.
-    */
-    if (table.table != nullptr && table.table->s->tmp_table != NO_TMP_TABLE) {
-      results.emplace("", Message::TEMPORARY_TABLE);
-      return true;
-    }
-    /*
-      Acquire shared metadata lock on the table (or check that it is locked
-      under LOCK TABLES) so this table and all column statistics for it are
-      not dropped under our feet.
-    */
-    if (thd->locked_tables_mode) {
-      if (!find_locked_table(thd->open_tables, table.db, table.table_name)) {
-        my_error(ER_TABLE_NOT_LOCKED, MYF(0), table.table_name);
-        return true;
-      }
-    } else {
-      if (thd->mdl_context.acquire_lock(&table.mdl_request,
-                                        thd->variables.lock_wait_timeout))
-        return true;  // error is already reported.
-    }
-  } else {
-    /*
-      In this case we assume that caller has acquired exclusive metadata
-      lock on table so there is no need to lock individual column statistics.
-      It is also caller's responsibility to ensure that table is non-temporary.
-    */
-    assert(thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::TABLE, table.db, table.table_name, MDL_EXCLUSIVE));
-  }
-
   for (const std::string &column_name : columns) {
-    if (needs_lock) {
-      MDL_key mdl_key;
-      dd::Column_statistics::create_mdl_key(
-          {table.db, table.db_length},
-          {table.table_name, table.table_name_length}, column_name.c_str(),
-          &mdl_key);
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(
+        {table.db, table.db_length},
+        {table.table_name, table.table_name_length}, column_name.c_str(),
+        &mdl_key);
 
-      if (lock_for_write(thd, mdl_key))
-        return true;  // error is already reported.
-    }
+    if (lock_for_write(thd, mdl_key))
+      return true;  // error is already reported.
 
     dd::String_type dd_name = dd::Column_statistics::create_name(
         {table.db, table.db_length},

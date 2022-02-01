@@ -66,7 +66,6 @@ File my_create(const char *FileName, int CreateFlags, int AccessFlags,
 
   File fd = -1;
 #if defined(_WIN32)
-  (void)CreateFlags;  // [[maybe_unused]]
   fd = my_win_open(FileName, AccessFlags | O_CREAT);
 #else
   fd = mysys_priv::RetryOnEintr(

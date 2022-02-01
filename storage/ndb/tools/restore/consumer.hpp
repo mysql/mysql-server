@@ -26,6 +26,7 @@
 #define CONSUMER_HPP
 
 #include "Restore.hpp"
+#include "ndb_nodegroup_map.h"
 #include "restore_tables.h"
 #include <NdbThread.h>
 #include <NdbCondition.h>
@@ -63,11 +64,12 @@ public:
   virtual bool report_completed(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool isMissingTable(const TableS &){return false;}
+  NODE_GROUP_MAP *m_nodegroup_map;
+  uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
-  virtual bool handle_index_stat_tables() {return true;}
 #ifdef ERROR_INSERT
   virtual void error_insert(unsigned int code) {}
 #endif

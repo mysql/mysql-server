@@ -47,7 +47,7 @@ namespace dd {
 // View_table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-View_table_impl::View_table_impl() = default;
+View_table_impl::View_table_impl() {}
 
 View_table_impl::View_table_impl(View_impl *view) : m_view(view) {}
 

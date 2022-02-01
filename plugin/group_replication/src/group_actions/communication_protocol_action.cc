@@ -22,12 +22,7 @@
 
 #include "plugin/group_replication/include/group_actions/communication_protocol_action.h"
 #include <tuple>
-#include "plugin/group_replication/include/member_info.h"
-#include "plugin/group_replication/include/member_version.h"
-#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 Communication_protocol_action::Communication_protocol_action()
     : m_diagnostics(),
@@ -38,7 +33,7 @@ Communication_protocol_action::Communication_protocol_action(
     Gcs_protocol_version gcs_protocol)
     : m_diagnostics(), m_gcs_protocol(gcs_protocol), m_protocol_change_done() {}
 
-Communication_protocol_action::~Communication_protocol_action() = default;
+Communication_protocol_action::~Communication_protocol_action() {}
 
 // Group_action implementation
 void Communication_protocol_action::get_action_message(
@@ -47,41 +42,15 @@ void Communication_protocol_action::get_action_message(
   *message = new Group_action_message(m_gcs_protocol);
 }
 
-int Communication_protocol_action::set_consensus_leaders() const {
-  bool is_single_primary_mode = local_member_info->in_primary_mode();
-  auto my_role = Group_member_info::MEMBER_ROLE_PRIMARY;
-  Gcs_member_identifier const my_gcs_id =
-      local_member_info->get_gcs_member_id();
-  if (is_single_primary_mode) {
-    Group_member_info *primary_info =
-        group_member_mgr->get_primary_member_info();
-    if (primary_info == nullptr) {
-      return 1;
-    }
-
-    Gcs_member_identifier const primary_gcs_id =
-        primary_info->get_gcs_member_id();
-    delete primary_info;
-    bool const am_i_the_primary = (my_gcs_id == primary_gcs_id);
-    my_role = (am_i_the_primary ? Group_member_info::MEMBER_ROLE_PRIMARY
-                                : Group_member_info::MEMBER_ROLE_SECONDARY);
-  }
-
-  Member_version const communication_protocol =
-      convert_to_mysql_version(m_gcs_protocol);
-  consensus_leaders_handler->set_consensus_leaders(
-      communication_protocol, is_single_primary_mode, my_role, my_gcs_id);
-
-  return 0;
-}
-
 int Communication_protocol_action::process_action_message(
     Group_action_message &message, const std::string &) {
   assert(m_gcs_protocol == Gcs_protocol_version::UNKNOWN ||
          m_gcs_protocol == message.get_gcs_protocol());
   assert(!m_protocol_change_done.valid());
 
-  int result = 1;
+  int constexpr SUCCESS = 0;
+  int constexpr FAILURE = 1;
+  int result = FAILURE;
 
   m_gcs_protocol = message.get_gcs_protocol();
 
@@ -91,20 +60,17 @@ int Communication_protocol_action::process_action_message(
       gcs_module->set_protocol_version(m_gcs_protocol);
 
   /* Check if the protocol will be changed. */
-  if (will_change_protocol) {
-    result = set_consensus_leaders();
-  }
+  if (will_change_protocol) result = SUCCESS;
 
   /* Inform action caller of error. */
-  if (result == 1) {
+  if (result == FAILURE) {
     std::string error_message;
     auto const max_supported_protocol =
         gcs_module->get_maximum_protocol_version();
     Member_version const &max_supported_version =
         convert_to_mysql_version(max_supported_protocol);
     error_message =
-        "Aborting the communication protocol change because some older "
-        "members "
+        "Aborting the communication protocol change because some older members "
         "of the group only support up to protocol version " +
         max_supported_version.get_version_string() +
         ". To upgrade the protocol first remove the older members from the "

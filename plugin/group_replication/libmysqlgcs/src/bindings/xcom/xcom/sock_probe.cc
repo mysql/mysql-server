@@ -34,20 +34,18 @@
 #include "xcom/site_struct.h"
 #include "xcom/task.h"
 #include "xcom/x_platform.h"
-#include "xcom/xcom_cfg.h"
 #include "xcom/xcom_detector.h"
-#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xdr_gen/xcom_vp.h"
 
 #ifdef _WIN32
-#include "xcom/sock_probe_win32.h"
+#include "xcom/sock_probe_win32.cc"
 #else
-#include "xcom/sock_probe_ix.h"
+#include "xcom/sock_probe_ix.cc"
 #endif
 
 /* compare two sockaddr */
-bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
+static bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
   size_t size_to_compare;
   if (x->sa_family != y->sa_family) return 0;
 
@@ -89,22 +87,14 @@ node_no xcom_find_node_index(node_list *nodes) {
   node_no retval = VOID_NODE_NO;
   char name[IP_MAX_SIZE];
   xcom_port port = 0;
-  struct addrinfo *addr = nullptr;
-  struct addrinfo *saved_addr = nullptr;
-  std::string net_namespace;
+  struct addrinfo *addr = 0;
+  struct addrinfo *saved_addr = 0;
 
-  sock_probe *s = (sock_probe *)xcom_calloc((size_t)1, sizeof(sock_probe));
-
-  Network_namespace_manager *ns_mgr = cfg_app_get_network_namespace_manager();
-  if (ns_mgr) ns_mgr->channel_get_network_namespace(net_namespace);
-  if (!net_namespace.empty()) {  // If the namespace is configured
-                                 /* purecov: begin deadcode */
-    ns_mgr->set_network_namespace(net_namespace);
-    /* purecov: end */
-  }
+  sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
 
   if (init_sock_probe(s) < 0) {
-    goto end_loop;
+    free(s);
+    return retval;
   }
 
   /* For each node in list */
@@ -126,19 +116,16 @@ node_no xcom_find_node_index(node_list *nodes) {
       saved_addr = addr = probe_get_addrinfo(name);
       IFDBG(D_NONE, FN; STRLIT("name "); STRLIT(name); PTREXP(addr));
       /* getaddrinfo returns linked list of addrinfo */
-      bool using_net_ns = !net_namespace.empty();
       while (addr) {
         int j;
-        /* Match sockaddr of host with list of interfaces on this machine.
-         * Skip disabled interfaces when using root namespace. Don't skip it
-         * otherwise*/
+        /* Match sockaddr of host with list of interfaces on this machine. Skip
+         * disabled interfaces */
         for (j = 0; j < number_of_interfaces(s); j++) {
           struct sockaddr *tmp_sockaddr = NULL;
           get_sockaddr_address(s, j, &tmp_sockaddr);
-          bool should_skip_active = using_net_ns ? true : is_if_running(s, j);
           if (tmp_sockaddr != NULL &&
               sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
-              should_skip_active) {
+              is_if_running(s, j)) {
             retval = i;
             goto end_loop;
           }
@@ -151,46 +138,28 @@ node_no xcom_find_node_index(node_list *nodes) {
   }
 /* Free resources and return result */
 end_loop:
-  if (!net_namespace.empty()) {  // If the namespace is configured
-    ns_mgr->restore_original_network_namespace();
-  }
-
-  if (saved_addr) {
-    probe_free_addrinfo(saved_addr);
-  }
-
+  probe_free_addrinfo(saved_addr);
   close_sock_probe(s);
   return retval;
 }
 
 node_no xcom_mynode_match(char *name, xcom_port port) {
   node_no retval = 0;
-  struct addrinfo *addr = nullptr;
-  struct addrinfo *saved_addr = nullptr;
-  std::string net_namespace;
-  bool using_net_ns;
+  struct addrinfo *addr = 0;
+  struct addrinfo *saved_addr = 0;
 
   if (match_port && !match_port(port)) return 0;
 
   {
-    sock_probe *s = (sock_probe *)xcom_calloc((size_t)1, sizeof(sock_probe));
-
-    Network_namespace_manager *ns_mgr = cfg_app_get_network_namespace_manager();
-    if (ns_mgr) ns_mgr->channel_get_network_namespace(net_namespace);
-    if (!net_namespace.empty()) {  // If the namespace is configured
-                                   /* purecov: begin deadcode */
-      ns_mgr->set_network_namespace(net_namespace);
-      /* purecov: end */
-    }
-
+    sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
     if (init_sock_probe(s) < 0) {
-      goto end_loop;
+      free(s);
+      return retval;
     }
 
     saved_addr = addr = probe_get_addrinfo(name);
     IFDBG(D_NONE, FN; STREXP(name); PTREXP(addr));
     /* getaddrinfo returns linked list of addrinfo */
-    using_net_ns = !net_namespace.empty();
     while (addr) {
       int j;
       /* Match sockaddr of host with list of interfaces on this machine.
@@ -198,10 +167,9 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
       for (j = 0; j < number_of_interfaces(s); j++) {
         struct sockaddr *tmp_sockaddr = NULL;
         get_sockaddr_address(s, j, &tmp_sockaddr);
-        bool should_skip_active = using_net_ns ? true : is_if_running(s, j);
         if (tmp_sockaddr != NULL &&
             sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
-            should_skip_active) {
+            is_if_running(s, j)) {
           retval = 1;
           goto end_loop;
         }
@@ -210,14 +178,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
     }
   /* Free resources and return result */
   end_loop:
-    if (!net_namespace.empty()) {  // If the namespace is configured
-      ns_mgr->restore_original_network_namespace();
-    }
-
-    if (saved_addr) {
-      probe_free_addrinfo(saved_addr);
-    }
-
+    probe_free_addrinfo(saved_addr);
     close_sock_probe(s);
   }
   return retval;

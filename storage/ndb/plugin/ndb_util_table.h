@@ -34,9 +34,6 @@
 
 class NdbRecAttr;
 class Thd_ndb;
-namespace dd {
-class Table;
-}
 
 // Base class used for working with tables created in NDB by the
 // ndbcluster plugin
@@ -69,7 +66,6 @@ class Ndb_util_table {
   bool check_column_exist(const char *name) const;
 
   bool check_column_varbinary(const char *name) const;
-  bool check_column_varchar(const char *name) const;
   bool check_column_binary(const char *name) const;
   bool check_column_unsigned(const char *name) const;
   bool check_column_bigunsigned(const char *name) const;
@@ -237,14 +233,6 @@ class Ndb_util_table {
      @return true if table was upgraded successfully
    */
   bool upgrade();
-
-  /**
-     @brief Check if table need to be reinstalled in DD.
-     This mechanism can be used to rewrite the table definition in DD without
-     changing the physical table in NDB.
-     @return true if reinstall is needed
-   */
-  virtual bool need_reinstall(const dd::Table *) const { return false; }
 
   /**
      @brief Create DDL for creating the table definition

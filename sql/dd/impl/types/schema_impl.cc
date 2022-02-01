@@ -287,7 +287,7 @@ View *Schema_impl::create_view(THD *thd) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view(THD *thd [[maybe_unused]]) const {
+View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const {
 // Creating system views requires an IX meta data lock on the schema name.
 #ifndef NDEBUG
   char name_buf[NAME_LEN + 1];

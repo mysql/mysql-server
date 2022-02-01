@@ -30,7 +30,6 @@
 class THD;
 class Thd_ndb;
 class Acl_change_notification;
-class NdbTransaction;
 
 /*
    All functions return true on success
@@ -57,10 +56,6 @@ Strategy handle_local_acl_change(THD *, const class Acl_change_notification *,
 bool update_users_from_snapshot(THD *, std::string user_list);
 
 void maintain_cache(THD *);
-
-NdbTransaction *acquire_snapshot_lock(THD *);
-
-void release_snapshot_lock(NdbTransaction *);
 
 }  // namespace Ndb_stored_grants
 

@@ -92,7 +92,6 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
-Warning	MY-010075	Server
 System	MY-013576	InnoDB
 Note	MY-012944	InnoDB
 Note	MY-012945	InnoDB
@@ -118,8 +117,6 @@ Note	MY-013252	InnoDB
 Note	MY-013252	InnoDB
 Note	MY-012910	InnoDB
 Note	MY-011980	InnoDB
-Note	MY-013776	InnoDB
-Note	MY-013777	InnoDB
 Note	MY-012923	InnoDB
 Note	MY-012265	InnoDB
 Note	MY-012266	InnoDB
@@ -132,6 +129,7 @@ Note	MY-012357	InnoDB
 Note	MY-012356	InnoDB
 Note	MY-010006	Server
 Note	MY-011332	Server
+Warning	MY-010075	Server
 Note	MY-012487	InnoDB
 Note	MY-012488	InnoDB
 Note	MY-010303	Server
@@ -166,22 +164,6 @@ WHERE logged>=@startup
 AND prio NOT IN("System", "Warning", "Error");
 COUNT(*)>0
 1
-
-########################################################################
-# Restart with a broken trad log ...
-
-# restart: --log-error=LOG_FILE_TRAD --log-error-verbosity=3
-SET @@session.time_zone=@@global.log_timestamps;
-SELECT logged INTO @startup
-FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
-SELECT LEFT(logged,19), error_code, subsystem, data
-FROM performance_schema.error_log
-WHERE logged<@startup AND error_code="MY-999999";
-LEFT(logged,19)	error_code	subsystem	data
-2000-01-01 00:00:00	MY-999999	Server	Fake start
-2000-01-01 00:00:02	MY-999999	Server	No message found for this event while parsing a traditional error log! If you wish to investigate this, use this event's timestamp to find the offending line in the error log file.
-2000-01-01 00:00:03	MY-999999	Server	Fake end
 
 ########################################################################
 # Restart with JSON logging ...

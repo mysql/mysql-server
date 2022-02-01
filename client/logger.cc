@@ -34,12 +34,11 @@ ostream &operator<<(ostream &os, const Datetime &) {
   const char format[] = "%Y-%m-%d %X";
   time_t t(time(nullptr));
   tm tm(*localtime(&t));
-
-  const size_t date_length{50};
-  std::unique_ptr<char[]> date{new char[date_length]};
-  strftime(date.get(), date_length, format, &tm);
-
-  os << date.get() << " ";
+  std::locale loc(cout.getloc());
+  ostringstream sout;
+  const std::time_put<char> &tput = std::use_facet<std::time_put<char>>(loc);
+  tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[11]);
+  os << sout.str() << " ";
   return os;
 }
 

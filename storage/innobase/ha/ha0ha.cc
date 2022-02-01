@@ -45,14 +45,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const ulint MAX_N_POINTERS = UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
+/** Creates a hash table with at least n array cells.  The actual number
+ of cells is chosen to be a prime number slightly bigger than n.
+ @return own: created table */
+hash_table_t *ib_create(ulint n,       /*!< in: number of array cells */
+                        latch_id_t id, /*!< in: latch ID */
+                        ulint n_sync_obj,
+                        /*!< in: number of mutexes to protect the
+                        hash table: must be a power of 2, or 0 */
+                        ulint type) /*!< in: type of datastructure for which
+                                    MEM_HEAP_FOR_PAGE_HASH */
+{
   hash_table_t *table;
 
   ut_a(type == MEM_HEAP_FOR_BTR_SEARCH || type == MEM_HEAP_FOR_PAGE_HASH);
 
   ut_ad(ut_is_2pow(n_sync_obj));
   table = hash_create(n);
-  ut_ad(table->heap == nullptr);
 
   /* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
   but in practise it never should in this case, hence the asserts. */
@@ -65,12 +74,68 @@ hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
         type);
     ut_a(table->heap);
 
-    return table;
+    return (table);
   }
-  ut_ad(type == MEM_HEAP_FOR_PAGE_HASH);
-  /* We create a hash table protected by rw_locks for buf_pool->page_hash. */
-  hash_create_sync_obj(table, id, n_sync_obj);
-  return table;
+
+  if (type == MEM_HEAP_FOR_PAGE_HASH) {
+    /* We create a hash table protected by rw_locks for
+    buf_pool->page_hash. */
+    hash_create_sync_obj(table, HASH_TABLE_SYNC_RW_LOCK, id, n_sync_obj);
+  } else {
+    hash_create_sync_obj(table, HASH_TABLE_SYNC_MUTEX, id, n_sync_obj);
+  }
+
+  table->heaps =
+      static_cast<mem_heap_t **>(ut_malloc_nokey(n_sync_obj * sizeof(void *)));
+
+  for (ulint i = 0; i < n_sync_obj; i++) {
+    table->heaps[i] = mem_heap_create_typed(
+        ut_min(static_cast<ulint>(4096), MEM_MAX_ALLOC_IN_BUF / 2 -
+                                             MEM_BLOCK_HEADER_SIZE -
+                                             MEM_SPACE_NEEDED(0)),
+        type);
+    ut_a(table->heaps[i]);
+  }
+
+  return (table);
+}
+
+/** Recreate a hash table with at least n array cells. The actual number
+of cells is chosen to be a prime number slightly bigger than n.
+The new cells are all cleared. The heaps are recreated.
+The sync objects are reused.
+@param[in,out]	table	hash table to be resuzed (to be freed later)
+@param[in]	n	number of array cells
+@return	resized new table */
+hash_table_t *ib_recreate(hash_table_t *table, ulint n) {
+  /* This function is for only page_hash for now */
+  ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+  ut_ad(table->n_sync_obj > 0);
+
+  hash_table_t *new_table = hash_create(n);
+
+  new_table->type = table->type;
+  new_table->n_sync_obj = table->n_sync_obj;
+  new_table->sync_obj = table->sync_obj;
+
+  for (ulint i = 0; i < table->n_sync_obj; i++) {
+    mem_heap_free(table->heaps[i]);
+  }
+  ut_free(table->heaps);
+
+  new_table->heaps = static_cast<mem_heap_t **>(
+      ut_malloc_nokey(new_table->n_sync_obj * sizeof(void *)));
+
+  for (ulint i = 0; i < new_table->n_sync_obj; i++) {
+    new_table->heaps[i] = mem_heap_create_typed(
+        ut_min(static_cast<ulint>(4096), MEM_MAX_ALLOC_IN_BUF / 2 -
+                                             MEM_BLOCK_HEADER_SIZE -
+                                             MEM_SPACE_NEEDED(0)),
+        MEM_HEAP_FOR_PAGE_HASH);
+    ut_a(new_table->heaps[i]);
+  }
+
+  return (new_table);
 }
 
 /** Empties a hash table and frees the memory heaps. */
@@ -78,15 +143,35 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
 {
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
   ut_ad(!table->adaptive || btr_search_own_all(RW_LOCK_X));
-  ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-  ut_ad(table->heap == nullptr);
 
-  for (ulint i = 0; i < table->n_sync_obj; ++i) {
-    rw_lock_free(&table->rw_locks[i]);
+  for (ulint i = 0; i < table->n_sync_obj; i++) {
+    mem_heap_free(table->heaps[i]);
   }
 
-  ut::free(table->rw_locks);
-  table->rw_locks = nullptr;
+  ut_free(table->heaps);
+
+  switch (table->type) {
+    case HASH_TABLE_SYNC_MUTEX:
+      for (ulint i = 0; i < table->n_sync_obj; ++i) {
+        mutex_destroy(&table->sync_obj.mutexes[i]);
+      }
+      ut_free(table->sync_obj.mutexes);
+      table->sync_obj.mutexes = nullptr;
+      break;
+
+    case HASH_TABLE_SYNC_RW_LOCK:
+      for (ulint i = 0; i < table->n_sync_obj; ++i) {
+        rw_lock_free(&table->sync_obj.rw_locks[i]);
+      }
+
+      ut_free(table->sync_obj.rw_locks);
+      table->sync_obj.rw_locks = nullptr;
+      break;
+
+    case HASH_TABLE_SYNC_NONE:
+      /* do nothing */
+      break;
+  }
 
   table->n_sync_obj = 0;
   table->type = HASH_TABLE_SYNC_NONE;
@@ -396,7 +481,7 @@ builds, see http://bugs.mysql.com/36941 */
   fprintf(file, ", used cells %lu", (ulong)cells);
 #endif /* PRINT_USED_CELLS */
 
-  if (table->heap != nullptr) {
+  if (table->heaps == nullptr && table->heap != nullptr) {
     /* This calculation is intended for the adaptive hash
     index: how many buffer frames we have reserved? */
 

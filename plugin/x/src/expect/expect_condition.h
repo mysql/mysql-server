@@ -40,9 +40,10 @@ class Expect_condition {
   explicit Expect_condition(const uint32_t k, const std::string &v)
       : m_key(k), m_value(v) {}
 
-  Expect_condition(const Expect_condition &other) = default;
+  Expect_condition(const Expect_condition &other)
+      : m_key(other.m_key), m_value(other.m_value) {}
 
-  virtual ~Expect_condition() = default;
+  virtual ~Expect_condition() {}
 
   virtual Expect_condition_ptr clone() = 0;
   virtual ngs::Error_code check_if_error() = 0;

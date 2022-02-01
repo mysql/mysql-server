@@ -770,9 +770,6 @@ z	z
 |	|
 }	}
 ~	~
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 UPDATE t7 SET a=CHAR(ASCII(a)+32) WHERE ASCII(a) >= 65 AND ASCII(a) <= 90;
 UPDATE t7 SET a=CHAR(ASCII(a)-32) WHERE ASCII(a) >= 97 AND ASCII(a) <= 122;
 SELECT a,HEX(a) FROM t7;

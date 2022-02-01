@@ -24,7 +24,7 @@
 
 #ifndef XCOM_STANDALONE
 My_xp_cond_server::My_xp_cond_server()
-    : m_cond(static_cast<mysql_cond_t *>(calloc(1, sizeof(*m_cond)))) {}
+    : m_cond(static_cast<mysql_cond_t *>(malloc(sizeof(*m_cond)))) {}
 
 My_xp_cond_server::~My_xp_cond_server() { free(m_cond); }
 

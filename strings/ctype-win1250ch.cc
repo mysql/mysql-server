@@ -400,7 +400,7 @@ static struct wordvalue doubles[] = {
   ((pointer_cast<const char *>(p) - pointer_cast<const char *>(src)) >= (len))
 
 extern "C" {
-static int my_strnncoll_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_strnncoll_win1250ch(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                   const uchar *s1, size_t len1, const uchar *s2,
                                   size_t len2, bool s2_is_prefix) {
   int v1, v2;
@@ -434,11 +434,10 @@ static int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, const uchar *s,
   return my_strnncoll_win1250ch(cs, s, slen, t, tlen, false);
 }
 
-static size_t my_strnxfrm_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
-                                    uchar *dest, size_t len,
-                                    uint nweights_arg [[maybe_unused]],
-                                    const uchar *src, size_t srclen,
-                                    uint flags) {
+static size_t my_strnxfrm_win1250ch(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uchar *dest, size_t len,
+    uint nweights_arg MY_ATTRIBUTE((unused)), const uchar *src, size_t srclen,
+    uint flags) {
   int value;
   const uchar *p;
   int pass = 0;

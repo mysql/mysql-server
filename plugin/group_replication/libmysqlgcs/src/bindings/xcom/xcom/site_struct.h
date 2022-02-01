@@ -23,45 +23,25 @@
 #ifndef SITE_STRUCT_H
 #define SITE_STRUCT_H
 
-#include "xcom/node_no.h"
 #include "xcom/server_struct.h"
-#include "xcom/synode_no.h"
 #include "xcom/xcom_detector.h"
-#include "xdr_gen/xcom_vp.h"
-
-/* Reserved value to signal that all nodes should be leaders */
-enum { active_leaders_all = 0 };
-
-typedef struct site_def site_def;
-typedef struct pax_msg pax_msg;
-typedef struct linkage linkage;
-
-typedef void (*msg_handler)(site_def const *site, pax_msg *p,
-                            linkage *reply_queue);
 
 struct site_def {
-  synode_no start NULL_SYNODE; /* Config is active from this message number */
-  synode_no boot_key
-      NULL_SYNODE; /* The message number of the original unified_boot */
-  node_no nodeno{VOID_NODE_NO}; /* Node number of this node */
-  node_list nodes{0, nullptr};  /* Set of nodes in this config */
-  server *servers[NSERVERS]{0}; /* Connections to other nodes */
-  detector_state detected{
-      0.0}; /* Time of last incoming message for each node */
-  node_no global_node_count{0}; /* Number of live nodes in global_node_set */
-  node_set global_node_set{0, nullptr}; /* The global view */
-  node_set local_node_set{0, nullptr};  /* The local view */
-  int detector_updated{0};              /* Has detector state been updated? */
-  xcom_proto x_proto{x_unknown_proto};
-  synode_no delivered_msg[NSERVERS]{NULL_SYNODE};
-  double install_time{0.0};
-  xcom_event_horizon event_horizon{EVENT_HORIZON_MIN};
-  node_no max_active_leaders{active_leaders_all}; /* How many leaders can there
-                                 be? >= 1 and <= number of nodes */
-  leader_array leaders{0, nullptr};     /* Leaders as defined by client */
-  msg_handler *dispatch_table{nullptr}; /* Per-config dispatch table */
-  bool cached_leaders{false};           /* Initialized leader cache ? */
-  bool active_leader[NSERVERS]{0};      /* Leader cache */
-  node_no found_leaders{0};             /* Number of leaders found */
+  synode_no start;    /* Config is active from this message number */
+  synode_no boot_key; /* The message number of the original unified_boot */
+  node_no nodeno;     /* Node number of this node */
+  node_list nodes;    /* Set of nodes in this config */
+  server *servers[NSERVERS]; /* Connections to other nodes */
+  detector_state detected;   /* Time of last incoming message for each node */
+  node_no global_node_count; /* Number of live nodes in global_node_set */
+  node_set global_node_set;  /* The global view */
+  node_set local_node_set;   /* The local view */
+  int detector_updated;      /* Has detector state been updated? */
+  xcom_proto x_proto;
+  synode_no delivered_msg[NSERVERS];
+  double install_time;
+  xcom_event_horizon event_horizon;
 };
+typedef struct site_def site_def;
+
 #endif

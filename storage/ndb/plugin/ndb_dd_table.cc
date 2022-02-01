@@ -240,18 +240,3 @@ Ndb_dd_table::Ndb_dd_table(THD *thd)
     : m_thd(thd), m_table_def{dd::create_object<dd::Table>()} {}
 
 Ndb_dd_table::~Ndb_dd_table() { delete m_table_def; }
-
-bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
-                                         const dd::String_type &col_name) {
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("column '%s'", col_name.c_str()));
-  const dd::Column *col_def = table_def->get_column(col_name);
-  if (!col_def) {
-    return false;
-  }
-
-  // Constant corresponding to number of my_charset_bin
-  constexpr dd::Object_id BINARY_COLLATION_ID = 63;
-  return col_def->type() == dd::enum_column_types::VARCHAR &&
-         col_def->collation_id() == BINARY_COLLATION_ID;
-}

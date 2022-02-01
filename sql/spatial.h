@@ -62,7 +62,7 @@ class point_xy {
  public:
   double x;
   double y;
-  point_xy() = default;
+  point_xy() {}
   point_xy(double x_arg, double y_arg) : x(x_arg), y(y_arg) {}
   double distance(const point_xy &p) const;
   /**
@@ -335,7 +335,7 @@ class Geometry {
     const char *m_data_end;
 
    public:
-    wkb_container() = default;
+    wkb_container() {}
     wkb_container(const char *data, const char *data_end) {
       set(data, data_end);
     }
@@ -471,27 +471,27 @@ class Geometry {
   virtual uint32 get_data_size() const { return -1; }
 
   /* read from trs the wkt string and write into wkb as wkb encoded data. */
-  virtual bool init_from_wkt(Gis_read_stream *trs [[maybe_unused]],
-                             String *wkb [[maybe_unused]]) {
+  virtual bool init_from_wkt(Gis_read_stream *trs MY_ATTRIBUTE((unused)),
+                             String *wkb MY_ATTRIBUTE((unused))) {
     return true;
   }
 
   /* read from wkb the wkb data and write into res as wkb encoded data. */
   /* returns the length of the wkb that was read */
-  virtual uint init_from_wkb(THD *thd [[maybe_unused]],
-                             const char *wkb [[maybe_unused]],
-                             uint len [[maybe_unused]],
-                             wkbByteOrder bo [[maybe_unused]],
-                             String *res [[maybe_unused]]) {
+  virtual uint init_from_wkb(THD *thd MY_ATTRIBUTE((unused)),
+                             const char *wkb MY_ATTRIBUTE((unused)),
+                             uint len MY_ATTRIBUTE((unused)),
+                             wkbByteOrder bo MY_ATTRIBUTE((unused)),
+                             String *res MY_ATTRIBUTE((unused))) {
     return 0;
   }
 
-  virtual bool get_data_as_wkt(String *txt [[maybe_unused]],
-                               wkb_parser *wkb [[maybe_unused]]) const {
+  virtual bool get_data_as_wkt(String *txt MY_ATTRIBUTE((unused)),
+                               wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
     return true;
   }
-  virtual bool get_mbr(MBR *mbr [[maybe_unused]],
-                       wkb_parser *wkb [[maybe_unused]]) const {
+  virtual bool get_mbr(MBR *mbr MY_ATTRIBUTE((unused)),
+                       wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
     return true;
   }
   bool get_mbr(MBR *mbr) {
@@ -518,30 +518,45 @@ class Geometry {
     return 0;
   }
 
-  virtual int get_x(double *x [[maybe_unused]]) const { return -1; }
-  virtual int get_y(double *y [[maybe_unused]]) const { return -1; }
-  virtual int geom_length(double *len [[maybe_unused]]) const { return -1; }
-  virtual int is_closed(int *closed [[maybe_unused]]) const { return -1; }
-  virtual int num_interior_ring(uint32 *n_int_rings [[maybe_unused]]) const {
+  virtual int get_x(double *x MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int get_y(double *y MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int geom_length(double *len MY_ATTRIBUTE((unused))) const {
     return -1;
   }
-  virtual int num_points(uint32 *n_points [[maybe_unused]]) const { return -1; }
-  virtual int num_geometries(uint32 *num [[maybe_unused]]) const { return -1; }
-  virtual int copy_points(String *result [[maybe_unused]]) const { return -1; }
+  virtual int is_closed(int *closed MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int num_interior_ring(
+      uint32 *n_int_rings MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int num_points(uint32 *n_points MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int num_geometries(uint32 *num MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int copy_points(String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
   /* The following 7 functions return geometries in wkb format. */
-  virtual int start_point(String *point [[maybe_unused]]) const { return -1; }
-  virtual int end_point(String *point [[maybe_unused]]) const { return -1; }
-  virtual int exterior_ring(String *ring [[maybe_unused]]) const { return -1; }
-  virtual int point_n(uint32 num [[maybe_unused]],
-                      String *result [[maybe_unused]]) const {
+  virtual int start_point(String *point MY_ATTRIBUTE((unused))) const {
     return -1;
   }
-  virtual int interior_ring_n(uint32 num [[maybe_unused]],
-                              String *result [[maybe_unused]]) const {
+  virtual int end_point(String *point MY_ATTRIBUTE((unused))) const {
     return -1;
   }
-  virtual int geometry_n(uint32 num [[maybe_unused]],
-                         String *result [[maybe_unused]]) const {
+  virtual int exterior_ring(String *ring MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int point_n(uint32 num MY_ATTRIBUTE((unused)),
+                      String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int interior_ring_n(uint32 num MY_ATTRIBUTE((unused)),
+                              String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int geometry_n(uint32 num MY_ATTRIBUTE((unused)),
+                         String *result MY_ATTRIBUTE((unused))) const {
     return -1;
   }
 
@@ -1211,7 +1226,7 @@ class Gis_point : public Geometry {
 
   Gis_point(const self &pt);
 
-  ~Gis_point() override = default;
+  ~Gis_point() override {}
 
   Gis_point &operator=(const Gis_point &rhs);
 
@@ -1354,7 +1369,7 @@ class Gis_wkb_vector_const_iterator {
     m_owner = const_cast<owner_t *>(owner);
   }
 
-  ~Gis_wkb_vector_const_iterator() = default;
+  ~Gis_wkb_vector_const_iterator() {}
   //@}
 
   ////////////////////////////////////////////////////////////////////
@@ -1665,7 +1680,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   Gis_wkb_vector_iterator(index_type idx, const owner_t *owner)
       : base(idx, owner) {}
 
-  ~Gis_wkb_vector_iterator() = default;
+  ~Gis_wkb_vector_iterator() {}
   //@}
 
   ////////////////////////////////////////////////////////////////////
@@ -2133,7 +2148,7 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
     set_geotype(wkb_linestring);
   }
 
-  Gis_line_string(const self &ls) = default;
+  Gis_line_string(const self &ls) : base_type(ls) {}
 
   Gis_line_string &operator=(const Gis_line_string &) = default;
 };
@@ -2149,7 +2164,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
 
-  ~Gis_polygon_ring() override = default;
+  ~Gis_polygon_ring() override {}
   Gis_polygon_ring(const void *wkb, size_t nbytes, const Flags_t &flags,
                    gis::srid_t srid)
       : base(wkb, nbytes, flags, srid, true) {
@@ -2158,7 +2173,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
 
   // Coordinate data type, closed-ness and direction will never change, thus no
   // need for the template version of copy constructor.
-  Gis_polygon_ring(const self &r) = default;
+  Gis_polygon_ring(const self &r) : base(r) {}
 
   Gis_polygon_ring &operator=(const Gis_polygon_ring &) = default;
 
@@ -2320,7 +2335,7 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
     set_geotype(wkb_multipoint);
   }
 
-  Gis_multi_point(const self &mpts) = default;
+  Gis_multi_point(const self &mpts) : base_type(mpts) {}
 };
 
 /***************************** MultiLineString *******************************/
@@ -2360,7 +2375,7 @@ class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
     set_geotype(wkb_multilinestring);
   }
 
-  Gis_multi_line_string(const self &mls) = default;
+  Gis_multi_line_string(const self &mls) : base(mls) {}
 };
 
 /***************************** MultiPolygon *******************************/
@@ -2397,7 +2412,7 @@ class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
     set_geotype(wkb_multipolygon);
   }
 
-  Gis_multi_polygon(const self &mpl) = default;
+  Gis_multi_polygon(const self &mpl) : base(mpl) {}
 };
 
 /*********************** GeometryCollection *******************************/
@@ -2450,7 +2465,7 @@ struct Geometry_buffer {
 
 class WKB_scanner_event_handler {
  public:
-  virtual ~WKB_scanner_event_handler() = default;
+  virtual ~WKB_scanner_event_handler() {}
 
   /**
     Notified when scanner sees the start of a geometry WKB.

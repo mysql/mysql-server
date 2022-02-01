@@ -63,7 +63,7 @@ class PFS_index_file_instances : public PFS_engine_index {
  public:
   PFS_index_file_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_file_instances() override = default;
+  ~PFS_index_file_instances() override {}
 
   virtual bool match(const PFS_file *pfs) = 0;
 };
@@ -73,7 +73,7 @@ class PFS_index_file_instances_by_file_name : public PFS_index_file_instances {
   PFS_index_file_instances_by_file_name()
       : PFS_index_file_instances(&m_key), m_key("FILE_NAME") {}
 
-  ~PFS_index_file_instances_by_file_name() override = default;
+  ~PFS_index_file_instances_by_file_name() override {}
 
   bool match(const PFS_file *pfs) override;
 
@@ -86,7 +86,7 @@ class PFS_index_file_instances_by_event_name : public PFS_index_file_instances {
   PFS_index_file_instances_by_event_name()
       : PFS_index_file_instances(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_file_instances_by_event_name() override = default;
+  ~PFS_index_file_instances_by_event_name() override {}
 
   bool match(const PFS_file *pfs) override;
 
@@ -116,7 +116,7 @@ class table_file_instances : public PFS_engine_table {
   table_file_instances();
 
  public:
-  ~table_file_instances() override = default;
+  ~table_file_instances() override {}
 
  private:
   int make_row(PFS_file *pfs);

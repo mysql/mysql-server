@@ -73,12 +73,12 @@ class GcsXComXComCache : public GcsBaseTest {
         m_sd(nullptr),
         m_thread(nullptr),
         m_run(false) {}
-  ~GcsXComXComCache() override = default;
+  ~GcsXComXComCache() override {}
 
   void SetUp() override {
     m_synode = {1, 1, 0};
     m_addr = new std::string("127.0.0.1:12345");
-    char const *names[]{m_addr->c_str()};
+    char *names[] = {const_cast<char *>(m_addr->c_str())};
     m_na = new_node_address(1, names);
     m_sd = new_site_def();
     init_site_def(1, m_na, m_sd);

@@ -50,7 +50,7 @@ struct FsRef {
   /**
    * Enum type for errorCode
    */
-  static constexpr Uint32 FS_ERR_BIT = 0x8000;
+  STATIC_CONST( FS_ERR_BIT = 0x8000 );
 
   enum NdbfsErrorCodeType {
     fsErrNone=0,
@@ -72,7 +72,7 @@ struct FsRef {
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   /**
    * DATA VARIABLES

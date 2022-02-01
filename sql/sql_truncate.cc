@@ -580,11 +580,11 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
       */
     case Truncate_result::OK:
       m_error = false;
-      [[fallthrough]];
+      // fallthrough
     case Truncate_result::FAILED_BUT_BINLOG:
       binlog_stmt = true;
       binlog_is_trans = table_ref->table->file->has_transactions();
-      [[fallthrough]];
+      // fallthrough
     case Truncate_result::FAILED_SKIP_BINLOG:
       /*
         Call to handler_truncate() might have updated table definition

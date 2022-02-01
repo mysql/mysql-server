@@ -191,8 +191,8 @@ int table_file_instances::make_row(PFS_file *pfs) {
 
   m_row.m_filename = pfs->m_filename;
   m_row.m_filename_length = pfs->m_filename_length;
-  m_row.m_event_name = safe_class->m_name.str();
-  m_row.m_event_name_length = safe_class->m_name.length();
+  m_row.m_event_name = safe_class->m_name;
+  m_row.m_event_name_length = safe_class->m_name_length;
   m_row.m_open_count = pfs->m_file_stat.m_open_count;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {

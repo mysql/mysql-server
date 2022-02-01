@@ -501,7 +501,7 @@ struct node_page_t : public basic_page_t {
   }
 
   /** Default ctor */
-  node_page_t() = default;
+  node_page_t() {}
 
   node_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {}
 

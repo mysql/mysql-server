@@ -36,8 +36,6 @@ CREATE TABLE `mysql`.`password_history` (
 CREATE TABLE `mysql`.`plugin` (
 CREATE TABLE `mysql`.`replication_asynchronous_connection_failover` (
 CREATE TABLE `mysql`.`replication_asynchronous_connection_failover_managed` (
-CREATE TABLE `mysql`.`replication_group_configuration_version` (
-CREATE TABLE `mysql`.`replication_group_member_actions` (
 CREATE TABLE `mysql`.`server_cost` (
 CREATE TABLE `mysql`.`servers` (
 CREATE TABLE `mysql`.`slave_worker_info` (
@@ -46,7 +44,7 @@ CREATE TABLE `mysql`.`time_zone_leap_second` (
 CREATE TABLE `mysql`.`time_zone_name` (
 CREATE TABLE `mysql`.`time_zone_transition` (
 CREATE TABLE `mysql`.`time_zone_transition_type` (
-Occurrences of 'CREATE TABLE' in the input file: 21
+Occurrences of 'CREATE TABLE' in the input file: 19
 #
 # Bug #83144: mysqlpump reads mysql_dump group, not mysqlpump in config-group
 #

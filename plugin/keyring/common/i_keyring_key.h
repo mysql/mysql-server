@@ -29,10 +29,10 @@
 
 namespace keyring {
 
-constexpr const char *AES = "AES";
-constexpr const char *RSA = "RSA";
-constexpr const char *DSA = "DSA";
-constexpr const char *SECRET = "SECRET";
+const std::string AES = "AES";
+const std::string RSA = "RSA";
+const std::string DSA = "DSA";
+const std::string SECRET = "SECRET";
 
 enum class Operation_type { fetch = 0, store, remove, generate };
 
@@ -61,7 +61,7 @@ struct IKey : public Keyring_alloc {
   virtual bool is_key_valid() = 0;
   virtual bool is_key_length_valid() = 0;
 
-  virtual ~IKey() = default;
+  virtual ~IKey() {}
 
  protected:
   virtual void set_key_type_enum(const std::string *key_type) = 0;

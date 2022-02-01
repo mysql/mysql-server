@@ -51,8 +51,6 @@ class Ndb_apply_status_table : public Ndb_util_table {
 
   bool need_upgrade() const override;
 
-  bool need_reinstall(const dd::Table *table_def) const override;
-
   std::string define_table_dd() const override;
 
   /**

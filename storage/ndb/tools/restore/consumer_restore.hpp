@@ -27,6 +27,8 @@
 
 #include "consumer.hpp"
 
+bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
+
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
@@ -61,6 +63,8 @@ class BackupRestore : public BackupConsumer
 {
 public:
   BackupRestore(Ndb_cluster_connection *conn,
+                NODE_GROUP_MAP *ng_map,
+                uint ng_map_len,
                 const char *instance_name,
                 Uint32 parallelism) :
     m_ndb(NULL),
@@ -70,6 +74,8 @@ public:
     ,m_error_insert(0)
 #endif
   {
+    m_nodegroup_map = ng_map;
+    m_nodegroup_map_len = ng_map_len;
     m_n_tablespace = 0;
     m_n_logfilegroup = 0;
     m_n_datafile = 0;
@@ -134,12 +140,19 @@ public:
   bool report_data(unsigned node_id, unsigned backup_id) override;
   bool report_log(unsigned node_id, unsigned backup_id) override;
   bool report_completed(unsigned node_id, unsigned backup_id) override;
+  bool map_in_frm(char *new_data, const char *data,
+                  uint data_len, uint *new_data_len) const;
+  bool search_replace(char *search_str, char **new_data,
+                      const char **data, const char *end_data,
+                      uint *new_data_len) const;
+  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const;
+  Uint32 map_ng(Uint32 ng) const;
+  bool translate_frm(NdbDictionary::Table *table) const;
   bool isMissingTable(const TableS& table) override;
   bool getPkMappingIndex(TableS* table);
   bool tryCreatePkMappingIndex(TableS* table,
                                const char* table_name);
   bool dropPkMappingIndex(const TableS* table);
-  bool handle_index_stat_tables() override;
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);

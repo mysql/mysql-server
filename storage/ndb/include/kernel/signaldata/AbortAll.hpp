@@ -43,7 +43,7 @@ class AbortAllReq {
   friend class Ndbcntr;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
 public:
   
@@ -64,7 +64,7 @@ class AbortAllConf {
   friend class Dbtc;
 
 public:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
   
 public:
   Uint32 senderData;
@@ -83,7 +83,7 @@ class AbortAllRef {
   friend class Dbtc;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
   enum ErrorCode {
     InvalidState = 1,

@@ -33,6 +33,8 @@
 #include <utility>
 #include <vector>
 
+#include "my_compiler.h"
+
 #include "template_utils.h"
 
 #if defined(EXTRA_CODE_FOR_UNIT_TESTING)
@@ -390,7 +392,8 @@ class Priority_queue : public Less {
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
   */
-  [[nodiscard]] bool reserve(size_type n) {
+  MY_ATTRIBUTE((warn_unused_result))
+  bool reserve(size_type n) {
     assert(n <= m_container.max_size());
     try {
       m_container.reserve(n);

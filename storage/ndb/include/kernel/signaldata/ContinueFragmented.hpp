@@ -46,7 +46,7 @@ private:
     CONTINUE_CLEANUP = 1
   };
   
-  static constexpr Uint32 CONTINUE_CLEANUP_FIXED_WORDS = 5;
+  STATIC_CONST(CONTINUE_CLEANUP_FIXED_WORDS = 5);
 
   enum {
     RES_FRAGSEND = 0, /* Fragmented send lists */

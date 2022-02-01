@@ -124,8 +124,7 @@ class log_service_imp {
     Flush any buffers.  This function will be called by the server
     on FLUSH ERROR LOGS.  The service may write its buffers, close
     and re-open any log files to work with log-rotation, etc.
-    The flush function MUST NOT itself log anything (as the caller
-    holds THR_LOCK_log_stack)!
+    The flush function MUST NOT itself log anything!
     A service implementation may provide a nullptr if it does not
     wish to provide a flush function.
 

@@ -1,4 +1,3 @@
---source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 # Test has more than one channel, so cannot run with

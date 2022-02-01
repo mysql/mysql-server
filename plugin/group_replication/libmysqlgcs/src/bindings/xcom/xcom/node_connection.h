@@ -35,8 +35,6 @@
 
 #endif
 
-#include "xcom/network/include/network_provider.h"
-#include "xcom/xcom_memory.h"
 #include "xcom/xcom_proto.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -51,15 +49,14 @@ struct connection_descriptor {
   con_state connected_;
   unsigned int snd_tag;
   xcom_proto x_proto;
-  enum_transport_protocol protocol_stack;
 };
 
 typedef struct connection_descriptor connection_descriptor;
 
 #ifndef XCOM_WITHOUT_OPENSSL
 static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
-  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
-      (size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c =
+      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->ssl_fd = ssl_fd;
   c->connected_ = CON_NULL;
@@ -67,8 +64,8 @@ static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
 }
 #else
 static inline connection_descriptor *new_connection(int fd) {
-  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
-      (size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c =
+      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->connected_ = CON_NULL;
   return c;
@@ -84,11 +81,6 @@ static inline int proto_done(connection_descriptor *con) {
 
 static inline void set_connected(connection_descriptor *con, con_state val) {
   con->connected_ = val;
-}
-
-static inline void set_protocol_stack(connection_descriptor *con,
-                                      enum_transport_protocol val) {
-  con->protocol_stack = val;
 }
 
 #endif /* NODE_CONNECTION_H */

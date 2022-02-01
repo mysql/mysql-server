@@ -38,6 +38,7 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
+#include "router_config.h"
 #include "tcp_address.h"
 
 namespace mysql_harness {
@@ -226,8 +227,8 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @param env pointer to the PluginFuncEnv object
    */
-  virtual void start(const mysql_harness::PluginFuncEnv *env [[maybe_unused]]) {
-  }
+  virtual void start(
+      const mysql_harness::PluginFuncEnv *env MY_ATTRIBUTE((unused))) {}
 
   AddrVector::iterator begin() { return destinations_.begin(); }
 
@@ -256,7 +257,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
    * @returns new destinations, if there are any.
    */
   virtual stdx::expected<Destinations, void> refresh_destinations(
-      const Destinations &dests [[maybe_unused]]) {
+      const Destinations &dests MY_ATTRIBUTE((unused))) {
     return stdx::make_unexpected();
   }
 

@@ -53,8 +53,8 @@ struct DictCommitReq
   Uint32 senderRef;
   Uint32 op_key;
 
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 GSN = GSN_DICT_COMMIT_REQ;
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( GSN = GSN_DICT_COMMIT_REQ );
 };
 
 struct DictCommitRef
@@ -66,8 +66,8 @@ struct DictCommitRef
   {
     NF_FakeErrorREF = 1
   };
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 GSN = GSN_DICT_COMMIT_REF;
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( GSN = GSN_DICT_COMMIT_REF );
 };
 
 struct DictCommitConf
@@ -75,8 +75,8 @@ struct DictCommitConf
   Uint32 senderData;
   Uint32 senderRef;
 
-  static constexpr Uint32 SignalLength = 2;
-  static constexpr Uint32 GSN = GSN_DICT_COMMIT_CONF;
+  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( GSN = GSN_DICT_COMMIT_CONF );
 };
 
 struct DictAbortReq
@@ -85,8 +85,8 @@ struct DictAbortReq
   Uint32 senderRef;
   Uint32 op_key;
 
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 GSN = GSN_DICT_ABORT_REQ;
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( GSN = GSN_DICT_ABORT_REQ );
 };
 
 struct DictAbortRef
@@ -98,8 +98,8 @@ struct DictAbortRef
   {
     NF_FakeErrorREF = 1
   };
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 GSN = GSN_DICT_ABORT_REF;
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( GSN = GSN_DICT_ABORT_REF );
 };
 
 struct DictAbortConf
@@ -107,8 +107,8 @@ struct DictAbortConf
   Uint32 senderData;
   Uint32 senderRef;
 
-  static constexpr Uint32 SignalLength = 2;
-  static constexpr Uint32 GSN = GSN_DICT_ABORT_CONF;
+  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( GSN = GSN_DICT_ABORT_CONF );
 };
 
 

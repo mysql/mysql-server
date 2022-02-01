@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
-
 #include "sql/sql_show_processlist.h"
+
+#include <stddef.h>
 
 #include "lex_string.h"
 #include "m_string.h"  // STRING_WITH_LEN
@@ -40,10 +40,7 @@
 #include "sql/strfunc.h"
 #include "sql_string.h"
 
-/**
-  Implement SHOW PROCESSLIST by using performance schema.processlist
-*/
-bool pfs_processlist_enabled = false;
+extern bool pfs_processlist_enabled;
 
 static const LEX_CSTRING field_id = {STRING_WITH_LEN("ID")};
 static const LEX_CSTRING alias_id = {STRING_WITH_LEN("Id")};
@@ -146,7 +143,7 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
       new (thd->mem_root) PTI_simple_ident_ident(pos, field_info);
   if (ident_info == nullptr) return true;
 
-  /* Info length is either "100" or "1024" depending on verbose */
+  /* Info length is either "25" or "100" depending on verbose */
   Item_int *item_info_len = new (thd->mem_root) Item_int(pos, info_len);
   if (item_info_len == nullptr) return true;
 

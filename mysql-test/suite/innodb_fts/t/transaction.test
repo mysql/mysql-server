@@ -68,7 +68,6 @@ SELECT * FROM t1
         AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
 
 # all records expected except with 'request' 
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('tutorial' WITH QUERY EXPANSION);
@@ -82,12 +81,10 @@ SELECT * FROM t1
         AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
 
 # records having tutorial and MySQL word
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('request MySQL' IN BOOLEAN MODE);
 
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('tutorial' WITH QUERY EXPANSION);
@@ -189,13 +186,11 @@ SELECT * FROM t1
         AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
 
 # query expansion mode 
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('tutorial' WITH QUERY EXPANSION);
 
 # query expansion mode 
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('tutorial' WITH QUERY EXPANSION);
@@ -211,7 +206,6 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('request MySQL' IN BOOLEAN MODE);
 
---sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('tutorial' WITH QUERY EXPANSION);

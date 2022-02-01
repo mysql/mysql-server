@@ -497,7 +497,7 @@ ulonglong sys_var_pluginvar::get_max_value() {
   @retval true not valid
   @retval false valid
 */
-bool sys_var_pluginvar::on_check_pluginvar(sys_var *self [[maybe_unused]],
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
                                            THD *, set_var *var) {
   /* This handler is installed only if NO_DEFAULT is specified */
   assert(((sys_var_pluginvar *)self)->plugin_var->flags & PLUGIN_VAR_NODEFAULT);
@@ -604,7 +604,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
       goto err;
   } else {
     if (value->val_int(value, &tmp) < 0) goto err;
-    if (tmp > 1 || tmp < 0) goto err;
+    if (tmp > 1) goto err;
     result = (int)tmp;
   }
   *(bool *)save = result ? true : false;

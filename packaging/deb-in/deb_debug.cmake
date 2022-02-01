@@ -38,7 +38,6 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DCOMPILATION_COMMENT_SERVER=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME} - Debug\" \\
 		-DINSTALL_LAYOUT=DEB \\
 		-DREPRODUCIBLE_BUILD=OFF \\
-		-DUSE_LD_LLD=OFF \\
 		-DDEB_PRODUCT=${DEB_PRODUCT} \\
 		${DEB_CMAKE_EXTRAS}
 ")
@@ -88,8 +87,6 @@ usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
 usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
-usr/lib/mysql/plugin/debug/semisync_source.so
-usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
@@ -101,9 +98,6 @@ SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
-usr/lib/mysql/plugin/debug/authentication_fido_client.so
-usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
-usr/lib/mysql/plugin/debug/authentication_oci_client.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
@@ -183,8 +177,6 @@ usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
-usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
-usr/lib/mysql/plugin/debug/component_test_table_access.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
@@ -194,7 +186,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
 usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
-usr/lib/mysql/plugin/debug/authentication_kerberos.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
@@ -204,7 +195,7 @@ usr/lib/mysql/plugin/debug/keyring_oci.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
-usr/lib/mysql/plugin/debug/authentication_fido.so
+usr/lib/mysql/plugin/debug/component_test_page_track_component.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 ")
   ENDIF()
@@ -213,18 +204,13 @@ usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/keyring_aws.so
 ")
   ENDIF()
-  SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
-usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
-usr/lib/mysql/plugin/debug/component_test_page_track_component.so
-")
-
 ENDIF()
 SET (DEB_CONTROL_DEBUG
 "
 Package: mysql-${DEB_PRODUCTNAME}-server-debug
 Architecture: any
 Section: debug
-Depends: \${misc:Depends}, mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version})
+Depends: \${misc:Depends}
 Description: Debug binaries for MySQL Server
 
 Package: mysql-${DEB_PRODUCTNAME}-test-debug

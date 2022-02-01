@@ -89,7 +89,8 @@ follows:
 2. Add member function with same name as the command to the Tester class. Its
    signature would be as follows:
 
-   [[nodiscard]] Ret_t hello_world(std::vector<std::string> &tokens) noexcept;
+   Ret_t hello_world(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
    The command has 4 tokens - the command name followed by 3 arguments.  The
    vector will be of size 4.
@@ -166,17 +167,17 @@ struct Tester {
    @param[in]  cmd   the command to run.
    @return 0 on success.
    @return error code on failure. */
-  [[nodiscard]] Ret_t run(ulong cmd) noexcept;
+  Ret_t run(ulong cmd) noexcept MY_ATTRIBUTE((warn_unused_result));
 
   /** Run the given command.
    @param[in]  cmd   the command to run.
    @return 0 on success.
    @return error code on failure. */
-  [[nodiscard]] Ret_t run(const std::string &cmd) noexcept;
+  Ret_t run(const std::string &cmd) noexcept MY_ATTRIBUTE((warn_unused_result));
 
   /** Get the last generated output.
   @return the last generated output. */
-  [[nodiscard]] const char *get_last_log() const noexcept {
+  const char *get_last_log() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
     return m_log.c_str();
   }
 
@@ -191,7 +192,8 @@ struct Tester {
   /** Open the specified table.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t open_table(std::vector<std::string> &tokens) noexcept;
+  Ret_t open_table(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Close the given table.
   @param[in]   table   the table object */
@@ -200,57 +202,54 @@ struct Tester {
   /** Find the space_id of the given table.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_space_id(std::vector<std::string> &tokens) noexcept;
+  Ret_t find_space_id(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Find the root page of the given table.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_root_page_no(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t find_root_page_no(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Find the on-disk page type of the given page.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_ondisk_page_type(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t find_ondisk_page_type(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Find the FIL_PAGE_LSN of the given page.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_fil_page_lsn(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t find_fil_page_lsn(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Find the flush sync lsn from the buffer pool module.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_flush_sync_lsn(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t find_flush_sync_lsn(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Print the page type of pages in dblwr file to server error log.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t print_dblwr_has_encrypted_pages(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t print_dblwr_has_encrypted_pages(
+      std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Obtain the file name of the given tablespace
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t find_tablespace_file_name(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t find_tablespace_file_name(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** A macro to declare a dispatch function or a command function.  They all
   have the same signature.
   @param[in]   func_  the function that is being declared. */
-#define DISPATCH_FUNCTION(func_)                        \
-  /* @param[in] tokens   the command line */            \
-  /* @return RET_PASS on success, or the error code. */ \
-  [[nodiscard]] Ret_t func_(std::vector<std::string> &tokens) noexcept
-
-  /** Count various page_types for given tablespace. */
-  DISPATCH_FUNCTION(count_page_type);
-
-  /** Count various page_types for given tablespace. */
-  DISPATCH_FUNCTION(count_used_and_free);
+#define DISPATCH_FUNCTION(func_)                                       \
+  /* @param[in] tokens   the command line */                           \
+  /* @return RET_PASS on success, or the error code. */                \
+  Ret_t func_(std::vector<std::string> &tokens) noexcept MY_ATTRIBUTE( \
+      (warn_unused_result))
 
   /** Obtain the page size of the given tablespace. */
   DISPATCH_FUNCTION(find_tablespace_physical_page_size);
@@ -265,14 +264,14 @@ struct Tester {
   /** Corrupt the root page of the given table.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t corrupt_ondisk_root_page(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t corrupt_ondisk_root_page(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Corrupt the first page of the given tablespace.
   @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
-  [[nodiscard]] Ret_t corrupt_ondisk_page0(
-      std::vector<std::string> &tokens) noexcept;
+  Ret_t corrupt_ondisk_page0(std::vector<std::string> &tokens) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Set the dblwr::Force_crash to the desired page.  This will
   crash the server after flushing the page to dblwr.
@@ -287,8 +286,8 @@ struct Tester {
   @param[in]  table_name  name of the table to open.
   @return if table is already open return its pointer.
   @return if table is NOT already open return nullptr. */
-  [[nodiscard]] dict_table_t *is_table_open(
-      const std::string &table_name) const noexcept;
+  dict_table_t *is_table_open(const std::string &table_name) const noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Set the output value of the interpreter.
   @param[in]  sout   the output string stream containing the output string. */
@@ -316,7 +315,7 @@ struct Tester {
 
  private:
   /** List of open tables. */
-  std::list<dict_table_t *, ut::allocator<dict_table_t *>> m_open_tables{};
+  std::list<dict_table_t *, ut_allocator<dict_table_t *>> m_open_tables{};
 
   /** Current thread object. */
   THD *m_thd{};
@@ -331,7 +330,7 @@ struct Tester {
 
   using Function_executor = Ret_t (Tester::*)(std::vector<std::string> &);
   using Pair = std::pair<const std::string, Function_executor>;
-  using Allocator = ut::allocator<Pair>;
+  using Allocator = ut_allocator<Pair>;
 
   /** Mapping b/w the command name and the function to execute. */
   std::map<std::string, Function_executor, std::less<std::string>, Allocator>
@@ -341,7 +340,8 @@ struct Tester {
 /** The main function to execute the commands in the tester.
 @param[in]  command  the command to execute.
 @return the error code. */
-[[nodiscard]] int interpreter_run(const char *command) noexcept;
+int interpreter_run(const char *command) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 }  // namespace ib
 

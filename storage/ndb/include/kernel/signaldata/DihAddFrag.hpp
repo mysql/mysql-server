@@ -41,7 +41,7 @@ class DihAddFragConf {
   friend class Dbdih;
     
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 private:  
   Uint32 senderNodeId;
   Uint32 tableId;
@@ -56,7 +56,7 @@ class DihAddFragReq {
   friend class Dbdih;
     
 public:
-  static constexpr Uint32 SignalLength = 10 + MAX_REPLICAS;
+  STATIC_CONST( SignalLength = 10 + MAX_REPLICAS );
 private:
   Uint32 masterRef;
   Uint32 tableId;

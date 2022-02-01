@@ -101,7 +101,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
           case HA_KEYTYPE_VARBINARY1:
             /* Case-insensitiveness is handled in coll->hash_sort */
             keyinfo->seg[j].type = HA_KEYTYPE_VARTEXT1;
-            [[fallthrough]];
+            /* Fall through. */
           case HA_KEYTYPE_VARTEXT1:
             keyinfo->flag |= HA_VAR_LENGTH_KEY;
             /*
@@ -117,7 +117,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
             break;
           case HA_KEYTYPE_VARBINARY2:
             /* Case-insensitiveness is handled in coll->hash_sort */
-            [[fallthrough]];
+            /* fall_through */
           case HA_KEYTYPE_VARTEXT2:
             keyinfo->flag |= HA_VAR_LENGTH_KEY;
             /*

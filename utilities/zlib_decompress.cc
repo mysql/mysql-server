@@ -96,15 +96,8 @@ int main(int argc, char **argv) {
         exit(1);
       }
 
-      size_t bytes_to_write =
-          OUTPUT_BUFFER_SIZE - decompression_context.avail_out;
-      if (fwrite(output_buffer, 1, bytes_to_write, output_file) !=
-          bytes_to_write) {
-        fprintf(stderr,
-                "zlib_decompress: [Error] Encountered problem during "
-                "file write.\n");
-        exit(1);
-      }
+      fwrite(output_buffer, 1,
+             OUTPUT_BUFFER_SIZE - decompression_context.avail_out, output_file);
     } while (decompression_context.avail_out == 0);
   }
 

@@ -110,20 +110,20 @@ class Join_plan {
 */
 class Equal_set_iterator {
  public:
-  explicit Equal_set_iterator(const Item_equal &item_equal)
-      : m_iterator(item_equal.get_fields().begin()),
-        m_end(item_equal.get_fields().end()) {}
+  explicit Equal_set_iterator(Item_equal &item_equal)
+      : m_iterator(item_equal) {}
 
-  const Item_field *next() {
-    if (m_iterator == m_end) {
-      return nullptr;
-    } else {
-      return &*m_iterator++;
-    }
-  }
+  const Item_field *next() { return m_iterator++; }
 
  private:
-  List_STL_Iterator<const Item_field> m_iterator, m_end;
+  /**
+    This class is implemented in terms of this mysqld internal class.
+   */
+  Item_equal_iterator m_iterator;
+
+  // No copying.
+  Equal_set_iterator(const Equal_set_iterator &);
+  Equal_set_iterator &operator=(const Equal_set_iterator &);
 };
 // class Equal_set_iterator
 
@@ -208,6 +208,8 @@ class Table_access {
 
   // Is member of a firstMatch sj_nest?
   bool is_sj_firstmatch() const;
+  // Get the upper-table we skip out to upon a firstMatch
+  int get_firstmatch_return() const;
 
   bool is_antijoin() const;
 

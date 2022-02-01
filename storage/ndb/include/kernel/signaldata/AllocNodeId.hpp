@@ -36,8 +36,8 @@
  */
 class AllocNodeIdReq {
 public:
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 SignalLengthQMGR = 7;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLengthQMGR = 7 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -51,7 +51,7 @@ public:
 
 class AllocNodeIdConf {
 public:
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -62,7 +62,7 @@ public:
 
 class AllocNodeIdRef {
 public:
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   enum ErrorCodes {
     NoError = 0,
@@ -89,7 +89,7 @@ class AllocNodeIdRep
 private:
   friend class Dbdih;
   friend class Qmgr;
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1);
 
   Uint32 nodeId;
 };

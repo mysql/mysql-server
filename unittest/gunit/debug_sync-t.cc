@@ -51,7 +51,7 @@ using thread::Thread;
 
 class DebugSyncTest : public ::testing::Test {
  protected:
-  DebugSyncTest() = default;
+  DebugSyncTest() {}
 
   void SetUp() override {
     // set debug sync timeout of 60 seconds.

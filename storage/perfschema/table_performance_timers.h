@@ -74,7 +74,7 @@ class table_performance_timers : public PFS_engine_table {
   table_performance_timers();
 
  public:
-  ~table_performance_timers() override = default;
+  ~table_performance_timers() override {}
 
  private:
   /** Table share lock. */

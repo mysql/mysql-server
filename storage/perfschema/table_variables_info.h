@@ -93,7 +93,7 @@ class table_variables_info : public PFS_engine_table {
   table_variables_info();
 
  public:
-  ~table_variables_info() override = default;
+  ~table_variables_info() override {}
 
  protected:
   int make_row(const System_variable *system_var);

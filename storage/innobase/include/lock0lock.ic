@@ -44,18 +44,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-static inline ulint lock_rec_fold(const page_id_t page_id) {
+UNIV_INLINE
+ulint lock_rec_fold(const page_id_t page_id) {
   return (ut_fold_ulint_pair(page_id.space(), page_id.page_no()));
 }
 
-static inline ulint lock_rec_hash(const page_id_t &page_id) {
+UNIV_INLINE
+ulint lock_rec_hash(const page_id_t &page_id) {
   return (hash_calc_hash(lock_rec_fold(page_id), lock_sys->rec_hash));
 }
 
 /** Gets the heap_no of the smallest user record on a page.
  @return heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
-static inline ulint lock_get_min_heap_no(
-    const buf_block_t *block) /*!< in: buffer block */
+UNIV_INLINE
+ulint lock_get_min_heap_no(const buf_block_t *block) /*!< in: buffer block */
 {
   const page_t *page = block->frame;
 
@@ -69,7 +71,8 @@ static inline ulint lock_get_min_heap_no(
 }
 
 /** Get the lock hash table */
-static inline hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
+UNIV_INLINE
+hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
 {
   if (mode & LOCK_PREDICATE) {
     return (lock_sys->prdt_hash);

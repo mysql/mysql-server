@@ -66,7 +66,7 @@ class PFS_index_socket_summary_by_instance : public PFS_engine_index {
   PFS_index_socket_summary_by_instance(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
-  ~PFS_index_socket_summary_by_instance() override = default;
+  ~PFS_index_socket_summary_by_instance() override {}
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
@@ -78,7 +78,7 @@ class PFS_index_socket_summary_by_instance_by_instance
       : PFS_index_socket_summary_by_instance(&m_key),
         m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_socket_summary_by_instance_by_instance() override = default;
+  ~PFS_index_socket_summary_by_instance_by_instance() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -92,7 +92,7 @@ class PFS_index_socket_summary_by_instance_by_event_name
   PFS_index_socket_summary_by_instance_by_event_name()
       : PFS_index_socket_summary_by_instance(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_socket_summary_by_instance_by_event_name() override = default;
+  ~PFS_index_socket_summary_by_instance_by_event_name() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -124,7 +124,7 @@ class table_socket_summary_by_instance : public PFS_engine_table {
   table_socket_summary_by_instance();
 
  public:
-  ~table_socket_summary_by_instance() override = default;
+  ~table_socket_summary_by_instance() override {}
 
  private:
   int make_row(PFS_socket *pfs);

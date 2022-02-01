@@ -77,7 +77,7 @@ class Tablespace : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  ~Tablespace() override = default;
+  ~Tablespace() override {}
 
   /**
     Check if the tablespace is empty, i.e., whether it has any tables.
@@ -146,14 +146,6 @@ class Tablespace : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Tablespace *clone() const = 0;
-
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  virtual Tablespace *clone_dropped_object_placeholder() const = 0;
 
   /**
     Converts *this into json.

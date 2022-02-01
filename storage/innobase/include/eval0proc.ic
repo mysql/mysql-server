@@ -36,7 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Performs an execution step of a procedure node.
  @return query thread to run next or NULL */
-static inline que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
+UNIV_INLINE
+que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
 {
   proc_node_t *node;
 
@@ -66,7 +67,8 @@ static inline que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
 
 /** Performs an execution step of a procedure call node.
  @return query thread to run next or NULL */
-static inline que_thr_t *proc_eval_step(que_thr_t *thr) /*!< in: query thread */
+UNIV_INLINE
+que_thr_t *proc_eval_step(que_thr_t *thr) /*!< in: query thread */
 {
   func_node_t *node;
 

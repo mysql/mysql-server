@@ -30,7 +30,7 @@ my_ref_counted::my_ref_counted(my_ref_counted &other)
     : m_count(other.m_count.load()) {}
 
 /* virtual destructor */
-my_ref_counted::~my_ref_counted() = default;
+my_ref_counted::~my_ref_counted() {}
 
 /**
   Increases a reference count.

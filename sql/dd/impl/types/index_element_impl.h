@@ -70,7 +70,7 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
   Index_element_impl(const Index_element_impl &src, Index_impl *parent,
                      Column *column);
 
-  ~Index_element_impl() override = default;
+  ~Index_element_impl() override {}
 
  public:
   const Object_table &object_table() const override;

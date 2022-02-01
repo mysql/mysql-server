@@ -34,7 +34,6 @@
 #include <NdbTick.h>
 #include "ndb_socket.h"
 #include <OwnProcessInfo.hpp>
-#include <EventLogger.hpp>
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -156,10 +155,9 @@ SocketServer::setup(SocketServer::Service * service,
   ndb_socket_len_t addr_len = sizeof(serv_addr);
   if(ndb_getsockname(sock, (struct sockaddr *) &serv_addr, &addr_len))
   {
-    g_eventLogger->info(
-        "An error occurred while trying to find out what port we bound to."
-        " Error: %d - %s",
-        ndb_socket_errno(), strerror(ndb_socket_errno()));
+    ndbout_c("An error occurred while trying to find out what"
+       " port we bound to. Error: %d - %s",
+             ndb_socket_errno(), strerror(ndb_socket_errno()));
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }

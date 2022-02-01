@@ -552,13 +552,13 @@ select make_set();
 select make_set(1);
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select source_pos_wait();
+select master_pos_wait();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select source_pos_wait(1);
+select master_pos_wait(1);
 
 --disable_result_log
 --error 0,ER_WRONG_ARGUMENTS
-select source_pos_wait('binlog.999999', 4, -1);
+select master_pos_wait('binlog.999999', 4, -1);
 --enable_result_log
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
@@ -2630,19 +2630,3 @@ SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS UNSIGNED INTEG
 SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS JSON );
 --error ER_PARSE_ERROR
 SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS REAL );
-
---echo #
---echo # Bug#32230229: MISMATCH EXPLAIN RESULT TO ACTUAL RUN WITH
---echo #               USER-DEFINED VARIABLE
---echo #
-
-# The next two statements used to give no error when running with
-# EXPLAIN. Verify that they give the expected error.
---error ER_MULTIPLE_INTO_CLAUSES
-EXPLAIN SELECT 1 INTO @x FROM DUAL INTO @y;
---error ER_MULTIPLE_INTO_CLAUSES
-EXPLAIN SELECT 1 INTO DUMPFILE 'file1' FROM DUAL INTO DUMPFILE 'file2';
-# The next statement gave the expected error also before the bug was
-# fixed. Verify that it still does.
---error ER_MULTIPLE_INTO_CLAUSES
-EXPLAIN SELECT 1 INTO OUTFILE 'file1' FROM DUAL INTO OUTFILE 'file2';

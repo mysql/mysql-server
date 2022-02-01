@@ -25,12 +25,10 @@
 #include <memory>
 #include <thread>
 #include <utility>
-
-#include <gmock/gmock.h>
-
 #include "connection.h"
 #include "connection_container.h"
 #include "context.h"
+#include "gmock/gmock.h"
 #include "mysql_routing_common.h"
 
 class A {

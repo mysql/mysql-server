@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndb_print_backup_file
+.\"     Title: \fBndb_print_backup_file\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_BACKUP_FILE" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_PRINT_BACKUP_FILE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -66,20 +66,12 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
-\fB--backup-password=password\fR,
+\fB--backup-password=string\fR,
 .PP
-\fB \fR\fB-P password\fR\fB \fR
+\fB \fR\fB-P\fR\fB \fR
 T}:T{
 Use this password to decrypt file
 T}:T{
@@ -88,7 +80,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--backup-password-from-stdin\fR\fB \fR
+\fB \fR\fB--backup-password-from-stdin[=value]\fR\fB \fR
 T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
@@ -99,7 +91,7 @@ T{
 .PP
 \fB--control-directory-number=#\fR,
 .PP
-\fB \fR\fB-c #\fR\fB \fR
+\fB \fR\fB-c\fR\fB \fR
 T}:T{
 Control directory number
 T}:T{
@@ -108,36 +100,9 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB--fragment-id=#\fR,
 .PP
-\fB \fR\fB-f #\fR\fB \fR
+\fB \fR\fB-f\fR\fB \fR
 T}:T{
 Fragment ID
 T}:T{
@@ -161,24 +126,6 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB--no-print-rows\fR,
 .PP
 \fB \fR\fB-u\fR\fB \fR
@@ -187,15 +134,6 @@ Do not print rows
 T}:T{
 .PP
 ADDED: NDB 8.0.24
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -239,9 +177,9 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB--rowid-file=path\fR,
+\fB--rowid-file\fR,
 .PP
-\fB \fR\fB-n path\fR\fB \fR
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 File containing row ID to check for
 T}:T{
@@ -261,25 +199,14 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB--table-id=#\fR,
+\fB--table-id\fR,
 .PP
-\fB \fR\fB-t #\fR\fB \fR
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
-Table ID; used with --print-restored rows
+Table ID
 T}:T{
 .PP
 ADDED: NDB 8.0.24
-T}
-T{
-.PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -291,17 +218,6 @@ Verbosity level
 T}:T{
 .PP
 ADDED: NDB 8.0.24
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -325,7 +241,7 @@ file) found in a cluster backup directory\&. These files are found in the data n
 BACKUP\-\fI#\fR, where
 \fI#\fR
 is the sequence number for the backup\&. For more information about cluster backup files and their contents, see
-Section\ \&23.6.8.1, \(lqNDB Cluster Backup Concepts\(rq\&.
+Section\ \&23.5.8.1, \(lqNDB Cluster Backup Concepts\(rq\&.
 .PP
 Like
 \fBndb_print_schema_file\fR
@@ -337,10 +253,10 @@ utilities that are intended to be run on a management server host or to connect 
 \fBndb_print_backup_file\fR
 must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
 .PP
-In NDB 8\&.0, this program can also be used to read undo log files\&.
+In NDB 8\&.0\&.17 and later, this program can also be used to read undo log files\&.
 Options
 .PP
-Prior to NDB 8\&.0\&.24,
+Prior to NDB 8\&.0\&.24 and later,
 \fBndb_print_backup_file\fR
 supported only the
 \fB\-P\fR
@@ -364,7 +280,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---backup-password=password
+--backup-password=string
 T}
 T{
 Introduced
@@ -400,16 +316,28 @@ The long form of this option is available beginning with NDB 8\&.0\&.24\&.
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
---backup-password-from-stdin
+--backup-password-from-stdin[=value]
 T}
 T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -468,108 +396,6 @@ Control file directory number\&. Used together with
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-defaults\-extra\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-extra-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given file after global files are read\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read default options from given file only\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-group\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-group-suffix=string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Also read groups with concat(group, suffix)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-fragment\-id\fR
 .TS
 allbox tab(:);
@@ -615,6 +441,8 @@ Fragment ID\&. Used together with
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -629,65 +457,18 @@ Introduced
 T}:T{
 8.0.24-ndb-8.0.24
 T}
-.TE
-.sp 1
-Print program usage information\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-login\-path\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---login-path=path
-T}
 T{
 Type
 T}:T{
-String
+Boolean
 T}
 T{
 Default Value
 T}:T{
-[none]
 T}
 .TE
 .sp 1
-Read given path from login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-no\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---no-defaults
-T}
-.TE
-.sp 1
-Do not read default options from any option file other than login file\&.
+Print program usage information\&.
 .RE
 .sp
 .RS 4
@@ -702,6 +483,8 @@ Do not read default options from any option file other than login file\&.
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -712,6 +495,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -726,31 +519,11 @@ Do not include rows in output\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-print\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---print-defaults
-T}
-.TE
-.sp 1
-Print program argument list and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-print\-header\-words\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l
 lB l.
 T{
@@ -762,6 +535,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -780,6 +563,8 @@ Include header words in output\&.
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -790,6 +575,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -848,6 +643,8 @@ is the fragment ID set using
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -858,6 +655,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+TRUE
 T}
 .TE
 .sp 1
@@ -877,6 +684,8 @@ Print rows\&. This option is enabled by default; to disable it, use
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -887,6 +696,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -911,7 +730,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---rowid-file=path
+--rowid-file
 T}
 T{
 Introduced
@@ -945,6 +764,8 @@ File to check for row ID\&.
 .TS
 allbox tab(:);
 lB l
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -955,6 +776,16 @@ T{
 Introduced
 T}:T{
 8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -979,7 +810,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---table-id=#
+--table-id
 T}
 T{
 Introduced
@@ -989,40 +820,17 @@ T}
 T{
 Type
 T}:T{
-Integer
+Boolean
 T}
 T{
 Default Value
 T}:T{
-[none]
+FALSE
 T}
 .TE
 .sp 1
 Table ID\&. Used together with
 \fB\-\-print\-restored\-rows\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-usage\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---usage
-T}
-.TE
-.sp 1
-Display help text and exit; same as
-\fB\-\-help\fR\&.
 .RE
 .sp
 .RS 4
@@ -1063,28 +871,6 @@ T}
 .TE
 .sp 1
 Verbosity level of output\&. A greater value indicates increased verbosity\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-version\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---version
-T}
-.TE
-.sp 1
-Display version information and exit\&.
 .RE
 .SH "COPYRIGHT"
 .br

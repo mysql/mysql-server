@@ -55,7 +55,7 @@ class PFS_index_ews_global_by_event_name : public PFS_engine_index {
   PFS_index_ews_global_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_ews_global_by_event_name() override = default;
+  ~PFS_index_ews_global_by_event_name() override {}
 
   virtual bool match_view(uint view);
   virtual bool match(PFS_instr_class *instr_class);
@@ -122,7 +122,7 @@ class table_ews_global_by_event_name : public PFS_engine_table {
   table_ews_global_by_event_name();
 
  public:
-  ~table_ews_global_by_event_name() override = default;
+  ~table_ews_global_by_event_name() override {}
 
  protected:
   int make_mutex_row(PFS_mutex_class *klass);

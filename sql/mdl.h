@@ -83,7 +83,7 @@ bool test_drive_fix_pins(MDL_context *);
 
 class MDL_context_owner {
  public:
-  virtual ~MDL_context_owner() = default;
+  virtual ~MDL_context_owner() {}
 
   /**
     Enter a condition wait.
@@ -754,7 +754,7 @@ struct MDL_key {
           const char *name_arg) {
     mdl_key_init(namespace_arg, db_arg, name_arg);
   }
-  MDL_key() = default; /* To use when part of MDL_request. */
+  MDL_key() {} /* To use when part of MDL_request. */
 
   /**
     Get thread state name to be used in case when we have to
@@ -821,8 +821,8 @@ class MDL_request {
 
  public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg
-                            [[maybe_unused]] = std::nothrow) noexcept {
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
@@ -888,7 +888,7 @@ class MDL_request {
       Locked_tables_list::rename_locked_table(), a move assignment is actually
       what is intended.
   */
-  MDL_request() = default;
+  MDL_request() {}
 
   MDL_request(const MDL_request &rhs)
       : type(rhs.type), duration(rhs.duration), ticket(nullptr), key(rhs.key) {}
@@ -1311,7 +1311,7 @@ class MDL_ticket_store {
 
 class MDL_savepoint {
  public:
-  MDL_savepoint() = default;
+  MDL_savepoint() {}
 
  private:
   MDL_savepoint(MDL_ticket *stmt_ticket, MDL_ticket *trans_ticket)
@@ -1374,7 +1374,7 @@ class MDL_wait {
 
 class MDL_release_locks_visitor {
  public:
-  virtual ~MDL_release_locks_visitor() = default;
+  virtual ~MDL_release_locks_visitor() {}
   /**
     Check if the given ticket represents a lock that should be released.
 
@@ -1389,7 +1389,7 @@ class MDL_release_locks_visitor {
 
 class MDL_context_visitor {
  public:
-  virtual ~MDL_context_visitor() = default;
+  virtual ~MDL_context_visitor() {}
   virtual void visit_context(const MDL_context *ctx) = 0;
 };
 
@@ -1755,7 +1755,7 @@ class MDL_lock_is_owned_visitor : public MDL_context_visitor {
     m_exists to true is enough.
   */
 
-  void visit_context(const MDL_context *ctx [[maybe_unused]]) override {
+  void visit_context(const MDL_context *ctx MY_ATTRIBUTE((unused))) override {
     m_exists = true;
   }
 

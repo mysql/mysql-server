@@ -23,9 +23,6 @@
 */
 
 #include <ndb_global.h>
-
-#include <cstring>
-
 #include <IPCConfig.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -34,16 +31,16 @@
 #include <mgmapi_configuration.hpp>
 #include <NdbSpin.h>
 
-#include <EventLogger.hpp>
 
 /* Return true if node with "nodeId" is a MGM node */
 static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
 {
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-  require(iter.find(CFG_NODE_ID, nodeId) == 0);
-
+  if (iter.find(CFG_NODE_ID, nodeId))
+    abort();
   Uint32 type;
-  require(iter.get(CFG_TYPE_OF_SECTION, &type) == 0);
+  if(iter.get(CFG_TYPE_OF_SECTION, &type))
+    abort();
 
   return (type == NODE_TYPE_MGM);
 }
@@ -101,8 +98,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     {
       // Transporter exist in TransporterRegistry but not
       // in configuration
-      g_eventLogger->info(
-          "The connection to node %d could not be removed at this time", i);
+      ndbout_c("The connection to node %d could not "
+               "be removed at this time", i);
       result= false; // Need restart
     }
   }
@@ -112,7 +109,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
     
-    std::memset(&conf, 0, sizeof(conf));
+    bzero(&conf, sizeof(conf));
     Uint32 nodeId1, nodeId2, remoteNodeId;
     const char * remoteHostName= 0, * localHostName= 0;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
@@ -209,12 +206,17 @@ IPCConfig::configureTransporters(Uint32 nodeId,
         DBUG_PRINT("error", ("Failed to configure SHM Transporter "
                              "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-        g_eventLogger->info("Failed to configure SHM Transporter to node %d",
-                            conf.remoteNodeId);
+	ndbout_c("Failed to configure SHM Transporter to node %d",
+                conf.remoteNodeId);
         result = false;
       }
+#ifdef NDB_WIN32
+      ndbout_c("Shared memory transporters not supported on Windows");
+      result = false;
+#else
       DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
+#endif
       break;
 
     case CONNECTION_TYPE_TCP:
@@ -239,8 +241,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       conf.type = tt_TCP_TRANSPORTER;
       
       if(!tr.configureTransporter(&conf)){
-        g_eventLogger->info("Failed to configure TCP Transporter to node %d",
-                            conf.remoteNodeId);
+	ndbout_c("Failed to configure TCP Transporter to node %d",
+                 conf.remoteNodeId);
         result= false;
       }
       DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
@@ -249,8 +251,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       loopback_conf = conf; // reuse it...
       break;
     default:
-      g_eventLogger->info("Unknown transporter type from: %u to: %u", nodeId,
-                          remoteNodeId);
+      ndbout << "Unknown transporter type from: " << nodeId << 
+	" to: " << remoteNodeId << endl;
       break;
     } // switch
   } // for
@@ -274,7 +276,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.tcp.tcpOverloadLimit = 768*1024;
     if (!tr.configureTransporter(&loopback_conf))
     {
-      g_eventLogger->info("Failed to configure Loopback Transporter");
+      ndbout_c("Failed to configure Loopback Transporter");
       result= false;
     }
   }

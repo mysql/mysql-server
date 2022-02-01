@@ -62,15 +62,12 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
 ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
-  access_rights.cc
   loader.cc
   dynamic_loader.cc
   utilities.cc
   config_parser.cc
-  plugin_config.cc
   designator.cc
   dynamic_state.cc
-  event_state_tracker.cc
   loader_config.cc
   common.cc
   filesystem.cc
@@ -86,7 +83,7 @@ SET(harness_source
   logging/handler.cc
   logging/logger.cc
   logging/logger_plugin.cc
-# logging/logging.cc       empty file
+  logging/logging.cc
   logging/registry.cc
   random_generator.cc
   sd_notify.cc
@@ -177,14 +174,14 @@ IF(SOLARIS)
   TARGET_LINK_LIBRARIES(harness-archive -lnsl -lsocket)
 ENDIF()
 
-IF(WIN32)
-  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
-    OUTPUT_NAME "mysqlharness_a"
+IF(NOT WIN32)
+  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
+    OUTPUT_NAME "mysqlharness"
     PREFIX "lib"
     SOVERSION 1)
 ELSE()
-  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
-    OUTPUT_NAME "mysqlharness"
+  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
+    OUTPUT_NAME "mysqlharness_a"
     PREFIX "lib"
     SOVERSION 1)
 ENDIF()
@@ -204,16 +201,16 @@ ENDIF()
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness-library)
 
-IF(WIN32)
-  INSTALL(TARGETS harness-library
-    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
-    COMPONENT Router)
-ELSE()
+IF(NOT WIN32)
   INSTALL(TARGETS harness-library
     LIBRARY
     DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
     NAMELINK_SKIP
     )
+ELSE()
+  INSTALL(TARGETS harness-library
+    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
+    COMPONENT Router)
 ENDIF()
 
 ADD_LIBRARY(harness_stdx SHARED

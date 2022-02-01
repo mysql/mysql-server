@@ -32,6 +32,7 @@
 
 #define JAM_FILE_ID 506
 
+extern EventLogger * g_eventLogger;
 
 #define SIZEOF_IN_WORDS(T) ((sizeof(T) + sizeof(Uint32) - 1) / sizeof(Uint32))
 

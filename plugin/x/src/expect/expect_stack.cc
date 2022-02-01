@@ -113,8 +113,7 @@ ngs::Error_code Expectation_stack::pre_client_stmt(const int8_t msgid) {
     // if a block open or close arrives in a failed state, we let it through
     // so that they can be pushed/popped on the stack and properly accounted
     switch (msgid) {
-      case Mysqlx::ClientMessages::EXPECT_OPEN:
-        [[fallthrough]];
+      case Mysqlx::ClientMessages::EXPECT_OPEN:  // fall through
       case Mysqlx::ClientMessages::EXPECT_CLOSE:
         break;
 

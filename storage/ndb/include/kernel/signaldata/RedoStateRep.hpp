@@ -42,7 +42,7 @@ class RedoStateRep
   friend bool printREDO_STATE_REP(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
 
   enum ReceiverInfo
   {

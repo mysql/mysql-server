@@ -26,7 +26,7 @@
 #define NDB_SLEEP_H
 
 #if defined(_WIN32)
-#include <windows.h>
+#include <winbase.h>
 #else
 #include <sys/select.h>
 #include <time.h>

@@ -23,16 +23,18 @@ project(protobuf C CXX)
 if (CYGWIN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 else()
-  # https://developercommunity.visualstudio.com/content/problem/665343/
-  # vs2019-stl-with-clang-cl-and-stdc14-generates-dupl.html
-  IF(WIN32_CLANG)
-    set(CMAKE_CXX_STANDARD 17)
-  ELSE()
-    # Not all cmake versions support 17 here, so leave it at 14.
-    set(CMAKE_CXX_STANDARD 14)
+  ### cmake 3.9.1 does not understand that Developer Studio understands C++14
+  IF(NOT SOLARIS)
+    # https://developercommunity.visualstudio.com/content/problem/665343/
+    # vs2019-stl-with-clang-cl-and-stdc14-generates-dupl.html
+    IF(WIN32_CLANG)
+      set(CMAKE_CXX_STANDARD 17)
+    ELSE()
+      set(CMAKE_CXX_STANDARD 14)
+    ENDIF()
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
   ENDIF()
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
-  set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
 # Options
@@ -256,6 +258,12 @@ endif (MSVC)
 if (protobuf_UNICODE)
   add_definitions(-DUNICODE -D_UNICODE)
 endif (protobuf_UNICODE)
+
+### Bug in std::call_once in optimized mode
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
+  ADD_COMPILE_OPTIONS("-O0")
+ENDIF()
 
 include(libprotobuf-lite.cmake)
 include(libprotobuf.cmake)

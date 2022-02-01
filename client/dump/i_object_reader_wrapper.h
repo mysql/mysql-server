@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_object_reader_wrapper {
  public:
-  virtual ~I_object_reader_wrapper() = default;
+  virtual ~I_object_reader_wrapper() {}
   /**
     Add new Object Reader to supply direct execution of dump tasks to.
    */

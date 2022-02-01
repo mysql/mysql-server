@@ -51,7 +51,7 @@ class ISerializer {
       const collation_unordered_map<std::string, std::unique_ptr<IKey>>
           &keys_hash,
       IKey *key, const Key_operation operation) = 0;
-  virtual ~ISerializer() = default;
+  virtual ~ISerializer() {}
 };
 }  // namespace keyring
 

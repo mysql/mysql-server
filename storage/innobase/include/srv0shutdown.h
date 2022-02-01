@@ -115,7 +115,7 @@ to SRV_SHUTDOWN_EXIT_THREADS. */
 extern std::atomic<enum srv_shutdown_t> srv_shutdown_state;
 
 /** Call std::quick_exit(3) */
-[[noreturn]] void srv_fatal_error();
+void srv_fatal_error() MY_ATTRIBUTE((noreturn));
 
 /** Attempt to shutdown all background threads created by InnoDB.
 NOTE: Does not guarantee they are actually shut down, only does

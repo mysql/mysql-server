@@ -47,7 +47,7 @@ class Foreign_key_element : virtual public Weak_object {
   typedef tables::Foreign_key_column_usage DD_table;
 
  public:
-  ~Foreign_key_element() override = default;
+  ~Foreign_key_element() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key.

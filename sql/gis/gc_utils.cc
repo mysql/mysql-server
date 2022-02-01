@@ -130,13 +130,7 @@ void typed_gc_union(double semi_major, double semi_minor,
 
   std::unique_ptr<MPy> polygons(new MPy());
   for (auto &py : *down_cast<MPy *>(mpy->get())) {
-    std::unique_ptr<Geometry> union_result = union_(polygons.get(), &py);
-    if (union_result->type() == Geometry_type::kPolygon) {
-      polygons->clear();
-      polygons->push_back(*union_result);
-    } else if (union_result->type() == Geometry_type::kMultipolygon) {
-      polygons.reset(new MPy(*down_cast<MPy *>(union_result.get())));
-    }
+    polygons.reset(down_cast<MPy *>(union_(polygons.get(), &py)));
     if (polygons->coordinate_system() == Coordinate_system::kGeographic &&
         polygons->is_empty()) {
       // The result of a union between a geographic multipolygon and a
@@ -151,23 +145,12 @@ void typed_gc_union(double semi_major, double semi_minor,
     }
   }
 
-  std::unique_ptr<MLs> linestrings = std::make_unique<MLs>();
-  std::unique_ptr<Geometry> ls_difference(
-      difference(mls->get(), polygons.get()));
-  if (ls_difference->type() == Geometry_type::kLinestring)
-    linestrings->push_back(*ls_difference);
-  else
-    linestrings.reset(down_cast<MLs *>(ls_difference.release()));
+  std::unique_ptr<MLs> linestrings(new MLs());
+  linestrings.reset(down_cast<MLs *>(difference(mls->get(), polygons.get())));
 
-  std::unique_ptr<MPt> points = std::make_unique<MPt>();
-  std::unique_ptr<Geometry> pt_difference(
-      difference(mpt->get(), linestrings.get()));
-  pt_difference = difference(pt_difference.get(), polygons.get());
-
-  if (pt_difference->type() == Geometry_type::kPoint) {
-    points->push_back(*pt_difference);
-  } else
-    points.reset(down_cast<MPt *>(pt_difference.release()));
+  std::unique_ptr<MPt> points(down_cast<MPt *>(
+      difference(down_cast<MPt *>(mpt->get()), linestrings.get())));
+  points.reset(down_cast<MPt *>(difference(points.get(), polygons.get())));
 
   mpy->reset(polygons.release());
   mls->reset(linestrings.release());

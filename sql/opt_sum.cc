@@ -98,7 +98,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
     @retval Product of number of rows in all tables. ULLONG_MAX for error.
 */
-static ulonglong get_exact_record_count(TABLE_LIST *tables) {
+ulonglong get_exact_record_count(TABLE_LIST *tables) {
   ulonglong count = 1;
   for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
     ha_rows tmp = 0;
@@ -547,8 +547,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
               return true;
             }
             removed_tables |= tr->map();
-          } else if (!expr->const_for_execution() || conds != nullptr ||
-                     !have_exact_count) {
+          } else if (!expr->const_item() || conds || !have_exact_count) {
             /*
               We get here if the aggregate function is not based on a field.
               Example: "SELECT MAX(1) FROM table ..."
@@ -616,22 +615,27 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 
   @param func_item        Predicate item
   @param[out] args        Here we store the field followed by constants
-  @param[out] inv_order   Is set to true if the predicate is of the form
+  @param[out] inv_order   Is set to 1 if the predicate is of the form
                           'const op field'
 
-  @returns true if function is a simple predicate, false otherwise.
+  @retval
+    0        func_item is a simple predicate: a field is compared with
+    constants
+  @retval
+    1        Otherwise
 */
 
-bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
+bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
   Item *item;
   *inv_order = false;
   switch (func_item->argument_count()) {
     case 0:
       /* MULT_EQUAL_FUNC */
       {
-        Item_equal *item_equal = down_cast<Item_equal *>(func_item);
-        args[0] = item_equal->get_first();
-        if (item_equal->members() > 1) return false;
+        Item_equal *item_equal = (Item_equal *)func_item;
+        Item_equal_iterator it(*item_equal);
+        args[0] = it++;
+        if (it++) return false;
         if (!(args[1] = item_equal->get_const())) return false;
       }
       break;
@@ -647,9 +651,9 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
       if (item->type() == Item::FIELD_ITEM) {
         args[0] = item;
         item = func_item->arguments()[1];
-        if (!item->const_for_execution()) return false;
+        if (!item->const_item()) return false;
         args[1] = item;
-      } else if (item->const_for_execution()) {
+      } else if (item->const_item()) {
         args[1] = item;
         item = func_item->arguments()[1];
         if (item->type() != Item::FIELD_ITEM) return false;
@@ -661,13 +665,15 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
     case 3:
       /* field BETWEEN const AND const */
       item = func_item->arguments()[0];
-      if (item->type() != Item::FIELD_ITEM) return false;
-      args[0] = item;
-      for (int i = 1; i <= 2; i++) {
-        item = func_item->arguments()[i];
-        if (!item->const_for_execution()) return false;
-        args[i] = item;
-      }
+      if (item->type() == Item::FIELD_ITEM) {
+        args[0] = item;
+        for (int i = 1; i <= 2; i++) {
+          item = func_item->arguments()[i];
+          if (!item->const_item()) return false;
+          args[i] = item;
+        }
+      } else
+        return false;
   }
   return true;
 }
@@ -765,8 +771,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   switch (((Item_func *)cond)->functype()) {
     case Item_func::ISNULL_FUNC:
-      is_null = true;
-      [[fallthrough]];
+      is_null = true; /* fall through */
     case Item_func::EQ_FUNC:
       eq_type = true;
       break;
@@ -774,14 +779,12 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       eq_type = is_null_safe_eq = true;
       break;
     case Item_func::LT_FUNC:
-      noeq_type = true;
-      [[fallthrough]];
+      noeq_type = true; /* fall through */
     case Item_func::LE_FUNC:
       less_fl = true;
       break;
     case Item_func::GT_FUNC:
-      noeq_type = true;
-      [[fallthrough]];
+      noeq_type = true; /* fall through */
     case Item_func::GE_FUNC:
       break;
     case Item_func::BETWEEN:
@@ -802,8 +805,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   bool inv;
 
   /* Test if this is a comparison of a field and constant */
-  if (!is_simple_predicate(down_cast<Item_func *>(cond), args, &inv))
-    return false;
+  if (!simple_pred((Item_func *)cond, args, &inv)) return false;
 
   if (!is_null_safe_eq && !is_null &&
       (args[1]->is_null() || (between && args[2]->is_null())))
@@ -875,24 +877,13 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       Item *value = args[between && max_fl ? 2 : 1];
 
       /*
-        A perfect save is necessary. Truncated / incorrect value can result
+        A perfect save is neccessary. Truncated / incorrect value can result
         in an incorrect index lookup. Truncation of trailing space is ignored
-        for strings with a PAD SPACE collation. (When trailing space has been
-        removed, TYPE_NOTE_TRUNCATED is returned. Not to be confused with
-        TYPE_WARN_TRUNCATED, which is returned when non-space has been removed.)
-
-        TODO(khatlen): It might be better if string literals that need
-        truncation are handled during constant folding, so that we only need to
-        check for TYPE_OK here. analyze_field_constant() does not yet handle
-        string constants.
+        since that is expected for strings even in other cases.
       */
       type_conversion_status retval =
           value->save_in_field_no_warnings(part->field, true);
-      if (!(retval == TYPE_OK ||
-            (retval == TYPE_NOTE_TRUNCATED && part->field->is_text_key_type() &&
-             part->field->charset()->pad_attribute == PAD_SPACE))) {
-        return false;
-      }
+      if (!(retval == TYPE_OK || retval == TYPE_NOTE_TRUNCATED)) return false;
 
       if (part->null_bit) *key_ptr++ = (uchar)(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);
@@ -952,8 +943,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     which must be reset after index is used!
     (This can only happen when function returns 1)
 
-  @returns true if index can be used to optimize MIN()/MAX(), false otherwise.
-           If true, ref, range_fl and prefix_len are updated
+  @retval
+    0   Index can not be used to optimize MIN(field)/MAX(field)
+  @retval
+    1   Can use key to optimize MIN()/MAX().
+    In this case ref, range_fl and prefix_len are updated
 */
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
@@ -1043,15 +1037,17 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 /**
   Check whether found key is in range specified by conditions.
 
-  @param[in] max_fl         false for MIN(field) / true for MAX(field)
+  @param[in] max_fl         0 for MIN(field) / 1 for MAX(field)
   @param[in] ref            Reference to the key value and info
   @param[in] item_field     Item representing field used in MIN/MAX expression
-  @param[in] cond           Condition to check
-                            nullptr means that all keys are within the range.
+  @param[in] cond           WHERE condition
   @param[in] range_fl       Says whether there is a condition to to be checked
   @param[in] prefix_len     Length of the constant part of the key
 
-  @returns true if the condition is not true for the found row, false otherwise.
+  @retval
+    false    ok
+  @retval
+    true     WHERE was not true for the found row
 */
 
 static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
@@ -1059,7 +1055,7 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
     return true;
-  if (cond == nullptr || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
+  if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
     return false;
   return maxmin_in_range(max_fl, item_field, cond);
 }
@@ -1067,17 +1063,20 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
 /**
   Check whether {MAX|MIN}(field) is in range specified by conditions.
 
-  @param[in] max_fl      false for MIN(field) / true for MAX(field)
-  @param[in] item_field  Item representing field used in MIN/MAX expression
-  @param[in] cond        Condition to check
+  @param[in] max_fl          0 for MIN(field) / 1 for MAX(field)
+  @param[in] item_field      Item representing field used in MIN/MAX expression
+  @param[in] cond            WHERE condition
 
-  @returns true if condition is not true for the found row, otherwise false.
+  @retval
+    false    ok
+  @retval
+    true     WHERE was not true for the found row
 */
 
 static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
   /* If AND/OR condition */
   if (cond->type() == Item::COND_ITEM) {
-    List_iterator_fast<Item> li(*down_cast<Item_cond *>(cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond *)cond)->argument_list());
     Item *item;
     while ((item = li++)) {
       if (maxmin_in_range(max_fl, item_field, item)) return true;
@@ -1085,21 +1084,20 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     return false;
   }
 
-  // Check that condition actually references the specific table
-  if ((cond->used_tables() & item_field->table_ref->map()) == 0) return false;
+  if (cond->used_tables() != item_field->table_ref->map()) return false;
   bool less_fl = false;
-  switch (down_cast<Item_func *>(cond)->functype()) {
+  switch (((Item_func *)cond)->functype()) {
     case Item_func::BETWEEN:
-      return cond->val_int() == 0;
+      return cond->val_int() == 0;  // Return 1 if WHERE is false
     case Item_func::LT_FUNC:
     case Item_func::LE_FUNC:
       less_fl = true;
-      [[fallthrough]];
+      // Fall through
     case Item_func::GT_FUNC:
     case Item_func::GE_FUNC: {
-      Item *item = down_cast<Item_func *>(cond)->arguments()[1];
+      Item *item = ((Item_func *)cond)->arguments()[1];
       /* In case of 'const op item' we have to swap the operator */
-      if (!item->const_for_execution()) less_fl = !less_fl;
+      if (!item->const_item()) less_fl = !less_fl;
       /*
         We only have to check the expression if we are using an expression like
         SELECT MAX(b) FROM t1 WHERE a=const AND b>const
@@ -1107,7 +1105,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
         SELECT MAX(b) FROM t1 WHERE a=const AND b<const
       */
       if (max_fl != less_fl)
-        return cond->val_int() == 0;  // Return true if condition is false
+        return cond->val_int() == 0;  // Return 1 if WHERE is false
       return false;
     }
     case Item_func::EQ_FUNC:

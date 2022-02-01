@@ -459,8 +459,8 @@ static PSI_memory_info all_federated_memory[] = {
 
 #ifdef HAVE_PSI_INTERFACE
 static void init_federated_psi_keys(void) {
-  const char *category [[maybe_unused]] = "federated";
-  int count [[maybe_unused]];
+  const char *category MY_ATTRIBUTE((unused)) = "federated";
+  int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count = static_cast<int>(array_elements(all_federated_mutexes));
@@ -1370,7 +1370,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
             }
             break;
           }
-          [[fallthrough]];
+          // Fall through.
         case HA_READ_KEY_OR_NEXT:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1389,7 +1389,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
               goto err;
             break;
           }
-          [[fallthrough]];
+          // Fall through.
         case HA_READ_KEY_OR_PREV:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1448,6 +1448,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   Field **field;
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
   FEDERATED_SHARE *share = nullptr, tmp_share;
+  MEM_ROOT mem_root;
   DBUG_TRACE;
 
   /*
@@ -1456,7 +1457,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   */
   query.length(0);
 
-  MEM_ROOT mem_root(fe_key_memory_federated_share, 256);
+  init_alloc_root(fe_key_memory_federated_share, &mem_root, 256, 0);
 
   mysql_mutex_lock(&federated_mutex);
 
@@ -1528,7 +1529,7 @@ static int free_share(FEDERATED_SHARE *share) {
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
     MEM_ROOT mem_root = std::move(share->mem_root);
-    mem_root.Clear();
+    free_root(&mem_root, MYF(0));
   }
   mysql_mutex_unlock(&federated_mutex);
 
@@ -2536,7 +2537,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result) {
   @param[in]  record  record data (unused)
 */
 
-void ha_federated::position(const uchar *record [[maybe_unused]]) {
+void ha_federated::position(const uchar *record MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
 
   assert(stored_result);
@@ -3134,22 +3135,6 @@ int ha_federated::execute_simple_query(const char *query, int len) {
     return stash_remote_error();
   }
   return 0;
-}
-
-int ha_federated::rnd_pos_by_record(uchar *record [[maybe_unused]]) {
-  int error;
-  assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
-
-  error = ha_rnd_init(false);
-  if (error != 0) return error;
-
-  if (stored_result) {
-    position(record);
-    error = ha_rnd_pos(record, ref);
-  }
-
-  ha_rnd_end();
-  return error;
 }
 
 struct st_mysql_storage_engine federated_storage_engine = {

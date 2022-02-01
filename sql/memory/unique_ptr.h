@@ -39,6 +39,16 @@
 #include "sql/memory/aligned_atomic.h"  // memory::cache_line_size
 #include "sql/memory/ref_ptr.h"         // memory::Ref_ptr
 
+#if defined(__sun) && defined(__SVR4)
+namespace memory {
+template <typename T, typename A = std::nullptr_t>
+using Unique_ptr = std::unique_ptr<T>;
+template <typename T, typename... Args>
+Unique_ptr<T> make_unique(Args &&... args) {
+  return std::make_unique<T>(args...);
+}
+}  // namespace memory
+#else
 namespace memory {
 namespace traits {
 /**
@@ -804,4 +814,5 @@ memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(Args &&... args) {
 }
 #endif
 
+#endif  // Is solaris
 #endif  // MEMORY_UNIQUE_PTR_INCLUDED

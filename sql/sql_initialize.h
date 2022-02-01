@@ -29,8 +29,8 @@
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator {
  public:
-  Compiled_in_command_iterator() = default;
-  virtual ~Compiled_in_command_iterator() = default;
+  Compiled_in_command_iterator() {}
+  virtual ~Compiled_in_command_iterator() {}
   bool begin(void) override;
   int next(std::string &query) override;
   void report_error_details(log_function_t log) override;

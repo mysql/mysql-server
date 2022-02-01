@@ -264,23 +264,16 @@ struct z_first_page_t {
     return (fil_addr_t(page_no, offset));
   }
 
-  /** All the index pages are singly linked with each other, and
+  /** All the index pages are singled linked with each other, and
   the first page contains the link to one index page.
   @param[in]  page_no  the page number of an index page. */
   void set_index_page_no(page_no_t page_no) {
-    set_index_page_no(page_no, m_mtr);
-  }
-
-  /** All the index pages are singly linked with each other, and
-  the first page contains the link to one index page.
-  @param[in]  page_no  the page number of an index page.
-  @param[in]  mtr      use this mini transaction context for redo logs. */
-  void set_index_page_no(page_no_t page_no, mtr_t *mtr) {
     ut_ad(m_mtr != nullptr);
-    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES, mtr);
+    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES,
+                     m_mtr);
   }
 
-  /** All the index pages are singly linked with each other, and
+  /** All the index pages are singled linked with each other, and
   the first page contains the link to one index page. Get that index
   page number.
   @return the index page number. */
@@ -310,9 +303,8 @@ struct z_first_page_t {
   bool verify_frag_page_no();
 #endif /* UNIV_DEBUG */
 
-  /** All the fragment pages (@see z_frag_page_t) are doubly linked with each
-  other, and the first page contains the link to one fragment page in
-  FIL_PAGE_PREV.
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV.
   @param[in]  mtr      Mini-transaction for this modification.
   @param[in]  page_no  The page number of a fragment page. */
   void set_frag_page_no(mtr_t *mtr, page_no_t page_no) {
@@ -320,34 +312,21 @@ struct z_first_page_t {
     set_prev_page_no(page_no, mtr);
   }
 
-  /** All the fragment pages (@see z_frag_page_t) are doubly linked with each
-  other, and the first page contains the link to one fragment page in
-  FIL_PAGE_PREV.
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV.
   @param[in]  page_no  the page number of a fragment page. */
   void set_frag_page_no(page_no_t page_no) {
     ut_ad(verify_frag_page_no());
     set_prev_page_no(page_no, m_mtr);
   }
 
-  /** All the frag node pages (@see z_frag_node_page_t) are singly linked with
-  each other, and the first page contains the link to the last allocated frag
-  node page. The last allocated FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY  page will be the
-  first in this list. This list is used to free these pages.
+  /** All the frag node pages are singled linked with each other, and
+  the first page contains the link to one frag node page.
   @param[in]  page_no  the page number of an frag node page. */
   void set_frag_node_page_no(page_no_t page_no) {
-    set_frag_node_page_no(page_no, m_mtr);
-  }
-
-  /** All the frag node pages (@see z_frag_node_page_t) are singly linked with
-  each other, and the first page contains the link to the last allocated frag
-  node page. The last allocated FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY  page will be the
-  first in this list. This list is used to free these pages.
-  @param[in]  page_no  the page number of an frag node page.
-  @param[in]  mtr      mini trx context to generate redo logs. */
-  void set_frag_node_page_no(page_no_t page_no, mtr_t *mtr) {
-    ut_ad(mtr != nullptr);
+    ut_ad(m_mtr != nullptr);
     mlog_write_ulint(frame() + OFFSET_FRAG_NODES_PAGE_NO, page_no, MLOG_4BYTES,
-                     mtr);
+                     m_mtr);
   }
 
   /** Free all the z_frag_page_t pages. All the z_frag_page_t pages are
@@ -380,7 +359,7 @@ struct z_first_page_t {
   @return the number of pages freed. */
   size_t free_all_data_pages();
 
-  /** All the frag node pages are singly linked with each other, and the
+  /** All the frag node pages are singled linked with each other, and the
   first page contains the link to one frag node page. Get that frag node
   page number.
   @return the index page number. */
@@ -588,10 +567,6 @@ struct z_first_page_t {
   /** Free all the pages of the zlob.
   @return the total number of pages freed. */
   size_t destroy();
-
-  /** Free all the pages of the zlob except the first page.
-  @return the total number of pages freed. */
-  size_t make_empty();
 
 #ifdef UNIV_DEBUG
  private:

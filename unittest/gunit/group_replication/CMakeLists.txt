@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
-  RETURN()
-ENDIF()
-
 MY_CHECK_CXX_COMPILER_WARNING("-Wno-unused-local-typedefs" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
@@ -35,30 +31,16 @@ SET(TESTS
   group_replication_compatibility_module
   group_replication_member_version
   group_replication_mysql_version_gcs_protocol_map
-  group_replication_gcs_mysql_network_provider
   )
 
 FOREACH(test ${TESTS})
-  SET(SRC_FILES ${test}-t.cc)
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
-
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
     ADD_TEST ${test}
     ENABLE_EXPORTS
     LINK_LIBRARIES
     gr_unit_test_resource
-    gunit_large
-    server_unittest_library
+    gunit_small
     mysqlclient
     mysqlgcs
     )
 ENDFOREACH()
-
-IF(WIN32)
-  # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib
-  MY_TARGET_LINK_OPTIONS(
-    group_replication_gcs_mysql_network_provider-t "/ignore:4286"
-    )
-ENDIF()

@@ -24,10 +24,10 @@
 #define DD__EVENT_INCLUDED
 
 #include "my_inttypes.h"
-#include "my_time_t.h"                    // my_time_t
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
+typedef long my_time_t;
 struct MDL_key;
 
 namespace dd {
@@ -98,7 +98,7 @@ class Event : virtual public Entity_object {
   enum enum_on_completion { OC_DROP = 1, OC_PRESERVE };
 
  public:
-  ~Event() override = default;
+  ~Event() override {}
 
  public:
   /////////////////////////////////////////////////////////////////////////
@@ -267,14 +267,6 @@ class Event : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Event *clone() const = 0;
-
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  virtual Event *clone_dropped_object_placeholder() const = 0;
 
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &name, MDL_key *key);

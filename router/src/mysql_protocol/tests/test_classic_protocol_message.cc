@@ -29,7 +29,6 @@
 
 #include <gtest/gtest.h>
 
-#include "mysqlrouter/classic_protocol_constants.h"
 #include "test_classic_protocol_codec.h"
 
 // string_literals are supposed to solve the same problem, but they are broken
@@ -83,7 +82,7 @@ namespace classic_protocol {
 namespace message {
 namespace server {
 std::ostream &operator<<(std::ostream &os, const AuthMethodData &v) {
-  os << v.auth_method_data();
+  os << static_cast<uint16_t>(v.packet_type()) << ", " << v.auth_method_data();
   return os;
 }
 }  // namespace server
@@ -102,9 +101,7 @@ TEST_P(CodecMessageServerAuthMethodDataTest, decode) {
 
 const CodecParam<classic_protocol::message::server::AuthMethodData>
     codec_message_server_authmethoddata_param[] = {
-        {"caching_sha2_password_public_key", {"\x02"}, {}, {0x01, 0x02}},
-        {"caching_sha2_password_fast_ack", {"\x03"}, {}, {0x01, 0x03}},
-        {"caching_sha2_password_full_handshake", {"\x04"}, {}, {0x01, 0x04}},
+        {"auth_fast_ack", {0x03, ""}, {}, {0x03}},
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -162,49 +159,6 @@ const CodecParam<classic_protocol::message::server::Ok>
           ' ',  'C',  'h',  'a',  'n',  'g',  'e',  'd', ':', ' ', '0', ' ',
           ' ',  'W',  'a',  'r',  'n',  'i',  'n',  'g', 's', ':', ' ', '0',
           '\v', 0x05, '\t', 0x08, 'I',  '_',  '_',  '_', 'W', 's', '_', '_'}},
-        {"with_gtid",
-         /*
-          * {
-          *   "status_flags": ["autocommit", "session_state_changed"],
-          *   "session_tracker": [{
-          *       "gtid": {
-          *         "gtid": "4dd0f9d5-3b00-11eb-ad70-003093140e4e:23929",
-          *         "spec": 0
-          *       }
-          *     }, {
-          *       "trx_characteristics": {
-          *         "trx_state": {
-          *           "trx_type": "_",
-          *           "read_unsafe": "_",
-          *           "read_trx": "_",
-          *           "write_unsafe": "_",
-          *           "write_trx": "_",
-          *           "stmt_unsafe": "_",
-          *           "resultset": "_",
-          *           "locked_tables": "_"
-          *         }
-          *       }
-          *     }]
-          * }
-          */
-         {0,  // last-insert-id
-          0,  // affected-rows
-          classic_protocol::status::autocommit |
-              classic_protocol::status::session_state_changed,
-          0,   // warning-count
-          "",  // message
-          {S("\x03\x2c\x00\x2a\x34\x64\x64\x30\x66\x39\x64\x35\x2d\x33\x62\x30"
-             "\x30\x2d\x31\x31\x65\x62\x2d\x61\x64\x37\x30\x2d\x30\x30\x33\x30"
-             "\x39\x33\x31\x34\x30\x65\x34\x65\x3a\x32\x33\x39\x32\x39\x05\x09"
-             "\x08\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f")}},  // session-track
-         classic_protocol::capabilities::protocol_41 |
-             classic_protocol::capabilities::session_track,
-         {0x00, 0x00, 0x00, 0x02, 0x40, 0x00, 0x00, 0x00, 0x39, 0x03, 0x2c,
-          0x00, 0x2a, 0x34, 0x64, 0x64, 0x30, 0x66, 0x39, 0x64, 0x35, 0x2d,
-          0x33, 0x62, 0x30, 0x30, 0x2d, 0x31, 0x31, 0x65, 0x62, 0x2d, 0x61,
-          0x64, 0x37, 0x30, 0x2d, 0x30, 0x30, 0x33, 0x30, 0x39, 0x33, 0x31,
-          0x34, 0x30, 0x65, 0x34, 0x65, 0x3a, 0x32, 0x33, 0x39, 0x32, 0x39,
-          0x05, 0x09, 0x08, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f}},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerOkTest,
@@ -224,77 +178,16 @@ TEST_P(CodecMessageServerEofTest, decode) { test_decode(GetParam()); }
 const CodecParam<classic_protocol::message::server::Eof> codec_eof_param[] = {
     {"3_23", {}, {}, {0xfe}},
     {"4_1",
-     {
-         classic_protocol::status::more_results_exist |
-             classic_protocol::status::autocommit,  // flags
-         1                                          // warning_count
-     },
+     {classic_protocol::status::more_results_exist |
+          classic_protocol::status::autocommit,
+      1},
      classic_protocol::capabilities::protocol_41,
      {0xfe, 0x01, 0x00, 0x0a, 0x00}},
     {"5_7",
-     {
-         classic_protocol::status::autocommit,  // flags
-         1                                      // warning_count
-     },
+     {classic_protocol::status::autocommit, 1},
      classic_protocol::capabilities::text_result_with_session_tracking |
          classic_protocol::capabilities::protocol_41,
      {0xfe, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00}},
-    {"session_tracking",
-     {classic_protocol::status::autocommit |
-          classic_protocol::status::more_results_exist |
-          classic_protocol::status::ps_out_params |
-          classic_protocol::status::session_state_changed,  // flags
-      0,                                                    // warning_count
-      "",                                                   // message
-      {S("\1\1\0")}},                                       // session-changes
-     classic_protocol::capabilities::text_result_with_session_tracking |
-         classic_protocol::capabilities::transactions |
-         classic_protocol::capabilities::session_track |
-         classic_protocol::capabilities::protocol_41,
-     {0xfe,        // EOF
-      0x00, 0x00,  // affected-rows, last-insert-id
-      0x0a, 0x50,  // status-flags
-      0x00, 0x00,  // warning-count
-      0x00,        // message
-      0x03, 0x01, 0x01, 0x00}},
-    {"session_tracking_empty_message_and_session_track",
-     {classic_protocol::status::autocommit |
-          classic_protocol::status::more_results_exist |
-          classic_protocol::status::ps_out_params |
-          classic_protocol::status::session_state_changed,  // flags
-      0,                                                    // warning_count
-      {},                                                   // message
-      {}},                                                  // session-changes
-     classic_protocol::capabilities::text_result_with_session_tracking |
-         classic_protocol::capabilities::transactions |
-         classic_protocol::capabilities::session_track |
-         classic_protocol::capabilities::protocol_41,
-     {
-         0xfe,        // EOF
-         0x00, 0x00,  // affected-rows, last-insert-id
-         0x0a, 0x50,  // status-flags
-         0x00, 0x00,  // warning-count
-         0x00,        // message
-         0x00,        // session-track
-     }},
-    {"session_tracking_supported_but_no_session_track_used",
-     {classic_protocol::status::autocommit |
-          classic_protocol::status::more_results_exist |
-          classic_protocol::status::ps_out_params,  // flags
-      0,                                            // warning_count
-      {},                                           // message
-      {}},                                          // session-changes
-     classic_protocol::capabilities::text_result_with_session_tracking |
-         classic_protocol::capabilities::transactions |
-         classic_protocol::capabilities::session_track |
-         classic_protocol::capabilities::protocol_41,
-     {
-         0xfe,        // EOF
-         0x00, 0x00,  // affected-rows, last-insert-id
-         0x0a, 0x10,  // status-flags
-         0x00, 0x00,  // warning-count
-         // as 'message' is empty and it is the last byte, it is not sent.
-     }},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerEofTest,
@@ -436,37 +329,6 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
-// server::ColumnCount
-
-using CodecMessageServerColumnCountTest =
-    CodecTest<classic_protocol::message::server::ColumnCount>;
-
-TEST_P(CodecMessageServerColumnCountTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageServerColumnCountTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::server::ColumnCount>
-    codec_message_server_column_count_param[] = {
-        {
-            "single_byte_1",
-            {1},  //
-            {},
-            {1},
-        },
-        {
-            "double_byte_255",
-            {255},  //
-            {},
-            {0xfc, 0xff, 0x00},  // varint encoding
-        },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageServerColumnCountTest,
-    ::testing::ValuesIn(codec_message_server_column_count_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
-
 // server::ColumMeta
 
 using CodecMessageServerColumnMetaTest =
@@ -543,35 +405,6 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
-// server::SendFileRequest
-
-using CodecMessageServerSendFileRequestTest =
-    CodecTest<classic_protocol::message::server::SendFileRequest>;
-
-TEST_P(CodecMessageServerSendFileRequestTest, encode) {
-  test_encode(GetParam());
-}
-TEST_P(CodecMessageServerSendFileRequestTest, decode) {
-  test_decode(GetParam());
-}
-
-using namespace std::string_literals;
-
-const CodecParam<classic_protocol::message::server::SendFileRequest>
-    codec_message_server_send_file_request_param[] = {
-        {"somefile",
-         {{"somefile"s}},  // decoded
-         {},               // caps
-         {0xfb, 's', 'o', 'm', 'e', 'f', 'i', 'l', 'e'}},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageServerSendFileRequestTest,
-    ::testing::ValuesIn(codec_message_server_send_file_request_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
-
 // server::Row
 
 using CodecMessageServerRowTest =
@@ -610,148 +443,6 @@ TEST_P(CodecMessageServerStmtRowTest, decode) {
   test_decode(GetParam(), std::vector<classic_protocol::field_type::value_type>{
                               classic_protocol::field_type::VarString});
 }
-
-// server::StmtPrepareOk
-
-using CodecMessageServerStmtPrepareOkTest =
-    CodecTest<classic_protocol::message::server::StmtPrepareOk>;
-
-TEST_P(CodecMessageServerStmtPrepareOkTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageServerStmtPrepareOkTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::server::StmtPrepareOk>
-    codec_message_server_prepstmtok_param[] = {
-        {"do_1",  // like DO 1
-         {
-             1,     // stmt-id
-             0,     // column-count
-             0,     // param-count
-             0,     // warning-count
-             true,  // with-metadata
-         },
-         {},  // caps: no optional_resultset_metadata
-         {
-             0x00,                    // ok
-             0x01, 0x00, 0x00, 0x00,  // stmt-id
-             0x00, 0x00,              // column-count
-             0x00, 0x00,              // param-count
-             0x00,                    // filler
-             0x00, 0x00               // warning-count
-         }},
-        {"select_1",  // like SELECT 1;
-         {
-             2,     // stmt-id
-             1,     // column-count
-             0,     // param-count
-             0,     // warning-count
-             true,  // with-metadata
-         },
-         {},  // caps: no optional_resultset_metadata
-         {
-             0x00,                    // ok
-             0x02, 0x00, 0x00, 0x00,  // stmt-id
-             0x01, 0x00,              // column-count
-             0x00, 0x00,              // param-count
-             0x00,                    // filler
-             0x00, 0x00               // warning-count
-         }},
-        {"select_placeholder",  // like SELECT ?
-         {
-             2,     // stmt-id
-             1,     // column-count
-             1,     // param-count
-             3,     // warning-count
-             true,  // with-metadata
-         },
-         {},  // caps: no optional_resultset_metadata
-         {
-             0x00,                    // ok
-             0x02, 0x00, 0x00, 0x00,  // stmt-id
-             0x01, 0x00,              // column-count
-             0x01, 0x00,              // param-count
-             0x00,                    // filler
-             0x03, 0x00               // warning-count
-         }},
-        {"do_1_with_metadata",  // like DO 1
-         {
-             1,     // stmt-id
-             0,     // column-count
-             0,     // param-count
-             0,     // warning-count
-             true,  // with-metadata
-         },
-         classic_protocol::capabilities::optional_resultset_metadata,
-         {
-             0x00,                    // ok
-             0x01, 0x00, 0x00, 0x00,  // stmt-id
-             0x00, 0x00,              // column-count
-             0x00, 0x00,              // param-count
-             0x00,                    // filler
-             0x00, 0x00,              // warning-count
-             0x01                     // with-metadata
-         }},
-        {"select_1_with_metadata",  // like SELECT 1;
-         {
-             2,     // stmt-id
-             0,     // param-count
-             1,     // column-count
-             0,     // warning-count
-             true,  // with-metadata
-         },
-         classic_protocol::capabilities::optional_resultset_metadata,
-         {
-             0x00,                    // ok
-             0x02, 0x00, 0x00, 0x00,  // stmt-id
-             0x00, 0x00,              // column-count
-             0x01, 0x00,              // param-count
-             0x00,                    // filler
-             0x00, 0x00,              // warning-count
-             0x01                     // with-metadata
-         }},
-        {"select_placeholder_with_metadata",  // like SELECT ?
-         {
-             2,     // stmt-id
-             1,     // param-count
-             1,     // column-count
-             3,     // warning-count
-             true,  // with-metadata
-         },
-         classic_protocol::capabilities::optional_resultset_metadata,
-         {
-             0x00,                    // ok
-             0x02, 0x00, 0x00, 0x00,  // stmt-id
-             0x01, 0x00,              // column-count
-             0x01, 0x00,              // param-count
-             0x00,                    // filler
-             0x03, 0x00,              // warning-count
-             0x01                     // with-metadata
-         }},
-        {"select_placeholder_without_metadata",  // like SELECT ?
-         {
-             2,      // stmt-id
-             1,      // param-count
-             1,      // column-count
-             3,      // warning-count
-             false,  // with-metadata
-         },
-         classic_protocol::capabilities::optional_resultset_metadata,
-         {
-             0x00,                    // ok
-             0x02, 0x00, 0x00, 0x00,  // stmt-id
-             0x01, 0x00,              // column-count
-             0x01, 0x00,              // param-count
-             0x00,                    // filler
-             0x03, 0x00,              // warning-count
-             0x00                     // with-metadata
-         }},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageServerStmtPrepareOkTest,
-    ::testing::ValuesIn(codec_message_server_prepstmtok_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
 
 // client::Quit
 
@@ -811,84 +502,6 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientQueryTest,
                            return test_param_info.param.test_name;
                          });
 
-// client::SendFile
-
-using CodecMessageClientSendFileTest =
-    CodecTest<classic_protocol::message::client::SendFile>;
-
-TEST_P(CodecMessageClientSendFileTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageClientSendFileTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::client::SendFile>
-    codec_message_client_send_file_param[] = {
-        {"somefile",    // testname
-         {"somefile"},  // decoded
-         {},            // caps
-         {'s', 'o', 'm', 'e', 'f', 'i', 'l', 'e'}},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageClientSendFileTest,
-    ::testing::ValuesIn(codec_message_client_send_file_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
-
-// client::AuthMethodData
-
-using CodecMessageClientAuthMethodDataTest =
-    CodecTest<classic_protocol::message::client::AuthMethodData>;
-
-TEST_P(CodecMessageClientAuthMethodDataTest, encode) {
-  test_encode(GetParam());
-}
-TEST_P(CodecMessageClientAuthMethodDataTest, decode) {
-  test_decode(GetParam());
-}
-
-const CodecParam<classic_protocol::message::client::AuthMethodData>
-    codec_message_client_auth_method_data_param[] = {
-        {"somedata",    // testname
-         {"somedata"},  // decoded
-         {},            // caps
-         {'s', 'o', 'm', 'e', 'd', 'a', 't', 'a'}},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageClientAuthMethodDataTest,
-    ::testing::ValuesIn(codec_message_client_auth_method_data_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
-
-// client::ListFields
-
-using CodecMessageClientListFieldsTest =
-    CodecTest<classic_protocol::message::client::ListFields>;
-
-TEST_P(CodecMessageClientListFieldsTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageClientListFieldsTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::client::ListFields>
-    codec_message_client_list_fields_param[] = {
-        {"some_table_no_wildcard",
-         {"some_table", ""},  // decoded
-         {},                  // caps
-         {0x04, 's', 'o', 'm', 'e', '_', 't', 'a', 'b', 'l', 'e', '\0'}},
-        {"some_table_some_wildcard",
-         {"some_table", "foo"},  // decoded
-         {},                     // caps
-         {0x04, 's', 'o', 'm', 'e', '_', 't', 'a', 'b', 'l', 'e', '\0', 'f',
-          'o', 'o'}},
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    Spec, CodecMessageClientListFieldsTest,
-    ::testing::ValuesIn(codec_message_client_list_fields_param),
-    [](auto const &test_param_info) {
-      return test_param_info.param.test_name;
-    });
-
 // client::Ping
 
 using CodecMessageClientPingTest =
@@ -926,53 +539,6 @@ INSTANTIATE_TEST_SUITE_P(
     [](auto const &test_param_info) {
       return test_param_info.param.test_name;
     });
-
-// client::Reload
-
-using CodecMessageClientReloadTest =
-    CodecTest<classic_protocol::message::client::Reload>;
-
-TEST_P(CodecMessageClientReloadTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageClientReloadTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::client::Reload>
-    codec_message_client_reload_param[] = {
-        {"flush_privileges", {0}, {}, {0x07, 0x00}},
-        {"flush_logs", {1}, {}, {0x07, 0x01}},
-        {"flush_tables", {2}, {}, {0x07, 0x02}},
-        {"flush_hosts", {3}, {}, {0x07, 0x03}},
-        {"flush_status", {4}, {}, {0x07, 0x04}},
-        {"flush_threads", {5}, {}, {0x07, 0x05}},
-        {"reset_slave", {6}, {}, {0x07, 0x06}},
-        {"reset_master", {7}, {}, {0x07, 0x07}},
-};
-
-INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientReloadTest,
-                         ::testing::ValuesIn(codec_message_client_reload_param),
-                         [](auto const &test_param_info) {
-                           return test_param_info.param.test_name;
-                         });
-
-// client::Kill
-
-using CodecMessageClientKillTest =
-    CodecTest<classic_protocol::message::client::Kill>;
-
-TEST_P(CodecMessageClientKillTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageClientKillTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::client::Kill>
-    codec_message_client_kill_param[] = {
-        {"kill_low", {0}, {}, {0x0c, 0x00, 0x00, 0x00, 0x00}},
-        {"kill_1", {1}, {}, {0x0c, 0x01, 0x00, 0x00, 0x00}},
-        {"kill_high", {0xffffffff}, {}, {0x0c, 0xff, 0xff, 0xff, 0xff}},
-};
-
-INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientKillTest,
-                         ::testing::ValuesIn(codec_message_client_kill_param),
-                         [](auto const &test_param_info) {
-                           return test_param_info.param.test_name;
-                         });
 
 // client::ResetConnection
 
@@ -1181,7 +747,9 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtFetchTest,
 
 // client::Greeting
 
-namespace classic_protocol::message::client {
+namespace classic_protocol {
+namespace message {
+namespace client {
 std::ostream &operator<<(std::ostream &os, const Greeting &v) {
   os << "Greeting: "
      << "\n";
@@ -1193,7 +761,9 @@ std::ostream &operator<<(std::ostream &os, const Greeting &v) {
 
   return os;
 }
-}  // namespace classic_protocol::message::client
+}  // namespace client
+}  // namespace message
+}  // namespace classic_protocol
 
 using CodecMessageClientGreetingTest =
     CodecTest<classic_protocol::message::client::Greeting>;
@@ -1311,27 +881,11 @@ const CodecParam<classic_protocol::message::client::Greeting>
                  0x01, 0xdb, 0xba, 0x87, 0xdd, 0xc6, 0xd0, '8',
                  'p',  'q',  0x18, '(',  '\''  // auth-method-data
              }},
-            {"3_23_58_empty_schema_server_no_schema",
-             {0x240d, 0, 0, "root", "H]^CSVY[", "", "", ""},
-             {},           // server doesn't support "connect_with_schema"
-             {0x0d, 0x24,  // caps (connect_with_schema set)
-              0, 0, 0,     // max-packet-size
-              'r', 'o', 'o', 't', 0,  // username
-              'H', ']', '^', 'C', 'S', 'V', 'Y', '['}},
-            {"3_23_58_no_schema",
+            {"3_23_58",
              {0x2405, 0, 0, "root", "H]^CSVY[", "", "", ""},
-             classic_protocol::capabilities::connect_with_schema,
-             {0x05, 0x24,             // caps (no connect_with_schema)
-              0, 0, 0,                // max-packet-size
-              'r', 'o', 'o', 't', 0,  // username
-              'H', ']', '^', 'C', 'S', 'V', 'Y', '['}},
-            {"3_23_58_empty_schema",
-             {0x240d, 0, 0, "root", "H]^CSVY[", "", "", ""},
-             classic_protocol::capabilities::connect_with_schema,
-             {0x0d, 0x24,             // caps (connect-with-schema set)
-              0, 0, 0,                // max-packet-size
-              'r', 'o', 'o', 't', 0,  // username
-              'H', ']', '^', 'C', 'S', 'V', 'Y', '[', '\0'}},
+             {},
+             {'\5', '$', 0, 0, 0, 'r', 'o', 'o', 't', 0, 'H', ']', '^', 'C',
+              'S', 'V', 'Y', '['}},
             {"3_23_58_with_schema",
              {0x240d, 0, 0, "root", "H]^CSVY[", "foobar", "", ""},
              classic_protocol::capabilities::connect_with_schema,
@@ -1365,38 +919,6 @@ const CodecParam<classic_protocol::message::client::Greeting>
                  0x00, 0x00, 0x00, 0x00,  //
                  0x00, 0x00, 0x00         //
              }},
-            {
-                "choma",
-                {
-                    0b1011'1010'0010'0000'1111,  // caps:
-                                                 // long-pass
-                                                 // found-rows
-                                                 // long-flag
-                                                 // connect-with-schema
-                                                 // protocol_41
-                                                 // transactions
-                                                 // secure_connections
-                                                 // plugin_auth (set, but then
-                                                 // not used)
-                    (1 << 24) - 1,               // max-packet-size
-                    0xff,                        // collation
-                    "myroot",                    // user
-                    "\x14\xa5\xed\xe0\xdf\x96\x9d\x5e"
-                    "\xca\xa3\x45\xc3\x93\x55\xfe\x22"
-                    "\x99\x62\xc9\xed",  // authdata
-                    "mysql",             // schema
-                    "",                  // authmethod
-                    {}                   // attributes
-                },                       // client::Greeting
-                0xffffffff,              // server-caps
-                {0x0f, 0xa2, 0x0b, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0x00,
-                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00, 0x00, 0x6d, 0x79, 0x72, 0x6f, 0x6f, 0x74, 0x00, 0x14,
-                 0x14, 0xa5, 0xed, 0xe0, 0xdf, 0x96, 0x9d, 0x5e, 0xca, 0xa3,
-                 0x45, 0xc3, 0x93, 0x55, 0xfe, 0x22, 0x99, 0x62, 0xc9, 0xed,
-                 0x6d, 0x79, 0x73, 0x71, 0x6c, 0x00}  // bytes
-            },
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1408,7 +930,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 // client::ChangeUser
 
-namespace classic_protocol::message::client {
+namespace classic_protocol {
+namespace message {
+namespace client {
 std::ostream &operator<<(std::ostream &os, const ChangeUser &v) {
   os << "ChangeUser: "
      << "\n";
@@ -1418,7 +942,9 @@ std::ostream &operator<<(std::ostream &os, const ChangeUser &v) {
 
   return os;
 }
-}  // namespace classic_protocol::message::client
+}  // namespace client
+}  // namespace message
+}  // namespace classic_protocol
 
 using CodecMessageClientChangeUserTest =
     CodecTest<classic_protocol::message::client::ChangeUser>;
@@ -1574,40 +1100,6 @@ INSTANTIATE_TEST_SUITE_P(
     [](auto const &test_param_info) {
       return test_param_info.param.test_name;
     });
-
-using CodecMessageServerStatisticsTest =
-    CodecTest<classic_protocol::message::server::Statistics>;
-
-TEST_P(CodecMessageServerStatisticsTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageServerStatisticsTest, decode) { test_decode(GetParam()); }
-
-const CodecParam<classic_protocol::message::server::Statistics>
-    codec_server_statistics_param[] = {
-        {"statistics",
-         {"Uptime: 38605  Threads: 6  Questions: 137  Slow queries: 0  Opens: "
-          "186  Flush tables: 3  Open tables: 101  Queries per second avg: "
-          "0.003"},
-         {},  // caps
-         {0x55, 0x70, 0x74, 0x69, 0x6d, 0x65, 0x3a, 0x20, 0x33, 0x38, 0x36,
-          0x30, 0x35, 0x20, 0x20, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73,
-          0x3a, 0x20, 0x36, 0x20, 0x20, 0x51, 0x75, 0x65, 0x73, 0x74, 0x69,
-          0x6f, 0x6e, 0x73, 0x3a, 0x20, 0x31, 0x33, 0x37, 0x20, 0x20, 0x53,
-          0x6c, 0x6f, 0x77, 0x20, 0x71, 0x75, 0x65, 0x72, 0x69, 0x65, 0x73,
-          0x3a, 0x20, 0x30, 0x20, 0x20, 0x4f, 0x70, 0x65, 0x6e, 0x73, 0x3a,
-          0x20, 0x31, 0x38, 0x36, 0x20, 0x20, 0x46, 0x6c, 0x75, 0x73, 0x68,
-          0x20, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x73, 0x3a, 0x20, 0x33, 0x20,
-          0x20, 0x4f, 0x70, 0x65, 0x6e, 0x20, 0x74, 0x61, 0x62, 0x6c, 0x65,
-          0x73, 0x3a, 0x20, 0x31, 0x30, 0x31, 0x20, 0x20, 0x51, 0x75, 0x65,
-          0x72, 0x69, 0x65, 0x73, 0x20, 0x70, 0x65, 0x72, 0x20, 0x73, 0x65,
-          0x63, 0x6f, 0x6e, 0x64, 0x20, 0x61, 0x76, 0x67, 0x3a, 0x20, 0x30,
-          0x2e, 0x30, 0x30, 0x33}},
-};
-
-INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerStatisticsTest,
-                         ::testing::ValuesIn(codec_server_statistics_param),
-                         [](auto const &test_param_info) {
-                           return test_param_info.param.test_name;
-                         });
 
 TEST(ClassicProto, Decode_NulTermString_multiple_chunks) {
   std::list<std::vector<uint8_t>> read_storage{{'8', '0'}, {'1', 0x00, 'f'}};

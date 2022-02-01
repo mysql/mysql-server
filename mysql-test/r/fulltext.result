@@ -15,12 +15,12 @@ t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
 EXPLAIN
 -> Filter: (match t1.a,t1.b against ('collections'))  (cost=0.35 rows=1)
-    -> Full-text index search on t1 using a (a='collections')  (cost=0.35 rows=1)
+    -> Indexed full text search on t1 using a (a='collections')  (cost=0.35 rows=1)
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
-Full-text indexes	are called collections
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
@@ -37,9 +37,9 @@ select * from t1 where MATCH(a,b) AGAINST ("only");
 a	b
 select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 a	b
+Only MyISAM tables	support collections
 Full-text indexes	are called collections
 MySQL has now support	for full-text search
-Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
 a	b
 Full-text indexes	are called collections
@@ -47,8 +47,8 @@ Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 a	b
 Full-text indexes	are called collections
-MySQL has now support	for full-text search
 Only MyISAM tables	support collections
+MySQL has now support	for full-text search
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE);
 a	b
 Full-text indexes	are called collections
@@ -203,9 +203,9 @@ MySQL has now support	for full-text search
 Function MATCH ... AGAINST()	is used to do a search
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
-Full-text indexes	are called collections
-Full-text indexes	are called collections
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
+Full-text indexes	are called collections
 delete from t1 where a like "MySQL%";
 update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
 delete from t1 where MATCH(a,b) AGAINST ("indexes");
@@ -219,13 +219,13 @@ create table t1 (a varchar(200) not null, fulltext (a));
 insert t1 values ("aaa10 bbb20"), ("aaa20 bbb15"), ("aaa30 bbb10");
 select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
 a
-aaa10 bbb20
-aaa20 bbb15
 aaa30 bbb10
+aaa20 bbb15
+aaa10 bbb20
 select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
 a
-aaa20 bbb15
 aaa30 bbb10
+aaa20 bbb15
 select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
 a
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
@@ -233,12 +233,12 @@ a
 aaa10 bbb20
 select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
 a
-aaa20 bbb15
 aaa30 bbb10
+aaa20 bbb15
 select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
 a
-aaa20 bbb15
 aaa30 bbb10
+aaa20 bbb15
 drop table t1;
 CREATE TABLE t1 (
 id int(11),
@@ -347,8 +347,8 @@ a	b
 insert into t1 values (2,"fullaaa fullzzz");
 select * from t1 where match b against ('full*' in boolean mode);
 a	b
-1	I wonder why the fulltext index doesnt work?
 2	fullaaa fullzzz
+1	I wonder why the fulltext index doesnt work?
 drop table t1;
 CREATE TABLE t1 ( id int(11) NOT NULL auto_increment primary key, mytext text NOT NULL, FULLTEXT KEY mytext (mytext)) ENGINE=MyISAM;
 Warnings:
@@ -859,11 +859,3 @@ fld1
 abCD
 ABCD
 DROP TABLE t1;
-#
-# Bug#32611913: ASSERT FAILURE IN ITEM_FUNC_MATCH::EQ()
-#
-CREATE TABLE t(x VARCHAR(10), FULLTEXT KEY (x));
-SELECT x FROM t GROUP BY x, MATCH(x) AGAINST ('abc')
-HAVING MATCH(x) AGAINST ('abc');
-x
-DROP TABLE t;

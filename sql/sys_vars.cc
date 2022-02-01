@@ -91,7 +91,6 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // validate_user_plugins
 #include "sql/binlog.h"            // mysql_bin_log
-#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/clone_handler.h"
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
@@ -116,9 +115,9 @@
 #include "sql/rpl_log_encryption.h"
 #include "sql/rpl_mi.h"                 // Master_info
 #include "sql/rpl_msr.h"                // channel_map
-#include "sql/rpl_mta_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
-#include "sql/rpl_replica.h"            // SLAVE_THD_TYPE
+#include "sql/rpl_mts_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
 #include "sql/rpl_rli.h"                // Relay_log_info
+#include "sql/rpl_slave.h"              // SLAVE_THD_TYPE
 #include "sql/rpl_write_set_handler.h"  // transaction_write_set_hashing_algorithms
 #include "sql/server_component/log_builtins_filter_imp.h"  // until we have pluggable variables
 #include "sql/server_component/log_builtins_imp.h"
@@ -126,10 +125,9 @@
 #include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_lex.h"
-#include "sql/sql_locale.h"            // my_locale_by_number
-#include "sql/sql_parse.h"             // killall_non_super_threads
-#include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
-#include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
+#include "sql/sql_locale.h"     // my_locale_by_number
+#include "sql/sql_parse.h"      // killall_non_super_threads
+#include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
@@ -148,14 +146,13 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
-#include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
 
 static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
-                               ptrdiff_t offset [[maybe_unused]],
+                               ptrdiff_t offset MY_ATTRIBUTE((unused)),
                                ulonglong new_value) {
   bool error = false;
   assert(offset == offsetof(KEY_CACHE, param_buff_size));
@@ -236,10 +233,8 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
   @param thd the session context
   @param setv the SET operations metadata
  */
-static bool check_session_admin_or_replication_applier(sys_var *self
-                                                       [[maybe_unused]],
-                                                       THD *thd,
-                                                       set_var *setv) {
+static bool check_session_admin_or_replication_applier(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *setv) {
   assert(self->scope() != sys_var::GLOBAL);
   Security_context *sctx = thd->security_context();
   if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
@@ -252,52 +247,6 @@ static bool check_session_admin_or_replication_applier(sys_var *self
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
              "REPLICATION_APPLIER");
-    return true;
-  }
-  return false;
-}
-
-/**
-  Utility method that checks if user has correct session administrative
-  dynamic privileges.
-  @return 0 on success, 1 on failure.
-*/
-static bool check_session_admin_privileges_only(sys_var *self [[maybe_unused]],
-                                                THD *thd, set_var *setv) {
-  // Privilege check for global variable must have already done before.
-  assert(self->scope() != sys_var::GLOBAL);
-  Security_context *sctx = thd->security_context();
-  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
-           .first &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-           .first) {
-    return true;
-  }
-  return false;
-}
-
-/**
-  Check if SESSION_VARIABLES_ADMIN granted. Throw SQL error if not.
-
-  Use this when setting session variables that are sensitive and should
-  be protected.
-
-  We also accept SYSTEM_VARIABLES_ADMIN since it doesn't make a lot of
-  sense to be allowed to set the global variable and not the session ones.
-
-  @retval true failure
-  @retval false success
-
-  @param self the system variable to set value for
-  @param thd the session context
-  @param setv the SET operations metadata
- */
-static bool check_session_admin_no_super(sys_var *self, THD *thd,
-                                         set_var *setv) {
-  if (check_session_admin_privileges_only(self, thd, setv)) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
     return true;
   }
   return false;
@@ -321,9 +270,16 @@ static bool check_session_admin_no_super(sys_var *self, THD *thd,
   @param thd the session context
   @param setv the SET operations metadata
  */
-static bool check_session_admin(sys_var *self, THD *thd, set_var *setv) {
+static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
+                                set_var *setv) {
+  assert(self->scope() !=
+         sys_var::GLOBAL);  // don't abuse check_session_admin()
   Security_context *sctx = thd->security_context();
-  if (check_session_admin_privileges_only(self, thd, setv) &&
+  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+           .first &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+           .first &&
       !sctx->check_access(SUPER_ACL)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
@@ -464,13 +420,6 @@ static Sys_var_bool Sys_pfs_consumer_events_stages_history_long(
     "Default startup value for the events_stages_history_long consumer.",
     READ_ONLY NOT_VISIBLE
         GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_long_enabled),
-    CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
-
-static Sys_var_bool Sys_pfs_consumer_events_statements_cpu(
-    "performance_schema_consumer_events_statements_cpu",
-    "Default startup value for the events_statements_cpu consumer.",
-    READ_ONLY NOT_VISIBLE
-        GLOBAL_VAR(pfs_param.m_consumer_events_statements_cpu_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_bool Sys_pfs_consumer_events_statements_current(
@@ -959,19 +908,12 @@ static Sys_var_charptr Sys_basedir(
     READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_home_ptr),
     CMD_LINE(REQUIRED_ARG, 'b'), IN_FS_CHARSET, DEFAULT(nullptr));
 
-/*
-  --authentication_policy will take precendence over this variable
-  except in case where plugin name for first factor is not a concrete
-  value. Please refer authentication_policy variable.
-*/
 static Sys_var_charptr Sys_default_authentication_plugin(
     "default_authentication_plugin",
     "The default authentication plugin "
     "used by the server to hash the password.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT("caching_sha2_password"),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("authentication_policy"));
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT("caching_sha2_password"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
     &LOCK_default_password_lifetime);
@@ -1356,12 +1298,15 @@ static Sys_var_test_flag Sys_core_file("core_file",
 
 static Sys_var_enum Sys_binlog_format(
     "binlog_format",
-    "The format used when writing the binary log. ROW writes each changed "
-    "row in a binary format. STATEMENT writes SQL statements. MIXED writes "
-    "SQL statements for most statements, and row format for statements that "
-    "cannot be replayed in a deterministic manner using SQL. If NDBCLUSTER "
-    "is enabled and binlog-format is MIXED, the format switches to row-based "
-    "and back implicitly for each query accessing an NDBCLUSTER table.",
+    "What form of binary logging the master will "
+    "use: either ROW for row-based binary logging, STATEMENT "
+    "for statement-based binary logging, or MIXED. MIXED is statement-"
+    "based binary logging except for those statements where only row-"
+    "based is correct: those which involve user-defined functions (i.e. "
+    "UDFs) or the UUID() function; for those, row-based binary logging is "
+    "automatically used. If NDBCLUSTER is enabled and binlog-format is "
+    "MIXED, the format switches to row-based and back implicitly per each "
+    "query accessing an NDBCLUSTER table",
     SESSION_VAR(binlog_format), CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
     binlog_format_names, DEFAULT(BINLOG_FORMAT_ROW), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
@@ -1379,8 +1324,8 @@ static Sys_var_enum rbr_exec_mode(
     DEFAULT(RBR_EXEC_MODE_STRICT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(prevent_global_rbr_exec_mode_idempotent), ON_UPDATE(nullptr));
 
-static bool check_binlog_row_image(sys_var *self [[maybe_unused]], THD *thd,
-                                   set_var *var) {
+static bool check_binlog_row_image(sys_var *self MY_ATTRIBUTE((unused)),
+                                   THD *thd, set_var *var) {
   DBUG_TRACE;
   if (check_session_admin(self, thd, var)) return true;
   if (var->save_result.ulonglong_value == BINLOG_ROW_IMAGE_FULL) {
@@ -1417,14 +1362,14 @@ static Sys_var_enum Sys_binlog_row_image(
 static const char *binlog_row_metadata_names[] = {"MINIMAL", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_metadata(
     "binlog_row_metadata",
-    "Controls how much type information is written to the binary log when "
-    "using ROW format. FULL causes all metadata to be logged. MINIMAL means "
-    "that only metadata actually needed by replicas is logged.",
+    "Controls whether metadata is logged using FULL or MINIMAL format. "
+    "FULL causes all metadata to be logged; MINIMAL means that only "
+    "metadata actually required by slave is logged. Default: MINIMAL.",
     GLOBAL_VAR(binlog_row_metadata), CMD_LINE(REQUIRED_ARG),
     binlog_row_metadata_names, DEFAULT(BINLOG_ROW_METADATA_MINIMAL),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
-static bool check_binlog_trx_compression(sys_var *self [[maybe_unused]],
+static bool check_binlog_trx_compression(sys_var *self MY_ATTRIBUTE((unused)),
                                          THD *thd, set_var *var) {
   DBUG_TRACE;
   if (check_session_admin(self, thd, var)) return true;
@@ -1501,11 +1446,10 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var) {
 static Sys_var_bool Sys_binlog_direct(
     "binlog_direct_non_transactional_updates",
     "Causes updates to non-transactional engines using statement format to "
-    "be written directly to binary log, after executing them and before "
-    "committing the transaction. Before using this option make sure "
+    "be written directly to binary log. Before using this option make sure "
     "that there are no dependencies between transactional and "
     "non-transactional tables such as in the statement INSERT INTO t_myisam "
-    "SELECT * FROM t_innodb; otherwise, replicas may diverge.",
+    "SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
     SESSION_VAR(binlog_direct_non_trans_update), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(binlog_direct_check));
@@ -1563,30 +1507,19 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
     lock_slave_threads(mi);
     init_thread_mask(&running, mi, false);
     if (!running) {
-      bool is_pos_info_invalid{false};
       switch (thread_mask) {
         case SLAVE_THD_IO:
-          is_pos_info_invalid = mi->is_receiver_position_info_invalid();
-          mysql_mutex_lock(&mi->data_lock);
-          mi->flush_info(true);
-          mysql_mutex_unlock(&mi->data_lock);
           if (Rpl_info_factory::change_mi_repository(
                   mi, static_cast<uint>(var->save_result.ulonglong_value),
                   &msg)) {
             ret = true;
             my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
           }
-          mi->set_receiver_position_info_invalid(is_pos_info_invalid);
           break;
         case SLAVE_THD_SQL:
           mts_recovery_groups(mi->rli);
           if (!mi->rli->is_mts_recovery()) {
-            is_pos_info_invalid =
-                mi->rli->is_applier_source_position_info_invalid();
             if (Rpl_info_factory::reset_workers(mi->rli) ||
-                mi->rli->flush_info(
-                    Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT |
-                    Relay_log_info::RLI_FLUSH_IGNORE_GTID_ONLY) ||
                 Rpl_info_factory::change_rli_repository(
                     mi->rli,
                     static_cast<uint>(var->save_result.ulonglong_value),
@@ -1594,8 +1527,6 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
               ret = true;
               my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
             }
-            mi->rli->set_applier_source_position_info_invalid(
-                is_pos_info_invalid);
           } else
             LogErr(WARNING_LEVEL, ER_RPL_REPO_HAS_GAPS);
           break;
@@ -1633,7 +1564,7 @@ static const char *repository_names[] = {"FILE", "TABLE",
 ulong opt_mi_repository_id = INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_mi_repository(
     "master_info_repository",
-    "The repository format for the replication connection configuration.",
+    "Defines the type of the repository for the master information.",
     GLOBAL_VAR(opt_mi_repository_id),
     CMD_LINE(REQUIRED_ARG, OPT_MASTER_INFO_REPOSITORY), repository_names,
     DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -1681,8 +1612,7 @@ static Sys_var_ulong Sys_select_into_buffer_size(
     "select_into_buffer_size", "Buffer size for SELECT INTO OUTFILE/DUMPFILE.",
     HINT_UPDATEABLE SESSION_VAR(select_into_buffer_size), CMD_LINE(OPT_ARG),
     VALID_RANGE(IO_SIZE * 2, INT_MAX32), DEFAULT(128 * 1024),
-    BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super));
+    BLOCK_SIZE(IO_SIZE));
 
 static Sys_var_bool Sys_select_into_disk_sync(
     "select_into_disk_sync",
@@ -1695,8 +1625,7 @@ static Sys_var_uint Sys_select_into_disk_sync_delay(
     "The delay in milliseconds after each buffer sync "
     "for SELECT INTO OUTFILE/DUMPFILE. Requires select_into_sync_disk = ON.",
     HINT_UPDATEABLE SESSION_VAR(select_into_disk_sync_delay), CMD_LINE(OPT_ARG),
-    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1));
 
 static bool check_not_null(sys_var *, THD *, set_var *var) {
   return var->value && var->value->is_null();
@@ -1823,14 +1752,6 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
   if (!var->value)  // = DEFAULT
     var->save_result.ptr = thd->db_charset;
-  return false;
-}
-
-static bool update_deprecated_with_removal_message(sys_var *self, THD *thd,
-                                                   enum_var_type) {
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                      self->name.str);
   return false;
 }
 static bool update_deprecated(sys_var *self, THD *thd, enum_var_type) {
@@ -2227,16 +2148,14 @@ static Sys_var_charptr Sys_init_file(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_init_file), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(nullptr));
 
-static PolyLock_rwlock PLock_sys_init_replica(&LOCK_sys_init_replica);
-static Sys_var_lexstring Sys_init_replica(
-    "init_replica",
-    "Command(s) that are executed by the replication applier thread "
-    "each time the applier threads start.",
-    GLOBAL_VAR(opt_init_replica), CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-    DEFAULT(""), &PLock_sys_init_replica, NOT_IN_BINLOG,
+static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
+static Sys_var_lexstring Sys_init_slave(
+    "init_slave",
+    "Command(s) that are executed by a slave server "
+    "each time the SQL thread starts",
+    GLOBAL_VAR(opt_init_slave), CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+    DEFAULT(""), &PLock_sys_init_slave, NOT_IN_BINLOG,
     ON_CHECK(check_init_string));
-
-static Sys_var_deprecated_alias Sys_init_slave("init_slave", Sys_init_replica);
 
 static Sys_var_ulong Sys_interactive_timeout(
     "interactive_timeout",
@@ -2395,27 +2314,23 @@ static Sys_var_enum Sys_extract_write_set(
     "transaction_write_set_extraction",
     "This option is used to let the server know when to "
     "extract the write set which will be used for various purposes. ",
-    SESSION_VAR(transaction_write_set_extraction),
-    CMD_LINE(OPT_ARG, OPT_TRANSACTION_WRITE_SET_EXTRACTION),
+    SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
     transaction_write_set_hashing_algorithms, DEFAULT(HASH_ALGORITHM_XXHASH64),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(transaction_write_set_check),
-    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
+    ON_UPDATE(nullptr));
 
-static Sys_var_ulong Sys_rpl_stop_replica_timeout(
-    "rpl_stop_replica_timeout",
-    "Timeout in seconds to wait for replication threads to stop, before "
-    "STOP REPLICA returns a warning.",
-    GLOBAL_VAR(rpl_stop_replica_timeout), CMD_LINE(REQUIRED_ARG),
+static Sys_var_ulong Sys_rpl_stop_slave_timeout(
+    "rpl_stop_slave_timeout",
+    "Timeout in seconds to wait for slave to stop before returning a "
+    "warning.",
+    GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
-
-static Sys_var_deprecated_alias Sys_rpl_stop_slave_timeout(
-    "rpl_stop_slave_timeout", Sys_rpl_stop_replica_timeout);
 
 static Sys_var_enum Sys_binlog_error_action(
     "binlog_error_action",
     "When statements cannot be written to the binary log due to a fatal "
-    "error, this option determines whether the server ignores the error and "
-    "closes the binary log, or aborts.",
+    "error, the server can either ignore the error and let the master "
+    "continue, or abort.",
     GLOBAL_VAR(binlog_error_action), CMD_LINE(REQUIRED_ARG),
     binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
@@ -2531,8 +2446,9 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool fix_log_error_services(sys_var *self [[maybe_unused]], THD *thd,
-                                   enum_var_type type [[maybe_unused]]) {
+static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
+                                   THD *thd,
+                                   enum_var_type type MY_ATTRIBUTE((unused))) {
   bool ret = false;
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
@@ -2598,10 +2514,9 @@ static bool check_log_error_suppression_list(sys_var *self, THD *thd,
   return false;
 }
 
-static bool fix_log_error_suppression_list(sys_var *self [[maybe_unused]],
-                                           THD *thd [[maybe_unused]],
-                                           enum_var_type type
-                                           [[maybe_unused]]) {
+static bool fix_log_error_suppression_list(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd MY_ATTRIBUTE((unused)),
+    enum_var_type type MY_ATTRIBUTE((unused))) {
   // syntax is OK and errcodes have messages; try to make filter rules for
   // them!
   int rr = log_builtins_filter_parse_suppression_list(
@@ -2638,15 +2553,12 @@ static Sys_var_bool Sys_log_slow_admin_statements(
     GLOBAL_VAR(opt_log_slow_admin_statements), CMD_LINE(OPT_ARG),
     DEFAULT(false));
 
-static Sys_var_bool Sys_log_slow_replica_statements(
-    "log_slow_replica_statements",
-    "Log slow statements executed by the replication applier threads to the "
-    "slow log if it is open.",
-    GLOBAL_VAR(opt_log_slow_replica_statements), CMD_LINE(OPT_ARG),
+static Sys_var_bool Sys_log_slow_slave_statements(
+    "log_slow_slave_statements",
+    "Log slow statements executed by slave thread to the slow log if it is "
+    "open.",
+    GLOBAL_VAR(opt_log_slow_slave_statements), CMD_LINE(OPT_ARG),
     DEFAULT(false));
-
-static Sys_var_deprecated_alias Sys_log_slow_slave_statements(
-    "log_slow_slave_statements", Sys_log_slow_replica_statements);
 
 static bool update_log_throttle_queries_not_using_indexes(sys_var *, THD *thd,
                                                           enum_var_type) {
@@ -2739,7 +2651,7 @@ static Sys_var_bool Sys_low_priority_updates(
     "low_priority_updates",
     "INSERT/DELETE/UPDATE has lower priority than selects",
     SESSION_VAR(low_priority_updates), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_low_prio_updates));
 
 static Sys_var_bool Sys_lower_case_file_system(
@@ -2791,16 +2703,13 @@ static Sys_var_ulong Sys_max_allowed_packet(
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_max_allowed_packet));
 
-static Sys_var_ulong Sys_replica_max_allowed_packet(
-    "replica_max_allowed_packet",
-    "The maximum size of packets sent from an upstream source server to this "
-    "server.",
-    GLOBAL_VAR(replica_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
+static Sys_var_ulong Sys_slave_max_allowed_packet(
+    "slave_max_allowed_packet",
+    "The maximum packet length to sent successfully from the master to "
+    "slave.",
+    GLOBAL_VAR(slave_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, MAX_MAX_ALLOWED_PACKET), DEFAULT(MAX_MAX_ALLOWED_PACKET),
     BLOCK_SIZE(1024));
-
-static Sys_var_deprecated_alias Sys_slave_max_allowed_packet(
-    "slave_max_allowed_packet", Sys_replica_max_allowed_packet);
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
     "max_binlog_cache_size", "Sets the total size of the transactional cache",
@@ -2864,8 +2773,7 @@ static Sys_var_long Sys_max_digest_length(
     READ_ONLY GLOBAL_VAR(max_digest_length), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, 1024 * 1024), DEFAULT(1024), BLOCK_SIZE(1));
 
-static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var) {
-  if (check_session_admin_no_super(self, thd, var)) return true;
+static bool check_max_delayed_threads(sys_var *, THD *, set_var *var) {
   return (!var->is_global_persist()) && var->save_result.ulonglong_value != 0 &&
          var->save_result.ulonglong_value !=
              global_system_variables.max_insert_delayed_threads;
@@ -2895,8 +2803,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
 static Sys_var_ulong Sys_max_error_count(
     "max_error_count", "Max number of errors/warnings to store for a statement",
     HINT_UPDATEABLE SESSION_VAR(max_error_count), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 65535), DEFAULT(DEFAULT_ERROR_COUNT), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, 65535), DEFAULT(DEFAULT_ERROR_COUNT), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_max_heap_table_size(
     "max_heap_table_size",
@@ -3021,8 +2928,7 @@ static Sys_var_ulong Sys_min_examined_row_limit(
     "Don't write queries to slow log that examine fewer rows "
     "than that",
     SESSION_VAR(min_examined_row_limit), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #ifdef _WIN32
 static Sys_var_bool Sys_named_pipe("named_pipe", "Enable the named pipe (NT)",
@@ -3253,7 +3159,7 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
-static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
+static bool check_optimizer_switch(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
                                    set_var *var) {
   const bool current_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
@@ -3332,48 +3238,6 @@ static Sys_var_flagset Sys_optimizer_switch(
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
-
-static PolyLock_mutex PLock_global_conn_mem_limit(&LOCK_global_conn_mem_limit);
-
-static Sys_var_ulonglong Sys_global_connection_memory_limit(
-    "global_connection_memory_limit",
-    "Maximum amount of memory all connections can consume",
-    GLOBAL_VAR(global_conn_mem_limit), CMD_LINE(REQUIRED_ARG),
-#ifndef NDEBUG
-    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
-#else
-    VALID_RANGE(1024 * 1024 * 16, max_mem_sz), DEFAULT(max_mem_sz),
-#endif
-    BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
-    ON_CHECK(nullptr), ON_UPDATE(nullptr));
-
-static Sys_var_ulonglong Sys_connection_memory_limit(
-    "connection_memory_limit",
-    "Maximum amount of memory connection can consume",
-    SESSION_VAR(conn_mem_limit), CMD_LINE(REQUIRED_ARG),
-#ifndef NDEBUG
-    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
-#else
-    VALID_RANGE(1024 * 1024 * 2, max_mem_sz), DEFAULT(max_mem_sz),
-#endif
-    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
-    ON_UPDATE(nullptr));
-
-static Sys_var_ulong Sys_connection_memory_chunk_size(
-    "connection_memory_chunk_size",
-    "Chunk size regulating frequency of updating the global memory counter",
-    SESSION_VAR(conn_mem_chunk_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1, 1024 * 1024 * 512), DEFAULT(8912), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
-    ON_UPDATE(nullptr));
-
-static Sys_var_bool Sys_connection_global_memory_tracking(
-    "global_connection_memory_tracking",
-    "Enable updating the global memory counter and checking "
-    "the global connection memory limit exceeding",
-    SESSION_VAR(conn_global_mem_tracking), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
-    ON_UPDATE(nullptr));
 
 static Sys_var_bool Sys_var_end_markers_in_json(
     "end_markers_in_json",
@@ -3460,8 +3324,7 @@ static Sys_var_ulong Sys_preload_buff_size(
     "preload_buffer_size",
     "The size of the buffer that is allocated when preloading indexes",
     SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_protocol_version(
     "protocol_version",
@@ -3495,8 +3358,8 @@ static bool check_read_only(sys_var *, THD *thd, set_var *) {
   return false;
 }
 
-static bool check_require_secure_transport(sys_var *, THD *,
-                                           set_var *var [[maybe_unused]]) {
+static bool check_require_secure_transport(
+    sys_var *, THD *, set_var *var MY_ATTRIBUTE((unused))) {
 #if !defined(_WIN32)
   /*
     always allow require_secure_transport to be enabled on
@@ -3519,85 +3382,20 @@ static bool check_require_secure_transport(sys_var *, THD *,
 #endif
 }
 
-static void event_scheduler_restart(THD *thd) {
-  /*
-    Restart event scheduler if needed.
-
-    At present, turning on SUPER_READ_ONLY means that we
-    can no longer acquire an MDL to update mysql.*.
-    As a result of this, updating the "last run at ..."
-    timestamp of events fails, and the event scheduler
-    shuts down when trying to do so.
-
-    As a convenience, we restart the event scheduler when
-    [SUPER_]READ_ONLY is turned off while the scheduler is
-    enabled (in the settings), but not actually running.
-  */
-  if (Events::opt_event_scheduler == Events::EVENTS_ON) {
-    bool evsched_error;       // Did we fail to start the event scheduler?
-    int evsched_errcode = 0;  // If we failed, what was the actual error code?
-
-    /*
-      We must not hold the lock while starting the event scheduler,
-      as that will internally try to take the lock while creating a THD.
-    */
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-    evsched_error = Events::start(&evsched_errcode);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-    if (evsched_error) {
-      /*
-        The user requested a change of super_read_only.
-        That change succeeded, so we do not signal a failure here,
-        since it is only the side-effect/convenience of restarting
-        the event scheduler that failed.
-        We do however notify them of that failure, since we're
-        just that nice.
-        We also do not modify opt_event_scheduler, since user
-        intent has not changed. If this policy ever changes,
-        opt_event_scheduler should probably be unset when the
-        event scheduler shuts down.
-      */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_EVENT_SET_VAR_ERROR,
-                          ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
-    }
-  }
-}
-
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
   bool result = true;
   bool new_read_only = read_only;  // make a copy before releasing a mutex
   DBUG_TRACE;
 
-  /*
-    If we're not newly turning on READ_ONLY, we don't have to worry
-    about locks.
-  */
   if (read_only == false || read_only == opt_readonly) {
-    opt_readonly = read_only;
-
-    /*
-      If we're turning off READ_ONLY here, turn off
-      SUPER_READ_ONLY as well (if on).
-    */
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
-
-      // Do this last as it temporarily releases the global sys-var lock.
-      event_scheduler_restart(thd);
     }
+    opt_readonly = read_only;
     return false;
   }
 
-  /*
-    Check whether we can change read_only state without causing a deadlock.
-
-    Not to be confused with check_readonly(), which checks in a
-    standardized way whether the current settings of opt_readonly
-    and opt_super_readonly prohibit certain operations.
-  */
   if (check_read_only(self, thd, nullptr))  // just in case
     goto end;
 
@@ -3608,15 +3406,11 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
-    opt_readonly = read_only;
-
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
-
-      // Do this last as it temporarily releases the global sys-var lock.
-      event_scheduler_restart(thd);
     }
+    opt_readonly = read_only;
     return false;
   }
 
@@ -3665,10 +3459,6 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   /* return immediately if turning super_read_only OFF: */
   if (super_read_only == false) {
     opt_super_readonly = false;
-
-    // Do this last as it temporarily releases the global sys-var lock.
-    event_scheduler_restart(thd);
-
     return false;
   }
   bool result = true;
@@ -3733,7 +3523,7 @@ static Sys_var_bool Sys_require_secure_transport(
 static Sys_var_bool Sys_readonly(
     "read_only",
     "Make all non-temporary tables read-only, with the exception for "
-    "replication applier threads and users with the SUPER privilege.",
+    "replication (slave) threads and users with the SUPER privilege",
     GLOBAL_VAR(read_only), CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
 
@@ -3743,7 +3533,7 @@ Setting super_read_only to ON triggers read_only to also be set to ON.
 static Sys_var_bool Sys_super_readonly(
     "super_read_only",
     "Make all non-temporary tables read-only, with the exception for "
-    "replication applier threads.  Users with the SUPER privilege are "
+    "replication (slave) threads.  Users with the SUPER privilege are "
     "affected, unlike read_only.  Setting super_read_only to ON "
     "also sets read_only to ON.",
     GLOBAL_VAR(super_read_only), CMD_LINE(OPT_ARG), DEFAULT(false),
@@ -3844,8 +3634,9 @@ static Sys_var_ulong Sys_thread_stack(
     "thread_stack", "The stack size for each thread",
     READ_ONLY GLOBAL_VAR(my_thread_stack_size), CMD_LINE(REQUIRED_ARG),
 #if defined(__clang__) && defined(HAVE_UBSAN)
-    // Clang with DEBUG needs more stack, esp. with UBSAN.
-    VALID_RANGE(DEFAULT_THREAD_STACK, ULONG_MAX),
+    // DEFAULT_THREAD_STACK is multiplied by 3 for clang/UBSAN
+    // We need to increase the minimum value as well.
+    VALID_RANGE(DEFAULT_THREAD_STACK / 2, ULONG_MAX),
 #else
     VALID_RANGE(128 * 1024, ULONG_MAX),
 #endif
@@ -3941,35 +3732,27 @@ static Sys_var_int32 Sys_regexp_stack_limit(
     GLOBAL_VAR(opt_regexp_stack_limit), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, INT32_MAX), DEFAULT(8000000), BLOCK_SIZE(1));
 
-static Sys_var_bool Sys_replica_compressed_protocol(
-    "replica_compressed_protocol",
-    "Use compression in the source/replica protocol.",
-    GLOBAL_VAR(opt_replica_compressed_protocol), CMD_LINE(OPT_ARG),
+static Sys_var_bool Sys_slave_compressed_protocol(
+    "slave_compressed_protocol", "Use compression on master/slave protocol",
+    GLOBAL_VAR(opt_slave_compressed_protocol), CMD_LINE(OPT_ARG),
     DEFAULT(false));
 
-static Sys_var_deprecated_alias Sys_slave_compressed_protocol(
-    "slave_compressed_protocol", Sys_replica_compressed_protocol);
-
-static const char *replica_exec_mode_names[] = {"STRICT", "IDEMPOTENT",
-                                                nullptr};
-static Sys_var_enum Sys_replica_exec_mode(
-    "replica_exec_mode",
+static const char *slave_exec_mode_names[] = {"STRICT", "IDEMPOTENT", nullptr};
+static Sys_var_enum Slave_exec_mode(
+    "slave_exec_mode",
     "Modes for how replication events should be executed. Legal values "
     "are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, "
-    "replication will ignore duplicate key errors and key not found errors. "
-    "In STRICT mode, replication will stop at those errors.",
-    GLOBAL_VAR(replica_exec_mode_options), CMD_LINE(REQUIRED_ARG),
-    replica_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
+    "replication will not stop for operations that are idempotent. "
+    "In STRICT mode, replication will stop on any unexpected difference "
+    "between the master and the slave",
+    GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
+    slave_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
 
-static Sys_var_deprecated_alias Sys_slave_exec_mode("slave_exec_mode",
-                                                    Sys_replica_exec_mode);
-
-const char *replica_type_conversions_name[] = {
+const char *slave_type_conversions_name[] = {
     "ALL_LOSSY", "ALL_NON_LOSSY", "ALL_UNSIGNED", "ALL_SIGNED", nullptr};
-static Sys_var_set Sys_replica_type_conversions(
-    "replica_type_conversions",
-    "Set of type conversions that may be used by the replication applier "
-    "thread for row events. Allowed values are:"
+static Sys_var_set Slave_type_conversions(
+    "slave_type_conversions",
+    "Set of slave type conversions that are enabled. Legal values are:"
     " ALL_LOSSY to enable lossy conversions,"
     " ALL_NON_LOSSY to enable non-lossy conversions,"
     " ALL_UNSIGNED to treat all integer column type data to be unsigned "
@@ -3980,23 +3763,17 @@ static Sys_var_set Sys_replica_type_conversions(
     " specified, ALL_SIGNED will take higher priority than ALL_UNSIGNED."
     " If the variable is assigned the empty set, no conversions are"
     " allowed and it is expected that the types match exactly.",
-    GLOBAL_VAR(replica_type_conversions_options), CMD_LINE(REQUIRED_ARG),
-    replica_type_conversions_name, DEFAULT(0));
+    GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
+    slave_type_conversions_name, DEFAULT(0));
 
-static Sys_var_deprecated_alias Sys_slave_type_conversions(
-    "slave_type_conversions", Sys_replica_type_conversions);
-
-static Sys_var_bool Sys_replica_sql_verify_checksum(
-    "replica_sql_verify_checksum",
+static Sys_var_bool Sys_slave_sql_verify_checksum(
+    "slave_sql_verify_checksum",
     "Force checksum verification of replication events after reading them "
-    "from relay log. Note: The replica always verifies checksums for events "
-    "received from the network, if the event has a checksum at all, before "
-    "it writes the event to the relay log. Enabled by default.",
-    GLOBAL_VAR(opt_replica_sql_verify_checksum), CMD_LINE(OPT_ARG),
+    "from relay log. Note: Events are always checksum-verified by slave on "
+    "receiving them from the network before writing them to the relay "
+    "log. Enabled by default.",
+    GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG),
     DEFAULT(true));
-
-static Sys_var_deprecated_alias Sys_slave_sql_verify_checksum(
-    "slave_sql_verify_checksum", Sys_replica_sql_verify_checksum);
 
 static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var) {
   String str, *res;
@@ -4038,10 +3815,12 @@ static const char *slave_rows_search_algorithms_names[] = {
     "TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", nullptr};
 static Sys_var_set Slave_rows_search_algorithms(
     "slave_rows_search_algorithms",
-    "The set of algorithms used by the replication applier while searching the "
-    "table for rows to update or delete. Possible values are: INDEX_SCAN, "
-    "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and the applier "
-    "picks the most efficient among them for any given scenario. "
+    "Set of searching algorithms that the slave will use while "
+    "searching for records from the storage engine to either "
+    "updated or deleted them. Possible values are: INDEX_SCAN, "
+    "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and "
+    "the slave will always pick the most suitable algorithm for "
+    "any given scenario. "
     "(Default: INDEX_SCAN, HASH_SCAN).",
     GLOBAL_VAR(slave_rows_search_algorithms_options),
     CMD_LINE(REQUIRED_ARG, OPT_SLAVE_ROWS_SEARCH_ALGORITHMS),
@@ -4052,23 +3831,14 @@ static Sys_var_set Slave_rows_search_algorithms(
 
 static const char *mts_parallel_type_names[] = {"DATABASE", "LOGICAL_CLOCK",
                                                 nullptr};
-static Sys_var_enum Sys_replica_parallel_type(
-    "replica_parallel_type",
-    "The method used by the replication applier to parallelize "
-    "transactions. DATABASE, indicates that it "
-    "may apply transactions in parallel in case they update different "
-    "databases. LOGICAL_CLOCK, which is the default, indicates that it decides "
-    "whether two "
-    "transactions can be applied in parallel using the logical timestamps "
-    "computed by the source, according to "
-    "binlog_transaction_dependency_tracking.",
+static Sys_var_enum Mts_parallel_type(
+    "slave_parallel_type",
+    "Specifies if the slave will use database partitioning "
+    "or information from master to parallelize transactions."
+    "(Default: DATABASE).",
     PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
-    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
-    ON_UPDATE(nullptr));
-
-static Sys_var_deprecated_alias Sys_slave_parallel_type(
-    "slave_parallel_type", Sys_replica_parallel_type);
+    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_DB_NAME), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr));
 
 static bool check_binlog_transaction_dependency_tracking(sys_var *, THD *,
                                                          set_var *var) {
@@ -4096,15 +3866,14 @@ static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
 }
 
 static PolyLock_mutex PLock_slave_trans_dep_tracker(
-    &LOCK_replica_trans_dep_tracker);
+    &LOCK_slave_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[] = {
     "COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
 static Sys_var_enum Binlog_transaction_dependency_tracking(
     "binlog_transaction_dependency_tracking",
     "Selects the source of dependency information from which to "
-    "compute logical timestamps, which replicas can use to decide which "
-    "transactions can be executed in parallel when using "
-    "replica_parallel_type=LOGICAL_CLOCK. "
+    "assess which transactions can be executed in parallel by the "
+    "slave's multi-threaded applier. "
     "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
     GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
     CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
@@ -4120,17 +3889,14 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
     BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
-static Sys_var_bool Sys_replica_preserve_commit_order(
-    "replica_preserve_commit_order",
-    "Force replication worker threads to commit in the same order as on the "
-    "source. Enabled by default",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_replica_preserve_commit_order),
-    CMD_LINE(OPT_ARG, OPT_REPLICA_PRESERVE_COMMIT_ORDER), DEFAULT(true),
+static Sys_var_bool Sys_slave_preserve_commit_order(
+    "slave_preserve_commit_order",
+    "Force slave workers to make commits in the same order as on the master. "
+    "Disabled by default.",
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_slave_preserve_commit_order),
+    CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
     ON_UPDATE(nullptr));
-
-static Sys_var_deprecated_alias Sys_slave_preserve_commit_order(
-    "slave_preserve_commit_order", Sys_replica_preserve_commit_order);
 
 bool Sys_var_charptr::global_update(THD *, set_var *var) {
   char *new_val, *ptr = var->save_result.string_value.str;
@@ -4263,7 +4029,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
 
 */
 static void issue_deprecation_warnings_gtid_mode(
-    THD *thd, Gtid_mode::value_type oldmode [[maybe_unused]],
+    THD *thd, Gtid_mode::value_type oldmode MY_ATTRIBUTE((unused)),
     Gtid_mode::value_type newmode) {
   channel_map.assert_some_lock();
 
@@ -4364,19 +4130,18 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  DBUG_PRINT("info", ("sql_replica_skip_counter=%d", sql_replica_skip_counter));
-  if (new_gtid_mode == Gtid_mode::ON && sql_replica_skip_counter > 0) {
-    push_warning(
-        thd, Sql_condition::SL_WARNING,
-        ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
-        ER_THD(thd, ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
+  DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
+  if (new_gtid_mode == Gtid_mode::ON && sql_slave_skip_counter > 0) {
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   }
 
   if (new_gtid_mode != Gtid_mode::ON && replicate_same_server_id &&
-      opt_log_replica_updates && opt_bin_log) {
+      opt_log_slave_updates && opt_bin_log) {
     std::stringstream ss;
 
-    ss << "replicate_same_server_id is set together with log_replica_updates"
+    ss << "replicate_same_server_id is set together with log_slave_updates"
        << " and log_bin. Thus, any anonymous transactions"
        << " would circulate infinitely in case this server is part of a"
        << " circular replication topology";
@@ -4432,11 +4197,10 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
                  "Execute CHANGE MASTER TO "
                  "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF "
                  "FOR CHANNEL '%.192s' before you set "
-                 "@@GLOBAL.GTID_MODE = '%s'",
+                 "@@GLOBAL.GTID_MODE = '%s'.",
                  mi->get_channel(), mi->get_channel(),
                  Gtid_mode::to_string(new_gtid_mode));
-        my_error(ER_CANT_SET_GTID_MODE, MYF(0),
-                 Gtid_mode::to_string(new_gtid_mode), buf);
+        my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
         goto err;
       }
     }
@@ -4452,29 +4216,6 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
       if (mi != nullptr && mi->is_source_connection_auto_failover()) {
         my_error(ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0),
                  Gtid_mode::to_string(new_gtid_mode));
-        goto err;
-      }
-    }
-  }
-  /*
-    Cannot set to <> ON when gtid_only is enabled for any channel.
-  */
-  if (old_gtid_mode == Gtid_mode::ON && new_gtid_mode != Gtid_mode::ON) {
-    for (auto it : channel_map) {
-      Master_info *mi = it.second;
-      if (mi != nullptr && mi->is_gtid_only_mode()) {
-        char buf[1024];
-        snprintf(buf, sizeof(buf),
-                 "replication channel '%.192s' is configured "
-                 "with GTID_ONLY = 1. "
-                 "Execute CHANGE REPLICATION SOURCE TO "
-                 "GTID_ONLY = 0 "
-                 "FOR CHANNEL '%.192s' before you set "
-                 "@@GLOBAL.GTID_MODE = '%s'",
-                 mi->get_channel(), mi->get_channel(),
-                 Gtid_mode::to_string(new_gtid_mode));
-        my_error(ER_CANT_SET_GTID_MODE, MYF(0),
-                 Gtid_mode::to_string(new_gtid_mode), buf);
         goto err;
       }
     }
@@ -4679,16 +4420,13 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
     binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
-static Sys_var_bool Sys_source_verify_checksum(
-    "source_verify_checksum",
-    "Force checksum verification of events in binary log before "
-    "sending them to replicas or printing them in output of SHOW BINLOG "
+static Sys_var_bool Sys_master_verify_checksum(
+    "master_verify_checksum",
+    "Force checksum verification of logged events in binary log before "
+    "sending them to slaves or printing them in output of SHOW BINLOG "
     "EVENTS. "
     "Disabled by default.",
-    GLOBAL_VAR(opt_source_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(false));
-
-static Sys_var_deprecated_alias Sys_master_verify_checksum(
-    "master_verify_checksum", Sys_source_verify_checksum);
+    GLOBAL_VAR(opt_master_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(false));
 
 static Sys_var_ulong Sys_slow_launch_time(
     "slow_launch_time",
@@ -4763,8 +4501,8 @@ static bool check_sql_mode(sys_var *, THD *thd, set_var *var) {
   }
 
   if (candidate_mode & ~MODE_ALLOWED_MASK) {
-    if (thd->variables.pseudo_replica_mode &&  // (1)
-        thd->lex->sphead == nullptr) {         // (2)
+    if (thd->variables.pseudo_slave_mode &&  // (1)
+        thd->lex->sphead == nullptr) {       // (2)
       /*
         (1): catch the auto-generated SET SQL_MODE calls in the output of
              mysqlbinlog,
@@ -4880,7 +4618,7 @@ static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1) {
     opt_ssl_fips_mode = get_fips_mode();
-    my_error(ER_DA_SSL_FIPS_MODE_ERROR, MYF(0), "Openssl is not fips enabled");
+    my_error(ER_SSL_FIPS_MODE_ERROR, MYF(0), "Openssl is not fips enabled");
     return true;
   } else {
     return false;
@@ -4917,8 +4655,11 @@ static Sys_var_enum Sys_updatable_views_with_limit(
     HINT_UPDATEABLE SESSION_VAR(updatable_views_with_limit),
     CMD_LINE(REQUIRED_ARG), updatable_views_with_limit_names, DEFAULT(true));
 
-static Sys_var_system_time_zone Sys_system_time_zone(
-    "system_time_zone", "The server system time zone");
+static char *system_time_zone_ptr;
+static Sys_var_charptr Sys_system_time_zone(
+    "system_time_zone", "The server system time zone",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(system_time_zone_ptr), NO_CMD_LINE,
+    IN_FS_CHARSET, DEFAULT(system_time_zone));
 
 static Sys_var_ulong Sys_table_def_size(
     "table_definition_cache", "The number of cached table definitions",
@@ -5138,12 +4879,12 @@ static Sys_var_transaction_read_only Sys_transaction_read_only(
 
 static Sys_var_ulonglong Sys_tmp_table_size(
     "tmp_table_size",
-    "If an internal in-memory temporary table in the MEMORY or TempTable "
-    "storage engine exceeds this size, MySQL will automatically convert it "
-    "to an on-disk table ",
+    "If an internal in-memory temporary table in the MEMORY storage engine "
+    "exceeds this size, MySQL will automatically convert it to an on-disk "
+    "table",
     HINT_UPDATEABLE SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, std::numeric_limits<ulonglong>::max()),
-    DEFAULT(16 * 1024 * 1024), BLOCK_SIZE(1));
+    VALID_RANGE(1024, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
+    BLOCK_SIZE(1));
 
 static char *server_version_ptr;
 static Sys_var_version Sys_version(
@@ -5196,8 +4937,7 @@ static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
     "The default storage engine for in-memory internal temporary tables.",
     HINT_UPDATEABLE SESSION_VAR(internal_tmp_mem_storage_engine),
     CMD_LINE(REQUIRED_ARG), internal_tmp_mem_storage_engine_names,
-    DEFAULT(TMP_TABLE_TEMPTABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super));
+    DEFAULT(TMP_TABLE_TEMPTABLE));
 
 static Sys_var_ulonglong Sys_temptable_max_ram(
     "temptable_max_ram",
@@ -5216,14 +4956,10 @@ static Sys_var_ulonglong Sys_temptable_max_mmap(
     GLOBAL_VAR(temptable_max_mmap), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */), BLOCK_SIZE(1));
 
-static Sys_var_bool Sys_temptable_use_mmap(
-    "temptable_use_mmap",
-    "Use mmap files for temptables. "
-    "This variable is deprecated and will be removed in a future release.",
-    GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
-    ON_UPDATE(update_deprecated_with_removal_message), nullptr,
-    sys_var::PARSE_NORMAL);
+static Sys_var_bool Sys_temptable_use_mmap("temptable_use_mmap",
+                                           "Use mmap files for temptables",
+                                           GLOBAL_VAR(temptable_use_mmap),
+                                           CMD_LINE(OPT_ARG), DEFAULT(true));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
     "default_tmp_storage_engine",
@@ -5353,8 +5089,8 @@ static Sys_var_bit Sys_log_off("sql_log_off", "sql_log_off",
 
   @return @c false.
 */
-static bool fix_sql_log_bin_after_update(sys_var *, THD *thd,
-                                         enum_var_type type [[maybe_unused]]) {
+static bool fix_sql_log_bin_after_update(
+    sys_var *, THD *thd, enum_var_type type MY_ATTRIBUTE((unused))) {
   assert(type == OPT_SESSION);
 
   if (thd->variables.sql_log_bin)
@@ -5500,7 +5236,7 @@ static bool check_timestamp(sys_var *, THD *, set_var *var) {
 
   val = var->save_result.double_value;
   if (val != 0 &&  // this is how you set the default value
-      (val < TYPE_TIMESTAMP_MIN_VALUE || val > TYPE_TIMESTAMP_MAX_VALUE)) {
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE)) {
     ErrConvString prm(val);
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", prm.ptr());
     return true;
@@ -5654,38 +5390,36 @@ static Sys_var_charptr Sys_hostname(
 
 static Sys_var_charptr Sys_repl_report_host(
     "report_host",
-    "Hostname or IP that this replica will report to the source while "
-    "initiating the replication connection. Will appear in the output of "
-    "SHOW REPLICAS. Leave this unset if you do not want the replica to "
-    "register itself with the source. Note that it is not sufficient for "
-    "the source to simply read the IP of the replica off the socket once the "
-    "replica connects: in the presence of NAT other routing features, that IP "
-    "may not be valid for connecting to the replica from the source or other "
-    "hosts.",
+    "Hostname or IP of the slave to be reported to the master during "
+    "slave registration. Will appear in the output of SHOW SLAVE HOSTS. "
+    "Leave unset if you do not want the slave to register itself with the "
+    "master. Note that it is not sufficient for the master to simply read "
+    "the IP of the slave off the socket once the slave connects. Due to "
+    "NAT and other routing issues, that IP may not be valid for connecting "
+    "to the slave from the master or other hosts",
     READ_ONLY GLOBAL_VAR(report_host), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
     DEFAULT(nullptr));
 
 static Sys_var_charptr Sys_repl_report_user(
     "report_user",
-    "The account user name that this replica will report to the source "
-    "while initiating the replication connection.",
+    "The account user name of the slave to be reported to the master "
+    "during slave registration",
     READ_ONLY GLOBAL_VAR(report_user), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
     DEFAULT(nullptr));
 
 static Sys_var_charptr Sys_repl_report_password(
     "report_password",
-    "The account password that this replica will report to the source "
-    "while initiating the replication connection.",
+    "The account password of the slave to be reported to the master "
+    "during slave registration",
     READ_ONLY GLOBAL_VAR(report_password), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(nullptr));
 
 static Sys_var_uint Sys_repl_report_port(
     "report_port",
-    "The port for connecting to the replica, which this replica will report "
-    "to the source while initiating the replication connection. "
-    "Set it only if the replica is listening on a non-default "
-    "port or if you have a special tunnel from the source or other clients "
-    "to this replica. If not sure, leave this option unset.",
+    "Port for connecting to slave reported to the master during slave "
+    "registration. Set it only if the slave is listening on a non-default "
+    "port or if you have a special tunnel from the master or other clients "
+    "to the slave. If not sure, leave this option unset",
     READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 
@@ -5790,7 +5524,7 @@ static Sys_var_charptr Sys_general_log_path(
     DEFAULT(nullptr), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_path),
     ON_UPDATE(fix_general_log_file));
 
-static bool fix_slow_log_file(sys_var *, THD *thd [[maybe_unused]],
+static bool fix_slow_log_file(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
                               enum_var_type) {
   bool res;
 
@@ -5847,14 +5581,14 @@ static Sys_var_have Sys_have_geometry(
     "have_geometry", "have_geometry",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
-static SHOW_COMP_OPTION have_ssl_func(THD *thd [[maybe_unused]]) {
+static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
   return have_ssl() ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
 }
 
 enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;
 
 static Sys_var_have_func Sys_have_openssl("have_openssl", "have_openssl",
-                                          have_ssl_func, DEPRECATED_VAR(""));
+                                          have_ssl_func);
 
 static Sys_var_have Sys_have_profiling(
     "have_profiling", "have_profiling",
@@ -5874,9 +5608,7 @@ static Sys_var_have Sys_have_rtree_keys(
     "have_rtree_keys", "have_rtree_keys",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
 
-static Sys_var_have_func Sys_have_ssl(
-    "have_ssl", "have_ssl", have_ssl_func,
-    DEPRECATED_VAR("performance_schema.tls_channel_status table"));
+static Sys_var_have_func Sys_have_ssl("have_ssl", "have_ssl", have_ssl_func);
 
 static Sys_var_have Sys_have_symlink(
     "have_symlink", "have_symlink",
@@ -5987,15 +5719,12 @@ static Sys_var_set Sys_log_output(
     DEFAULT(LOG_FILE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_not_empty_set), ON_UPDATE(fix_log_output));
 
-static Sys_var_bool Sys_log_replica_updates(
-    "log_replica_updates",
-    "If enabled, the replication applier threads will write to this server's "
-    "binary log.",
-    READ_ONLY GLOBAL_VAR(opt_log_replica_updates),
-    CMD_LINE(OPT_ARG, OPT_LOG_REPLICA_UPDATES), DEFAULT(1));
-
-static Sys_var_deprecated_alias Sys_log_slave_updates("log_slave_updates",
-                                                      Sys_log_replica_updates);
+static Sys_var_bool Sys_log_slave_updates(
+    "log_slave_updates",
+    "Tells the slave to log the updates from "
+    "the slave thread to the binary log.",
+    READ_ONLY GLOBAL_VAR(opt_log_slave_updates),
+    CMD_LINE(OPT_ARG, OPT_LOG_SLAVE_UPDATES), DEFAULT(1));
 
 static Sys_var_charptr Sys_relay_log(
     "relay_log", "The location and name to use for relay logs",
@@ -6053,13 +5782,10 @@ static Sys_var_bool Sys_relay_log_purge(
 
 static Sys_var_bool Sys_relay_log_recovery(
     "relay_log_recovery",
-    "If enabled, existing relay logs will be skipped by the "
-    "replication threads. The receiver will start a new relay "
-    "log and the applier will start reading from the beginning of that file. "
-    "The receiver's position relative to the source will be reset to the "
-    "applier's "
-    "position relative to the source; the receiver uses this in case "
-    "SOURCE_AUTO_POSITION=0.",
+    "Enables automatic relay log recovery "
+    "right after the database startup, which means that the IO Thread "
+    "starts re-fetching from the master right after the last transaction "
+    "processed",
     READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG),
     DEFAULT(false));
 
@@ -6073,28 +5799,19 @@ static Sys_var_ulong Sys_rpl_read_size(
     VALID_RANGE(IO_SIZE * 2, ULONG_MAX), DEFAULT(IO_SIZE * 2),
     BLOCK_SIZE(IO_SIZE));
 
-static Sys_var_bool Sys_replica_allow_batching(
-    "replica_allow_batching",
-    "Allow this replica to batch requests when "
-    "using the NDB storage engine.",
-    GLOBAL_VAR(opt_replica_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(false));
+static Sys_var_bool Sys_slave_allow_batching(
+    "slave_allow_batching", "Allow slave to batch requests",
+    GLOBAL_VAR(opt_slave_allow_batching), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static Sys_var_deprecated_alias Sys_slave_allow_batching(
-    "slave_allow_batching", Sys_replica_allow_batching);
+static Sys_var_charptr Sys_slave_load_tmpdir(
+    "slave_load_tmpdir",
+    "The location where the slave should put "
+    "its temporary files when replicating a LOAD DATA INFILE command",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(slave_load_tmpdir), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr));
 
-static Sys_var_charptr Sys_replica_load_tmpdir(
-    "replica_load_tmpdir",
-    "The location where this replica will store temporary files when "
-    "replicating a LOAD DATA INFILE command from a source having "
-    "binlog_format=STATEMENT.",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(replica_load_tmpdir),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
-
-static Sys_var_deprecated_alias Sys_slave_load_tmpdir("slave_load_tmpdir",
-                                                      Sys_replica_load_tmpdir);
-
-static bool fix_replica_net_timeout(sys_var *, THD *thd, enum_var_type) {
-  DEBUG_SYNC(thd, "fix_replica_net_timeout");
+static bool fix_slave_net_timeout(sys_var *, THD *thd, enum_var_type) {
+  DEBUG_SYNC(thd, "fix_slave_net_timeout");
   Master_info *mi;
 
   /* @TODO: slave net timeout is for all channels, but does this make
@@ -6112,7 +5829,7 @@ static bool fix_replica_net_timeout(sys_var *, THD *thd, enum_var_type) {
     for this global variable and releasing the lock here and acquiring
     locks back again at the end of this function.
    */
-  mysql_mutex_unlock(&LOCK_replica_net_timeout);
+  mysql_mutex_unlock(&LOCK_slave_net_timeout);
   mysql_mutex_unlock(&LOCK_global_system_variables);
   channel_map.wrlock();
 
@@ -6120,10 +5837,9 @@ static bool fix_replica_net_timeout(sys_var *, THD *thd, enum_var_type) {
        it++) {
     mi = it->second;
 
-    DBUG_PRINT("info",
-               ("replica_net_timeout=%u mi->heartbeat_period=%.3f",
-                replica_net_timeout, (mi ? mi->heartbeat_period : 0.0)));
-    if (mi != nullptr && replica_net_timeout < mi->heartbeat_period)
+    DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
+                        slave_net_timeout, (mi ? mi->heartbeat_period : 0.0)));
+    if (mi != nullptr && slave_net_timeout < mi->heartbeat_period)
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                    ER_THD(thd, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
@@ -6131,21 +5847,18 @@ static bool fix_replica_net_timeout(sys_var *, THD *thd, enum_var_type) {
 
   channel_map.unlock();
   mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_replica_net_timeout);
+  mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;
 }
-static PolyLock_mutex PLock_replica_net_timeout(&LOCK_replica_net_timeout);
-static Sys_var_uint Sys_replica_net_timeout(
-    "replica_net_timeout",
+static PolyLock_mutex PLock_slave_net_timeout(&LOCK_slave_net_timeout);
+static Sys_var_uint Sys_slave_net_timeout(
+    "slave_net_timeout",
     "Number of seconds to wait for more data "
-    "from a replication connection before aborting the read.",
-    GLOBAL_VAR(replica_net_timeout), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(REPLICA_NET_TIMEOUT), BLOCK_SIZE(1),
-    &PLock_replica_net_timeout, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(fix_replica_net_timeout));
-
-static Sys_var_deprecated_alias Sys_slave_net_timeout("slave_net_timeout",
-                                                      Sys_replica_net_timeout);
+    "from a master/slave connection before aborting the read",
+    GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(SLAVE_NET_TIMEOUT), BLOCK_SIZE(1),
+    &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(fix_slave_net_timeout));
 
 static bool check_slave_skip_counter(sys_var *, THD *thd, set_var *var) {
   /*
@@ -6156,34 +5869,27 @@ static bool check_slave_skip_counter(sys_var *, THD *thd, set_var *var) {
   */
   if (global_gtid_mode.get() == Gtid_mode::ON &&
       var->save_result.ulonglong_value > 0)
-    push_warning(
-        thd, Sql_condition::SL_WARNING,
-        ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
-        ER_THD(thd, ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   return false;
 }
 
-static PolyLock_mutex PLock_sql_replica_skip_counter(
-    &LOCK_sql_replica_skip_counter);
-static Sys_var_uint Sys_sql_replica_skip_counter(
-    "sql_replica_skip_counter", "sql_replica_skip_counter",
-    GLOBAL_VAR(sql_replica_skip_counter), NO_CMD_LINE, VALID_RANGE(0, UINT_MAX),
-    DEFAULT(0), BLOCK_SIZE(1), &PLock_sql_replica_skip_counter, NOT_IN_BINLOG,
+static PolyLock_mutex PLock_sql_slave_skip_counter(
+    &LOCK_sql_slave_skip_counter);
+static Sys_var_uint Sys_slave_skip_counter(
+    "sql_slave_skip_counter", "sql_slave_skip_counter",
+    GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE, VALID_RANGE(0, UINT_MAX),
+    DEFAULT(0), BLOCK_SIZE(1), &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
     ON_CHECK(check_slave_skip_counter));
 
-static Sys_var_deprecated_alias Sys_sql_slave_skip_counter(
-    "sql_slave_skip_counter", Sys_sql_replica_skip_counter);
-
-static Sys_var_charptr Sys_replica_skip_errors(
-    "replica_skip_errors",
-    "Comma-separated list of error numbers. If an applier thread on this "
-    "replica encounters one of these errors while applying a Query_log_event, "
-    "it will ignore the error, rather than stop.",
-    READ_ONLY GLOBAL_VAR(opt_replica_skip_errors), CMD_LINE(REQUIRED_ARG),
+static Sys_var_charptr Sys_slave_skip_errors(
+    "slave_skip_errors",
+    "Tells the slave thread to continue "
+    "replication when a query event returns an error from the "
+    "provided list",
+    READ_ONLY GLOBAL_VAR(opt_slave_skip_errors), CMD_LINE(REQUIRED_ARG),
     IN_SYSTEM_CHARSET, DEFAULT(nullptr));
-
-static Sys_var_deprecated_alias Sys_slave_skip_errors("slave_skip_errors",
-                                                      Sys_replica_skip_errors);
 
 static Sys_var_ulonglong Sys_relay_log_space_limit(
     "relay_log_space_limit", "Maximum space to use for all relay logs",
@@ -6205,35 +5911,28 @@ static Sys_var_uint Sys_sync_relayloginfo_period(
     GLOBAL_VAR(sync_relayloginfo_period), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
-static Sys_var_uint Sys_replica_checkpoint_period(
-    "replica_checkpoint_period",
-    "When using a multi-threaded applier (replica_parallel_workers>0), it "
-    "will update the worker progress status periodically. This option "
-    "specifies the maximum number of milliseconds between updates.",
-    GLOBAL_VAR(opt_mta_checkpoint_period), CMD_LINE(REQUIRED_ARG),
+static Sys_var_uint Sys_checkpoint_mts_period(
+    "slave_checkpoint_period",
+    "Gather workers' activities to "
+    "Update progress status of Multi-threaded slave and flush "
+    "the relay log info to disk after every #th milli-seconds.",
+    GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
 #ifndef NDEBUG
     VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
     VALID_RANGE(1, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #endif /* NDEBUG */
 
-static Sys_var_deprecated_alias Sys_slave_checkpoint_period(
-    "slave_checkpoint_period", Sys_replica_checkpoint_period);
-
-static Sys_var_uint Sys_replica_checkpoint_group(
-    "replica_checkpoint_group",
-    "When using multi-threaded applier (replica_parallel_workers>0), it will "
-    "update the worker progress status periodically. This option specifies "
-    "the maximum number of committed transactions between updates.",
-    GLOBAL_VAR(opt_mta_checkpoint_group), CMD_LINE(REQUIRED_ARG),
+static Sys_var_uint Sys_checkpoint_mts_group(
+    "slave_checkpoint_group",
+    "Maximum number of processed transactions by Multi-threaded slave "
+    "before a checkpoint operation is called to update progress status.",
+    GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
 #ifndef NDEBUG
     VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
     VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* NDEBUG */
-
-static Sys_var_deprecated_alias Sys_slave_checkpoint_group(
-    "slave_checkpoint_group", Sys_replica_checkpoint_group);
 
 static Sys_var_uint Sys_sync_binlog_period(
     "sync_binlog",
@@ -6243,58 +5942,45 @@ static Sys_var_uint Sys_sync_binlog_period(
     GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, UINT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
-static Sys_var_uint Sys_sync_source_info(
-    "sync_source_info",
-    "Synchronize replication receiver positions to disk periodically, after "
-    "the specified number of events. Use 0 to disable periodic "
-    "synchronization.",
+static Sys_var_uint Sys_sync_masterinfo_period(
+    "sync_master_info",
+    "Synchronously flush master info to disk "
+    "after every #th event. Use 0 to disable synchronous flushing",
     GLOBAL_VAR(sync_masterinfo_period), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
-
-static Sys_var_deprecated_alias Sys_sync_master_info("sync_master_info",
-                                                     Sys_sync_source_info);
 
 static Sys_var_ulonglong Sys_var_original_commit_timestamp(
     "original_commit_timestamp",
     "The time when the current transaction was committed on the originating "
-    "source, measured in microseconds since 1970 (the \"epoch\").",
+    "replication master, measured in microseconds since the epoch.",
     SESSION_ONLY(original_commit_timestamp), NO_CMD_LINE,
     VALID_RANGE(0, MAX_COMMIT_TIMESTAMP_VALUE),
     DEFAULT(MAX_COMMIT_TIMESTAMP_VALUE), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     IN_BINLOG, ON_CHECK(check_session_admin_or_replication_applier));
 
-static Sys_var_ulong Sys_replica_transaction_retries(
-    "replica_transaction_retries",
-    "Number of times the replication applier will retry a transaction in "
-    "case it failed with a deadlock or other transient error, before it gives "
-    "up and stops.",
+static Sys_var_ulong Sys_slave_trans_retries(
+    "slave_transaction_retries",
+    "Number of times the slave SQL "
+    "thread will retry a transaction in case it failed with a deadlock "
+    "or elapsed lock wait timeout, before giving up and stopping",
     GLOBAL_VAR(slave_trans_retries), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULONG_MAX), DEFAULT(10), BLOCK_SIZE(1));
 
-static Sys_var_deprecated_alias Sys_slave_transaction_retries(
-    "slave_transaction_retries", Sys_replica_transaction_retries);
-
-static Sys_var_ulong Sys_replica_parallel_workers(
-    "replica_parallel_workers",
+static Sys_var_ulong Sys_slave_parallel_workers(
+    "slave_parallel_workers",
     "Number of worker threads for executing events in parallel ",
-    PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_replica_parallel_workers),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4),
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_slave_parallel_workers),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0),
     BLOCK_SIZE(1));
 
-static Sys_var_deprecated_alias Sys_slave_parallel_workers(
-    "slave_parallel_workers", Sys_replica_parallel_workers);
-
-static Sys_var_ulonglong Sys_replica_pending_jobs_size_max(
-    "replica_pending_jobs_size_max",
-    "Soft limit on the size, in bytes, of per-worker queues of events that "
-    "have not yet been applied. The queue size may exceed this limit in case "
-    "a single event is bigger than the limit.",
+static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
+    "slave_pending_jobs_size_max",
+    "Max size of Slave Worker queues holding not yet applied events. "
+    "The least possible value must be not less than the master side "
+    "max_allowed_packet.",
     GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, (ulonglong) ~(intptr)0), DEFAULT(128 * 1024 * 1024),
     BLOCK_SIZE(1024), ON_CHECK(nullptr));
-
-static Sys_var_deprecated_alias Sys_slave_pending_jobs_size_max(
-    "slave_pending_jobs_size_max", Sys_replica_pending_jobs_size_max);
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var) {
   if (!var->value) return false;
@@ -6423,10 +6109,10 @@ static Sys_var_ulong Sys_sp_cache_size(
     GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
-static bool check_pseudo_replica_mode(sys_var *self, THD *thd, set_var *var) {
+static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin_or_replication_applier(self, thd, var)) return true;
   if (check_outside_trx(self, thd, var)) return true;
-  longlong previous_val = thd->variables.pseudo_replica_mode;
+  longlong previous_val = thd->variables.pseudo_slave_mode;
   longlong val = (longlong)var->save_result.ulonglong_value;
   bool rli_fake = false;
 
@@ -6441,7 +6127,7 @@ static bool check_pseudo_replica_mode(sys_var *self, THD *thd, set_var *var) {
       goto ineffective;
     else if (!previous_val && val)
       push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
-                   "'pseudo_replica_mode' is already ON.");
+                   "'pseudo_slave_mode' is already ON.");
   } else {
     if (!previous_val && !val)
       goto ineffective;
@@ -6454,21 +6140,20 @@ static bool check_pseudo_replica_mode(sys_var *self, THD *thd, set_var *var) {
 
 ineffective:
   push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
-               "'pseudo_replica_mode' change was ineffective.");
+               "'pseudo_slave_mode' change was ineffective.");
 
 end:
   return false;
 }
-static Sys_var_bool Sys_pseudo_replica_mode(
-    "pseudo_replica_mode",
-    "Internal variable that will be enabled while applying a "
-    "Format_description_log_event encoded in a BINLOG statement printed "
-    "by mysqlbinlog.",
-    SESSION_ONLY(pseudo_replica_mode), NO_CMD_LINE, DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_replica_mode));
-
-static Sys_var_deprecated_alias Sys_pseudo_slave_mode("pseudo_slave_mode",
-                                                      Sys_pseudo_replica_mode);
+static Sys_var_bool Sys_pseudo_slave_mode(
+    "pseudo_slave_mode",
+    "SET pseudo_slave_mode= 0,1 are commands that mysqlbinlog "
+    "adds to beginning and end of binary log dumps. While zero "
+    "value indeed disables, the actual enabling of the slave "
+    "applier execution mode is done implicitly when a "
+    "Format_description_event is sent through the session.",
+    SESSION_ONLY(pseudo_slave_mode), NO_CMD_LINE, DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_slave_mode));
 
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
@@ -6630,8 +6315,8 @@ static Sys_var_gtid_mode Sys_gtid_mode(
     "GTID. ON_PERMISSIVE means that new transactions are assigned a "
     "GTID, and replicated transactions are allowed to have or not "
     "have a GTID. ON means that all transactions have a GTID. "
-    "ON is required on a source before any replica can use "
-    "SOURCE_AUTO_POSITION=1. To safely switch from OFF to ON, first "
+    "ON is required on a master before any slave can use "
+    "MASTER_AUTO_POSITION=1. To safely switch from OFF to ON, first "
     "set all servers to OFF_PERMISSIVE, then set all servers to "
     "ON_PERMISSIVE, then wait for all transactions without a GTID to "
     "be replicated and executed on all servers, and finally set all "
@@ -6792,9 +6477,8 @@ static Sys_var_bool Sys_show_old_temporals(
     "table as a comment in COLUMN_TYPE field. "
     "This variable is deprecated and will be removed in a future release.",
     SESSION_VAR(show_old_temporals), CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
-    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_disabled_storage_engines(
     "disabled_storage_engines",
@@ -7218,9 +6902,8 @@ static Sys_var_uint Sys_immediate_server_version(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_or_replication_applier));
 
-static bool check_set_default_table_encryption_access(sys_var *self
-                                                      [[maybe_unused]],
-                                                      THD *thd, set_var *var) {
+static bool check_set_default_table_encryption_access(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
   DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
                   { return false; });
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
@@ -7388,7 +7071,7 @@ static Sys_var_bool Sys_replication_optimize_for_static_plugin_config(
     "Optional flag that blocks plugin install/uninstall and allows skipping "
     "the acquisition of the lock to read from the plugin list and the usage "
     "of read-optimized spin-locks. Use only when plugin hook callback needs "
-    "optimization (a lot of semi-sync replicas, for instance).",
+    "optimization (a lot of semi-sync slaves, for instance).",
     GLOBAL_VAR(opt_replication_optimize_for_static_plugin_config),
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(handle_plugin_lock_type_change));
@@ -7401,74 +7084,8 @@ static Sys_var_bool Sys_replication_sender_observe_commit_only(
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
 
-static Sys_var_bool Sys_skip_replica_start(
-    "skip_replica_start",
-    "Do not start replication threads automatically "
-    "when the server starts.",
-    READ_ONLY GLOBAL_VAR(opt_skip_replica_start), CMD_LINE(OPT_ARG),
+static Sys_var_bool Sys_skip_slave_start(
+    "skip_slave_start", "If set, slave is not autostarted.",
+    READ_ONLY GLOBAL_VAR(opt_skip_slave_start), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
-
-static bool check_authentication_policy(sys_var *, THD *, set_var *var) {
-  if (!(var->save_result.string_value.str)) return true;
-  return validate_authentication_policy(var->save_result.string_value.str);
-}
-
-static bool fix_authentication_policy(sys_var *, THD *, enum_var_type) {
-  DBUG_TRACE;
-  update_authentication_policy();
-  return false;
-}
-/**
-  This is a mutex used to protect @@global.authentication_policy variable.
-*/
-static PolyLock_mutex PLock_authentication_policy(&LOCK_authentication_policy);
-/*
-  when authentication_policy = 'mysql_native_password,,' and
-  --default-authentication-plugin = 'caching_sha2_password'
-  set default as mysql_native_password.
-  --authentication_policy has precedence over --default-authentication-plugin
-  with 1 exception as below: when authentication_policy = '*,,' and
-  --default-authentication-plugin = 'mysql_native_password'
-  set default as mysql_native_password
-  in case no concrete plugin can be extracted from --authentication_policy
-  for first factor, server picks plugin name from
-  --default-authentication-plugin
-*/
-static Sys_var_charptr Sys_authentication_policy(
-    "authentication_policy",
-    "Defines policies around how user account can be configured with Multi "
-    "Factor authentication methods during CREATE/ALTER USER statement. "
-    "This variable accepts at-most 3 comma separated list of authentication "
-    "plugin names where each value refers to what authentication plugin should "
-    "be used in place of 1st Factor Authentication (FA), 2FA and 3FA method. "
-    "Value * indicates any plugin is allowed for 1FA, 2FA and 3FA method. "
-    "An empty value means nth FA method is optional.",
-    GLOBAL_VAR(opt_authentication_policy), CMD_LINE(REQUIRED_ARG),
-    IN_FS_CHARSET, DEFAULT("*,,"), &PLock_authentication_policy, NOT_IN_BINLOG,
-    ON_CHECK(check_authentication_policy),
-    ON_UPDATE(fix_authentication_policy));
-
-static Sys_var_deprecated_alias Sys_skip_slave_start("skip_slave_start",
-                                                     Sys_skip_replica_start);
-
-static const char *terminology_use_previous_names[] = {"NONE", "BEFORE_8_0_26",
-                                                       nullptr};
-
-static Sys_var_enum Sys_terminology_use_previous(
-    "terminology_use_previous",
-    "Make monitoring tables and statements use the identifiers that were "
-    "in use before they were changed in a given release. That includes names "
-    "for mutexes, read/write locks, condition variables, memory allocations, "
-    "thread names, thread stages, and thread commands. When the session "
-    "option is set to BEFORE_8_0_26, the session uses the names that were in "
-    "use until 8.0.25, when it selects from performance_schema tables, or "
-    "selects from INFORMATION_SCHEMA.PROCESSLIST, or issues SHOW PROCESSLIST "
-    "or SHOW REPLICA STATUS. When the global option is set to BEFORE_8_0_26, "
-    "new sessions use BEFORE_8_0_26 as default for the session option, and in "
-    "addition the thread commands that were in use until 8.0.25 are written "
-    "to the slow query log.",
-    SESSION_VAR(terminology_use_previous), CMD_LINE(REQUIRED_ARG),
-    terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));

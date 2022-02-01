@@ -24,7 +24,6 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
-      "router_update_router_options_in_metadata",
       "router_drop_users",
     ],
     options);
@@ -38,7 +37,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
         undefined) {
       return res;
     } else {
-      return common_stmts.unknown_statement_response(stmt);
+      return common_stmts.unknown_statement_response("TODO:" + stmt);
     }
   }
 })

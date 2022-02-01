@@ -69,7 +69,7 @@ class Index : virtual public Entity_object {
     IA_FULLTEXT };
 
  public:
-  ~Index() override = default;
+  ~Index() override {}
 
   /**
     Dummy method to be able to use Partition_index and Index interchangeably

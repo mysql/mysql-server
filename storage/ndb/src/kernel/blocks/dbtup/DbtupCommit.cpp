@@ -34,6 +34,7 @@
 
 #define JAM_FILE_ID 416
 
+extern EventLogger *g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_DISK 1
@@ -621,7 +622,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
     }
     sprintf(q+3*i, " %02X", p[i]);
   }
-  g_eventLogger->info("%8p: %s", p, buf);
+  ndbout_c("%8p: %s", p, buf);
 }
 #endif
 

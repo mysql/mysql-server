@@ -28,7 +28,7 @@ call mtr.add_suppression("IP address .* could not be resolved: .*");
 
 --echo
 --echo # Using mysqlxtest
---let $execute_command=$MYSQLXTEST --ipv=6 --history-protocol false
+--let $execute_command=$MYSQLXTEST --ipv=6
 --let $ip=fe80::1
 --let $interface=lo0
 --source ../include/connection_local_scope.inc

@@ -71,7 +71,7 @@ class Machine_POS {
   unsigned int m_index;
 
  public:
-  ~Machine_POS() = default;
+  ~Machine_POS() {}
   Machine_POS() { m_index = 0; }
 
   bool has_more() {

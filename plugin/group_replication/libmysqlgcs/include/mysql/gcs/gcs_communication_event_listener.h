@@ -44,7 +44,7 @@ class Gcs_communication_event_listener {
 
   virtual void on_message_received(const Gcs_message &message) const = 0;
 
-  virtual ~Gcs_communication_event_listener() = default;
+  virtual ~Gcs_communication_event_listener() {}
 };
 
 #endif  // GCS_COMMUNICATION_EVENT_LISTENER_INCLUDED

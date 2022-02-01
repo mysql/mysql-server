@@ -44,7 +44,6 @@
 #include "xcom/xcom_cfg.h"
 #include "xcom/xcom_common.h"
 #include "xcom/xcom_detector.h"
-#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xcom/xcom_transport.h"
 #include "xcom/xcom_vp_str.h"
@@ -102,7 +101,7 @@ static linkage probation_lru = {
 
 static void hash_init(stack_machine *hash_bucket) {
   size_t i;
-  hash_bucket->pax_hash = (linkage *)xcom_malloc(sizeof(linkage) * BUCKETS);
+  hash_bucket->pax_hash = (linkage *)malloc(sizeof(linkage) * BUCKETS);
   for (i = 0; i < BUCKETS; i++) {
     link_init(&hash_bucket->pax_hash[i], TYPE_HASH("pax_machine"));
   }
@@ -264,7 +263,6 @@ static void deinit_pax_machine(pax_machine *p, lru_machine *l) {
     free_bit_set(p->proposer.prop_nodeset);
     p->proposer.prop_nodeset = NULL;
   }
-  link_out(&p->watchdog);
 }
 
 static void free_lru_machine(lru_machine *link_iter) {
@@ -398,7 +396,6 @@ pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
   p->synode = synode;
   p->last_modified = 0.0;
   link_init(&p->rv, TYPE_HASH("task_env"));
-  link_init(&p->watchdog, TYPE_HASH("time_queue"));
   init_ballot(&p->proposer.bal, -1, 0);
   init_ballot(&p->proposer.sent_prop, 0, 0);
   init_ballot(&p->proposer.sent_learn, -1, 0);
@@ -416,7 +413,6 @@ pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
   p->op = initial_op;
   p->force_delivery = 0;
   p->enforcer = 0;
-  SET_PAXOS_FSM_STATE(p, paxos_fsm_idle);
   return p;
 }
 
@@ -554,7 +550,7 @@ uint64_t set_max_cache_size(uint64_t x) {
 static void expand_lru() {
   uint64_t i;
   for (i = 0; i < BUCKETS; i++) {
-    lru_machine *l = (lru_machine *)xcom_calloc(1, sizeof(lru_machine));
+    lru_machine *l = (lru_machine *)calloc(1, sizeof(lru_machine));
     link_init(&l->lru_link, TYPE_HASH("lru_machine"));
     link_into(&l->lru_link, &probation_lru);
     init_pax_machine(&l->pax, l, null_synode);
@@ -563,8 +559,7 @@ static void expand_lru() {
 }
 
 static void add_stack_machine(uint64_t start_msgno) {
-  stack_machine *hash_bucket =
-      (stack_machine *)xcom_malloc(sizeof(stack_machine));
+  stack_machine *hash_bucket = (stack_machine *)malloc(sizeof(stack_machine));
   link_init(&hash_bucket->stack_link, TYPE_HASH("stack_machine"));
   hash_bucket->occupation = 0;
   hash_bucket->start_msgno = start_msgno;
@@ -584,11 +579,9 @@ static void do_decrement_step() {
     if (++count == BUCKETS) break;
   })
 
-  linkage *tmp = link_last(&hash_stack);
-  free(((stack_machine *)tmp)->pax_hash);
-  link_out(tmp);
+  free(((stack_machine *)link_last(&hash_stack))->pax_hash);
+  free(link_out(link_last(&hash_stack)));
   ((stack_machine *)link_last(&hash_stack))->start_msgno = 0;
-  free(tmp);
 }
 
 /* Use vars instead of defines for unit testing */
@@ -629,11 +622,9 @@ void do_cache_maintenance() {
   }
 }
 
-int cache_manager_task(task_arg arg [[maybe_unused]]) {
+int cache_manager_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DECL_ENV
   int dummy;
-  ENV_INIT
-  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -657,11 +648,9 @@ void set_length_increment(size_t increment) { length_increment = increment; }
 
 void set_size_decrement(size_t decrement) { size_decrement = decrement; }
 
-#if 0
 void set_dec_threshold_length(uint64_t threshold) {
   dec_threshold_length = threshold;
 }
-#endif
 
 void set_min_target_occupation(float threshold) {
   min_target_occupation = threshold;
@@ -673,8 +662,3 @@ void set_min_length_threshold(float threshold) {
   min_length_threshold = threshold;
 }
 /* purecov: end */
-
-void paxos_timeout(pax_machine *p) {
-  (void)p;
-  IFDBG(D_BUG, FN; SYCEXP(p->synode));
-}

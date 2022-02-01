@@ -87,8 +87,8 @@ loop:
     Uint32 freq = (count > 10000 ? 5000 : (count > 20 ? 200 : 1));
 
     if ((count % freq) == 0)
-      g_eventLogger->info("%s waiting for lock, contentions: %u spins: %u",
-                          s->m_name, count, s->m_spin_count);
+      printf("%s waiting for lock, contentions: %u spins: %u\n",
+             s->m_name, count, s->m_spin_count);
   }
 }
 

@@ -109,8 +109,8 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   m_block_when_stored.store(block);
 
-  m_modify_clock = block->get_modify_clock(
-      IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
+  /* Function try to check if block is S/X latch. */
+  m_modify_clock = buf_block_get_modify_clock(block);
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
@@ -127,13 +127,13 @@ void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
   if (src->m_old_rec != nullptr) {
     /* We have an old buffer, but it is too small. */
     if (dst->m_old_rec_buf != nullptr && dst->m_buf_size < src->m_buf_size) {
-      ut::free(dst->m_old_rec_buf);
+      ut_free(dst->m_old_rec_buf);
       dst->m_old_rec_buf = nullptr;
     }
     /* We don't have a buffer, but we should have one. */
     if (dst->m_old_rec_buf == nullptr) {
-      dst->m_old_rec_buf = static_cast<byte *>(
-          ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src->m_buf_size));
+      dst->m_old_rec_buf =
+          static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
       dst->m_buf_size = src->m_buf_size;
     }
 
@@ -268,9 +268,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     But we can retain the value of old_rec */
     auto block = get_block();
     m_block_when_stored.store(block);
-
-    m_modify_clock = block->get_modify_clock(
-        IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
+    m_modify_clock = buf_block_get_modify_clock(block);
 
     m_old_stored = true;
 

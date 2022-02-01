@@ -33,35 +33,9 @@ use mtr;
 -- be suppressed
 --
 CREATE TABLE test_suppressions (
-  pattern VARCHAR(255) NOT NULL
+  pattern VARCHAR(255)
 );
 
---
--- Table of full messages (not patterns), suppressed by a test while it
--- is running.
--- Primary key is guaranteed to be unique because the prefix includes the
--- timestamp, which the server guarantees (!) is unique.
---
-CREATE TABLE asserted_test_suppressions (
-  message TEXT NOT NULL,
-  PRIMARY KEY(message(100))
-);
-
---
--- Table of patterns for messages that should be excluded from global
--- suppressions. These can be added per test, using
--- include/suppress_messages.inc with
--- $suppress_mode=IGNORE_GLOBAL_SUPPRESSIONS, and will be reset after
--- each test.
---
--- The patterns in this table do not need to be identical to any
--- global suppression pattern. Instead, the pattern should match the
--- error messages for which global suppression should be ignored.
---
-CREATE TABLE test_ignored_global_suppressions (
-  pattern VARCHAR(255) NOT NULL,
-  PRIMARY KEY(pattern(255))
-);
 
 --
 -- Declare a trigger that makes sure
@@ -99,8 +73,7 @@ SET @@collation_connection = @collation_connection_saved;
 -- Load table with patterns that will be suppressed globally(always)
 --
 CREATE TABLE global_suppressions (
-  pattern VARCHAR(255) NOT NULL,
-  KEY(pattern(255))
+  pattern VARCHAR(255)
 );
 
 
@@ -147,32 +120,12 @@ INSERT INTO global_suppressions VALUES
  ("innodb-page-size has been changed"),
 
  /*
-   TODO(tdidriks) Move most of these to individual test cases.
-   OS error code 1:  Operation not permitted
-   MY-000131 (handler): Command not supported by database
-   MY-000155 (handler): The table does not exist in engine
-   MY-000160 (handler): There's no partition in table for the given value
-   MY-000168 (handler): Unknown (generic) error from engine
-   MY-000180 (handler): Index corrupted
-   MY-000196 (handler): Query interrupted
-   MY-003044 (ER_STD_BAD_ALLOC_ERROR):
-                        Memory allocation error: %-.256s in function %s.
-  */
- ("Got error 1 when reading table"),
- ("Got error 131 when reading table"),
- ("Got error 155 when reading table"),
- ("Got error 160 when reading table"),
- ("Got error 168 when reading table"),
- ("Got error 180 when reading table"),
- ("Got error 196 when reading table"),
- ("Got error 3044 when reading table"),
-
- /*
    Due to timing issues, it might be that this warning
    is printed when the server shuts down and the
    computer is loaded.
  */
 
+ ("Got error [0-9]* when reading table"),
  ("Lock wait timeout exceeded"),
  ("Log entry on master is longer than max_allowed_packet"),
  ("unknown option '--loose-"),
@@ -197,7 +150,7 @@ INSERT INTO global_suppressions VALUES
  ("slave SQL thread aborted"),
  ("Slave: .*Duplicate entry"),
 
- /*
+ /* 
     innodb_dedicated_server warning which raised if innodb_buffer_pool_size,
     innodb_log_file_size or innodb_flush_method is specified.
  */
@@ -312,14 +265,6 @@ INSERT INTO global_suppressions VALUES
  ("Members removed from the group.*"),
  ("Error while sending message for group replication recovery"),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are .*"),
- ("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001160 - Got an error writing communication packets.*"),
- ("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001158 - Got an error reading communication packets.*"),
- ("Failed to establish MySQL client connection in Group Replication.*."),
- ("\\[GCS\\] client closed the signalling connection .*"),
- ("\\[GCS\\] local_server: client closed the signalling connection.*"),
- ("\\[GCS\\] local_server: error reading from the signalling connection.*"),
- ("\\[GCS\\] Unable to start XCom Network Provider.*"),
- ("\\[GCS\\] Error initializing the group communication engine.*"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx
@@ -368,65 +313,32 @@ INSERT INTO global_suppressions VALUES
 
 DELIMITER $$
 
-CREATE DEFINER=root@localhost PROCEDURE filter_global_suppressed_warnings()
-BEGIN
-  --
-  -- Protect the mark on lines that match an 'ignore suppression' pattern.
-  --
-  SET GLOBAL regexp_time_limit = 0;
-  UPDATE error_log el, test_ignored_global_suppressions igs
-    SET suspicious = 2 WHERE el.line REGEXP igs.pattern;
-  --
-  -- Remove the mark from lines that are suppressed by global suppressions.
-  --
-  UPDATE error_log el, global_suppressions gs
-    SET suspicious = 0 WHERE el.suspicious = 1 AND el.line REGEXP gs.pattern;
-  --
-  -- Un-protect lines that matched an 'ignore suppression' pattern above.
-  --
-  UPDATE error_log SET suspicious = 1 WHERE suspicious = 2;
-  SET GLOBAL regexp_time_limit = DEFAULT;
-END$$
-
-CREATE DEFINER=root@localhost PROCEDURE filter_test_suppressed_warnings()
-BEGIN
-  --
-  -- Remove mark from lines that are suppressed by test specific suppressions
-  --
-  SET GLOBAL regexp_time_limit = 0;
-  UPDATE error_log el, test_suppressions ts
-    SET suspicious=0
-      WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
-  SET GLOBAL regexp_time_limit = DEFAULT;
-END$$
-
-CREATE DEFINER=root@localhost PROCEDURE filter_asserted_test_suppressed_warnings()
-BEGIN
-  --
-  -- Remove mark from lines that were expected by assert_error_log.inc
-  -- This check is based on string equality, not regex search, so that
-  -- we catch cases where the same error is generated in some other
-  -- context.
-  --
-  SET GLOBAL regexp_time_limit = 0;
-  UPDATE error_log el, asserted_test_suppressions ats
-    SET suspicious=0
-      WHERE el.suspicious=1 AND el.line = ats.message;
-  SET GLOBAL regexp_time_limit = DEFAULT;
-END$$
-
 --
 -- Procedure that uses the above created tables to check
 -- the servers error log for warnings
 --
 CREATE DEFINER=root@localhost PROCEDURE check_warnings(OUT result INT)
 BEGIN
+  DECLARE `pos` bigint unsigned;
+
   -- Don't write these queries to binlog
   SET SQL_LOG_BIN=0;
 
-  CALL filter_global_suppressed_warnings();
-  CALL filter_test_suppressed_warnings();
-  CALL filter_asserted_test_suppressed_warnings();
+  --
+  -- Remove mark from lines that are suppressed by global suppressions
+  --
+  SET GLOBAL regexp_time_limit = 0;
+  UPDATE error_log el, global_suppressions gs
+    SET suspicious=0
+      WHERE el.suspicious=1 AND el.line REGEXP gs.pattern;
+
+  --
+  -- Remove mark from lines that are suppressed by test specific suppressions
+  --
+  UPDATE error_log el, test_suppressions ts
+    SET suspicious=0
+      WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 
   --
   -- Get the number of marked lines and return result
@@ -447,8 +359,6 @@ BEGIN
 
   -- Cleanup for next test
   TRUNCATE test_suppressions;
-  TRUNCATE test_ignored_global_suppressions;
-  TRUNCATE asserted_test_suppressions;
   DROP TABLE error_log;
 
 END$$

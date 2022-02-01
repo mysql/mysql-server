@@ -235,13 +235,14 @@ static const uchar sort_order_gb2312[] = {
 #define isgb2312tail(c) (0xa1 <= (uchar)(c) && (uchar)(c) <= 0xfe)
 
 extern "C" {
-static uint ismbchar_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
+static uint ismbchar_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             const char *p, const char *e) {
   return (isgb2312head(*(p)) && (e) - (p) > 1 && isgb2312tail(*((p) + 1)) ? 2
                                                                           : 0);
 }
 
-static uint mbcharlen_gb2312(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
+static uint mbcharlen_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                             uint c) {
   return (isgb2312head(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -6441,8 +6442,8 @@ static int func_uni_gb2312_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_gb2312(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                           uchar *s, uchar *e) {
+static int my_wc_mb_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                           my_wc_t wc, uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -6462,7 +6463,7 @@ static int my_wc_mb_gb2312(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
   return 2;
 }
 
-static int my_mb_wc_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_mb_wc_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -6484,9 +6485,9 @@ static int my_mb_wc_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
 /*
   Returns well formed length of a EUC-KR string.
 */
-static size_t my_well_formed_len_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
-                                        const char *b, const char *e,
-                                        size_t pos, int *error) {
+static size_t my_well_formed_len_gb2312(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
+    size_t pos, int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 

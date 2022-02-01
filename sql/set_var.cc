@@ -223,14 +223,6 @@ bool check_priv(THD *thd, bool static_variable) {
   string describes what one should use instead. If an empty string,
   the variable is deprecated but no replacement is offered.
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
-  @param persisted_alias If this variable is persisted, it will
-                   appear in the file both under its own name, and using
-                   'persisted_alias'.
-  @param is_persisted_deprecated If this variable is found in the
-                   persisted, variables file, and its alias is not
-                   found, a deprecation warning will be issued if
-                   is_persisted_deprecated is true.  This flag must be
-                   false if persisted_alias is null.
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  const char *comment, int flags_arg, ptrdiff_t off,
@@ -239,11 +231,8 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func, const char *substitute,
-                 int parse_flag, sys_var *persisted_alias,
-                 bool is_persisted_deprecated)
+                 int parse_flag)
     : next(nullptr),
-      m_persisted_alias(persisted_alias),
-      m_is_persisted_deprecated(is_persisted_deprecated),
       binlog_status(binlog_status_arg),
       flags(flags_arg),
       m_parse_flag(parse_flag),
@@ -267,9 +256,6 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   */
   assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
-  // the is_persist_deprecated flag is only applicable for aliases
-  if (!persisted_alias) assert(!is_persisted_deprecated);
-
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
   assert(name.length <= NAME_CHAR_LEN);
@@ -291,8 +277,6 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 
   memset(source.m_path_name, 0, FN_REFLEN);
   option.arg_source = &source;
-
-  if (persisted_alias) persisted_alias->m_persisted_alias = this;
 
   if (chain->last)
     chain->last->next = this;
@@ -799,11 +783,6 @@ sys_var *intern_find_sys_var(const char *str, size_t length) {
   */
   var = find_or_nullptr(*system_variable_hash,
                         string(str, length ? length : strlen(str)));
-  DBUG_EXECUTE_IF(
-      "check_intern_find_sys_var_lock", if (current_thd) {
-        int err = mysql_rwlock_trywrlock(&LOCK_system_variables_hash);
-        assert(err == EBUSY || err == EDEADLK);
-      });
 
   /* Don't show non-visible variables. */
   if (var && var->not_visible()) return nullptr;
@@ -841,9 +820,6 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   LEX *lex = thd->lex;
   set_var_base *var;
   if (!thd->lex->unit->is_prepared()) {
-    lex->using_hypergraph_optimizer =
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
-
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     while ((var = it++)) {
       if ((error = var->resolve(thd))) goto err;
@@ -1417,7 +1393,7 @@ int set_var_collation_client::check(THD *) {
   /* Currently, UCS-2 cannot be used as a client character set */
   if (!is_supported_parser_charset(character_set_client)) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
-             replace_utf8_utf8mb3(character_set_client->csname));
+             character_set_client->csname);
     return 1;
   }
   return 0;
@@ -1459,7 +1435,7 @@ void set_var_collation_client::print(const THD *, String *str) {
     str->append("DEFAULT");
   else {
     str->append("'");
-    str->append(replace_utf8_utf8mb3(character_set_client->csname));
+    str->append(character_set_client->csname);
     str->append("'");
     if (set_cs_flags & SET_CS_COLLATE) {
       str->append(" COLLATE '");

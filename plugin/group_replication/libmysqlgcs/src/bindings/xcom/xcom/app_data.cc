@@ -32,7 +32,6 @@
 #include "xcom/node_list.h"
 #include "xcom/node_set.h"
 #include "xcom/simset.h"
-#include "xcom/site_def.h"
 #include "xcom/synode_no.h"
 #include "xcom/task.h"
 #include "xcom/task_debug.h"
@@ -108,17 +107,6 @@ static char *dbg_app_data_single(app_data_ptr a) {
         break;
       case set_event_horizon_type:
         NDBG(a->body.app_u_u.event_horizon, u);
-        break;
-      case set_max_leaders:
-        NDBG(a->body.app_u_u.max_leaders, u);
-        break;
-      case set_leaders_type:
-        for (u_int i = 0; i < a->body.app_u_u.leaders.leader_array_len; i++) {
-          STREXP(a->body.app_u_u.leaders.leader_array_val[i].address);
-          STREXP(" ");
-        }
-        break;
-      case get_leaders_type:
         break;
       default:
         STRLIT("unknown type ");
@@ -211,12 +199,6 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
       case set_event_horizon_type:
         p->body.app_u_u.event_horizon = a->body.app_u_u.event_horizon;
         break;
-      case set_max_leaders:
-        p->body.app_u_u.max_leaders = a->body.app_u_u.max_leaders;
-        break;
-      case set_leaders_type:
-        p->body.app_u_u.leaders = clone_leader_array(a->body.app_u_u.leaders);
-        break;
       default: /* Should not happen */
         str = dbg_app_data(a);
         G_ERROR("%s", str);
@@ -238,10 +220,6 @@ size_t synode_no_array_size(synode_no_array sa) {
 
 /**
    Return size of an app_data.
-   Used both for keeping track of the size of cached data, which is OK, as long
-   as no one steals the payload, and to control the xcom automatic
-   batching, which is more dubious, since there we should use the length of
-   serialized data.
  */
 size_t app_data_size(app_data const *a) {
   size_t size = sizeof(*a);
@@ -272,10 +250,6 @@ size_t app_data_size(app_data const *a) {
     case x_terminate_and_exit:
     case get_event_horizon_type:
     case set_event_horizon_type:
-    case get_synode_app_data_type:
-    case convert_into_local_server_type:
-    case set_max_leaders:
-    case set_leaders_type:
       break;
     default: /* Should not happen */
       DBGOUT_ASSERT(FALSE, STRLIT("No such cargo type "); NDBG(a->body.c_t, d));
@@ -303,7 +277,7 @@ static app_data_list nextp(app_data_list l) { return (*l) ? &((*l)->next) : l; }
    Constructor for app_data
  */
 app_data_ptr new_app_data() {
-  app_data_ptr retval = (app_data_ptr)xcom_calloc((size_t)1, sizeof(app_data));
+  app_data_ptr retval = (app_data_ptr)calloc((size_t)1, sizeof(app_data));
   retval->expiry_time = 13.0;
   return retval;
 }
@@ -373,7 +347,6 @@ unsigned long msg_count(app_data_ptr a) {
   return n;
 }
 
-#ifdef XCOM_STANDALONE
 /* Create a new app_data message from list of node:port */
 
 app_data_ptr new_nodes(u_int n, node_address *names, cargo_type cargo) {
@@ -392,8 +365,7 @@ app_data_ptr new_data(u_int n, char *val, cons_type consensus) {
   app_data_ptr retval = new_app_data();
   retval->body.c_t = app_type;
   retval->body.app_u_u.data.data_len = n;
-  retval->body.app_u_u.data.data_val =
-      (char *)xcom_calloc((size_t)n, sizeof(char));
+  retval->body.app_u_u.data.data_val = (char *)calloc((size_t)n, sizeof(char));
   for (i = 0; i < n; i++) {
     retval->body.app_u_u.data.data_val[i] = val[i];
   }
@@ -422,4 +394,3 @@ app_data_ptr new_exit() {
 }
 
 /* purecov: end */
-#endif

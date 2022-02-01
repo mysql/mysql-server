@@ -33,7 +33,7 @@ namespace mysql_harness {
 
 // we define them here to make sure they're not inlined
 // (that could be dangerous when called from other DLLs)
-DIM::DIM() = default;
-DIM::~DIM() = default;
+DIM::DIM() {}
+DIM::~DIM() {}
 
 }  // namespace mysql_harness

@@ -25,16 +25,18 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
-#include <gmock/gmock.h>
 #include <rapidjson/document.h>
 
 #include "dim.h"
+#include "gmock/gmock.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
-#include "mysqlrouter/mysql_session.h"
+#include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -55,7 +57,10 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-class RestMockServerTest : public RouterComponentTest {};
+class RestMockServerTest : public RouterComponentTest {
+ protected:
+  TcpPortPool port_pool_;
+};
 
 /**
  * base class.
@@ -548,11 +553,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(HttpMethod::Connect, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerConnectionsRestUri,
-                        HttpStatusCode::MethodNotAllowed)),
-    [](const auto &info) {
-      return http_method_to_string(std::get<0>(info.param)) + "_" +
-             std::to_string(std::get<2>(info.param));
-    });
+                        HttpStatusCode::MethodNotAllowed)));
 
 /**
  * test storing globals in mock_server via REST bridge.

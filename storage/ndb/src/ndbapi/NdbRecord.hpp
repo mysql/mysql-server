@@ -163,7 +163,7 @@ public:
     }
 
     /* 255 bytes of data and 1 byte of length */
-    static constexpr Uint32 SHRINK_VARCHAR_BUFFSIZE = 256;
+    STATIC_CONST( SHRINK_VARCHAR_BUFFSIZE= 256 );
     /*
       Mysqld uses a slightly different format for storing varchar in
       index keys; the length is always two bytes little endian, even

@@ -43,11 +43,11 @@ EXPLAIN FORMAT=tree with recursive qn as
 select 1 from qn)
 select * from qn;
 EXPLAIN
--> Table scan on qn
-    -> Materialize recursive CTE qn with deduplication
-        -> Rows fetched before execution
+-> Table scan on qn  (cost=0.85..2.54 rows=3)
+    -> Materialize recursive CTE qn with deduplication  (cost=3.87..5.56 rows=3)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
         -> Repeat until convergence
-            -> Scan new records on qn
+            -> Scan new records on qn  (cost=2.73 rows=2)
 
 with recursive qn as
 (select 1 from dual union
@@ -798,8 +798,8 @@ PATH);
 ID	NAME	PATH
 198	John	333,198
 29	Pedro	333,198,29
-4610	Sarah	333,198,29,4610
 72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
 # Exclude John, he's not a report of himself;
 # bonus: use a QN to cache his ID.
 WITH RECURSIVE employees_extended(ID, NAME, PATH)
@@ -819,8 +819,8 @@ PATH)
 AND e.ID<>JOHN_ID.ID;
 ID	NAME	PATH
 29	Pedro	333,198,29
-4610	Sarah	333,198,29,4610
 72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
 # Similar, but faster: start dive at John (and include him again).
 WITH RECURSIVE employees_extended
 AS
@@ -836,8 +836,8 @@ SELECT * FROM employees_extended;
 ID	NAME	PATH
 198	John	198
 29	Pedro	198,29
-4610	Sarah	198,29,4610
 72	Pierre	198,29,72
+4610	Sarah	198,29,4610
 # Get the management chain above Pierre:
 WITH RECURSIVE employees_extended
 AS
@@ -851,10 +851,10 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID	PATH
-198	John	333	72,29,198
-29	Pedro	198	72,29
-333	Yasmina	NULL	72,29,198,333
 72	Pierre	29	72
+29	Pedro	198	72,29
+198	John	333	72,29,198
+333	Yasmina	NULL	72,29,198,333
 # Get the management chain above Pierre, without PATH
 WITH RECURSIVE employees_extended
 AS
@@ -868,10 +868,10 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-29	Pedro	198
-333	Yasmina	NULL
 72	Pierre	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
 # Get the management chain above Pierre and Sarah, without PATH
 WITH RECURSIVE employees_extended
 AS
@@ -885,14 +885,14 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-198	John	333
-29	Pedro	198
-29	Pedro	198
-333	Yasmina	NULL
-333	Yasmina	NULL
-4610	Sarah	29
 72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+29	Pedro	198
+198	John	333
+198	John	333
+333	Yasmina	NULL
+333	Yasmina	NULL
 # Do it without duplicates
 WITH RECURSIVE employees_extended
 AS
@@ -906,11 +906,11 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-29	Pedro	198
-333	Yasmina	NULL
-4610	Sarah	29
 72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
 # Cycles. Introduce an oddity:
 # Sarah is indirect report of John and is his manager.
 UPDATE employees SET MANAGER_ID=4610 WHERE NAME="John";
@@ -944,10 +944,10 @@ WHERE M.IS_CYCLE=0
 SELECT * FROM employees_extended;
 ID	NAME	PATH	IS_CYCLE
 198	John	198	0
-198	John	198,29,4610,198	1
 29	Pedro	198,29	0
-4610	Sarah	198,29,4610	0
 72	Pierre	198,29,72	0
+4610	Sarah	198,29,4610	0
+198	John	198,29,4610,198	1
 DROP TABLE employees;
 # Two recursive members.
 create table t1 (id int, name char(10), leftpar int, rightpar int);
@@ -1083,20 +1083,20 @@ t2.id=tree_of_a.rightpar
 select * from tree_of_a order by path;
 EXPLAIN
 -> Sort: tree_of_a.`path`
-    -> Table scan on tree_of_a
-        -> Materialize recursive CTE tree_of_a
-            -> Filter: (t2.`name` = 'A')
-                -> Table scan on t2
+    -> Table scan on tree_of_a  (cost=3.85 rows=12)
+        -> Materialize recursive CTE tree_of_a  (cost=20.99..20.99 rows=12)
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join
-                    -> Scan new records on tree_of_a
-                    -> Filter: (t2.id = tree_of_a.leftpar)
-                        -> Table scan on t2
+                -> Nested loop inner join  (cost=6.22 rows=3)
+                    -> Scan new records on tree_of_a  (cost=2.73 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join
-                    -> Scan new records on tree_of_a
-                    -> Filter: (t2.id = tree_of_a.rightpar)
-                        -> Table scan on t2
+                -> Nested loop inner join  (cost=11.81 rows=8)
+                    -> Scan new records on tree_of_a  (cost=3.06 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
 
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
@@ -1395,11 +1395,11 @@ EXPLAIN FORMAT=tree with recursive qn as
 select 1 from qn)
 select * from qn;
 EXPLAIN
--> Table scan on qn
-    -> Materialize recursive CTE qn with deduplication
-        -> Rows fetched before execution
+-> Table scan on qn  (cost=0.17..0.50 rows=3)
+    -> Materialize recursive CTE qn with deduplication  (cost=1.17..1.50 rows=3)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
         -> Repeat until convergence
-            -> Scan new records on qn
+            -> Scan new records on qn  (cost=0.70 rows=2)
 
 with recursive qn as
 (select 1 from dual union
@@ -2150,8 +2150,8 @@ PATH);
 ID	NAME	PATH
 198	John	333,198
 29	Pedro	333,198,29
-4610	Sarah	333,198,29,4610
 72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
 # Exclude John, he's not a report of himself;
 # bonus: use a QN to cache his ID.
 WITH RECURSIVE employees_extended(ID, NAME, PATH)
@@ -2171,8 +2171,8 @@ PATH)
 AND e.ID<>JOHN_ID.ID;
 ID	NAME	PATH
 29	Pedro	333,198,29
-4610	Sarah	333,198,29,4610
 72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
 # Similar, but faster: start dive at John (and include him again).
 WITH RECURSIVE employees_extended
 AS
@@ -2188,8 +2188,8 @@ SELECT * FROM employees_extended;
 ID	NAME	PATH
 198	John	198
 29	Pedro	198,29
-4610	Sarah	198,29,4610
 72	Pierre	198,29,72
+4610	Sarah	198,29,4610
 # Get the management chain above Pierre:
 WITH RECURSIVE employees_extended
 AS
@@ -2203,10 +2203,10 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID	PATH
-198	John	333	72,29,198
-29	Pedro	198	72,29
-333	Yasmina	NULL	72,29,198,333
 72	Pierre	29	72
+29	Pedro	198	72,29
+198	John	333	72,29,198
+333	Yasmina	NULL	72,29,198,333
 # Get the management chain above Pierre, without PATH
 WITH RECURSIVE employees_extended
 AS
@@ -2220,10 +2220,10 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-29	Pedro	198
-333	Yasmina	NULL
 72	Pierre	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
 # Get the management chain above Pierre and Sarah, without PATH
 WITH RECURSIVE employees_extended
 AS
@@ -2237,14 +2237,14 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-198	John	333
-29	Pedro	198
-29	Pedro	198
-333	Yasmina	NULL
-333	Yasmina	NULL
-4610	Sarah	29
 72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+29	Pedro	198
+198	John	333
+198	John	333
+333	Yasmina	NULL
+333	Yasmina	NULL
 # Do it without duplicates
 WITH RECURSIVE employees_extended
 AS
@@ -2258,11 +2258,11 @@ FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
 )
 SELECT * FROM employees_extended;
 ID	NAME	MANAGER_ID
-198	John	333
-29	Pedro	198
-333	Yasmina	NULL
-4610	Sarah	29
 72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
 # Cycles. Introduce an oddity:
 # Sarah is indirect report of John and is his manager.
 UPDATE employees SET MANAGER_ID=4610 WHERE NAME="John";
@@ -2296,10 +2296,10 @@ WHERE M.IS_CYCLE=0
 SELECT * FROM employees_extended;
 ID	NAME	PATH	IS_CYCLE
 198	John	198	0
-198	John	198,29,4610,198	1
 29	Pedro	198,29	0
-4610	Sarah	198,29,4610	0
 72	Pierre	198,29,72	0
+4610	Sarah	198,29,4610	0
+198	John	198,29,4610,198	1
 DROP TABLE employees;
 # Two recursive members.
 create table t1 (id int, name char(10), leftpar int, rightpar int);
@@ -2435,20 +2435,20 @@ t2.id=tree_of_a.rightpar
 select * from tree_of_a order by path;
 EXPLAIN
 -> Sort: tree_of_a.`path`
-    -> Table scan on tree_of_a
-        -> Materialize recursive CTE tree_of_a
-            -> Filter: (t2.`name` = 'A')
-                -> Table scan on t2
+    -> Table scan on tree_of_a  (cost=1.70 rows=12)
+        -> Materialize recursive CTE tree_of_a  (cost=16.90..16.90 rows=12)
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join
-                    -> Scan new records on tree_of_a
-                    -> Filter: (t2.id = tree_of_a.leftpar)
-                        -> Table scan on t2
+                -> Nested loop inner join  (cost=4.20 rows=3)
+                    -> Scan new records on tree_of_a  (cost=0.70 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
             -> Repeat until convergence
-                -> Nested loop inner join
-                    -> Scan new records on tree_of_a
-                    -> Filter: (t2.id = tree_of_a.rightpar)
-                        -> Table scan on t2
+                -> Nested loop inner join  (cost=9.75 rows=8)
+                    -> Scan new records on tree_of_a  (cost=1.00 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
 
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't

@@ -46,11 +46,21 @@ SET(include_dirs
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
+  ${PROJECT_SOURCE_DIR}/tests/helpers
   )
 
 # We do not link to the metadata cache libraries since the sources are
 # already built as part of the test libraries.
-IF(WIN32)
+IF(NOT WIN32)
+  ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
+  TARGET_LINK_LIBRARIES(metadata_cache_tests
+    router_lib
+    mysqlclient
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    ${PROTOBUF_LITE_LIBRARY}
+    )
+ELSE()
   ADD_LIBRARY(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
   TARGET_LINK_LIBRARIES(metadata_cache_tests
     router_lib
@@ -64,15 +74,6 @@ IF(WIN32)
     PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
     PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-ELSE()
-  ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-  TARGET_LINK_LIBRARIES(metadata_cache_tests
-    router_lib
-    mysqlclient
-    mysqlxclient_lite
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-    )
 ENDIF()
 
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache_tests)
@@ -93,16 +94,18 @@ FOREACH(test_file
     test_metadata_cache.cc
     test_plugin_config.cc
     )
-  ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
-    MODULE ${TEST_MODULE}
-    LIB_DEPENDS
-      metadata_cache_tests
-      test-helpers
-    INCLUDE_DIRS
-      ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-      ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
-      ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
-  )
+  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+             MODULE ${TEST_MODULE}
+             LIB_DEPENDS
+               metadata_cache_tests
+               test-helpers
+             INCLUDE_DIRS
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
+               ${PROJECT_SOURCE_DIR}/tests/helpers
+               ${PROJECT_SOURCE_DIR}/src/harness/shared/include
+)
 ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})

@@ -420,7 +420,7 @@ Properties::print(FILE * out, const char * prefix) const{
   if(prefix == 0)
     buf[0] = 0;
   else
-    snprintf(buf, 1024, "%s", prefix);
+    strncpy(buf, prefix, 1024);
   
   for (auto i : impl->content){
     switch(i.second.valueType){

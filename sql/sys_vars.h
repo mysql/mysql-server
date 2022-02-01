@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <time.h>
 
 #include "keycache.h"  // dflt_key_cache
 #include "lex_string.h"
@@ -177,146 +176,126 @@ struct CMD_LINE {
   Backing store: uint, ulong, ha_rows, ulonglong, long, depending on the
   Sys_var_*
 */
-// clang-format off
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED>
 class Sys_var_integer : public sys_var {
- public:
-  Sys_var_integer(
-      const char *name_arg, const char *comment, int flag_args,
-      ptrdiff_t off, size_t size [[maybe_unused]], CMD_LINE getopt,
-      T min_val, T max_val, T def_val, uint block_size,
-      PolyLock *lock = nullptr,
+  public : Sys_var_integer(
+      const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, T min_val, T max_val,
+      T def_val, uint block_size, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
-      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL)
-      : sys_var(&all_sys_vars, name_arg, comment, flag_args, off,
-                getopt.id, getopt.arg_type, SHOWT, def_val, lock,
-                binlog_status_arg, on_check_func, on_update_func,
-                substitute, parse_flag) {
-    option.var_type = ARGT;
-    if ((min_val % block_size) != 0)
-      min_val += block_size - (min_val % block_size);
-    option.min_value = min_val;
-    option.max_value = max_val - (max_val % block_size);
-    option.block_size = block_size;
-    option.u_max_value = (uchar **)max_var_ptr();
-    if (max_var_ptr()) * max_var_ptr() = max_val;
+      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL) :
+      sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOWT, def_val, lock, binlog_status_arg,
+              on_check_func, on_update_func, substitute, parse_flag){
+          option.var_type = ARGT; option.min_value = min_val;
+          option.max_value = max_val; option.block_size = block_size;
+          option.u_max_value = (uchar **)max_var_ptr();
+          if (max_var_ptr()) * max_var_ptr() = max_val;
 
-    // Do not set global_var for Sys_var_keycache objects
-    if (offset >= 0) global_var(T) = def_val;
+          // Do not set global_var for Sys_var_keycache objects
+          if (offset >= 0) global_var(T) = def_val;
 
-    assert(size == sizeof(T));
-    assert(min_val <= def_val);
-    assert(def_val <= max_val);
-    assert(block_size > 0);
-    assert(option.min_value % block_size == 0);
-    assert(def_val % block_size == 0);
-    assert(option.max_value % block_size == 0);
-  }
-  bool do_check(THD *thd, set_var *var) override {
-    bool fixed = false;
-    longlong v;
-    ulonglong uv;
+          assert(size == sizeof(T)); assert(min_val < max_val);
+          assert(min_val <= def_val); assert(max_val >= def_val);
+          assert(block_size > 0); assert(def_val % block_size == 0);}
+bool do_check(THD *thd, set_var *var) override {
+  bool fixed = false;
+  longlong v;
+  ulonglong uv;
 
-    v = var->value->val_int();
-    if (SIGNED) { /* target variable has signed type */
-      if (var->value->unsigned_flag) {
-        /*
-          Input value is such a large positive number that MySQL used
-          an unsigned item to hold it. When cast to a signed longlong,
-          if the result is negative there is "cycling" and this is
-          incorrect (large positive input value should not end up as a
-          large negative value in the session signed variable to be
-          set); instead, we need to pick the allowed number closest to
-          the positive input value, i.e. pick the biggest allowed
-          positive integer.
-        */
-        if (v < 0)
-          uv = max_of_int_range(ARGT);
-        else /* no cycling, longlong can hold true value */
-          uv = (ulonglong)v;
-      } else
-        uv = v;
-      /* This will further restrict with VALID_RANGE, BLOCK_SIZE */
-      var->save_result.ulonglong_value =
-        getopt_ll_limit_value(uv, &option, &fixed);
-    } else {
-      if (var->value->unsigned_flag) {
-        /* Guaranteed positive input value, ulonglong can hold it */
+  v = var->value->val_int();
+  if (SIGNED) /* target variable has signed type */
+  {
+    if (var->value->unsigned_flag) {
+      /*
+        Input value is such a large positive number that MySQL used an
+        unsigned item to hold it. When cast to a signed longlong, if the
+        result is negative there is "cycling" and this is incorrect (large
+        positive input value should not end up as a large negative value in
+        the session signed variable to be set); instead, we need to pick the
+        allowed number closest to the positive input value, i.e. pick the
+        biggest allowed positive integer.
+      */
+      if (v < 0)
+        uv = max_of_int_range(ARGT);
+      else /* no cycling, longlong can hold true value */
         uv = (ulonglong)v;
-      } else {
-        /*
-          Maybe negative input value; in this case, cast to ulonglong
-          makes it positive, which is wrong. Pick the closest allowed
-          value i.e. 0.
-        */
-        uv = (ulonglong)(v < 0 ? 0 : v);
-      }
-      var->save_result.ulonglong_value =
+    } else
+      uv = v;
+    /* This will further restrict with VALID_RANGE, BLOCK_SIZE */
+    var->save_result.ulonglong_value =
+        getopt_ll_limit_value(uv, &option, &fixed);
+  } else {
+    if (var->value->unsigned_flag) {
+      /* Guaranteed positive input value, ulonglong can hold it */
+      uv = (ulonglong)v;
+    } else {
+      /*
+        Maybe negative input value; in this case, cast to ulonglong makes it
+        positive, which is wrong. Pick the closest allowed value i.e. 0.
+      */
+      uv = (ulonglong)(v < 0 ? 0 : v);
+    }
+    var->save_result.ulonglong_value =
         getopt_ull_limit_value(uv, &option, &fixed);
-    }
+  }
 
-    if (max_var_ptr()) {
-      /* check constraint set with --maximum-...=X */
-      if (SIGNED) {
-        longlong max_val = *max_var_ptr();
-        if (((longlong)(var->save_result.ulonglong_value)) > max_val)
-          var->save_result.ulonglong_value = max_val;
-        /*
-          Signed variable probably has some kind of symmetry. Then
-          it's good to limit negative values just as we limit positive
-          values.
-        */
-        max_val = -max_val;
-        if (((longlong)(var->save_result.ulonglong_value)) < max_val)
-          var->save_result.ulonglong_value = max_val;
-      } else {
-        ulonglong max_val = *max_var_ptr();
-        if (var->save_result.ulonglong_value > max_val)
-          var->save_result.ulonglong_value = max_val;
-      }
+  if (max_var_ptr()) {
+    /* check constraint set with --maximum-...=X */
+    if (SIGNED) {
+      longlong max_val = *max_var_ptr();
+      if (((longlong)(var->save_result.ulonglong_value)) > max_val)
+        var->save_result.ulonglong_value = max_val;
+      /*
+        Signed variable probably has some kind of symmetry. Then it's good
+        to limit negative values just as we limit positive values.
+      */
+      max_val = -max_val;
+      if (((longlong)(var->save_result.ulonglong_value)) < max_val)
+        var->save_result.ulonglong_value = max_val;
+    } else {
+      ulonglong max_val = *max_var_ptr();
+      if (var->save_result.ulonglong_value > max_val)
+        var->save_result.ulonglong_value = max_val;
     }
+  }
 
-    return throw_bounds_warning(
-        thd, name.str, var->save_result.ulonglong_value != (ulonglong)v,
-        var->value->unsigned_flag, v);
-  }
-  bool session_update(THD *thd, set_var *var) override {
-    session_var(thd, T) = static_cast<T>(var->save_result.ulonglong_value);
-    return false;
-  }
-  bool global_update(THD *, set_var *var) override {
-    global_var(T) = static_cast<T>(var->save_result.ulonglong_value);
-    return false;
-  }
-  bool check_update_type(Item_result type) override {
-    return type != INT_RESULT;
-  }
-  void session_save_default(THD *thd, set_var *var) override {
-    var->save_result.ulonglong_value = static_cast<ulonglong>(
+  return throw_bounds_warning(thd, name.str,
+                              var->save_result.ulonglong_value != (ulonglong)v,
+                              var->value->unsigned_flag, v);
+}
+bool session_update(THD *thd, set_var *var) override {
+  session_var(thd, T) = static_cast<T>(var->save_result.ulonglong_value);
+  return false;
+}
+bool global_update(THD *, set_var *var) override {
+  global_var(T) = static_cast<T>(var->save_result.ulonglong_value);
+  return false;
+}
+bool check_update_type(Item_result type) override { return type != INT_RESULT; }
+void session_save_default(THD *thd, set_var *var) override {
+  var->save_result.ulonglong_value = static_cast<ulonglong>(
       *pointer_cast<const T *>(global_value_ptr(thd, nullptr)));
-  }
-  void global_save_default(THD *, set_var *var) override {
-    var->save_result.ulonglong_value = option.def_value;
-  }
-  void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-    if (SIGNED)
-      longlong10_to_str((longlong)var->save_result.ulonglong_value,
-                        def_val, -10);
-    else
-      longlong10_to_str((longlong)var->save_result.ulonglong_value,
-                        def_val, 10);
-  }
+}
+void global_save_default(THD *, set_var *var) override {
+  var->save_result.ulonglong_value = option.def_value;
+}
+void saved_value_to_string(THD *, set_var *var, char *def_val) override {
+  if (SIGNED)
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, -10);
+  else
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+}
 
- private:
-  T *max_var_ptr() {
-    return scope() == SESSION
-        ? (T *)(((uchar *)&max_system_variables) + offset)
-        : nullptr;
-  }
-};
-// clang-format on
+private:
+T *max_var_ptr() {
+  return scope() == SESSION ? (T *)(((uchar *)&max_system_variables) + offset)
+                            : nullptr;
+}
+}
+;
 
 typedef Sys_var_integer<int32, GET_UINT, SHOW_INT, false> Sys_var_int32;
 typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, false> Sys_var_uint;
@@ -326,242 +305,6 @@ typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS, false>
 typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG, false>
     Sys_var_ulonglong;
 typedef Sys_var_integer<long, GET_LONG, SHOW_SIGNED_LONG, true> Sys_var_long;
-
-/**
-  A sys_var that is an alias for another sys_var.
-
-  The two variables effectively share (almost) all members, so
-  whenever you change one of them, it affects both.
-
-  Usually you want to use Sys_var_deprecated_alias instead.
-*/
-class Sys_var_alias : public sys_var {
- private:
-  sys_var &m_base_var;
-
- protected:
-  /**
-    Special constructor used to implement Sys_var_deprecated alias.
-
-    @param name_arg The name of this sys_var.
-
-    @param base_var The "parent" sys_var that this sys_var is an alias
-    for.
-
-    @param deprecation_substitute_arg The deprecation_substitute to
-    use for this variable. While other fields in the created variable
-    are inherited from real_var, the deprecation_substitute can be set
-    using this parameter.
-
-    @param persisted_alias When this variable is persisted, it will
-    duplicate the entry in the persisted variables file: It will be
-    stored both using the variable name name_arg, and the name of
-    persisted_alias.
-
-    @param is_persisted_deprecated If true, this variable is
-    deprecated when appearing in the persisted variables file.
-  */
-  Sys_var_alias(const char *name_arg, sys_var &base_var,
-                const char *deprecation_substitute_arg,
-                sys_var *persisted_alias, bool is_persisted_deprecated)
-      : sys_var(&all_sys_vars, name_arg, base_var.option.comment,
-                base_var.flags, base_var.offset, base_var.option.id,
-                base_var.option.arg_type, base_var.show_val_type,
-                base_var.option.def_value, base_var.guard,
-                base_var.binlog_status, base_var.on_check, base_var.on_update,
-                deprecation_substitute_arg, base_var.m_parse_flag,
-                persisted_alias, is_persisted_deprecated),
-        m_base_var(base_var) {
-    option = base_var.option;
-    option.name = name_arg;
-  }
-
- public:
-  Sys_var_alias(const char *name_arg, sys_var &base_var)
-      : Sys_var_alias(name_arg, base_var, base_var.deprecation_substitute,
-                      nullptr, false) {}
-
-  sys_var &get_base_var() { return m_base_var; }
-
-  virtual void cleanup() override { m_base_var.cleanup(); }
-  virtual sys_var_pluginvar *cast_pluginvar() override {
-    return m_base_var.cast_pluginvar();
-  }
-  virtual void update_default(longlong new_def_value) override {
-    m_base_var.update_default(new_def_value);
-  }
-  virtual longlong get_default() override { return m_base_var.get_default(); }
-  virtual longlong get_min_value() override {
-    return m_base_var.get_min_value();
-  }
-  virtual ulonglong get_max_value() override {
-    return m_base_var.get_max_value();
-  }
-  virtual ulong get_var_type() override { return m_base_var.get_var_type(); }
-  virtual void set_arg_source(get_opt_arg_source *arg_source) override {
-    m_base_var.set_arg_source(arg_source);
-  }
-  virtual void set_is_plugin(bool is_plugin) override {
-    m_base_var.set_is_plugin(is_plugin);
-  }
-  virtual bool is_non_persistent() override {
-    return m_base_var.is_non_persistent();
-  }
-  virtual void saved_value_to_string(THD *thd, set_var *var,
-                                     char *def_val) override {
-    return m_base_var.saved_value_to_string(thd, var, def_val);
-  }
-  virtual bool check_update_type(Item_result type) override {
-    return m_base_var.check_update_type(type);
-  }
-  virtual enum_variable_source get_source() override {
-    return m_base_var.get_source();
-  }
-  virtual const char *get_source_name() override {
-    return m_base_var.get_source_name();
-  }
-  virtual void set_source(enum_variable_source src) override {
-    m_base_var.set_source(src);
-  }
-  virtual bool set_source_name(const char *path) override {
-    return m_base_var.set_source_name(path);
-  }
-  virtual bool set_user(const char *usr) override {
-    return m_base_var.set_user(usr);
-  }
-  virtual const char *get_user() override { return m_base_var.get_user(); }
-  virtual const char *get_host() override { return m_base_var.get_host(); }
-  virtual bool set_host(const char *hst) override {
-    return m_base_var.set_host(hst);
-  }
-  virtual ulonglong get_timestamp() const override {
-    return m_base_var.get_timestamp();
-  }
-  virtual void set_user_host(THD *thd) override {
-    m_base_var.set_user_host(thd);
-  }
-  virtual void set_timestamp() override { m_base_var.set_timestamp(); }
-  virtual void set_timestamp(ulonglong ts) override {
-    m_base_var.set_timestamp(ts);
-  }
-
- private:
-  virtual bool do_check(THD *thd, set_var *var) override {
-    return m_base_var.do_check(thd, var);
-  }
-  virtual void session_save_default(THD *thd, set_var *var) override {
-    return m_base_var.session_save_default(thd, var);
-  }
-  virtual void global_save_default(THD *thd, set_var *var) override {
-    return m_base_var.global_save_default(thd, var);
-  }
-  virtual bool session_update(THD *thd, set_var *var) override {
-    return m_base_var.session_update(thd, var);
-  }
-  virtual bool global_update(THD *thd, set_var *var) override {
-    return m_base_var.global_update(thd, var);
-  }
-
- protected:
-  virtual const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                         LEX_STRING *base) override {
-    return m_base_var.session_value_ptr(running_thd, target_thd, base);
-  }
-  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
-    return m_base_var.global_value_ptr(thd, base);
-  }
-};
-
-/**
-  A deprecated alias for a variable.
-
-  This tool allows us to rename system variables without breaking
-  backward compatibility.
-
-  Procedure for a developer to create a new name for a variable in
-  version X and remove the old name in version X+1:
-
-  - In version X:
-
-    - Change the string passed to the Sys_var constructor for the
-      variable the new new name.  All existing code for this should
-      remain as it is.
-
-    - Create a Sys_var_deprecated_alias taking the old name as the
-      first argument and the Sys_var object having the new name as the
-      second argument.
-
-  - In version X+1:
-
-    - Remove the Sys_var_deprecated_alias.
-
-  This has the following effects in version X:
-
-  - Both variables coexist. They are both visible in
-    performance_schema tables and accessible in SET statements and
-    SELECT @@variable statements. Both variables always have the same
-    values.
-
-  - A SET statement using either the old name or the new name changes
-    the value of both variables.
-
-  - A SET statement using the old name generates a deprecation
-    warning.
-
-  - The procedure that loads persisted variables from file accepts
-    either the old name, or the new name, or both.  It generates a
-    deprecation warning in case only the old name exists in the file.
-    A SET PERSIST statement writes both variables to the file.
-
-  The procedures for a user to upgrade or downgrade are:
-
-  - After upgrade from version X-1 to X, all persisted variables
-    retain their persisted values.  User will see deprecation warnings
-    when loading the persisted variables file, with instructions to
-    run a SET PERSIST statement any time before the next upgrade to
-    X+1.
-
-  - While on version X, user needs to run a SET PERSIST statement any
-    time before upgrading to X+1. Due to the logic described above, it
-    will write both variables to the file.
-
-  - While on version X, user needs to change their cnf files,
-    command-line arguments, and @@variables accessed through
-    application logic, to use the new names, before upgrading to X+1.
-    The deprecation warnings will help identify the relevant places to
-    update.
-
-  - After upgrade from X to X+1, the server will read the old
-    variables from the file.  Since this version does not know about
-    the old variables, it will ignore them and print a warning.  The
-    user can remove the unknown variable from the persisted variable
-    file, and get rid of the warning, using RESET PERSIST
-    OLD_VARIABLE_NAME.
-
-  - After downgrade from verson X+1 to version X, all persisted
-    variables retain their values.  User will not see deprecation
-    warnings.  If user needs to further downgrade to version X-1, user
-    needs to first run SET PERSIST for some variable in order to
-    rewrite the file so that the old variable names exist in the file.
-
-  - After downgrade from version X to version X-1, all persisted
-    variables retain their values.  If the new variable names exist in
-    the persisted variables file, a warning will be printed stating
-    that the variable is not known and will be ignored.  User can get
-    rid of the warning by running RESET PERSIST NEW_VARIABLE_NAME.
-*/
-class Sys_var_deprecated_alias : public Sys_var_alias {
- private:
-  std::string m_comment;
-
- public:
-  Sys_var_deprecated_alias(const char *name_arg, sys_var &base_var)
-      : Sys_var_alias{name_arg, base_var, base_var.name.str, &base_var, true} {
-    m_comment = std::string("This option is deprecated. Use ") +
-                base_var.get_option()->name + " instead.";
-    option.comment = m_comment.c_str();
-  }
-};
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -635,7 +378,7 @@ class Sys_var_enum : public Sys_var_typelib {
  public:
   Sys_var_enum(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
       uint def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -665,8 +408,7 @@ class Sys_var_enum : public Sys_var_typelib {
     var->save_result.ulonglong_value = option.def_value;
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-    // Copy the symbolic name, not the numeric value.
-    strcpy(def_val, typelib.type_names[var->save_result.ulonglong_value]);
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
   }
   const uchar *session_value_ptr(THD *, THD *target_thd,
                                  LEX_STRING *) override {
@@ -688,7 +430,7 @@ class Sys_var_bool : public Sys_var_typelib {
  public:
   Sys_var_bool(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, bool def_val,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, bool def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -801,9 +543,9 @@ class Sys_var_multi_enum : public sys_var {
   */
   Sys_var_multi_enum(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, const ALIAS aliases_arg[],
-      uint value_count_arg, uint def_val, uint command_line_no_value_arg,
-      PolyLock *lock = nullptr,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      const ALIAS aliases_arg[], uint value_count_arg, uint def_val,
+      uint command_line_no_value_arg, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
@@ -1011,7 +753,7 @@ class Sys_var_charptr : public sys_var {
  public:
   Sys_var_charptr(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
       enum charset_enum is_os_charset_arg, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
@@ -1107,7 +849,7 @@ class Sys_var_version : public Sys_var_charptr {
       : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
                         is_os_charset_arg, def_val) {}
 
-  ~Sys_var_version() override = default;
+  ~Sys_var_version() override {}
 
   const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
     const uchar *value = Sys_var_charptr::global_value_ptr(thd, base);
@@ -1191,7 +933,7 @@ class Sys_var_lexstring : public Sys_var_charptr {
  public:
   Sys_var_lexstring(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
       enum charset_enum is_os_charset_arg, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
@@ -1275,12 +1017,12 @@ class Sys_var_dbug : public sys_var {
   }
   const uchar *session_value_ptr(THD *running_thd, THD *,
                                  LEX_STRING *) override {
-    char buf[512];
+    char buf[256];
     DBUG_EXPLAIN(buf, sizeof(buf));
     return (uchar *)running_thd->mem_strdup(buf);
   }
   const uchar *global_value_ptr(THD *thd, LEX_STRING *) override {
-    char buf[512];
+    char buf[256];
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
     return (uchar *)thd->mem_strdup(buf);
   }
@@ -1391,7 +1133,7 @@ class Sys_var_double : public sys_var {
  public:
   Sys_var_double(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, double min_val,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, double min_val,
       double max_val, double def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1522,7 +1264,7 @@ class Sys_var_flagset : public Sys_var_typelib {
  public:
   Sys_var_flagset(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
       ulonglong def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1622,7 +1364,7 @@ class Sys_var_set : public Sys_var_typelib {
  public:
   Sys_var_set(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
       ulonglong def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1725,7 +1467,7 @@ class Sys_var_plugin : public sys_var {
  public:
   Sys_var_plugin(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, int plugin_type_arg,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, int plugin_type_arg,
       const char **def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1917,8 +1659,8 @@ class Sys_var_bit : public Sys_var_typelib {
  public:
   Sys_var_bit(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, ulonglong bitmask_arg,
-      bool def_val, PolyLock *lock = nullptr,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      ulonglong bitmask_arg, bool def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       pre_update_function pre_update_func = nullptr,
@@ -2097,7 +1839,8 @@ class Sys_var_have : public sys_var {
  public:
   Sys_var_have(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, PolyLock *lock = nullptr,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
@@ -2154,19 +1897,15 @@ class Sys_var_have_func : public Sys_var_have {
     @param name_arg The name of the variable
     @param comment  Explanation of what the variable does
     @param func     The function to call when in need to read the global value
-    @param substitute If the variable is deprecated what to use instead
   */
   Sys_var_have_func(const char *name_arg, const char *comment,
-                    enum SHOW_COMP_OPTION (*func)(THD *),
-                    const char *substitute = nullptr)
+                    enum SHOW_COMP_OPTION (*func)(THD *))
       /*
         Note: it doesn't really matter what variable we use, as long as we are
         using one. So we use a local static dummy
       */
       : Sys_var_have(name_arg, comment,
-                     READ_ONLY NON_PERSIST GLOBAL_VAR(dummy_), NO_CMD_LINE,
-                     nullptr, VARIABLE_NOT_IN_BINLOG, nullptr, nullptr,
-                     substitute),
+                     READ_ONLY NON_PERSIST GLOBAL_VAR(dummy_), NO_CMD_LINE),
         func_(func) {}
 
   const uchar *global_value_ptr(THD *thd, LEX_STRING *) override {
@@ -2196,7 +1935,7 @@ class Sys_var_struct : public sys_var {
  public:
   Sys_var_struct(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, void *def_val,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, void *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -2267,7 +2006,7 @@ class Sys_var_struct : public sys_var {
 class Sys_var_tz : public sys_var {
  public:
   Sys_var_tz(const char *name_arg, const char *comment, int flag_args,
-             ptrdiff_t off, size_t size [[maybe_unused]], CMD_LINE getopt,
+             ptrdiff_t off, size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
              Time_zone **def_val, PolyLock *lock = nullptr,
              enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
              on_check_function on_check_func = nullptr,
@@ -2400,7 +2139,7 @@ class Sys_var_gtid_next : public sys_var {
  public:
   Sys_var_gtid_next(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size [[maybe_unused]], CMD_LINE getopt, const char *def_val,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -2602,35 +2341,6 @@ class Sys_var_gtid_executed : Sys_var_charptr_func {
       gs->to_string(buf);
     global_sid_lock->unlock();
     return (uchar *)buf;
-  }
-};
-
-/**
-  Class for @@global.system_time_zone.
-*/
-class Sys_var_system_time_zone : Sys_var_charptr_func {
- public:
-  Sys_var_system_time_zone(const char *name_arg, const char *comment_arg)
-      : Sys_var_charptr_func(name_arg, comment_arg, GLOBAL) {
-    is_os_charset = true;
-  }
-
-  const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_TRACE;
-    time_t current_time = my_time(0);
-    DBUG_EXECUTE_IF("set_cet_before_dst", {
-      // 1616893190 => Sunday March 28, 2021 01:59:50 (am) (CET)
-      current_time = 1616893190;
-    });
-    DBUG_EXECUTE_IF("set_cet_after_dst", {
-      // 1616893200 => Sunday March 28, 2021 03:00:00 (am) (CEST)
-      current_time = 1616893200;
-    });
-
-    struct tm tm_tmp;
-    localtime_r(&current_time, &tm_tmp);
-    return (uchar *)(tm_tmp.tm_isdst != 0 ? system_time_zone_dst_on
-                                          : system_time_zone_dst_off);
   }
 };
 

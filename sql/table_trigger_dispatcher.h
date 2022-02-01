@@ -160,8 +160,9 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   void set_parse_error_message(const char *error_message) {
     if (!m_has_unparseable_trigger) {
       m_has_unparseable_trigger = true;
-      snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
-               error_message);
+      strncpy(m_parse_error_message, error_message,
+              sizeof(m_parse_error_message) - 1);
+      m_parse_error_message[sizeof(m_parse_error_message) - 1] = '\n';
     }
   }
 

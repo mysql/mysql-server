@@ -99,7 +99,7 @@ class PFS_index_prepared_stmt_instances : public PFS_engine_index {
                                     PFS_engine_key *key_3)
       : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_prepared_stmt_instances() override = default;
+  ~PFS_index_prepared_stmt_instances() override {}
 
   virtual bool match(const PFS_prepared_stmt *pfs) = 0;
 };
@@ -111,7 +111,7 @@ class PFS_index_prepared_stmt_instances_by_instance
       : PFS_index_prepared_stmt_instances(&m_key),
         m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_prepared_stmt_instances_by_instance() override = default;
+  ~PFS_index_prepared_stmt_instances_by_instance() override {}
 
   bool match(const PFS_prepared_stmt *pfs) override;
 
@@ -127,7 +127,7 @@ class PFS_index_prepared_stmt_instances_by_owner_thread
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_thread() override = default;
+  ~PFS_index_prepared_stmt_instances_by_owner_thread() override {}
 
   bool match(const PFS_prepared_stmt *pfs) override;
 
@@ -142,7 +142,7 @@ class PFS_index_prepared_stmt_instances_by_statement_id
   PFS_index_prepared_stmt_instances_by_statement_id()
       : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_id() override = default;
+  ~PFS_index_prepared_stmt_instances_by_statement_id() override {}
 
   bool match(const PFS_prepared_stmt *pfs) override;
 
@@ -156,7 +156,7 @@ class PFS_index_prepared_stmt_instances_by_statement_name
   PFS_index_prepared_stmt_instances_by_statement_name()
       : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_name() override = default;
+  ~PFS_index_prepared_stmt_instances_by_statement_name() override {}
 
   bool match(const PFS_prepared_stmt *pfs) override;
 
@@ -173,7 +173,7 @@ class PFS_index_prepared_stmt_instances_by_owner_object
         m_key_2("OWNER_OBJECT_SCHEMA"),
         m_key_3("OWNER_OBJECT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_object() override = default;
+  ~PFS_index_prepared_stmt_instances_by_owner_object() override {}
 
   bool match(const PFS_prepared_stmt *table) override;
 
@@ -207,7 +207,7 @@ class table_prepared_stmt_instances : public PFS_engine_table {
   table_prepared_stmt_instances();
 
  public:
-  ~table_prepared_stmt_instances() override = default;
+  ~table_prepared_stmt_instances() override {}
 
  protected:
   int make_row(PFS_prepared_stmt *);

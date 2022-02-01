@@ -83,7 +83,7 @@ class PFS_index_processlist_by_processlist_id : public PFS_index_threads {
   PFS_index_processlist_by_processlist_id()
       : PFS_index_threads(&m_key), m_key("ID") {}
 
-  ~PFS_index_processlist_by_processlist_id() override = default;
+  ~PFS_index_processlist_by_processlist_id() override {}
 
   virtual bool match(PFS_thread *pfs) override;
 
@@ -117,7 +117,7 @@ class table_processlist : public cursor_by_thread {
  protected:
   table_processlist();
 
-  int rnd_init(bool scan [[maybe_unused]]) override;
+  int rnd_init(bool scan MY_ATTRIBUTE((unused))) override;
 
   int index_init(uint idx, bool sorted) override;
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
@@ -125,7 +125,7 @@ class table_processlist : public cursor_by_thread {
   int set_access(void);
 
  public:
-  ~table_processlist() override = default;
+  ~table_processlist() override {}
 
  private:
   virtual int make_row(PFS_thread *pfs) override;

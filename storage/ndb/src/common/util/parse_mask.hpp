@@ -28,6 +28,9 @@
 #include <util/BaseString.hpp>
 #include <util/SparseBitmask.hpp>
 #include <ctype.h>
+#ifndef _WIN32
+#include <strings.h>
+#endif
 
 #define PARSE_END_ENTRIES 8192
 #define MAX_STRING_SIZE 32

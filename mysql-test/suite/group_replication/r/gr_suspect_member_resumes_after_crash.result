@@ -18,9 +18,6 @@ call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
-call mtr.add_suppression("Unable to start MySQL Network Provider*.*");
-call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready*.*");
-call mtr.add_suppression("The group communication engine is not ready for the member to join*.*");
 set session sql_log_bin=1;
 
 ############################################################

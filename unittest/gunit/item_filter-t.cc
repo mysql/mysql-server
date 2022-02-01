@@ -67,7 +67,7 @@ class ItemFilterTest : public ::testing::Test {
     delete m_table;
 
     initializer.TearDown();
-    m_alloc.Clear();
+    free_root(&m_alloc, MYF(0));
   }
 
   THD *thd() { return initializer.thd(); }
@@ -297,7 +297,7 @@ TEST_F(ItemFilterTest, BasicDefaultRows) {
                            m_field[0], unused_int, unused_int, used_tables,
                            &no_ignore_flds);
   // Check filtering for predicate: field0 IS NOT NULL
-  create_item_check_filter(1.0F - COND_FILTER_EQUALITY,
+  create_item_check_filter(1.0 - COND_FILTER_EQUALITY,
                            Item_func::ISNOTNULL_FUNC, m_field[0], unused_int,
                            unused_int, used_tables, &no_ignore_flds);
   // Check filtering for predicate: field0 BETWEEN 10 AND 12

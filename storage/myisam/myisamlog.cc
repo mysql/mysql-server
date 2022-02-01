@@ -254,7 +254,7 @@ static void get_options(int *argc, char ***argv) {
           break;
         case 'V':
           version = 1;
-          [[fallthrough]];
+          /* Fall through */
         case 'I':
         case '?':
           print_version();

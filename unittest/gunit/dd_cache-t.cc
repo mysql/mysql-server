@@ -1273,7 +1273,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId) {
 //   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
 //   // Create a new tablespace.
-//   dd::Object_id tablespace_id [[maybe_unused]];
+//   dd::Object_id tablespace_id MY_ATTRIBUTE((unused));
 //   {
 //     std::unique_ptr<dd::Tablespace> obj(dd::create_object<dd::Tablespace>());
 //     dd_unittest::set_attributes(obj.get(), "test_tablespace");
@@ -1393,7 +1393,7 @@ TEST_F(CacheStorageTest, TestTriggers) {
 
   dd::String_type obj_name =
       dd::Table::DD_table::instance().name() + dd::String_type("_trigs");
-  dd::Object_id id [[maybe_unused]];
+  dd::Object_id id MY_ATTRIBUTE((unused));
 
   //
   // Create table object

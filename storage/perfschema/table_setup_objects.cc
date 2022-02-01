@@ -251,7 +251,7 @@ int table_setup_objects::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_objects::index_init(uint idx [[maybe_unused]], bool) {
+int table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_setup_objects *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_objects);

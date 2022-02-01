@@ -31,7 +31,6 @@
 
 --connection server2
 --echo server2
-
 --source include/start_and_bootstrap_group_replication.inc
 
 # Add some data for recovery

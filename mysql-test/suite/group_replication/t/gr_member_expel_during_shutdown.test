@@ -32,6 +32,7 @@
 --let $wait_condition=SELECT COUNT(*)=5 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
 
+
 --echo
 --echo ############################################################
 --echo # 2. Crash member 5.

@@ -57,16 +57,17 @@ que_fork_t *que_fork_create(
     ulint fork_type,    /*!< in: fork type */
     mem_heap_t *heap);  /*!< in: memory heap where created */
 /** Gets the first thr in a fork. */
-static inline que_thr_t *que_fork_get_first_thr(
-    que_fork_t *fork); /*!< in: query fork */
+UNIV_INLINE
+que_thr_t *que_fork_get_first_thr(que_fork_t *fork); /*!< in: query fork */
 /** Gets the child node of the first thr in a fork. */
-static inline que_node_t *que_fork_get_child(
-    que_fork_t *fork); /*!< in: query fork */
+UNIV_INLINE
+que_node_t *que_fork_get_child(que_fork_t *fork); /*!< in: query fork */
 
 /** Sets the parent of a graph node.
 @param[in]	node	graph node
 @param[in]	parent	parent */
-static inline void que_node_set_parent(que_node_t *node, que_node_t *parent);
+UNIV_INLINE
+void que_node_set_parent(que_node_t *node, que_node_t *parent);
 
 /** Creates a query graph thread node.
 @param[in]	parent		parent node, i.e., a fork node
@@ -126,38 +127,41 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx); /*!< in: transaction in the
  caller */
 que_thr_t *que_fork_start_command(que_fork_t *fork); /*!< in: a query fork */
 /** Gets the trx of a query thread. */
-static inline trx_t *thr_get_trx(que_thr_t *thr); /*!< in: query thread */
+UNIV_INLINE
+trx_t *thr_get_trx(que_thr_t *thr); /*!< in: query thread */
 /** Determines if this thread is rolling back an incomplete transaction
  in crash recovery.
  @return true if thr is rolling back an incomplete transaction in crash
  recovery */
-static inline ibool thr_is_recv(const que_thr_t *thr); /*!< in: query thread */
+UNIV_INLINE
+ibool thr_is_recv(const que_thr_t *thr); /*!< in: query thread */
 /** Gets the type of a graph node. */
-static inline ulint que_node_get_type(
-    const que_node_t *node); /*!< in: graph node */
+UNIV_INLINE
+ulint que_node_get_type(const que_node_t *node); /*!< in: graph node */
 /** Gets pointer to the value data type field of a graph node. */
-static inline dtype_t *que_node_get_data_type(
-    que_node_t *node); /*!< in: graph node */
+UNIV_INLINE
+dtype_t *que_node_get_data_type(que_node_t *node); /*!< in: graph node */
 /** Gets pointer to the value dfield of a graph node. */
-static inline dfield_t *que_node_get_val(
-    que_node_t *node); /*!< in: graph node */
+UNIV_INLINE
+dfield_t *que_node_get_val(que_node_t *node); /*!< in: graph node */
 /** Gets the value buffer size of a graph node.
  @return val buffer size, not defined if val.data == NULL in node */
-static inline ulint que_node_get_val_buf_size(
-    que_node_t *node); /*!< in: graph node */
+UNIV_INLINE
+ulint que_node_get_val_buf_size(que_node_t *node); /*!< in: graph node */
 
 /** Sets the value buffer size of a graph node.
 @param[in]	node	graph node
 @param[in]	size	size */
-static inline void que_node_set_val_buf_size(que_node_t *node, ulint size);
+UNIV_INLINE
+void que_node_set_val_buf_size(que_node_t *node, ulint size);
 
 /** Gets the next list node in a list of query graph nodes. */
-static inline que_node_t *que_node_get_next(
-    que_node_t *node); /*!< in: node in a list */
+UNIV_INLINE
+que_node_t *que_node_get_next(que_node_t *node); /*!< in: node in a list */
 /** Gets the parent node of a query graph node.
  @return parent node or NULL */
-static inline que_node_t *que_node_get_parent(
-    que_node_t *node); /*!< in: node */
+UNIV_INLINE
+que_node_t *que_node_get_parent(que_node_t *node); /*!< in: node */
 /** Get the first containing loop node (e.g. while_node_t or for_node_t) for the
  given node, or NULL if the node is not within a loop.
  @return containing loop node, or NULL. */
@@ -168,27 +172,31 @@ que_node_t *que_node_get_containing_loop_node(
 @param[in]	node_list	node list, or NULL
 @param[in]	node		node
 @return one-way list of nodes */
-static inline que_node_t *que_node_list_add_last(que_node_t *node_list,
-                                                 que_node_t *node);
+UNIV_INLINE
+que_node_t *que_node_list_add_last(que_node_t *node_list, que_node_t *node);
 
 /*************************************************************************
 Get the last node from the list.*/
-static inline que_node_t *que_node_list_get_last(
+UNIV_INLINE
+que_node_t *que_node_list_get_last(
     /* out: node last node from list.*/
     que_node_t *node_list); /* in: node list, or NULL */
 /** Gets a query graph node list length.
  @return length, for NULL list 0 */
-static inline ulint que_node_list_get_len(
+UNIV_INLINE
+ulint que_node_list_get_len(
     que_node_t *node_list); /*!< in: node list, or NULL */
 /** Checks if graph, trx, or session is in a state where the query thread should
  be stopped.
  @return true if should be stopped; NOTE that if the peek is made
  without reserving the trx_t::mutex, then another peek with the mutex
  reserved is necessary before deciding the actual stopping */
-static inline ibool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
+UNIV_INLINE
+ibool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
 /** Returns TRUE if the query graph is for a SELECT statement.
  @return true if a select */
-static inline ibool que_graph_is_select(que_t *graph); /*!< in: graph */
+UNIV_INLINE
+ibool que_graph_is_select(que_t *graph); /*!< in: graph */
 /** Prints info of an SQL query graph node. */
 void que_node_print_info(que_node_t *node); /*!< in: query graph node */
 /** Evaluate the given SQL
@@ -313,7 +321,7 @@ struct que_fork_t {
   ulint state;         /*!< state of the fork node */
   que_thr_t *caller;   /*!< pointer to a possible calling query
                        thread */
-  UT_LIST_BASE_NODE_T(que_thr_t, thrs)
+  UT_LIST_BASE_NODE_T(que_thr_t)
   thrs; /*!< list of query threads */
   /*------------------------------*/
   /* The fields in this section are defined only in the root node */

@@ -137,7 +137,7 @@ int table_setup_threads::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_threads::index_init(uint idx [[maybe_unused]], bool) {
+int table_setup_threads::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_setup_threads *result;
 
   assert(idx == 0);
@@ -199,8 +199,8 @@ int table_setup_threads::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_instr_class->m_name.str(),
-                                 m_row.m_instr_class->m_name.length());
+          set_field_varchar_utf8(f, m_row.m_instr_class->m_name,
+                                 m_row.m_instr_class->m_name_length);
           break;
         case 1: /* ENABLED */
           set_field_enum(f,

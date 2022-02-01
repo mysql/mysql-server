@@ -41,7 +41,20 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-MY_ADD_COMPILE_DEFINITIONS(${XCL_TEST_SRC}
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM XCL_TEST_SRC
+    auth_chaining_t.cc
+    session_capability_t.cc
+    session_connect_t.cc
+    session_execute_t.cc
+    session_general_t.cc
+    session_options_t.cc
+    session_negotiation_t.cc
+  )
+ENDIF()
+
+ADD_COMPILE_DEFINITIONS(${XCL_TEST_SRC}
   COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO
 )
 

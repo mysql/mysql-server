@@ -40,6 +40,7 @@
 
 #define JAM_FILE_ID 287
 
+extern EventLogger * g_eventLogger;
 
 #define TOUCH_PARALLELISM 8
 #define MIN_START_THREAD_SIZE (128 * 1024 * 1024)
@@ -240,11 +241,9 @@ void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog)
     {
       size_t s_m, s_k, s_b;
       xxx(size, &s_m, &s_k, &s_b);
-
-      size_t s_m2, s_k2, s_b2;
-      xxx(g_allocated_memory, &s_m2, &s_k2, &s_b2);
-      g_eventLogger->info("%p malloc (%zum %zuk %zub) total (%zum %zuk %zub)",
-                          p, s_m, s_k, s_b, s_m2, s_k2, s_b2);
+      fprintf(stderr, "%p malloc(%um %uk %ub)", p, s_m, s_k, s_b);
+      xxx(g_allocated_memory, &s_m, &s_k, &s_b);
+      fprintf(stderr, "\t\ttotal(%um %uk %ub)\n", s_m, s_k, s_b);
     }
 #endif
   }
@@ -271,7 +270,7 @@ void ndbd_free(void *p, size_t size)
   {
     g_allocated_memory -= size;
 #ifdef TRACE_MALLOC
-    g_eventLogger->info("%p free(%zu)", p, size);
+    fprintf(stderr, "%p free(%d)\n", p, size);
 #endif
   }
 }

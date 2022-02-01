@@ -27,8 +27,6 @@
 
 #include "LogHandler.hpp"
 
-#include <time.h>
-
 /**
  * Log messages to the Windows event log
  *

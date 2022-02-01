@@ -32,6 +32,7 @@
 
 #include <mt.hpp>
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 430
 
@@ -121,13 +122,13 @@ Trpman::execOPEN_COMORD(Signal* signal)
   // so far with the node
 
   const BlockReference userRef = signal->theData[0];
+  Uint32 tStartingNode = signal->theData[1];
+  Uint32 tData2 = signal->theData[2];
   jamEntry();
 
   const Uint32 len = signal->getLength();
   if (len == 2)
   {
-    Uint32 tStartingNode = signal->theData[1];
-    ndbrequire(tStartingNode > 0 && tStartingNode < MAX_NODES);
 #ifdef ERROR_INSERT
     if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002))
 	   && c_error_9000_nodes_mask.get(tStartingNode)))
@@ -153,7 +154,6 @@ Trpman::execOPEN_COMORD(Signal* signal)
   }
   else
   {
-    Uint32 tData2 = signal->theData[2];
     for(unsigned int i = 1; i < MAX_NODES; i++ )
     {
       jam();
@@ -593,7 +593,7 @@ Trpman::execNDB_TAMPER(Signal* signal)
     {
       MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
     }
-    g_eventLogger->info("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
+    ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
     CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
@@ -648,7 +648,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     {
       signal->theData[0] = i;
       sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
-      g_eventLogger->info("stopping %u using %u", i, db);
+      ndbout_c("stopping %u using %u", i, db);
     }
     CLEAR_ERROR_INSERT_VALUE;
   }
@@ -702,8 +702,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
-                            nodeId);
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
+                 arg, nodeId);
       }
     }
   }
@@ -713,9 +713,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() > 1)
     {
       pattern = signal->theData[1];
-      g_eventLogger->info(
-          "TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
-          ((pattern == 1) ? "Other side" : "Unknown"));
+      ndbout_c("TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
+               ((pattern == 1)? "Other side":"Unknown"));
     }
 
     TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
@@ -812,8 +811,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
-                            nodeId);
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
+                 arg, nodeId);
       }
     }
 
@@ -937,8 +936,6 @@ Trpman::execUPD_QUERY_DIST_ORD(Signal *signal)
   SegmentedSectionPtr ptr;
   SectionHandle handle(this, signal);
   handle.getSection(ptr, 0);
-  ndbrequire(ptr.sz <= NDB_ARRAY_SIZE(dist_handle->m_weights));
-
   memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));
   copy(dist_handle->m_weights, ptr);
   releaseSections(handle);

@@ -39,13 +39,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"              /* dict_index_t */
 #include "mysql/psi/mysql_stage.h" /* mysql_stage_inc_work_completed */
 #include "row0log.h"               /* row_log_estimate_work() */
-#include "srv0srv.h"               /* Alter_stage */
+#include "srv0srv.h"               /* ut_stage_alter_t */
+#include "univ.i"
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-
-// Forward declaration.
-class Alter_stage;
-using Alter_stages = std::vector<Alter_stage *, ut::allocator<Alter_stage *>>;
 
 /** Class used to report ALTER TABLE progress via performance_schema.
 The only user of this class is the ALTER TABLE code and it calls the methods
@@ -77,24 +74,26 @@ destructor
 
 This class knows the specifics of each phase and tries to increment the
 progress in an even manner across the entire ALTER TABLE lifetime. */
-class Alter_stage {
+class ut_stage_alter_t {
  public:
   /** Constructor.
   @param[in]	pk	primary key of the old table */
-  explicit Alter_stage(const dict_index_t *pk) noexcept
-      : m_pk(pk), m_cur_phase(NOT_STARTED) {}
-
-  /** Copy constructor. "Inherits" the current state of rhs.
-  @param[in] rhs                Instance to copy current state from. */
-  explicit Alter_stage(const Alter_stage &rhs) noexcept;
+  explicit ut_stage_alter_t(const dict_index_t *pk)
+      : m_progress(nullptr),
+        m_pk(pk),
+        m_n_pk_recs(0),
+        m_n_pk_pages(0),
+        m_n_recs_processed(0),
+        m_n_flush_pages(0),
+        m_cur_phase(NOT_STARTED) {}
 
   /** Destructor. */
-  ~Alter_stage();
+  ~ut_stage_alter_t();
 
   /** Flag an ALTER TABLE start (read primary key phase).
   @param[in]	n_sort_indexes	number of indexes that will be sorted
   during ALTER TABLE, used for estimating the total work to be done */
-  void begin_phase_read_pk(size_t n_sort_indexes);
+  void begin_phase_read_pk(ulint n_sort_indexes);
 
   /** Increment the number of records in PK (table) with 1.
   This is used to get more accurate estimate about the number of
@@ -103,14 +102,10 @@ class Alter_stage {
   to get the progress as even as possible. */
   void n_pk_recs_inc();
 
-  /** See simple increment version above.
-  @param[in] n Number fo records read so far. */
-  void n_pk_recs_inc(uint64_t n);
-
   /** Flag either one record or one page processed, depending on the
   current phase.
   @param[in]	inc_val	flag this many units processed at once */
-  void inc(uint64_t inc_val);
+  void inc(ulint inc_val = 1);
 
   /** Flag the end of reading of the primary key.
   Here we know the exact number of pages and records and calculate
@@ -129,7 +124,7 @@ class Alter_stage {
   /** Flag the beginning of the flush phase.
   @param[in]	n_flush_pages	this many pages are going to be
   flushed */
-  void begin_phase_flush(page_no_t n_flush_pages);
+  void begin_phase_flush(ulint n_flush_pages);
 
   /** Flag the beginning of the log index phase. */
   void begin_phase_log_index();
@@ -140,10 +135,6 @@ class Alter_stage {
   /** Flag the beginning of the end phase. */
   void begin_phase_end();
 
-  /** Aggregate the results of the build from the sub builds.
-  @param[in] alter_stages       Sub stages to aggregate. */
-  void aggregate(const Alter_stages &alter_stages) noexcept;
-
  private:
   /** Update the estimate of total work to be done. */
   void reestimate();
@@ -152,111 +143,103 @@ class Alter_stage {
   @param[in]	new_stage	pointer to the new stage to change to */
   void change_phase(const PSI_stage_info *new_stage);
 
- private:
-  using Counter = std::pair<uint64_t, uint64_t>;
-  using Progress = std::pair<PSI_stage_progress *, Counter>;
-  using Stage = std::pair<const PSI_stage_info *, Progress>;
-  using Stages = std::vector<Stage, ut::allocator<Stage>>;
-
-  /** Progress counters for the various stages. */
-  Stage m_stage{};
-
-  /** Collection of previous stages. */
-  Stages m_stages{};
+  /** Performance schema accounting object. */
+  PSI_stage_progress *m_progress;
 
   /** Old table PK. Used for calculating the estimate. */
-  const dict_index_t *m_pk{};
+  const dict_index_t *m_pk;
 
   /** Number of records in the primary key (table), including delete
   marked records. */
-  std::atomic<uint64_t> m_n_pk_recs{};
+  ulint m_n_pk_recs;
 
   /** Number of leaf pages in the primary key. */
-  page_no_t m_n_pk_pages{};
+  ulint m_n_pk_pages;
 
   /** Estimated number of records per page in the primary key. */
-  double m_n_recs_per_page{};
+  double m_n_recs_per_page;
 
   /** Number of indexes that are being added. */
-  size_t m_n_sort_indexes{};
+  ulint m_n_sort_indexes;
 
   /** During the sort phase, increment the counter once per this
   many pages processed. This is because sort processes one page more
   than once. */
-  uint64_t m_sort_multi_factor{};
+  ulint m_sort_multi_factor;
 
   /** Number of records processed during sort & insert phases. We
   need to increment the counter only once page, or once per
   recs-per-page records. */
-  uint64_t m_n_inserted{};
+  ulint m_n_recs_processed;
 
   /** Number of pages to flush. */
-  page_no_t m_n_flush_pages{};
+  ulint m_n_flush_pages;
 
   /** Current phase. */
   enum {
-    /** Init phase. */
     NOT_STARTED = 0,
-
-    /** Scan phase. */
     READ_PK = 1,
-
-    /** Sort phase. */
     SORT = 2,
-
-    /** Bulk load/insert phase. */
     INSERT = 3,
-
-    /** Flush non-redo logged pages phase. */
     FLUSH = 4,
-
-    /** Apply entries from the row log to the index after creation. */
     LOG_INDEX = 5,
-
-    /** Apply entries from the row log to the table after the build. */
     LOG_TABLE = 6,
-
-    /** End/Stop. */
     END = 7,
-  } m_cur_phase{NOT_STARTED};
+  } m_cur_phase;
 };
 
-inline Alter_stage::Alter_stage(const Alter_stage &rhs) noexcept
-    : m_pk(rhs.m_pk), m_cur_phase(NOT_STARTED) {}
-
-inline Alter_stage::~Alter_stage() {
-  auto progress = m_stage.second.first;
-
-  if (progress == nullptr) {
+/** Destructor. */
+inline ut_stage_alter_t::~ut_stage_alter_t() {
+  if (m_progress == nullptr) {
     return;
   }
 
   /* Set completed = estimated before we quit. */
-  mysql_stage_set_work_completed(progress,
-                                 mysql_stage_get_work_estimated(progress));
+  mysql_stage_set_work_completed(m_progress,
+                                 mysql_stage_get_work_estimated(m_progress));
 
   mysql_end_stage();
 }
 
-inline void Alter_stage::n_pk_recs_inc(uint64_t n) {
-  m_n_pk_recs.fetch_add(n, std::memory_order_relaxed);
+/** Flag an ALTER TABLE start (read primary key phase).
+@param[in]	n_sort_indexes	number of indexes that will be sorted
+during ALTER TABLE, used for estimating the total work to be done */
+inline void ut_stage_alter_t::begin_phase_read_pk(ulint n_sort_indexes) {
+  m_n_sort_indexes = n_sort_indexes;
+
+  m_cur_phase = READ_PK;
+
+  m_progress =
+      mysql_set_stage(srv_stage_alter_table_read_pk_internal_sort.m_key);
+
+  mysql_stage_set_work_completed(m_progress, 0);
+
+  reestimate();
 }
 
-inline void Alter_stage::n_pk_recs_inc() { n_pk_recs_inc(1); }
+/** Increment the number of records in PK (table) with 1.
+This is used to get more accurate estimate about the number of
+records per page which is needed because some phases work on
+per-page basis while some work on per-record basis and we want
+to get the progress as even as possible. */
+inline void ut_stage_alter_t::n_pk_recs_inc() { m_n_pk_recs++; }
 
-inline void Alter_stage::inc(uint64_t inc_val) {
-  if (m_stages.empty()) {
+/** Flag either one record or one page processed, depending on the
+current phase.
+@param[in]	inc_val	flag this many units processed at once */
+inline void ut_stage_alter_t::inc(ulint inc_val /* = 1 */) {
+  if (m_progress == nullptr) {
     return;
   }
 
-  uint64_t multi_factor{1};
-  bool should_proceed{true};
+  ulint multi_factor = 1;
+  bool should_proceed = true;
 
   switch (m_cur_phase) {
     case NOT_STARTED:
       ut_error;
     case READ_PK:
-      ++m_n_pk_pages;
+      m_n_pk_pages++;
       ut_ad(inc_val == 1);
       /* Overall the read pk phase will read all the pages from the
       PK and will do work, proportional to the number of added
@@ -266,7 +249,7 @@ inline void Alter_stage::inc(uint64_t inc_val) {
       break;
     case SORT:
       multi_factor = m_sort_multi_factor;
-      [[fallthrough]];
+      /* fall through */
     case INSERT: {
       /* Increment the progress every nth record. During
       sort and insert phases, this method is called once per
@@ -277,49 +260,37 @@ inline void Alter_stage::inc(uint64_t inc_val) {
       should be incremented on the inc() calls round(k*N),
       for k=1,2,3... */
       const double every_nth = m_n_recs_per_page * multi_factor;
-      const uint64_t k = static_cast<uint64_t>(round(m_n_inserted / every_nth));
-      const uint64_t nth = static_cast<uint64_t>(round(k * every_nth));
 
-      should_proceed = m_n_inserted == nth;
+      const ulint k = static_cast<ulint>(round(m_n_recs_processed / every_nth));
 
-      ++m_n_inserted;
+      const ulint nth = static_cast<ulint>(round(k * every_nth));
+
+      should_proceed = m_n_recs_processed == nth;
+
+      m_n_recs_processed++;
+
       break;
     }
     case FLUSH:
+      break;
     case LOG_INDEX:
+      break;
     case LOG_TABLE:
+      break;
     case END:
       break;
   }
 
   if (should_proceed) {
-    auto progress = m_stages.back().second.first;
-    mysql_stage_inc_work_completed(progress, inc_val);
+    mysql_stage_inc_work_completed(m_progress, inc_val);
     reestimate();
   }
 }
 
-inline void Alter_stage::begin_phase_read_pk(size_t n_sort_indexes) {
-  m_cur_phase = READ_PK;
-
-  m_n_sort_indexes = n_sort_indexes;
-
-  Stage stage{};
-
-  stage.first = &srv_stage_alter_table_read_pk_internal_sort;
-  stage.second.first = mysql_set_stage(stage.first->m_key);
-
-  if (stage.second.first != nullptr) {
-    m_stages.push_back(stage);
-
-    auto progress = stage.second.first;
-    mysql_stage_set_work_completed(progress, 0);
-
-    reestimate();
-  }
-}
-
-inline void Alter_stage::end_phase_read_pk() {
+/** Flag the end of reading of the primary key.
+Here we know the exact number of pages and records and calculate
+the number of records per page and refresh the estimate. */
+inline void ut_stage_alter_t::end_phase_read_pk() {
   reestimate();
 
   if (m_n_pk_pages == 0) {
@@ -328,28 +299,34 @@ inline void Alter_stage::end_phase_read_pk() {
     division by zero later. */
     m_n_recs_per_page = 1.0;
   } else {
-    m_n_recs_per_page = std::max(
-        static_cast<double>(m_n_pk_recs.load(std::memory_order_relaxed)) /
-            m_n_pk_pages,
-        1.0);
+    m_n_recs_per_page =
+        std::max(static_cast<double>(m_n_pk_recs) / m_n_pk_pages, 1.0);
   }
 }
 
-inline void Alter_stage::begin_phase_sort(double sort_multi_factor) {
+/** Flag the beginning of the sort phase.
+@param[in]	sort_multi_factor	since merge sort processes
+one page more than once we only update the estimate once per this
+many pages processed. */
+inline void ut_stage_alter_t::begin_phase_sort(double sort_multi_factor) {
   if (sort_multi_factor <= 1.0) {
     m_sort_multi_factor = 1;
   } else {
-    m_sort_multi_factor = static_cast<uint64_t>(round(sort_multi_factor));
+    m_sort_multi_factor = static_cast<ulint>(round(sort_multi_factor));
   }
 
   change_phase(&srv_stage_alter_table_merge_sort);
 }
 
-inline void Alter_stage::begin_phase_insert() {
+/** Flag the beginning of the insert phase. */
+inline void ut_stage_alter_t::begin_phase_insert() {
   change_phase(&srv_stage_alter_table_insert);
 }
 
-inline void Alter_stage::begin_phase_flush(page_no_t n_flush_pages) {
+/** Flag the beginning of the flush phase.
+@param[in]	n_flush_pages	this many pages are going to be
+flushed */
+inline void ut_stage_alter_t::begin_phase_flush(ulint n_flush_pages) {
   m_n_flush_pages = n_flush_pages;
 
   reestimate();
@@ -357,32 +334,33 @@ inline void Alter_stage::begin_phase_flush(page_no_t n_flush_pages) {
   change_phase(&srv_stage_alter_table_flush);
 }
 
-inline void Alter_stage::begin_phase_log_index() {
+/** Flag the beginning of the log index phase. */
+inline void ut_stage_alter_t::begin_phase_log_index() {
   change_phase(&srv_stage_alter_table_log_index);
 }
 
-inline void Alter_stage::begin_phase_log_table() {
+/** Flag the beginning of the log table phase. */
+inline void ut_stage_alter_t::begin_phase_log_table() {
   change_phase(&srv_stage_alter_table_log_table);
 }
 
-inline void Alter_stage::begin_phase_end() {
+/** Flag the beginning of the end phase. */
+inline void ut_stage_alter_t::begin_phase_end() {
   change_phase(&srv_stage_alter_table_end);
 }
 
-inline void Alter_stage::reestimate() {
-  if (m_stages.empty()) {
+/** Update the estimate of total work to be done. */
+inline void ut_stage_alter_t::reestimate() {
+  if (m_progress == nullptr) {
     return;
   }
 
   /* During the log table phase we calculate the estimate as
   work done so far + log size remaining. */
   if (m_cur_phase == LOG_TABLE) {
-    auto progress = m_stages.back().second.first;
-
-    mysql_stage_set_work_estimated(
-        progress,
-        mysql_stage_get_work_completed(progress) + row_log_estimate_work(m_pk));
-
+    mysql_stage_set_work_estimated(m_progress,
+                                   mysql_stage_get_work_completed(m_progress) +
+                                       row_log_estimate_work(m_pk));
     return;
   }
 
@@ -392,7 +370,7 @@ inline void Alter_stage::reestimate() {
   /* For number of pages in the PK - if the PK has not been
   read yet, use stat_n_leaf_pages (approximate), otherwise
   use the exact number we gathered. */
-  const page_no_t n_pk_pages =
+  const ulint n_pk_pages =
       m_cur_phase != READ_PK ? m_n_pk_pages : m_pk->stat_n_leaf_pages;
 
   /* If flush phase has not started yet and we do not know how
@@ -402,7 +380,7 @@ inline void Alter_stage::reestimate() {
     m_n_flush_pages = n_pk_pages / 2;
   }
 
-  uint64_t estimate =
+  ulonglong estimate =
       n_pk_pages *
           (1                  /* read PK */
            + m_n_sort_indexes /* row_merge_buf_sort() inside the
@@ -410,21 +388,22 @@ inline void Alter_stage::reestimate() {
            + m_n_sort_indexes * 2 /* sort & insert per created index */) +
       m_n_flush_pages + row_log_estimate_work(m_pk);
 
-  auto progress = m_stages.back().second.first;
-  const auto completed = (uint64_t)mysql_stage_get_work_completed(progress);
-
   /* Prevent estimate < completed */
-  mysql_stage_set_work_estimated(progress, std::max(estimate, completed));
+  estimate = std::max(estimate, mysql_stage_get_work_completed(m_progress));
+
+  mysql_stage_set_work_estimated(m_progress, estimate);
 }
 
-inline void Alter_stage::change_phase(const PSI_stage_info *new_stage) {
-  if (m_stages.empty()) {
+/** Change the current phase.
+@param[in]	new_stage	pointer to the new stage to change to */
+inline void ut_stage_alter_t::change_phase(const PSI_stage_info *new_stage) {
+  if (m_progress == nullptr) {
     return;
   }
 
-  ut_a(new_stage != &srv_stage_alter_table_read_pk_internal_sort);
-
-  if (new_stage == &srv_stage_alter_table_merge_sort) {
+  if (new_stage == &srv_stage_alter_table_read_pk_internal_sort) {
+    m_cur_phase = READ_PK;
+  } else if (new_stage == &srv_stage_alter_table_merge_sort) {
     m_cur_phase = SORT;
   } else if (new_stage == &srv_stage_alter_table_insert) {
     m_cur_phase = INSERT;
@@ -440,120 +419,34 @@ inline void Alter_stage::change_phase(const PSI_stage_info *new_stage) {
     ut_error;
   }
 
-  auto progress = m_stages.back().second.first;
+  const ulonglong c = mysql_stage_get_work_completed(m_progress);
+  const ulonglong e = mysql_stage_get_work_estimated(m_progress);
 
-  const auto c = mysql_stage_get_work_completed(progress);
-  const auto e = mysql_stage_get_work_estimated(progress);
+  m_progress = mysql_set_stage(new_stage->m_key);
 
-  Stage stage{new_stage, {mysql_set_stage(new_stage->m_key), {}}};
-
-  if (stage.second.first != nullptr) {
-    m_stages.push_back(stage);
-
-    auto &counter = m_stages.back().second.second;
-
-    counter.first = c;
-    counter.second = e;
-
-    mysql_stage_set_work_completed(stage.second.first, c);
-    mysql_stage_set_work_estimated(stage.second.first, e);
-  }
+  mysql_stage_set_work_completed(m_progress, c);
+  mysql_stage_set_work_estimated(m_progress, e);
 }
 
-inline void Alter_stage::aggregate(const Alter_stages &alter_stages) noexcept {
-  if (alter_stages.empty()) {
-    return;
-  }
-
-  ut_a(m_cur_phase == NOT_STARTED);
-
-  Stage cur_stage{};
-
-  for (auto alter_stage : alter_stages) {
-    alter_stage->begin_phase_end();
-
-    for (auto stage : alter_stage->m_stages) {
-      if (stage.first == &srv_stage_alter_table_end) {
-        continue;
-      }
-      auto progress = mysql_set_stage(stage.first->m_key);
-
-      if (progress == nullptr) {
-        /* The user can disable the instrument clas and that can return
-        nullptr. That forces us to skip and will break the state transitions
-        and counts.*/
-        return;
-      }
-
-      auto c = mysql_stage_get_work_completed(progress);
-      auto e = mysql_stage_get_work_estimated(progress);
-
-      const auto &counter = stage.second.second;
-
-      c += counter.first;
-      e += counter.second;
-
-      mysql_stage_set_work_completed(progress, c);
-      mysql_stage_set_work_estimated(progress, e);
-
-      if (stage.first == &srv_stage_alter_table_read_pk_internal_sort) {
-        if ((int)m_cur_phase < (int)READ_PK) {
-          m_cur_phase = READ_PK;
-          cur_stage.first = stage.first;
-          cur_stage.second.first = progress;
-        }
-      } else if (stage.first == &srv_stage_alter_table_merge_sort) {
-        if ((int)m_cur_phase < (int)NOT_STARTED) {
-          m_cur_phase = SORT;
-          cur_stage.first = stage.first;
-          cur_stage.second.first = progress;
-        }
-      } else if (stage.first == &srv_stage_alter_table_insert) {
-        if ((int)m_cur_phase < (int)SORT) {
-          m_cur_phase = INSERT;
-          cur_stage.first = stage.first;
-          cur_stage.second.first = progress;
-        }
-      } else if (stage.first == &srv_stage_alter_table_log_index) {
-        if ((int)m_cur_phase < (int)LOG_INDEX) {
-          m_cur_phase = LOG_INDEX;
-          cur_stage.first = stage.first;
-          cur_stage.second.first = progress;
-        }
-      }
-
-      ut_a(stage.first != &srv_stage_alter_table_flush);
-      ut_a(stage.first != &srv_stage_alter_table_log_table);
-    }
-  }
-
-  if (cur_stage.first != nullptr) {
-    ut_a(cur_stage.second.first != nullptr);
-    m_stages.push_back(cur_stage);
-  }
-}
-
-/** class to monitor the progress of 'ALTER TABLESPACE ENCRYPTION' in terms
+/* class to monitor the progress of 'ALTER TABLESPACE ENCRYPTION' in terms
 of number of pages operated upon. */
-class Alter_stage_ts {
+class ut_stage_alter_ts {
  public:
   /** Constructor. */
-  Alter_stage_ts()
+  ut_stage_alter_ts()
       : m_progress(nullptr),
         m_work_estimated(0),
         m_work_done(0),
         m_cur_phase(NOT_STARTED) {}
 
   /** Destructor. */
-  inline ~Alter_stage_ts() {
+  inline ~ut_stage_alter_ts() {
     if (m_progress == nullptr) {
       return;
     }
     mysql_end_stage();
   }
 
-  /** Initialize.
-  @param[in] key                PFS key. */
   void init(int key) {
     ut_ad(key != -1);
     ut_ad(m_cur_phase == NOT_STARTED);
@@ -567,9 +460,7 @@ class Alter_stage_ts {
     change_phase();
   }
 
-  /** Set estimate.
-  @param[in] units              Units. */
-  void set_estimate(uint64_t units) {
+  void set_estimate(ulint units) {
     if (m_progress == nullptr) {
       return;
     }
@@ -581,9 +472,7 @@ class Alter_stage_ts {
     change_phase();
   }
 
-  /** Update the progress.
-  @param[in] units              Update delta. */
-  void update_work(uint64_t units) {
+  void update_work(ulint units) {
     if (m_progress == nullptr) {
       return;
     }
@@ -600,7 +489,6 @@ class Alter_stage_ts {
     }
   }
 
-  /** Change phase. */
   void change_phase() {
     if (m_progress == nullptr) {
       ut_ad(m_cur_phase == NOT_STARTED);
@@ -626,9 +514,9 @@ class Alter_stage_ts {
   bool is_completed() {
     if (m_progress == nullptr) {
       return true;
-    } else {
-      return (m_cur_phase == WORK_COMPLETED);
     }
+
+    return (m_cur_phase == WORK_COMPLETED);
   }
 
  private:
@@ -636,93 +524,61 @@ class Alter_stage_ts {
   PSI_stage_progress *m_progress;
 
   /** Number of pages to be (un)encrypted . */
-  page_no_t m_work_estimated;
+  ulint m_work_estimated;
 
   /** Number of pages already (un)encrypted . */
-  page_no_t m_work_done;
+  ulint m_work_done;
 
   /** Current phase. */
   enum {
-    /** Not open phase. */
     NOT_STARTED = 0,
-
-    /** Initialised. */
     INITIATED = 1,
-
-    /** Work estimated phase. */
     WORK_ESTIMATED = 2,
-
-    /** Work completed phase. */
     WORK_COMPLETED = 3,
   } m_cur_phase;
 };
 
 #else  /* HAVE_PSI_STAGE_INTERFACE */
 
-/** Dummy alter stage. */
-class Alter_stage {
+class ut_stage_alter_t {
  public:
-  /** Constructor. */
-  explicit Alter_stage(const dict_index_t *pk) {}
+  explicit ut_stage_alter_t(const dict_index_t *pk) {}
 
-  /** Setup the number of indexes to read.
-  @param[in] n_sort_indexes     Number of indexe.s */
-  void begin_phase_read_pk(size_t n_sort_indexes) {}
+  void begin_phase_read_pk(ulint n_sort_indexes) {}
 
-  /** Increments the numbfer of rows read so far. */
   void n_pk_recs_inc() {}
 
-  /** Increment depending on stage. */
-  void inc(uint64_t inc_val = 1) {}
+  void inc(ulint inc_val = 1) {}
 
-  /** End scan phase. */
   void end_phase_read_pk() {}
 
-  /** Begin merge sort phase. */
   void begin_phase_sort(double sort_multi_factor) {}
 
-  /** Begin insert phase. */
   void begin_phase_insert() {}
 
-  /** Begin flushing of non-redo logged pages.
-  @param[in] n_flush_pages      Number of pages to flush. */
-  void begin_phase_flush(page_no_t n_flush_pages) {}
+  void begin_phase_flush(ulint n_flush_pages) {}
 
-  /** Begin row log apply phase to the index. */
   void begin_phase_log_index() {}
 
-  /** Begin row log apply phase to the table. */
   void begin_phase_log_table() {}
 
-  /** Build end phase. */
   void begin_phase_end() {}
-
-  /** Aggregate the sub stages..
-  @param[in] stages             Stages to aggregate. */
-  void Alter_stage::aggregate(const Alter_stages &alter_stages) noexcept {}
 };
 
-class Alter_stage_ts {
+class ut_stage_alter_ts {
  public:
   /** Constructor. */
-  Alter_stage_ts() {}
+  ut_stage_alter_ts() {}
 
   /** Destructor. */
-  inline ~Alter_stage_ts() {}
+  inline ~ut_stage_alter_ts() {}
 
-  /** Initialize.
-  @param[in] key                PFS key. */
   void init(int key) {}
 
-  /** Set estimate.
-  @param[in] units              Units. */
   void set_estimate(uint units) {}
 
-  /** Update the progress.
-  @param[in] units              Update delta. */
   void update_work(uint units) {}
 
-  /** Change phase. */
   void change_phase() {}
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */

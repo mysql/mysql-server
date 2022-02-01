@@ -168,7 +168,7 @@ class Execute_load_query_event : public virtual Query_event {
   Execute_load_query_event(const char *buf,
                            const Format_description_event *fde);
 
-  ~Execute_load_query_event() override = default;
+  ~Execute_load_query_event() override {}
 };
 
 /**
@@ -226,7 +226,7 @@ class Delete_file_event : public Binary_log_event {
  */
   Delete_file_event(const char *buf, const Format_description_event *fde);
 
-  ~Delete_file_event() override = default;
+  ~Delete_file_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -331,7 +331,7 @@ class Append_block_event : public Binary_log_event {
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   Append_block_event(const char *buf, const Format_description_event *fde);
-  ~Append_block_event() override = default;
+  ~Append_block_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -379,7 +379,7 @@ class Begin_load_query_event : public virtual Append_block_event {
   */
   Begin_load_query_event(const char *buf, const Format_description_event *fde);
 
-  ~Begin_load_query_event() override = default;
+  ~Begin_load_query_event() override {}
 
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info

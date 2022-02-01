@@ -38,7 +38,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_alloc.h"
 #include "sql/auth/acl_table_base.h"
 #include "sql/auth/partial_revokes.h"
-#include "sql/auth/sql_mfa.h" /* I_multi_factor_auth */
 #include "sql/auth/user_table.h"
 #include "sql/json_dom.h"
 
@@ -55,8 +54,7 @@ enum class User_attribute_type {
   RESTRICTIONS,
   PASSWORD_LOCKING,
   METADATA,
-  COMMENT,
-  MULTI_FACTOR_AUTHENTICATION_DATA
+  COMMENT
 };
 
 struct Password_lock {
@@ -93,8 +91,7 @@ class Acl_user_attributes {
                       Auth_id &auth_id, ulong global_privs);
 
   Acl_user_attributes(MEM_ROOT *mem_root, bool read_restrictions,
-                      Auth_id &auth_id, Restrictions *m_restrictions,
-                      I_multi_factor_auth *mfa);
+                      Auth_id &auth_id, Restrictions *m_restrictions);
 
   ~Acl_user_attributes();
 
@@ -164,9 +161,6 @@ class Acl_user_attributes {
     m_password_lock = password_lock;
   }
 
-  I_multi_factor_auth *get_mfa() { return m_mfa; }
-  void set_mfa(I_multi_factor_auth *mfa) { m_mfa = mfa; }
-
   /**
     Take over ownership of the json pointer.
     @return Error state
@@ -180,7 +174,6 @@ class Acl_user_attributes {
       DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
       ulonglong errcode);
   bool deserialize_password_lock(const Json_object &json_object);
-  bool deserialize_multi_factor(const Json_object &json_object);
 
  private:
   /** Mem root */
@@ -197,8 +190,6 @@ class Acl_user_attributes {
   ulong m_global_privs;
   /** password locking */
   Password_lock m_password_lock;
-  /** multi factor auth info */
-  I_multi_factor_auth *m_mfa;
   /** Save the original json object */
   Json_dom_ptr m_user_attributes_json;
 };
@@ -215,26 +206,23 @@ class Acl_table_user_writer_status {
  public:
   Acl_table_user_writer_status();
   Acl_table_user_writer_status(bool skip, ulong rights, Table_op_error_code err,
-                               my_timeval pwd_timestamp, std::string cred,
-                               Password_lock &password_lock,
-                               I_multi_factor_auth *multi_factor)
+                               struct timeval pwd_timestamp, std::string cred,
+                               Password_lock &password_lock)
       : skip_cache_update(skip),
         updated_rights(rights),
         error(err),
         password_change_timestamp(pwd_timestamp),
         second_cred(cred),
         restrictions(),
-        password_lock(password_lock),
-        multi_factor(multi_factor) {}
+        password_lock(password_lock) {}
 
   bool skip_cache_update;
   ulong updated_rights;
   Table_op_error_code error;
-  my_timeval password_change_timestamp;
+  struct timeval password_change_timestamp;
   std::string second_cred;
   Restrictions restrictions;
   Password_lock password_lock;
-  I_multi_factor_auth *multi_factor;
 };
 
 class Acl_table_user_writer : public Acl_table {
@@ -242,7 +230,7 @@ class Acl_table_user_writer : public Acl_table {
   Acl_table_user_writer(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                         bool revoke_grant, bool can_create_user,
                         Pod_user_what_to_update what_to_update,
-                        Restrictions *restrictions, I_multi_factor_auth *mfa);
+                        Restrictions *restrictions);
   ~Acl_table_user_writer() override;
   Acl_table_op_status finish_operation(Table_op_error_code &error) override;
   Acl_table_user_writer_status driver();
@@ -278,7 +266,6 @@ class Acl_table_user_writer : public Acl_table {
   Pod_user_what_to_update m_what_to_update;
   User_table_schema *m_table_schema;
   Restrictions *m_restrictions;
-  I_multi_factor_auth *m_mfa;
   std::function<bool(TABLE *table)> m_user_application_user_metadata;
 };
 

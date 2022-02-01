@@ -307,12 +307,8 @@ int ft_nlq_read_next(FT_INFO *handler_base, char *record) {
   st_ft_info_nlq *handler = (st_ft_info_nlq *)handler_base;
   MI_INFO *info = (MI_INFO *)handler->info;
 
-  // Move to the next document that has a non-zero score.
-  while (++handler->curdoc < handler->ndocs &&
-         ft_nlq_get_relevance(handler) == 0.0) {
-  }
-
-  if (handler->curdoc >= handler->ndocs) {
+  if (++handler->curdoc >= handler->ndocs) {
+    --handler->curdoc;
     return HA_ERR_END_OF_FILE;
   }
 
@@ -327,8 +323,8 @@ int ft_nlq_read_next(FT_INFO *handler_base, char *record) {
 }
 
 float ft_nlq_find_relevance(FT_INFO *handler_base,
-                            uchar *record [[maybe_unused]],
-                            uint length [[maybe_unused]]) {
+                            uchar *record MY_ATTRIBUTE((unused)),
+                            uint length MY_ATTRIBUTE((unused))) {
   st_ft_info_nlq *handler = (st_ft_info_nlq *)handler_base;
   int a, b, c;
   FT_DOC *docs = handler->doc;

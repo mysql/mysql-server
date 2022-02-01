@@ -43,7 +43,7 @@ struct DropFKImplReq
    */
   friend bool printDROP_FK_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   enum {
     RT_PARSE    = 0x1,
@@ -72,7 +72,7 @@ struct DropFKImplRef
    */
   friend bool printDROP_FK_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -96,7 +96,7 @@ struct DropFKImplConf
    */
   friend bool printDROP_FK_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderData;
   Uint32 senderRef;

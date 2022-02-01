@@ -22,9 +22,8 @@
 
 
 INCLUDE(source_files.cmake)
-IF(HAVE_SETNS)
-  LIST(APPEND XTEST_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
-ENDIF()
+LIST(APPEND XTEST_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
+
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}

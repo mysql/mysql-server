@@ -542,7 +542,6 @@ insert into tmp select * from t3;
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;
-set session innodb_parallel_read_threads = 1;
 alter table t3 add t2nr int not null auto_increment primary key first;
 drop table tmp;
 SET BIG_TABLES=1;
@@ -2117,7 +2116,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
--> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (cost=243.55 rows=1199)
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
     -> Filter: (rand() > 0.5)  (cost=123.65 rows=1199)
         -> Index scan on t2 using fld1  (cost=123.65 rows=1199)
 

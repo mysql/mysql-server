@@ -244,8 +244,6 @@ class HARNESS_EXPORT Config {
   using OptionMap = ConfigSection::OptionMap;
   using SectionList = std::list<ConfigSection *>;
   using ConstSectionList = std::list<const ConfigSection *>;
-  using ConfigOverwrites = std::map<std::pair<std::string, std::string>,
-                                    std::map<std::string, std::string>>;
 
   /**@{*/
   /** Flags for construction of configurations. */
@@ -263,10 +261,8 @@ class HARNESS_EXPORT Config {
    * Construct a configuration.
    *
    * @param flags flags.
-   * @param config_overwrites overwrites for selected configuration options.
    */
-  explicit Config(unsigned int flags = 0U,
-                  const ConfigOverwrites &config_overwrites = {});
+  explicit Config(unsigned int flags = 0U) noexcept;
 
   /**
    * Construct a configuration.
@@ -274,13 +270,11 @@ class HARNESS_EXPORT Config {
    * @tparam AssocT Associate container type
    * @arg @c parameters Associative container with parameters.
    * @arg @c flags flags.
-   * @arg @c config_overwrites overwrites for selected configuration options.
    * @throws bad_option on bad options
    */
   template <class AssocT>
-  explicit Config(const AssocT &parameters, unsigned int flags = 0U,
-                  const ConfigOverwrites &config_overwrites = {})
-      : Config(flags, config_overwrites) {
+  explicit Config(const AssocT &parameters, unsigned int flags = 0U)
+      : Config(flags) {
     for (auto item : parameters)
       defaults_->set(item.first, item.second);  // throws bad_option
   }
@@ -297,14 +291,12 @@ class HARNESS_EXPORT Config {
    * @arg @c parameters Associative container with parameters.
    * @arg @c reserved Sequence container of reserved words.
    * @arg @c flags flags.
-   * @arg @c config_overwrites overwrites for selected configuration options.
    * @throws bad_option on bad options
    */
   template <class AssocT, class SeqT>
   explicit Config(const AssocT &parameters, const SeqT &reserved,
-                  unsigned int flags = 0U,
-                  const ConfigOverwrites &config_overwrites = {})
-      : Config(parameters, flags, config_overwrites) /* throws bad_option */ {
+                  unsigned int flags = 0U)
+      : Config(parameters, flags) /* throws bad_option */ {
     for (auto word : reserved) reserved_.push_back(word);
   }
 
@@ -496,6 +488,8 @@ class HARNESS_EXPORT Config {
    */
   void copy_guts(const Config &source) noexcept;
 
+  std::string replace_variables(const std::string &value) const;
+
   /**
    * Function to read single file.
    *
@@ -514,20 +508,11 @@ class HARNESS_EXPORT Config {
    */
   virtual void do_read_stream(std::istream &input);
 
-  void apply_overwrites();
-
   SectionMap sections_;
   ReservedList reserved_;
   std::shared_ptr<ConfigSection> defaults_;
   unsigned int flags_;
-  ConfigOverwrites config_overwrites_;
 };
-
-/**
- * Returns true if a character given as a parameter is valid for config
- * identifier (section, section key or option name)
- */
-bool HARNESS_EXPORT is_valid_conf_ident_char(const char ch);
 
 }  // namespace mysql_harness
 

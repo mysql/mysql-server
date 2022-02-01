@@ -16,8 +16,6 @@ if ($group_replication_group_name == "")
 # Save current connection.
 --let $_old_connection= $CURRENT_CONNECTION
 
-#check which stack are we using
---let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
 
 # Default values
 --let $_group_replication_group_seeds=
@@ -52,15 +50,7 @@ while ($_rpl_server <= $_rpl_server_max)
 --let $_rpl_server= $_rpl_gcs_server_number
 while ($_rpl_server)
 {
-  --let $_rpl_gcs_server_port=
-  if ($have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
-  }
-  if (!$have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
-  }
+  --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
 
   # Append comma to list of addresses.
   if ($_group_replication_group_seeds != "")
@@ -96,15 +86,7 @@ while ($_rpl_server)
   }
 
   # Local address.
-  --let $_rpl_gcs_server_port=
-  if ($have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
-  }
-  if (!$have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
-  }
+  --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
   --let $_group_replication_local_address= $_rpl_gcs_server_address:$_rpl_gcs_server_port
 
   # Set configuration on server.

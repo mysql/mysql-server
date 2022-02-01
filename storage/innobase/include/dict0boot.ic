@@ -32,10 +32,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Returns a new row id.
  @return the new id */
-static inline row_id_t dict_sys_get_new_row_id(void) {
+UNIV_INLINE
+row_id_t dict_sys_get_new_row_id(void) {
   row_id_t id;
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   id = dict_sys->row_id;
 
@@ -45,15 +46,15 @@ static inline row_id_t dict_sys_get_new_row_id(void) {
 
   dict_sys->row_id++;
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   return (id);
 }
 
 /** Reads a row id from a record or other 6-byte stored form.
  @return row id */
-static inline row_id_t dict_sys_read_row_id(
-    const byte *field) /*!< in: record field */
+UNIV_INLINE
+row_id_t dict_sys_read_row_id(const byte *field) /*!< in: record field */
 {
 #if DATA_ROW_ID_LEN != 6
 #error "DATA_ROW_ID_LEN != 6"
@@ -63,8 +64,9 @@ static inline row_id_t dict_sys_read_row_id(
 }
 
 /** Writes a row id to a record or other 6-byte stored form. */
-static inline void dict_sys_write_row_id(byte *field, /*!< in: record field */
-                                         row_id_t row_id) /*!< in: row id */
+UNIV_INLINE
+void dict_sys_write_row_id(byte *field,     /*!< in: record field */
+                           row_id_t row_id) /*!< in: row id */
 {
 #if DATA_ROW_ID_LEN != 6
 #error "DATA_ROW_ID_LEN != 6"
@@ -76,7 +78,8 @@ static inline void dict_sys_write_row_id(byte *field, /*!< in: record field */
 /** Check if a table id belongs to old innodb internal system table.
 @param[in]	id		table id
 @return true if the table id belongs to a system table. */
-static inline bool dict_is_old_sys_table(table_id_t id) {
+UNIV_INLINE
+bool dict_is_old_sys_table(table_id_t id) {
   if (srv_is_upgrade_mode) {
     return (id < DICT_HDR_FIRST_ID);
   }

@@ -88,10 +88,7 @@ include/start_slave.inc
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
-[connection slave]
-SET GLOBAL keyring_operations= ON;
+[connection master]
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

@@ -2605,15 +2605,3 @@
    obj:/usr/lib64/libtcmalloc*
    fun:_dl_init
 }
-
-#  The ... is for malloc or realloc
-{
-   mysql_dynamic_loader_scheme_file_imp_load
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   ...
-   fun:vasprintf
-   fun:asprintf
-   fun:dlerror
-   fun:_ZN36mysql_dynamic_loader_scheme_file_imp4loadEPKcPP17mysql_component_t
-}

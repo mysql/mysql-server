@@ -196,7 +196,7 @@ EXECUTING:[25][CALL test.sp_one_result()]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -232,7 +232,7 @@ EXECUTING:[26][CALL test.sp_two_results()]
 			[meta][field] org table name: 
 			[meta][field] col name: 2
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -291,7 +291,7 @@ EXECUTING:[31][CALL test.sp_one_result_out(@a)]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -327,7 +327,7 @@ EXECUTING:[32][CALL test.sp_two_results_out(@a)]
 			[meta][field] org table name: 
 			[meta][field] col name: 2
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -408,7 +408,7 @@ EXECUTING:[27][CALL test.sp_result_error()]
 			[meta][field] org table name: 
 			[meta][field] col name: 5
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -441,7 +441,7 @@ EXECUTING:[27][CALL test.sp_result_error()]
 			[meta][field] org table name: 
 			[meta][field] col name: 5
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -795,7 +795,7 @@ EXECUTING:[25][CALL test.sp_one_result()]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -831,7 +831,7 @@ EXECUTING:[26][CALL test.sp_two_results()]
 			[meta][field] org table name: 
 			[meta][field] col name: 2
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -890,7 +890,7 @@ EXECUTING:[31][CALL test.sp_one_result_out(@a)]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -926,7 +926,7 @@ EXECUTING:[32][CALL test.sp_two_results_out(@a)]
 			[meta][field] org table name: 
 			[meta][field] col name: 2
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -1007,7 +1007,7 @@ EXECUTING:[27][CALL test.sp_result_error()]
 			[meta][field] org table name: 
 			[meta][field] col name: 5
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -1040,7 +1040,7 @@ EXECUTING:[27][CALL test.sp_result_error()]
 			[meta][field] org table name: 
 			[meta][field] col name: 5
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0

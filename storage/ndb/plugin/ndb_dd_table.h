@@ -127,12 +127,6 @@ void ndb_dd_table_set_schema_uuid(dd::Table *table_def, const char *value);
 bool ndb_dd_table_get_schema_uuid(const dd::Table *table_def,
                                   dd::String_type *value);
 
-/*
-  Check if column with given name exists and has varbinary type.
-*/
-bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
-                                         const dd::String_type &col_name);
-
 /* interface for working with opaque dd::Table RAII-style */
 class Ndb_dd_table {
   class THD *const m_thd;

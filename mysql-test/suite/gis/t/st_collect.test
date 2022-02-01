@@ -27,7 +27,6 @@ table_simple_aggregation) , ST_GEOMFROMTEXT('MULTIPOINT((0 0),(1 0),(2 0),(3
 --echo # result shall be
 --echo # MULTIPOINT((0 0),(1 0),(3 0))
 --echo # MULTIPOINT((2 0),(0 0))
---sorted_result
 SELECT ST_ASTEXT(ST_COLLECT( DISTINCT location )) AS t FROM
 table_simple_aggregation GROUP BY grouping_condition;
 
@@ -66,17 +65,13 @@ CURRENT ROW))  FROM table_simple_aggregation;
 
 
 --echo Excercising multiple code paths.
---sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(running_number)
 OVER()  FROM table_simple_aggregation GROUP BY running_number;
---sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(grouping_condition)
 OVER(), grouping_condition FROM table_simple_aggregation GROUP BY
 grouping_condition;
---sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(grouping_condition) OVER(),
 grouping_condition FROM table_simple_aggregation GROUP BY grouping_condition;
---sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(running_number) OVER()  FROM
 table_simple_aggregation GROUP BY running_number;
 
@@ -104,7 +99,6 @@ SELECT ST_ASTEXT(ST_COLLECT(geometry)) AS t FROM multi_srs_table;
 --echo # one
 --echo # Multipoint((38 77)) with SRID 0. There is some rounding issue on the
 --echo # result, bug #31535105
---sorted_result
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 
@@ -116,7 +110,6 @@ multi_srs_table GROUP BY ST_SRID(geometry) WITH ROLLUP;
 --echo # Triggering a codepath for geometrycollection in temp tables
 INSERT INTO multi_srs_table( geometry ) VALUES
 (ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(60 -24))'         ,4326));
---sorted_result
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 
@@ -167,10 +160,3 @@ SELECT CAST(ST_COLLECT(geo) AS DECIMAL ) FROM simple_table;
 
 DROP TABLE simple_table;
 
-set @d:=repeat(1,228);
---error ER_SRS_NOT_FOUND
-select st_collect(substr(@d,110,47));
---error ER_SRS_NOT_FOUND
-select st_collect(left(@d,42));
---error ER_SRS_NOT_FOUND
-select st_collect(right(@d,42));

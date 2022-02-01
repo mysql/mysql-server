@@ -1,3 +1,7 @@
+# The hypergraph optimizer does not yet support windowing functions, and the binary
+# noise in the .result file confuses diff enough that the skipping doesn't work.
+--source include/not_hypergraph.inc
+
 --echo # Test of SQL window functions LEAD/LAG
 --echo # ----------------------------------------------------------------------
 

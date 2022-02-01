@@ -49,7 +49,7 @@ class Partition_index : virtual public Weak_object {
   typedef tables::Index_partitions DD_table;
 
  public:
-  ~Partition_index() override = default;
+  ~Partition_index() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Partition.

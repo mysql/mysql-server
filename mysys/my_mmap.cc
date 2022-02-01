@@ -57,8 +57,8 @@ int my_msync(int fd, void *addr, size_t len, int flags) {
 static SECURITY_ATTRIBUTES mmap_security_attributes = {
     sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
 
-void *my_mmap(void *addr [[maybe_unused]], size_t len, int prot,
-              int flags [[maybe_unused]], File fd, my_off_t offset) {
+void *my_mmap(void *addr, size_t len, int prot, int flags, File fd,
+              my_off_t offset) {
   HANDLE hFileMap;
   LPVOID ptr;
   HANDLE hFile = my_get_osfhandle(fd);
@@ -91,14 +91,13 @@ void *my_mmap(void *addr [[maybe_unused]], size_t len, int prot,
   return MAP_FAILED;
 }
 
-int my_munmap(void *addr, size_t len [[maybe_unused]]) {
+int my_munmap(void *addr, size_t len) {
   DBUG_TRACE;
   DBUG_PRINT("mysys", ("unmap addr: %p", addr));
   return UnmapViewOfFile(addr) ? 0 : -1;
 }
 
-int my_msync(int fd [[maybe_unused]], void *addr, size_t len,
-             int flags [[maybe_unused]]) {
+int my_msync(int fd, void *addr, size_t len, int flags) {
   return FlushViewOfFile(addr, len) ? 0 : -1;
 }
 

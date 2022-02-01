@@ -204,15 +204,14 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
-longlong my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
+int my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);
   size_t block_size;
 
   block_size = EVP_CIPHER_block_size(cipher);
 
-  if (block_size <= 1) return source_length;
-  return block_size * (static_cast<ulonglong>(source_length) / block_size) +
-         block_size;
+  return block_size > 1 ? block_size * (source_length / block_size) + block_size
+                        : source_length;
 }
 
 bool my_aes_needs_iv(my_aes_opmode opmode) {

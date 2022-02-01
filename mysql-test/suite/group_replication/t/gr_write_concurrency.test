@@ -41,11 +41,6 @@ INSERT INTO t1 VALUES (4, 201);
 --let $assert_cond = [SELECT group_replication_get_write_concurrency()] = $gr_write_concurrency_default
 --source include/assert.inc
 
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_write_concurrency_default
---let $assert_cond= "$write_concurrency_table" = "$gr_write_concurrency_default"
---source include/assert.inc
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin = 0;
@@ -61,11 +56,6 @@ SET SESSION sql_log_bin = 1;
 --let $assert_cond = [SELECT group_replication_get_write_concurrency()] = $gr_write_concurrency_default
 --source include/assert.inc
 
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_write_concurrency_default
---let $assert_cond= "$write_concurrency_table" = "$gr_write_concurrency_default"
---source include/assert.inc
-
 --echo ###############################################################################
 --echo # 3. Increase write_concurrency via M1, confirm on M1, M2
 --let $gr_new_write_concurrency= 42
@@ -78,21 +68,11 @@ SET SESSION sql_log_bin = 1;
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
 
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_new_write_concurrency
---let $assert_cond= "$write_concurrency_table" = "$gr_new_write_concurrency"
---source include/assert.inc
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
-
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_new_write_concurrency
---let $assert_cond= "$write_concurrency_table" = "$gr_new_write_concurrency"
---source include/assert.inc
 
 --echo ###############################################################################
 --echo # 4. Decrease write_concurrency via M2, confirm on M1, M2
@@ -103,21 +83,11 @@ SET SESSION sql_log_bin = 1;
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
 
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_new_write_concurrency
---let $assert_cond= "$write_concurrency_table" = "$gr_new_write_concurrency"
---source include/assert.inc
-
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
 --let $wait_condition= SELECT group_replication_get_write_concurrency() = $gr_new_write_concurrency
 --source include/wait_condition.inc
-
---let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
---let $assert_text= write_concurrency ($write_concurrency_table) should be $gr_new_write_concurrency
---let $assert_cond= "$write_concurrency_table" = "$gr_new_write_concurrency"
---source include/assert.inc
 
 --echo ###############################################################################
 --echo # 5. Confirm invalid calls to group_replication_get_write_concurrency

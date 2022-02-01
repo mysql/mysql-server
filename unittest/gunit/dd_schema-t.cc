@@ -64,7 +64,7 @@ using ::testing::WithArgs;
 
 class SchemaTest : public ::testing::Test {
  protected:
-  SchemaTest() = default;
+  SchemaTest() {}
 
   void SetUp() override {
     m_dict = new Dictionary_impl();

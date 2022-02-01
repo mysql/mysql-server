@@ -32,7 +32,7 @@ void ConnectionContainer::add_connection(
   connections_.put(connection.get(), std::move(connection));
 }
 
-unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
+void ConnectionContainer::disconnect(const AllowedNodes &nodes) {
   unsigned number_of_disconnected_connections = 0;
 
   auto mark_to_diconnect_if_not_allowed =
@@ -52,8 +52,8 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
       };
 
   connections_.for_each(mark_to_diconnect_if_not_allowed);
-
-  return number_of_disconnected_connections;
+  if (number_of_disconnected_connections > 0)
+    log_info("Disconnected %u connections", number_of_disconnected_connections);
 }
 
 void ConnectionContainer::disconnect_all() {

@@ -22,66 +22,39 @@
 
 #include "plugin/group_replication/include/plugin_messages/transaction_message.h"
 #include "my_dbug.h"
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
 
-Transaction_message::Transaction_message(uint64_t payload_capacity)
-    : Transaction_message_interface(CT_TRANSACTION_MESSAGE) {
-  DBUG_TRACE;
+Transaction_message::Transaction_message()
+    : Transaction_message_interface(CT_TRANSACTION_MESSAGE) {}
 
-  /*
-    Consider the message headers size on the Gcs_message_data capacity.
-  */
-  const uint64_t headers_size =
-      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
-      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
-  const uint64_t message_capacity = headers_size + payload_capacity;
-  m_gcs_message_data = new Gcs_message_data(0, message_capacity);
-
-  std::vector<unsigned char> buffer;
-  encode_header(&buffer);
-  encode_payload_item_type_and_length(&buffer, PIT_TRANSACTION_DATA,
-                                      payload_capacity);
-  assert(buffer.size() == headers_size);
-  m_gcs_message_data->append_to_payload(&buffer.front(), headers_size);
-}
-
-Transaction_message::~Transaction_message() {
-  DBUG_TRACE;
-  delete m_gcs_message_data;
-}
+Transaction_message::~Transaction_message() {}
 
 bool Transaction_message::write(const unsigned char *buffer, my_off_t length) {
-  DBUG_TRACE;
-  if (nullptr == m_gcs_message_data) {
-    return true;
-  }
-
-  return m_gcs_message_data->append_to_payload(buffer, length);
+  m_data.insert(m_data.end(), buffer, buffer + length);
+  return false;
 }
 
-uint64_t Transaction_message::length() {
-  DBUG_TRACE;
-  if (nullptr == m_gcs_message_data) {
-    return 0;
-  }
+my_off_t Transaction_message::length() { return m_data.size(); }
 
-  return m_gcs_message_data->get_encode_size();
+void Transaction_message::encode_payload(
+    std::vector<unsigned char> *buffer) const {
+  DBUG_TRACE;
+
+  encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
+                                      m_data.size());
+  buffer->insert(buffer->end(), m_data.begin(), m_data.end());
 }
 
-Gcs_message_data *Transaction_message::get_message_data_and_reset() {
-  DBUG_TRACE;
-  Gcs_message_data *result = m_gcs_message_data;
-  m_gcs_message_data = nullptr;
-  return result;
-}
-
-void Transaction_message::encode_payload(std::vector<unsigned char> *) const {
-  DBUG_TRACE;
-  assert(0);
-}
-
-void Transaction_message::decode_payload(const unsigned char *,
+/* purecov: begin inspected */
+void Transaction_message::decode_payload(const unsigned char *buffer,
                                          const unsigned char *) {
   DBUG_TRACE;
-  assert(0);
+  const unsigned char *slider = buffer;
+  uint16 payload_item_type = 0;
+  unsigned long long payload_item_length = 0;
+
+  decode_payload_item_type_and_length(&slider, &payload_item_type,
+                                      &payload_item_length);
+  m_data.clear();
+  m_data.insert(m_data.end(), slider, slider + payload_item_length);
 }
+/* purecov: end */

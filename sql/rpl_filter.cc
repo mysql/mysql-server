@@ -45,15 +45,14 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"    // Item
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_mi.h"       // Master_info
-#include "sql/rpl_msr.h"      // channel_map
-#include "sql/rpl_replica.h"  // SLAVE_SQL
-#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_mi.h"     // Master_info
+#include "sql/rpl_msr.h"    // channel_map
+#include "sql/rpl_rli.h"    // Relay_log_info
+#include "sql/rpl_slave.h"  // SLAVE_SQL
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/table.h"  // TABLE_LIST
@@ -86,11 +85,11 @@ Rpl_pfs_filter::Rpl_pfs_filter(const Rpl_pfs_filter &other) {
   if (!other.m_filter_rule.is_empty()) m_filter_rule.copy(other.m_filter_rule);
 }
 
-Rpl_pfs_filter::~Rpl_pfs_filter() = default;
+Rpl_pfs_filter::~Rpl_pfs_filter() {}
 
 Rpl_filter_statistics::Rpl_filter_statistics() { reset(); }
 
-Rpl_filter_statistics::~Rpl_filter_statistics() = default;
+Rpl_filter_statistics::~Rpl_filter_statistics() {}
 
 void Rpl_filter_statistics::reset() {
   m_configured_by = CONFIGURED_BY_STARTUP_OPTIONS;
@@ -111,9 +110,9 @@ void Rpl_filter_statistics::set_all(enum_configured_by configured_by) {
       Calculate time stamp up to tenths of milliseconds elapsed
       from 1 Jan 1970 00:00:00.
     */
-    my_timeval stmt_start_time = thd->query_start_timeval_trunc(6);
-    m_active_since =
-        stmt_start_time.m_tv_sec * 1000000 + stmt_start_time.m_tv_usec;
+    struct timeval stmt_start_time = thd->query_start_timeval_trunc(6);
+    m_active_since = static_cast<ulonglong>(stmt_start_time.tv_sec) * 1000000 +
+                     stmt_start_time.tv_usec;
   }
 }
 

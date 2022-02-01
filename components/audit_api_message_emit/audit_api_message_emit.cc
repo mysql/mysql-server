@@ -68,7 +68,7 @@ class IError_handler {
   /**
     Virtual destructor.
   */
-  virtual ~IError_handler() = default;
+  virtual ~IError_handler() {}
   /**
     Error reporting method.
 
@@ -92,7 +92,8 @@ typedef bool (*validate_function)(IError_handler &handler, const char *arg,
   Check, whether the argument is not null pointer.
 */
 static bool not_null(IError_handler &handler, const char *arg,
-                     unsigned long length [[maybe_unused]], size_t arg_pos) {
+                     unsigned long length MY_ATTRIBUTE((unused)),
+                     size_t arg_pos) {
   if (arg == nullptr) {
     handler.error("Argument cannot be NULL [%d].", arg_pos);
     return false;
@@ -195,8 +196,7 @@ char *collation_name = const_cast<char *>(collation);
 */
 static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   for (size_t index = 0; index < args->arg_count; ++index) {
-    if (args->arg_type[index] == STRING_RESULT &&
-        mysql_service_mysql_udf_metadata->argument_set(
+    if (mysql_service_mysql_udf_metadata->argument_set(
             args, "collation", index, pointer_cast<void *>(collation_name))) {
       handler.error("Could not set the %s collation of argument '%d'.",
                     collation_name, index);
@@ -425,10 +425,10 @@ class String_error_handler : public IError_handler {
 /**
   UDF function itself.
 */
-static char *emit(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
+static char *emit(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
                   char *result, unsigned long *length,
-                  unsigned char *null_value [[maybe_unused]],
-                  unsigned char *error [[maybe_unused]]) {
+                  unsigned char *null_value MY_ATTRIBUTE((unused)),
+                  unsigned char *error MY_ATTRIBUTE((unused))) {
   /*
     Store the error as the result of the UDF.
   */

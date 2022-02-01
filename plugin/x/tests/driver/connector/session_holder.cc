@@ -34,7 +34,7 @@
 #include "plugin/x/protocol/stream/compression/compression_algorithm_zstd.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
-namespace {
+namespace details {
 
 std::string get_ip_mode_to_text(const xcl::Internet_protocol ip) {
   switch (ip) {
@@ -50,37 +50,12 @@ std::string get_ip_mode_to_text(const xcl::Internet_protocol ip) {
   }
 }
 
-size_t get_message_size(const xcl::XProtocol::Message &msg) {
-#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
-  return msg.ByteSizeLong() + 1;
-#else
-  return msg.ByteSize() + 1;
-#endif
-}
-
-template <typename Msg = xcl::XProtocol::Message>
-void print_message(const Console &console, const std::string &direction,
-                   const size_t size, const Msg &msg) {
-  console.print(direction, size, " ", msg);
-}
-
-}  // namespace
-
-const int k_maximum_size_of_message_in_flow_history = 1000;
+}  // namespace details
 
 Session_holder::Session_holder(std::unique_ptr<xcl::XSession> session,
-                               const Console &console_with_flow_history,
                                const Console &console,
                                const Connection_options &options)
-    : m_session(std::move(session)),
-      m_console_with_flow_history(console_with_flow_history),
-      m_console(console),
-      m_options(options) {
-  const auto env_variable_enable_tracing = getenv("MYSQLX_TRACE_CONNECTION");
-  m_enable_tracing_in_console =
-      m_options.trace_protocol ||
-      (env_variable_enable_tracing && strlen(env_variable_enable_tracing));
-}
+    : m_session(std::move(session)), m_console(console), m_options(options) {}
 
 bool Session_holder::enable_compression(
     const xcl::Compression_algorithm algorithm, const int64_t level) {
@@ -186,7 +161,7 @@ xcl::XError Session_holder::setup_connection() {
 void Session_holder::setup_other_options() {
   DBUG_TRACE;
   using Mysqlx_option = xcl::XSession::Mysqlx_option;
-  const auto text_ip_mode = get_ip_mode_to_text(m_options.ip_mode);
+  const auto text_ip_mode = details::get_ip_mode_to_text(m_options.ip_mode);
 
   if (m_options.compatible) {
     m_session->set_mysql_option(Mysqlx_option::Authentication_method,
@@ -299,6 +274,7 @@ void Session_holder::setup_ssl() {
 }
 
 void Session_holder::setup_msg_callbacks() {
+  const bool force_trace_protocol = m_options.trace_protocol;
   auto &protocol = m_session->get_protocol();
 
   m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Consume_all_notices,
@@ -318,26 +294,44 @@ void Session_holder::setup_msg_callbacks() {
         return count_received_messages(protocol, msg_id, msg);
       });
 
-  protocol.add_received_message_handler(
-      [this](xcl::XProtocol *protocol,
-             const xcl::XProtocol::Server_message_type_id msg_id,
-             const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
-        print_message_to_consoles("<<<< RECEIVE ", msg);
+  /** Push message handlers that are responsible for tracing.
+   The functionality is enabled by setting "MYSQLX_TRACE_CONNECTION"
+   environment variable to any value.
+   */
+  const auto should_enable_tracing = getenv("MYSQLX_TRACE_CONNECTION");
 
+  if (force_trace_protocol ||
+      (should_enable_tracing && strlen(should_enable_tracing))) {
+    protocol.add_received_message_handler(
+        [this](xcl::XProtocol *protocol,
+               const xcl::XProtocol::Server_message_type_id msg_id,
+               const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+          return trace_received_messages(protocol, msg_id, msg);
+        });
+
+    protocol.add_send_message_handler(
+        [this](xcl::XProtocol *protocol,
+               const xcl::XProtocol::Client_message_type_id msg_id,
+               const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+          return trace_send_messages(protocol, msg_id, msg);
+        });
+  }
+
+  protocol.add_received_message_handler(
+      [](xcl::XProtocol *protocol,
+         const xcl::XProtocol::Server_message_type_id msg_id,
+         const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
         DBUG_LOG("debug", "log message "
                               << "recv: " << msg);
         return xcl::Handler_result::Continue;
       });
 
   protocol.add_send_message_handler(
-      [this](xcl::XProtocol *protocol,
-             const xcl::XProtocol::Client_message_type_id msg_id,
-             const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
-        print_message_to_consoles(">>>> SEND ", msg);
-
+      [](xcl::XProtocol *protocol,
+         const xcl::XProtocol::Client_message_type_id msg_id,
+         const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
         DBUG_LOG("debug", "log message "
                               << "send: " << msg);
-        /** None of processed messages should be filtered out*/
         return xcl::Handler_result::Continue;
       });
 }
@@ -346,6 +340,26 @@ void Session_holder::remove_notice_handler() {
   if (m_handler_id >= 0) {
     m_session->get_protocol().remove_notice_handler(m_handler_id);
   }
+}
+
+xcl::Handler_result Session_holder::trace_send_messages(
+    xcl::XProtocol *protocol,
+    const xcl::XProtocol::Client_message_type_id msg_id,
+    const xcl::XProtocol::Message &msg) {
+  print_message(">>>> SEND ", msg);
+
+  /** None of processed messages should be filtered out*/
+  return xcl::Handler_result::Continue;
+}
+
+xcl::Handler_result Session_holder::trace_received_messages(
+    xcl::XProtocol *protocol,
+    const xcl::XProtocol::Server_message_type_id msg_id,
+    const xcl::XProtocol::Message &msg) {
+  print_message("<<<< RECEIVE ", msg);
+
+  /** None of processed messages should be filtered out*/
+  return xcl::Handler_result::Continue;
 }
 
 xcl::Handler_result Session_holder::count_received_messages(
@@ -408,23 +422,11 @@ xcl::Handler_result Session_holder::dump_notices(const xcl::XProtocol *protocol,
   return xcl::Handler_result::Continue;
 }
 
-void Session_holder::print_message_to_consoles(
-    const std::string &direction, const xcl::XProtocol::Message &msg) {
-  const auto message_size = get_message_size(msg);
-  const auto is_msg_too_big =
-      message_size > k_maximum_size_of_message_in_flow_history;
-
-  if (m_enable_tracing_in_console) {
-    if (is_msg_too_big)
-      print_message(m_console, direction + " BIG ", message_size,
-                    msg.GetTypeName());
-    else
-      print_message(m_console, direction, message_size, msg);
-  }
-
-  if (is_msg_too_big)
-    print_message(m_console_with_flow_history, direction + " BIG ",
-                  message_size, msg.GetTypeName());
-  else
-    print_message(m_console_with_flow_history, direction, message_size, msg);
+void Session_holder::print_message(const std::string &direction,
+                                   const xcl::XProtocol::Message &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  m_console.print(direction, msg.ByteSizeLong() + 1, " ", msg);
+#else
+  m_console.print(direction, msg.ByteSize() + 1, " ", msg);
+#endif
 }

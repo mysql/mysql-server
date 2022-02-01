@@ -191,16 +191,19 @@ void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
 
 Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
   DBUG_TRACE;
+  THD *thd = nullptr;
   Transaction_write_set *result_set = nullptr;
   Find_thd_with_id find_thd_with_id(m_thread_id);
 
-  THD_ptr thd_ptr =
-      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd_ptr) {
+  thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd) {
     Rpl_transaction_write_set_ctx *transaction_write_set_ctx =
-        thd_ptr->get_transaction()->get_transaction_write_set_ctx();
+        thd->get_transaction()->get_transaction_write_set_ctx();
     int write_set_size = transaction_write_set_ctx->get_write_set()->size();
-    if (write_set_size == 0) return nullptr;
+    if (write_set_size == 0) {
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
+      return nullptr;
+    }
 
     result_set = (Transaction_write_set *)my_malloc(
         key_memory_write_set_extraction, sizeof(Transaction_write_set), MYF(0));
@@ -215,6 +218,7 @@ Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
       uint64 temp = *it;
       result_set->write_set[result_set_index++] = temp;
     }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
   return result_set;
 }

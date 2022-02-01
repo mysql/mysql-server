@@ -53,55 +53,33 @@ using std::string;
   when joining a row from some other table against this one, 25% of the records
   will match (equal distribution, zero correlation).
 
-  If there are multiple ones, we choose the one with the largest
-  selectivity (least selective). There are two main reasons for this:
-
-   - Databases generally tend to underestimate join cardinality
-     (due to assuming uncorrelated relations); if we're wrong, it would
-     better be towards overestimation to try to compensate.
-   - Overestimating the number of rows generally leads to safer choices
-     that are a little slower for few rows (e.g., hash join).
-     Underestimating, however, leads to choices that can be catastrophic
-     for many rows (e.g., nested loop against table scans). We should
-     clearly prefer the least risky choice here.
-
   Returns -1.0 if no index was found. Lifted from
   Item_equal::get_filtering_effect.
  */
-static double EstimateFieldSelectivity(Field *field, string *trace) {
+static double EstimateFieldSelectivity(Field *field) {
   const TABLE *table = field->table;
-  double selectivity = -1.0;
   for (uint j = 0; j < table->s->keys; j++) {
     if (field->key_start.is_set(j) &&
         table->key_info[j].has_records_per_key(0)) {
-      double field_selectivity =
-          static_cast<double>(table->key_info[j].records_per_key(0)) /
-          table->file->stats.records;
-      if (trace != nullptr) {
-        *trace +=
-            StringPrintf(" - found candidate index %s with selectivity %f\n",
-                         table->key_info[j].name, field_selectivity);
-      }
-      selectivity = std::max(selectivity, field_selectivity);
+      double selectivity =
+          table->key_info[j].records_per_key(0) / table->file->stats.records;
+
+      /*
+        Since rec_per_key and rows_per_table are calculated at
+        different times, their values may not be in synch and thus
+        it is possible that cur_filter is greater than 1.0 if
+        rec_per_key is outdated. Force the filter to 1.0 in such
+        cases.
+       */
+      return std::min(selectivity, 1.0);
     }
   }
-
-  /*
-    Since rec_per_key and rows_per_table are calculated at
-    different times, their values may not be in synch and thus
-    it is possible that selectivity is greater than 1.0 if
-    rec_per_key is outdated. Force the filter to 1.0 in such
-    cases.
-   */
-  return std::min(selectivity, 1.0);
+  return -1.0;
 }
 
 /**
   For the given condition, to try estimate its filtering selectivity,
   on a 0..1 scale (where 1.0 lets all records through).
-
-  TODO(sgunders): In some cases, composite indexes might allow us to do better
-  for joins with multiple predicates.
  */
 double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // If the item is a true constant, we can say immediately whether it passes
@@ -113,84 +91,38 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
 
   // For field = field (e.g. t1.x = t2.y), we try to use index information
   // to find a better selectivity estimate. We look for indexes on both
-  // fields, and pick the least selective (see EstimateFieldSelectivity()
-  // for why).
+  // fields. If there are multiple ones, we arbitrarily choose the first one;
+  // we have no reason to believe that one is better than the other.
+  // (This means that t1.x = t2.y might get a different estimate from
+  // t2.y = t1.x, but at least we call EstimateSelectivity() only once per
+  // is only called once per join edge.)
+  //
+  // For get_filtering_effect(), there is similar code in Item_func_equal,
+  // but as we currently don't support multiple equalities in the hypergraph
+  // join optimizer, it will never be called.
   if (condition->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
     Item *left = eq->arguments()[0];
     Item *right = eq->arguments()[1];
     if (left->type() == Item::FIELD_ITEM && right->type() == Item::FIELD_ITEM) {
-      double selectivity = -1.0;
       for (Field *field : {down_cast<Item_field *>(left)->field,
                            down_cast<Item_field *>(right)->field}) {
-        selectivity =
-            std::max(selectivity, EstimateFieldSelectivity(field, trace));
-      }
-      if (selectivity >= 0.0) {
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                           ItemToString(condition).c_str(), selectivity);
+        double field_selectivity = EstimateFieldSelectivity(field);
+        if (field_selectivity >= 0.0) {
+          if (trace != nullptr) {
+            *trace += StringPrintf(
+                " - found an index in %s.%s for %s, selectivity = %.3f\n",
+                field->table->alias, field->field_name,
+                ItemToString(condition).c_str(), field_selectivity);
+          }
+          return field_selectivity;
         }
-        return selectivity;
       }
     }
   }
 
-  // For multi-equalities, we do the same thing. This is maybe surprising;
-  // one would think that there are more degrees of freedom with more joins.
-  // However, given that we want the cardinality of the join ABC to be the
-  // same no matter what the join order is and which predicates we select,
-  // we can see that
-  //
-  //   |ABC| = |A| * |B| * |C| * S_ab * S_ac
-  //   |ACB| = |A| * |C| * |B| * S_ac * S_bc
-  //
-  // (where S_ab means selectivity of joining A with B, etc.)
-  // which immediately gives S_ac = S_bc, and similar equations give
-  // S_ab = S_ac and so on.
-  //
-  // So all the selectivities in the multi-equality must be the same!
-  // However, if you go to a database with real-world data, you will see that
-  // they actually differ, despite the mathematics disagreeing.
-  // The mystery, however, is resolved when we realize where we've made a
-  // simplification; the _real_ cardinality is given by:
-  //
-  //   |ABC| = (|A| * |B| * S_ab) * |C| * S_{ab,c}
-  //
-  // The selectivity of joining AB with C is not the same as the selectivity
-  // of joining B with C (since the correlation, which we do not model,
-  // differs), but we've approximated the former by the latter. And when we do
-  // this approximation, we also collapse all the degrees of freedom, and can
-  // have only one selectivity.
-  //
-  // If we get more sophisticated cardinality estimation, e.g. by histograms
-  // or the likes, we need to revisit this assumption, and potentially adjust
-  // our model here.
-  if (condition->type() == Item::FUNC_ITEM &&
-      down_cast<Item_func *>(condition)->functype() ==
-          Item_func::MULT_EQUAL_FUNC) {
-    Item_equal *equal = down_cast<Item_equal *>(condition);
-
-    // These should have been expanded early, before we get here.
-    assert(equal->get_const() == nullptr);
-
-    double selectivity = -1.0;
-    for (Item_field &field : equal->get_fields()) {
-      selectivity =
-          std::max(selectivity, EstimateFieldSelectivity(field.field, trace));
-    }
-    if (selectivity >= 0.0) {
-      if (trace != nullptr) {
-        *trace += StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                               ItemToString(condition).c_str(), selectivity);
-      }
-      return selectivity;
-    }
-  }
-
-  // Index information did not help us, so use Item::get_filtering_effect().
+  // No such thing, so use Item::get_filtering_effect().
   //
   // There is a challenge in that the Item::get_filtering_effect() API
   // is intrinsically locked to the old join optimizer's way of thinking,

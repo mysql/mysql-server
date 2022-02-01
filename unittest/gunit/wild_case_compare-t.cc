@@ -29,7 +29,7 @@ namespace wild_case_compare_unittest {
 
 class WildCaseCompareTest : public ::testing::Test {
  protected:
-  WildCaseCompareTest() = default;
+  WildCaseCompareTest() {}
   static void TearDownTestCase() {}
 };
 

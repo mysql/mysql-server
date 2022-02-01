@@ -59,13 +59,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"
+#include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
@@ -242,8 +242,8 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
     unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-        thd, component_table, /*ignore_not_found_rows=*/false,
-        /*count_examined_rows=*/false);
+        thd, component_table, nullptr,
+        /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
     if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));

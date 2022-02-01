@@ -120,7 +120,7 @@ static inline void escape_str(const string &src, size_t start, size_t end,
     switch (src[i]) {
       case '`': /* Escape backtick character. */
         res += '`';
-        [[fallthrough]];
+        /* Fall through. */
       default:
         res += src[i];
     }

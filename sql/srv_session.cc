@@ -271,7 +271,7 @@ class Mutexed_map_thd_srv_session {
  public:
   class Do_Impl {
    public:
-    virtual ~Do_Impl() = default;
+    virtual ~Do_Impl() {}
     /**
       Work on the session
 
@@ -1144,6 +1144,48 @@ bool Srv_session::set_connection_type(enum_vio_type v_type) {
 }
 
 /**
+  Template class for scanning the thd list in the Global_THD_manager and
+  modifying and element from the list. This template is for functions that
+  need to change data of a THD without getting into races.
+
+  If the THD is found, a callback is executed under THD::Lock_thd_data.
+  A pointer to a member variable is passed as a second parameter to the
+  callback. The callback should store its result there.
+
+  After the search has been completed the result value can be obtained by
+  calling get_result().
+*/
+template <typename INPUT_TYPE>
+class Find_thd_by_id_with_callback_set : public Find_THD_Impl {
+ public:
+  typedef void (*callback_t)(THD *thd, INPUT_TYPE *result);
+
+  Find_thd_by_id_with_callback_set(my_thread_id t_id, callback_t cb,
+                                   INPUT_TYPE in)
+      : thread_id(t_id), callback(cb), input(in) {}
+
+  /**
+    Callback called for every THD in the thd_list.
+
+    When a thread is found the callback function passed to the constructor
+    is invoked under THD::Lock_thd_data
+  */
+  bool operator()(THD *thd) override {
+    if (thd->thread_id() == thread_id) {
+      MUTEX_LOCK(lock, &thd->LOCK_thd_data);
+      callback(thd, &input);
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  my_thread_id thread_id;
+  callback_t callback;
+  INPUT_TYPE input;
+};
+
+/**
   Callback for inspecting a THD object and modifying the peer_port member
 */
 static void set_client_port_in_thd(THD *thd, uint16_t *input) {
@@ -1159,10 +1201,9 @@ static void set_client_port_in_thd(THD *thd, uint16_t *input) {
   @param port  Port number
 */
 void Srv_session::set_client_port(uint16_t port) {
-  Find_thd_with_id find_thd_with_id(thd.thread_id());
-  THD_ptr thd_ptr =
-      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd_ptr) set_client_port_in_thd(thd_ptr.get(), &port);
+  Find_thd_by_id_with_callback_set<uint16_t> find_thd_with_id(
+      thd.thread_id(), set_client_port_in_thd, port);
+  Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
 }
 
 /**

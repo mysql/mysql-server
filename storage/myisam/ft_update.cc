@@ -223,7 +223,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *oldrec,
     error = _mi_ft_store(info, keynr, keybuf, new_word, pos);
 
 err:
-  info->ft_memroot.ClearForReuse();
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   return error;
 }
 
@@ -239,7 +239,7 @@ int _mi_ft_add(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *record,
   if ((wlist = _mi_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error = _mi_ft_store(info, keynr, keybuf, wlist, pos);
 
-  info->ft_memroot.ClearForReuse();
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_PRINT("exit", ("Return: %d", error));
   return error;
 }
@@ -256,7 +256,7 @@ int _mi_ft_del(MI_INFO *info, uint keynr, uchar *keybuf, const uchar *record,
   if ((wlist = _mi_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error = _mi_ft_erase(info, keynr, keybuf, wlist, pos);
 
-  info->ft_memroot.ClearForReuse();
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_PRINT("exit", ("Return: %d", error));
   return error;
 }

@@ -420,7 +420,7 @@ bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
     return true;
   }
   initid->max_length = length;
-  initid->maybe_null = true;
+  initid->maybe_null = 1;
   return false;
 }
 /**

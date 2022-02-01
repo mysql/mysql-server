@@ -50,7 +50,7 @@ class TcKeyFailConf {
   friend class TransporterFacade;
 
 public:
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 private:
   
   /**

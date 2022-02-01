@@ -363,7 +363,7 @@ Param_mysql_functions documentation_mysql_functions_param[] = {
     {"MAKE_SET", PASS},
     {"MAKEDATE", PASS},
     {"MAKETIME", PASS},
-    {"SOURCE_POS_WAIT", PASS},
+    {"MASTER_POS_WAIT", PASS},
     {"MATCH", FAIL},
     {"MAX", PASS},
     {"MBRContains", PASS},

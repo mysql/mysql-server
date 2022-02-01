@@ -60,8 +60,8 @@ public:
    * Max number of Ndb objects.  
    * (Ndb objects should not be shared by different threads.)
    */
-  static constexpr Uint32 MAX_NO_THREADS = 4711;
-  static constexpr Uint32 MAX_LOCKED_CLIENTS = 256;
+  STATIC_CONST( MAX_NO_THREADS = 4711 );
+  STATIC_CONST( MAX_LOCKED_CLIENTS = 256 );
   TransporterFacade(GlobalDictCache *cache);
   ~TransporterFacade() override;
 
@@ -368,9 +368,9 @@ private:
 private:
 
   struct ThreadData {
-    static constexpr Uint32 ACTIVE = (1 << 16) | 1;
-    static constexpr Uint32 INACTIVE = (1 << 16);
-    static constexpr Uint32 END_OF_LIST = MAX_NO_THREADS + 1;
+    STATIC_CONST( ACTIVE = (1 << 16) | 1 );
+    STATIC_CONST( INACTIVE = (1 << 16) );
+    STATIC_CONST( END_OF_LIST = MAX_NO_THREADS + 1 );
     
     ThreadData(Uint32 initialSize = 32);
     

@@ -424,6 +424,7 @@ extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 
+#define MY_UTF8MB3 "utf8"
 #define MY_UTF8MB4 "utf8mb4"
 
 /* declarations for simple charsets */
@@ -577,10 +578,10 @@ int my_wildcmp_mb_bin(const CHARSET_INFO *cs, const char *str,
                       const char *str_end, const char *wildstr,
                       const char *wildend, int escape, int w_one, int w_many);
 
-int my_strcasecmp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *s,
-                         const char *t);
+int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                         const char *s, const char *t);
 
-void my_hash_sort_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
+void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const uchar *key, size_t len, uint64 *nr1,
                          uint64 *nr2);
 

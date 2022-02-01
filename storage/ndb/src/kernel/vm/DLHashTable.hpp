@@ -189,14 +189,21 @@ private:
 template <typename P, typename M>
 inline
 DLMHashTable<P, M>::DLMHashTable(P & _pool)
-  : mask(0), hashValues(NULL), thePool(_pool)
-{}
+  : thePool(_pool)
+{
+  // Require user defined constructor on T since we fiddle
+  // with T's members
+  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
+
+  mask = 0;
+  hashValues = 0;
+}
 
 template <typename P, typename M>
 inline
 DLMHashTable<P, M>::~DLMHashTable()
 {
-  if (hashValues != NULL)
+  if (hashValues != 0)
     delete [] hashValues;
 }
 

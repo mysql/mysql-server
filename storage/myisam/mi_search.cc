@@ -179,7 +179,7 @@ err:
 
 int _mi_bin_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
                    uint key_len, uint comp_flag, uchar **ret_pos,
-                   uchar *buff [[maybe_unused]], bool *last_key) {
+                   uchar *buff MY_ATTRIBUTE((unused)), bool *last_key) {
   int start, mid, end, save_end;
   int flag = 0;
   uint totlength, nod_flag, not_used[2];
@@ -561,7 +561,7 @@ void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
       buff[0] = (uchar)pos;
       break;
     default:
-      my_abort(); /* impossible */
+      abort(); /* impossible */
   }
 } /* _mi_kpointer */
 
@@ -638,7 +638,7 @@ my_off_t _mi_rec_pos(MYISAM_SHARE *s, uchar *ptr) {
       if (pos == (my_off_t)(1 << 16) - 1) return HA_OFFSET_ERROR;
       break;
     default:
-      my_abort(); /* Impossible */
+      abort(); /* Impossible */
   }
   return ((s->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
               ? pos
@@ -676,7 +676,7 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
       mi_int2store(buff, (uint)pos);
       break;
     default:
-      my_abort(); /* Impossible */
+      abort(); /* Impossible */
   }
 } /* _mi_dpointer */
 
@@ -1262,9 +1262,9 @@ int _mi_search_last(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos) {
 /* Static length key */
 
 int _mi_calc_static_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                               const uchar *next_pos [[maybe_unused]],
-                               uchar *org_key [[maybe_unused]],
-                               uchar *prev_key [[maybe_unused]],
+                               const uchar *next_pos MY_ATTRIBUTE((unused)),
+                               uchar *org_key MY_ATTRIBUTE((unused)),
+                               uchar *prev_key MY_ATTRIBUTE((unused)),
                                const uchar *key, MI_KEY_PARAM *s_temp) {
   s_temp->key = key;
   return (int)(s_temp->totlength = keyinfo->keylength + nod_flag);
@@ -1273,10 +1273,10 @@ int _mi_calc_static_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
 /* Variable length key */
 
 int _mi_calc_var_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
-                            const uchar *next_pos [[maybe_unused]],
-                            uchar *org_key [[maybe_unused]],
-                            uchar *prev_key [[maybe_unused]], const uchar *key,
-                            MI_KEY_PARAM *s_temp) {
+                            const uchar *next_pos MY_ATTRIBUTE((unused)),
+                            uchar *org_key MY_ATTRIBUTE((unused)),
+                            uchar *prev_key MY_ATTRIBUTE((unused)),
+                            const uchar *key, MI_KEY_PARAM *s_temp) {
   s_temp->key = key;
   return (int)(s_temp->totlength = _mi_keylength(keyinfo, key) + nod_flag);
 }
@@ -1622,8 +1622,8 @@ int _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
 
 /* store key without compression */
 
-void _mi_store_static_key(MI_KEYDEF *keyinfo [[maybe_unused]], uchar *key_pos,
-                          MI_KEY_PARAM *s_temp) {
+void _mi_store_static_key(MI_KEYDEF *keyinfo MY_ATTRIBUTE((unused)),
+                          uchar *key_pos, MI_KEY_PARAM *s_temp) {
   memcpy(key_pos, s_temp->key, (size_t)s_temp->totlength);
 }
 
@@ -1639,8 +1639,8 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo [[maybe_unused]], uchar *key_pos,
     }                                        \
   }
 
-void _mi_store_var_pack_key(MI_KEYDEF *keyinfo [[maybe_unused]], uchar *key_pos,
-                            MI_KEY_PARAM *s_temp) {
+void _mi_store_var_pack_key(MI_KEYDEF *keyinfo MY_ATTRIBUTE((unused)),
+                            uchar *key_pos, MI_KEY_PARAM *s_temp) {
   uint length;
   uchar *start;
 
@@ -1687,8 +1687,8 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo [[maybe_unused]], uchar *key_pos,
 
 /* variable length key with prefix compression */
 
-void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo [[maybe_unused]], uchar *key_pos,
-                            MI_KEY_PARAM *s_temp) {
+void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo MY_ATTRIBUTE((unused)),
+                            uchar *key_pos, MI_KEY_PARAM *s_temp) {
   store_key_length_inc(key_pos, s_temp->ref_length);
   memcpy((char *)key_pos,
          pointer_cast<const char *>(s_temp->key) + s_temp->ref_length,

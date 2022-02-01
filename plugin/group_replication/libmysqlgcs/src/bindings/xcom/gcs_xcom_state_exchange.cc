@@ -86,7 +86,6 @@ uint64_t Xcom_member_state::get_encode_snapshot_size() const {
 
   return snapshot_size;
 }
-extern uint32_t get_my_xcom_id();
 
 bool Xcom_member_state::encode_header(uchar *buffer,
                                       uint64_t *buffer_len) const {
@@ -98,8 +97,7 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   uint64_t encoded_size = get_encode_header_size();
   unsigned char *slider = buffer;
 
-  MYSQL_GCS_LOG_TRACE("xcom_id %x Encoding header for exchangeable data.",
-                      get_my_xcom_id())
+  MYSQL_GCS_LOG_TRACE("Encoding header for exchangeable data.")
 
   if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
@@ -147,9 +145,8 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
   MYSQL_GCS_LOG_TRACE(
-      "xcom_id %x Encoded header for exchangeable data: (header)=%llu view_id "
-      "%s",
-      get_my_xcom_id(), static_cast<long long unsigned>(encoded_size),
+      "Encoded header for exchangeable data: (header)=%llu view_id %s",
+      static_cast<long long unsigned>(encoded_size),
       m_view_id->get_representation().c_str());
 
   return false;
@@ -164,8 +161,7 @@ bool Xcom_member_state::encode_snapshot(uchar *buffer,
   /* There is no snapshot information on protocol V1. */
   if (m_version == Gcs_protocol_version::V1) goto end;
 
-  MYSQL_GCS_LOG_TRACE("xcom_id %x Encoding snapshot for exchangeable data.",
-                      get_my_xcom_id())
+  MYSQL_GCS_LOG_TRACE("Encoding snapshot for exchangeable data.")
 
   if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
@@ -595,6 +591,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
    However, it will send an empty message anyway.
    */
   if (exchangeable_data_len > 0) {
+    uint64_t slider_total_len = 0;
     uint64_t slider_len = 0;
     for (auto it = exchangeable_data.begin(); it != it_ends; ++it) {
       auto &msg_data = (*it);
@@ -606,6 +603,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
             static_cast<long long unsigned>(slider_len));
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
+        slider_total_len += slider_len;
       }
     }
   }
@@ -1084,8 +1082,7 @@ Gcs_xcom_view_change_control::Gcs_xcom_view_change_control()
       m_joining_leaving_mutex(),
       m_current_view(nullptr),
       m_current_view_mutex(),
-      m_belongs_to_group(false),
-      m_finalized(false) {
+      m_belongs_to_group(false) {
   m_wait_for_view_cond.init(
       key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond);
   m_wait_for_view_mutex.init(
@@ -1225,7 +1222,3 @@ bool Gcs_xcom_view_change_control::is_joining() {
 
   return retval;
 }
-
-void Gcs_xcom_view_change_control::finalize() { m_finalized.store(true); }
-
-bool Gcs_xcom_view_change_control::is_finalized() { return m_finalized.load(); }

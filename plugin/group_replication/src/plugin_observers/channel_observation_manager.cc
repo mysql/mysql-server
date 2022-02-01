@@ -26,7 +26,7 @@
 #include "plugin/group_replication/include/observer_server_channels.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Channel_state_observer::~Channel_state_observer() = default;
+Channel_state_observer::~Channel_state_observer() {}
 
 Channel_observation_manager_list::Channel_observation_manager_list(
     MYSQL_PLUGIN plugin_info, uint num_managers)

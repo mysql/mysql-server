@@ -55,7 +55,7 @@ bool is_super_user() {
   return has_super_privilege;
 }
 
-File File_io::open(PSI_file_key file_data_key [[maybe_unused]],
+File File_io::open(PSI_file_key file_data_key MY_ATTRIBUTE((unused)),
                    const char *filename, int flags, myf myFlags) {
   File file = mysql_file_open(file_data_key, filename, flags, MYF(0));
   if (file < 0 && (myFlags & MY_WME)) {

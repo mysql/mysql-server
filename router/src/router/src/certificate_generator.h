@@ -37,6 +37,7 @@
 #include "dim.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/utils.h"
 
 enum class cert_errc {
   rsa_generation_failed,

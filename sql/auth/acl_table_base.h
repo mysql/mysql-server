@@ -47,7 +47,7 @@ class Acl_table {
       : m_thd(thd), m_table(table), m_operation(operation), m_error(0) {
     assert(m_table);
   }
-  virtual ~Acl_table() = default;
+  virtual ~Acl_table() {}
 
   /* Don't allow copy */
   Acl_table(const Acl_table &) = delete;

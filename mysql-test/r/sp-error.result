@@ -2872,10 +2872,10 @@ ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 # Case 6: Test case to validate comment string.
-ERROR HY000: Comment for stored routine 'test.p2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
-ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
-ERROR HY000: Comment for stored routine 'test.p2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
-ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
 # Cleanup
 #
 # Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT

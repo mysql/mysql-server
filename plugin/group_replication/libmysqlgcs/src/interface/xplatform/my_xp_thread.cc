@@ -38,15 +38,15 @@ native_thread_t *My_xp_thread_server::get_native_thread() {
   return &m_thread_handle->thread;
 }
 
-int My_xp_thread_server::create(PSI_thread_key key [[maybe_unused]],
+int My_xp_thread_server::create(PSI_thread_key key MY_ATTRIBUTE((unused)),
                                 const native_thread_attr_t *attr,
                                 native_start_routine func, void *arg) {
   return mysql_thread_create(key, m_thread_handle, attr, func, arg);
 }
 
-int My_xp_thread_server::create_detached(PSI_thread_key key [[maybe_unused]],
-                                         native_thread_attr_t *attr,
-                                         native_start_routine func, void *arg) {
+int My_xp_thread_server::create_detached(
+    PSI_thread_key key MY_ATTRIBUTE((unused)), native_thread_attr_t *attr,
+    native_start_routine func, void *arg) {
   native_thread_attr_t my_attr;
   bool using_my_attr = false;
 

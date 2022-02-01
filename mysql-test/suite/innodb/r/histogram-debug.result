@@ -32,7 +32,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[10, 0.1], [20, 0.2], [30, 0.3], [40, 0.4], [50, 0.5], [60, 0.6], [70, 0.7], [80, 0.8], [90, 0.9], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[10, 0.1], [20, 0.2], [30, 0.30000000000000004], [40, 0.4], [50, 0.5], [60, 0.6], [70, 0.7], [80, 0.7999999999999999], [90, 0.8999999999999999], [100, 0.9999999999999999]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -97,7 +97,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[10, 0.2], [20, 0.4], [30, 0.6], [40, 0.8], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[10, 0.2], [20, 0.4], [30, 0.6000000000000001], [40, 0.8], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 set global innodb_limit_optimistic_insert_debug = 0;
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
@@ -167,7 +167,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6000000000000001], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
 sampled_pages_read	3
@@ -183,7 +183,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6000000000000001], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 set global innodb_limit_optimistic_insert_debug = 0;
 SET DEBUG='-d,histogram_force_sampling';
@@ -273,7 +273,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'id'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	id	{"buckets": [[1, 0.2], [2, 0.4], [3, 0.6], [4, 0.8], [5, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	id	{"buckets": [[1, 0.2], [2, 0.4], [3, 0.6000000000000001], [4, 0.8], [5, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 SET DEBUG = "-d, sample_read_sample_half";
 DROP TABLE t1;
 #

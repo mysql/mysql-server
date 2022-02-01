@@ -39,6 +39,7 @@
 
 #define JAM_FILE_ID 388
 
+extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
   : m_fs(fs),
@@ -175,7 +176,7 @@ AsyncIoThread::run()
       }
       if (yield_flag)
       {
-        if (NdbThread_yield_rt(theThreadPtr, true))
+        if (NdbThread_yield_rt(theThreadPtr, TRUE))
         {
           m_real_time = false;
         }
@@ -185,7 +186,7 @@ AsyncIoThread::run()
     request = theMemoryChannelPtr->readChannel();
     if (!request || request->action == Request::end)
     {
-      DEBUG(g_eventLogger->info("Nothing read from Memory Channel in AsyncFile"));
+      DEBUG(ndbout_c("Nothing read from Memory Channel in AsyncFile"));
       theStartFlag = false;
       return;
     }//if
@@ -260,7 +261,7 @@ AsyncIoThread::run()
         return;
       }
     default:
-      DEBUG(g_eventLogger->info("Invalid Request"));
+      DEBUG(ndbout_c("Invalid Request"));
       abort();
       break;
     }//switch

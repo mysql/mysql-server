@@ -22,7 +22,7 @@
 
 #include "plugin/group_replication/include/handlers/event_cataloger.h"
 
-Event_cataloger::Event_cataloger() = default;
+Event_cataloger::Event_cataloger() {}
 
 int Event_cataloger::initialize() { return 0; }
 

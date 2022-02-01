@@ -39,7 +39,7 @@ class Error_capture {
   static std::string get_last_error();
 
  protected:
-  static const char *s_message;
+  static std::string s_message;
 };
 
 /*

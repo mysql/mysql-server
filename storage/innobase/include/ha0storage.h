@@ -54,8 +54,9 @@ is used.
                                         table
 @param[in]	initial_heap_bytes	initial heap's size
 @return own: hash storage */
-static inline ha_storage_t *ha_storage_create(ulint initial_heap_bytes,
-                                              ulint initial_hash_cells);
+UNIV_INLINE
+ha_storage_t *ha_storage_create(ulint initial_heap_bytes,
+                                ulint initial_hash_cells);
 
 /** Copies data into the storage and returns a pointer to the copy. If the
  same data chunk is already present, then pointer to it is returned.
@@ -104,19 +105,19 @@ const void *ha_storage_put_memlim(
 /** Empties a hash storage, freeing memory occupied by data chunks.
  This invalidates any pointers previously returned by ha_storage_put().
  The hash storage is not invalidated itself and can be used again. */
-static inline void ha_storage_empty(
-    ha_storage_t **storage); /*!< in/out: hash storage */
+UNIV_INLINE
+void ha_storage_empty(ha_storage_t **storage); /*!< in/out: hash storage */
 
 /** Frees a hash storage and everything it contains, it cannot be used after
  this call.
  This invalidates any pointers previously returned by ha_storage_put(). */
-static inline void ha_storage_free(
-    ha_storage_t *storage); /*!< in, own: hash storage */
+UNIV_INLINE
+void ha_storage_free(ha_storage_t *storage); /*!< in, own: hash storage */
 
 /** Gets the size of the memory used by a storage.
  @return bytes used */
-static inline ulint ha_storage_get_size(
-    const ha_storage_t *storage); /*!< in: hash storage */
+UNIV_INLINE
+ulint ha_storage_get_size(const ha_storage_t *storage); /*!< in: hash storage */
 
 #include "ha0storage.ic"
 

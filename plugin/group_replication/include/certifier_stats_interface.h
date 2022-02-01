@@ -27,7 +27,7 @@
 
 class Certifier_stats {
  public:
-  virtual ~Certifier_stats() = default;
+  virtual ~Certifier_stats() {}
   virtual ulonglong get_positive_certified() = 0;
   virtual ulonglong get_negative_certified() = 0;
   virtual ulonglong get_certification_info_size() = 0;

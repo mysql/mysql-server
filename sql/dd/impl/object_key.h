@@ -41,7 +41,7 @@ class Object_key {
   virtual String_type str() const = 0;
 
  public:
-  virtual ~Object_key() = default;
+  virtual ~Object_key() {}
 
   Object_key() = default;
   Object_key(const Object_key &) = default;

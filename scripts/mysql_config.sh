@@ -117,7 +117,7 @@ else
 fi
 
 # Create options 
-libs="-L$pkglibdir@RPATH_OPTION@"
+libs="@QUOTED_CMAKE_CXX_LINK_FLAGS@-L$pkglibdir@RPATH_OPTION@"
 libs="$libs -l@LIBMYSQL_OS_OUTPUT_NAME@ @CONFIG_CLIENT_LIBS@"
 
 cflags="-I$pkgincludedir @CFLAGS@"

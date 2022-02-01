@@ -36,7 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** This function poplulates a dict_index_t index memory structure with
  supplied information. */
-static inline void dict_mem_fill_index_struct(
+UNIV_INLINE
+void dict_mem_fill_index_struct(
     dict_index_t *index,    /*!< out: index to be filled */
     mem_heap_t *heap,       /*!< in: memory heap */
     const char *table_name, /*!< in: table name */

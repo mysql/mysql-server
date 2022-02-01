@@ -49,7 +49,7 @@ class SystemError {
   friend bool printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
     GCPStopDetected = 3,

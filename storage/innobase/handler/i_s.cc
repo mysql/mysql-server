@@ -561,21 +561,18 @@ static int fill_innodb_trx_from_cache(
     OK(field_store_string(fields[IDX_TRX_STATE], row->trx_state));
 
     /* trx_started */
-    OK(field_store_time_t(
-        fields[IDX_TRX_STARTED],
-        std::chrono::system_clock::to_time_t(row->trx_started)));
+    OK(field_store_time_t(fields[IDX_TRX_STARTED], (time_t)row->trx_started));
 
     /* trx_requested_lock_id */
     /* trx_wait_started */
-    if (row->trx_wait_started != std::chrono::system_clock::time_point{}) {
+    if (row->trx_wait_started != 0) {
       OK(field_store_string(fields[IDX_TRX_REQUESTED_LOCK_ID],
                             trx_i_s_create_lock_id(row->requested_lock_row,
                                                    lock_id, sizeof(lock_id))));
       /* field_store_string() sets it no notnull */
 
-      OK(field_store_time_t(
-          fields[IDX_TRX_WAIT_STARTED],
-          std::chrono::system_clock::to_time_t(row->trx_wait_started)));
+      OK(field_store_time_t(fields[IDX_TRX_WAIT_STARTED],
+                            (time_t)row->trx_wait_started));
       fields[IDX_TRX_WAIT_STARTED]->set_notnull();
     } else {
       fields[IDX_TRX_REQUESTED_LOCK_ID]->set_null();
@@ -897,19 +894,13 @@ static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
     mutex.  Thus, some operation in page0zip.cc could
     increment a counter between the time we read it and
     clear it.  We could introduce mutex protection, but it
-    could cause a measurable performance hit in
+    could cause a measureable performance hit in
     page0zip.cc. */
     table->field[1]->store(zip_stat->compressed, true);
     table->field[2]->store(zip_stat->compressed_ok, true);
-    table->field[3]->store(std::chrono::duration_cast<std::chrono::seconds>(
-                               zip_stat->compress_time)
-                               .count(),
-                           true);
+    table->field[3]->store(zip_stat->compressed_usec / 1000000, true);
     table->field[4]->store(zip_stat->decompressed, true);
-    table->field[5]->store(std::chrono::duration_cast<std::chrono::seconds>(
-                               zip_stat->decompress_time)
-                               .count(),
-                           true);
+    table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
 
     if (reset) {
       new (zip_stat) page_zip_stat_t();
@@ -1157,6 +1148,7 @@ static int i_s_cmp_per_index_fill_low(
   TABLE *table = tables->table;
   Field **fields = table->field;
   int status = 0;
+  int error;
 
   DBUG_TRACE;
 
@@ -1171,7 +1163,7 @@ static int i_s_cmp_per_index_fill_low(
   page_zip_stat_per_index_t snap(page_zip_stat_per_index);
   mutex_exit(&page_zip_stat_per_index_mutex);
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   page_zip_stat_per_index_t::iterator iter;
   ulint i;
@@ -1206,28 +1198,21 @@ static int i_s_cmp_per_index_fill_low(
 
     fields[IDX_COMPRESS_OPS_OK]->store(iter->second.compressed_ok, true);
 
-    fields[IDX_COMPRESS_TIME]->store(
-        std::chrono::duration_cast<std::chrono::seconds>(
-            iter->second.compress_time)
-            .count(),
-        true);
+    fields[IDX_COMPRESS_TIME]->store(iter->second.compressed_usec / 1000000,
+                                     true);
 
     fields[IDX_UNCOMPRESS_OPS]->store(iter->second.decompressed, true);
 
-    fields[IDX_UNCOMPRESS_TIME]->store(
-        std::chrono::duration_cast<std::chrono::seconds>(
-            iter->second.decompress_time)
-            .count(),
-        true);
+    fields[IDX_UNCOMPRESS_TIME]->store(iter->second.decompressed_usec / 1000000,
+                                       true);
 
-    auto error = schema_table_store_record2(thd, table, false);
-    if (error) {
-      dict_sys_mutex_exit();
+    if ((error = schema_table_store_record2(thd, table, false))) {
+      mutex_exit(&dict_sys->mutex);
       if (convert_heap_table_to_ondisk(thd, table, error) != 0) {
         status = 1;
         goto err;
       }
-      dict_sys_mutex_enter();
+      mutex_enter(&dict_sys->mutex);
     }
 
     /* Release and reacquire the dict mutex to allow other
@@ -1235,12 +1220,12 @@ static int i_s_cmp_per_index_fill_low(
     contents of INFORMATION_SCHEMA.innodb_cmp_per_index being
     inconsistent, but it is an acceptable compromise. */
     if (i % 1000 == 0) {
-      dict_sys_mutex_exit();
-      dict_sys_mutex_enter();
+      mutex_exit(&dict_sys->mutex);
+      mutex_enter(&dict_sys->mutex);
     }
   }
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 err:
 
   if (reset) {
@@ -1498,8 +1483,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
       if (reset) {
         /* This is protected by buf_pool->zip_free_mutex. */
         buf_pool->buddy_stat[x].relocated = 0;
-        buf_pool->buddy_stat[x].relocated_duration =
-            std::chrono::seconds::zero();
+        buf_pool->buddy_stat[x].relocated_usec = 0;
       }
     }
 
@@ -1513,10 +1497,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
       table->field[2]->store(buddy_stat->used, true);
       table->field[3]->store(zip_free_len_local[x], true);
       table->field[4]->store(buddy_stat->relocated, true);
-      table->field[5]->store(std::chrono::duration_cast<std::chrono::seconds>(
-                                 buddy_stat->relocated_duration)
-                                 .count(),
-                             true);
+      table->field[5]->store(buddy_stat->relocated_usec / 1000000, true);
 
       if (schema_table_store_record(thd, table)) {
         status = 1;
@@ -1914,11 +1895,9 @@ static int i_s_metrics_fill(
     /* If monitor has been enabled (no matter it is disabled
     or not now), fill METRIC_START_TIME and METRIC_TIME_ELAPSED
     field */
-    if (MONITOR_FIELD(count, mon_start_time) !=
-        std::chrono::system_clock::time_point{}) {
+    if (MONITOR_FIELD(count, mon_start_time)) {
       OK(field_store_time_t(fields[METRIC_START_TIME],
-                            std::chrono::system_clock::to_time_t(
-                                MONITOR_FIELD(count, mon_start_time))));
+                            (time_t)MONITOR_FIELD(count, mon_start_time)));
       fields[METRIC_START_TIME]->set_notnull();
 
       /* If monitor is enabled, the TIME_ELAPSED is the
@@ -1927,15 +1906,11 @@ static int i_s_metrics_fill(
       between time when monitor is enabled and time
       when it is disabled */
       if (MONITOR_IS_ON(count)) {
-        time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
-                        std::chrono::system_clock::now() -
-                        MONITOR_FIELD(count, mon_start_time))
-                        .count();
+        time_diff =
+            difftime(time(nullptr), MONITOR_FIELD(count, mon_start_time));
       } else {
-        time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
-                        MONITOR_FIELD(count, mon_stop_time) -
-                        MONITOR_FIELD(count, mon_start_time))
-                        .count();
+        time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
+                             MONITOR_FIELD(count, mon_start_time));
       }
 
       OK(fields[METRIC_TIME_ELAPSED]->store(time_diff));
@@ -1988,20 +1963,15 @@ static int i_s_metrics_fill(
         fields[METRIC_AVG_VALUE_START]->set_null();
       }
 
-      if (MONITOR_FIELD(count, mon_reset_time) !=
-          std::chrono::system_clock::time_point{}) {
+      if (MONITOR_FIELD(count, mon_reset_time)) {
         /* calculate the time difference since last
         reset */
         if (MONITOR_IS_ON(count)) {
-          time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
-                          std::chrono::system_clock::now() -
-                          MONITOR_FIELD(count, mon_reset_time))
-                          .count();
+          time_diff =
+              difftime(time(nullptr), MONITOR_FIELD(count, mon_reset_time));
         } else {
-          time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
-                          MONITOR_FIELD(count, mon_stop_time) -
-                          MONITOR_FIELD(count, mon_reset_time))
-                          .count();
+          time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
+                               MONITOR_FIELD(count, mon_reset_time));
         }
       } else {
         time_diff = 0;
@@ -2025,11 +1995,9 @@ static int i_s_metrics_fill(
 
       /* Display latest Monitor Reset Time only if Monitor
       counter is on. */
-      if (MONITOR_FIELD(count, mon_reset_time) !=
-          std::chrono::system_clock::time_point{}) {
+      if (MONITOR_FIELD(count, mon_reset_time)) {
         OK(field_store_time_t(fields[METRIC_RESET_TIME],
-                              std::chrono::system_clock::to_time_t(
-                                  MONITOR_FIELD(count, mon_reset_time))));
+                              (time_t)MONITOR_FIELD(count, mon_reset_time)));
         fields[METRIC_RESET_TIME]->set_notnull();
       } else {
         fields[METRIC_RESET_TIME]->set_null();
@@ -2038,11 +2006,9 @@ static int i_s_metrics_fill(
       /* Display the monitor status as "enabled" */
       OK(field_store_string(fields[METRIC_STATUS], "enabled"));
     } else {
-      if (MONITOR_FIELD(count, mon_stop_time) !=
-          std::chrono::system_clock::time_point{}) {
+      if (MONITOR_FIELD(count, mon_stop_time)) {
         OK(field_store_time_t(fields[METRIC_STOP_TIME],
-                              std::chrono::system_clock::to_time_t(
-                                  MONITOR_FIELD(count, mon_stop_time))));
+                              (time_t)MONITOR_FIELD(count, mon_stop_time)));
         fields[METRIC_STOP_TIME]->set_notnull();
       } else {
         fields[METRIC_STOP_TIME]->set_null();
@@ -2606,8 +2572,7 @@ static int i_s_fts_index_cache_fill_one_index(
 
   index_charset = index_cache->charset;
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(ut_malloc_nokey(conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Go through each word in the index cache */
@@ -2673,7 +2638,7 @@ static int i_s_fts_index_cache_fill_one_index(
     }
   }
 
-  ut::free(conv_str.f_str);
+  ut_free(conv_str.f_str);
 
   return 0;
 }
@@ -2916,7 +2881,7 @@ static void i_s_fts_index_table_free_one_fetch(
       fts_node_t *node;
 
       node = static_cast<fts_node_t *>(ib_vector_get(word->nodes, j));
-      ut::free(node->ilist);
+      ut_free(node->ilist);
     }
 
     fts_word_free(word);
@@ -3047,8 +3012,7 @@ static int i_s_fts_index_table_fill_one_index(
 
   index_charset = fts_index_get_charset(index);
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(ut_malloc_nokey(conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Iterate through each auxiliary table as described in
@@ -3096,7 +3060,7 @@ static int i_s_fts_index_table_fill_one_index(
   }
 
 func_exit:
-  ut::free(conv_str.f_str);
+  ut_free(conv_str.f_str);
   mem_heap_free(heap);
 
   return ret;
@@ -3336,7 +3300,7 @@ static int i_s_fts_config_fill(
     fts_config_get_value(trx, &fts_table, key_name, &value);
 
     if (allocated) {
-      ut::free(key_name);
+      ut_free(key_name);
     }
 
     OK(field_store_string(fields[FTS_CONFIG_KEY], fts_config_key[i]));
@@ -3468,7 +3432,7 @@ struct temp_table_info_t {
   unsigned m_space_id;
 };
 
-typedef std::vector<temp_table_info_t, ut::allocator<temp_table_info_t>>
+typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t>>
     temp_table_info_cache_t;
 
 /** Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
@@ -3529,6 +3493,7 @@ static int i_s_innodb_temp_table_info_fill_table(
     Item *)             /*!< in: condition (ignored) */
 {
   int status = 0;
+  dict_table_t *table = nullptr;
 
   DBUG_TRACE;
 
@@ -3545,8 +3510,9 @@ static int i_s_innodb_temp_table_info_fill_table(
   temp_table_info_cache_t all_temp_info_cache;
   all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
 
-  dict_sys_mutex_enter();
-  for (auto table : dict_sys->table_non_LRU) {
+  mutex_enter(&dict_sys->mutex);
+  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
+       table = UT_LIST_GET_NEXT(table_LRU, table)) {
     if (!table->is_temporary()) {
       continue;
     }
@@ -3557,11 +3523,13 @@ static int i_s_innodb_temp_table_info_fill_table(
 
     all_temp_info_cache.push_back(current_temp_table_info);
   }
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   /* Now populate the info to MySQL table */
-  for (const auto &info : all_temp_info_cache) {
-    status = i_s_innodb_temp_table_info_fill(thd, tables, &info);
+  temp_table_info_cache_t::const_iterator end = all_temp_info_cache.end();
+  for (temp_table_info_cache_t::const_iterator it = all_temp_info_cache.begin();
+       it != end; it++) {
+    status = i_s_innodb_temp_table_info_fill(thd, tables, &(*it));
     if (status) {
       break;
     }
@@ -3990,8 +3958,8 @@ static int i_s_innodb_buffer_stats_fill_table(
     return 0;
   }
 
-  pool_info = (buf_pool_info_t *)ut::zalloc_withkey(
-      UT_NEW_THIS_FILE_PSI_KEY, srv_buf_pool_instances * sizeof *pool_info);
+  pool_info = (buf_pool_info_t *)ut_zalloc_nokey(srv_buf_pool_instances *
+                                                 sizeof *pool_info);
 
   /* Walk through each buffer pool */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -4010,7 +3978,7 @@ static int i_s_innodb_buffer_stats_fill_table(
     }
   }
 
-  ut::free(pool_info);
+  ut_free(pool_info);
 
   return status;
 }
@@ -4307,7 +4275,7 @@ static int i_s_innodb_buffer_page_fill(
       case I_S_PAGE_TYPE_SDI: {
         index_id_t id(page_info->space_id, page_info->index_id);
 
-        dict_sys_mutex_enter();
+        mutex_enter(&dict_sys->mutex);
         index = dict_index_find(id);
       }
 
@@ -4325,7 +4293,7 @@ static int i_s_innodb_buffer_page_fill(
                                     index->name));
         }
 
-        dict_sys_mutex_exit();
+        mutex_exit(&dict_sys->mutex);
     }
 
     OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -4508,12 +4476,7 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->oldest_mod = bpage->get_oldest_lsn();
 
-    /* Note: this is not an UNIX timestamp, it is an arbitrary number, cut to
-    32bits. */
-    page_info->access_time =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            bpage->access_time - std::chrono::steady_clock::time_point{})
-            .count();
+    page_info->access_time = bpage->access_time;
 
     page_info->zip_ssize = bpage->zip.ssize;
 
@@ -4955,7 +4918,7 @@ static int i_s_innodb_buf_page_lru_fill(
       index_id_t id(page_info->space_id, page_info->index_id);
       const dict_index_t *index;
 
-      dict_sys_mutex_enter();
+      mutex_enter(&dict_sys->mutex);
       index = dict_index_find(id);
 
       if (index) {
@@ -4972,7 +4935,7 @@ static int i_s_innodb_buf_page_lru_fill(
                                   index->name));
       }
 
-      dict_sys_mutex_exit();
+      mutex_exit(&dict_sys->mutex);
     }
 
     OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -5377,7 +5340,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
   rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
@@ -5392,7 +5355,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     dd_process_dd_tables_rec_and_mtr_commit(heap, rec, &table_rec, dd_tables,
                                             &mdl_on_tab, &mtr);
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
@@ -5400,7 +5363,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
 
     if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
@@ -5429,7 +5392,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     dd_process_dd_partitions_rec_and_mtr_commit(heap, rec, &table_rec,
                                                 dd_tables, &mdl_on_tab, &mtr);
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
@@ -5437,7 +5400,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
 
     if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
@@ -5449,7 +5412,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
 
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   mem_heap_free(heap);
 
@@ -5681,7 +5644,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
   heap = mem_heap_create(1000);
 
   /* Prevent DDL to drop tables. */
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
   rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
                             &dd_tables);
@@ -5704,7 +5667,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
       ref_count = table_rec->get_ref_count();
     }
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tablestats(thd, table_rec, ref_count, tables->table);
@@ -5713,7 +5676,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
 
     if (table_rec != nullptr
 #ifdef UNIV_DEBUG
@@ -5729,7 +5692,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
 
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
@@ -5932,7 +5895,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
   /* Start scan the mysql.indexes */
@@ -5951,7 +5914,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     ret = dd_process_dd_indexes_rec(heap, rec, &index_rec, &mdl_on_tab, &parent,
                                     &mdl_on_parent, dd_indexes, &mtr);
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     if (ret) {
       i_s_dict_fill_innodb_indexes(thd, index_rec, tables->table);
@@ -5960,7 +5923,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
 
     if (index_rec != nullptr) {
       dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
@@ -5977,7 +5940,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
 
   mtr_commit(&mtr);
   dd_table_close(dd_indexes, thd, &mdl, true);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
@@ -6193,7 +6156,7 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
 static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
                          dict_table_t *dd_table, btr_pcur_t &pcur, mtr_t &mtr,
                          mem_heap_t *heap, bool is_partition) {
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
 
   while (rec) {
     dict_table_t *table_rec = nullptr;
@@ -6218,7 +6181,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       continue;
     }
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     /* For each column in the table, fill in innodb_columns. */
     dict_col_t *column = table_rec->cols;
@@ -6271,7 +6234,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
 
     /* Get the next record */
     mem_heap_empty(heap);
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
     dd_table_close(table_rec, thd, &mdl_on_tab, true);
     mtr_start(&mtr);
     rec = dd_getnext_system_rec(&pcur, &mtr);
@@ -6299,7 +6262,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   /* Scan mysql.tables table */
   mtr_start(&mtr);
@@ -6322,7 +6285,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
@@ -6480,7 +6443,7 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
   /* Start scan the mysql.columns */
@@ -6498,7 +6461,7 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     ret = dd_process_dd_virtual_columns_rec(
         heap, rec, &table_id, &pos, &base_pos, &n_row, dd_columns, &mtr);
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     if (ret) {
       for (ulint i = 0; i < n_row; i++) {
@@ -6510,14 +6473,14 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
     mtr_start(&mtr);
     rec = dd_getnext_system_rec(&pcur, &mtr);
   }
 
   mtr_commit(&mtr);
   dd_table_close(dd_columns, thd, &mdl, true);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
@@ -6791,9 +6754,9 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   char *filepath = fil_space_get_first_path(space_id);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   if (filepath == nullptr) {
     filepath = Fil_path::make_ibd_from_table_name(name);
@@ -6828,7 +6791,7 @@ static int i_s_dict_fill_innodb_tablespaces(
         break;
     }
 
-    ut::free(filepath);
+    ut_free(filepath);
   }
 
   if (file.m_total_size == static_cast<os_offset_t>(~0)) {
@@ -6874,7 +6837,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
   }
 
   heap = mem_heap_create(1000);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
   for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
@@ -6896,7 +6859,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
         &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     if (ret && space != 0) {
       i_s_dict_fill_innodb_tablespaces(
@@ -6907,13 +6870,13 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
     mtr_start(&mtr);
   }
 
   mtr_commit(&mtr);
   dd_table_close(dd_spaces, thd, &mdl, true);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
@@ -7072,7 +7035,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
   mem_heap_t *heap = mem_heap_create(1000);
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   mtr_t mtr;
 
@@ -7092,7 +7055,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
     mtr_commit(&mtr);
 
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
 
     if (ret) {
       i_s_fill_innodb_cached_indexes_row(thd, space_id, index_id,
@@ -7102,7 +7065,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record. */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
 
     mtr_start(&mtr);
 
@@ -7113,7 +7076,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
   dd_table_close(dd_indexes, thd, &mdl, true);
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   mem_heap_free(heap);
 

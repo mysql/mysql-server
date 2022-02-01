@@ -265,14 +265,14 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE col1 IN ("ag", "ef", "🍣");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` in ('ag','ef','?'))
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 NOT IN ("ag", "ef", "🍣");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` not in ('ag','ef','?'))
 DROP TABLE tbl_varchar;
 CREATE TABLE tbl_varchar (col1 VARCHAR(255));

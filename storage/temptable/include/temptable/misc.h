@@ -30,10 +30,10 @@ TempTable miscellaneous helper utilities declarations. */
 
 #include "my_compiler.h"
 
-#define TEMPTABLE_UNUSED [[maybe_unused]]
+#define TEMPTABLE_UNUSED MY_ATTRIBUTE((unused))
 
 #ifdef NDEBUG
-#define TEMPTABLE_UNUSED_NODBUG [[maybe_unused]]
+#define TEMPTABLE_UNUSED_NODBUG MY_ATTRIBUTE((unused))
 #else /* NDEBUG */
 #define TEMPTABLE_UNUSED_NODBUG
 #endif /* NDEBUG */

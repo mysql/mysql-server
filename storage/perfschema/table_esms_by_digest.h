@@ -47,7 +47,7 @@ class PFS_index_esms_by_digest : public PFS_engine_index {
         m_key_1("SCHEMA_NAME"),
         m_key_2("DIGEST") {}
 
-  ~PFS_index_esms_by_digest() override = default;
+  ~PFS_index_esms_by_digest() override {}
 
   virtual bool match(PFS_statements_digest_stat *pfs);
 
@@ -111,7 +111,7 @@ class table_esms_by_digest : public PFS_engine_table {
   table_esms_by_digest();
 
  public:
-  ~table_esms_by_digest() override = default;
+  ~table_esms_by_digest() override {}
 
  protected:
   int make_row(PFS_statements_digest_stat *);

@@ -2037,7 +2037,7 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath) {
         xpath->item = new Item_func_mul(prev, xpath->item);
         break;
       case MY_XPATH_LEX_DIV:
-        xpath->item = new Item_func_div_int(prev, xpath->item);
+        xpath->item = new Item_func_int_div(prev, xpath->item);
         break;
       case MY_XPATH_LEX_MOD:
         xpath->item = new Item_func_mod(prev, xpath->item);
@@ -2291,7 +2291,7 @@ bool Item_xml_str_func::resolve_type(THD *thd) {
     /* UCS2 is not supported */
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Character set '%s' is not supported by XPATH", MYF(0),
-                    replace_utf8_utf8mb3(collation.collation->csname));
+                    collation.collation->csname);
     return true;
   }
 

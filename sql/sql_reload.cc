@@ -46,8 +46,8 @@
 #include "sql/mysqld.h"                 // select_errors
 #include "sql/opt_costconstantcache.h"  // reload_optimizer_cost_constants
 #include "sql/query_options.h"
-#include "sql/rpl_replica.h"  // reset_slave
-#include "sql/rpl_source.h"   // reset_master
+#include "sql/rpl_master.h"   // reset_master
+#include "sql/rpl_slave.h"    // reset_slave
 #include "sql/sql_base.h"     // close_cached_tables
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // reset_mqh

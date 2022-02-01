@@ -25,7 +25,6 @@
 #include <ndb_global.h>
 
 #include <mgmapi.h>
-#include "mgmcommon/NdbMgm.hpp"
 #include <ndbd_exit_codes.h>
 
 #include <util/BaseString.hpp>
@@ -1970,7 +1969,7 @@ CommandInterpreter::executeShow(char* parameters)
     }
     NdbAutoPtr<char> ap1((char*)state);
 
-    const ndb_mgm::config_ptr conf(ndb_mgm_get_configuration(m_mgmsrv, 0));
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(m_mgmsrv, 0));
     if (!conf) {
       ndbout_c("Could not get configuration");
       printError();

@@ -25,16 +25,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-IF(BUILD_IS_SINGLE_CONFIG)
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_COMMAND} -E
-    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
-    COMMAND ${CMAKE_COMMAND} -E
-    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
-    COMMAND ${CMAKE_COMMAND} -E
-    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
-    )
-ELSE()
+IF(NOT BUILD_IS_SINGLE_CONFIG)
   FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
     EXECUTE_PROCESS(
       COMMAND ${CMAKE_COMMAND} -E
@@ -45,6 +36,15 @@ ELSE()
       make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log/harness
     )
   ENDFOREACH()
+ELSE()
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
+    COMMAND ${CMAKE_COMMAND} -E
+    make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
+  )
 ENDIF()
 
 ADD_SUBDIRECTORY(plugins)
@@ -52,7 +52,6 @@ ADD_SUBDIRECTORY(plugins)
 SET(TEST_MODULE harness)
 
 SET(TESTS
-  test_access_rights.cc
   test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
@@ -74,8 +73,6 @@ SET(TESTS
   test_string_utils.cc
   test_process_launcher.cc
   test_tcp_address.cc
-  test_config_builder.cc
-  test_event_state_tracker.cc
 )
 
 FOREACH(TEST ${TESTS})
@@ -122,14 +119,14 @@ ENDFOREACH()
 ADD_GOOGLETEST_FILE(test_net_ts_local.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS harness_net_ts
-  # TempDirectory
+  # TmpDir
   LIB_DEPENDS test-helpers
   )
 
 SET(TESTS
   test_stdx_bit.cc
   test_stdx_expected.cc
-  test_stdx_flags.cc
+  test_stdx_string_view.cc
   test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
@@ -169,7 +166,3 @@ ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
 MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
 ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
-
-MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(acl_cli harness-library)
-ADD_DEPENDENCIES(mysqlrouter_all acl_cli)

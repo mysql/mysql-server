@@ -184,10 +184,10 @@ err:
     case 3:
       while (files) (void)mi_close(m_info->open_tables[--files].table);
       my_free(m_info);
-      [[fallthrough]];
+      /* Fall through */
     case 2:
       end_io_cache(&file);
-      [[fallthrough]];
+      /* Fall through */
     case 1:
       (void)mysql_file_close(fd, MYF(0));
   }
@@ -324,10 +324,10 @@ err:
   switch (errpos) {
     case 3:
       my_free(m_info);
-      [[fallthrough]];
+      /* Fall through */
     case 2:
       end_io_cache(&file_cache);
-      [[fallthrough]];
+      /* Fall through */
     case 1:
       (void)mysql_file_close(fd, MYF(0));
   }

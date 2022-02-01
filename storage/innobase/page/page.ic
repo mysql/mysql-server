@@ -39,9 +39,9 @@ external tools. */
 
 #include "mach0data.h"
 /** Reads the given header field. */
-static inline ulint page_header_get_field(
-    const page_t *page, /*!< in: page */
-    ulint field)        /*!< in: PAGE_LEVEL, ... */
+UNIV_INLINE
+ulint page_header_get_field(const page_t *page, /*!< in: page */
+                            ulint field)        /*!< in: PAGE_LEVEL, ... */
 {
   ut_ad(page);
   ut_ad(field <= PAGE_INDEX_ID);
@@ -50,8 +50,8 @@ static inline ulint page_header_get_field(
 }
 /** Gets the number of records in the heap.
  @return number of user records */
-static inline ulint page_dir_get_n_heap(
-    const page_t *page) /*!< in: index page */
+UNIV_INLINE
+ulint page_dir_get_n_heap(const page_t *page) /*!< in: index page */
 {
   return (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }

@@ -2005,7 +2005,7 @@ EXECUTING:[11][EXECUTE ps1]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
@@ -5214,7 +5214,7 @@ EXECUTING:[11][EXECUTE ps1]
 			[meta][field] org table name: 
 			[meta][field] col name: 1
 			[meta][field] org col name: 
-			[meta][field] length: 2
+			[meta][field] length: 1
 			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0

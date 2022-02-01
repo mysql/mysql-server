@@ -1,6 +1,5 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
---source include/not_valgrind.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

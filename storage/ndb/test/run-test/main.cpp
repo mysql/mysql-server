@@ -22,8 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <time.h>
-
 #ifdef _WIN32
 #define DEFAULT_PREFIX "c:/atrt"
 #endif
@@ -1123,8 +1121,8 @@ int insert(const char *pair, Properties &p) {
  *
  * On success return a positive number with actual lines describing
  * the test case not counting blank lines and comments.
- * On end of file, it returns 0.
- * On failure, ERR_CORRUPT_TESTCASE is returned.
+ * On end of file it returns 0.
+ * On failure a nehative number is returned.
  */
 int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   Properties p;
@@ -1457,7 +1455,7 @@ bool gather_coverage_results(atrt_config &config,
       analyze_coverage_cmd.appfmt(" --test-case-no=%d", test_number);
       break;
     case coverage::Coverage::Testsuite:
-      [[fallthrough]];
+      /* Fall through */
     case coverage::Coverage::None:
       break;
   }
@@ -1688,17 +1686,16 @@ int check_testcase_file_main(int argc, char **argv) {
       int ntests = 0;
       int num_element_lines;
       while ((num_element_lines = read_test_case(f, line_num, tc_dummy)) > 0) {
-        if (num_element_lines == ERR_CORRUPT_TESTCASE) break;
         ntests++;
       }
-      // If line count is 0, it indicates end of file.
-      if (num_element_lines == ERR_CORRUPT_TESTCASE) {
+      // If line count does not change that indicates end of file.
+      if (num_element_lines >= 0) {
+        printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests,
+               line_num);
+      } else {
         ok = false;
         g_logger.critical("%s: Error at line %d (error %d)\n", argv[argi],
                           line_num, num_element_lines);
-      } else {
-        printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests,
-               line_num);
       }
       fclose(f);
     }

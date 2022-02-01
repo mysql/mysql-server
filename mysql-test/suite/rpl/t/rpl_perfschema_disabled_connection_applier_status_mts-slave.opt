@@ -1,2 +1,2 @@
---replica-parallel-workers=1 --replica-transaction-retries=0 --force-restart
+--slave-parallel-workers=1 --slave-transaction-retries=0 --force-restart
 --performance_schema=OFF

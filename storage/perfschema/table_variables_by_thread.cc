@@ -166,7 +166,8 @@ int table_variables_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_variables_by_thread::index_init(uint idx [[maybe_unused]], bool) {
+int table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                          bool) {
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();
 

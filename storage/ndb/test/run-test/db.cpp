@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NdbSleep.h>
 #include "atrt.hpp"
 
@@ -237,7 +236,7 @@ static bool populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
     const char* value;
     p->get(name, &value);
     MYSQL_BIND bind2[4];
-    std::memset(bind2, 0, sizeof(bind2));
+    bzero(bind2, sizeof(bind2));
     BINDI(bind2[0], &optid);
     BINDI(bind2[1], &proc_id);
     BINDS(bind2[2], name, &l0);
@@ -270,7 +269,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
     for (unsigned i = 0; i < config.m_hosts.size(); i++) {
       unsigned long l0;
       MYSQL_BIND bind[3];
-      std::memset(bind, 0, sizeof(bind));
+      bzero(bind, sizeof(bind));
       int id = (int)i;
       int port = config.m_hosts[i]->m_cpcd->getPort();
       BINDI(bind[0], &id);
@@ -301,7 +300,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
     for (unsigned i = 0; i < config.m_clusters.size(); i++) {
       unsigned long l0;
       MYSQL_BIND bind[2];
-      std::memset(bind, 0, sizeof(bind));
+      bzero(bind, sizeof(bind));
       int id = (int)i;
       BINDI(bind[0], &id);
       BINDS(bind[1], config.m_clusters[i]->m_name.c_str(), &l0);
@@ -345,7 +344,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
     for (unsigned i = 0; i < config.m_processes.size(); i++) {
       unsigned long l0, l1, l2;
       MYSQL_BIND bind[7];
-      std::memset(bind, 0, sizeof(bind));
+      bzero(bind, sizeof(bind));
       int id = (int)i;
       atrt_process* proc = config.m_processes[i];
       int host_id = find(proc->m_host, config.m_hosts);

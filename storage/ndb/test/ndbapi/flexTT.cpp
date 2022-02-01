@@ -693,7 +693,7 @@ createTables(Ndb* pMyNdb){
     MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
       
     if(MySchemaTransaction == NULL && 
-       (!error_handler(pMyNdb->getNdbError())))
+       (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
       
     MySchemaOp = MySchemaTransaction->getNdbSchemaOp();       

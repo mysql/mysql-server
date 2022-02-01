@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"      /* srv_tmp_space */
 #include "ibuf0ibuf.h"         /* IBUF_SPACE_ID */
 #include "ut0lock_free_hash.h" /* ut_lock_free_hash_t */
-#include "ut0new.h"            /* ut::new_withkey(), ut::delete_() */
+#include "ut0new.h"            /* UT_NEW(), UT_DELETE() */
 
 /** Per index buffer pool statistics - contains how many pages for each index
 are cached in the buffer pool(s). This is a key,value store where the key is
@@ -49,12 +49,12 @@ class buf_stat_per_index_t {
  public:
   /** Constructor. */
   buf_stat_per_index_t() {
-    m_store = ut::new_withkey<ut_lock_free_hash_t>(
-        ut::make_psi_memory_key(mem_key_buf_stat_per_index_t), 1024, true);
+    m_store =
+        UT_NEW(ut_lock_free_hash_t(1024, true), mem_key_buf_stat_per_index_t);
   }
 
   /** Destructor. */
-  ~buf_stat_per_index_t() { ut::delete_(m_store); }
+  ~buf_stat_per_index_t() { UT_DELETE(m_store); }
 
   /** Increment the number of pages for a given index with 1.
   @param[in]	id	id of the index whose count to increment */

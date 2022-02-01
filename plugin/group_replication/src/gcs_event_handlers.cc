@@ -37,7 +37,6 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
@@ -46,7 +45,6 @@
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
-#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 using std::vector;
 
@@ -716,11 +714,17 @@ void Plugin_gcs_events_handler::on_view_changed(
   }
 
   if (!is_leaving) {
+    std::string view_id_representation = "";
+    Gcs_view *view = gcs_module->get_current_view();
+    if (view != nullptr) {
+      view_id_representation = view->get_view_id().get_representation();
+      delete view;
+    }
     disable_read_mode_for_compatible_members();
     LogPluginErr(
         SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
         group_member_mgr->get_string_current_view_active_hosts().c_str(),
-        new_view.get_view_id().get_representation().c_str());
+        view_id_representation.c_str());
   } else {
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
   }
@@ -825,19 +829,6 @@ int Plugin_gcs_events_handler::update_group_info_manager(
   temporary_states->clear();
 
 err:
-  if (error) {
-    // Clean up temporary states.
-    std::set<Group_member_info *,
-             Group_member_info_pointer_comparator>::iterator
-        temporary_states_it;
-    for (temporary_states_it = temporary_states->begin();
-         temporary_states_it != temporary_states->end();
-         temporary_states_it++) {
-      delete (*temporary_states_it);
-    }
-    temporary_states->clear();
-  }
-
   assert(temporary_states->size() == 0);
   return error;
 }
@@ -868,31 +859,16 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     gcs_module->notify_of_view_change_end();
 
     /**
-     On the joining list there can be 3 types of members:
-      1) ONLINE/RECOVERING members coming from old views where this member
-         was not present;
-      2) new joining members that still have their status as OFFLINE;
-      3) old members that were expelled and did auto-rejoin, that have
-         their status as ERROR.
+     On the joining list there can be 2 types of members: online/recovering
+     members coming from old views where this member was not present and new
+     joining members that still have their status as offline.
 
-     As so, for members with state OFFLINE and ERROR, their state is changed
-     to RECOVERING after member compatibility with group is checked.
+     As so, for offline members, their state is changed to member_in_recovery
+     after member compatibility with group is checked.
     */
-#if !defined(NDEBUG)
-    if (autorejoin_module->is_autorejoin_ongoing()) {
-      assert(local_member_info->get_recovery_status() ==
-             Group_member_info::MEMBER_ERROR);
-    } else {
-      assert(local_member_info->get_recovery_status() ==
-             Group_member_info::MEMBER_OFFLINE);
-    }
-#endif
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
-    update_member_status(
-        new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
-        Group_member_info::MEMBER_ERROR, Group_member_info::MEMBER_END);
 
     /** Is an election running while I'm joining?*/
     primary_election_handler->set_election_running(
@@ -1040,23 +1016,15 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
   else if (number_of_joining_members > 0 ||
            (number_of_joining_members == 0 && number_of_leaving_members == 0)) {
     /**
-     On the joining list there can be 3 types of members:
-      1) ONLINE/RECOVERING members coming from old views where this member
-         was not present;
-      2) new joining members that still have their status as OFFLINE;
-      3) old members that were expelled and did auto-rejoin, that have
-         their status as ERROR.
+     On the joining list there can be 2 types of members: online/recovering
+     members coming from old views where this member was not present and new
+     joining members that still have their status as offline.
 
-     As so, for members with state OFFLINE and ERROR, their state is changed
-     to RECOVERING after member compatibility with group is checked.
+     As so, for offline members, their state is changed to member_in_recovery.
     */
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
-    update_member_status(
-        new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
-        Group_member_info::MEMBER_ERROR, Group_member_info::MEMBER_END);
-
     /**
      If not a joining member, all members should record on their own binlogs a
      marking event that identifies the frontier between the data the joining
@@ -1134,11 +1102,7 @@ bool Plugin_gcs_events_handler::is_member_on_vector(
 
 int Plugin_gcs_events_handler::process_local_exchanged_data(
     const Exchanged_data &exchanged_data, bool is_joining) const {
-  int error = 0;
   uint local_uuid_found = 0;
-  std::vector<std::string> exchanged_members_actions_serialized_configuration;
-  std::vector<std::string>
-      exchanged_replication_failover_channels_serialized_configuration;
 
   /*
   For now, we are only carrying Group Member Info on Exchangeable data
@@ -1214,79 +1178,9 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
 
       return 1;
     }
-
-    /*
-      Group wide configuration.
-    */
-    if (is_joining && local_member_info->in_primary_mode()) {
-      Group_member_info_manager_message message;
-
-      /* member actions */
-      const unsigned char *member_actions_serialized_configuration = nullptr;
-      size_t member_actions_serialized_configuration_length = 0;
-      bool error_get_member_actions = message.get_pit_data(
-          Group_member_info_manager_message::PIT_MEMBER_ACTIONS, data, length,
-          &member_actions_serialized_configuration,
-          &member_actions_serialized_configuration_length);
-
-      /*
-        Members from versions lower than 8.0.25 do not support member
-        actions, as such exchanged data will not contain configuration
-        from them.
-      */
-      if (!error_get_member_actions) {
-        exchanged_members_actions_serialized_configuration.push_back(
-            std::string(pointer_cast<const char *>(
-                            member_actions_serialized_configuration),
-                        member_actions_serialized_configuration_length));
-      }
-
-      /* replication failover configuration */
-      const unsigned char
-          *replication_failover_channels_serialized_configuration = nullptr;
-      size_t replication_failover_channels_serialized_configuration_length = 0;
-      bool error_get_replication_failover_channels = message.get_pit_data(
-          Group_member_info_manager_message::PIT_RPL_FAILOVER_CONFIGURATION,
-          data, length, &replication_failover_channels_serialized_configuration,
-          &replication_failover_channels_serialized_configuration_length);
-
-      if (!error_get_replication_failover_channels) {
-        exchanged_replication_failover_channels_serialized_configuration
-            .push_back(std::string(
-                pointer_cast<const char *>(
-                    replication_failover_channels_serialized_configuration),
-                replication_failover_channels_serialized_configuration_length));
-      }
-    }
   }
 
-  if (is_joining && local_member_info->in_primary_mode()) {
-    /*
-      A member that bootstraps a group is joining the group, thence it
-      does not add its configuration to the state exchange. In this
-      case there is nothing to do, the member configuration will be
-      preserved.
-      When the number of members is higher than one, then the existent
-      members will add their configuration on the state exchange.
-    */
-    if (exchanged_data.size() > 1) {
-      /*
-         We already know that this member will be a SECONDARY,
-         thence we can stop existing channels trying to start.
-      */
-      terminate_wait_on_start_process(
-          WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER);
-
-      my_thread_init();
-      error = member_actions_handler->replace_all_actions(
-          exchanged_members_actions_serialized_configuration);
-      error |= static_cast<int>(set_replication_failover_channels_configuration(
-          exchanged_replication_failover_channels_serialized_configuration));
-      my_thread_end();
-    }
-  }
-
-  return error;
+  return 0;
 }
 
 Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
@@ -1295,15 +1189,24 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
   std::string applier_retrieved_gtids;
   Replication_thread_api applier_channel("group_replication_applier");
 
-  Get_system_variable *get_system_variable = new Get_system_variable();
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
 
-  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
+  if (sql_command_interface->establish_session_connection(
+          PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR);
+    goto sending;
+    /* purecov: end */
+  }
+
+  if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
     goto sending;
     /* purecov: inspected */
   }
-  if (get_system_variable->get_server_gtid_purged(server_purged_gtids)) {
+  if (sql_command_interface->get_server_gtid_purged(server_purged_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_PURGED_EXTRACT_ERROR);
     goto sending;
@@ -1319,9 +1222,26 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
                                      applier_retrieved_gtids);
 sending:
 
-  delete get_system_variable;
+  delete sql_command_interface;
 
   std::vector<uchar> data;
+
+  /*
+    When a member is auto-rejoining, it starts in the ERROR state. Normally
+    the member would only change to the RECOVERY state when it was OFFLINE,
+    but we want the member to be in ERROR state when an auto-rejoin occurs,
+    so we force the change from ERROR to RECOVERY when the member is
+    undergoing an auto-rejoin procedure.
+    We do that change on the data exchange just before the view install, so
+    that when all members do receive the view on which this member joins
+    all do see the correct RECOVERY state.
+  */
+  if (autorejoin_module->is_autorejoin_ongoing() &&
+      !get_error_state_due_to_error_during_autorejoin()) {
+    group_member_mgr->update_member_status(
+        local_member_info->get_uuid(), Group_member_info::MEMBER_IN_RECOVERY,
+        m_notification_ctx);
+  }
 
   // alert joiners that an action or election is running
   local_member_info->set_is_group_action_running(
@@ -1333,63 +1253,6 @@ sending:
   Group_member_info_manager_message *group_info_message =
       new Group_member_info_manager_message(local_member_copy);
   group_info_message->encode(&data);
-
-  /*
-    Group wide configuration.
-
-    All members except the joining ones, need to send its local
-    configuration.
-  */
-  bool joining = (!plugin_is_group_replication_running() ||
-                  autorejoin_module->is_autorejoin_ongoing());
-
-#if !defined(NDEBUG)
-  /*
-    Simulate a member version lower than 8.0.25 which does not support
-    member actions, thence does not include its configuration on the
-    exchangeable data.
-  */
-  if (!joining && local_member_info->in_primary_mode()) {
-    my_thread_init();
-    DBUG_EXECUTE_IF(
-        "group_replication_skip_add_member_actions_to_exchangeable_data",
-        joining = true;);
-    my_thread_end();
-  }
-#endif
-
-  if (!joining && local_member_info->in_primary_mode()) {
-    std::string member_actions_serialized_configuration;
-    std::string replication_failover_channels_serialized_configuration;
-
-    my_thread_init();
-    bool error_reading_member_actions = member_actions_handler->get_all_actions(
-        member_actions_serialized_configuration);
-    bool error_reading_failover_channels_configuration =
-        get_replication_failover_channels_configuration(
-            replication_failover_channels_serialized_configuration);
-    my_thread_end();
-
-    if (error_reading_member_actions) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA);
-    }
-    if (error_reading_failover_channels_configuration) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILOVER_CONF_GET_EXCHANGEABLE_DATA);
-    }
-
-    /*
-      Even if there was a error reading the member actions, we send
-      a empty serialized configuration to allow the joining member
-      to distinguish between a invalid configuration and lower version
-      members that do not have configuration.
-    */
-    group_info_message->add_member_actions_serialized_configuration(
-        &data, member_actions_serialized_configuration);
-    group_info_message
-        ->add_replication_failover_channels_serialized_configuration(
-            &data, replication_failover_channels_serialized_configuration);
-  }
-
   delete group_info_message;
 
   Gcs_message_data *msg_data = new Gcs_message_data(0, data.size());
@@ -1748,24 +1611,6 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
                    (*all_members_it)->get_default_table_encryption());
       goto cleaning;
     }
-
-    if (local_member_info->get_view_change_uuid() !=
-        (*all_members_it)->get_view_change_uuid()) {
-      result = 1;
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_DIFF_FROM_GRP,
-                   local_member_info->get_view_change_uuid().c_str(),
-                   (*all_members_it)->get_view_change_uuid().c_str());
-      goto cleaning;
-    }
-
-    if (local_member_info->get_allow_single_leader() !=
-        (*all_members_it)->get_allow_single_leader()) {
-      result = 1;
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP,
-                   local_member_info->get_allow_single_leader(),
-                   (*all_members_it)->get_allow_single_leader());
-      goto cleaning;
-    }
   }
 
 cleaning:
@@ -1828,8 +1673,11 @@ void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
             local_member_info->get_member_version(), lowest_version);
     /* Some lower version left the group, now this member is new lowest
      * version. */
-    if (!local_member_info->in_primary_mode() &&
-        *joiner_compatibility_status == COMPATIBLE) {
+    if ((!local_member_info->in_primary_mode() &&
+         *joiner_compatibility_status == COMPATIBLE) ||
+        (local_member_info->in_primary_mode() &&
+         local_member_info->get_role() ==
+             Group_member_info::MEMBER_ROLE_PRIMARY)) {
       if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED);

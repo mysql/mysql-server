@@ -1133,14 +1133,13 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "pk = 18",
-                          "pk = 192"
+                          "18 <= pk <= 18",
+                          "192 <= pk <= 192"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": false,
-                        "in_memory": -1,
                         "rows": 2,
                         "cost": 1.21,
                         "chosen": true
@@ -1157,8 +1156,8 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                       "index": "PRIMARY",
                       "rows": 2,
                       "ranges": [
-                        "pk = 18",
-                        "pk = 192"
+                        "18 <= pk <= 18",
+                        "192 <= pk <= 192"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 2,
@@ -2834,14 +2833,14 @@ TRACE
                       "access_type": "ref",
                       "index": "<auto_key0>",
                       "rows": 1,
-                      "cost": 0.6,
+                      "cost": 0.35,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
                       "index": "<auto_key1>",
                       "rows": 1,
-                      "cost": 0.6,
+                      "cost": 0.35,
                       "chosen": false
                     },
                     {
@@ -2855,7 +2854,7 @@ TRACE
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 0.6,
+                "cost_for_plan": 0.35,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -2868,14 +2867,14 @@ TRACE
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 1,
-                          "cost": 0.6,
+                          "cost": 0.35,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 1,
-                          "cost": 0.6,
+                          "cost": 0.35,
                           "chosen": false
                         },
                         {
@@ -2889,7 +2888,7 @@ TRACE
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 1.2,
+                    "cost_for_plan": 0.7,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -2904,14 +2903,14 @@ TRACE
                       "access_type": "ref",
                       "index": "<auto_key0>",
                       "rows": 1,
-                      "cost": 0.6,
+                      "cost": 0.35,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
                       "index": "<auto_key1>",
                       "rows": 1,
-                      "cost": 0.6,
+                      "cost": 0.35,
                       "chosen": false
                     },
                     {
@@ -2925,7 +2924,7 @@ TRACE
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 0.6,
+                "cost_for_plan": 0.35,
                 "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */

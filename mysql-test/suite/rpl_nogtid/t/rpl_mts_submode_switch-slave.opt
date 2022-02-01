@@ -1,2 +1,1 @@
---replica-transaction-retries=0
---replica-preserve-commit-order=OFF
+--slave-parallel-workers=4 --slave-transaction-retries=0

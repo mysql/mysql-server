@@ -37,8 +37,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_query_attributes.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
-#include <mysql/components/services/mysql_system_variable.h>
-#include <mysql/components/services/table_access_service.h>
 
 // pfs services
 #include "storage/perfschema/pfs.h"
@@ -69,8 +67,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
 #include "mysql_string_service_imp.h"
-#include "mysql_system_variable_update_imp.h"
-#include "mysql_thd_attributes_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "security_context_imp.h"
@@ -87,8 +83,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_sink_perfschema.h"
-
-#include "table_access_service_impl.h"
 
 /* Implementation located in the mysql_server component. */
 extern SERVICE_TYPE(mysql_cond_v1)
@@ -121,10 +115,6 @@ dynamic_privilege_services_impl::register_privilege,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
 dynamic_privilege_services_impl::has_global_grant END_SERVICE_IMPLEMENTATION();
 
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_charset)
-mysql_string_imp::get_charset_utf8mb4,
-    mysql_string_imp::get_charset_by_name END_SERVICE_IMPLEMENTATION();
-
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
 mysql_string_imp::create,
     mysql_string_imp::destroy END_SERVICE_IMPLEMENTATION();
@@ -133,14 +123,9 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_case)
 mysql_string_imp::tolower,
     mysql_string_imp::toupper END_SERVICE_IMPLEMENTATION();
 
-/* Deprecated, use mysql_string_charset_converter. */
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_converter)
 mysql_string_imp::convert_from_buffer,
     mysql_string_imp::convert_to_buffer END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_charset_converter)
-mysql_string_imp::convert_from_buffer_v2,
-    mysql_string_imp::convert_to_buffer_v2 END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_character_access)
 mysql_string_imp::get_char,
@@ -157,18 +142,6 @@ mysql_string_imp::iterator_create, mysql_string_imp::iterator_get_next,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
 mysql_string_imp::is_upper, mysql_string_imp::is_lower,
     mysql_string_imp::is_digit END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_reset)
-mysql_string_imp::reset END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_append)
-mysql_string_imp::append END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_compare)
-mysql_string_imp::compare, END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_get_data_in_charset)
-mysql_string_imp::get_data END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
 log_builtins_imp::wellknown_by_type, log_builtins_imp::wellknown_by_name,
@@ -209,8 +182,8 @@ log_builtins_imp::wellknown_by_type, log_builtins_imp::wellknown_by_name,
     log_builtins_imp::parse_iso8601_timestamp,
 
     log_builtins_imp::open_errstream, log_builtins_imp::write_errstream,
-    log_builtins_imp::dedicated_errstream, log_builtins_imp::close_errstream,
-    log_builtins_imp::reopen_errstream END_SERVICE_IMPLEMENTATION();
+    log_builtins_imp::dedicated_errstream,
+    log_builtins_imp::close_errstream END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
 log_builtins_filter_imp::filter_ruleset_new,
@@ -405,31 +378,18 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_writer)
 Keyring_writer_service_impl::store,
     Keyring_writer_service_impl::remove END_SERVICE_IMPLEMENTATION();
 
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_string)
-mysql_system_variable_update_string_imp::set END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
-mysql_thd_attributes_imp::get,
-    mysql_thd_attributes_imp::set END_SERVICE_IMPLEMENTATION();
-
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
     PROVIDES_SERVICE(mysql_server, dynamic_privilege_register),
     PROVIDES_SERVICE(mysql_server, global_grants_check),
-    PROVIDES_SERVICE(mysql_server, mysql_charset),
     PROVIDES_SERVICE(mysql_server, mysql_string_factory),
     PROVIDES_SERVICE(mysql_server, mysql_string_case),
     PROVIDES_SERVICE(mysql_server, mysql_string_converter),
-    PROVIDES_SERVICE(mysql_server, mysql_string_charset_converter),
     PROVIDES_SERVICE(mysql_server, mysql_string_character_access),
     PROVIDES_SERVICE(mysql_server, mysql_string_byte_access),
     PROVIDES_SERVICE(mysql_server, mysql_string_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_string_ctype),
-    PROVIDES_SERVICE(mysql_server, mysql_string_reset),
-    PROVIDES_SERVICE(mysql_server, mysql_string_append),
-    PROVIDES_SERVICE(mysql_server, mysql_string_compare),
-    PROVIDES_SERVICE(mysql_server, mysql_string_get_data_in_charset),
     PROVIDES_SERVICE(mysql_server, log_builtins),
     PROVIDES_SERVICE(mysql_server, log_builtins_filter),
     PROVIDES_SERVICE(mysql_server, log_builtins_filter_debug),
@@ -488,9 +448,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v2), */
-    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v3), */
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
-    PROVIDES_SERVICE(performance_schema, psi_thread_v5),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
@@ -526,20 +484,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, keyring_component_metadata_query),
     PROVIDES_SERVICE(mysql_server, keyring_reader_with_status),
     PROVIDES_SERVICE(mysql_server, keyring_load),
-    PROVIDES_SERVICE(mysql_server, keyring_writer),
-    PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_string),
-
-    PROVIDES_SERVICE(mysql_server, table_access_factory_v1),
-    PROVIDES_SERVICE(mysql_server, table_access_v1),
-    PROVIDES_SERVICE(mysql_server, table_access_index_v1),
-    PROVIDES_SERVICE(mysql_server, table_access_scan_v1),
-    PROVIDES_SERVICE(mysql_server, table_access_update_v1),
-    PROVIDES_SERVICE(mysql_server, field_access_nullability_v1),
-    PROVIDES_SERVICE(mysql_server, field_integer_access_v1),
-    PROVIDES_SERVICE(mysql_server, field_varchar_access_v1),
-    PROVIDES_SERVICE(mysql_server, field_any_access_v1),
-    PROVIDES_SERVICE(mysql_server, mysql_thd_attributes),
-    END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, keyring_writer), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 
@@ -597,8 +542,8 @@ bool initialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) * *registry) {
   return false;
 }
 
-bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) * registry
-                                  [[maybe_unused]]) {
+bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
+                                  registry MY_ATTRIBUTE((unused))) {
 #ifdef WITH_MYSQL_COMPONENTS_TEST_DRIVER
   /* Normal server code path. Hence we need to deinitialize minimal chassis */
   if (minimal_chassis_deinit(registry, &COMPONENT_REF(mysql_server))) {

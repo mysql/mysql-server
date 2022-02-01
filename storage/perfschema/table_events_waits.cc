@@ -667,8 +667,8 @@ int table_events_waits_common::make_row(PFS_events_waits *wait) {
   normalizer->to_pico(wait->m_timer_start, timer_end, &m_row.m_timer_start,
                       &m_row.m_timer_end, &m_row.m_timer_wait);
 
-  m_row.m_name = safe_class->m_name.str();
-  m_row.m_name_length = safe_class->m_name.length();
+  m_row.m_name = safe_class->m_name;
+  m_row.m_name_length = safe_class->m_name_length;
 
   make_source_column(wait->m_source_file, wait->m_source_line, m_row.m_source,
                      sizeof(m_row.m_source), m_row.m_source_length);
@@ -936,9 +936,8 @@ void table_events_waits_current::reset_position(void) {
   m_next_pos.reset();
 }
 
-PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread,
-                                                       uint index_2
-                                                       [[maybe_unused]]) {
+PFS_events_waits *table_events_waits_current::get_wait(
+    PFS_thread *pfs_thread, uint index_2 MY_ATTRIBUTE((unused))) {
   PFS_events_waits *wait;
 
   /*
@@ -1021,7 +1020,8 @@ int table_events_waits_current::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_current::index_init(uint idx [[maybe_unused]], bool) {
+int table_events_waits_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                           bool) {
   PFS_index_events_waits *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);
@@ -1165,7 +1165,8 @@ int table_events_waits_history::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_waits_history::index_init(uint idx [[maybe_unused]], bool) {
+int table_events_waits_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                           bool) {
   PFS_index_events_waits *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);

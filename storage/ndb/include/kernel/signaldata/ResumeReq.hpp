@@ -43,7 +43,7 @@ class ResumeReq {
   friend class MgmtSrvr;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
 public:
   
@@ -64,7 +64,7 @@ class ResumeRef {
   friend class Ndbcntr;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
   enum ErrorCode {
     OK = 0,

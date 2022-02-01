@@ -25,7 +25,6 @@
 
 #include <ndb_global.h>
 #include <NdbTick.h>
-#include <EventLogger.hpp>
 
 #define NANOSEC_PER_SEC  1000000000
 #define MICROSEC_PER_SEC 1000000
@@ -82,9 +81,9 @@ void NdbTick_Init()
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 
-  g_eventLogger->info(
-      "Failed to use CLOCK_REALTIME for clock_gettime, errno=%u.  Aborting",
-      errno);
+  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_gettime,"
+          " errno=%u.  Aborting\n", errno);
+  fflush(stderr);
   abort();
 
 #elif defined(_WIN32)
@@ -97,20 +96,20 @@ void NdbTick_Init()
   BOOL res = QueryPerformanceFrequency(&perf_frequency);
   if (!res)
   {
-    g_eventLogger->info(
-        "BEWARE: A suitable monotonic timer was not available"
-        " on this platform. ('QueryPerformanceFrequency()' failed). "
-        "This is not a suitable platform for this SW.");
+    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
+                    "this platform. ('QueryPerformanceFrequency()' failed)."
+                    "This is not a suitable platform for this SW.\n");
+    fflush(stderr);
     abort();
   }
   LARGE_INTEGER unused;
   res = QueryPerformanceCounter(&unused);
   if (!res)
   {
-    g_eventLogger->info(
-        "BEWARE: A suitable monotonic timer was not available on "
-        "this platform. ('QueryPerformanceCounter()' failed). "
-        "This is not a suitable platform for this SW.");
+    fprintf(stderr, "BEWARE: A suitable monotonic timer was not available on "
+                    "this platform. ('QueryPerformanceCounter()' failed)."
+                    "This is not a suitable platform for this SW.\n");
+    fflush(stderr);
     abort();
   }
   NdbDuration::tick_frequency = (Uint64)(perf_frequency.QuadPart);
@@ -173,20 +172,19 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 #ifndef NDBUG
   if (unlikely(res != 0))
   {
-    g_eventLogger->info("clock_gettime(%u, tp) failed, errno=%d",
-                        NdbTick_clk_id, errno);
+    fprintf(stderr, "clock_gettime(%u, tp) failed, errno=%d\n", 
+            NdbTick_clk_id, errno);
 #ifdef CLOCK_MONOTONIC
-    g_eventLogger->info("CLOCK_MONOTONIC=%u", CLOCK_MONOTONIC);
+    fprintf(stderr, "CLOCK_MONOTONIC=%u\n", CLOCK_MONOTONIC);
 #endif
 #ifdef  CLOCK_HIGHRES
-    g_eventLogger->info("CLOCK_HIGHRES=%u", CLOCK_HIGHRES);
+    fprintf(stderr, "CLOCK_HIGHRES=%u\n", CLOCK_HIGHRES);
 #endif
 #ifdef CLOCK_UPTIME_RAW
-    g_eventLogger->info("CLOCK_UPTIME_RAW=%u", CLOCK_UPTIME_RAW);
+    fprintf(stderr, "CLOCK_UPTIME_RAW=%u\n", CLOCK_UPTIME_RAW);
 #endif
-    g_eventLogger->info("CLOCK_REALTIME=%u", CLOCK_REALTIME);
-    g_eventLogger->info("NdbTick_clk_id = %u", NdbTick_clk_id);
-
+    fprintf(stderr, "CLOCK_REALTIME=%u\n", CLOCK_REALTIME);
+    fprintf(stderr, "NdbTick_clk_id = %u\n", NdbTick_clk_id);
     abort();
   }
 #endif

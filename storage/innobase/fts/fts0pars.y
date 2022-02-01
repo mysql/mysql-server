@@ -241,7 +241,7 @@ fts_lexer_create(
 	ulint		query_len)
 {
 	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
-		ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
+		ut_malloc_nokey(sizeof(fts_lexer_t)));
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
@@ -272,7 +272,7 @@ fts_lexer_free(
 		fts0tlex_destroy(fts_lexer->yyscanner);
 	}
 
-	ut::free(fts_lexer);
+	ut_free(fts_lexer);
 }
 
 /********************************************************************

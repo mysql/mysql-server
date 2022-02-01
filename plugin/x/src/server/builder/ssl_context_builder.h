@@ -35,7 +35,7 @@ namespace xpl {
 
 class Ssl_context_builder {
  public:
-  Ssl_context_builder() = default;
+  Ssl_context_builder() {}
 
   std::unique_ptr<iface::Ssl_context> get_result_context() const;
 

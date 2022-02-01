@@ -34,7 +34,7 @@ class File_writer final {
               bool backup_exists = false);
 
   /* Destructor */
-  ~File_writer() = default;
+  ~File_writer() {}
 
   /* Validity */
   bool valid() const { return valid_; }

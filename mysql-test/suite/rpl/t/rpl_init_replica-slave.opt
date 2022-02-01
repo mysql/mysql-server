@@ -1,1 +1,0 @@
---init-replica="set global max_connections=500"

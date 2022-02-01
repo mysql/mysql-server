@@ -54,7 +54,7 @@ class PFS_index_ews_by_host_by_event_name : public PFS_engine_index {
         m_key_1("HOST"),
         m_key_2("EVENT_NAME") {}
 
-  ~PFS_index_ews_by_host_by_event_name() override = default;
+  ~PFS_index_ews_by_host_by_event_name() override {}
 
   virtual bool match(PFS_host *pfs);
   virtual bool match_view(uint view);
@@ -133,7 +133,7 @@ class table_ews_by_host_by_event_name : public PFS_engine_table {
   table_ews_by_host_by_event_name();
 
  public:
-  ~table_ews_by_host_by_event_name() override = default;
+  ~table_ews_by_host_by_event_name() override {}
 
  protected:
   int make_row(PFS_host *host, PFS_instr_class *klass);

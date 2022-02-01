@@ -36,7 +36,7 @@
 #include <pwd.h>
 #endif
 
-Path::Path() = default;
+Path::Path() {}
 
 Path::Path(const std::string &s) { path(s); }
 

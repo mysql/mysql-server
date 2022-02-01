@@ -182,7 +182,7 @@ class Json_dom {
   void set_parent(Json_container *parent) { m_parent = parent; }
 
  public:
-  virtual ~Json_dom() = default;
+  virtual ~Json_dom() {}
 
   /**
     Allocate space on the heap for a Json_dom object.
@@ -1173,10 +1173,10 @@ class Json_wrapper {
   union {
     /// The DOM representation, only used if m_is_dom is true.
     struct {
-      Json_dom *m_value;
+      Json_dom *m_dom_value;
       /// If true, don't deallocate m_dom_value in destructor.
-      bool m_alias;
-    } m_dom;
+      bool m_dom_alias;
+    };
     /// The binary representation, only used if m_is_dom is false.
     json_binary::Value m_value;
   };
@@ -1195,7 +1195,10 @@ class Json_wrapper {
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_dom{nullptr, true}, m_is_dom(true) {}
+  Json_wrapper() : m_dom_value(nullptr), m_is_dom(true) {
+    // Workaround for Solaris Studio, initialize in CTOR body.
+    m_dom_alias = true;
+  }
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
@@ -1222,7 +1225,7 @@ class Json_wrapper {
     deallocated in the wrapper's destructor. Useful if one wants a wrapper
     around a DOM owned by someone else.
   */
-  void set_alias() { m_dom.m_alias = true; }
+  void set_alias() { m_dom_alias = true; }
 
   /**
     Wrap a binary value. Does not copy the underlying buffer, so
@@ -1273,7 +1276,7 @@ class Json_wrapper {
 
     @return true if the wrapper is empty.
   */
-  bool empty() const { return m_is_dom && !m_dom.m_value; }
+  bool empty() const { return m_is_dom && !m_dom_value; }
 
   /**
     Does this wrapper contain a DOM?
@@ -1299,7 +1302,7 @@ class Json_wrapper {
   */
   const Json_dom *get_dom() const {
     assert(m_is_dom);
-    return m_dom.m_value;
+    return m_dom_value;
   }
 
   /**
@@ -1371,7 +1374,7 @@ class Json_wrapper {
     @param[in] message If given, the JSON document is prefixed with
     this message.
   */
-  void dbug_print(const char *message [[maybe_unused]] = "") const;
+  void dbug_print(const char *message MY_ATTRIBUTE((unused)) = "") const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of

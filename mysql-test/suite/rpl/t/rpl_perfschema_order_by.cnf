@@ -1,15 +1,15 @@
 !include ../my.cnf
 
 [mysqld.1]
-log-replica-updates
+log-slave-updates
 
 [mysqld.2]
 master-info-repository=TABLE
 relay-log-info-repository=TABLE
-log-replica-updates
+log-slave-updates
 
 [mysqld.3]
-log-replica-updates
+log-slave-updates
 
 [ENV]
 SERVER_MYPORT_3=                @mysqld.3.port

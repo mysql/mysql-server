@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: mysqlcheck
+.\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLCHECK" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,7 @@ table, an attempt to check it produces this result:
 .RS 4
 .\}
 .nf
-$> \fBmysqlcheck test t\fR
+shell> \fBmysqlcheck test t\fR
 test\&.t
 note     : The storage engine for the table doesn\*(Aqt support check
 .fi
@@ -636,7 +636,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -678,7 +678,7 @@ is used\&. To create
 \&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -725,67 +725,6 @@ To explicitly specify that there is no password and that
 should not prompt for one, use the
 \fB\-\-skip\-password\fR
 option\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password1[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 1 of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
-\fBmysqlcheck\fR
-prompts for one\&. If given, there must be
-\fIno space\fR
-between
-\fB\-\-password1=\fR
-and the password following it\&. If no password option is specified, the default is to send no password\&.
-.sp
-Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
-.sp
-To explicitly specify that there is no password and that
-\fBmysqlcheck\fR
-should not prompt for one, use the
-\fB\-\-skip\-password1\fR
-option\&.
-.sp
-\fB\-\-password1\fR
-and
-\fB\-\-password\fR
-are synonymous, as are
-\fB\-\-skip\-password1\fR
-and
-\fB\-\-skip\-password\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password2[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 2 of the MySQL account used for connecting to the server\&. The semantics of this option are similar to the semantics for
-\fB\-\-password1\fR; see the description of that option for details\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-password3[=\fR\fB\fIpass_val\fR\fR\fB]\fR
-The password for multifactor authentication factor 3 of the MySQL account used for connecting to the server\&. The semantics of this option are similar to the semantics for
-\fB\-\-password1\fR; see the description of that option for details\&.
 .RE
 .sp
 .RS 4

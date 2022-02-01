@@ -45,8 +45,8 @@ enum SCHEMA_OP_TYPE {
   SOT_CREATE_DB = 5,
   SOT_ALTER_DB = 6,
   SOT_CLEAR_SLOCK = 7,
-  SOT_TABLESPACE = 8,     // Never sent since 8.0.14, still reserved
-  SOT_LOGFILE_GROUP = 9,  // Never sent since 8.0.14, still reserved
+  SOT_TABLESPACE = 8,
+  SOT_LOGFILE_GROUP = 9,
   SOT_RENAME_TABLE = 10,
   SOT_TRUNCATE_TABLE = 11,
   SOT_RENAME_TABLE_PREPARE = 12,
@@ -318,6 +318,9 @@ class Ndb_schema_dist_client {
   bool acl_notify(const char *db, const char *query, uint query_length,
                   bool participants_must_refresh);
   bool acl_notify(std::string user_list);
+
+  bool tablespace_changed(const char *tablespace_name, int id, int version);
+  bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
 
   bool create_tablespace(const char *tablespace_name, int id, int version);
   bool alter_tablespace(const char *tablespace_name, int id, int version);

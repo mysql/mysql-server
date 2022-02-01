@@ -35,7 +35,8 @@ class payload_s {
  public:
   payload_s(const char *a, const char *b, const char *c)
       : d1(a), d2(b), d3(c) {}
-  payload_s(const payload_s &other) = default;
+  payload_s(const payload_s &other)
+      : d1(other.d1), d2(other.d2), d3(other.d3) {}
   const char *d1;
   const char *d2;
   const char *d3;
@@ -45,7 +46,7 @@ typedef MyRcuLock<payload_s> MyRcuLockTest;
 
 class my_rcu_lock_test : public ::testing::Test {
  protected:
-  my_rcu_lock_test() = default;
+  my_rcu_lock_test() {}
 
   void SetUp() override {}
 

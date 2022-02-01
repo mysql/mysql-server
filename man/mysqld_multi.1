@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: mysqld_multi
+.\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLD_MULTI" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -310,7 +310,7 @@ options in the corresponding
 option group\&. These options indicate the name of the server that
 \fBmysqld_safe\fR
 should start and the path name of the directory where the server is located\&. (See the descriptions for these options in
-mysqld_safe(1)\&.) Example:
+\fBmysqld_safe\fR(1)\&.) Example:
 .sp
 .if n \{\
 .RS 4
@@ -492,7 +492,7 @@ account by executing the following commands for each server:
 .RS 4
 .\}
 .nf
-$> \fBmysql \-u root \-S /tmp/mysql\&.sock \-p\fR
+shell> \fBmysql \-u root \-S /tmp/mysql\&.sock \-p\fR
 Enter password:
 mysql> \fBCREATE USER \*(Aqmulti_admin\*(Aq@\*(Aqlocalhost\*(Aq IDENTIFIED BY \*(Aqmultipass\*(Aq;\fR
 mysql> \fBGRANT SHUTDOWN ON *\&.* TO \*(Aqmulti_admin\*(Aq@\*(Aqlocalhost\*(Aq;\fR

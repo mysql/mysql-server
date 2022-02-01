@@ -59,7 +59,7 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
 
   Parameter_impl(const Parameter_impl &src, Routine_impl *parent);
 
-  ~Parameter_impl() override = default;
+  ~Parameter_impl() override {}
 
  public:
   const Object_table &object_table() const override;

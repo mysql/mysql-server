@@ -36,11 +36,9 @@ char log_text[MAX_BUFFER_LENGTH];
 FILE *outfile;
 const char *filename = "test_component_sys_var_service_int.log";
 
-#define WRITE_LOG(format, lit_log_text)                                 \
-  log_text_len = sprintf(log_text, format, lit_log_text);               \
-  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
-      static_cast<size_t>(log_text_len))                                \
-    return true;
+#define WRITE_LOG(format, lit_log_text)                   \
+  log_text_len = sprintf(log_text, format, lit_log_text); \
+  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);

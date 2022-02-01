@@ -41,12 +41,6 @@ include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 [connection master]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-[connection master]
-SET GLOBAL binlog_encryption= OFF;
-[connection slave]
-SET GLOBAL binlog_encryption= OFF;
-SET GLOBAL keyring_operations= ON;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

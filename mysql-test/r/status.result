@@ -357,7 +357,7 @@ FLUSH STATUS;
 TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
 1
 set @@global.concurrent_insert= @old_concurrent_insert;
-SET GLOBAL log_output = 'FILE,TABLE';
+SET GLOBAL log_output = @old_log_output;
 #
 # Bug#28786951 SET LAST_QUERY_COST FOR QUERIES WITH SUBQUERIES AND UNIONS
 #
@@ -514,6 +514,3 @@ SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	9.664743
 DROP TABLE t1, t2;
-SET @@global.log_output = @old_log_output;
-SET @@global.general_log = @old_general_log;
-TRUNCATE TABLE mysql.general_log;

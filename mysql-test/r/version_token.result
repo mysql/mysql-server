@@ -255,9 +255,7 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
-AUDIT_ABORT_EXEMPT	Server Admin	
 AUDIT_ADMIN	Server Admin	
-AUTHENTICATION_POLICY_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
@@ -284,14 +282,12 @@ FLUSH_TABLES	Server Admin
 FLUSH_USER_RESOURCES	Server Admin	
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
-GROUP_REPLICATION_STREAM	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 INNODB_REDO_LOG_ARCHIVE	Server Admin	
 INNODB_REDO_LOG_ENABLE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
-PASSWORDLESS_USER_ADMIN	Server Admin	
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible

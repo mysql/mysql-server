@@ -60,7 +60,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
           (void)fprintf(stream, "%d", (uint)*key++);
           break;
         }
-        [[fallthrough]];
+        /* fall through */
       case HA_KEYTYPE_TEXT:
       case HA_KEYTYPE_NUM:
         if (keyseg->flag & HA_SPACE_PACK) {

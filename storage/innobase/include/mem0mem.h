@@ -34,15 +34,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define mem0mem_h
 
 #include "mach0data.h"
+#include "univ.i"
 #include "ut0byte.h"
 #include "ut0mem.h"
 #include "ut0rnd.h"
 
 #include <limits.h>
 
-#include <functional>
 #include <memory>
-#include <type_traits>
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
 
@@ -153,24 +152,26 @@ A single user buffer of 'size' will fit in the block.
 @param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline mem_heap_t *mem_heap_create_func(ulint size,
+UNIV_INLINE
+mem_heap_t *mem_heap_create_func(ulint size,
 #ifdef UNIV_DEBUG
-                                               const char *file_name,
-                                               ulint line,
+                                 const char *file_name, ulint line,
 #endif /* UNIV_DEBUG */
-                                               ulint type);
+                                 ulint type);
 
 /** Frees the space occupied by a memory heap.
 NOTE: Use the corresponding macro instead of this function.
 @param[in]	heap	Heap to be freed */
-static inline void mem_heap_free(mem_heap_t *heap);
+UNIV_INLINE
+void mem_heap_free(mem_heap_t *heap);
 
 /** Allocates and zero-fills n bytes of memory from a memory heap.
 @param[in]	heap	memory heap
 @param[in]	n	number of bytes; if the heap is allowed to grow into
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated, zero-filled storage */
-static inline void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
+UNIV_INLINE
+void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
 
 /** Allocates n bytes of memory from a memory heap.
 @param[in]	heap	memory heap
@@ -178,31 +179,36 @@ static inline void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline void *mem_heap_alloc(mem_heap_t *heap, ulint n);
+UNIV_INLINE
+void *mem_heap_alloc(mem_heap_t *heap, ulint n);
 
 /** Returns a pointer to the heap top.
 @param[in]	heap		memory heap
 @return pointer to the heap top */
-static inline byte *mem_heap_get_heap_top(mem_heap_t *heap);
+UNIV_INLINE
+byte *mem_heap_get_heap_top(mem_heap_t *heap);
 
 /** Frees the space in a memory heap exceeding the pointer given.
 The pointer must have been acquired from mem_heap_get_heap_top.
 The first memory block of the heap is not freed.
 @param[in]	heap		heap from which to free
 @param[in]	old_top		pointer to old top of heap */
-static inline void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top);
+UNIV_INLINE
+void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top);
 
 /** Empties a memory heap.
 The first memory block of the heap is not freed.
 @param[in]	heap		heap to empty */
-static inline void mem_heap_empty(mem_heap_t *heap);
+UNIV_INLINE
+void mem_heap_empty(mem_heap_t *heap);
 
 /** Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
 @param[in]	heap	memory heap
 @param[in]	n	size of the topmost element
 @return pointer to the topmost element */
-static inline void *mem_heap_get_top(mem_heap_t *heap, ulint n);
+UNIV_INLINE
+void *mem_heap_get_top(mem_heap_t *heap, ulint n);
 
 /** Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
@@ -211,8 +217,9 @@ that element from the heap.
 @param[in]	buf	presumed topmost element
 @param[in]	buf_sz	size of buf in bytes
 @return true if topmost */
-[[nodiscard]] static inline bool mem_heap_is_top(mem_heap_t *heap,
-                                                 const void *buf, ulint buf_sz);
+UNIV_INLINE
+bool mem_heap_is_top(mem_heap_t *heap, const void *buf, ulint buf_sz)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element. If the memory chunk specified with (top, top_sz) is the
@@ -224,8 +231,9 @@ and this function will be equivallent to mem_heap_alloc().
 @param[in]	new_sz	desired size of the new chunk
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline void *mem_heap_replace(mem_heap_t *heap, const void *top,
-                                     ulint top_sz, ulint new_sz);
+UNIV_INLINE
+void *mem_heap_replace(mem_heap_t *heap, const void *top, ulint top_sz,
+                       ulint new_sz);
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified data to it. If the memory chunk
@@ -239,9 +247,9 @@ mem_heap_dup().
 @param[in]	data_sz	size of data in bytes
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline void *mem_heap_dup_replace(mem_heap_t *heap, const void *top,
-                                         ulint top_sz, const void *data,
-                                         ulint data_sz);
+UNIV_INLINE
+void *mem_heap_dup_replace(mem_heap_t *heap, const void *top, ulint top_sz,
+                           const void *data, ulint data_sz);
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified string to it. If the memory chunk
@@ -254,28 +262,33 @@ mem_heap_strdup().
 @param[in]	str	new data to duplicate
 @return allocated string, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline char *mem_heap_strdup_replace(mem_heap_t *heap, const void *top,
-                                            ulint top_sz, const char *str);
+UNIV_INLINE
+char *mem_heap_strdup_replace(mem_heap_t *heap, const void *top, ulint top_sz,
+                              const char *str);
 
 /** Frees the topmost element in a memory heap.
 @param[in]	heap	memory heap
 @param[in]	n	size of the topmost element
 The size of the element must be given. */
-static inline void mem_heap_free_top(mem_heap_t *heap, ulint n);
+UNIV_INLINE
+void mem_heap_free_top(mem_heap_t *heap, ulint n);
 
 /** Returns the space in bytes occupied by a memory heap. */
-static inline ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
+UNIV_INLINE
+ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
 @param[in]	str	string to be copied
 @return own: a copy of the string, must be deallocated with ut_free */
-static inline char *mem_strdup(const char *str);
+UNIV_INLINE
+char *mem_strdup(const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string.
 @param[in]	str	string to be copied
 @param[in]	len	length of str, in bytes
 @return own: a copy of the string, must be deallocated with ut_free */
-static inline char *mem_strdupl(const char *str, ulint len);
+UNIV_INLINE
+char *mem_strdupl(const char *str, ulint len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap	memory heap where string is allocated
@@ -289,8 +302,8 @@ memory heap.
 @param[in]	str	string to be copied
 @param[in]	len	length of str, in bytes
 @return own: a copy of the string */
-static inline char *mem_heap_strdupl(mem_heap_t *heap, const char *str,
-                                     ulint len);
+UNIV_INLINE
+char *mem_heap_strdupl(mem_heap_t *heap, const char *str, ulint len);
 
 /** Concatenate two strings and return the result, using a memory heap.
  @return own: the result */
@@ -317,7 +330,8 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
 
 /** Checks that an object is a memory heap (or a block of it)
 @param[in]	heap	Memory heap to check */
-static inline void mem_block_validate(const mem_heap_t *heap);
+UNIV_INLINE
+void mem_block_validate(const mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
 
@@ -338,13 +352,15 @@ struct mem_block_info_t {
   char file_name[16]; /* file name where the mem heap was created */
   ulint line;         /*!< line number where the mem heap was created */
 #endif                /* UNIV_DEBUG */
-  /** This contains pointers to next and prev in the list. The first block
-  allocated to the heap is also the first block in this list,
-  though it also contains the base node of the list.*/
-  UT_LIST_NODE_T(mem_block_t) list;
-  /** In the first block of the list this is the base node of the list of
-  blocks; in subsequent blocks this is undefined */
-  UT_LIST_BASE_NODE_T_EXTERN(mem_block_t, list) base;
+  UT_LIST_BASE_NODE_T(mem_block_t)
+  base; /* In the first block in the
+the list this is the base node of the list of blocks;
+in subsequent blocks this is undefined */
+  UT_LIST_NODE_T(mem_block_t)
+  list;             /* This contains pointers to next
+  and prev in the list. The first block allocated
+  to the heap is also the first block in this list,
+  though it also contains the base node of the list. */
   ulint len;        /*!< physical length of this block in bytes */
   ulint total_size; /*!< physical length in bytes of all blocks
                 in the heap. This is defined only in the base
@@ -366,9 +382,6 @@ struct mem_block_info_t {
   pool, this contains the buf_block_t handle;
   otherwise, this is NULL */
 };
-/* We use the UT_LIST_BASE_NODE_T_EXTERN instead of simpler UT_LIST_BASE_NODE_T
-because DevStudio12.6 initializes the pointer-to-member offset to 0 otherwise.*/
-UT_LIST_NODE_GETTER_DEFINITION(mem_block_t, list)
 
 #define MEM_BLOCK_MAGIC_N 0x445566778899AABB
 #define MEM_FREED_BLOCK_MAGIC_N 0xBBAA998877665544
@@ -463,81 +476,5 @@ bool operator!=(const mem_heap_allocator<T> &left,
                 const mem_heap_allocator<T> &right) {
   return (left.get_mem_heap() != right.get_mem_heap());
 }
-
-/** Heap wrapper that destroys the heap instance when it goes out of scope. */
-struct Scoped_heap {
-  using Type = mem_heap_t;
-
-  /** Default constructor. */
-  Scoped_heap() : m_ptr(nullptr) {}
-
-  /** Constructs heap with a free space of specified size.
-  @param[in] n                  Initial size of the heap to allocate.
-  @param[in] file               File name from where called.
-  @param[in] line               Line number if filenane from where called. */
-  Scoped_heap(size_t n IF_DEBUG(, const char *file, int line)) noexcept
-      : m_ptr(
-            mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC)) {}
-
-  /** Destructor. */
-  ~Scoped_heap() = default;
-
-  /** Create the heap, it must not already be created.
-  @param[in] n                  Initial size of the heap to allocate.
-  @param[in] file               File name from where called.
-  @param[in] line               Line number if filenane from where called. */
-  void create(size_t n IF_DEBUG(, const char *file, int line)) noexcept {
-    ut_a(get() == nullptr);
-    auto ptr = mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC);
-    reset(ptr);
-  }
-
-  /** @return the heap pointer. */
-  Type *get() noexcept { return m_ptr.get(); }
-
-  /** Set the pointer to p.
-  @param[in] p                  New pointer value. */
-  void reset(Type *p) {
-    if (get() != p) {
-      m_ptr.reset(p);
-    }
-  }
-
-  /** Empty the heap. */
-  void clear() noexcept {
-    if (get() != nullptr) {
-      mem_heap_empty(get());
-    }
-  }
-
-  /** Allocate memory in the heap.
-  @param[in] n_bytes            Number of bytes to allocate.
-  @return pointer to allocated memory. */
-  void *alloc(size_t n_bytes) noexcept {
-    ut_ad(n_bytes > 0);
-    return mem_heap_alloc(get(), n_bytes);
-  }
-
- private:
-  /** A functor with no state to be used for mem_heap destruction. */
-  struct mem_heap_free_functor {
-    void operator()(mem_heap_t *heap) { mem_heap_free(heap); }
-  };
-
-  using Ptr = std::unique_ptr<Type, mem_heap_free_functor>;
-
-  /** Heap to use. */
-  Ptr m_ptr{};
-
-  Scoped_heap(Scoped_heap &&) = delete;
-  Scoped_heap(const Scoped_heap &) = delete;
-  Scoped_heap &operator=(Scoped_heap &&) = delete;
-  Scoped_heap &operator=(const Scoped_heap &) = delete;
-};
-
-#define HEAP_NEW_EMPTY(h) \
-  Scoped_heap h {}
-#define MEM_HEAP_CREATE(h, n) (h).create((n)IF_DEBUG(, __FILE__, __LINE__))
-#define MEM_HEAP_NEW(h, n) Scoped_heap h((n)IF_DEBUG(, __FILE__, __LINE__))
 
 #endif

@@ -44,21 +44,21 @@ COMMIT;
 --echo # ###########################################################
 --echo # Inject error during bulk insert
 
-SET debug = '+d,ddl_btree_build_too_big_record';
+SET debug = '+d,ib_btr_bulk_insert_inject_error';
 
 # Move table to general tablespace
 --replace_regex /not counting BLOBs, is [0-9]+/not counting BLOBs, is #value#/
 --error ER_TOO_BIG_ROWSIZE
 ALTER TABLE t1 TABLESPACE ts1;
 
-SET debug = '-d,ddl_btree_build_too_big_record';
+SET debug = '-d,ib_btr_bulk_insert_inject_error';
 
 FLUSH TABLES;
 
 --echo # ###########################################################
 --echo # Inject error during bulk reserve space
 
-SET debug = '+d,ddl_btree_build_oom';
+SET debug = '+d,ib_btr_bulk_prepare_space_error';
 
 # Move table to general tablespace
 --error ER_OUT_OF_RESOURCES
@@ -66,7 +66,7 @@ ALTER TABLE t1 TABLESPACE ts1;
 
 FLUSH TABLES;
 
-SET debug = '-d,ddl_btree_build_oom';
+SET debug = '-d,ib_btr_bulk_prepare_space_error';
 
 --echo # ###########################################################
 --echo # No error - check for final success

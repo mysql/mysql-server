@@ -27,6 +27,16 @@
 
 #include <memory>
 
+#ifdef __SUNPRO_CC
+// workaround sun-cc's error
+//
+//    Error: A is not a member of A.
+//
+// for 'using A::A' by disabling the default-init adaptor and go directly to the
+// allocator itself.
+template <class T>
+using default_init_allocator = std::allocator<T>;
+#else
 /**
  * allocator which leaves newly constructed fields "default initialized".
  *
@@ -59,5 +69,6 @@ class default_init_allocator : public A {
     a_t::construct(static_cast<A &>(*this), ptr, std::forward<Args>(args)...);
   }
 };
+#endif
 
 #endif

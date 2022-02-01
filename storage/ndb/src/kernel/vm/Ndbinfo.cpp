@@ -51,10 +51,8 @@ Ndbinfo::Row::check_buffer_space(AttributeHeader& ah) const
 
   if(needed > avail)
   {
-    g_eventLogger->info(
-        "Warning, too small row buffer for attribute: %d, "
-        "needed: %d, avail: %d",
-        ah.getAttributeId(), needed, avail);
+    ndbout_c("Warning, too small row buffer for attribute: %d, "
+             "needed: %d, avail: %d", ah.getAttributeId(), needed, avail);
     assert(false);
     return false; // Not enough room in row buffer
   }

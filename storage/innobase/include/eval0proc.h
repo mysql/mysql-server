@@ -40,7 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Performs an execution step of a procedure node.
  @return query thread to run next or NULL */
-static inline que_thr_t *proc_step(que_thr_t *thr); /*!< in: query thread */
+UNIV_INLINE
+que_thr_t *proc_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an if-statement node.
  @return query thread to run next or NULL */
 que_thr_t *if_step(que_thr_t *thr); /*!< in: query thread */
@@ -55,8 +56,8 @@ que_thr_t *for_step(que_thr_t *thr); /*!< in: query thread */
 que_thr_t *assign_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of a procedure call node.
  @return query thread to run next or NULL */
-static inline que_thr_t *proc_eval_step(
-    que_thr_t *thr); /*!< in: query thread */
+UNIV_INLINE
+que_thr_t *proc_eval_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an exit statement node.
  @return query thread to run next or NULL */
 que_thr_t *exit_step(que_thr_t *thr); /*!< in: query thread */

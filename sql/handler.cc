@@ -100,11 +100,11 @@
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"                       // RUN_HOOK
-#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
-#include "sql/rpl_rli.h"                // is_atomic_ddl_commit_on_slave
-#include "sql/rpl_write_set_handler.h"  // add_pke
-#include "sql/sdi_utils.h"              // import_serialized_meta_data
+#include "sql/rpl_handler.h"  // RUN_HOOK
+#include "sql/rpl_rli.h"      // is_atomic_ddl_commit_on_slave
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_write_set_handler.h"           // add_pke
+#include "sql/sdi_utils.h"                       // import_serialized_meta_data
 #include "sql/session_tracker.h"
 #include "sql/sql_base.h"  // free_io_cache
 #include "sql/sql_bitmap.h"
@@ -535,7 +535,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type) {
       if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
           (plugin = ha_lock_engine(thd, installed_htons[db_type])))
         return plugin_data<handlerton *>(plugin);
-      [[fallthrough]];
+      /* fall through */
     case DB_TYPE_UNKNOWN:
       return nullptr;
   }
@@ -828,7 +828,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin) {
       if (hton->prepare) total_ha_2pc++;
       break;
     }
-      [[fallthrough]];
+      /* fall through */
     default:
       hton->state = SHOW_OPTION_DISABLED;
       break;
@@ -1270,7 +1270,7 @@ void ha_pre_dd_shutdown(void) {
 
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
-                       const ulonglong *trxid [[maybe_unused]]) {
+                       const ulonglong *trxid MY_ATTRIBUTE((unused))) {
   Ha_trx_info *ha_info;
   Transaction_ctx *trn_ctx = thd->get_transaction();
   Transaction_ctx::enum_trx_scope trx_scope =
@@ -1310,15 +1310,15 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   trn_ctx->xid_state()->set_query_id(thd->query_id);
 /*
-        Register transaction start in performance schema if not done already.
-        By doing this, we handle cases when the transaction is started
-   implicitly in autocommit=0 mode, and cases when we are in normal autocommit=1
-   mode and the executed statement is a single-statement transaction.
+  Register transaction start in performance schema if not done already.
+  By doing this, we handle cases when the transaction is started implicitly in
+  autocommit=0 mode, and cases when we are in normal autocommit=1 mode and the
+  executed statement is a single-statement transaction.
 
-        Explicitly started transactions are handled in trans_begin().
+  Explicitly started transactions are handled in trans_begin().
 
-        Do not register transactions in which binary log is the only
-   participating transactional storage engine.
+  Do not register transactions in which binary log is the only participating
+  transactional storage engine.
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == nullptr && ht_arg->db_type != DB_TYPE_BINLOG &&
@@ -1522,15 +1522,15 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
 
   /*
     If the binary log is disabled for this thread (either by
-    log_bin=0 or sql_log_bin=0 or by log_replica_updates=0 for a
+    log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
     slave thread), then the statement will not be written to
     the binary log. In this case, we should save its GTID into
     mysql.gtid_executed table and @@GLOBAL.GTID_EXECUTED as it
     did when binlog is enabled.
 
     We also skip saving GTID into mysql.gtid_executed table and
-    @@GLOBAL.GTID_EXECUTED when replica-preserve-commit-order is enabled. We
-    skip as GTID will be saved in
+    @@GLOBAL.GTID_EXECUTED when slave-preserve-commit-order is enabled. We skip
+    as GTID will be saved in
     Commit_order_manager::flush_engine_and_signal_threads (invoked from
     Commit_order_manager::wait_and_finish). In particular, there is the
     following call stack under ha_commit_low which save GTID in case its skipped
@@ -1545,7 +1545,7 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
     We also skip saving GTID for intermediate commits i.e. when
     thd->is_operating_substatement_implicitly is enabled.
   */
-  if (thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
+  if (thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
       ending_trans(thd, all) && !thd->is_operating_gtid_table_implicitly &&
       !thd->is_operating_substatement_implicitly) {
     if (!has_commit_order_manager(thd) &&
@@ -1596,7 +1596,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   bool need_clear_owned_gtid = false;
   /*
     Save transaction owned gtid into table before transaction prepare
-    if binlog is disabled, or binlog is enabled and log_replica_updates
+    if binlog is disabled, or binlog is enabled and log_slave_updates
     is disabled with slave SQL thread or slave worker thread.
   */
   std::tie(error, need_clear_owned_gtid) = commit_owned_gtids(thd, all);
@@ -1617,12 +1617,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     enclosing 'all' transaction is rolled back.
   */
   bool is_real_trans = all || !trn_ctx->is_active(Transaction_ctx::SESSION);
-#ifndef NDEBUG
-  bool transaction_to_skip = false;
-  DBUG_EXECUTE_IF("replica_crash_after_commit", {
-    transaction_to_skip = is_already_logged_transaction(thd);
-  });
-#endif  // NDEBUG
+
   Ha_trx_info *ha_info = trn_ctx->ha_trx_info(trx_scope);
   XID_STATE *xid_state = trn_ctx->xid_state();
 
@@ -1668,7 +1663,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
       error = true;
       my_error(ER_UNKNOWN_ERROR, MYF(0));
     });
-    DBUG_EXECUTE_IF("replica_crash_before_commit", {
+    DBUG_EXECUTE_IF("slave_crash_before_commit", {
       /* This pre-commit crash aims solely at atomic DDL */
       DBUG_SUICIDE();
     });
@@ -1768,8 +1763,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     goto end;
   }
 /*
-        Mark multi-statement (any autocommit mode) or single-statement
-        (autocommit=1) transaction as rolled back
+  Mark multi-statement (any autocommit mode) or single-statement
+  (autocommit=1) transaction as rolled back
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (is_real_trans && thd->m_transaction_psi != nullptr) {
@@ -1801,7 +1796,7 @@ end:
     thd->server_status &= ~SERVER_STATUS_IN_TRANS;
     /*
       Release the owned GTID when binlog is disabled, or binlog is
-      enabled and log_replica_updates is disabled with slave SQL thread
+      enabled and log_slave_updates is disabled with slave SQL thread
       or slave worker thread.
     */
     if (error)
@@ -1814,7 +1809,7 @@ end:
     }
   }
   if (run_slave_post_commit) {
-    DBUG_EXECUTE_IF("replica_crash_after_commit", DBUG_SUICIDE(););
+    DBUG_EXECUTE_IF("slave_crash_after_commit", DBUG_SUICIDE(););
 
     thd->rli_slave->post_commit(error != 0);
     /*
@@ -1827,13 +1822,13 @@ end:
     */
     thd->server_status &= ~SERVER_STATUS_IN_TRANS;
   } else {
-    DBUG_EXECUTE_IF("replica_crash_after_commit", {
+    DBUG_EXECUTE_IF("slave_crash_after_commit", {
       if (thd->slave_thread && thd->rli_slave &&
           thd->rli_slave->current_event &&
           thd->rli_slave->current_event->get_type_code() ==
               binary_log::XID_EVENT &&
           !thd->is_operating_substatement_implicitly &&
-          !thd->is_operating_gtid_table_implicitly && !transaction_to_skip)
+          !thd->is_operating_gtid_table_implicitly)
         DBUG_SUICIDE();
     });
   }
@@ -1924,7 +1919,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
     */
     if ((!thd->is_operating_substatement_implicitly &&
          !thd->is_operating_gtid_table_implicitly &&
-         thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
+         thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
          ending_trans(thd, all)) ||
         Commit_order_manager::get_rollback_status(thd)) {
       if (Commit_order_manager::wait(thd)) {
@@ -3028,13 +3023,6 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos) {
   return result;
 }
 
-FT_INFO *handler::ft_init_ext(uint flags [[maybe_unused]],
-                              uint inx [[maybe_unused]],
-                              String *key [[maybe_unused]]) {
-  my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
-  return nullptr;
-}
-
 int handler::ha_ft_read(uchar *buf) {
   int result;
   DBUG_TRACE;
@@ -3053,8 +3041,7 @@ int handler::ha_ft_read(uchar *buf) {
 
 int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
                             int sampling_seed,
-                            enum_sampling_method sampling_method,
-                            const bool tablesample) {
+                            enum_sampling_method sampling_method) {
   DBUG_TRACE;
   assert(sampling_percentage >= 0.0);
   assert(sampling_percentage <= 100.0);
@@ -3065,7 +3052,7 @@ int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
   m_sampling_percentage = sampling_percentage;
 
   int result = sample_init(scan_ctx, sampling_percentage, sampling_seed,
-                           sampling_method, tablesample);
+                           sampling_method);
   inited = (result != 0) ? NONE : SAMPLING;
   return result;
 }
@@ -3099,14 +3086,16 @@ int handler::ha_sample_next(void *scan_ctx, uchar *buf) {
   return result;
 }
 
-int handler::sample_init(void *&scan_ctx [[maybe_unused]], double, int,
-                         enum_sampling_method, const bool) {
+int handler::sample_init(void *&scan_ctx MY_ATTRIBUTE((unused)), double, int,
+                         enum_sampling_method) {
   return rnd_init(true);
 }
 
-int handler::sample_end(void *scan_ctx [[maybe_unused]]) { return rnd_end(); }
+int handler::sample_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
+  return rnd_end();
+}
 
-int handler::sample_next(void *scan_ctx [[maybe_unused]], uchar *buf) {
+int handler::sample_next(void *scan_ctx MY_ATTRIBUTE((unused)), uchar *buf) {
   // Temporary set inited to RND, since we are calling rnd_next().
   int res = rnd_next(buf);
 
@@ -3930,11 +3919,11 @@ void handler::column_bitmaps_signal() {
   reserved to "positive infinite".
 */
 
-void handler::get_auto_increment(ulonglong offset [[maybe_unused]],
-                                 ulonglong increment [[maybe_unused]],
-                                 ulonglong nb_desired_values [[maybe_unused]],
-                                 ulonglong *first_value,
-                                 ulonglong *nb_reserved_values) {
+void handler::get_auto_increment(
+    ulonglong offset MY_ATTRIBUTE((unused)),
+    ulonglong increment MY_ATTRIBUTE((unused)),
+    ulonglong nb_desired_values MY_ATTRIBUTE((unused)), ulonglong *first_value,
+    ulonglong *nb_reserved_values) {
   ulonglong nr;
   int error;
   DBUG_TRACE;
@@ -4115,10 +4104,10 @@ bool handler::is_fatal_error(int error) {
   // Catch errors that are not fatal
   switch (error) {
     /*
-            Deadlock and lock timeout cause transaction/statement rollback so
-       that THD::is_fatal_sub_stmt_error will be set. This means that they will
-       not be possible to handle by stored program handlers inside stored
-       functions and triggers even if non-fatal.
+      Deadlock and lock timeout cause transaction/statement rollback so that
+      THD::is_fatal_sub_stmt_error will be set. This means that they will not
+      be possible to handle by stored program handlers inside stored functions
+      and triggers even if non-fatal.
     */
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
@@ -4437,8 +4426,8 @@ void handler::print_error(int error, myf errflag) {
   @return
     Returns true if this is a temporary error
 */
-bool handler::get_error_message(int error [[maybe_unused]],
-                                String *buf [[maybe_unused]]) {
+bool handler::get_error_message(int error MY_ATTRIBUTE((unused)),
+                                String *buf MY_ATTRIBUTE((unused))) {
   return false;
 }
 
@@ -4600,8 +4589,9 @@ int handler::delete_table(const char *name, const dd::Table *) {
 }
 
 int handler::rename_table(const char *from, const char *to,
-                          const dd::Table *from_table_def [[maybe_unused]],
-                          dd::Table *to_table_def [[maybe_unused]]) {
+                          const dd::Table *from_table_def
+                              MY_ATTRIBUTE((unused)),
+                          dd::Table *to_table_def MY_ATTRIBUTE((unused))) {
   int error = 0;
   const char **ext, **start_ext;
 
@@ -4898,7 +4888,8 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 */
 
 enum_alter_inplace_result handler::check_if_supported_inplace_alter(
-    TABLE *altered_table [[maybe_unused]], Alter_inplace_info *ha_alter_info) {
+    TABLE *altered_table MY_ATTRIBUTE((unused)),
+    Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
 
   HA_CREATE_INFO *create_info = ha_alter_info->create_info;
@@ -5016,8 +5007,6 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 
 /**
  * Loads a table into its defined secondary storage engine: public interface.
- * This call may downgrade the table lock. Do not make any assumptions on the
- * MDL.
  *
  * @param table The table to load into the secondary engine. Its read_set tells
  * which columns to load.
@@ -6001,7 +5990,7 @@ Cost_estimate handler::table_scan_cost() {
 }
 
 Cost_estimate handler::index_scan_cost(uint index,
-                                       double ranges [[maybe_unused]],
+                                       double ranges MY_ATTRIBUTE((unused)),
                                        double rows) {
   /*
     This function returns a Cost_estimate object. The function should be
@@ -6037,24 +6026,6 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows) {
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
-}
-
-double handler::page_read_cost(uint index [[maybe_unused]], double reads) {
-  return table->cost_model()->page_read_cost(reads);
-
-  /////////////////
-  // Other, non-page-based storage engine, may prefer to
-  // override to;
-  // return read_cost(index, 1, reads).total_cost();
-
-  // Longer term: We should avoid mixed usage of read_cost()
-  // and page_read_cost() from the optimizer. Use only
-  // one of these to get cost estimates comparable between different
-  // access methods and call paths.
-}
-
-double handler::worst_seek_times(double reads) {
-  return table->cost_model()->page_read_cost(reads);
 }
 
 /**
@@ -6120,11 +6091,10 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno) {
                   contain scan parameters.
 */
 
-ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                             void *seq_init_param,
-                                             uint n_ranges_arg [[maybe_unused]],
-                                             uint *bufsz, uint *flags,
-                                             Cost_estimate *cost) {
+ha_rows handler::multi_range_read_info_const(
+    uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param,
+    uint n_ranges_arg MY_ATTRIBUTE((unused)), uint *bufsz, uint *flags,
+    Cost_estimate *cost) {
   KEY_MULTI_RANGE range;
   range_seq_t seq_it;
   ha_rows rows, total_rows = 0;
@@ -6149,29 +6119,6 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       min_endp = range.start_key.length ? &range.start_key : nullptr;
       max_endp = range.end_key.length ? &range.end_key : nullptr;
     }
-
-    /*
-      Return HA_POS_ERROR if the specified keyno is not capable of
-      serving the specified range request. The cases checked for are:
-
-        1) The range contain NULL values and the specified index will
-           fallback to do a full table scan if it find NULLs in the keys.
-        2) The range does not specify all key parts and the key
-           cannot provide partial key searches.
-    */
-    if (range.range_flag & NULL_RANGE &&  // 1)
-        table->file->index_flags(keyno, 0, false) & HA_TABLE_SCAN_ON_NULL) {
-      // The NULL_RANGE will result in a full TABLE_SCAN, reject it.
-      return HA_POS_ERROR;
-    }
-    if (!(range.range_flag & EQ_RANGE) ||  // 2)
-        range.start_key.length < table->key_info[keyno].key_length) {
-      // A full EQ-range was not specified, reject if not OK by index.
-      if (index_flags(keyno, 0, false) & HA_ONLY_WHOLE_INDEX) {
-        return HA_POS_ERROR;
-      }
-    }
-
     /*
       Get the number of rows in the range. This is done by calling
       records_in_range() unless:
@@ -6206,6 +6153,17 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
             table->key_info[keyno].records_per_key(keyparts_used - 1));
       } else {
         /*
+          Return HA_POS_ERROR if the range does not use all key parts and
+          the key cannot use partial key searches.
+        */
+        if ((index_flags(keyno, 0, false) & HA_ONLY_WHOLE_INDEX)) {
+          assert(
+              (range.range_flag & EQ_RANGE) &&
+              !table->key_info[keyno].has_records_per_key(keyparts_used - 1));
+          total_rows = HA_POS_ERROR;
+          break;
+        }
+        /*
           Since records_in_range has not been called, set the rows to 1.
           FORCE INDEX has been used, cost model values will be ignored anyway.
         */
@@ -6214,19 +6172,17 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     } else {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
       assert(min_endp || max_endp);
-      rows = table->pos_in_table_list->is_derived_unfinished_materialization()
-                 ? HA_POS_ERROR
-                 : this->records_in_range(keyno, min_endp, max_endp);
-      if (rows == HA_POS_ERROR) {
+      if (HA_POS_ERROR ==
+          (rows = this->records_in_range(keyno, min_endp, max_endp))) {
         /* Can't scan one range => can't do MRR scan at all */
-        return HA_POS_ERROR;
+        total_rows = HA_POS_ERROR;
+        break;
       }
     }
     total_rows += rows;
   }
 
-  assert(total_rows != HA_POS_ERROR);
-  {
+  if (total_rows != HA_POS_ERROR) {
     const Cost_model_table *const cost_model = table->cost_model();
 
     /* The following calculation is the same as in multi_range_read_info(): */
@@ -6341,7 +6297,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 int handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
                                    void *seq_init_param, uint n_ranges,
                                    uint mode,
-                                   HANDLER_BUFFER *buf [[maybe_unused]]) {
+                                   HANDLER_BUFFER *buf MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   mrr_iter = seq_funcs->init(seq_init_param, n_ranges, mode);
   mrr_funcs = *seq_funcs;
@@ -6723,6 +6679,11 @@ int DsMrr_impl::dsmrr_fill_buffer() {
   */
   while ((rowids_buf_cur < rowids_buf_end) &&
          !(res = h2->handler::multi_range_read_next(&range_info))) {
+    KEY_MULTI_RANGE *curr_range = &h2->handler::mrr_cur_range;
+    if (h2->mrr_funcs.skip_index_tuple &&
+        h2->mrr_funcs.skip_index_tuple(h2->mrr_iter, curr_range->ptr))
+      continue;
+
     /* Put rowid, or {rowid, range_id} pair into the buffer */
     h2->position(table->record[0]);
     memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
@@ -6804,7 +6765,7 @@ end:
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost) {
-  ha_rows res [[maybe_unused]];
+  ha_rows res MY_ATTRIBUTE((unused));
   uint def_flags = *flags;
   uint def_bufsz = *bufsz;
 
@@ -7245,7 +7206,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 int handler::read_range_first(const key_range *start_key,
                               const key_range *end_key, bool eq_range_arg,
-                              bool sorted [[maybe_unused]]) {
+                              bool sorted MY_ATTRIBUTE((unused))) {
   int result;
   DBUG_TRACE;
 
@@ -7729,53 +7690,6 @@ static int write_locked_table_maps(THD *thd) {
   return 0;
 }
 
-/**
-  The purpose of an instance of this class is to :
-
-  1) Given a TABLE instance, backup the given TABLE::read_set, TABLE::write_set
-     and restore those members upon this instance disposal.
-
-  2) Store a reference to a dynamically allocated buffer and dispose of it upon
-     this instance disposal.
- */
-
-class Binlog_log_row_cleanup {
- public:
-  /**
-    This constructor aims to create temporary copies of readset and writeset.
-
-    @param table                 A pointer to TABLE object
-    @param temp_read_bitmap      Temporary BITMAP to store read_set.
-    @param temp_write_bitmap     Temporary BITMAP to store write_set.
-    */
-  Binlog_log_row_cleanup(TABLE &table, MY_BITMAP &temp_read_bitmap,
-
-                         MY_BITMAP &temp_write_bitmap)
-
-      : m_cleanup_table(table),
-        m_cleanup_read_bitmap(temp_read_bitmap),
-        m_cleanup_write_bitmap(temp_write_bitmap) {
-    bitmap_copy(&this->m_cleanup_read_bitmap, this->m_cleanup_table.read_set);
-    bitmap_copy(&this->m_cleanup_write_bitmap, this->m_cleanup_table.write_set);
-  }
-
-  /**
-    This destructor aims to restore the original readset and writeset and
-    delete the temporary copies.
-   */
-  virtual ~Binlog_log_row_cleanup() {
-    bitmap_copy(this->m_cleanup_table.read_set, &this->m_cleanup_read_bitmap);
-    bitmap_copy(this->m_cleanup_table.write_set, &this->m_cleanup_write_bitmap);
-    bitmap_free(&this->m_cleanup_read_bitmap);
-    bitmap_free(&this->m_cleanup_write_bitmap);
-  }
-
- private:
-  TABLE &m_cleanup_table;  // Creating a TABLE to get access to its members.
-  MY_BITMAP &m_cleanup_read_bitmap;   // Temporary bitmap to store read_set.
-  MY_BITMAP &m_cleanup_write_bitmap;  // Temporary bitmap to store write_set.
-};
-
 int binlog_log_row(TABLE *table, const uchar *before_record,
                    const uchar *after_record, Log_func *log_func) {
   bool error = false;
@@ -7784,34 +7698,15 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
   if (check_table_binlog_row_based(thd, table)) {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) {
       try {
-        MY_BITMAP save_read_set;
-        MY_BITMAP save_write_set;
-        if (bitmap_init(&save_read_set, NULL, table->s->fields) ||
-            bitmap_init(&save_write_set, NULL, table->s->fields)) {
-          my_error(ER_OUT_OF_RESOURCES, MYF(0));
-          return HA_ERR_RBR_LOGGING_FAILED;
-        }
-
-        Binlog_log_row_cleanup cleanup_sentry(*table, save_read_set,
-                                              save_write_set);
-
-        if (thd->variables.binlog_row_image == 0) {
-          for (uint key_number = 0; key_number < table->s->keys; ++key_number) {
-            if (((table->key_info[key_number].flags & (HA_NOSAME)) ==
-                 HA_NOSAME)) {
-              table->mark_columns_used_by_index_no_reset(key_number,
-                                                         table->read_set);
-              table->mark_columns_used_by_index_no_reset(key_number,
-                                                         table->write_set);
-            }
+        if (before_record && after_record) {
+          /* capture both images pke */
+          if (add_pke(table, thd, table->record[0]) ||
+              add_pke(table, thd, table->record[1])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
           }
-        }
-        std::array<const uchar *, 2> records{after_record, before_record};
-        for (auto rec : records) {
-          if (rec != nullptr) {
-            assert(rec == table->record[0] || rec == table->record[1]);
-            bool res = add_pke(table, thd, rec);
-            if (res) return HA_ERR_RBR_LOGGING_FAILED;
+        } else {
+          if (add_pke(table, thd, table->record[0])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
           }
         }
       } catch (const std::bad_alloc &) {

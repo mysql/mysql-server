@@ -50,8 +50,6 @@ create table t1 (a varchar(2) character set ucs2)
 partition by list columns (a)
 (partition p0 values in (0x2020),
 partition p1 values in (''));
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -62,6 +60,4 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN ('') ENGINE = ENGINE) */
 insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;

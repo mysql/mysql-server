@@ -170,11 +170,11 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	24
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	20
 Handler_read_prev	0
-Handler_read_rnd	20
+Handler_read_rnd	4
 Handler_read_rnd_next	4
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -187,21 +187,21 @@ EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ BKA(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -215,7 +215,7 @@ EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`QB1`) BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 set optimizer_switch='batched_key_access=off,mrr_cost_based=on';
@@ -230,28 +230,28 @@ EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t1`@`select#1`) BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`QB1`) BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
@@ -259,7 +259,7 @@ EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 set optimizer_switch='mrr=off';
@@ -276,7 +276,7 @@ EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t2`@`select#1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 set optimizer_switch='mrr=on';
@@ -469,7 +469,7 @@ EXPLAIN SELECT /*+ BKA(tbl1, tbl2) */ tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 
 WHERE tbl1.f1=tbl2.f1 AND tbl2.f2 BETWEEN tbl1.f1 and tbl1.f2 and tbl2.f2 + 1 >= tbl1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	tbl2	NULL	ref	f1	f1	4	test.tbl1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	tbl2	NULL	ref	f1	f1	4	test.tbl1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`tbl1`@`select#1`) BKA(`tbl2`@`select#1`) */ `test`.`tbl2`.`f1` AS `f1`,`test`.`tbl2`.`f2` AS `f2`,`test`.`tbl2`.`f3` AS `f3` from `test`.`t1` `tbl1` join `test`.`t2` `tbl2` where ((`test`.`tbl2`.`f1` = `test`.`tbl1`.`f1`) and (`test`.`tbl2`.`f2` between `test`.`tbl1`.`f1` and `test`.`tbl1`.`f2`) and ((`test`.`tbl2`.`f2` + 1) >= (`test`.`tbl1`.`f1` + 1)))
 # Print warnings for nonexistent names
@@ -479,7 +479,7 @@ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#1` for BKA hint
 Warning	3128	Unresolved name `t3`@`select#1` for NO_RANGE_OPTIMIZATION hint
@@ -510,7 +510,7 @@ EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`t2`@`QB1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t1`.`f2`) and ((`test`.`t2`.`f2` + 1) >= (`test`.`t1`.`f1` + 1)))
 # Check that original table name is not recognized if alias is used.
@@ -527,7 +527,7 @@ EXPLAIN SELECT * FROM (SELECT /*+ BKA(tb2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1
 WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f1 + 1) AS s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tb1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	tb2	NULL	ref	f1	f1	4	test.tb1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	tb2	NULL	ref	f1	f1	4	test.tb1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select /*+ BKA(`tb2`@`select#2`) */ `test`.`tb2`.`f1` AS `f1`,`test`.`tb2`.`f2` AS `f2`,`test`.`tb2`.`f3` AS `f3` from `test`.`t1` `tb1` join `test`.`t2` `tb2` where ((`test`.`tb2`.`f1` = `test`.`tb1`.`f1`) and (`test`.`tb2`.`f2` between `test`.`tb1`.`f1` and `test`.`tb1`.`f2`) and ((`test`.`tb2`.`f2` + 1) >= (`test`.`tb1`.`f1` + 1)))
 # Check that PS and conventional statements give the same result.
@@ -542,11 +542,11 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	24
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	20
 Handler_read_prev	0
-Handler_read_rnd	20
+Handler_read_rnd	4
 Handler_read_rnd_next	4
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
@@ -560,11 +560,11 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	24
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	20
 Handler_read_prev	0
-Handler_read_rnd	20
+Handler_read_rnd	4
 Handler_read_rnd_next	4
 FLUSH STATUS;
 EXECUTE stmt1;
@@ -576,11 +576,11 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	24
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	20
 Handler_read_prev	0
-Handler_read_rnd	20
+Handler_read_rnd	4
 Handler_read_rnd_next	4
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1, t2, t3;

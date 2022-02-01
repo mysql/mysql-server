@@ -84,7 +84,7 @@
 #include "sql/mysqld.h"          // key_file_misc
 #include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"         // lock_db_routines
 #include "sql/sql_base.h"   // lock_table_names
@@ -838,7 +838,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
       error = Events::drop_schema_events(thd, *schema);
-      error = (error || sp_drop_db_routines(thd, *schema));
+      error = (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
     }
     thd->pop_internal_handler();
 

@@ -39,6 +39,8 @@
 #include "harness_export.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -88,8 +90,6 @@ class HARNESS_EXPORT DynamicState {
    * @brief Saves the json state object to the associated file, overwrites the
    * the file content.
    *
-   * @param is_clusterset true if the metadata is configured to work with a
-   * ClusterSet, false if a single Cluster
    * @param pretty if true the json data is written in a human readable json
    * format
    *
@@ -97,15 +97,13 @@ class HARNESS_EXPORT DynamicState {
    * @retval true operation succeeded
    * @retval false operation failed
    */
-  bool save(bool is_clusterset, bool pretty = true);
+  bool save(bool pretty = true);
 
   /**
    * @brief Saves the json state object to the output stream given as a
    * parameter, overwrites the stream content.
    *
    * @param output_stream stream where json content should be written to
-   * @param is_clusterset true if the metadata is configured to work with a
-   * ClusterSet, false if a single Cluster
    * @param pretty if true the json data is written in a human readable json
    * format
    *
@@ -113,8 +111,7 @@ class HARNESS_EXPORT DynamicState {
    * @retval true operation succeeded
    * @retval false operation failed
    */
-  bool save_to_stream(std::ostream &output_stream, bool is_clusterset,
-                      bool pretty = true);
+  bool save_to_stream(std::ostream &output_stream, bool pretty = true);
 
   /**
    * @brief Returns selected state object section by its name.

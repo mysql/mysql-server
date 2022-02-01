@@ -115,7 +115,7 @@ static PSI_mutex_info mutex_info[] = {
 *   - Acquire pfs_plugin_table service implementation.
 */
 bool
-acquire_service_handles(MYSQL_PLUGIN p [[maybe_unused]])
+acquire_service_handles(MYSQL_PLUGIN p MY_ATTRIBUTE((unused)))
 {
   bool result = false;
 
@@ -394,7 +394,7 @@ pfs_example_plugin_employee_check(void *)
 *   - Release pfs_plugin_table service handle.
 */
 static int
-pfs_example_plugin_employee_deinit(void *p  [[maybe_unused]])
+pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
 {
   DBUG_TRACE;
 

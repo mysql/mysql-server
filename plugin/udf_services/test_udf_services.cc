@@ -124,9 +124,10 @@ mysql_declare_plugin(test_udf_services){
   @retval     false     success
   @retval     true      Failure. Error in the message argument
 */
-PLUGIN_EXPORT bool test_udf_services_udf_init(UDF_INIT *initid [[maybe_unused]],
-                                              UDF_ARGS *args [[maybe_unused]],
-                                              char *message [[maybe_unused]]) {
+PLUGIN_EXPORT bool test_udf_services_udf_init(
+    UDF_INIT *initid MY_ATTRIBUTE((unused)),
+    UDF_ARGS *args MY_ATTRIBUTE((unused)),
+    char *message MY_ATTRIBUTE((unused))) {
   return false;
 }
 
@@ -138,12 +139,11 @@ PLUGIN_EXPORT bool test_udf_services_udf_init(UDF_INIT *initid [[maybe_unused]],
   @param[out] is_null   If the result is null, store 1 here
   @param[out] error     On error store 1 here
 */
-PLUGIN_EXPORT longlong test_udf_services_udf(UDF_INIT *initid [[maybe_unused]],
-                                             UDF_ARGS *args [[maybe_unused]],
-                                             unsigned char *is_null
-                                             [[maybe_unused]],
-                                             unsigned char *error
-                                             [[maybe_unused]]) {
+PLUGIN_EXPORT longlong
+test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                      UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                      unsigned char *is_null MY_ATTRIBUTE((unused)),
+                      unsigned char *error MY_ATTRIBUTE((unused))) {
   char buffer[10];
   *is_null = 0;
   *error = 0;
@@ -220,7 +220,6 @@ end:
 }
 
 #include "services_required.h"
-#include "test_udf_extension.h"
 #include "udf_extension_test_functions.h"
 
 /**
@@ -235,7 +234,6 @@ static int test_udf_extension_init(MYSQL_PLUGIN /*p */) {
   if (Registry_service::acquire() || Udf_registration::acquire()) {
     goto end;
   }
-  udf_ext::Test_udf_charset_base::udf_charset_base_init();
   /*
     Demonstrates how to set and get the charset extension argument of
     return value. It also demonstrate how to perforn the charset
@@ -377,7 +375,6 @@ static int test_udf_extension_deinit(MYSQL_PLUGIN /* p */) {
   if (Registry_service::acquire() || Udf_registration::acquire()) {
     goto end;
   }
-  udf_ext::Test_udf_charset_base::udf_charset_base_deinit();
   if (Udf_registration::remove("test_result_charset", &was_present) ||
       Udf_registration::remove("test_args_charset", &was_present) ||
       Udf_registration::remove("test_result_collation", &was_present) ||

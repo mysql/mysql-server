@@ -298,8 +298,8 @@ class Dictionary_client {
   */
 
   template <typename K, typename T>
-  [[nodiscard]] bool acquire(const K &key, const T **object,
-                             bool *local_committed, bool *local_uncommitted);
+  bool acquire(const K &key, const T **object, bool *local_committed,
+               bool *local_uncommitted) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Get an uncommitted dictionary object that can be modified safely.
@@ -487,23 +487,8 @@ class Dictionary_client {
   */
 
   template <typename Object_type>
-  [[nodiscard]] bool fetch(Const_ptr_vec<Object_type> *coll,
-                           const Object_key *object_key);
-
-  /**
-    Auxiliary function to retrieve an object by its object id without caching
-    it.It is responsibility of the caller to delete the retrieved object.
-  */
-  template <typename T>
-  bool acquire_uncached_impl(Object_id id, T **object);
-
-  /**
-    Auxiliary function to retrieve a possibly uncommitted object by its object
-    id without caching it. It is responsibility of the caller to delete the
-    retrieved object.
-  */
-  template <typename T>
-  bool acquire_uncached_uncommitted_impl(Object_id id, T **object);
+  bool fetch(Const_ptr_vec<Object_type> *coll, const Object_key *object_key)
+      MY_ATTRIBUTE((warn_unused_result));
 
  public:
   // Initialize an instance with a default auto releaser.
@@ -527,7 +512,8 @@ class Dictionary_client {
   MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename T>
-  [[nodiscard]] bool acquire(Object_id id, const T **object);
+  bool acquire(Object_id id, const T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its object id.
@@ -543,7 +529,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire_for_modification(Object_id id, T **object);
+  bool acquire_for_modification(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its object id without caching it.
@@ -562,26 +549,8 @@ class Dictionary_client {
    */
 
   template <typename T>
-  [[nodiscard]] bool acquire_uncached(Object_id id, T **object);
-
-  /**
-    Retrieve an object by its object id without caching it.
-
-    The object is not cached and owned by the caller through unique_ptr
-    it provides. The object may not be used as a parameter to the other
-    dictionary client methods since it is not known by the object registry.
-
-    @tparam       T           Dictionary object type.
-    @param        id          Object id to retrieve.
-    @param [out]  object_ptr  Smart pointer with dictionary object,
-                              if present or with nullptr otherwise.
-
-    @retval       false   No error.
-    @retval       true    Error (from reading the dictionary tables).
-  */
-  template <typename T>
-  [[nodiscard]] bool acquire_uncached(Object_id id,
-                                      std::unique_ptr<T> *object_ptr);
+  bool acquire_uncached(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a possibly uncommitted object by its object id without caching it.
@@ -604,30 +573,8 @@ class Dictionary_client {
    */
 
   template <typename T>
-  [[nodiscard]] bool acquire_uncached_uncommitted(Object_id id, T **object);
-
-  /**
-    Retrieve a possibly uncommitted object by its object id without caching it.
-
-    The object is not cached and owned by the caller through unique_ptr
-    it provides. The object may not be used as a parameter to the other
-    dictionary client methods since it is not known by the object registry.
-
-    When the object is read from the persistent tables, the transaction
-    isolation level is READ UNCOMMITTED. This is necessary to be able to
-    read uncommitted data from an earlier stage of the same session.
-
-    @tparam       T           Dictionary object type.
-    @param        id          Object id to retrieve.
-    @param [out]  object_ptr  Smart pointer with dictionary object,
-                              if present or with nullptr otherwise.
-
-    @retval       false   No error.
-    @retval       true    Error (from reading the dictionary tables).
-  */
-  template <typename T>
-  [[nodiscard]] bool acquire_uncached_uncommitted(
-      Object_id id, std::unique_ptr<T> *object_ptr);
+  bool acquire_uncached_uncommitted(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its name.
@@ -641,7 +588,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire(const String_type &object_name, const T **object);
+  bool acquire(const String_type &object_name, const T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its name.
@@ -657,8 +605,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire_for_modification(const String_type &object_name,
-                                              T **object);
+  bool acquire_for_modification(const String_type &object_name, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -683,8 +631,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire(const String_type &schema_name,
-                             const String_type &object_name, const T **object);
+  bool acquire(const String_type &schema_name, const String_type &object_name,
+               const T **object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -711,9 +659,9 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire_for_modification(const String_type &schema_name,
-                                              const String_type &object_name,
-                                              T **object);
+  bool acquire_for_modification(const String_type &schema_name,
+                                const String_type &object_name, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -744,9 +692,9 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire(const String_type &schema_name,
-                             const String_type &object_name,
-                             const typename T::Cache_partition **object);
+  bool acquire(const String_type &schema_name, const String_type &object_name,
+               const typename T::Cache_partition **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -779,9 +727,10 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool acquire_for_modification(
-      const String_type &schema_name, const String_type &object_name,
-      typename T::Cache_partition **object);
+  bool acquire_for_modification(const String_type &schema_name,
+                                const String_type &object_name,
+                                typename T::Cache_partition **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table object by its se private id.
@@ -800,8 +749,10 @@ class Dictionary_client {
                                  object of a wrong type was found).
   */
 
-  [[nodiscard]] bool acquire_uncached_table_by_se_private_id(
-      const String_type &engine, Object_id se_private_id, Table **table);
+  bool acquire_uncached_table_by_se_private_id(const String_type &engine,
+                                               Object_id se_private_id,
+                                               Table **table)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table object by its partition se private id.
@@ -814,8 +765,9 @@ class Dictionary_client {
     @retval      true     Error (from handling a cache miss).
   */
 
-  [[nodiscard]] bool acquire_uncached_table_by_partition_se_private_id(
-      const String_type &engine, Object_id se_partition_id, Table **table);
+  bool acquire_uncached_table_by_partition_se_private_id(
+      const String_type &engine, Object_id se_partition_id, Table **table)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve schema and table name by the se private id of the table.
@@ -831,10 +783,11 @@ class Dictionary_client {
     @retval      true     Error.
   */
 
-  [[nodiscard]] bool get_table_name_by_se_private_id(const String_type &engine,
-                                                     Object_id se_private_id,
-                                                     String_type *schema_name,
-                                                     String_type *table_name);
+  bool get_table_name_by_se_private_id(const String_type &engine,
+                                       Object_id se_private_id,
+                                       String_type *schema_name,
+                                       String_type *table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve schema and table name by the se private id of the partition.
@@ -850,9 +803,11 @@ class Dictionary_client {
     @retval      true     Error.
   */
 
-  [[nodiscard]] bool get_table_name_by_partition_se_private_id(
-      const String_type &engine, Object_id se_partition_id,
-      String_type *schema_name, String_type *table_name);
+  bool get_table_name_by_partition_se_private_id(const String_type &engine,
+                                                 Object_id se_partition_id,
+                                                 String_type *schema_name,
+                                                 String_type *table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table name of a given trigger name and schema.
@@ -867,9 +822,10 @@ class Dictionary_client {
     @retval      true     Error.
   */
 
-  [[nodiscard]] bool get_table_name_by_trigger_name(
-      const Schema &schema, const String_type &trigger_name,
-      String_type *table_name);
+  bool get_table_name_by_trigger_name(const Schema &schema,
+                                      const String_type &trigger_name,
+                                      String_type *table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Check if schema contains foreign key with specified name.
@@ -884,8 +840,10 @@ class Dictionary_client {
     @retval      true     Error.
   */
 
-  [[nodiscard]] bool check_foreign_key_exists(
-      const Schema &schema, const String_type &foreign_key_name, bool *exists);
+  bool check_foreign_key_exists(const Schema &schema,
+                                const String_type &foreign_key_name,
+                                bool *exists)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Check if schema contains check constraint with specified name.
@@ -917,8 +875,9 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool fetch_schema_component_names(
-      const Schema *schema, std::vector<String_type> *names) const;
+  bool fetch_schema_component_names(const Schema *schema,
+                                    std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of the tables in the schema belonging to specific
@@ -933,9 +892,10 @@ class Dictionary_client {
     @return      false  Success.
   */
 
-  [[nodiscard]] bool fetch_schema_table_names_by_engine(
-      const Schema *schema, const String_type &engine,
-      std::vector<String_type> *names) const;
+  bool fetch_schema_table_names_by_engine(const Schema *schema,
+                                          const String_type &engine,
+                                          std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of the server tables in the schema.  Ignore tables
@@ -948,8 +908,9 @@ class Dictionary_client {
     @return      false  Success.
   */
 
-  [[nodiscard]] bool fetch_schema_table_names_not_hidden_by_se(
-      const Schema *schema, std::vector<String_type> *names) const;
+  bool fetch_schema_table_names_not_hidden_by_se(
+      const Schema *schema, std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all global component ids of the given type.
@@ -962,8 +923,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool fetch_global_component_ids(
-      std::vector<Object_id> *ids) const;
+  bool fetch_global_component_ids(std::vector<Object_id> *ids) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all global component names of the given type.
@@ -976,8 +937,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool fetch_global_component_names(
-      std::vector<String_type> *names) const;
+  bool fetch_global_component_names(std::vector<String_type> *names) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Execute the submitted lambda function for each entity of the given type
@@ -993,10 +954,9 @@ class Dictionary_client {
   */
 
   template <typename Object_type>
-  [[nodiscard]] bool foreach (
-      const Object_key *object_key,
-      std::function<bool(std::unique_ptr<Object_type> &)> const &processor)
-      const;
+  bool foreach (const Object_key *object_key,
+                std::function<bool(std::unique_ptr<Object_type> &)> const
+                    &processor) const MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all components in the schema.
@@ -1010,8 +970,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool fetch_schema_components(const Schema *schema,
-                                             Const_ptr_vec<T> *coll);
+  bool fetch_schema_components(const Schema *schema, Const_ptr_vec<T> *coll)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all global components of the given type.
@@ -1024,7 +984,8 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool fetch_global_components(Const_ptr_vec<T> *coll);
+  bool fetch_global_components(Const_ptr_vec<T> *coll)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
      Check if a user is referenced as definer by some object of the given type.
@@ -1038,8 +999,8 @@ class Dictionary_client {
      @return      false  Success.
    */
   template <typename T>
-  [[nodiscard]] bool is_user_definer(const LEX_USER &user,
-                                     bool *is_definer) const;
+  bool is_user_definer(const LEX_USER &user, bool *is_definer) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch Object ids of all the views referencing base table/ view/ stored
@@ -1058,9 +1019,10 @@ class Dictionary_client {
     @return      false  Success.
   */
   template <typename T>
-  [[nodiscard]] bool fetch_referencing_views_object_id(
-      const char *schema, const char *tbl_or_sf_name,
-      std::vector<Object_id> *view_ids) const;
+  bool fetch_referencing_views_object_id(const char *schema,
+                                         const char *tbl_or_sf_name,
+                                         std::vector<Object_id> *view_ids) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of tables (children) which have foreign keys
@@ -1084,11 +1046,13 @@ class Dictionary_client {
           DROP TABLE or DROP FOREIGN KEY.
   */
 
-  [[nodiscard]] bool fetch_fk_children_uncached(
-      const String_type &parent_schema, const String_type &parent_name,
-      const String_type &parent_engine, bool uncommitted,
-      std::vector<String_type> *children_schemas,
-      std::vector<String_type> *children_names);
+  bool fetch_fk_children_uncached(const String_type &parent_schema,
+                                  const String_type &parent_name,
+                                  const String_type &parent_engine,
+                                  bool uncommitted,
+                                  std::vector<String_type> *children_schemas,
+                                  std::vector<String_type> *children_names)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
      Invalidate a cache entry.
@@ -1106,8 +1070,8 @@ class Dictionary_client {
                                   failing to get an MDL lock).
    */
 
-  [[nodiscard]] bool invalidate(const String_type &schema_name,
-                                const String_type &table_name);
+  bool invalidate(const String_type &schema_name, const String_type &table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Invalidate a cache entry.
@@ -1159,7 +1123,7 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool drop(const T *object);
+  bool drop(const T *object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Store a new dictionary object.
@@ -1187,7 +1151,7 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool store(T *object);
+  bool store(T *object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Update a persisted dictionary object, but keep the shared cache unchanged.
@@ -1215,7 +1179,7 @@ class Dictionary_client {
   */
 
   template <typename T>
-  [[nodiscard]] bool update(T *new_object);
+  bool update(T *new_object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Remove the uncommitted objects from the client.
@@ -1250,8 +1214,9 @@ class Dictionary_client {
     @return true  - on failure
     @return false - on success
   */
-  [[nodiscard]] bool remove_table_dynamic_statistics(
-      const String_type &schema_name, const String_type &table_name);
+  bool remove_table_dynamic_statistics(const String_type &schema_name,
+                                       const String_type &table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Debug dump of a partition of the client and its registry to stderr.

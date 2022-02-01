@@ -35,10 +35,10 @@
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
 #include "mysqlrouter/keyring_info.h"
-#include "mysqlrouter/sys_user_operations.h"
+#include "mysqlrouter/utils.h"
+#include "router_config.h"
 
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -99,11 +99,11 @@ class MySQLRouter {
    *
    * Example usage:
    *
-   *     MySQLRouter router(argv[0],
+   *     MySQLRouter router(Path(argv[0]).dirname(),
    *                        vector<string>({argv + 1, argv + argc}));
    *     router.start();
    *
-   * @param program_name path of the started executable
+   * @param origin Directory where executable is located
    * @param arguments a vector of strings
    * @param out_stream output stream representing "stdout"
    * @param err_stream output stream representing "stderr"
@@ -111,7 +111,7 @@ class MySQLRouter {
 #ifndef _WIN32
   /// @param sys_user_operations system operations which provide chown, ...
 #endif
-  MySQLRouter(const std::string &program_name,
+  MySQLRouter(const mysql_harness::Path &origin,
               const std::vector<std::string> &arguments,
               std::ostream &out_stream = std::cout,
               std::ostream &err_stream = std::cerr
@@ -285,6 +285,31 @@ class MySQLRouter {
     return extra_config_files_;
   }
 
+  /** @brief Returns predefined (computed) default paths
+   *
+   * Returns a map of predefined default paths, which are computed based on
+   * `origin` argument. This argument serves as base directory for any
+   * predefined relative paths. The returned map consists of absolue paths.
+   *
+   * @param origin Base directory which will be prepended to any relative
+   *        predefined directories
+   *
+   * @throws std::invalid_argument (std::logic_error) if `origin` is empty
+   */
+  static std::map<std::string, std::string> get_default_paths(
+      const mysql_harness::Path &origin);
+
+  /** @brief Returns absolute path to mysqlrouter.exe currently running
+   *
+   * @param argv0 1th element of `argv` array passed to `main()` (i.e.
+   * `argv[0]`)
+   *
+   * @throws std::runtime_error, ...?
+   *
+   * @note argv0 is currently ignored on Windows platforms
+   */
+  static std::string find_full_path(const std::string &argv0);
+
 #if !defined(_MSC_VER) && !defined(UNIT_TESTS)
   // MSVC produces different symbols for private vs public methods, which mean
   // the #define private public trick for unit-testing private methods doesn't
@@ -316,8 +341,7 @@ class MySQLRouter {
    *
    * @param arguments command line arguments as vector of strings
    */
-  virtual void init(const std::string &program_name,
-                    const std::vector<std::string> &arguments);
+  virtual void init(const std::vector<std::string> &arguments);
 
   /** @brief Prepares a command line option
    *
@@ -445,8 +469,7 @@ class MySQLRouter {
    */
   void set_default_config_files(const char *locations) noexcept;
 
-  void bootstrap(const std::string &program_name,
-                 const std::string &metadata_server_uri);
+  void bootstrap(const std::string &metadata_server_uri);
 
   /*
    * @brief returns id of the router.
@@ -503,7 +526,6 @@ class MySQLRouter {
   std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
-  bool pid_file_created_{false};
 
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;

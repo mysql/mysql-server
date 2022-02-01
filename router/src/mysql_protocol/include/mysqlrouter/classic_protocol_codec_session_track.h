@@ -82,7 +82,7 @@ class Codec<session_track::TransactionState>
                   "buffers MUST be a const buffer sequence");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    const auto trx_type_res = accu.template step<wire::FixedInt<1>>();
+    const auto try_type_res = accu.template step<wire::FixedInt<1>>();
     const auto read_unsafe_res = accu.template step<wire::FixedInt<1>>();
     const auto read_trx_res = accu.template step<wire::FixedInt<1>>();
     const auto write_unsafe_res = accu.template step<wire::FixedInt<1>>();
@@ -95,7 +95,7 @@ class Codec<session_track::TransactionState>
 
     return std::make_pair(
         accu.result().value(),
-        value_type(trx_type_res->value(), read_unsafe_res->value(),
+        value_type(try_type_res->value(), read_unsafe_res->value(),
                    read_trx_res->value(), write_unsafe_res->value(),
                    write_trx_res->value(), stmt_unsafe_res->value(),
                    resultset_res->value(), locked_tables_res->value()));
@@ -116,7 +116,7 @@ class Codec<session_track::TransactionCharacteristics>
           Codec<session_track::TransactionCharacteristics>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.trx_state())).result();
+    return accu.step(wire::VarString(v_.statements())).result();
   }
 
  public:
@@ -146,12 +146,12 @@ class Codec<session_track::TransactionCharacteristics>
                   "buffers MUST be a const buffer sequence");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    const auto characteristics_res = accu.template step<wire::VarString>();
+    const auto statements_res = accu.template step<wire::VarString>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
-                          value_type(characteristics_res->value()));
+                          value_type(statements_res->value()));
   }
 
  private:
@@ -168,7 +168,7 @@ class Codec<session_track::State>
     : public impl::EncodeBase<Codec<session_track::State>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.state())).result();
+    return accu.step(wire::VarString(v_.state())).result();
   }
 
  public:
@@ -196,7 +196,7 @@ class Codec<session_track::State>
       const ConstBufferSequence &buffers, capabilities::value_type caps) {
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    auto state_res = accu.template step<wire::FixedInt<1>>();
+    auto state_res = accu.template step<wire::VarString>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -316,67 +316,6 @@ class Codec<session_track::SystemVariable>
 };
 
 /**
- * codec for session_track::Gtid.
- *
- * format:
- *
- * - FixedInt<int> spec (only 0 is in use for now)
- * - VarString     payload (payload accoring to spec).
- *
- * payload for spec 0:
- * - GTID in human-readable form like 4dd0f9d5-3b00-11eb-ad70-003093140e4e:23929
- *
- * part of session_track::Field
- */
-template <>
-class Codec<session_track::Gtid>
-    : public impl::EncodeBase<Codec<session_track::Gtid>> {
-  template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.spec()))
-        .step(wire::VarString(v_.gtid()))
-        .result();
-  }
-
- public:
-  using value_type = session_track::Gtid;
-  using __base = impl::EncodeBase<Codec<value_type>>;
-
-  friend __base;
-
-  Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
-
-  /**
-   * decode a session_track::Gtid from a buffer-sequence.
-   *
-   * @param buffers input buffser sequence
-   * @param caps protocol capabilities
-   *
-   * @retval std::pair<size_t, session_track::Gtid> on success, with bytes
-   * processed
-   * @retval codec_errc::not_enough_input not enough data to parse the whole
-   * message
-   */
-  template <class ConstBufferSequence>
-  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
-
-    auto spec_res = accu.template step<wire::FixedInt<1>>();
-    auto gtid_res = accu.template step<wire::VarString>();
-
-    if (!accu.result()) return accu.result().get_unexpected();
-
-    return std::make_pair(accu.result().value(),
-                          value_type(spec_res->value(), gtid_res->value()));
-  }
-
- private:
-  const value_type v_;
-};
-
-/**
  * codec for session-track's Field.
  *
  * sent as part of a server::Ok and server::Eof message.
@@ -427,7 +366,8 @@ class Codec<session_track::Field>
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value);
+    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
+                  "");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
     auto type_res = accu.template step<wire::FixedInt<1>>();

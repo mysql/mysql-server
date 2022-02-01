@@ -38,14 +38,26 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *
-   * @param session_config Metadata MySQL session configuration
+   * @param user The user name used to authenticate to the metadata server.
+   * @param password The password used to authenticate to the metadata server.
+   * @param connect_timeout The time after which trying to connect to the
+   *                        metadata server should timeout (in seconds).
+   * @param read_timeout The time after which read from metadata server should
+   *                     timeout (in seconds).
+   * @param connection_attempts The number of times a connection to metadata
+   *                            must be attempted, when a connection attempt
+   *                            fails.  NOTE: not used so far
    * @param ssl_options SSL related options to use for MySQL connections
    * @param view_id last known view_id of the cluster metadata
    */
-  ARClusterMetadata(
-      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
-      const mysqlrouter::SSLOptions &ssl_options, uint64_t view_id)
-      : ClusterMetadata(session_config, ssl_options), view_id_(view_id) {}
+  ARClusterMetadata(const std::string &user, const std::string &password,
+                    int connect_timeout, int read_timeout,
+                    int connection_attempts,
+                    const mysqlrouter::SSLOptions &ssl_options,
+                    unsigned view_id)
+      : ClusterMetadata(user, password, connect_timeout, read_timeout,
+                        connection_attempts, ssl_options),
+        view_id_(view_id) {}
 
   explicit ARClusterMetadata(const ARClusterMetadata &) = delete;
   ARClusterMetadata &operator=(const ARClusterMetadata &) = delete;
@@ -56,32 +68,32 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    */
   ~ARClusterMetadata() override;
 
-  /** @brief Returns cluster defined in the metadata given set of the
+  /** @brief Returns replicasets defined in the metadata server
+   *
+   * Only to satisfy the API, not used for the ReplicaSet cluster
+   *
+   * @throws logic_error
+   */
+  ReplicaSetsByName fetch_instances(
+      const std::string & /*cluster_name*/,
+      const std::string & /*cluster_type_specific_id*/) override {
+    throw std::logic_error("Call to unexpected fetch_instances overload");
+  }
+
+  /** @brief Returns replicasets defined in the metadata given set of the
    *         metadata servers (cluster members)
    *
-   * @param terminated flag indicating that the process is cterminating,
-   * allowing the function to leave earlier if possible
-   * @param [in,out] target_cluster object identifying the Cluster this
-   * operation refers to
-   * @param router_id id of the router in the cluster metadata
-   * @param metadata_servers  set of the metadata servers to use to fetch the
-   * metadata
-   * @param needs_writable_node flag indicating if the caller needs us to query
-   * for writable node
+   * @param instances  set of the metadata servers to use to fetch the metadata
    * @param cluster_type_specific_id  (GR ID for GR cluster, cluster_id for AR
    * cluster)
    * @param [out] instance_id of the server the metadata was fetched from
-   * @return object containing cluster topology information in case of success,
-   * or error code in case of failure
+   * @return Map of replicaset ID, server list pairs.
    * @throws metadata_cache::metadata_error
    */
-  stdx::expected<metadata_cache::ClusterTopology, std::error_code>
-  fetch_cluster_topology(
-      const std::atomic<bool> &terminated,
-      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
-      bool needs_writable_node, const std::string &cluster_type_specific_id,
-      const std::string & /*clusterset_id*/, std::size_t &instance_id) override;
+  ReplicaSetsByName fetch_instances(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const std::string &cluster_type_specific_id,
+      std::size_t &instance_id) override;
 
   /** @brief Returns cluster type this object is suppsed to handle
    */
@@ -91,7 +103,6 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
 
   void setup_notifications_listener(
       const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
-      const mysqlrouter::TargetCluster & /*target_cluster*/,
       const GRNotificationListener::NotificationClb & /*callback*/) override {}
 
   /** @brief Deinitializes the notifications listener thread
@@ -119,9 +130,9 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    * @return True on success, false otherwise.
    */
   bool get_member_view_id(mysqlrouter::MySQLSession &session,
-                          const std::string &cluster_id, uint64_t &result);
+                          const std::string &cluster_id, unsigned &result);
 
-  uint64_t view_id_;
+  unsigned view_id_;
 };
 
 #endif  // METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED

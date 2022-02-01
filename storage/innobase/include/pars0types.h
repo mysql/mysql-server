@@ -54,6 +54,6 @@ struct return_node_t;
 struct assign_node_t;
 struct col_assign_node_t;
 
-typedef UT_LIST_BASE_NODE_T_EXTERN(sym_node_t, col_var_list) sym_node_list_t;
+typedef UT_LIST_BASE_NODE_T(sym_node_t) sym_node_list_t;
 
 #endif

@@ -30,7 +30,6 @@
 #include "UtilTransactions.hpp"
 #include "random.h"
 #include "../../src/ndbapi/NdbWaitGroup.hpp"
-#include "NdbSleep.h"
 
 
 class NdbPool : private NdbLockable {
@@ -480,7 +479,7 @@ int runMiscUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int sleepAndStop(NDBT_Context* ctx, NDBT_Step* step){
-  NdbSleep_SecSleep(20);
+  sleep(20);
   ctx->stopTest();
   return NDBT_OK;
 }  

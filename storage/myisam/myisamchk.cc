@@ -525,7 +525,7 @@ TYPELIB myisam_stats_method_typelib = {
 /* Read options */
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt [[maybe_unused]],
+                           const struct my_option *opt MY_ATTRIBUTE((unused)),
                            char *argument) {
   switch (optid) {
     case 'a':
@@ -1628,15 +1628,15 @@ err:
 
 static int not_killed = 0;
 
-volatile int *killed_ptr(MI_CHECK *param [[maybe_unused]]) {
+volatile int *killed_ptr(MI_CHECK *param MY_ATTRIBUTE((unused))) {
   return &not_killed; /* always NULL */
 }
 
 /* print warnings and errors */
 /* VARARGS */
 
-void mi_check_print_info(MI_CHECK *param [[maybe_unused]], const char *fmt,
-                         ...) {
+void mi_check_print_info(MI_CHECK *param MY_ATTRIBUTE((unused)),
+                         const char *fmt, ...) {
   va_list args;
 
   va_start(args, fmt);

@@ -303,7 +303,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
-    [[fallthrough]];
+    // Fall through
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0)
@@ -789,12 +789,9 @@ Dbtup::execACCKEYCONF(Signal* signal)
        *   so rescan this position.
        *   Which is implemented by using execACCKEYREF...
        */
-      char key_str1[MAX_LOG_MESSAGE_SIZE];
-      printLocal_Key(key_str1, sizeof(key_str1), scan.m_scanPos.m_key_mm);
-      char key_str2[MAX_LOG_MESSAGE_SIZE];
-      printLocal_Key(key_str2, sizeof(key_str2), tmp);
-      g_eventLogger->info("execACCKEYCONF %s != %s ", key_str1, key_str2);
-
+      ndbout << "execACCKEYCONF "
+             << scan.m_scanPos.m_key_mm
+             << " != " << tmp << " ";
       scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
       execACCKEYREF(signal);
       return;
@@ -2050,7 +2047,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         // clear cached value
         pos.m_realpid_mm = RNIL;
       }
-      [[fallthrough]];
+      /*FALLTHRU*/
     case ScanPos::Get_page_mm:
       // get TUP real page
       {
@@ -2300,7 +2297,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
         } // if ScanOp::SCAN_DD read ahead
       }
-      [[fallthrough]];
+      /*FALLTHRU*/
     case ScanPos::Get_page_dd:
       // get global page in PGMAN cache
       jam();
@@ -2377,7 +2374,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         key.m_page_idx += size;
         pos.m_get = ScanPos::Get_tuple;
       }
-      [[fallthrough]];
+      /*FALLTHRU*/
     case ScanPos::Get_tuple:
       // get fixed size tuple
       jam();

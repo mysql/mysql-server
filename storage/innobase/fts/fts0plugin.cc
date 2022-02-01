@@ -112,7 +112,7 @@ static int fts_query_add_word_for_parser(
       if (cur_node->type != FTS_AST_PARSER_PHRASE_LIST) {
         break;
       }
-      [[fallthrough]];
+      // Fall through.
 
     case FT_TOKEN_WORD:
       term_node = fts_ast_create_node_term_for_parser(state, word, word_len);

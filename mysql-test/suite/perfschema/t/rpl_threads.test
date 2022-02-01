@@ -61,7 +61,7 @@ sync_slave_with_master;
 # Read the ID of the SLAVE IO thread,
 # as exposed in PROCESSLIST.
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-  where STATE like "Waiting for source to send event%"
+  where STATE like "Waiting for master to send event%"
   into @slave_io_pid;
 
 select COMMAND, STATE
@@ -91,7 +91,7 @@ select VARIABLE_NAME, VARIABLE_VALUE
 # Read the ID of the SLAVE SQL thread,
 # as exposed in PROCESSLIST.
 select ID from INFORMATION_SCHEMA.PROCESSLIST
-  where STATE like "Replica has read all relay log%"
+  where STATE like "Slave has read all relay log%"
   into @slave_sql_pid;
 
 select COMMAND, STATE

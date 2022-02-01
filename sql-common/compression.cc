@@ -91,9 +91,10 @@ bool is_zstd_compression_level_valid(uint level) {
   @retval 0  success
   @retval 1  error or warnings
 */
-bool validate_compression_attributes(std::string algorithm_names,
-                                     std::string channel_name [[maybe_unused]],
-                                     bool ignore_errors [[maybe_unused]]) {
+bool validate_compression_attributes(
+    std::string algorithm_names,
+    std::string channel_name MY_ATTRIBUTE((unused)),
+    bool ignore_errors MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   /*
     Note: there's no real limit like that to the string. But, since the

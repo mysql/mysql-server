@@ -22,12 +22,10 @@
 
 #include "sql/regexp/regexp_facade.h"
 
-#include <optional>
 #include <string>
 #include <tuple>
 
 #include "my_pointer_arithmetic.h"
-#include "sql/item_func.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
@@ -99,11 +97,7 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
     size_t converted_size = my_convert(to, to_size, regexp_lib_charset, start,
                                        length, source_charset, &errors);
 
-    if (errors > 0) {
-      report_conversion_error(regexp_lib_charset, start, length,
-                              source_charset);
-      return true;
-    }
+    if (errors > 0) return true;
     assert(converted_size % sizeof(UChar) == 0);
     out->resize(converted_size / sizeof(UChar));
     return false;
@@ -166,11 +160,11 @@ int Regexp_facade::ConvertLibPositionToCodePoint(int position) const {
   return cset->numchars(regexp_lib_charset, start, end);
 }
 
-std::optional<bool> Regexp_facade::Matches(Item *subject_expr, int start,
-                                           int occurrence) {
+Mysql::Nullable<bool> Regexp_facade::Matches(Item *subject_expr, int start,
+                                             int occurrence) {
   DBUG_TRACE;
 
-  if (Reset(subject_expr, start)) return std::optional<bool>();
+  if (Reset(subject_expr, start)) return Mysql::Nullable<bool>();
 
   /*
     As far as ICU is concerned, we always start on position 0, since we
@@ -179,10 +173,10 @@ std::optional<bool> Regexp_facade::Matches(Item *subject_expr, int start,
   return m_engine->Matches(0, occurrence);
 }
 
-std::optional<int> Regexp_facade::Find(Item *subject_expr, int start,
-                                       int occurrence, bool after_match) {
-  std::optional<bool> match_found = Matches(subject_expr, start, occurrence);
-  if (!match_found.has_value()) return std::optional<int>();
+Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
+                                         int occurrence, bool after_match) {
+  Nullable<bool> match_found = Matches(subject_expr, start, occurrence);
+  if (!match_found.has_value()) return Mysql::Nullable<int>();
   if (!match_found.value()) return 0;
   int native_start =
       after_match ? m_engine->EndOfMatch() : m_engine->StartOfMatch();

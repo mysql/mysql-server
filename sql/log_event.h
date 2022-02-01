@@ -1155,7 +1155,7 @@ class Log_event {
                  databases the event accesses.
   */
   virtual uint8 get_mts_dbs(Mts_db_names *arg,
-                            Rpl_filter *rpl_filter [[maybe_unused]]) {
+                            Rpl_filter *rpl_filter MY_ATTRIBUTE((unused))) {
     arg->name[0] = get_db();
 
     return arg->num = mts_number_dbs();
@@ -1260,7 +1260,7 @@ class Log_event {
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int do_apply_event(Relay_log_info const *rli [[maybe_unused]]) {
+  virtual int do_apply_event(Relay_log_info const *rli MY_ATTRIBUTE((unused))) {
     return 0; /* Default implementation does nothing */
   }
 
@@ -1700,7 +1700,7 @@ class Intvar_log_event : public binary_log::Intvar_event, public Log_event {
 
   Intvar_log_event(const char *buf,
                    const Format_description_event *description_event);
-  ~Intvar_log_event() override = default;
+  ~Intvar_log_event() override {}
   size_t get_data_size() override {
     return 9; /* sizeof(type) + sizeof(val) */
     ;
@@ -1762,7 +1762,7 @@ class Rand_log_event : public binary_log::Rand_event, public Log_event {
 
   Rand_log_event(const char *buf,
                  const Format_description_event *description_event);
-  ~Rand_log_event() override = default;
+  ~Rand_log_event() override {}
   size_t get_data_size() override { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1818,7 +1818,7 @@ class Xid_apply_log_event : public Log_event {
   Xid_apply_log_event(Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
       : Log_event(header_arg, footer_arg) {}
-  ~Xid_apply_log_event() override = default;
+  ~Xid_apply_log_event() override {}
   bool ends_group() const override { return true; }
 #if defined(MYSQL_SERVER)
   enum_skip_reason do_shall_skip(Relay_log_info *rli) override;
@@ -1843,7 +1843,7 @@ class Xid_log_event : public binary_log::Xid_event, public Xid_apply_log_event {
 
   Xid_log_event(const char *buf,
                 const Format_description_event *description_event);
-  ~Xid_log_event() override = default;
+  ~Xid_log_event() override {}
   size_t get_data_size() override { return sizeof(xid); }
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1947,7 +1947,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
 
   User_var_log_event(const char *buf,
                      const Format_description_event *description_event);
-  ~User_var_log_event() override = default;
+  ~User_var_log_event() override {}
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
   /*
@@ -2001,7 +2001,7 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
     return;
   }
 
-  ~Stop_log_event() override = default;
+  ~Stop_log_event() override {}
   Log_event_type get_type_code() { return binary_log::STOP_EVENT; }
 
  private:
@@ -2056,7 +2056,7 @@ class Rotate_log_event : public binary_log::Rotate_event, public Log_event {
 
   Rotate_log_event(const char *buf,
                    const Format_description_event *description_event);
-  ~Rotate_log_event() override = default;
+  ~Rotate_log_event() override {}
   size_t get_data_size() override {
     return ident_len + Binary_log_event::ROTATE_HEADER_LEN;
   }
@@ -2110,7 +2110,7 @@ class Append_block_log_event : public virtual binary_log::Append_block_event,
 
   Append_block_log_event(const char *buf,
                          const Format_description_event *description_event);
-  ~Append_block_log_event() override = default;
+  ~Append_block_log_event() override {}
   size_t get_data_size() override {
     return block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN;
   }
@@ -2169,7 +2169,7 @@ class Delete_file_log_event : public binary_log::Delete_file_event,
 
   Delete_file_log_event(const char *buf,
                         const Format_description_event *description_event);
-  ~Delete_file_log_event() override = default;
+  ~Delete_file_log_event() override {}
   size_t get_data_size() override {
     return Binary_log_event::DELETE_FILE_HEADER_LEN;
   }
@@ -2234,7 +2234,7 @@ class Begin_load_query_log_event : public Append_block_log_event,
 #endif
   Begin_load_query_log_event(const char *buf,
                              const Format_description_event *description_event);
-  ~Begin_load_query_log_event() override = default;
+  ~Begin_load_query_log_event() override {}
 
  private:
 #if defined(MYSQL_SERVER)
@@ -2297,7 +2297,7 @@ class Execute_load_query_log_event
 #endif
   Execute_load_query_log_event(
       const char *buf, const Format_description_event *description_event);
-  ~Execute_load_query_log_event() override = default;
+  ~Execute_load_query_log_event() override {}
 
   ulong get_post_header_size_for_derived() override;
 #ifdef MYSQL_SERVER
@@ -2359,7 +2359,7 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
     return;
   }
 
-  ~Unknown_log_event() override = default;
+  ~Unknown_log_event() override {}
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
   Log_event_type get_type_code() { return binary_log::UNKNOWN_EVENT; }
 };
@@ -2968,16 +2968,6 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
             columns, false otherwise.
    */
   bool is_auto_inc_in_extra_columns();
-
-  /**
-    Helper function to check whether the storage engine error
-    allows for the transaction to be retried or not.
-
-    @param error Storage engine error
-    @retval true if the error is retryable.
-    @retval false if the error is non-retryable.
-   */
-  static bool is_trx_retryable_upon_engine_error(int error);
 #endif
 
   bool is_rbr_logging_format() const override { return true; }
@@ -3108,10 +3098,9 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval 0 Success
     @retval ER_* Error code returned by unpack_current_row
   */
-  virtual int skip_after_image_for_update_event(const Relay_log_info *rli
-                                                [[maybe_unused]],
-                                                const uchar *curr_bi_start
-                                                [[maybe_unused]]) {
+  virtual int skip_after_image_for_update_event(
+      const Relay_log_info *rli MY_ATTRIBUTE((unused)),
+      const uchar *curr_bi_start MY_ATTRIBUTE((unused))) {
     return 0;
   }
 
@@ -3238,11 +3227,10 @@ class Write_rows_log_event : public Rows_log_event,
   Write_rows_log_event(const char *buf,
                        const Format_description_event *description_event);
 #if defined(MYSQL_SERVER)
-  static bool binlog_row_logging_function(THD *thd, TABLE *table,
-                                          bool is_transactional,
-                                          const uchar *before_record
-                                          [[maybe_unused]],
-                                          const uchar *after_record);
+  static bool binlog_row_logging_function(
+      THD *thd, TABLE *table, bool is_transactional,
+      const uchar *before_record MY_ATTRIBUTE((unused)),
+      const uchar *after_record);
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->write_set);
   }
@@ -3442,11 +3430,9 @@ class Delete_rows_log_event : public Rows_log_event,
   Delete_rows_log_event(const char *buf,
                         const Format_description_event *description_event);
 #ifdef MYSQL_SERVER
-  static bool binlog_row_logging_function(THD *thd, TABLE *table,
-                                          bool is_transactional,
-                                          const uchar *before_record,
-                                          const uchar *after_record
-                                          [[maybe_unused]]);
+  static bool binlog_row_logging_function(
+      THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
+      const uchar *after_record MY_ATTRIBUTE((unused)));
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->read_set);
   }
@@ -3717,12 +3703,6 @@ class Heartbeat_log_event : public binary_log::Heartbeat_event,
                       const Format_description_event *description_event);
 };
 
-class Heartbeat_log_event_v2 : public binary_log::Heartbeat_event_v2,
-                               public Log_event {
- public:
-  Heartbeat_log_event_v2(const char *buf,
-                         const Format_description_event *description_event);
-};
 /**
    The function is called by slave applier in case there are
    active table filtering rules to force gathering events associated
@@ -3748,7 +3728,7 @@ class Transaction_payload_log_event
     Mts_db_names m_mts_db_names;
 
    public:
-    Applier_context() = default;
+    Applier_context() {}
     virtual ~Applier_context() { reset(); }
     void reset() { m_mts_db_names.reset_and_dispose(); }
     Mts_db_names &get_mts_db_names() { return m_mts_db_names; }
@@ -3777,7 +3757,7 @@ class Transaction_payload_log_event
                                 const Format_description_event *fde)
       : Transaction_payload_event(buf, fde), Log_event(header(), footer()) {}
 
-  ~Transaction_payload_log_event() override = default;
+  ~Transaction_payload_log_event() override {}
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
@@ -3860,7 +3840,7 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
   Gtid_log_event(const char *buffer,
                  const Format_description_event *description_event);
 
-  ~Gtid_log_event() override = default;
+  ~Gtid_log_event() override {}
 
   size_t get_data_size() override {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
@@ -4051,7 +4031,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
 
   Previous_gtids_log_event(const char *buf,
                            const Format_description_event *description_event);
-  ~Previous_gtids_log_event() override = default;
+  ~Previous_gtids_log_event() override {}
 
   size_t get_data_size() override { return buf_size; }
 
@@ -4185,8 +4165,6 @@ class Transaction_context_log_event
   ~Transaction_context_log_event() override;
 
   size_t get_data_size() override;
-
-  size_t get_event_length();
 
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol) override;

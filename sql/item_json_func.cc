@@ -1721,6 +1721,12 @@ void Item_typecast_json::print(const THD *thd, String *str,
   str->append(')');
 }
 
+void Item_func_json_length::cleanup() {
+  Item_int_func::cleanup();
+
+  m_path_cache.reset_cache();
+}
+
 longlong Item_func_json_length::val_int() {
   assert(fixed == 1);
   longlong result = 0;
@@ -1738,6 +1744,31 @@ longlong Item_func_json_length::val_int() {
     handle_std_exception(func_name());
     return error_int();
     /* purecov: end */
+  }
+
+  if (arg_count > 1) {
+    if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
+      return error_int();
+    const Json_path *json_path = m_path_cache.get_path(1);
+    if (json_path == nullptr) {
+      null_value = true;
+      return 0;
+    }
+
+    Json_wrapper_vector hits(key_memory_JSON);
+    if (wrapper.seek(*json_path, json_path->leg_count(), &hits, true, true))
+      return error_int(); /* purecov: inspected */
+
+    if (hits.size() != 1) {
+      // path does not exist. return null.
+      null_value = true;
+      return 0;
+    }
+
+    // there should only be one hit because wildcards were forbidden
+    assert(hits.size() == 1);
+
+    wrapper = std::move(hits[0]);
   }
 
   result = wrapper.length();
@@ -1913,7 +1944,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
         binary_cmp ||
         (arg1->type() == STRING_ITEM &&
          my_charset_same(arg1->collation.collation, arg2->collation.collation));
-    return ItemsAreEqual(arg1, arg2, ignore_collation);
+    return arg1->eq(arg2, ignore_collation);
   };
   const auto item_json = down_cast<const Item_func_json_extract *>(item);
   return std::equal(args, args + arg_count, item_json->args, cmp);
@@ -3317,10 +3348,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     if (utf8len < 2 || utf8text[0] != '"' || utf8text[utf8len - 1] != '"') {
       null_value = false;
       // Return string unchanged, but convert to utf8mb4 if needed.
-      if (res == utf8str) {
-        assert(res != &buf);
-        return res;
-      }
+      if (res == utf8str) return res;
       if (str->copy(utf8text, utf8len, collation.collation))
         return error_str(); /* purecov: inspected */
       return str;
@@ -3699,7 +3727,7 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
         str->append_parenthesized(item->max_char_length());
         if (cs != &my_charset_utf8mb4_0900_bin) {
           str->append(STRING_WITH_LEN(" character set "));
-          str->append(replace_utf8_utf8mb3(cs->csname));
+          str->append(cs->csname);
         }
       }
       return;
@@ -4270,7 +4298,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(string_value);
+        ErrConvString err(start, cs);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0),
                  unsigned_flag ? "INTEGER UNSIGNED" : "INTEGER SIGNED",
                  err.ptr());
@@ -4309,7 +4337,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(string_value);
+        ErrConvString err(start, cs);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0), "YEAR", err.ptr());
         return nullptr;
       }

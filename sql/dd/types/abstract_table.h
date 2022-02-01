@@ -92,7 +92,7 @@ class Abstract_table : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  ~Abstract_table() override = default;
+  ~Abstract_table() override {}
 
  public:
   /**
@@ -180,14 +180,6 @@ class Abstract_table : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Abstract_table *clone() const = 0;
-
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  virtual Abstract_table *clone_dropped_object_placeholder() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

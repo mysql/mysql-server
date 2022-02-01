@@ -46,7 +46,7 @@ namespace temptable {
 class Table {
  public:
   Table(TABLE *mysql_table, Block *shared_block,
-        bool all_columns_are_fixed_size, size_t tmp_table_size_limit);
+        bool all_columns_are_fixed_size);
 
   /* The `m_rows` member is too expensive to copy around. */
   Table(const Table &) = delete;
@@ -145,8 +145,6 @@ class Table {
   Result indexes_insert(Storage::Element *row);
 
   Result indexes_remove(Storage::Element *row);
-
-  TableResourceMonitor m_resource_monitor;
 
   /** Allocator for all members that need dynamic memory allocation. */
   Allocator<uint8_t> m_allocator;

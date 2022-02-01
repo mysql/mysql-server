@@ -68,12 +68,9 @@ create the internal counter ID in "monitor_id_t". */
 
 /** Structure containing the actual values of a monitor counter. */
 struct monitor_value_t {
-  std::chrono::system_clock::time_point
-      mon_start_time; /*!< Start time of monitoring  */
-  std::chrono::system_clock::time_point
-      mon_stop_time; /*!< Stop time of monitoring */
-  std::chrono::system_clock::time_point
-      mon_reset_time;                /*!< Time counter was reset */
+  ib_time_t mon_start_time;          /*!< Start time of monitoring  */
+  ib_time_t mon_stop_time;           /*!< Stop time of monitoring */
+  ib_time_t mon_reset_time;          /*!< Time counter resetted */
   std::atomic<mon_type_t> mon_value; /*!< Current counter Value */
   mon_type_t mon_max_value;          /*!< Current Max value */
   mon_type_t mon_min_value;          /*!< Current Min value */
@@ -122,7 +119,7 @@ counter values, the other is "innodb_counter_info" array which describes
 each counter's basic information (name, desc etc.). A couple of
 naming rules here:
 1) If the monitor defines a module, it starts with MONITOR_MODULE
-2) If the monitor uses existing counters from "status variable", its ID
+2) If the monitor uses exisitng counters from "status variable", its ID
 name shall start with MONITOR_OVLD
 
 Please refer to "innodb_counter_info" in srv/srv0mon.cc for detail
@@ -592,11 +589,11 @@ counter option. */
   (monitor_set_tbl[monitor / NUM_BITS_ULINT] & \
    ((ulint)1 << (monitor % NUM_BITS_ULINT)))
 
-/** The actual monitor counter array that records each monitor counter
+/** The actual monitor counter array that records each monintor counter
 value */
 extern monitor_value_t innodb_counter_value[NUM_MONITOR];
 
-/** Following are macro defines for basic monitor counter manipulations.
+/** Following are macro defines for basic montior counter manipulations.
 Please note we do not provide any synchronization for these monitor
 operations due to performance consideration. Most counters can
 be placed under existing mutex protections in respective code
@@ -628,18 +625,16 @@ module. */
 
 #define MONITOR_STATUS(monitor) MONITOR_FIELD(monitor, mon_status)
 
-#define MONITOR_SET_START(monitor)             \
-  do {                                         \
-    MONITOR_STATUS(monitor) = MONITOR_STARTED; \
-    MONITOR_FIELD((monitor), mon_start_time) = \
-        std::chrono::system_clock::now();      \
+#define MONITOR_SET_START(monitor)                         \
+  do {                                                     \
+    MONITOR_STATUS(monitor) = MONITOR_STARTED;             \
+    MONITOR_FIELD((monitor), mon_start_time) = time(NULL); \
   } while (0)
 
-#define MONITOR_SET_OFF(monitor)               \
-  do {                                         \
-    MONITOR_STATUS(monitor) = MONITOR_STOPPED; \
-    MONITOR_FIELD((monitor), mon_stop_time) =  \
-        std::chrono::system_clock::now();      \
+#define MONITOR_SET_OFF(monitor)                          \
+  do {                                                    \
+    MONITOR_STATUS(monitor) = MONITOR_STOPPED;            \
+    MONITOR_FIELD((monitor), mon_stop_time) = time(NULL); \
   } while (0)
 
 #define MONITOR_INIT_ZERO_VALUE 0
@@ -660,9 +655,10 @@ counter, and set the MONITOR_STATUS. */
   }
 
 #ifdef UNIV_DEBUG_VALGRIND
-#define MONITOR_CHECK_DEFINED(value)          \
-  do {                                        \
-    UNIV_MEM_ASSERT_RW(&value, sizeof value); \
+#define MONITOR_CHECK_DEFINED(value)  \
+  do {                                \
+    mon_type_t m = value;             \
+    UNIV_MEM_ASSERT_RW(&m, sizeof m); \
   } while (0)
 #else /* UNIV_DEBUG_VALGRIND */
 #define MONITOR_CHECK_DEFINED(value) (void)0
@@ -708,7 +704,7 @@ inline void monitor_atomic_inc(monitor_id_t monitor) {
   if (MONITOR_IS_ON(monitor)) {
     const mon_type_t value = ++MONITOR_VALUE(monitor);
     /* Note: This is not 100% accurate because of the inherent race, we ignore
-    it due to performance. */
+     * it due to performance. */
     monitor_set_max_value(monitor, value);
   }
 }
@@ -717,7 +713,7 @@ inline void monitor_atomic_dec(monitor_id_t monitor) {
   if (MONITOR_IS_ON(monitor)) {
     const mon_type_t value = --MONITOR_VALUE(monitor);
     /* Note: This is not 100% accurate because of the inherent race, we ignore
-    it due to performance. */
+     * it due to performance. */
     monitor_set_min_value(monitor, value);
   }
 }
@@ -725,8 +721,8 @@ inline void monitor_atomic_dec(monitor_id_t monitor) {
 inline void monitor_inc_value_nocheck(monitor_id_t monitor, mon_type_t value,
                                       bool set_max = true) {
   /* We use std::memory_order_relaxed load() and store() as two separate steps,
-  instead of single atomic fetch_add operation, because we want to leave it
-  non-atomic as it was before changing mon_value to std::atomic.*/
+   * instead of single atomic fetch_add operation, because we want to leave it
+   * non-atomic as it was before changing mon_value to std::atomic.*/
   const auto new_value =
       MONITOR_VALUE(monitor).load(std::memory_order_relaxed) + value;
   MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
@@ -744,8 +740,8 @@ inline void monitor_inc_value(monitor_id_t monitor, mon_type_t value) {
 
 inline void monitor_dec_value_nocheck(monitor_id_t monitor, mon_type_t value) {
   /* We use std::memory_order_relaxed load() and store() as two separate steps,
-  instead of single atomic fetch_sub operation, because we want to leave it
-  non-atomic as it was before changing mon_value to std::atomic.*/
+   * instead of single atomic fetch_sub operation, because we want to leave it
+   * non-atomic as it was before changing mon_value to std::atomic.*/
   const auto new_value =
       MONITOR_VALUE(monitor).load(std::memory_order_relaxed) - value;
   MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
@@ -788,20 +784,20 @@ inline void monitor_set(monitor_id_t monitor, mon_type_t value, bool set_max,
   }
 }
 
-/** Add time difference between now and input "value" to the monitor counter
+/** Add time difference between now and input "value" (in seconds) to the
+monitor counter
 @param monitor monitor to update for the time difference
 @param value the start time value */
-#define MONITOR_INC_TIME(monitor, value) monitor_inc_time(monitor, value)
+#define MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value) \
+  monitor_inc_time_in_micro_sec(monitor, value)
 
-inline void monitor_inc_time(monitor_id_t monitor,
-                             std::chrono::steady_clock::time_point value) {
+inline void monitor_inc_time_in_micro_sec(monitor_id_t monitor,
+                                          mon_type_t value) {
   MONITOR_CHECK_DEFINED(value);
   if (MONITOR_IS_ON(monitor)) {
     const mon_type_t new_value =
         MONITOR_VALUE(monitor).load(std::memory_order_relaxed) +
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::steady_clock::now() - value)
-            .count();
+        ut_time_monotonic_us() - value;
     MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
   }
 }
@@ -856,9 +852,9 @@ inline void monitor_reset_all(monitor_id_t monitor) {
   MONITOR_MAX_VALUE_START(monitor) = MAX_RESERVED;
   MONITOR_MIN_VALUE_START(monitor) = MIN_RESERVED;
   MONITOR_LAST_VALUE(monitor) = MONITOR_INIT_ZERO_VALUE;
-  MONITOR_FIELD(monitor, mon_start_time) = {};
-  MONITOR_FIELD(monitor, mon_stop_time) = {};
-  MONITOR_FIELD(monitor, mon_reset_time) = {};
+  MONITOR_FIELD(monitor, mon_start_time) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_FIELD(monitor, mon_stop_time) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_FIELD(monitor, mon_reset_time) = MONITOR_INIT_ZERO_VALUE;
 }
 
 /** Following four macros defines necessary operations to fetch and
@@ -928,19 +924,21 @@ void srv_mon_process_existing_counter(
 /** This function is used to calculate the maximum counter value
  since the start of monitor counter
  @return max counter value since start. */
-static inline mon_type_t srv_mon_calc_max_since_start(
+UNIV_INLINE
+mon_type_t srv_mon_calc_max_since_start(
     monitor_id_t monitor); /*!< in: monitor id */
 /** This function is used to calculate the minimum counter value
  since the start of monitor counter
  @return min counter value since start. */
-static inline mon_type_t srv_mon_calc_min_since_start(
+UNIV_INLINE
+mon_type_t srv_mon_calc_min_since_start(
     monitor_id_t monitor); /*!< in: monitor id*/
 /** Reset a monitor, create a new base line with the current monitor
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
 void srv_mon_reset(monitor_id_t monitor); /*!< in: monitor id*/
 /** This function resets all values of a monitor counter */
-static inline void srv_mon_reset_all(
-    monitor_id_t monitor); /*!< in: monitor id*/
+UNIV_INLINE
+void srv_mon_reset_all(monitor_id_t monitor); /*!< in: monitor id*/
 /** Turn on monitor counters that are marked as default ON. */
 void srv_mon_default_on(void);
 

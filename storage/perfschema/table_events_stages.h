@@ -55,7 +55,7 @@ class PFS_index_events_stages : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_stages() override = default;
+  ~PFS_index_events_stages() override {}
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events_stages *pfs);
@@ -124,7 +124,7 @@ class table_events_stages_common : public PFS_engine_table {
 
   table_events_stages_common(const PFS_engine_table_share *share, void *pos);
 
-  ~table_events_stages_common() override = default;
+  ~table_events_stages_common() override {}
 
   int make_row(PFS_events_stages *stage);
 
@@ -154,7 +154,7 @@ class table_events_stages_current : public table_events_stages_common {
   table_events_stages_current();
 
  public:
-  ~table_events_stages_current() override = default;
+  ~table_events_stages_current() override {}
 
  private:
   friend class table_events_stages_history;
@@ -195,7 +195,7 @@ class table_events_stages_history : public table_events_stages_common {
   table_events_stages_history();
 
  public:
-  ~table_events_stages_history() override = default;
+  ~table_events_stages_history() override {}
 
  private:
   /** Table share lock. */
@@ -229,7 +229,7 @@ class table_events_stages_history_long : public table_events_stages_common {
   table_events_stages_history_long();
 
  public:
-  ~table_events_stages_history_long() override = default;
+  ~table_events_stages_history_long() override {}
 
  private:
   /** Table share lock. */

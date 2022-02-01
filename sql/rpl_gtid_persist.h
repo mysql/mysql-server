@@ -48,7 +48,7 @@ class Gtid_table_access_context : public System_table_access {
   static const LEX_CSTRING TABLE_NAME;
 
   Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
-  ~Gtid_table_access_context() override = default;
+  ~Gtid_table_access_context() override {}
 
   /**
     Initialize the gtid_executed table access context as following:
@@ -119,8 +119,8 @@ class Gtid_table_persistor {
  public:
   static const uint number_fields = 3;
 
-  Gtid_table_persistor() = default;
-  virtual ~Gtid_table_persistor() = default;
+  Gtid_table_persistor() {}
+  virtual ~Gtid_table_persistor() {}
 
   /**
     Insert the gtid into table.

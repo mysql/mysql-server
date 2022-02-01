@@ -63,14 +63,14 @@ tree */
 /**
 @param[in,out]	mtr	Mini-transaction
 @return block */
-static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                              const page_size_t &page_size,
-                                              ulint mode, const char *file,
-                                              ulint line,
+UNIV_INLINE
+buf_block_t *btr_block_get_func(const page_id_t &page_id,
+                                const page_size_t &page_size, ulint mode,
+                                const char *file, ulint line,
 #ifdef UNIV_DEBUG
-                                              const dict_index_t *index,
+                                const dict_index_t *index,
 #endif /* UNIV_DEBUG */
-                                              mtr_t *mtr) {
+                                mtr_t *mtr) {
   buf_block_t *block;
 
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
@@ -86,7 +86,8 @@ static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
 }
 
 /** Sets the index id field of a page. */
-static inline void btr_page_set_index_id(
+UNIV_INLINE
+void btr_page_set_index_id(
     page_t *page,             /*!< in: page to be created */
     page_zip_des_t *page_zip, /*!< in: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -105,16 +106,16 @@ static inline void btr_page_set_index_id(
 
 /** Gets the index id field of a page.
  @return index id */
-static inline space_index_t btr_page_get_index_id(
-    const page_t *page) /*!< in: index page */
+UNIV_INLINE
+space_index_t btr_page_get_index_id(const page_t *page) /*!< in: index page */
 {
   return (mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID));
 }
 
 /** Gets the node level field in an index page.
  @return level, leaf level == 0 */
-static inline ulint btr_page_get_level_low(
-    const page_t *page) /*!< in: index page */
+UNIV_INLINE
+ulint btr_page_get_level_low(const page_t *page) /*!< in: index page */
 {
   ulint level;
 
@@ -128,7 +129,8 @@ static inline ulint btr_page_get_level_low(
 }
 
 /** Sets the node level field in an index page. */
-static inline void btr_page_set_level(
+UNIV_INLINE
+void btr_page_set_level(
     page_t *page,             /*!< in: index page */
     page_zip_des_t *page_zip, /*!< in: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -150,9 +152,9 @@ static inline void btr_page_set_level(
 
 /** Gets the next index page number.
  @return next page number */
-static inline page_no_t btr_page_get_next(
-    const page_t *page, /*!< in: index page */
-    mtr_t *mtr [[maybe_unused]])
+UNIV_INLINE
+page_no_t btr_page_get_next(const page_t *page, /*!< in: index page */
+                            mtr_t *mtr MY_ATTRIBUTE((unused)))
 /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
@@ -162,7 +164,8 @@ static inline page_no_t btr_page_get_next(
 }
 
 /** Sets the next index page field. */
-static inline void btr_page_set_next(
+UNIV_INLINE
+void btr_page_set_next(
     page_t *page,             /*!< in: index page */
     page_zip_des_t *page_zip, /*!< in: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -182,9 +185,10 @@ static inline void btr_page_set_next(
 
 /** Gets the previous index page number.
  @return prev page number */
-static inline page_no_t btr_page_get_prev(
-    const page_t *page,          /*!< in: index page */
-    mtr_t *mtr [[maybe_unused]]) /*!< in: mini-transaction handle */
+UNIV_INLINE
+page_no_t btr_page_get_prev(
+    const page_t *page,                /*!< in: index page */
+    mtr_t *mtr MY_ATTRIBUTE((unused))) /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
   ut_ad(mtr != nullptr);
@@ -193,7 +197,8 @@ static inline page_no_t btr_page_get_prev(
 }
 
 /** Sets the previous index page field. */
-static inline void btr_page_set_prev(
+UNIV_INLINE
+void btr_page_set_prev(
     page_t *page,             /*!< in: index page */
     page_zip_des_t *page_zip, /*!< in: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -217,7 +222,8 @@ static inline void btr_page_set_prev(
  the child page number. In other words offsets must have been retrieved
  with rec_get_offsets(n_fields=ULINT_UNDEFINED).
  @return child node address */
-static inline page_no_t btr_node_ptr_get_child_page_no(
+UNIV_INLINE
+page_no_t btr_node_ptr_get_child_page_no(
     const rec_t *rec,     /*!< in: node pointer record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
@@ -240,11 +246,11 @@ static inline page_no_t btr_node_ptr_get_child_page_no(
 
 #ifndef UNIV_HOTBACKUP
 /** Releases the latches on a leaf page and bufferunfixes it. */
-static inline void btr_leaf_page_release(
-    buf_block_t *block, /*!< in: buffer block */
-    ulint latch_mode,   /*!< in: BTR_SEARCH_LEAF or
-                        BTR_MODIFY_LEAF */
-    mtr_t *mtr)         /*!< in: mtr */
+UNIV_INLINE
+void btr_leaf_page_release(buf_block_t *block, /*!< in: buffer block */
+                           ulint latch_mode,   /*!< in: BTR_SEARCH_LEAF or
+                                               BTR_MODIFY_LEAF */
+                           mtr_t *mtr)         /*!< in: mtr */
 {
   ut_ad(latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF ||
         latch_mode == BTR_NO_LATCHES);
@@ -263,7 +269,7 @@ static inline void btr_leaf_page_release(
       mode = MTR_MEMO_BUF_FIX;
       break;
     default:
-      ut_error;
+      ut_a(0);
   }
 
   mtr->memo_release(block, mode);

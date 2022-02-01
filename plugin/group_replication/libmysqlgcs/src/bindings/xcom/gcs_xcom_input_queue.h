@@ -114,9 +114,7 @@ class Gcs_xcom_input_queue_impl {
      * lifetime of *this. */
     std::promise<std::unique_ptr<Reply>> m_promise;
   };
-  // NOLINTNEXTLINE(modernize-use-equals-default)
   Gcs_xcom_input_queue_impl() noexcept {}
-  // NOLINTNEXTLINE(modernize-use-equals-default)
   ~Gcs_xcom_input_queue_impl() {}
   Gcs_xcom_input_queue_impl(Gcs_xcom_input_queue_impl const &) = delete;
   Gcs_xcom_input_queue_impl(Gcs_xcom_input_queue_impl &&) = delete;

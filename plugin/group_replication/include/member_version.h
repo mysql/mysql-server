@@ -27,10 +27,6 @@
 
 #include "my_inttypes.h"
 
-/**
- * @brief represent the MySQL version of a Member within the Group Replication
- * group.
- */
 class Member_version {
  public:
   Member_version(unsigned int version);

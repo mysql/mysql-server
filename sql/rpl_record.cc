@@ -54,20 +54,18 @@ class Json_diff_vector;
 using std::max;
 using std::min;
 
-#ifndef NDEBUG
 template <typename T, typename UT>
-void Bit_stream_base<T, UT>::dbug_print(const char *str) const {
+void Bit_stream_base<T, UT>::dbug_print(
+    const char *str MY_ATTRIBUTE((unused))) const {
+#ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
   s.reserve(static_cast<size_t>(m_current_bit + 1));
   for (uint i = 0; i < m_current_bit; i++)
     s.append((m_ptr[i / 8] & (1 << (i % 8))) != 0 ? '1' : '0');
   s.append("\0", 1);
   DBUG_PRINT("info", ("%s: %u bits: %s", str, m_current_bit, s.ptr()));
-}
-#else
-template <typename T, typename UT>
-void Bit_stream_base<T, UT>::dbug_print(const char *) const {}
 #endif
+}
 
 /**
   Write a single field (column) of a row in a binary log row event to the
@@ -809,7 +807,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                              field_ptr->field_name, source_type.c_ptr_safe(),
                              value_string.c_ptr_safe()));
 #endif
-        copy.set(field_ptr, f);
+        copy.set(field_ptr, f, true);
         copy.invoke_do_copy();
 #ifndef NDEBUG
         char target_buf[MAX_FIELD_WIDTH];

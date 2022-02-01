@@ -26,20 +26,22 @@
 #include <sys/stat.h>
 #endif
 
-#include <ctime>
 #include <fstream>
 #include <string>
 
-#include <gmock/gmock-matchers.h>
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
+#include <ctime>
 
 #include "dim.h"
+#include "filesystem_utils.h"
 #include "harness_assert.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
@@ -47,14 +49,13 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/string_utils.h"  // split_string
 #include "mysqld_error.h"
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
-#include "router_test_helpers.h"  // get_file_output
 #include "script_generator.h"
 #include "socket_operations.h"
+#include "utils.h"
 
 /**
  * @file
@@ -64,38 +65,6 @@
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 using mysqlrouter::ClusterType;
-
-/**
- * wrap all elements of a container in a matcher.
- *
- * To match lines against a substrings which are provided by an
- * array-of-strings:
- *
- * @code
- * EXPECT_THAT(lines, IsSupersetOf(make_matchers(
- *   {"foo", "bar"}, [](const auto &s){ return HasSubstr(s); }
- * )));
- * @endcode
- *
- * is the same as:
- *
- * @code
- * EXPECT_THAT(lines, IsSupersetOf(
- *   HasSubstr("foo"),
- *   HasSubstr("bar")
- * ));
- * @endcode
- */
-template <class Container, class UnaryOperation>
-auto make_matchers(const Container &container, UnaryOperation unary_op) {
-  std::vector<::testing::Matcher<typename Container::value_type>> out;
-
-  for (const auto &el : container) {
-    out.emplace_back(unary_op(el));
-  }
-
-  return out;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -448,6 +417,19 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     };
   }
 
+  void add_login_hook(ProcessWrapper &router,
+                      const std::string &account_password,
+                      const std::string &username = kAccountUser,
+                      bool root_password_on_cmdline = false) {
+    router.register_response(
+        "Please enter MySQL password for " + username + ": ",
+        account_password + "\n");
+
+    if (root_password_on_cmdline == false)
+      router.register_response("Please enter MySQL password for root: ",
+                               "fake-root-pass\n");
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // other functions
   ////////////////////////////////////////////////////////////////////////////////
@@ -465,8 +447,6 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   ProcessWrapper &launch_bootstrap(int exp_exit_code, uint16_t server_port,
                                    const std::string &bootstrap_directory,
                                    const std::vector<std::string> &extra_args,
-                                   const std::string &account_password,
-                                   const std::string &username = kAccountUser,
                                    bool root_password_on_cmdline = false) {
     std::vector<std::string> args = {
         "--bootstrap",
@@ -477,20 +457,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         "-d",
         bootstrap_directory};
     for (const std::string &a : extra_args) args.push_back(a);
-
-    ProcessWrapper::OutputResponder output_responder{
-        [=](const std::string &line) -> std::string {
-          if (line == "Please enter MySQL password for " + username + ": ")
-            return account_password + "\n";
-
-          if (!root_password_on_cmdline &&
-              line == "Please enter MySQL password for root: ")
-            return "fake-root-pass\n";
-          return "";
-        }};
-
-    return launch_router_for_bootstrap(args, exp_exit_code, true,
-                                       output_responder);
+    return launch_router_for_bootstrap(args, exp_exit_code);
   }
 
   static std::string get_local_hostname() {
@@ -540,22 +507,115 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         make_error_code(std::errc::no_such_file_or_directory));
   }
 
+  static std::string dump(ProcessWrapper &router, ProcessWrapper &server_mock,
+                          uint16_t server_http_port,
+                          std::chrono::milliseconds timeout = 1000ms) {
+    std::stringstream ss;
+
+    ss << "\n";
+    try {
+      router.wait_for_exit(timeout);
+    } catch (...) {
+      ss << "dump(): WARNING, waiting for Router timed out, output might not "
+            "be complete!\n";
+    }
+    try {
+      server_mock.wait_for_exit(timeout);
+    } catch (...) {
+      ss << "dump(): NOTE that Server Mock is still running\n";
+    }
+
+    ss << "vvvvvvvvvvvvvvvvvvvv OUTPUT DUMP vvvvvvvvvvvvvvvvvvvv\n";
+
+    // Router and Mock Server output
+    ss << "-------- Router:\n" << router.get_full_output() << "\n";
+    ss << "-------- Server:\n" << server_mock.get_full_output() << "\n";
+
+    // SQL log
+    {
+      ss << "[HTTP PORT " + std::to_string(server_http_port) + "] SQL log:\n";
+
+      std::string server_globals =
+          MockServerRestClient(server_http_port).get_globals_as_json_string();
+
+      rapidjson::Document json_doc;
+      json_doc.Parse(server_globals.c_str());
+      if (json_doc.HasMember("sql_log")) {
+        const auto &sql_log = json_doc["sql_log"];
+        ss << sql_log << "\n";
+      } else {
+        ss << "<NONE>"
+           << "\n";
+      }
+    }
+
+    ss << "^^^^^^^^^^^^^^^^^^^^ OUTPUT DUMP ^^^^^^^^^^^^^^^^^^^^\n";
+    return ss.str();
+  }
+
+  /**
+   * Dumps debug information on scope exit, if test has failed
+   */
+  class DebugDumper {
+   public:
+    DebugDumper(ProcessWrapper &router, ProcessWrapper &server_mock,
+                uint16_t server_http_port,
+                std::chrono::milliseconds timeout = 1000ms)
+        : router_(router),
+          server_mock_(server_mock),
+          server_http_port_(server_http_port),
+          timeout_(timeout) {}
+    ~DebugDumper() {
+      if (::testing::Test::HasFailure())
+        std::cerr << AccountReuseTestBase::dump(router_, server_mock_,
+                                                server_http_port_, timeout_);
+    }
+
+   private:
+    ProcessWrapper &router_;
+    ProcessWrapper &server_mock_;
+    uint16_t server_http_port_;
+    std::chrono::milliseconds timeout_;
+  };
+
   void check_bootstrap_success(
       ProcessWrapper &router, const std::vector<std::string> exp_output,
       const std::vector<std::string> unexp_output = {}) {
-    ASSERT_NO_THROW(router.wait_for_exit());
+    std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+      if (!bootstrap_finished_running_) FAIL();  // induce to call dump()
+    });
 
-    auto output = mysql_harness::split_string(router.get_full_output(), '\n');
+    try {
+      router.wait_for_exit();
+      bootstrap_finished_running_ = true;
+    } catch (const std::exception &e) {
+      std::cerr << "check_bootstrap_success(): wait_for_exit() threw: "
+                << e.what() << std::endl;
+      throw;
+    } catch (...) {
+      std::cerr << "check_bootstrap_success(): wait_for_exit() threw unknown "
+                   "exception"
+                << std::endl;
+      throw;
+    }
 
-    EXPECT_THAT(output,
-                ::testing::IsSupersetOf(make_matchers(exp_output, [](auto &s) {
-                  return ::testing::HasSubstr(s);
-                })));
+    // split the output into lines
+    std::vector<std::string> lines;
+    {
+      std::istringstream ss{router.get_full_output()};
 
-    EXPECT_THAT(output, ::testing::IsSupersetOf(
-                            make_matchers(unexp_output, [](auto &s) {
-                              return ::testing::Not(::testing::HasSubstr(s));
-                            })));
+      for (std::string line; std::getline(ss, line);) {
+        lines.emplace_back(line);
+      }
+    }
+
+    for (const std::string &output : exp_output) {
+      EXPECT_THAT(router.get_full_output(), ::testing::HasSubstr(output));
+    }
+    for (const std::string &output : unexp_output) {
+      EXPECT_THAT(router.get_full_output(),
+                  ::testing::Not(::testing::HasSubstr(output)));
+    }
   }
 
   void check_bootstrap_success(ProcessWrapper &router,
@@ -565,7 +625,12 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
 
   void check_keyring(const std::string &bootstrap_directory, bool expect_exists,
                      const std::string &expect_user = "",
-                     const std::string &expect_password = "") {
+                     const std::string &expect_password = "",
+                     bool running_after_bootstrap = true) {
+    if (running_after_bootstrap)
+      // calling check_bootstrap_success() is a prerequisite
+      harness_assert(bootstrap_finished_running_);
+
     // expect that keyring exists and contains expected account name and
     // password
     if (expect_exists) {
@@ -596,6 +661,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
       bool account_opt /* whether --account was given on cmdline */,
       bool root_password_on_cmdline = false) {
     // calling check_bootstrap_success() is a prerequisite
+    harness_assert(bootstrap_finished_running_);
 
     const size_t root_pass_prompt = ([&]() {
       if (root_password_on_cmdline)
@@ -642,6 +708,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   void check_config(const std::string &bootstrap_directory, bool expect_exists,
                     const std::string &username = "") {
     // calling check_bootstrap_success() is a prerequisite
+    harness_assert(bootstrap_finished_running_);
 
     Path config_file(bootstrap_directory);
     config_file.append("mysqlrouter.conf");
@@ -650,10 +717,10 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     // expected account name
     if (expect_exists) {
       ASSERT_TRUE(config_file.exists());
-      auto file_content = get_file_output(config_file.str());
-      auto lines = mysql_harness::split_string(file_content, '\n');
-      EXPECT_THAT(
-          lines, ::testing::Contains(::testing::HasSubstr("user=" + username)));
+      EXPECT_TRUE(
+          find_in_file(config_file.str(), [&](const std::string &line) -> bool {
+            return line.find("user=" + username) != line.npos;
+          }));
     } else {
       EXPECT_FALSE(config_file.exists());
     }
@@ -683,6 +750,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
                        const std::vector<std::string> exp_stmts,
                        const std::vector<std::string> unexp_stmts = {}) {
     // calling check_bootstrap_success() is a prerequisite
+    harness_assert(bootstrap_finished_running_);
 
     std::string server_globals =
         MockServerRestClient(server_http_port).get_globals_as_json_string();
@@ -836,7 +904,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         "FATAL ERROR ENCOUNTERED, attempting to undo new accounts that were created",
 
         "ERROR: As part of cleanup after bootstrap failure, we tried to erase account(s)",
-        "that we created.  Unfortunately the cleanup failed with error:",
+        "that we created.  Unfortuantely the cleanup failed with error:",
         "  Error executing MySQL query \"DROP USER IF EXISTS " + new_account_list + "\": " + du_err_msg + " (" + std::to_string(du_err_code) + ")",
         "You may want to clean up the accounts yourself, here is the full list of",
         "accounts that were created:",
@@ -905,6 +973,8 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         // clang-format on
     };
   }
+
+  bool bootstrap_finished_running_ = false;
 
   static const std::string kBootstrapSuccessMsg;
   static const std::string kUndoCreateUserSuccessMsg;
@@ -1205,16 +1275,17 @@ TEST_F(AccountReuseTest, simple) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // run bootstrap
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_config(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -1250,17 +1321,20 @@ TEST_F(AccountReuseTest, no_host_patterns) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -1307,17 +1381,20 @@ TEST_F(AccountReuseTest, multiple_host_patterns) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -1846,15 +1923,15 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, cr.stmts);
 
   // populate extra cmdline args
   for (const std::string &h : account_host_args) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   extra_args.emplace_back("--account");
@@ -1862,12 +1939,13 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password, username);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password, username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(extra_args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -1925,17 +2003,20 @@ TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -1992,18 +2073,21 @@ TEST_F(AccountReuseReconfigurationTest,
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port,
                                    cr1.stmts + "," + cr2.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2062,17 +2146,20 @@ TEST_F(AccountReuseReconfigurationTest,
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2126,17 +2213,20 @@ TEST_F(AccountReuseReconfigurationTest,
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2167,7 +2257,7 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
     create_keyring(bootstrap_directory.name(), kAutoGenUser,
                    kAutoGenUserPassword);
     check_keyring(bootstrap_directory.name(), true, kAutoGenUser,
-                  kAutoGenUserPassword);
+                  kAutoGenUserPassword, false);
 
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser};
@@ -2186,17 +2276,20 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2227,7 +2320,7 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
     create_keyring(bootstrap_directory.name(), kAccountUser,
                    kAccountUserPassword);
     check_keyring(bootstrap_directory.name(), true, kAccountUser,
-                  kAccountUserPassword);
+                  kAccountUserPassword, false);
 
     // test params
     const std::vector<std::string> args;
@@ -2248,17 +2341,20 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2289,7 +2385,7 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
     create_keyring(bootstrap_directory.name(), kAutoGenUser,
                    kAutoGenUserPassword);
     check_keyring(bootstrap_directory.name(), true, kAutoGenUser,
-                  kAutoGenUserPassword);
+                  kAutoGenUserPassword, false);
 
     // test params
     const std::vector<std::string> args;
@@ -2313,17 +2409,20 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), args,
-        exp_password, exp_username, root_password_on_cmdline);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, root_password_on_cmdline);
+    add_login_hook(router, exp_password, exp_username,
+                   root_password_on_cmdline);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args),
                                        root_password_on_cmdline);
@@ -2352,6 +2451,12 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
 
   // expectations
   int exp_exit_code = EXIT_FAILURE;
+  const std::vector<std::string> exp_output = {
+      "Error: Failed retrieving password for user '" + kAccountUser +
+          "' from keyring: Can't open file '",
+      "mysqlrouter.key': " +
+          std::error_condition(std::errc::no_such_file_or_directory).message(),
+  };
   const std::string exp_username = kAccountUser;
   const std::string exp_password = kAccountUserPassword;
   const std::set<std::string> exp_attempt_create_hosts = {};
@@ -2363,30 +2468,18 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(server_http_port, cr.stmts);
 
   // run bootstrap
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password);
 
   // check outcome
-  ASSERT_NO_THROW(check_exit_code(router, exp_exit_code));
-
-  auto output = mysql_harness::split_string(router.get_full_output(), '\n');
-
-  EXPECT_THAT(output,
-              ::testing::Contains(::testing::AllOf(
-                  ::testing::StartsWith(
-                      "Error: Failed retrieving password for user '" +
-                      kAccountUser + "' from keyring: Can't open file '"),
-                  ::testing::EndsWith(
-                      "mysqlrouter.key': " +
-                      std::error_condition(std::errc::no_such_file_or_directory)
-                          .message()))));
-
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), false);
@@ -2413,7 +2506,7 @@ TEST_F(AccountReuseReconfigurationTest,
   create_config(bootstrap_directory.name(), kAccountUser);
   create_keyring(bootstrap_directory.name(), kBogusUser, kAccountUserPassword);
   check_keyring(bootstrap_directory.name(), true, kBogusUser,
-                kAccountUserPassword);
+                kAccountUserPassword, false);
 
   // test params
   const std::vector<std::string> args;
@@ -2438,16 +2531,17 @@ TEST_F(AccountReuseReconfigurationTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // run bootstrap
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), true, exp_username,
@@ -2486,7 +2580,7 @@ TEST_F(AccountReuseReconfigurationTest,
   create_config(bootstrap_directory.name(), kAccountUser);
   create_keyring(bootstrap_directory.name(), kAccountUser, kIncorrectPassword);
   check_keyring(bootstrap_directory.name(), true, kAccountUser,
-                kIncorrectPassword);
+                kIncorrectPassword, false);
 
   // test params
   const std::vector<std::string> args;
@@ -2495,15 +2589,10 @@ TEST_F(AccountReuseReconfigurationTest,
 
   // expectations
   int exp_exit_code = EXIT_SUCCESS;
-  auto exp_matchers = make_matchers(acct_val_failed_warning_msg(), [](auto &s) {
-    return ::testing::HasSubstr(s);
-  });
-
-  exp_matchers.emplace_back(::testing::AllOf(
-      ::testing::StartsWith("  Error connecting to MySQL server at 127.0.0.1:"),
-      ::testing::EndsWith(": Access Denied for user '"s + kAccountUser +
-                          "'@'localhost' (1045)")));
-
+  std::vector<std::string> exp_output = acct_val_failed_warning_msg();
+  exp_output.push_back("Error connecting to MySQL server at 127.0.0.1:");
+  exp_output.push_back(": Access Denied for user '"s + kAccountUser +
+                       "'@'localhost' (1045)");
   const std::string exp_username = kAccountUser;
   const std::string exp_password = kIncorrectPassword;
   const std::string exp_password_hash =
@@ -2524,8 +2613,8 @@ TEST_F(AccountReuseReconfigurationTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(
       server_http_port,
       cr.stmts);  // we don't set Router account username here,
@@ -2535,17 +2624,13 @@ TEST_F(AccountReuseReconfigurationTest,
   // mock level, only with simpler code
 
   // run bootstrap
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, "account password will not be asked");
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, "account password will not be asked");
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, exp_exit_code));
-
-  auto output = mysql_harness::split_string(router.get_full_output(), '\n');
-
-  EXPECT_THAT(output, ::testing::IsSupersetOf(exp_matchers));
-
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), true, exp_username,
@@ -2608,24 +2693,25 @@ TEST_F(ShowWarningsProcessorTest, no_accounts_exist) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -2690,24 +2776,25 @@ TEST_F(ShowWarningsProcessorTest, one_account_exists) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -2772,24 +2859,25 @@ TEST_F(ShowWarningsProcessorTest, two_accounts_exist) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -2844,24 +2932,25 @@ TEST_F(ShowWarningsProcessorTest, all_accounts_exist) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -2941,24 +3030,25 @@ TEST_F(ShowWarningsProcessorTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3030,24 +3120,25 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3129,24 +3220,25 @@ TEST_F(ShowWarningsProcessorTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3218,24 +3310,25 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
 
     // add expected creation SQL statements to JS
     set_mock_server_sql_statements(server_http_port, custom_responses);
 
     // run bootstrap
     for (const std::string &h : account_hosts) {
-      extra_args.emplace_back("--account-host");
+      extra_args.push_back("--account-host");
       extra_args.push_back(h);
     }
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         extra_args, password);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+    add_login_hook(router, password);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output);
     check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
     // consistency checks
@@ -3334,24 +3427,25 @@ TEST_F(ShowWarningsProcessorTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3414,24 +3508,25 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3617,27 +3712,28 @@ TEST_P(UndoCreateUserTestP, grant_fails) {
       "executing MySQL query \"" +
       gr_err_sql() + "\": " + gr_err_msg + " (" + std::to_string(gr_err_code) +
       ")");
-
+  exp_output.emplace_back(kUndoCreateUserSuccessMsg);
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
-
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3765,24 +3861,25 @@ TEST_P(UndoCreateUserTestP, grant_fails_and_drop_user_also_fails) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3865,8 +3962,8 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
@@ -3874,7 +3971,7 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
   // induce failure at config-write step (should result in error analogous to:
   // "Could not create file '.../router-sBHJGw/mysqlrouter.conf.bak': Permission
   // denied"
-  for (const char *file : {"mysqlrouter.conf", "mysqlrouter.conf.bak"}) {
+  for (const std::string &file : {"mysqlrouter.conf", "mysqlrouter.conf.bak"}) {
     std::string path = bootstrap_directory.name() + "/" + file;
     std::ofstream f(path.c_str());
     f << "[DEFAULT]\n";
@@ -3883,15 +3980,16 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -3975,8 +4073,8 @@ TEST_F(UndoCreateUserTest,
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
 
   // add expected creation SQL statements to JS
   set_mock_server_sql_statements(server_http_port, custom_responses);
@@ -3984,7 +4082,7 @@ TEST_F(UndoCreateUserTest,
   // induce failure at config-write step (should result in error analogous to:
   // "Could not create file '.../router-sBHJGw/mysqlrouter.conf.bak': Permission
   // denied"
-  for (const char *file : {"mysqlrouter.conf", "mysqlrouter.conf.bak"}) {
+  for (const std::string &file : {"mysqlrouter.conf", "mysqlrouter.conf.bak"}) {
     std::string path = bootstrap_directory.name() + "/" + file;
     std::ofstream f(path.c_str());
     f << "[DEFAULT]\n";
@@ -3993,15 +4091,16 @@ TEST_F(UndoCreateUserTest,
 
   // run bootstrap
   for (const std::string &h : account_hosts) {
-    extra_args.emplace_back("--account-host");
+    extra_args.push_back("--account-host");
     extra_args.push_back(h);
   }
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       extra_args, password);
+  ProcessWrapper &router = launch_bootstrap(
+      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
+  add_login_hook(router, password);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output);
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 
   // consistency checks
@@ -4049,19 +4148,19 @@ TEST_F(AccountValidationTest, sunny_day_scenario) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(server_http_port, cr.stmts, kAccountUser);
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(
-      check_bootstrap_success(router, exp_output, unexp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output, unexp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4109,8 +4208,8 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(
       server_http_port,
       cr.stmts);  // we omit setting kAccountUser for 2nd conn
@@ -4121,13 +4220,13 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(
-      check_bootstrap_success(router, exp_output, unexp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output, unexp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4174,8 +4273,8 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(
       server_http_port,
       cr.stmts);  // we omit setting kAccountUser for 2nd conn
@@ -4186,13 +4285,13 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(
-      check_bootstrap_success(router, exp_output, unexp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output, unexp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4241,21 +4340,21 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(
       server_http_port,
       cr.stmts);  // we omit setting kAccountUser for 2nd conn
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(
-      check_bootstrap_success(router, exp_output, unexp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output, unexp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4294,7 +4393,7 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
   CustomResponses cr = gen_sql_for_creating_accounts(
       exp_username, exp_attempt_create_hosts, existing_hosts);
   std::vector<std::string> exp_sql = cr.exp_sql;
-  exp_sql.emplace_back("DROP USER");  // revert CREATE USER
+  exp_sql.push_back("DROP USER");  // revert CREATE USER
   std::vector<std::string> unexp_sql = {
       sql_val1(), sql_val2(),
       sql_val3()  // shouldn't get that far due to conn failure
@@ -4303,21 +4402,21 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
   // launch mock server and wait for it to start accepting connections
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t server_http_port = port_pool_.get_next_available();
-
-  launch_mock_server(server_port, server_http_port);
+  ProcessWrapper &server_mock =
+      launch_mock_server(server_port, server_http_port);
   set_mock_server_sql_statements(
       server_http_port,
       cr.stmts);  // we omit setting kAccountUser for 2nd conn
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router =
-      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                       args, exp_password, exp_username);
+  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                            bootstrap_directory.name(), args);
+  add_login_hook(router, exp_password, exp_username);
 
   // check outcome
-  ASSERT_NO_FATAL_FAILURE(
-      check_bootstrap_success(router, exp_output, unexp_output));
+  DebugDumper dd(router, server_mock, server_http_port);
+  check_bootstrap_success(router, exp_output, unexp_output);
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(args));
   check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4370,19 +4469,19 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts, kAccountUser);
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, exp_password, exp_username);
+    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                              bootstrap_directory.name(), args);
+    add_login_hook(router, exp_password, exp_username);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(
-        check_bootstrap_success(router, exp_output, unexp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output, unexp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args));
     check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4432,25 +4531,25 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
     cr.add(failed_val_query, res_error());
 
     std::vector<std::string> exp_sql = cr.exp_sql;
-    exp_sql.emplace_back("DROP USER");
+    exp_sql.push_back("DROP USER");
     std::vector<std::string> unexp_sql = {};
 
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts, kAccountUser);
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, exp_password, exp_username);
+    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                              bootstrap_directory.name(), args);
+    add_login_hook(router, exp_password, exp_username);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(
-        check_bootstrap_success(router, exp_output, unexp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output, unexp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args));
     check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4508,19 +4607,19 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts, kAccountUser);
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, exp_password, exp_username);
+    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                              bootstrap_directory.name(), args);
+    add_login_hook(router, exp_password, exp_username);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(
-        check_bootstrap_success(router, exp_output, unexp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output, unexp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args));
     check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4579,19 +4678,19 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
     // launch mock server and wait for it to start accepting connections
     const uint16_t server_port = port_pool_.get_next_available();
     const uint16_t server_http_port = port_pool_.get_next_available();
-
-    launch_mock_server(server_port, server_http_port);
+    ProcessWrapper &server_mock =
+        launch_mock_server(server_port, server_http_port);
     set_mock_server_sql_statements(server_http_port, cr.stmts, kAccountUser);
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, exp_password, exp_username);
+    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
+                                              bootstrap_directory.name(), args);
+    add_login_hook(router, exp_password, exp_username);
 
     // check outcome
-    ASSERT_NO_FATAL_FAILURE(
-        check_bootstrap_success(router, exp_output, unexp_output));
+    DebugDumper dd(router, server_mock, server_http_port);
+    check_bootstrap_success(router, exp_output, unexp_output);
     check_questions_asked_by_bootstrap(exp_exit_code, router,
                                        is_using_account(args));
     check_keyring(bootstrap_directory.name(), exp_exit_code == EXIT_SUCCESS,
@@ -4628,7 +4727,11 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
     // launch the router in bootstrap mode
-    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
+    auto &router = launch_router_for_bootstrap(cmdline);
+
+    // add login hook
+    router.register_response("Please enter MySQL password for root: ",
+                             kRootPassword + "\n"s);
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful
@@ -4728,7 +4831,10 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "--report-host",
        my_hostname, "-d", bootstrap_directory.name(), "--account-host",
        "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"},
-      EXIT_FAILURE, true);
+      EXIT_FAILURE);
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           kRootPassword + "\n"s);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
@@ -4758,7 +4864,11 @@ TEST_F(RouterReportHostTest, typical_usage) {
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
     // launch the router in bootstrap mode
-    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
+    auto &router = launch_router_for_bootstrap(cmdline);
+
+    // add login hook
+    router.register_response("Please enter MySQL password for root: ",
+                             kRootPassword + "\n"s);
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful

@@ -195,22 +195,24 @@ static void die(const char *file, int line, const char *expr) {
   }
 
 /* Silence unused function warnings for some of the static functions. */
-[[maybe_unused]] static int cmp_double(double *a, double *b);
-[[maybe_unused]] static void verify_col_data(const char *table, const char *col,
-                                             const char *exp_data);
-[[maybe_unused]] static void do_verify_prepare_field(
-    MYSQL_RES *result, unsigned int no, const char *name, const char *org_name,
-    enum enum_field_types type, const char *table, const char *org_table,
-    const char *db, unsigned long length, const char *def, const char *file,
-    int line);
-[[maybe_unused]] static void verify_st_affected_rows(MYSQL_STMT *stmt,
-                                                     ulonglong exp_count);
-[[maybe_unused]] static void verify_affected_rows(ulonglong exp_count);
-[[maybe_unused]] static void verify_field_count(MYSQL_RES *result,
-                                                uint exp_count);
-[[maybe_unused]] static void execute_prepare_query(const char *query,
-                                                   ulonglong exp_count);
-[[maybe_unused]] static bool thread_query(const char *query);
+static int cmp_double(double *a, double *b) MY_ATTRIBUTE((unused));
+static void verify_col_data(const char *table, const char *col,
+                            const char *exp_data) MY_ATTRIBUTE((unused));
+static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
+                                    const char *name, const char *org_name,
+                                    enum enum_field_types type,
+                                    const char *table, const char *org_table,
+                                    const char *db, unsigned long length,
+                                    const char *def, const char *file, int line)
+    MY_ATTRIBUTE((unused));
+static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
+    MY_ATTRIBUTE((unused));
+static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
+static void verify_field_count(MYSQL_RES *result, uint exp_count)
+    MY_ATTRIBUTE((unused));
+static void execute_prepare_query(const char *query, ulonglong exp_count)
+    MY_ATTRIBUTE((unused));
+static bool thread_query(const char *query) MY_ATTRIBUTE((unused));
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
 
@@ -1129,7 +1131,7 @@ static struct my_tests_st *get_my_tests(); /* To be defined in main .c file */
 static struct my_tests_st *my_testlist = nullptr;
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt [[maybe_unused]],
+                           const struct my_option *opt MY_ATTRIBUTE((unused)),
                            char *argument) {
   switch (optid) {
     case '#':

@@ -30,8 +30,6 @@
 
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
-struct TABLE;
-
 /** Ndb_table_map
  *
  *   An Ndb_table_map for a table provides a map between MySQL fields and
@@ -52,7 +50,7 @@ struct TABLE;
  */
 class Ndb_table_map {
  public:
-  Ndb_table_map(const TABLE *, const NdbDictionary::Table *ndb_table = 0);
+  Ndb_table_map(struct TABLE *, const NdbDictionary::Table *ndb_table = 0);
   ~Ndb_table_map();
 
   /* Get the NDB column number for a MySQL field.
@@ -106,25 +104,28 @@ class Ndb_table_map {
    has virtual generated columns.
    Function existed in 5.7 as table->has_virtual_gcol()
   */
-  static bool has_virtual_gcol(const TABLE *table);
+  static bool has_virtual_gcol(const struct TABLE *table);
 
   /*
     Adapter function for returning the number of
     stored fields in the TABLE*(i.e those who are
     not virtual).
   */
-  static uint num_stored_fields(const TABLE *table);
+  static uint num_stored_fields(const struct TABLE *table);
 
-  /* Get number of stored fields in the TABLE */
-  uint get_num_stored_fields() const { return m_stored_fields; }
+  /*
+    Check if the table has physical blob columns(i.e actually stored in
+    the engine)
+   */
+  static bool have_physical_blobs(const struct TABLE *table);
 
 #ifndef NDEBUG
-  static void print_record(const TABLE *table, const uchar *record);
-  static void print_table(const char *info, const TABLE *table);
+  static void print_record(const struct TABLE *table, const uchar *record);
+  static void print_table(const char *info, const struct TABLE *table);
 #endif
 
  private:
-  const NdbDictionary::Table *const m_ndb_table;
+  const NdbDictionary::Table *m_ndb_table;
   MY_BITMAP m_moved_fields;
   MY_BITMAP m_rewrite_set;
   int *m_map_by_field;

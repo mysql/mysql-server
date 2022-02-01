@@ -322,7 +322,7 @@ struct btr_pcur_t {
 
   /** Free old_rec_buf. */
   void free_rec_buf() {
-    ut::free(m_old_rec_buf);
+    ut_free(m_old_rec_buf);
     m_old_rec_buf = nullptr;
   }
 
@@ -487,7 +487,7 @@ struct btr_pcur_t {
   the cursor.
   @return own: persistent cursor */
   static btr_pcur_t *create_for_mysql() {
-    auto pcur = ut::new_withkey<btr_pcur_t>(UT_NEW_THIS_FILE_PSI_KEY);
+    auto pcur = UT_NEW_NOKEY(btr_pcur_t());
 
     pcur->m_btr_cur.index = nullptr;
 
@@ -501,7 +501,7 @@ struct btr_pcur_t {
   static void free_for_mysql(btr_pcur_t *&pcur) {
     pcur->free_rec_buf();
 
-    ut::delete_(pcur);
+    UT_DELETE(pcur);
 
     pcur = nullptr;
   }

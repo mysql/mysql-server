@@ -21,10 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 usr/bin/mysqlbackup
-
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_SRC usr/share/doc/mysql-commercial-backup/
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_BIN usr/share/doc/mysql-commercial-backup/
-
 # legal
 usr/LICENSE.meb usr/share/doc/mysql-commercial-backup/
 usr/README.meb usr/share/doc/mysql-commercial-backup/

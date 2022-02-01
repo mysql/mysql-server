@@ -66,7 +66,7 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
 
   Partition_value_impl(const Partition_value_impl &src, Partition_impl *parent);
 
-  ~Partition_value_impl() override = default;
+  ~Partition_value_impl() override {}
 
  public:
   const Object_table &object_table() const override;

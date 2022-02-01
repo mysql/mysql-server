@@ -51,7 +51,7 @@ public:
     NoMemError = 902,
     NoTransMemError = 922
   };
-  static constexpr Uint32 SignalLength = 8;
+  STATIC_CONST( SignalLength = 8 );
 
   /*
    * Error code set by TUX.  Zero means no error.

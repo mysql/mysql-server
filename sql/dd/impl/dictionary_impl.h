@@ -79,10 +79,10 @@ class Dictionary_impl : public Dictionary {
   static Dictionary_impl *instance();
 
  private:
-  Dictionary_impl() = default;
+  Dictionary_impl() {}
 
  public:
-  ~Dictionary_impl() override = default;
+  ~Dictionary_impl() override {}
 
  public:
   static uint get_target_dd_version();

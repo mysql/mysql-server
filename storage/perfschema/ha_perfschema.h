@@ -115,8 +115,8 @@ class ha_perfschema : public handler {
 
   uint max_supported_key_length(void) const override { return MAX_KEY_LENGTH; }
 
-  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
-                                     [[maybe_unused]]) const override {
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
     return MAX_KEY_LENGTH;
   }
 

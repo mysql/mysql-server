@@ -2613,7 +2613,8 @@ TEST_F(HistogramsTest, HistogramOOM) {
   values.add_values(3, 10);
   values.add_values(4, 10);
 
-  MEM_ROOT oom_mem_root(PSI_NOT_INSTRUMENTED, 32);
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 32, 0);
 
   /*
     Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore. But
@@ -2644,7 +2645,8 @@ TEST_F(HistogramsTest, EquiHeightOOM) {
   values.add_values(3, 10);
   values.add_values(4, 10);
 
-  MEM_ROOT oom_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
 
   {
     /*
@@ -2671,7 +2673,8 @@ TEST_F(HistogramsTest, SingletonOOM) {
   values.add_values(3, 10);
   values.add_values(4, 10);
 
-  MEM_ROOT oom_mem_root(PSI_NOT_INSTRUMENTED, 128);
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
 
   {
     /*

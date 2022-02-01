@@ -521,6 +521,8 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
   TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
+  //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
+
   int cnt;
   struct {
     TriggerEvent::Value event;
@@ -1603,7 +1605,7 @@ out:
       trigAttrInfo->setTriggerId(triggerId);
     }
   }
-  [[fallthrough]];
+  // Fall through
   case (TriggerType::REORG_TRIGGER):
   case (TriggerType::FK_PARENT):
   case (TriggerType::FK_CHILD):
@@ -1736,13 +1738,13 @@ out:
       switch(regOperPtr->m_copy_tuple_location.m_file_no){
       case Operationrec::RF_SINGLE_NOT_EXIST:
         jam();
-        [[fallthrough]];
+        // Fall through
       case Operationrec::RF_MULTI_NOT_EXIST:
         jam();
         goto is_delete;
       case Operationrec::RF_SINGLE_EXIST:
         jam();
-        [[fallthrough]];
+        // Fall through
       case Operationrec::RF_MULTI_EXIST:
         jam();
         goto is_insert;
@@ -1782,14 +1784,14 @@ out:
     switch(regOperPtr->m_copy_tuple_location.m_file_no){
     case Operationrec::RF_SINGLE_NOT_EXIST:
       jam();
-      [[fallthrough]];
+      // Fall through
     case Operationrec::RF_MULTI_NOT_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
       break;
     case Operationrec::RF_SINGLE_EXIST:
       jam();
-      [[fallthrough]];
+      // Fall through
     case Operationrec::RF_MULTI_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;

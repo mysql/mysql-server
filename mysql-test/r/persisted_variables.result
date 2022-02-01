@@ -45,12 +45,12 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16777216
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 60
 # persist few more variables
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
 SET PERSIST sql_require_primary_key= true;
 SET PERSIST default_table_encryption= true;
@@ -66,8 +66,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 999424
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 124
 SELECT @@global.long_query_time;
 @@global.long_query_time
@@ -83,7 +83,7 @@ SELECT @@global.table_encryption_privilege_check;
 1
 # modify existing persisted variables
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 SET PERSIST sql_require_primary_key= false;
 SET PERSIST default_table_encryption= false;
@@ -99,8 +99,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 887808
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 160
 SELECT @@global.long_query_time;
 @@global.long_query_time
@@ -122,7 +122,7 @@ SELECT @@global.max_execution_time;
 0
 # modify existing persisted variables and add new
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
 SET PERSIST default_table_encryption= true;
@@ -136,8 +136,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 999424
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 124
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
@@ -173,8 +173,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16777216
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 124
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
@@ -204,7 +204,7 @@ SELECT @@global.table_encryption_privilege_check;
 @@global.table_encryption_privilege_check
 0
 # reset persisted variables and add new
-RESET PERSIST replica_net_timeout;
+RESET PERSIST slave_net_timeout;
 SET PERSIST server_id=47, @@persist.general_log=0;
 SET PERSIST concurrent_insert=NEVER;
 RESET PERSIST max_connections;
@@ -216,8 +216,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16777216
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 60
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
@@ -314,7 +314,7 @@ SET GLOBAL persisted_globals_load= -1;
 ERROR HY000: Variable 'persisted_globals_load' is a read only variable
 # Test persisted-globals-load functionality
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 # Restart server
 # values must be read from persited config file
 SELECT @@global.sort_buffer_size;
@@ -323,8 +323,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 999424
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 124
 SELECT @@global.foreign_key_checks;
 @@global.foreign_key_checks
@@ -339,8 +339,8 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16777216
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 60
 # Expected value 1
 SELECT @@global.foreign_key_checks;
@@ -352,14 +352,14 @@ SELECT @@global.flush_time;
 0
 # reset some persisted values
 RESET PERSIST sort_buffer_size;
-RESET PERSIST replica_net_timeout;
+RESET PERSIST slave_net_timeout;
 # Restart server with persisted-globals-load=1
 # should have default values
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 262144
-SELECT @@global.replica_net_timeout;
-@@global.replica_net_timeout
+SELECT @@global.slave_net_timeout;
+@@global.slave_net_timeout
 60
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size

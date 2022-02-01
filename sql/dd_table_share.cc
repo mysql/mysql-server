@@ -26,7 +26,6 @@
 
 #include <string.h>
 #include <algorithm>
-#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -48,6 +47,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
@@ -260,6 +260,7 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 static bool prepare_share(THD *thd, TABLE_SHARE *share,
                           const dd::Table *table_def) {
   my_bitmap_map *bitmaps;
+  bool use_hash;
   handler *handler_file = nullptr;
 
   // Mark 'system' tables (tables with one row) to help the Optimizer.
@@ -268,6 +269,18 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   bool use_extended_sk = ha_check_storage_engine_flag(
       share->db_type(), HTON_SUPPORTS_EXTENDED_KEYS);
+  // Setup name_hash for quick look-up
+  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
+  if (use_hash) {
+    Field **field_ptr = share->field;
+    share->name_hash = new collation_unordered_map<std::string, Field **>(
+        system_charset_info, PSI_INSTRUMENT_ME);
+    share->name_hash->reserve(share->fields);
+
+    for (uint i = 0; i < share->fields; i++, field_ptr++) {
+      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
+    }
+  }
 
   share->m_histograms =
       new malloc_unordered_map<uint, const histograms::Histogram *>(
@@ -1113,7 +1126,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   share->gen_def_field_count = 0;
 
   // Iterate through all the columns.
-  uchar *null_flags [[maybe_unused]];
+  uchar *null_flags MY_ATTRIBUTE((unused));
   uchar *null_pos, *rec_pos;
   null_flags = null_pos = share->default_values;
   rec_pos = share->default_values + share->null_bytes;
@@ -1513,15 +1526,18 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       return true; /* purecov: inspected */
 
     //
-    // Alloc buffers to hold keys and key_parts
+    // Alloc buffer to hold keys and key_parts
     //
 
-    if (!(share->key_info = share->mem_root.ArrayAlloc<KEY>(share->keys)))
+    if (!(share->key_info = (KEY *)share->mem_root.Alloc(
+              share->keys * sizeof(KEY) +
+              total_key_parts * sizeof(KEY_PART_INFO))))
       return true; /* purecov: inspected */
 
-    if (!(key_part =
-              share->mem_root.ArrayAlloc<KEY_PART_INFO>(total_key_parts)))
-      return true; /* purecov: inspected */
+    memset(
+        share->key_info, 0,
+        (share->keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO)));
+    key_part = (KEY_PART_INFO *)(share->key_info + share->keys);
 
     //
     // Alloc buffer to hold keynames
@@ -1919,26 +1935,26 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     case dd::Table::PT_RANGE_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_RANGE:
       part_info->part_type = partition_type::RANGE;
       break;
     case dd::Table::PT_LIST_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_LIST:
       part_info->part_type = partition_type::LIST;
       break;
     case dd::Table::PT_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_HASH:
       part_info->part_type = partition_type::HASH;
       break;
     case dd::Table::PT_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_part_fields = true;
@@ -1946,7 +1962,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_part_fields = true;
@@ -1954,7 +1970,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_AUTO_LINEAR:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::PT_AUTO:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->part_type = partition_type::HASH;
@@ -1973,13 +1989,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::ST_HASH:
       part_info->subpart_type = partition_type::HASH;
       break;
     case dd::Table::ST_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::ST_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_subpart_fields = true;
@@ -1987,7 +2003,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      [[fallthrough]];
+      // Fall through.
     case dd::Table::ST_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_subpart_fields = true;

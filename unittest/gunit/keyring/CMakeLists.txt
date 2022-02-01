@@ -27,6 +27,11 @@ SET(TESTS
   converter
   file_io
 )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM TESTS keys_container)
+ENDIF()
+
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 

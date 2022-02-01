@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
-#include "sql/sql_thd_internal_api.h"  // create_internal_thd
+#include "sql/sql_thd_internal_api.h"  // create_thd
 
 /**
   Gets the security context for the thread.
@@ -171,7 +171,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
     THD *tmp_thd = nullptr;
     bool retval;
     if (current_thd == nullptr) {
-      tmp_thd = create_internal_thd();
+      tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       if (!tmp_thd) return true;
     }
 
@@ -190,7 +190,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
     if (sctx_thd) set_system_user_flag(sctx_thd);
 
     if (tmp_thd) {
-      destroy_internal_thd(tmp_thd);
+      destroy_thd(tmp_thd);
       tmp_thd = nullptr;
     }
     return retval;

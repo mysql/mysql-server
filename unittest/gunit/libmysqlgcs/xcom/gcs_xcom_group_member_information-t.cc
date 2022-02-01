@@ -41,7 +41,7 @@ namespace gcs_parameters_unittest {
 
 class GcsNodeAddressTest : public GcsBaseTest {
  protected:
-  GcsNodeAddressTest() = default;
+  GcsNodeAddressTest() {}
 
   static void SetUpTestCase() {}
 };
@@ -257,7 +257,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddressV6) {
 
 class GcsUUIDTest : public GcsBaseTest {
  protected:
-  GcsUUIDTest() = default;
+  GcsUUIDTest() {}
 
   static void SetUpTestCase() {}
 };
@@ -307,7 +307,7 @@ TEST_F(GcsUUIDTest, TestGcsUUID) {
 
 class GcsNodeInformationTest : public GcsBaseTest {
  protected:
-  GcsNodeInformationTest() = default;
+  GcsNodeInformationTest() {}
 
   static void SetUpTestCase() {}
 };
@@ -394,7 +394,7 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
 
 class GcsNodesTest : public GcsBaseTest {
  protected:
-  GcsNodesTest() = default;
+  GcsNodesTest() {}
 
   static void SetUpTestCase() {}
 };
@@ -588,7 +588,7 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding) {
   Gcs_xcom_uuid uuid_2;
 
   unsigned int length = 0;
-  char const **addrs = nullptr;
+  char **addrs = nullptr;
   blob *uuids = nullptr;
 
   nodes.encode(&length, &addrs, &uuids);
@@ -629,14 +629,9 @@ TEST_F(GcsNodesTest, TestGcsNodesConstructor) {
   uuid_2.encode(reinterpret_cast<uchar **>(&blob_2.data.data_val),
                 &blob_2.data.data_len);
 
-  node_address node_addrs[2] = {{const_cast<char *>("127.0.0.1:12345"),
-                                 blob_1,
-                                 {x_1_0, x_1_2},
-                                 P_PROP | P_ACC | P_LEARN},
-                                {const_cast<char *>("127.0.0.1:12343"),
-                                 blob_2,
-                                 {x_1_0, x_1_2},
-                                 P_PROP | P_ACC | P_LEARN}};
+  node_address node_addrs[2] = {
+      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}}};
 
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);

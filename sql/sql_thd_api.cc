@@ -38,7 +38,6 @@
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_thd_engine_lock.h"
 #include "mysql_com.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -49,8 +48,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"  // num_vcpus
-#include "sql/rpl_replica_commit_order_manager.h"  // check_and_report_deadlock
-#include "sql/rpl_rli.h"                           // is_mts_worker
+#include "sql/rpl_rli.h"                                   // is_mts_worker
+#include "sql/rpl_slave_commit_order_manager.h"  // check_and_report_deadlock
 #include "sql/sql_alter.h"
 #include "sql/sql_callback.h"  // MYSQL_CALLBACK
 #include "sql/sql_class.h"     // THD
@@ -153,7 +152,7 @@ void thd_set_killed(THD *thd) {
   @param thd              THD object
 */
 
-void thd_clear_errors(THD *thd [[maybe_unused]]) { set_my_errno(0); }
+void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused))) { set_my_errno(0); }
 
 /**
   Close the socket used by this connection
@@ -310,18 +309,13 @@ int thd_tablespace_op(const MYSQL_THD thd) {
     statement, so this function must check both the SQL command
     code and the Alter_info::flags.
   */
-  int ret = 0;
+  if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
+  assert(thd->lex->alter_info != nullptr);
 
-  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE) {
-    if (thd->lex->alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE) {
-      ret = Alter_info::ALTER_DISCARD_TABLESPACE;
-    }
-    if (thd->lex->alter_info->flags & Alter_info::ALTER_IMPORT_TABLESPACE) {
-      ret = Alter_info::ALTER_IMPORT_TABLESPACE;
-    }
-  }
-
-  return (ret);
+  return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
+                                         Alter_info::ALTER_IMPORT_TABLESPACE))
+             ? 1
+             : 0;
 }
 
 static void set_thd_stage_info(MYSQL_THD thd, const PSI_stage_info *new_stage,
@@ -356,7 +350,7 @@ void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton) {
 }
 
 void thd_storage_lock_wait(MYSQL_THD thd, long long value) {
-  thd->inc_lock_usec(value);
+  thd->utime_after_lock += value;
 }
 
 /**
@@ -442,7 +436,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     and has to be protected by LOCK_thd_query or risk pointing to
     uninitialized memory.
   */
-  const char *proc_info = thd->proc_info();
+  const char *proc_info = thd->proc_info;
 
   len = snprintf(header, sizeof(header),
                  "MySQL thread id %u, OS thread handle %lu, query id %lu",
@@ -530,7 +524,7 @@ unsigned long thd_get_thread_id(const MYSQL_THD thd) {
 
 int thd_allow_batch(MYSQL_THD thd) {
   if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
-      (thd->slave_thread && opt_replica_allow_batching))
+      (thd->slave_thread && opt_slave_allow_batching))
     return 1;
   return 0;
 }
@@ -628,15 +622,13 @@ void thd_wait_end(MYSQL_THD thd) {
 //
 //////////////////////////////////////////////////////////
 
+/**
+   Interface for Engine to report row lock conflict.
+   The caller should guarantee thd_wait_for does not be freed, when it is
+   called.
+*/
 void thd_report_row_lock_wait(THD *self, THD *wait_for) {
   DBUG_TRACE;
-  thd_report_lock_wait(self, wait_for, true);
-}
-
-void thd_report_lock_wait(THD *self, THD *wait_for,
-                          bool /* may_survive_prepare*/) {
-  DBUG_TRACE;
-  CONDITIONAL_SYNC_POINT("report_lock_collision");
 
   if (self != nullptr && wait_for != nullptr && is_mts_worker(self) &&
       is_mts_worker(wait_for))
@@ -661,9 +653,4 @@ bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
   Security_context *sctx = thd->security_context();
   return (!(sctx->check_access(SUPER_ACL) ||
             sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first));
-}
-
-unsigned int thd_get_current_thd_terminology_use_previous() {
-  if (!current_thd) return 0;
-  return current_thd->variables.terminology_use_previous;
 }

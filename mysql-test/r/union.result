@@ -699,7 +699,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(3) NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -2059,8 +2059,8 @@ INSERT INTO t2 VALUES (1);
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 EXPLAIN
 -> Append
-    -> Stream results  (cost=0.45 rows=1)
-        -> Aggregate: sum(t2.a)  (cost=0.45 rows=1)
+    -> Stream results
+        -> Aggregate: sum(t2.a)
             -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
     -> Stream results  (cost=0.00..0.00 rows=1)
         -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0.00..0.00 rows=1)
@@ -3167,8 +3167,6 @@ foo
 foo
 BAR
 SET @param = CONVERT('foo' USING ucs2);
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt USING @param;
 foo
 foo
@@ -3427,60 +3425,3 @@ h	int	YES		NULL
 i	bigint	YES		NULL	
 j	decimal(20,0)	YES		NULL	
 DROP TABLE t1, t2;
-# Bug#31348202: Wrong result is returned with UNION syntax
-SELECT 19 AS c UNION ALL SELECT 2.9;
-c
-19.0
-2.9
-CREATE TABLE t1 AS SELECT 19 AS c UNION ALL SELECT 2.9;
-DESCRIBE t1;
-Field	Type	Null	Key	Default	Extra
-c	decimal(3,1)	NO		0.0	
-DROP TABLE t1;
-SELECT 19 AS c UNION ALL SELECT 'XX';
-c
-19
-XX
-CREATE TABLE t1 AS SELECT 19 AS c UNION ALL SELECT 'XX';
-DESCRIBE t1;
-Field	Type	Null	Key	Default	Extra
-c	varchar(3)	NO			
-DROP TABLE t1;
-SELECT -19 AS c UNION ALL SELECT 'XX';
-c
--19
-XX
-CREATE TABLE t1 AS SELECT -19 AS c UNION ALL SELECT 'XX';
-DESCRIBE t1;
-Field	Type	Null	Key	Default	Extra
-c	varchar(3)	NO			
-DROP TABLE t1;
-SELECT 19.0 AS c UNION ALL SELECT 'XX';
-c
-19.0
-XX
-CREATE TABLE t1 AS SELECT 19.0 AS c UNION ALL SELECT 'XX';
-DESCRIBE t1;
-Field	Type	Null	Key	Default	Extra
-c	varchar(5)	NO			
-DROP TABLE t1;
-SELECT -19.0 AS c UNION ALL SELECT 'XX';
-c
--19.0
-XX
-CREATE TABLE t1 AS SELECT -19.0 AS c UNION ALL SELECT 'XX';
-DESCRIBE t1;
-Field	Type	Null	Key	Default	Extra
-c	varchar(5)	NO			
-DROP TABLE t1;
-#
-# Bug#33066455: REGRESSION: ACCESSPATH*
-#               MOVECOMPOSITEITERATORSFROMTABLEPATH(ACCESSPATH*):
-#               ASSERTION `FALSE' FAILED.
-#
-EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
-EXPLAIN
--> Zero rows (Zero limit)  (cost=0.00..0.00 rows=0)
-
-SELECT 1 UNION SELECT 1 LIMIT 0;
-1

@@ -254,8 +254,8 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                uint *cached_field_index_ptr,
                                bool register_tree_change,
                                TABLE_LIST **actual_table);
-Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
-                           uint *cached_field_index_ptr);
+Field *find_field_in_table(TABLE *table, const char *name, size_t length,
+                           bool allow_rowid, uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
 Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
                          uint *counter,
@@ -290,8 +290,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 Prelocking_strategy *prelocking_strategy);
 bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
-                            uint flags);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
@@ -389,7 +387,7 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
 
 class Prelocking_strategy {
  public:
-  virtual ~Prelocking_strategy() = default;
+  virtual ~Prelocking_strategy() {}
 
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,

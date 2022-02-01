@@ -171,27 +171,6 @@ struct Find_page {
   mtr_memo_slot_t *m_slot;
 };
 
-struct Mtr_memo_print {
-  Mtr_memo_print(std::ostream &out) : m_out(out) {}
-
-  bool operator()(mtr_memo_slot_t *slot) {
-    slot->print(m_out);
-    return true;
-  }
-
- private:
-  std::ostream &m_out;
-};
-
-std::ostream &mtr_t::print_memos(std::ostream &out) const {
-  Mtr_memo_print printer(out);
-  Iterate<Mtr_memo_print> iterator(printer);
-  out << "[mtr_t: this=" << (void *)this << ", ";
-  m_impl.m_memo.for_each_block_in_reverse(iterator);
-  out << "]" << std::endl;
-  return out;
-}
-
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 struct Mtr_memo_contains {
@@ -220,12 +199,7 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   Mtr_memo_contains check(mtr2, MTR_MEMO_MODIFY);
   Iterate<Mtr_memo_contains> iterator(check);
 
-  bool conflict = !m_impl.m_memo.for_each_block_in_reverse(iterator);
-  if (conflict) {
-    print_memos(std::cout);
-    mtr2->print_memos(std::cout);
-  }
-  return conflict;
+  return !m_impl.m_memo.for_each_block_in_reverse(iterator);
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
@@ -296,7 +270,7 @@ struct Debug_check {
 
 #ifdef UNIV_DEBUG
 /** Assure that there are no slots that are latching any resources. Only buffer
-fixing a page is allowed. */
+ * fixing a page is allowed. */
 struct Debug_check_no_latching {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
@@ -304,12 +278,13 @@ struct Debug_check_no_latching {
       case MTR_MEMO_BUF_FIX:
         break;
       default:
-        ib::fatal(UT_LOCATION_HERE, ER_MTR_MSG_1, (int)slot->type);
+        ib::fatal() << "Debug_check_no_latching failed, slot->type="
+                    << slot->type;
     }
     return true;
   }
 };
-#endif /* UNIV_DEBUG */
+#endif
 
 /** Add blocks modified by the mini-transaction to the flush list. */
 struct Add_dirty_blocks_to_flush_list {
@@ -320,7 +295,7 @@ struct Add_dirty_blocks_to_flush_list {
                                   added to REDO by the MTR
   @param[in,out]	observer	flush observer */
   Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
-                                 Flush_observer *observer);
+                                 FlushObserver *observer);
 
   /** Add the modified page to the buffer flush list. */
   void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
@@ -363,7 +338,7 @@ struct Add_dirty_blocks_to_flush_list {
   const lsn_t m_start_lsn;
 
   /** Flush observer */
-  Flush_observer *const m_flush_observer;
+  FlushObserver *const m_flush_observer;
 };
 
 /** Constructor.
@@ -373,7 +348,7 @@ struct Add_dirty_blocks_to_flush_list {
                                 to REDO by the MTR
 @param[in,out]	observer	flush observer */
 Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
-    lsn_t start_lsn, lsn_t end_lsn, Flush_observer *observer)
+    lsn_t start_lsn, lsn_t end_lsn, FlushObserver *observer)
     : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
   /* Do nothing */
 }
@@ -773,7 +748,6 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_SHORT_INSERTS:
       ut_ad(0);
       /* fall through (write no redo log) */
-      [[fallthrough]];
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);
@@ -896,19 +870,6 @@ void mtr_t::Command::execute() {
   release_resources();
 }
 
-std::ostream &mtr_memo_slot_t::print(std::ostream &out) const {
-  buf_block_t *block = nullptr;
-  if (!is_lock()) {
-    block = reinterpret_cast<buf_block_t *>(object);
-  }
-  out << "[mtr_memo_slot_t: object=" << object << ", type=" << type << " ("
-      << mtr_memo_type(type) << "), page_id="
-      << ((block == nullptr) ? page_id_t(FIL_NULL, FIL_NULL)
-                             : block->get_page_id())
-      << "]" << std::endl;
-  return out;
-}
-
 #ifndef UNIV_HOTBACKUP
 int mtr_t::Logging::enable(THD *thd) {
   if (is_enabled()) {
@@ -933,7 +894,7 @@ int mtr_t::Logging::enable(THD *thd) {
   the max transaction ID which is generally done at TRX_SYS_TRX_ID_WRITE_MARGIN
   interval but safe to do any time. */
   trx_sys_mutex_enter();
-  trx_sys_write_max_trx_id();
+  trx_sys_flush_max_trx_id();
   trx_sys_mutex_exit();
 
   /* It would ensure that the modified page in previous mtr and all other
@@ -972,19 +933,18 @@ int mtr_t::Logging::disable(THD *) {
     return ER_INNODB_REDO_ARCHIVING_ENABLED;
   }
 
-  /* Concurrent clone operation is not supported. */
-  Clone_notify notifier(Clone_notify::Type::SYSTEM_REDO_DISABLE,
-                        dict_sys_t::s_invalid_space_id, false);
-  if (notifier.failed()) {
-    m_state.store(ENABLED);
-    return notifier.get_error();
-  }
+  /* Concurrent clone is blocked by BACKUP MDL lock except when
+  clone_ddl_timeout = 0. Force any existing clone to abort. */
+  clone_mark_abort(true);
+  ut_ad(!clone_check_active());
 
   /* Mark that it is unsafe to crash going forward. */
   log_persist_disable(*log_sys);
 
   ib::warn(ER_IB_WRN_REDO_DISABLED);
   m_state.store(DISABLED);
+
+  clone_mark_active();
 
   return 0;
 }

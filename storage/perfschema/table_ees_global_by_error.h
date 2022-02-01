@@ -50,7 +50,7 @@ class PFS_index_ees_global_by_error : public PFS_engine_index {
   PFS_index_ees_global_by_error()
       : PFS_engine_index(&m_key), m_key("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_global_by_error() override = default;
+  ~PFS_index_ees_global_by_error() override {}
 
   virtual bool match_error_index(uint error_index);
 
@@ -111,7 +111,7 @@ class table_ees_global_by_error : public PFS_engine_table {
   table_ees_global_by_error();
 
  public:
-  ~table_ees_global_by_error() override = default;
+  ~table_ees_global_by_error() override {}
 
  protected:
   int make_row(uint error_index);

@@ -70,8 +70,6 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
                                                my_thread_id owner) {
   DBUG_TRACE;
   assert(gtid.sidno <= get_max_sidno());
-  assert(gtid.gno > 0);
-  assert(gtid.gno < GNO_END);
   Node *n =
       (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME));
   if (n == nullptr) RETURN_REPORTED_ERROR;

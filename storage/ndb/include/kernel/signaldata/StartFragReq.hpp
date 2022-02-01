@@ -41,8 +41,8 @@ class StartFragReq {
    */
   friend class Dblqh;
 public:
-  static constexpr Uint32 SignalOldLength = 20;
-  static constexpr Uint32 SignalLength = 21;
+  STATIC_CONST( SignalOldLength = 20 );
+  STATIC_CONST( SignalLength = 21 );
 
   friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
   

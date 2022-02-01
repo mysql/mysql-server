@@ -30,10 +30,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "cluster_metadata.h"
 #include "config_builder.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"  // join
-#include "mysqlrouter/cluster_metadata.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"  // init_windows_socket()
 
@@ -351,7 +351,7 @@ TEST_P(BootstrapTlsEndpointWithoutCertGeneration, succeeds) {
                  get_data_dir().join("bootstrap_gr.js").str()},
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
-      {"# MySQL Router configured"}, 5s, {2, 0, 3}, cmdline_args));
+      {"# MySQL Router configured"}, 1000ms, {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
 
@@ -720,7 +720,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "");
+      "\n");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(bootstrap_dir.name(), config);
 
@@ -763,7 +763,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "");
+      "\n");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(
       bootstrap_dir.name(), config, nullptr, "mysqlrouter.conf",
@@ -772,7 +772,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert) {
               mysql_harness::ConfigBuilder::build_pair(
                   std::make_pair("client_ssl_cert", "foo")),
           },
-          ""));
+          "\n"));
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       {
@@ -863,7 +863,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert_and_key) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "");
+      "\n");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(
       bootstrap_dir.name(), config, nullptr, "mysqlrouter.conf",
@@ -1165,7 +1165,8 @@ TEST_P(BootstrapTlsEndpointFailMock, fails) {
                  get_data_dir().join("bootstrap_gr.js").str()},
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_FAILURE,
-      GetParam().expected_output_lines, 1s, {2, 0, 3}, GetParam().cmdline_args);
+      GetParam().expected_output_lines, 1000ms, {2, 0, 3},
+      GetParam().cmdline_args);
 }
 
 const BootstrapTlsEndpointFailMockParams

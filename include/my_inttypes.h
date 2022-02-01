@@ -39,12 +39,12 @@
 #include <sys/types.h>
 #endif
 
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifdef _WIN32
 #include <BaseTsd.h>
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
-#if !defined(HAVE_ULONG) && !defined(MYSQL_ABI_CHECK)
+#if !defined(HAVE_ULONG)
 typedef unsigned long ulong; /* Short for unsigned long */
 #endif
 
@@ -101,7 +101,7 @@ typedef int myf; /* Type of MyFlags in my_funcs */
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifdef _WIN32
 typedef SSIZE_T ssize_t;
 #endif
 
@@ -109,7 +109,7 @@ typedef SSIZE_T ssize_t;
   This doesn't really belong here, but it was the only reasonable place
   at the time.
 */
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifdef _WIN32
 typedef int sigset_t;
 #endif
 

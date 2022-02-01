@@ -490,7 +490,7 @@ void Event_queue::empty_queue() {
       now  Current timestamp
 */
 
-void Event_queue::dbug_dump_queue(time_t now [[maybe_unused]]) {
+void Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused))) {
 #ifndef NDEBUG
   DBUG_TRACE;
   DBUG_PRINT("info", ("Dumping queue . Elements=%u",

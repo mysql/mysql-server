@@ -28,7 +28,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // create_table_precheck()
 #include "sql/binlog.h"            // mysql_bin_log
@@ -51,7 +50,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"       // prepare_index_and_data_dir_path()
-#include "sql/sql_select.h"      // Query_result_create
 #include "sql/sql_table.h"       // mysql_create_like_table()
 #include "sql/sql_tablespace.h"  // validate_tablespace_name()
 #include "sql/strfunc.h"
@@ -101,10 +99,6 @@ static bool populate_table(THD *thd, LEX *lex) {
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     return true;
 
-  // Use the hypergraph optimizer for the SELECT statement, if enabled.
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
-
   lex->set_exec_started();
 
   /*
@@ -115,14 +109,7 @@ static bool populate_table(THD *thd, LEX *lex) {
 
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) return true;
 
-  if (unit->optimize(thd, nullptr, true, /*finalize_access_paths=*/true))
-    return true;
-
-  // Calculate the current statement cost.
-  accumulate_statement_cost(lex);
-
-  // Perform secondary engine optimizations, if needed.
-  if (optimize_secondary_engine(thd)) return true;
+  if (unit->optimize(thd, nullptr, true)) return true;
 
   if (unit->execute(thd)) return true;
 
@@ -132,7 +119,7 @@ static bool populate_table(THD *thd, LEX *lex) {
 bool Sql_cmd_create_table::execute(THD *thd) {
   LEX *const lex = thd->lex;
   Query_block *const query_block = lex->query_block;
-  Query_expression *const query_expression = lex->unit;
+  Query_expression *const unit = lex->unit;
   TABLE_LIST *const create_table = lex->query_tables;
   partition_info *part_info = lex->part_info;
 
@@ -317,11 +304,6 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       return true;
     }
 
-    if (query_expression->is_prepared()) {
-      cleanup(thd);
-    }
-    auto cleanup_se_guard = create_scope_guard(
-        [lex] { lex->set_secondary_engine_execution_context(nullptr); });
     if (open_tables_for_query(thd, lex->query_tables, false)) return true;
 
     /* The table already exists */
@@ -359,7 +341,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     }
 
     Query_result_create *result;
-    if (!query_expression->is_prepared()) {
+    if (!unit->is_prepared()) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       result = new (thd->mem_root)
           Query_result_create(create_table, &query_block->fields,
@@ -368,8 +350,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
         lex->link_first_table_back(create_table, link_to_local);
         return true;
       }
-      if (query_expression->prepare(thd, result, nullptr, SELECT_NO_UNLOCK,
-                                    0)) {
+      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) {
         lex->link_first_table_back(create_table, link_to_local);
         return true;
       }
@@ -379,14 +360,12 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       }
     } else {
       result = down_cast<Query_result_create *>(
-          query_expression->query_result() != nullptr
-              ? query_expression->query_result()
-              : query_block->query_result());
+          unit->query_result() != nullptr ? unit->query_result()
+                                          : query_block->query_result());
       // Restore prepared statement properties, bind table and field information
       lex->restore_cmd_properties();
       bind_fields(thd->stmt_arena->item_list());
     }
-    if (validate_use_secondary_engine(lex)) return true;
 
     result->set_two_fields(&create_info, &alter_info);
 
@@ -402,14 +381,8 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
     res = populate_table(thd, lex);
 
-    // Count the number of statements offloaded to a secondary storage engine.
-    if (using_secondary_storage_engine() && lex->unit->is_executed())
-      ++thd->status_var.secondary_engine_execution_count;
-
     if (lex->is_ignore() || thd->is_strict_mode()) thd->pop_internal_handler();
     lex->cleanup(thd, false);
-    thd->clear_current_query_costs();
-    lex->clear_values_map();
 
     // Abort the result set if execution ended in error
     if (res) result->abort_result_set(thd);
@@ -457,45 +430,6 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       down_cast<Item_field *>(part_info->subpart_expr)->reset_field();
   }
   return res;
-}
-
-const MYSQL_LEX_CSTRING *
-Sql_cmd_create_table::eligible_secondary_storage_engine() const {
-  // Now check if the opened tables are available in a secondary
-  // storage engine. Only use the secondary tables if all the tables
-  // have a secondary tables, and they are all in the same secondary
-  // storage engine.
-  const LEX_CSTRING *secondary_engine = nullptr;
-
-  for (const TABLE_LIST *tl = query_expression_tables; tl != nullptr;
-       tl = tl->next_global) {
-    // Schema tables are not available in secondary engines.
-    if (tl->schema_table != nullptr) return nullptr;
-
-    // We're only interested in base tables.
-    if (tl->is_placeholder()) continue;
-
-    assert(!tl->table->s->is_secondary_engine());
-    // If not in a secondary engine
-    if (!tl->table->s->has_secondary_engine()) return nullptr;
-    // Compare two engine names using the system collation.
-    auto equal = [](const LEX_CSTRING &s1, const LEX_CSTRING &s2) {
-      return system_charset_info->coll->strnncollsp(
-                 system_charset_info,
-                 pointer_cast<const unsigned char *>(s1.str), s1.length,
-                 pointer_cast<const unsigned char *>(s2.str), s2.length) == 0;
-    };
-
-    if (secondary_engine == nullptr) {
-      // First base table. Save its secondary engine name for later.
-      secondary_engine = &tl->table->s->secondary_engine;
-    } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
-      // In a different secondary engine than the previous base tables.
-      return nullptr;
-    }
-  }
-
-  return secondary_engine;
 }
 
 bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {

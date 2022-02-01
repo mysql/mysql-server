@@ -5,17 +5,17 @@
 --connection slave
 --source include/stop_slave_io.inc
 
-# Uninstall rpl_semi_sync_replica first
+# Uninstall rpl_semi_sync_slave first
 --disable_warnings
-UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_slave;
 
 --connection master
-# After BUG#17638477 fix, uninstallation of rpl_semi_sync_source
+# After BUG#17638477 fix, uninstallation of rpl_semi_sync_master
 #  is not allowed when there are semi sync slaves. Hence kill
 #  all dump threads before uninstalling it.
-SET GLOBAL rpl_semi_sync_source_enabled = OFF;
+SET GLOBAL rpl_semi_sync_master_enabled = OFF;
 --source include/stop_dump_threads.inc
-UNINSTALL PLUGIN rpl_semi_sync_source;
+UNINSTALL PLUGIN rpl_semi_sync_master;
 --enable_warnings
 
 --connection slave

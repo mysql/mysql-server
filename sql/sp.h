@@ -168,7 +168,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
 };
 
 /* Drop all routines in database 'db' */
-bool sp_drop_db_routines(THD *thd, const dd::Schema &schema);
+enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the

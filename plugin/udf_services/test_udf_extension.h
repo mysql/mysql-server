@@ -43,9 +43,6 @@ class Test_udf_charset_base {
  public:
   static std::string get_last_error();
 
-  static void udf_charset_base_init();
-  static void udf_charset_base_deinit();
-
  protected:
   static bool validate_inputs(UDF_ARGS *args, const size_t expected_arg_count);
   static bool set_udf_init(UDF_INIT *initid, UDF_ARGS *args);
@@ -58,8 +55,8 @@ class Test_udf_charset_base {
   static bool run_args_udf(UDF_INIT *initd, UDF_ARGS *args, char **result,
                            unsigned long &result_len);
   static void deinit(UDF_INIT *initd);
-  static std::stringstream *s_message;
-  static const char *s_ext_type;
+  static std::stringstream s_message;
+  static std::string s_ext_type;
 };
 
 /**

@@ -37,6 +37,7 @@
 #include <NdbEnv.h>
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 static bool g_first_create_ndb = true;
@@ -116,7 +117,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     // theImpl->theWaiter.m_mutex must be set before this
     theEventBuffer= new NdbEventBuffer(this);
     if (theEventBuffer == NULL) {
-      g_eventLogger->info("Failed NdbEventBuffer()");
+      ndbout_c("Failed NdbEventBuffer()");
       exit(-1);
     }
   }
@@ -152,11 +153,13 @@ Ndb::~Ndb()
   {
     g_eventLogger->warning("Deleting Ndb-object with NdbEventOperation still"
                            " active");
-    g_eventLogger->info("this: %p NdbEventOperation(s): ", this);
+    printf("this: %p NdbEventOperation(s): ", this);
     for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
     {
-      g_eventLogger->info("%p ", op);
+      printf("%p ", op);
     }
+    printf("\n");
+    fflush(stdout);
   }
 
   assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's

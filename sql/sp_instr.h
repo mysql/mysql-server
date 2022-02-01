@@ -66,7 +66,7 @@ class sp_printable {
  public:
   virtual void print(const THD *thd, String *str) = 0;
 
-  virtual ~sp_printable() = default;
+  virtual ~sp_printable() {}
 };
 
 /**
@@ -91,7 +91,7 @@ class sp_branch_instr {
   */
   virtual void backpatch(uint dest) = 0;
 
-  virtual ~sp_branch_instr() = default;
+  virtual ~sp_branch_instr() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -158,7 +158,8 @@ class sp_instr : public sp_printable {
     index to the next instruction. Jump instruction will add their
     destination to the leads list.
   */
-  virtual uint opt_mark(sp_head *, List<sp_instr> *leads [[maybe_unused]]) {
+  virtual uint opt_mark(sp_head *,
+                        List<sp_instr> *leads MY_ATTRIBUTE((unused))) {
     m_marked = true;
     return get_ip() + 1;
   }
@@ -169,7 +170,8 @@ class sp_instr : public sp_printable {
     used to prevent the mark sweep from looping for ever. Return the
     end destination.
   */
-  virtual uint opt_shortcut_jump(sp_head *, sp_instr *start [[maybe_unused]]) {
+  virtual uint opt_shortcut_jump(sp_head *,
+                                 sp_instr *start MY_ATTRIBUTE((unused))) {
     return get_ip();
   }
 
@@ -179,7 +181,8 @@ class sp_instr : public sp_printable {
     must also take care of their destination pointers. Forward jumps get
     pushed to the backpatch list 'ibp'.
   */
-  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp [[maybe_unused]]) {
+  virtual void opt_move(uint dst,
+                        List<sp_branch_instr> *ibp MY_ATTRIBUTE((unused))) {
     m_ip = dst;
   }
 
@@ -369,10 +372,6 @@ class sp_lex_instr : public sp_instr {
   */
   virtual void get_query(String *sql_query) const;
 
-  /**
-    Some expressions may be re-parsed as SELECT statements, but need to be
-    adjusted to another SQL command. This function facilitates that change.
-  */
   virtual void adjust_sql_command(LEX *) {}
 
   /**
@@ -397,7 +396,7 @@ class sp_lex_instr : public sp_instr {
 
     @return Error flag.
   */
-  virtual bool on_after_expr_parsing(THD *thd [[maybe_unused]]) {
+  virtual bool on_after_expr_parsing(THD *thd MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -559,7 +558,6 @@ class sp_instr_set : public sp_lex_instr {
   LEX_CSTRING get_expr_query() const override { return m_value_query; }
 
   void adjust_sql_command(LEX *lex) override {
-    assert(lex->sql_command == SQLCOM_SELECT);
     lex->sql_command = SQLCOM_SET_OPTION;
   }
 
@@ -845,11 +843,6 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
     assert(m_dest == 0);
     m_dest = dest;
-  }
-
-  void adjust_sql_command(LEX *lex) override {
-    assert(lex->sql_command == SQLCOM_SELECT);
-    lex->sql_command = SQLCOM_END;
   }
 
  protected:

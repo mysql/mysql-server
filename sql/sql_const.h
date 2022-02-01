@@ -197,7 +197,11 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024 * 80
 
-constexpr const int STACK_BUFF_ALLOC{352};  ///< For stack overrun checks
+#if defined(__SUNPRO_CC)
+#define STACK_BUFF_ALLOC 352 * 2  ///< For stack overrun checks
+#else
+#define STACK_BUFF_ALLOC 352  ///< For stack overrun checks
+#endif
 
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT 10  ///< Abort read after this many int.

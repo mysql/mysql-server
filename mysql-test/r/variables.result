@@ -1794,13 +1794,12 @@ End of 5.5 tests
 SET @@sql_mode= 8589934592;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 #
-# Bug #59860: log-slow-admin-statements and log-slow-replica-statements not displayed
+# Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
 #
 show variables like 'log_slow%';
 Variable_name	Value
 log_slow_admin_statements	OFF
 log_slow_extra	OFF
-log_slow_replica_statements	OFF
 log_slow_slave_statements	OFF
 set global log_slow_admin_statements = on;
 show global variables like 'log_slow_admin_statements';
@@ -1809,15 +1808,15 @@ log_slow_admin_statements	ON
 select * from performance_schema.global_variables where variable_name like 'log_slow_admin_statements';
 VARIABLE_NAME	VARIABLE_VALUE
 log_slow_admin_statements	ON
-set global log_slow_replica_statements = on;
-show global variables like 'log_slow_replica_statements';
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
 Variable_name	Value
-log_slow_replica_statements	ON
-select * from performance_schema.global_variables where variable_name like 'log_slow_replica_statements';
+log_slow_slave_statements	ON
+select * from performance_schema.global_variables where variable_name like 'log_slow_slave_statements';
 VARIABLE_NAME	VARIABLE_VALUE
-log_slow_replica_statements	ON
+log_slow_slave_statements	ON
 set global log_slow_admin_statements = default;
-set global log_slow_replica_statements = default;
+set global log_slow_slave_statements = default;
 #
 # WL#7764 - Make STRICT mode for transactional SEs default in 5.7
 #
@@ -1825,37 +1824,37 @@ SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 ---- Init ----
-set @my_replica_net_timeout         =@@global.replica_net_timeout;
+set @my_slave_net_timeout         =@@global.slave_net_timeout;
 ---- Test ----
-set global replica_net_timeout=100;
-set global sql_replica_skip_counter=100;
-show variables like 'replica_compressed_protocol';
+set global slave_net_timeout=100;
+set global sql_slave_skip_counter=100;
+show variables like 'slave_compressed_protocol';
 Variable_name	Value
-replica_compressed_protocol	OFF
-show variables like 'replica_load_tmpdir';
+slave_compressed_protocol	OFF
+show variables like 'slave_load_tmpdir';
 Variable_name	Value
-replica_load_tmpdir	REPLICA_LOAD_TMPDIR
-show variables like 'replica_skip_errors';
+slave_load_tmpdir	SLAVE_LOAD_TMPDIR
+show variables like 'slave_skip_errors';
 Variable_name	Value
-replica_skip_errors	OFF
+slave_skip_errors	OFF
 ---- Clean Up ----
-set global replica_net_timeout=default;
-set global sql_replica_skip_counter= 0;
-set @@global.replica_net_timeout= @my_replica_net_timeout;
+set global slave_net_timeout=default;
+set global sql_slave_skip_counter= 0;
+set @@global.slave_net_timeout= @my_slave_net_timeout;
 
 #
-SHOW VARIABLES like 'log_replica_updates';
+SHOW VARIABLES like 'log_slave_updates';
 Variable_name	Value
-log_replica_updates	ON
-SELECT @@session.log_replica_updates;
-ERROR HY000: Variable 'log_replica_updates' is a GLOBAL variable
-SELECT @@global.log_replica_updates;
-@@global.log_replica_updates
+log_slave_updates	ON
+SELECT @@session.log_slave_updates;
+ERROR HY000: Variable 'log_slave_updates' is a GLOBAL variable
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
 1
-SET @@session.log_replica_updates= true;
-ERROR HY000: Variable 'log_replica_updates' is a read only variable
-SET @@global.log_replica_updates= true;
-ERROR HY000: Variable 'log_replica_updates' is a read only variable
+SET @@session.log_slave_updates= true;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable
+SET @@global.log_slave_updates= true;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable
 #
 SHOW VARIABLES like 'relay_log';
 Variable_name	Value
@@ -1950,31 +1949,31 @@ ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
 SET @@global.relay_log_space_limit= 7;
 ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
 #
-SHOW VARIABLES like 'replica_load_tmpdir';
+SHOW VARIABLES like 'slave_load_tmpdir';
 Variable_name	Value
-replica_load_tmpdir	#
-SELECT @@session.replica_load_tmpdir;
-ERROR HY000: Variable 'replica_load_tmpdir' is a GLOBAL variable
-SELECT @@global.replica_load_tmpdir;
-@@global.replica_load_tmpdir
+slave_load_tmpdir	#
+SELECT @@session.slave_load_tmpdir;
+ERROR HY000: Variable 'slave_load_tmpdir' is a GLOBAL variable
+SELECT @@global.slave_load_tmpdir;
+@@global.slave_load_tmpdir
 #
-SET @@session.replica_load_tmpdir= 'x';
-ERROR HY000: Variable 'replica_load_tmpdir' is a read only variable
-SET @@global.replica_load_tmpdir= 'x';
-ERROR HY000: Variable 'replica_load_tmpdir' is a read only variable
+SET @@session.slave_load_tmpdir= 'x';
+ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
+SET @@global.slave_load_tmpdir= 'x';
+ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
 #
-SHOW VARIABLES like 'replica_skip_errors';
+SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
-replica_skip_errors	OFF
-SELECT @@session.replica_skip_errors;
-ERROR HY000: Variable 'replica_skip_errors' is a GLOBAL variable
-SELECT @@global.replica_skip_errors;
-@@global.replica_skip_errors
+slave_skip_errors	OFF
+SELECT @@session.slave_skip_errors;
+ERROR HY000: Variable 'slave_skip_errors' is a GLOBAL variable
+SELECT @@global.slave_skip_errors;
+@@global.slave_skip_errors
 OFF
-SET @@session.replica_skip_errors= 7;
-ERROR HY000: Variable 'replica_skip_errors' is a read only variable
-SET @@global.replica_skip_errors= 7;
-ERROR HY000: Variable 'replica_skip_errors' is a read only variable
+SET @@session.slave_skip_errors= 7;
+ERROR HY000: Variable 'slave_skip_errors' is a read only variable
+SET @@global.slave_skip_errors= 7;
+ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 #
 # Bug #11766769 : 59959: SMALL VALUES OF --MAX-ALLOWED-PACKET 
 #   ARE NOT BEING HONORED
@@ -1999,9 +1998,9 @@ SET GLOBAL max_allowed_packet=default;
 SET GLOBAL net_buffer_length=default;
 DROP TABLE t1;
 End of 5.1 tests
-SHOW VARIABLES like 'replica_skip_errors';
+SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
-replica_skip_errors	OFF
+slave_skip_errors	OFF
 SET @sql_big_selects_save=@@sql_big_selects;
 SET @@sql_big_selects=1;
 CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
@@ -2011,8 +2010,7 @@ FROM performance_schema.session_variables a
 LEFT JOIN performance_schema.global_variables b
 ON a.variable_name=b.variable_name
 WHERE b.variable_name IS NULL
-AND a.variable_name NOT IN ('debug_sync')
-ORDER BY a.variable_name;
+AND a.variable_name NOT IN ('debug_sync');
 SET SESSION error_count = @@session.error_count;
 SET SESSION external_user = @@session.external_user;
 SET SESSION gtid_next = @@session.gtid_next;
@@ -2023,14 +2021,9 @@ SET SESSION last_insert_id = @@session.last_insert_id;
 SET SESSION original_commit_timestamp = @@session.original_commit_timestamp;
 SET SESSION original_server_version = @@session.original_server_version;
 SET SESSION proxy_user = @@session.proxy_user;
-SET SESSION pseudo_replica_mode = @@session.pseudo_replica_mode;
-Warnings:
-Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_slave_mode = @@session.pseudo_slave_mode;
 Warnings:
-Warning	1287	'@@pseudo_slave_mode' is deprecated and will be removed in a future release. Please use pseudo_replica_mode instead.
-Warning	1287	'@@pseudo_slave_mode' is deprecated and will be removed in a future release. Please use pseudo_replica_mode instead.
-Warning	1231	'pseudo_replica_mode' change was ineffective.
+Warning	1231	'pseudo_slave_mode' change was ineffective.
 SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
 SET SESSION rand_seed1 = @@session.rand_seed1;
 SET SESSION rand_seed2 = @@session.rand_seed2;

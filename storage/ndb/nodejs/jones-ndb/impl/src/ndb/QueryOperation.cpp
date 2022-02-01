@@ -24,7 +24,6 @@
 
 #include <NdbApi.hpp>
 
-#include "ndb_version.h"
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryOperation.hpp"
 

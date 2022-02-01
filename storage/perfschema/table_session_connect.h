@@ -72,7 +72,7 @@ class PFS_index_session_connect : public PFS_engine_index {
         m_key_1("PROCESSLIST_ID"),
         m_key_2("ATTR_NAME") {}
 
-  ~PFS_index_session_connect() override = default;
+  ~PFS_index_session_connect() override {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(row_session_connect_attrs *row);

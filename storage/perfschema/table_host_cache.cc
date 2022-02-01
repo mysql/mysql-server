@@ -70,10 +70,10 @@ Plugin_table table_host_cache::m_table_def(
     "  COUNT_INIT_CONNECT_ERRORS BIGINT not null,\n"
     "  COUNT_LOCAL_ERRORS BIGINT not null,\n"
     "  COUNT_UNKNOWN_ERRORS BIGINT not null,\n"
-    "  FIRST_SEEN TIMESTAMP(0) not null,\n"
-    "  LAST_SEEN TIMESTAMP(0) not null,\n"
-    "  FIRST_ERROR_SEEN TIMESTAMP(0) null,\n"
-    "  LAST_ERROR_SEEN TIMESTAMP(0) null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  FIRST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
     "  PRIMARY KEY (IP) USING HASH,\n"
     "  KEY (HOST) USING HASH\n",
     /* Options */

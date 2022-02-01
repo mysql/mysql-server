@@ -4705,19 +4705,3 @@ CREATE TABLE child (fk INT);
 /*! ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) */;
 SHOW CREATE TABLE child;
 DROP TABLES child, parent;
-
-
---echo #
---echo # Bug#33114045 - TRANSFER_PREEXISTING_FOREIGN_KEYS: ASSERTION `!FIND->IS_VIRTUAL_GCOL()'
---echo #                FAILED.
---echo # Assertion to make sure foreign key is referencing non-virtual column failed.
---echo #
-CREATE TABLE t (a INT KEY, b INT NOT NULL UNIQUE KEY,
-                CONSTRAINT FOREIGN KEY (a) REFERENCES t(b));
---echo # Without fix, assertion fails for the following ALTER TABLE statements in
---echo # the debug build. Statements executes successfully in the non-debug build.
---error ER_DUP_FIELDNAME
-ALTER TABLE t ADD COLUMN a INT GENERATED ALWAYS AS (1) FIRST;
---error ER_DUP_FIELDNAME
-ALTER TABLE t ADD COLUMN b INT GENERATED ALWAYS AS (1) FIRST;
-DROP TABLE t;

@@ -211,7 +211,8 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
 
 // Drop a dictionary object from core storage.
 template <typename T>
-void Storage_adapter::core_drop(THD *thd [[maybe_unused]], const T *object) {
+void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
+                                const T *object) {
   assert(s_use_fake_storage || thd->is_dd_system_thread());
   assert(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
          bootstrap::Stage::CREATED_TABLES);
@@ -282,9 +283,7 @@ void Storage_adapter::core_store(THD *thd, T *object) {
     // For unit tests, drop old object (based on id) to simulate update.
     if (s_use_fake_storage) core_drop(thd, object);
   } else {
-    dd::Entity_object_impl *object_impl =
-        dynamic_cast<dd::Entity_object_impl *>(object);
-    object_impl->set_id(next_oid<T>());
+    dynamic_cast<dd::Entity_object_impl *>(object)->set_id(next_oid<T>());
   }
 
   // Need to clone since core registry takes ownership

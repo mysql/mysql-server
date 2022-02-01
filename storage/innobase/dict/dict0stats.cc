@@ -142,10 +142,10 @@ of keys. For example if a btree level is:
 index: 0,1,2,3,4,5,6,7,8,9,10,11,12
 data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
-typedef std::vector<ib_uint64_t, ut::allocator<ib_uint64_t>> boundaries_t;
+typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t>> boundaries_t;
 
 /** Allocator type used for index_map_t. */
-typedef ut::allocator<std::pair<const char *const, dict_index_t *>>
+typedef ut_allocator<std::pair<const char *const, dict_index_t *>>
     index_map_t_allocator;
 
 /** Auxiliary map used for sorting indexes by name in dict_stats_save(). */
@@ -158,8 +158,8 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
  - stats recalc
  - stats save
  @return true if exists and all tables are ok */
-static inline bool dict_stats_should_ignore_index(
-    const dict_index_t *index) /*!< in: index */
+UNIV_INLINE
+bool dict_stats_should_ignore_index(const dict_index_t *index) /*!< in: index */
 {
   return ((index->type & DICT_FTS) || index->is_corrupted() ||
           dict_index_is_spatial(index) || index->to_be_dropped ||
@@ -181,7 +181,7 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
   bool trx_started = false;
 
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (trx == nullptr) {
     trx = trx_allocate_for_background();
@@ -306,7 +306,7 @@ static dict_table_t *dict_stats_table_clone_create(
   dict_table_stats_lock()/unlock() routines will do nothing. */
   dict_table_stats_latch_create(t, false);
 
-  UT_LIST_INIT(t->indexes);
+  UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
   for (index = table->first_index(); index != nullptr; index = index->next()) {
     if (dict_stats_should_ignore_index(index)) {
@@ -507,10 +507,8 @@ static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
   const dict_index_t *src_idx;
 
   for (dst_idx = dst->first_index(), src_idx = src->first_index();
-       dst_idx != nullptr; dst_idx = dst_idx->next()) {
-    if (src_idx != nullptr) {
-      src_idx = src_idx->next();
-    }
+       dst_idx != nullptr; dst_idx = dst_idx->next(),
+      (src_idx != nullptr && (src_idx = src_idx->next()))) {
     if (dict_stats_should_ignore_index(dst_idx)) {
       if (!(dst_idx->type & DICT_FTS)) {
         dict_stats_empty_index(dst_idx);
@@ -586,7 +584,7 @@ when no longer needed.
 @param[in]	table	table whose stats to copy
 @return incomplete table object */
 static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   dict_table_stats_lock(table, RW_S_LATCH);
 
@@ -605,7 +603,7 @@ static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
 
   dict_table_stats_unlock(table, RW_S_LATCH);
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   return (t);
 }
@@ -732,7 +730,7 @@ static void dict_stats_update_transient(
   table->stat_sum_of_other_index_sizes =
       sum_of_index_sizes - index->stat_index_size;
 
-  table->stats_last_recalc = std::chrono::steady_clock::now();
+  table->stats_last_recalc = ut_time_monotonic();
 
   table->stat_modified_counter = 0;
 
@@ -746,15 +744,15 @@ Wait time estimation is based on the last call of this function when not exist.
 Can be updated by this function if no waiter found now.
 @return true if long waiters exist */
 static bool dict_stats_index_long_waiters(
-    dict_index_t *index,
-    std::chrono::steady_clock::time_point &wait_start_time) {
+    dict_index_t *index, ib_time_monotonic_t &wait_start_time) {
   if (rw_lock_get_waiters(dict_index_get_lock(index))) {
-    const auto diff = std::chrono::steady_clock::now() - wait_start_time;
+    const uint64_t diff =
+        std::max(ut_time_monotonic() - wait_start_time, (ib_time_monotonic_t)0);
 
-    return diff > get_srv_fatal_semaphore_wait_threshold() / 2;
+    return diff > srv_fatal_semaphore_wait_threshold / 2;
   } else {
     /* estimated long wait not started yet. updates wait_start_time. */
-    wait_start_time = std::chrono::steady_clock::now();
+    wait_start_time = ut_time_monotonic();
 
     return false;
   }
@@ -798,7 +796,7 @@ static bool dict_stats_analyze_index_level(
     ib_uint64_t *total_pages,        /*!< out: total number of pages */
     boundaries_t *n_diff_boundaries, /*!< out: boundaries of the groups
                                    of distinct keys */
-    std::chrono::steady_clock::time_point &wait_start_time,
+    ib_time_monotonic_t &wait_start_time,
     /*!< in/out: last known time index lock wasn't awaited. */
     mtr_t *mtr) /*!< in/out: mini-transaction */
 {
@@ -893,7 +891,8 @@ static bool dict_stats_analyze_index_level(
   /* iterate over all user records on this level
   and compare each two adjacent ones, even the last on page
   X and the fist on page X+1 */
-  for (; pcur.is_on_user_rec(); pcur.move_to_next_user_rec(mtr)) {
+  for (; btr_pcur_is_on_user_rec(&pcur);
+       btr_pcur_move_to_next_user_rec(&pcur, mtr)) {
     bool rec_is_last_on_page;
 
     rec = btr_pcur_get_rec(&pcur);
@@ -1080,7 +1079,7 @@ end:
   btr_leaf_page_release(btr_pcur_get_block(&pcur), BTR_SEARCH_LEAF, mtr);
 
   btr_pcur_close(&pcur);
-  ut::free(prev_rec_buf);
+  ut_free(prev_rec_buf);
   mem_heap_free(heap);
 
   return success;
@@ -1123,13 +1122,12 @@ be big enough)
 to the number of externally stored pages which were encountered
 @return offsets1 or offsets2 (the offsets of *out_rec),
 or NULL if the page is empty and does not contain user records. */
-static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
-                                          ulint *offsets1, ulint *offsets2,
-                                          const dict_index_t *index,
-                                          const page_t *page, ulint n_prefix,
-                                          page_scan_method_t scan_method,
-                                          ib_uint64_t *n_diff,
-                                          ib_uint64_t *n_external_pages) {
+UNIV_INLINE
+ulint *dict_stats_scan_page(const rec_t **out_rec, ulint *offsets1,
+                            ulint *offsets2, const dict_index_t *index,
+                            const page_t *page, ulint n_prefix,
+                            page_scan_method_t scan_method, ib_uint64_t *n_diff,
+                            ib_uint64_t *n_external_pages) {
   ulint *offsets_rec = offsets1;
   ulint *offsets_next_rec = offsets2;
   const rec_t *rec;
@@ -1423,8 +1421,8 @@ awaited.
 @return false if aborted */
 static bool dict_stats_analyze_index_for_n_prefix(
     dict_index_t *index, ulint n_prefix, const boundaries_t *boundaries,
-    n_diff_data_t *n_diff_data,
-    std::chrono::steady_clock::time_point &wait_start_time, mtr_t *mtr) {
+    n_diff_data_t *n_diff_data, ib_time_monotonic_t &wait_start_time,
+    mtr_t *mtr) {
   btr_pcur_t pcur;
   const page_t *page;
   ib_uint64_t rec_idx;
@@ -1533,7 +1531,7 @@ static bool dict_stats_analyze_index_for_n_prefix(
 
     /* seek to the record with index dive_below_idx */
     while (rec_idx < dive_below_idx && btr_pcur_is_on_user_rec(&pcur)) {
-      pcur.move_to_next_user_rec(mtr);
+      btr_pcur_move_to_next_user_rec(&pcur, mtr);
       rec_idx++;
     }
 
@@ -1605,8 +1603,9 @@ static bool dict_stats_analyze_index_for_n_prefix(
 /** Set dict_index_t::stat_n_diff_key_vals[] and stat_n_sample_sizes[].
 @param[in]	n_diff_data	input data to use to derive the results
 @param[in,out]	index		index whose stat_n_diff_key_vals[] to set */
-static inline void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
-                                               dict_index_t *index) {
+UNIV_INLINE
+void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
+                                 dict_index_t *index) {
   for (ulint n_prefix = dict_index_get_n_unique(index); n_prefix >= 1;
        n_prefix--) {
     /* n_diff_all_analyzed_pages can be 0 here if
@@ -1679,6 +1678,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   ib_uint64_t total_recs;
   ib_uint64_t total_pages;
   const ib_uint64_t n_diff_required = n_sample_pages * 10;
+  ib_time_monotonic_t wait_start_time;
   bool succeeded = true;
   mtr_t mtr;
   ulint size;
@@ -1724,7 +1724,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   mtr_start(&mtr);
 
   mtr_sx_lock(dict_index_get_lock(index), &mtr);
-  auto wait_start_time = std::chrono::steady_clock::now();
+  wait_start_time = ut_time_monotonic();
 
   root_level = btr_height_get(index, &mtr);
 
@@ -1778,20 +1778,17 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
 
   /* For each level that is being scanned in the btree, this contains the
   number of different key values for all possible n-column prefixes. */
-  ib_uint64_t *n_diff_on_level = ut::new_arr_withkey<ib_uint64_t>(
-      ut::make_psi_memory_key(mem_key_dict_stats_n_diff_on_level),
-      ut::Count{n_uniq});
+  ib_uint64_t *n_diff_on_level =
+      UT_NEW_ARRAY(ib_uint64_t, n_uniq, mem_key_dict_stats_n_diff_on_level);
 
   /* For each level that is being scanned in the btree, this contains the
   index of the last record from each group of equal records (when
   comparing only the first n columns, n=1..n_uniq). */
-  boundaries_t *n_diff_boundaries = ut::new_arr_withkey<boundaries_t>(
-      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_uniq});
+  boundaries_t *n_diff_boundaries = UT_NEW_ARRAY_NOKEY(boundaries_t, n_uniq);
 
   /* For each n-column prefix this array contains the input data that is
   used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-  n_diff_data_t *n_diff_data = ut::new_arr_withkey<n_diff_data_t>(
-      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_uniq});
+  n_diff_data_t *n_diff_data = UT_NEW_ARRAY_NOKEY(n_diff_data_t, n_uniq);
 
   /* total_recs is also used to estimate the number of pages on one
   level below, so at the start we have 1 page (the root) */
@@ -1821,7 +1818,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     mtr_commit(&mtr);
     mtr_start(&mtr);
     mtr_sx_lock(dict_index_get_lock(index), &mtr);
-    wait_start_time = std::chrono::steady_clock::now();
+    wait_start_time = ut_time_monotonic();
     if (root_level != btr_height_get(index, &mtr)) {
       /* Just quit if the tree has changed beyond
       recognition here. The old stats from previous
@@ -1966,9 +1963,9 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
 end:
   mtr_commit(&mtr);
 
-  ut::delete_arr(n_diff_boundaries);
+  UT_DELETE_ARRAY(n_diff_boundaries);
 
-  ut::delete_arr(n_diff_on_level);
+  UT_DELETE_ARRAY(n_diff_on_level);
 
   /* n_prefix == 0 means that the above loop did not end up prematurely
   due to tree being changed and so n_diff_data[] is set up. */
@@ -1976,7 +1973,7 @@ end:
     dict_stats_index_set_n_diff(n_diff_data, index);
   }
 
-  ut::delete_arr(n_diff_data);
+  UT_DELETE_ARRAY(n_diff_data);
 
   if (succeeded) {
     dict_stats_assert_initialized_index(index);
@@ -2066,7 +2063,7 @@ static dberr_t dict_stats_update_persistent(
     table->stat_sum_of_other_index_sizes += index->stat_index_size;
   }
 
-  table->stats_last_recalc = std::chrono::steady_clock::now();
+  table->stats_last_recalc = ut_time_monotonic();
 
   table->stat_modified_counter = 0;
 
@@ -2191,6 +2188,7 @@ are saved
 static dberr_t dict_stats_save(dict_table_t *table_orig,
                                const index_id_t *only_for_index) {
   pars_info_t *pinfo;
+  lint now;
   dberr_t ret;
   dict_table_t *table;
   char db_utf8[dict_name::MAX_DB_UTF8_LEN];
@@ -2206,8 +2204,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
   /* MySQL's timestamp is 4 byte, so we use
   pars_info_add_int4_literal() which takes a lint arg, so "now" is
   lint */
-  auto now = static_cast<uint32_t>(
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+  now = (lint)ut_time();
 
   pinfo = pars_info_create();
 
@@ -2686,7 +2683,7 @@ static dberr_t dict_stats_fetch_from_ps(
   char db_utf8[dict_name::MAX_DB_UTF8_LEN];
   char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   /* Initialize all stats to dummy values before fetching because if
   the persistent storage contains incomplete stats (e.g. missing stats
@@ -2800,7 +2797,7 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 {
   DBUG_TRACE;
 
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (dict_stats_is_persistent_enabled(index->table)) {
     dict_table_stats_lock(index->table, RW_X_LATCH);
@@ -2826,14 +2823,13 @@ the stats or to fetch them from
 the persistent statistics
 storage */
 {
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (table->ibd_file_missing) {
-    if (!dict_table_is_discarded(table)) {
-      ib::warn(ER_IB_MSG_224)
-          << "Cannot calculate statistics for table " << table->name
-          << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
-    }
+    ib::warn(ER_IB_MSG_224)
+        << "Cannot calculate statistics for table " << table->name
+        << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
+
     dict_stats_empty_table(table);
     return (DB_TABLESPACE_DELETED);
   } else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3005,7 +3001,7 @@ dberr_t dict_stats_drop_index(
   pars_info_t *pinfo;
   dberr_t ret;
 
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   /* skip indexes whose table names do not contain a database name
   e.g. if we are dropping an index from SYS_TABLES */
@@ -3068,7 +3064,8 @@ dberr_t dict_stats_drop_index(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-static inline dberr_t dict_stats_delete_from_table_stats(
+UNIV_INLINE
+dberr_t dict_stats_delete_from_table_stats(
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -3100,7 +3097,8 @@ static inline dberr_t dict_stats_delete_from_table_stats(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-static inline dberr_t dict_stats_delete_from_index_stats(
+UNIV_INLINE
+dberr_t dict_stats_delete_from_index_stats(
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -3144,7 +3142,7 @@ dberr_t dict_stats_drop_table(
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
   /* WL#9536 TODO: Once caller don't hold dict sys mutex, clean
   this and following(exit&enter) up */
-  ut_ad(dict_sys_mutex_own());
+  ut_ad(mutex_own(&dict_sys->mutex));
 
   /* skip tables that do not contain a database name
   e.g. if we are dropping SYS_TABLES */
@@ -3161,7 +3159,7 @@ dberr_t dict_stats_drop_table(
   dict_fs2utf8(db_and_table, db_utf8, sizeof(db_utf8), table_utf8,
                sizeof(table_utf8));
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   ret = dict_stats_delete_from_table_stats(db_utf8, table_utf8);
 
@@ -3169,7 +3167,7 @@ dberr_t dict_stats_drop_table(
     ret = dict_stats_delete_from_index_stats(db_utf8, table_utf8);
   }
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   if (ret == DB_STATS_DO_NOT_EXIST) {
     ret = DB_SUCCESS;
@@ -3204,7 +3202,8 @@ dberr_t dict_stats_drop_table(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-static inline dberr_t dict_stats_rename_table_in_table_stats(
+UNIV_INLINE
+dberr_t dict_stats_rename_table_in_table_stats(
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */
@@ -3244,7 +3243,8 @@ static inline dberr_t dict_stats_rename_table_in_table_stats(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-static inline dberr_t dict_stats_rename_table_in_index_stats(
+UNIV_INLINE
+dberr_t dict_stats_rename_table_in_index_stats(
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */
@@ -3637,7 +3637,7 @@ void test_dict_stats_save() {
   table.stat_n_rows = TEST_N_ROWS;
   table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
   table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
-  UT_LIST_INIT(table.indexes);
+  UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
   UT_LIST_ADD_LAST(table.indexes, &index1);
   UT_LIST_ADD_LAST(table.indexes, &index2);
   ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
@@ -3767,7 +3767,7 @@ void test_dict_stats_fetch_from_ps() {
 
   /* craft a dummy dict_table_t */
   table.name.m_name = (char *)(TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
-  UT_LIST_INIT(table.indexes);
+  UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
   UT_LIST_ADD_LAST(table.indexes, &index1);
   UT_LIST_ADD_LAST(table.indexes, &index2);
   ut_d(table.magic_n = DICT_TABLE_MAGIC_N);

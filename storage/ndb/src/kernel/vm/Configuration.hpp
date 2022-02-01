@@ -29,7 +29,6 @@
 
 #include <util/BaseString.hpp>
 #include <mgmapi.h>
-#include "mgmcommon/NdbMgm.hpp"
 #include <kernel_types.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
@@ -184,7 +183,7 @@ private:
 
   ndb_mgm_configuration * m_ownConfig;
   const class ConfigValues* get_own_config_values();
-  ndb_mgm::config_ptr m_clusterConfig;
+  ndb_mgm_config_unique_ptr m_clusterConfig;
   UtilBuffer m_clusterConfigPacked_v1;
   UtilBuffer m_clusterConfigPacked_v2;
 

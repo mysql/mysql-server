@@ -29,7 +29,6 @@
 
 #include <rapidjson/document.h>
 
-#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
@@ -44,38 +43,39 @@
  */
 class METADATA_API MetaData {
  public:
+  using ReplicaSetsByName =
+      std::map<std::string, metadata_cache::ManagedReplicaSet>;
   using JsonAllocator = rapidjson::CrtAllocator;
   using JsonDocument = rapidjson::Document;
   // username as key, password hash and priviliges as value
   using auth_credentials_t =
       std::map<std::string, std::pair<std::string, JsonDocument>>;
+  // fetch instances from connected server
+  virtual ReplicaSetsByName fetch_instances(
+      const std::string &cluster_name,
+      const std::string &cluster_type_specific_id) = 0;
 
-  // fetch instances from vector of metadata servers
-  virtual stdx::expected<metadata_cache::ClusterTopology, std::error_code>
-  fetch_cluster_topology(
-      const std::atomic<bool> &terminated,
-      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
-      bool needs_writable_node, const std::string &cluster_type_specific_id,
-      const std::string &clusterset_id, std::size_t &instance_id) = 0;
+  // fetch instances from vector of servers
+  virtual ReplicaSetsByName fetch_instances(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const std::string &cluster_type_specific_id,
+      std::size_t &instance_id) = 0;
 
-  virtual bool update_router_attributes(
-      const metadata_cache::metadata_server_t &rw_server,
-      const unsigned router_id,
-      const metadata_cache::RouterAttributes &router_attributes) = 0;
+  virtual bool update_router_version(
+      const metadata_cache::ManagedInstance &rw_instance,
+      const unsigned router_id) = 0;
 
   virtual bool update_router_last_check_in(
-      const metadata_cache::metadata_server_t &rw_server,
+      const metadata_cache::ManagedInstance &rw_instance,
       const unsigned router_id) = 0;
 
   virtual bool connect_and_setup_session(
-      const metadata_cache::metadata_server_t &metadata_server) = 0;
+      const metadata_cache::ManagedInstance &metadata_server) = 0;
 
   virtual void disconnect() = 0;
 
   virtual void setup_notifications_listener(
       const std::vector<metadata_cache::ManagedInstance> &instances,
-      const mysqlrouter::TargetCluster &target_cluster,
       const std::function<void()> &callback) = 0;
 
   virtual void shutdown_notifications_listener() = 0;
@@ -85,15 +85,14 @@ class METADATA_API MetaData {
   virtual mysqlrouter::ClusterType get_cluster_type() = 0;
 
   virtual auth_credentials_t fetch_auth_credentials(
-      const mysqlrouter::TargetCluster &target_cluster,
-      const std::string &cluster_type_specific_id) = 0;
+      const std::string &cluster_name) = 0;
 
   MetaData() = default;
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
   explicit MetaData(const MetaData &) = delete;
   MetaData &operator=(const MetaData &) = delete;
-  virtual ~MetaData() = default;
+  virtual ~MetaData() {}
 };
 
 #endif  // METADATA_CACHE_METADATA_INTERFACE_INCLUDED

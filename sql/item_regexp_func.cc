@@ -31,13 +31,14 @@
 
 #include "sql/item_regexp_func.h"
 
-#include <optional>
-
 #include "my_dbug.h"
-#include "mysql_com.h"      // MAX_BLOB_WIDTH
+#include "mysql_com.h"  // MAX_BLOB_WIDTH
+#include "nullable.h"
 #include "sql/item_func.h"  // agg_arg_charsets_for_comparison()
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"    // Disable_semijoin_flattening
+
+using Mysql::Nullable;
 
 /**
   Transforms a textual option string from the user to a bitmask of ICU flags.
@@ -178,23 +179,18 @@ bool Item_func_regexp_instr::resolve_type(THD *thd) {
 longlong Item_func_regexp_instr::val_int() {
   DBUG_TRACE;
   assert(fixed);
-  std::optional<int> pos = position();
-  std::optional<int> occ = occurrence();
-  std::optional<int> retopt = return_option();
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
+  Nullable<int> retopt = return_option();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value() ||
       !retopt.has_value()) {
     return error_int();
   }
 
-  std::optional<int32_t> result =
+  Nullable<int32_t> result =
       m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
-  if (current_thd->is_error()) return error_int();
-
-  if (result.has_value()) {
-    null_value = false;
-    return result.value();
-  }
+  if (result.has_value()) return result.value();
   null_value = true;
   return 0;
 }
@@ -211,16 +207,12 @@ longlong Item_func_regexp_like::val_int() {
     REGEXP_LIKE() does not take position and occurence arguments, so we trust
     that the calls to their accessors below will return the default values.
   */
-  std::optional<bool> result =
+  Nullable<bool> result =
       m_facade->Matches(subject(), position().value(), occurrence().value());
-  if (current_thd->is_error()) return error_int();
+  null_value = !result.has_value();
+  if (null_value) return 0;
 
-  if (result.has_value()) {
-    null_value = false;
-    return result.value();
-  }
-  null_value = true;
-  return 0;
+  return result.value();
 }
 
 bool Item_func_regexp_like::resolve_type(THD *thd) {
@@ -260,8 +252,8 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
 String *Item_func_regexp_replace::val_str(String *buf) {
   assert(fixed);
 
-  std::optional<int> pos = position();
-  std::optional<int> occ = occurrence();
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
     return error_str();
@@ -275,8 +267,6 @@ String *Item_func_regexp_replace::val_str(String *buf) {
   buf->set_charset(collation.collation);
   String *result = m_facade->Replace(subject(), replacement(), pos.value(),
                                      occ.value(), buf);
-  if (current_thd->is_error()) return error_str();
-
   null_value = (result == nullptr);
   return result;
 }
@@ -293,20 +283,18 @@ bool Item_func_regexp_substr::resolve_type(THD *thd) {
 
 String *Item_func_regexp_substr::val_str(String *buf) {
   assert(fixed);
-  std::optional<int> pos = position();
-  std::optional<int> occ = occurrence();
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
     return null_return_str();
   }
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    return error_str();
+    return null_return_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
-  if (current_thd->is_error()) return error_str();
-
   null_value = (result == nullptr);
   return result;
 }

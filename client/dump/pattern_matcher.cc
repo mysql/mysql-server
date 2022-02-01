@@ -26,7 +26,7 @@
 
 using namespace Mysql::Tools::Dump::Detail;
 
-Pattern_matcher::Pattern_matcher() = default;
+Pattern_matcher::Pattern_matcher() {}
 
 bool Pattern_matcher::is_pattern_matched(const std::string &to_match,
                                          const std::string &pattern,

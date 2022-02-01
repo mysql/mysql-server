@@ -79,7 +79,7 @@ struct result {
 
   @param str unparsed options string
   @param delimiter character to split the options string into several substrings
-  @param key_value_separator value which separates string into key and value
+  @param key_value_separator value which seperates string into key and value
   @param options pointer to an std::map
 
   @return result

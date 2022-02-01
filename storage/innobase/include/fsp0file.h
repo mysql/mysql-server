@@ -85,6 +85,7 @@ class Datafile {
         m_flags(),
         m_exists(),
         m_is_valid(),
+        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -92,8 +93,7 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(Encryption::Progress::NONE),
-        m_encryption_master_key_id(0) {
+        m_encryption_op_in_progress(NONE) {
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
@@ -108,6 +108,7 @@ class Datafile {
         m_flags(flags),
         m_exists(),
         m_is_valid(),
+        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -115,8 +116,7 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(Encryption::Progress::NONE),
-        m_encryption_master_key_id(0) {
+        m_encryption_op_in_progress(NONE) {
     ut_ad(m_name != nullptr);
     m_handle.m_file = OS_FILE_CLOSED;
     /* No op */
@@ -132,14 +132,14 @@ class Datafile {
         m_flags(file.m_flags),
         m_exists(file.m_exists),
         m_is_valid(file.m_is_valid),
+        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(file.m_atomic_write),
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(Encryption::Progress::NONE),
-        m_encryption_master_key_id(0) {
+        m_encryption_op_in_progress(NONE) {
     m_name = mem_strdup(file.m_name);
     ut_ad(m_name != nullptr);
 
@@ -177,7 +177,7 @@ class Datafile {
     m_last_os_error = 0;
 
     if (m_filepath != nullptr) {
-      ut::free(m_filepath);
+      ut_free(m_filepath);
       m_filepath = nullptr;
       m_filename = nullptr;
     }
@@ -190,11 +190,11 @@ class Datafile {
 
     /* Do not make a copy of the first page,
     it should be reread if needed */
+    m_first_page_buf = nullptr;
     m_first_page = nullptr;
     m_encryption_key = nullptr;
     m_encryption_iv = nullptr;
-    m_encryption_op_in_progress = Encryption::Progress::NONE;
-    m_encryption_master_key_id = 0;
+    m_encryption_op_in_progress = NONE;
 
     m_atomic_write = file.m_atomic_write;
 
@@ -213,14 +213,15 @@ class Datafile {
   so that it can be validated.
   @param[in]	strict	whether to issue error messages
   @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t open_read_only(bool strict);
+  dberr_t open_read_only(bool strict) MY_ATTRIBUTE((warn_unused_result));
 
   /** Open a data file in read-write mode during start-up so that
   doublewrite pages can be restored and then it can be validated.
   @param[in]	read_only_mode	if true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t open_read_write(bool read_only_mode);
+  dberr_t open_read_write(bool read_only_mode)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Initialize OS specific file info. */
   void init_file_info();
@@ -264,25 +265,25 @@ class Datafile {
   @param[in]	for_import	if it is for importing
   @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
   m_is_valid is also set true on success, else false. */
-  [[nodiscard]] dberr_t validate_to_dd(space_id_t space_id, uint32_t flags,
-                                       bool for_import);
+  dberr_t validate_to_dd(space_id_t space_id, uint32_t flags, bool for_import)
+      MY_ATTRIBUTE((warn_unused_result));
 
-  /** Validates this datafile for the purpose of recovery.  The file should
-  exist and be successfully opened. We initially open it in read-only mode
-  because we just want to read the SpaceID.  However, if the first page is
-  corrupt and needs to be restored from the doublewrite buffer, we will reopen
-  it in write mode and try to restore that page. The file will be closed when
-  returning from this method.
+  /** Validates this datafile for the purpose of recovery.
+  The file should exist and be successfully opened. We initially
+  open it in read-only mode because we just want to read the SpaceID.
+  However, if the first page is corrupt and needs to be restored
+  from the doublewrite buffer, we will reopen it in write mode and
+  ry to restore that page.
   @param[in]	space_id	Expected space ID
   @retval DB_SUCCESS on success
   m_is_valid is also set true on success, else false. */
-  [[nodiscard]] dberr_t validate_for_recovery(space_id_t space_id);
+  dberr_t validate_for_recovery(space_id_t space_id)
+      MY_ATTRIBUTE((warn_unused_result));
 
-  /**  Checks the consistency of the first page of a datafile when the
-  tablespace is opened. This occurs before the fil_space_t is created so the
-  Space ID found here must not already be open. m_is_valid is set true on
-  success, else false. The datafile is always closed when returning from this
-  method.
+  /** Checks the consistency of the first page of a datafile when the
+  tablespace is opened.  This occurs before the fil_space_t is created
+  so the Space ID found here must not already be open.
+  m_is_valid is set true on success, else false.
   @param[in]	space_id	Expected space ID
   @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
   @param[in]	for_import	if it is for importing
@@ -291,11 +292,12 @@ class Datafile {
           expected value
   @retval DB_SUCCESS on if the datafile is valid
   @retval DB_CORRUPTION if the datafile is not readable
-  @retval DB_INVALID_ENCRYPTION_META if the encryption meta data
+  @retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
           is not readable
   @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-  [[nodiscard]] dberr_t validate_first_page(space_id_t space_id,
-                                            lsn_t *flush_lsn, bool for_import);
+  dberr_t validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
+                              bool for_import)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Get LSN of first page */
   lsn_t get_flush_lsn() {
@@ -313,10 +315,7 @@ class Datafile {
 
   /** Get Datafile::m_handle.
   @return m_handle */
-  pfs_os_file_t handle() const {
-    ut_ad(is_open());
-    return (m_handle);
-  }
+  pfs_os_file_t handle() const { return (m_handle); }
 
   /** Get Datafile::m_order.
   @return m_order */
@@ -405,14 +404,16 @@ class Datafile {
   @param[in]	read_only_mode	if true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t open_or_create(bool read_only_mode);
+  dberr_t open_or_create(bool read_only_mode)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Reads a few significant fields from the first page of the
   datafile, which must already be open.
   @param[in]	read_only_mode	If true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-  [[nodiscard]] dberr_t read_first_page(bool read_only_mode);
+  dberr_t read_first_page(bool read_only_mode)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Free the first page from memory when it is no longer needed. */
   void free_first_page();
@@ -477,6 +478,9 @@ class Datafile {
   bool m_is_valid;
 
   /** Buffer to hold first page */
+  byte *m_first_page_buf;
+
+  /** Pointer to the first page held in the buffer above */
   byte *m_first_page;
 
   /** true if atomic writes enabled for this file */
@@ -508,9 +512,6 @@ class Datafile {
   byte *m_encryption_iv;
 
   /** Encryption operation in progress */
-  Encryption::Progress m_encryption_op_in_progress;
-
-  /** Master key id read from first page */
-  uint32_t m_encryption_master_key_id;
+  encryption_op_type m_encryption_op_in_progress;
 };
 #endif /* fsp0file_h */

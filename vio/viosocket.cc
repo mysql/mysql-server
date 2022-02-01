@@ -70,7 +70,7 @@
 
 #include "mysql/psi/mysql_socket.h"
 
-int vio_errno(Vio *vio [[maybe_unused]]) {
+int vio_errno(Vio *vio MY_ATTRIBUTE((unused))) {
 /* These transport types are not Winsock based. */
 #ifdef _WIN32
   if (vio->type == VIO_TYPE_NAMEDPIPE || vio->type == VIO_TYPE_SHARED_MEMORY)
@@ -306,12 +306,12 @@ bool vio_is_blocking(Vio *vio) {
   return vio->is_blocking_flag;
 }
 
-int vio_socket_timeout(Vio *vio, uint which [[maybe_unused]], bool old_mode) {
+int vio_socket_timeout(Vio *vio, uint which MY_ATTRIBUTE((unused)),
+                       bool old_mode) {
   int ret = 0;
   DBUG_TRACE;
 
 #if defined(_WIN32)
-  (void)old_mode;  // maybe_unused
   {
     int optname;
     DWORD timeout = 0;
@@ -499,17 +499,10 @@ int vio_shutdown(Vio *vio) {
 }
 
 #ifndef NDEBUG
-
-#ifdef _WIN32
-#define SOCKET_PRINTF_FORMAT "%llu"
-#else
-#define SOCKET_PRINTF_FORMAT "%d"
-#endif
-
 void vio_description(Vio *vio, char *buf) {
   switch (vio->type) {
     case VIO_TYPE_SOCKET:
-      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (" SOCKET_PRINTF_FORMAT ")",
+      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (%d)",
                mysql_socket_getfd(vio->mysql_socket));
       break;
 #ifdef _WIN32
@@ -521,7 +514,7 @@ void vio_description(Vio *vio, char *buf) {
       break;
 #endif
     default:
-      snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (" SOCKET_PRINTF_FORMAT ")",
+      snprintf(buf, VIO_DESCRIPTION_SIZE, "TCP/IP (%d)",
                mysql_socket_getfd(vio->mysql_socket));
       break;
   }

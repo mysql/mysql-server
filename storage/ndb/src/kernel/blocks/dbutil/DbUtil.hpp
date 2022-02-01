@@ -206,8 +206,10 @@ public:
     Uint32 prevList;
 
     void print() const {
-      g_eventLogger->info("[-Prepare-\n clientRef: %u, clientData: %u]",
-                          clientRef, clientData);
+      ndbout << "[-Prepare-" << endl
+	     << " clientRef: " << clientRef
+	     << ", clientData: " << clientData
+	     << "]" << endl;
     }
   };
   typedef ArrayPool<Prepare> Prepare_pool;

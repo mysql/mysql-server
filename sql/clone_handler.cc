@@ -290,20 +290,6 @@ int clone_handle_create(const char *plugin_name) {
   return clone_handle->init();
 }
 
-int clone_handle_check_drop(MYSQL_PLUGIN plugin_info) {
-  auto plugin = static_cast<st_plugin_int *>(plugin_info);
-  int error = 0;
-
-  mysql_mutex_lock(&LOCK_plugin);
-  assert(plugin->state == PLUGIN_IS_DYING);
-
-  if (plugin->ref_count > 0) {
-    error = ER_PLUGIN_CANNOT_BE_UNINSTALLED; /* purecov: inspected */
-  }
-  mysql_mutex_unlock(&LOCK_plugin);
-  return error;
-}
-
 int clone_handle_drop() {
   if (clone_handle == nullptr) {
     return 1;

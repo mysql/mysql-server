@@ -44,6 +44,7 @@
 
 #include <NdbTick.h>
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
@@ -2551,7 +2552,6 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	  break;
 	}
         // Fall through - on bad version
-        [[fallthrough]];
       default:
 	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
       }
@@ -2618,7 +2618,7 @@ Restore::read_data_file(Signal* signal, FilePtr file_ptr)
   {
     file_ptr.p->m_outstanding_reads++;
     req->varIndex = file_ptr.p->m_current_file_page++;
-    req->data.globalPage.pageNumber = *it.data;
+    req->data.pageData[0] = *it.data;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
     

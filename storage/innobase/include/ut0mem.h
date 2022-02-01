@@ -45,7 +45,8 @@ target are not overlapping.
 @param[in]	src	copy from
 @param[in]	n	number of bytes to copy
 @return dest */
-static inline void *ut_memcpy(void *dest, const void *src, ulint n);
+UNIV_INLINE
+void *ut_memcpy(void *dest, const void *src, ulint n);
 
 /** Wrapper for memmove(3).  Copy memory area when the source and
 target are overlapping.
@@ -53,7 +54,8 @@ target are overlapping.
 @param[in]	src	Move from
 @param[in]	n	number of bytes to move
 @return dest */
-static inline void *ut_memmove(void *dest, const void *src, ulint n);
+UNIV_INLINE
+void *ut_memmove(void *dest, const void *src, ulint n);
 
 /** Wrapper for memcmp(3).  Compare memory areas.
 @param[in]	str1	first memory block to compare
@@ -61,25 +63,29 @@ static inline void *ut_memmove(void *dest, const void *src, ulint n);
 @param[in]	n	number of bytes to compare
 @return negative, 0, or positive if str1 is smaller, equal,
                 or greater than str2, respectively. */
-static inline int ut_memcmp(const void *str1, const void *str2, ulint n);
+UNIV_INLINE
+int ut_memcmp(const void *str1, const void *str2, ulint n);
 
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
 @param[in,out]	dest	Destination to copy to
 @param[in]	src	Source to copy from
 @return dest */
-static inline char *ut_strcpy(char *dest, const char *src);
+UNIV_INLINE
+char *ut_strcpy(char *dest, const char *src);
 
 /** Wrapper for strlen(3).  Determine the length of a NUL-terminated string.
 @param[in]	str	string
 @return length of the string in bytes, excluding the terminating NUL */
-static inline ulint ut_strlen(const char *str);
+UNIV_INLINE
+ulint ut_strlen(const char *str);
 
 /** Wrapper for strcmp(3).  Compare NUL-terminated strings.
 @param[in]	str1	first string to compare
 @param[in]	str2	second string to compare
 @return negative, 0, or positive if str1 is smaller, equal,
                 or greater than str2, respectively. */
-static inline int ut_strcmp(const char *str1, const char *str2);
+UNIV_INLINE
+int ut_strcmp(const char *str1, const char *str2);
 
 /** Copies up to size - 1 characters from the NUL-terminated string src to
  dst, NUL-terminating the result. Returns strlen(src), so truncation
@@ -93,7 +99,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
 Concatenate 3 strings.*/
 char *ut_str3cat(
     /* out, own: concatenated string, must be
-    freed with ut::free() */
+    freed with ut_free() */
     const char *s1,  /* in: string 1 */
     const char *s2,  /* in: string 2 */
     const char *s3); /* in: string 3 */
@@ -107,8 +113,8 @@ number of characters written to "hex" (including the NUL).
 @param[out]	hex		hex string
 @param[in]	hex_size	"hex" size in bytes
 @return number of chars written */
-static inline ulint ut_raw_to_hex(const void *raw, ulint raw_size, char *hex,
-                                  ulint hex_size);
+UNIV_INLINE
+ulint ut_raw_to_hex(const void *raw, ulint raw_size, char *hex, ulint hex_size);
 
 /** Adds single quotes to the start and end of string and escapes any quotes by
 doubling them. Returns the number of bytes that were written to "buf"
@@ -119,8 +125,9 @@ bytes from "str" are discarded.
 @param[out]	buf		output buffer
 @param[in]	buf_size	output buffer size in bytes
 @return number of bytes that were written */
-static inline ulint ut_str_sql_format(const char *str, ulint str_len, char *buf,
-                                      ulint buf_size);
+UNIV_INLINE
+ulint ut_str_sql_format(const char *str, ulint str_len, char *buf,
+                        ulint buf_size);
 
 #include "ut0mem.ic"
 

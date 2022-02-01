@@ -29,6 +29,6 @@
 // avoid conflict with xxhash symbols in liblz4.
 #define XXH_NAMESPACE GCS_
 
-#include "xxhash.h"
+#include "extra/lz4/xxhash.h"
 
 #endif  // GCS_XXHASH_H_INCLUDED

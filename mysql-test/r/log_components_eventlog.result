@@ -76,7 +76,6 @@ SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";
 SET @@session.debug="-d,log_error_normalize";
 FLUSH ERROR LOGS;
-UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
 
 ###
 ### done

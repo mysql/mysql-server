@@ -23,15 +23,16 @@
 #ifndef DD__COLUMN_INCLUDED
 #define DD__COLUMN_INCLUDED
 
-#include <optional>
-
 #include "lex_string.h"  // LEX_CSTRING
 #include "my_inttypes.h"
+#include "nullable.h"
 #include "sql/dd/collection.h"           // dd::Collection
 #include "sql/dd/sdi_fwd.h"              // RJ_Document
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 #include "sql/gis/srid.h"
+
+using Mysql::Nullable;
 
 namespace dd {
 
@@ -105,7 +106,7 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_USER = 4
   };
 
-  ~Column() override = default;
+  ~Column() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -184,8 +185,8 @@ class Column : virtual public Entity_object {
   // srid
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_srs_id(std::optional<gis::srid_t> srs_id) = 0;
-  virtual std::optional<gis::srid_t> srs_id() const = 0;
+  virtual void set_srs_id(Nullable<gis::srid_t> srs_id) = 0;
+  virtual Nullable<gis::srid_t> srs_id() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // numeric_scale.

@@ -159,10 +159,13 @@ class Move_thread_to_default_group {
                                       pfs_thread_id);
       if (!pfs_thread_attr.m_system_thread) {
         Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-        THD_ptr thd_ptr =
+        THD *thd =
             Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-        if (thd_ptr)
-          thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
+        if (thd != nullptr) {
+          thd->resource_group_ctx()->m_cur_resource_group = nullptr;
+          mysql_mutex_assert_owner(&thd->LOCK_thd_data);
+          mysql_mutex_unlock(&thd->LOCK_thd_data);
+        }
       }
     }
   }
@@ -582,10 +585,12 @@ static inline bool check_and_apply_resource_grp(
   // Set resource group context for non-system threads.
   if (!pfs_thread_attr.m_system_thread) {
     Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-    THD_ptr cur_thd_ptr =
+    THD *cur_thd =
         Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-    if (cur_thd_ptr)
-      cur_thd_ptr->resource_group_ctx()->m_cur_resource_group = resource_group;
+    if (cur_thd != nullptr) {
+      cur_thd->resource_group_ctx()->m_cur_resource_group = resource_group;
+      mysql_mutex_unlock(&cur_thd->LOCK_thd_data);
+    }
   }
 
   if (prev_cur_res_grp != nullptr)

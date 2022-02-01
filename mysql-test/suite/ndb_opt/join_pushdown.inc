@@ -5266,50 +5266,6 @@ and t1.d IN (
 #############################################
 
 
-###################################################
-# Bug#33416308
-#    Incorrect result for pushed join in combination with batched_key_access
-#
-# SPJ API / handler integration didn't implement retrieval of the
-# RANGE_NO pseudo column. Thus, when MRR specified multiple Bound's,
-# and that MRR operation was the root of a pushed join, we failed
-# to related the returned SPJ rows with the correct 'Batched Key'
-#
-##################################################
-
-# We use optimizer hints to ensure:
-#  - t2 is BKA joined (using MRR) with t1.
-#  - t3 is _not_ BKA joined with t2, thus enabling
-#      t2 join t3 to be pushed.
-#
-# 't1 BKA_JOIN t2' will use MRR access for the
-# pushed join root t2, which will need RANGE_NO's from t2 results
-# in order to relate them to the correct batched t1 row.
-#
-explain
-select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
-from t1
-  straight_join t1 as t2 on t2.a = t1.c
-  straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
---sorted_result
-select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
-from t1
-  straight_join t1 as t2 on t2.a = t1.c
-  straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
-
-# Variant where t3 join condition refers t1.
-# That will hit an assert(key_cmp... added as part of patch
-explain
-select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
-from t1
-  straight_join t1 as t2 on t2.a = t1.c
-  straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
---sorted_result
-select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
-from t1
-  straight_join t1 as t2 on t2.a = t1.c
-  straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
-
 connection ddl;
 drop table t1;
 

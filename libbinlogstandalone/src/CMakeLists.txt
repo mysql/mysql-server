@@ -31,12 +31,9 @@ SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/event_reader.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/gtids/gtid.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/gtids/gtidset.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/load_data_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/rows_event.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/statement_events.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cpp
   )
 

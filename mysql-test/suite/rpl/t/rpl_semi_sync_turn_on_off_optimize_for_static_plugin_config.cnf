@@ -1,39 +1,39 @@
 !include ../my.cnf
 
 [mysqld.1]
-log-replica-updates
+log-slave-updates
 server_id=1
 
 [mysqld.2]
-log-replica-updates
+log-slave-updates
 server_id=2
 
 [mysqld.3]
-log-replica-updates
+log-slave-updates
 server_id=3
 
 [mysqld.4]
-log-replica-updates
+log-slave-updates
 server_id=4
 
 [mysqld.5]
-log-replica-updates
+log-slave-updates
 server_id=5
 
 [mysqld.6]
-log-replica-updates
+log-slave-updates
 server_id=6
 
 [mysqld.7]
-log-replica-updates
+log-slave-updates
 server_id=7
 
 [mysqld.8]
-log-replica-updates
+log-slave-updates
 server_id=8
 
 [mysqld.9]
-log-replica-updates
+log-slave-updates
 server_id=9
 
 [ENV]

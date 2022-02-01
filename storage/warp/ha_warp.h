@@ -79,6 +79,7 @@
 #include "sql/table.h"
 #include "sql/log.h"
 #include "sql/sql_thd_internal_api.h"
+#include "sql/sql_executor.h"
 
 // Fastbit includes
 #include "include/fastbit/ibis.h"
@@ -261,7 +262,7 @@ class warp_pushdown_information {
   // table can be re-used for the scan
   std::string column_set = "";
 
-  // where clause set in ::prep_cond_push
+  // where clause set in ::cond_push
   std::string filter;
   
   // data directory of the table
@@ -273,7 +274,7 @@ class warp_pushdown_information {
   // number of rows in the table (may be adjusted down for star schema optimization)
   uint64_t rowcount = 0;
 
-  // fastbit objects for iterating the filtered table (may be opened in ::prep_cond_push)
+  // fastbit objects for iterating the filtered table (may be opened in ::cond_push)
   ibis::table* base_table;
   ibis::table* filtered_table;
   ibis::table::cursor* cursor;
@@ -710,7 +711,7 @@ class ha_warp : public handler {
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
   handlerton* warp_hton;
   ~ha_warp() {
-    //free_root(&blobroot, MYF(0));
+    free_root(&blobroot, MYF(0));
   }
  
   const char *table_type() const { return "WARP"; }
@@ -815,7 +816,7 @@ class ha_warp : public handler {
 
   // Functions to support engine condition pushdown (ECP)
   int engine_push(AQP::Table_access *table_aqp);
-  const Item* prep_cond_push(const Item *cond,	bool other_tbls_ok );
+  const Item* cond_push(const Item *cond,	bool other_tbls_ok );
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* );
 

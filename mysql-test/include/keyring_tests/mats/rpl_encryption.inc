@@ -198,7 +198,7 @@ SET PERSIST binlog_encryption = ON;
 
 --echo Restart the slave with keyring installed
 --let $rpl_server_number= 2
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --skip-replica-start
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --skip-slave-start
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc
@@ -440,10 +440,4 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 
 # Cleanup
 RESET PERSIST;
---source include/rpl_connection_master.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
-SET GLOBAL binlog_encryption= OFF;
---source include/rpl_connection_slave.inc
-SET GLOBAL keyring_operations= ON;

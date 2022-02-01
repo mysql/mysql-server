@@ -67,7 +67,7 @@ class Codec {
   virtual std::pair<std::size_t, bool> encode(const Binary_log_event &from,
                                               unsigned char *to,
                                               std::size_t size) const = 0;
-  virtual ~Codec() = default;
+  virtual ~Codec() {}
 };
 
 }  // namespace codecs

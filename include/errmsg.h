@@ -129,9 +129,7 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_LOAD_DATA_LOCAL_INFILE_REJECTED 2068
 #define CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL 2069
 #define CR_DNS_SRV_LOOKUP_FAILED 2070
-#define CR_MANDATORY_TRACKER_NOT_FOUND 2071
-#define CR_INVALID_FACTOR_NO 2072
-#define CR_ERROR_LAST /*Copy last error nr:*/ 2072
+#define CR_ERROR_LAST /*Copy last error nr:*/ 2070
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */

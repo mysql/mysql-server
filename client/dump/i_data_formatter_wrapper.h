@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_data_formatter_wrapper {
  public:
-  virtual ~I_data_formatter_wrapper() = default;
+  virtual ~I_data_formatter_wrapper() {}
   /**
   Add new Data Formatter to supply acquired data of objects to.
   */

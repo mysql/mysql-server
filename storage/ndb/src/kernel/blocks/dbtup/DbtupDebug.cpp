@@ -323,8 +323,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     Uint32 seed = (Uint32)time(0);
     if (signal->getLength() > 1)
       seed = signal->theData[1];
-    g_eventLogger->info("Startar modul test av Page Manager (seed: 0x%x)",
-                        seed);
+    ndbout_c("Startar modul test av Page Manager (seed: 0x%x)", seed);
     srand(seed);
 
     Vector<Chunk> chunks;
@@ -353,8 +352,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
       }
       
       if (type == 1211)
-        g_eventLogger->info("loop=%d case=%d free=%d alloc=%d", i, c, free,
-                            alloc);
+        ndbout_c("loop=%d case=%d free=%d alloc=%d", i, c, free, alloc);
 
       if (type == 1213)
       {
@@ -371,6 +369,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	break;
       case 2: { // Seize(n) - fail
 	alloc += free;
+	// Fall through
         sum_req += free;
         goto doalloc;
       }
@@ -384,15 +383,14 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	  chunks.push_back(chunk);
 	  if(chunk.pageCount != alloc) {
 	    if (type == 1211)
-              g_eventLogger->info(
-                  "  Tried to allocate %d - only allocated %d - free: %d",
-                  alloc, chunk.pageCount, free);
-          }
-        } else {
-          g_eventLogger->info("  Failed to alloc %d pages with %d pages free",
-                              alloc, free);
-        }
-
+              ndbout_c("  Tried to allocate %d - only allocated %d - free: %d",
+                       alloc, chunk.pageCount, free);
+	  }
+	} else {
+	  ndbout_c("  Failed to alloc %d pages with %d pages free",
+		   alloc, free);
+	}
+	
         sum_conf += chunk.pageCount;
         Uint32 tot = fc_left + fc_right + fc_remove;
         sum_loop += tot;
@@ -419,9 +417,9 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
       chunks.erase(chunks.size() - 1);
     }
 
-    g_eventLogger->info(
-        "Got %u%% of requested allocs, loops : %u 100*avg: %u max: %u",
-        (100 * sum_conf) / sum_req, sum_loop, 100 * sum_loop / LOOPS, max_loop);
+    ndbout_c("Got %u%% of requested allocs, loops : %u 100*avg: %u max: %u",
+             (100 * sum_conf) / sum_req, sum_loop, 100*sum_loop / LOOPS,
+             max_loop);
   }
 #endif
 
@@ -602,18 +600,10 @@ template class Vector<Chunk>;
 NdbOut&
 operator<<(NdbOut& out, const Local_key & key)
 {
-  out << "[ m_page_no: " << dec << key.m_page_no << " m_file_no: " << dec
-      << key.m_file_no << " m_page_idx: " << dec << key.m_page_idx << "]";
+  out << "[ m_page_no: " << dec << key.m_page_no 
+      << " m_file_no: " << dec << key.m_file_no 
+      << " m_page_idx: " << dec << key.m_page_idx << "]";
   return out;
-}
-
-char*
-printLocal_Key(char buf[], int bufsize, const Local_key& key)
-{
-  BaseString::snprintf(buf, bufsize,
-                       "[ m_page_no: %u m_file_no: %u m_page_idx: %u ]",
-                       key.m_page_no, key.m_file_no, key.m_page_idx);
-  return buf;
 }
 
 static

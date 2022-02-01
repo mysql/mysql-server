@@ -33,7 +33,8 @@
 
 class GRNotificationListener {
  public:
-  GRNotificationListener(const mysqlrouter::UserCredentials &user_credentials);
+  GRNotificationListener(const std::string &user_name,
+                         const std::string &password);
 
   ~GRNotificationListener();
   GRNotificationListener(GRNotificationListener &) = delete;
@@ -42,7 +43,6 @@ class GRNotificationListener {
   using NotificationClb = std::function<void()>;
 
   void setup(const std::vector<metadata_cache::ManagedInstance> &instances,
-             const mysqlrouter::TargetCluster &target_cluster,
              const NotificationClb &notification_clb);
 
  private:

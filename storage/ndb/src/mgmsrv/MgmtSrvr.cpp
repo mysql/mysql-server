@@ -23,7 +23,6 @@
 */
 
 #include <ndb_global.h>
-#include <cstring>
 
 #include "MgmtSrvr.hpp"
 #include "ndb_mgmd_error.h"
@@ -103,6 +102,7 @@ MgmtSrvr::logLevelThread_C(void* m)
   return 0;
 }
 
+extern EventLogger * g_eventLogger;
 
 #ifdef NOT_USED
 static NdbOut&
@@ -3101,7 +3101,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
   req->nodegroupId = RNIL;
   req->senderData = 77;
   req->senderRef = ss.getOwnRef();
-  std::memset(req->nodes, 0, sizeof(req->nodes));
+  bzero(req->nodes, sizeof(req->nodes));
 
   if (ng)
   {
@@ -3406,21 +3406,14 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   const int BufSz = 12; /* 32 bit signed = 10 digits + sign + trailing \0 */
   char buf[BufSz];  
   int b  = 0;
-  std::memset(buf, 0, BufSz);
+  memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
-    if (b == NDB_ARRAY_SIZE(buf))
-    {
-      return -1;
-    }
-    if (numArgs == NDB_ARRAY_SIZE(args_array))
-    {
-      return -1;
-    }
     if (args[i] == ' ' || args[i] == 0){
+      assert(b < BufSz);
       assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
-      std::memset(buf, 0, BufSz);
+      memset(buf, 0, BufSz);
       b = 0;
     } else {
       buf[b] = args[i];
@@ -3619,7 +3612,7 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
       Uint32 theData[25];
       EventReport repData;
     };
-    std::memset(theData, 0, sizeof(theData));
+    bzero(theData, sizeof(theData));
     EventReport * event = &repData;
     event->setEventType(NDB_LE_Disconnected);
     event->setNodeId(_ownNodeId);
@@ -3729,7 +3722,7 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
 
 MgmtSrvr::NodeIdReservations::NodeIdReservations()
 {
-  std::memset(m_reservations, 0, sizeof(m_reservations));
+  memset(m_reservations, 0, sizeof(m_reservations));
 }
 
 
@@ -5126,6 +5119,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   }
   SimpleSignal ssig;
   UtilBuffer buf;
+  UtilBuffer *buf_ptr = &buf;
   new_config.pack(buf, v2);
   ssig.ptr[0].p = (Uint32*)buf.get_data();
   ssig.ptr[0].sz = (buf.length() + 3) / 4;
@@ -5177,7 +5171,8 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
             /**
              * Free old buffer and create a new one.
              */
-            buf.assign(nullptr, 0);
+            delete buf_ptr;
+            buf_ptr = new (buf_ptr) UtilBuffer;
             require(new_config.pack(buf, v2_new));
             v2 = v2_new;
           }

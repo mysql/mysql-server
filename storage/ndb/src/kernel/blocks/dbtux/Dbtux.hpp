@@ -99,21 +99,21 @@ class Dbtux : public SimulatedBlock {
 
 private:
   // sizes are in words (Uint32)
-  static constexpr Uint32 MaxIndexFragments = MAX_FRAG_PER_LQH;
-  static constexpr Uint32 MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX;
-  static constexpr Uint32 MaxAttrDataSize = 2 * MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS;
-  static constexpr Uint32 MaxXfrmDataSize = MaxAttrDataSize * MAX_XFRM_MULTIPLY;
+  STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_LQH );
+  STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
+  STATIC_CONST( MaxAttrDataSize = 2 * MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS );
+  STATIC_CONST( MaxXfrmDataSize = MaxAttrDataSize * MAX_XFRM_MULTIPLY);
 public:
-  static constexpr Uint32 DescPageSize = 512;
+  STATIC_CONST( DescPageSize = 512 );
 private:
-  static constexpr Uint32 MaxTreeNodeSize = MAX_TTREE_NODE_SIZE;
-  static constexpr Uint32 MaxPrefSize = MAX_TTREE_PREF_SIZE;
-  static constexpr Uint32 ScanBoundSegmentSize = 7;
-  static constexpr Uint32 MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN;
-  static constexpr Uint32 MaxTreeDepth = 32;    // strict
+  STATIC_CONST( MaxTreeNodeSize = MAX_TTREE_NODE_SIZE );
+  STATIC_CONST( MaxPrefSize = MAX_TTREE_PREF_SIZE );
+  STATIC_CONST( ScanBoundSegmentSize = 7 );
+  STATIC_CONST( MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN );
+  STATIC_CONST( MaxTreeDepth = 32 );    // strict
 #ifdef VM_TRACE
   // for TuxCtx::c_debugBuffer
-  static constexpr Uint32 DebugBufferBytes = (MaxAttrDataSize << 2);
+  STATIC_CONST( DebugBufferBytes = (MaxAttrDataSize << 2) );
 #endif
   BLOCK_DEFINES(Dbtux);
 
@@ -121,13 +121,13 @@ private:
   struct TuxCtx;
 
   // AttributeHeader size is assumed to be 1 word
-  static constexpr Uint32 AttributeHeaderSize = 1;
+  STATIC_CONST( AttributeHeaderSize = 1 );
 
   /*
    * Logical tuple address, "local key".  Identifies table tuples.
    */
   typedef Uint32 TupAddr;
-  static constexpr Uint32 NullTupAddr = (Uint32)-1;
+  STATIC_CONST( NullTupAddr = (Uint32)-1 );
 
   /*
    * Physical tuple address in TUP.  Provides fast access to table tuple
@@ -178,7 +178,7 @@ private:
     bool eq(const TreeEnt ent) const;
     int cmp(const TreeEnt ent) const;
   };
-  static constexpr Uint32 TreeEntSize = sizeof(TreeEnt) >> 2;
+  STATIC_CONST( TreeEntSize = sizeof(TreeEnt) >> 2 );
   static const TreeEnt NullTreeEnt;
 
   /*
@@ -204,7 +204,7 @@ private:
     Uint32 m_nodeScanInstance;
     TreeNode();
   };
-  static constexpr Uint32 NodeHeadSize = sizeof(TreeNode) >> 2;
+  STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
 
   /*
    * Tree header.  There is one in each fragment.  Contains tree
@@ -274,11 +274,11 @@ private:
     Uint16 m_magic;
     enum { Magic = 0xDE5C };
   };
-  static constexpr Uint32 DescHeadSize = sizeof(DescHead) >> 2;
+  STATIC_CONST( DescHeadSize = sizeof(DescHead) >> 2 );
 
   typedef NdbPack::Type KeyType;
   typedef NdbPack::Spec KeySpec;
-  static constexpr Uint32 KeyTypeSize = sizeof(KeyType) >> 2;
+  STATIC_CONST( KeyTypeSize = sizeof(KeyType) >> 2 );
 
   typedef NdbPack::DataC KeyDataC;
   typedef NdbPack::Data KeyData;
@@ -296,7 +296,7 @@ private:
   typedef DataBufferSegment<ScanBoundSegmentSize, RT_DBTUX_SCAN_BOUND>
             ScanBoundSegment;
   typedef TransientPool<ScanBoundSegment> ScanBoundBuffer_pool;
-  static constexpr Uint32 DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX = 2;
+  STATIC_CONST(DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX = 2);
   typedef DataBuffer<ScanBoundSegmentSize,
                      ScanBoundBuffer_pool,
                      RT_DBTUX_SCAN_BOUND> ScanBoundBuffer;
@@ -313,7 +313,7 @@ private:
 
   // ScanLock
   struct ScanLock {
-    static constexpr Uint32 TYPE_ID = RT_DBTUX_SCAN_LOCK;
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_LOCK);
     Uint32 m_magic;
 
     ScanLock() :
@@ -330,7 +330,7 @@ private:
     };
     Uint32 prevList;
   };
-  static constexpr Uint32 DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX = 1;
+  STATIC_CONST(DBTUX_SCAN_LOCK_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanLock> ScanLockPtr;
   typedef TransientPool<ScanLock> ScanLock_pool;
   typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
@@ -361,7 +361,7 @@ private:
    * protocol is still followed until scan close.
    */
   struct ScanOp {
-    static constexpr Uint32 TYPE_ID = RT_DBTUX_SCAN_OPERATION;
+    STATIC_CONST( TYPE_ID = RT_DBTUX_SCAN_OPERATION);
     Uint32 m_magic;
 
     ~ScanOp()
@@ -413,7 +413,7 @@ private:
     Uint32 prevList;
     ScanOp();
   };
-  static constexpr Uint32 DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 0;
+  STATIC_CONST(DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX = 0);
   typedef Ptr<ScanOp> ScanOpPtr;
   typedef TransientPool<ScanOp> ScanOp_pool;
   typedef DLList<ScanOp_pool> ScanOp_list;
@@ -901,8 +901,8 @@ private:
     DebugLock = 16,             // log ACC locks
     DebugStat = 32              // log stats collection
   };
-  static constexpr Uint32 DataFillByte = 0xa2;
-  static constexpr Uint32 NodeFillByte = 0xa4;
+  STATIC_CONST( DataFillByte = 0xa2 );
+  STATIC_CONST( NodeFillByte = 0xa4 );
 #endif
 
   void execDBINFO_SCANREQ(Signal* signal);
@@ -962,38 +962,6 @@ private:
 #ifdef VM_TRACE
     char* c_debugBuffer;
 #endif
-    // function for clearing context
-    void reset()
-    {
-      // jamBuffer left
-      scanPtr.i = RNIL;
-      scanPtr.p = nullptr;
-      fragPtr.i = RNIL;
-      fragPtr.p = nullptr;
-      indexPtr.i = RNIL;
-      indexPtr.p = nullptr;
-      tupIndexFragPtr = nullptr;
-      tupIndexTablePtr = nullptr;
-      tupRealFragPtr = nullptr;
-      tupRealTablePtr = nullptr;
-      attrDataOffset = 0;
-      tuxFixHeaderSize = 0;
-      // searchScanDataArray left
-      // searchScanBoundArray left
-      keyAttrs = nullptr;
-      // searchKeyDataArray left
-      // searchKeyBoundArray left
-      scanBoundCnt = 0;
-      descending = 0;
-      m_current_ent.m_tupLoc = NullTupLoc;
-      m_current_ent.m_tupVersion = 0;
-      // c_searchKey left
-      // c_nextKey left
-      // c_entryKey left
-      // c_dataBuffer left
-      // c_boundBuffer left
-      // c_debugBuffer left
-    }
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
@@ -1774,10 +1742,12 @@ inline
 void
 Dbtux::relinkScan(Uint32 line)
 {
-  ndbrequire(c_ctx.scanPtr.p != nullptr);
-  ScanOp& scan = *c_ctx.scanPtr.p;
-  Frag& frag = *c_ctx.fragPtr.p;
-  relinkScan(scan, frag, true, line);
+  if (c_ctx.scanPtr.p != nullptr)
+  {
+    ScanOp& scan = *c_ctx.scanPtr.p;
+    Frag& frag = *c_ctx.fragPtr.p;
+    relinkScan(scan, frag, true, line);
+  }
 }
 #undef JAM_FILE_ID
 

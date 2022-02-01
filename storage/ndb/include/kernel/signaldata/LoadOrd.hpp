@@ -35,7 +35,7 @@ struct UpdThrLoadOrd {
    */
   friend class Thrman;
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST(SignalLength = 3);
 
   /**
    * Load measured in percentage over the last 50ms and sent each 50ms.

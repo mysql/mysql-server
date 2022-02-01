@@ -206,7 +206,7 @@ bool Raw_record::store_time(int field_no, my_time_t val, bool is_null) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Raw_record::store_timestamp(int field_no, const my_timeval &tv) {
+bool Raw_record::store_timestamp(int field_no, const timeval &tv) {
   field(field_no)->store_timestamp(&tv);
   return false;
 }
@@ -266,9 +266,9 @@ my_time_t Raw_record::read_time(int field_no) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-my_timeval Raw_record::read_timestamp(int field_no) const {
+timeval Raw_record::read_timestamp(int field_no) const {
   int warnings = 0;
-  my_timeval tv;
+  timeval tv;
   if (field(field_no)->get_timestamp(&tv, &warnings)) {
     assert(false);
     return {0, 0};

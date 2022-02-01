@@ -27,7 +27,7 @@
 
 class Test_MDL_context_owner : public MDL_context_owner {
  public:
-  Test_MDL_context_owner() = default;
+  Test_MDL_context_owner() {}
   void enter_cond(mysql_cond_t *, mysql_mutex_t *, const PSI_stage_info *,
                   PSI_stage_info *, const char *, const char *, int) override {}
 

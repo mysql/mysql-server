@@ -84,19 +84,19 @@
 */
 #define mysql_end_stage inline_mysql_end_stage
 
-static inline void inline_mysql_stage_register(const char *category
-                                               [[maybe_unused]],
-                                               PSI_stage_info **info
-                                               [[maybe_unused]],
-                                               int count [[maybe_unused]]) {
+static inline void inline_mysql_stage_register(
+    const char *category MY_ATTRIBUTE((unused)),
+    PSI_stage_info **info MY_ATTRIBUTE((unused)),
+    int count MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   PSI_STAGE_CALL(register_stage)(category, info, count);
 #endif
 }
 
 static inline PSI_stage_progress *inline_mysql_set_stage(
-    PSI_stage_key key [[maybe_unused]], const char *src_file [[maybe_unused]],
-    int src_line [[maybe_unused]]) {
+    PSI_stage_key key MY_ATTRIBUTE((unused)),
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
 #else

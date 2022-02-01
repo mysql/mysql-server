@@ -73,8 +73,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_replica.h"
-#include "sql/rpl_rli.h"   // Relay_log_info
+#include "sql/rpl_rli.h"  // Relay_log_info
+#include "sql/rpl_slave.h"
 #include "sql/sql_base.h"  // fill_record_n_invoke_before_triggers
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
@@ -485,11 +485,10 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
                   rli->slave_patternload_file_size)) {
         /*
           LOAD DATA INFILE in the slave SQL Thread can only read from
-          --replica-load-tmpdir". This should never happen. Please, report a
-          bug.
+          --slave-load-tmpdir". This should never happen. Please, report a bug.
         */
         LogErr(ERROR_LEVEL, ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY);
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--replica-load-tmpdir");
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         return true;
       }
     } else if (!is_secure_file_path(name)) {
@@ -1317,7 +1316,7 @@ char READ_INFO::unescape(char chr) {
     case 'N':
       found_null = true;
 
-      [[fallthrough]];
+      /* fall through */
     default:
       return chr;
   }

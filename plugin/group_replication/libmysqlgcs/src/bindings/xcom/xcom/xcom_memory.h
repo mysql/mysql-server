@@ -25,7 +25,6 @@
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
-#include <stdlib.h>
 
 #define X_FREE(x) \
   {               \
@@ -39,23 +38,5 @@
   }
 
 void xcom_xdr_free(xdrproc_t f, char *p);
-
-extern int oom_abort;
-
-static inline void *xcom_malloc(size_t size) {
-  void *retval = malloc(size);
-  if (retval == NULL) {
-    oom_abort = 1;
-  }
-  return retval;
-}
-
-static inline void *xcom_calloc(size_t nmemb, size_t size) {
-  void *retval = calloc(nmemb, size);
-  if (retval == NULL) {
-    oom_abort = 1;
-  }
-  return retval;
-}
 
 #endif

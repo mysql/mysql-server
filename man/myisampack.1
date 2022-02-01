@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: myisampack
+.\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYISAMPACK" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -114,7 +114,7 @@ After you compress a table with
 \fBmyisampack\fR, use
 \fBmyisamchk \-rq\fR
 to rebuild its indexes\&.
-myisamchk(1)\&.
+\fBmyisamchk\fR(1)\&.
 .PP
 \fBmyisampack\fR
 supports the following options\&. It also reads option files and supports the options for processing them described at
@@ -321,10 +321,10 @@ The following sequence of commands illustrates a typical table compression sessi
 .RS 4
 .\}
 .nf
-$> \fBls \-l station\&.*\fR
+shell> \fBls \-l station\&.*\fR
 \-rw\-rw\-r\-\-   1 jones    my         994128 Apr 17 19:00 station\&.MYD
 \-rw\-rw\-r\-\-   1 jones    my          53248 Apr 17 19:00 station\&.MYI
-$> \fBmyisamchk \-dvv station\fR
+shell> \fBmyisamchk \-dvv station\fR
 MyISAM file:     station
 Isam\-version:  2
 Creation time: 1996\-03\-13 10:08:58
@@ -397,7 +397,7 @@ Field Start Length Type
 55    807   20
 56    827   4
 57    831   4
-$> \fBmyisampack station\&.MYI\fR
+shell> \fBmyisampack station\&.MYI\fR
 Compressing station\&.MYI: (1192 records)
 \- Calculating statistics
 normal:     20  empty\-space:   16  empty\-zero:     12  empty\-fill:  11
@@ -406,17 +406,17 @@ Original trees:  57  After join: 17
 \- Compressing file
 87\&.14%
 Remember to run myisamchk \-rq on compressed tables
-$> \fBmyisamchk \-rq station\fR
+shell> \fBmyisamchk \-rq station\fR
 \- check record delete\-chain
 \- recovering (with sort) MyISAM\-table \*(Aqstation\*(Aq
 Data records: 1192
 \- Fixing index 1
 \- Fixing index 2
-$> \fBmysqladmin \-uroot flush\-tables\fR
-$> \fBls \-l station\&.*\fR
+shell> \fBmysqladmin \-uroot flush\-tables\fR
+shell> \fBls \-l station\&.*\fR
 \-rw\-rw\-r\-\-   1 jones    my         127874 Apr 17 19:00 station\&.MYD
 \-rw\-rw\-r\-\-   1 jones    my          55296 Apr 17 19:04 station\&.MYI
-$> \fBmyisamchk \-dvv station\fR
+shell> \fBmyisamchk \-dvv station\fR
 MyISAM file:     station
 Isam\-version:  2
 Creation time: 1996\-03\-13 10:08:58

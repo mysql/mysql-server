@@ -25,7 +25,6 @@
 #define QMGR_C
 #include "Qmgr.hpp"
 #include <pc.hpp>
-#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/EventReport.hpp>
@@ -54,7 +53,6 @@
 #include <signaldata/LocalSysfile.hpp>
 #include <signaldata/SyncThreadViaReqConf.hpp>
 #include <signaldata/TakeOverTcConf.hpp>
-#include <signaldata/TrpKeepAlive.hpp>
 #include <signaldata/GetNumMultiTrp.hpp>
 #include <signaldata/Sync.hpp>
 #include <ndb_version.h>
@@ -70,6 +68,7 @@
 
 #include "../dbdih/Dbdih.hpp"
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1
@@ -385,12 +384,6 @@ void Qmgr::execCONTINUEB(Signal* signal)
   {
     jam();
     send_switch_multi_transporter(signal, signal->theData[1], true);
-    return;
-  }
-  case ZSEND_TRP_KEEP_ALIVE:
-  {
-    jam();
-    send_trp_keep_alive(signal);
     return;
   }
   default:
@@ -786,13 +779,6 @@ void Qmgr::setCCDelay(UintR aCCDelay)
   }
 }
 
-void Qmgr::setTrpKeepAliveSendDelay(Uint32 delay)
-{
-  const NDB_TICKS now = NdbTick_getCurrentTicks();
-  ka_send_timer.setDelay(delay);
-  ka_send_timer.reset(now);
-}
-
 void Qmgr::execCONNECT_REP(Signal* signal)
 {
   jamEntry();
@@ -801,7 +787,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   if (ERROR_INSERTED(931))
   {
     jam();
-    g_eventLogger->info("Discarding CONNECT_REP(%d)", connectedNodeId);
+    ndbout_c("Discarding CONNECT_REP(%d)", connectedNodeId);
     infoEvent("Discarding CONNECT_REP(%d)", connectedNodeId);
     return;
   }
@@ -811,7 +797,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    g_eventLogger->info("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    ndbout_c("Discarding one API CONNECT_REP(%d)", connectedNodeId);
     infoEvent("Discarding one API CONNECT_REP(%d)", connectedNodeId);
     return;
   }
@@ -1290,8 +1276,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   addNodePtr.i = cmRegReq->nodeId;
   Uint32 gci = 1;
   Uint32 start_type = ~0;
-
-  ndbrequire(cmRegReq->nodeId < MAX_NODES);
 
   if (!c_connectedNodes.get(cmRegReq->nodeId))
   {
@@ -1813,7 +1797,7 @@ retry:
 		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
-  g_eventLogger->info("%s", buf);
+  ndbout_c("%s", buf);
   CRASH_INSERTION(933);
 
   if (getNodeState().startLevel == NodeState::SL_STARTED)
@@ -1997,8 +1981,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   CmRegRef* ref = (CmRegRef*)signal->getDataPtr();
   UintR TaddNodeno = ref->nodeId;
-  ndbrequire(TaddNodeno < MAX_NDB_NODES);
-
   UintR TrefuseReason = ref->errorCode;
   Uint32 candidate = ref->presidentCandidate;
   Uint32 node_gci = 1;
@@ -2409,7 +2391,7 @@ Qmgr::check_startup(Signal* signal)
         goto missinglog;
       }
     }
-    [[fallthrough]];
+    // Fall through
     case CheckNodeGroups::Win:
     {
       jam();
@@ -2532,7 +2514,7 @@ incomplete_log:
     {
       if (c_start.m_node_gci[i] != 0)
       {
-        g_eventLogger->info("Node GCI = %u for node %u",
+        g_eventLogger->info("Node group GCI = %u for NG %u",
                             c_start.m_node_gci[i],
                             i);
       }
@@ -3572,14 +3554,6 @@ void Qmgr::timerHandlingLab(Signal* signal)
     apiHbHandlingLab(signal, TcurrentTime);
   }
 
-  if (ka_send_timer.getDelay() > 0 &&
-      ka_send_timer.check(TcurrentTime))
-  {
-    jam();
-    ka_send_timer.reset(TcurrentTime);
-    send_trp_keep_alive_start(signal);
-  }
-
   Ndb_GetRUsage(&m_timer_handling_rusage, false);
 
   //--------------------------------------------------
@@ -3610,7 +3584,7 @@ void Qmgr::sendHeartbeat(Signal* signal)
 
   if(ERROR_INSERTED(946))
   {
-    NdbSleep_SecSleep(180);
+    sleep(180);
     return;
   }
 
@@ -3966,15 +3940,15 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
       !remove_failconf_block(failedNodePtr, block))
   {
     jam();
-    char logbuf[512] = "";
+    ndbout << "execAPI_FAILCONF from " << block
+           << " failedNodePtr.p->failState = "
+	   << (Uint32)(failedNodePtr.p->failState)
+           << " blocks: ";
     for (Uint32 i = 0;i<NDB_ARRAY_SIZE(failedNodePtr.p->m_failconf_blocks);i++)
     {
-      BaseString::snappend(logbuf, 512, "%u ",
-                           failedNodePtr.p->m_failconf_blocks[i]);
+      printf("%u ", failedNodePtr.p->m_failconf_blocks[i]);
     }
-    g_eventLogger->info(
-        "execAPI_FAILCONF from %u failedNodePtr.p->failState = %d blocks: %s",
-        block, (Uint32)(failedNodePtr.p->failState), logbuf);
+    ndbout << endl;
     systemErrorLab(signal, __LINE__);
   }//if
 
@@ -4305,9 +4279,8 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
 
   if (ERROR_INSERTED(939) && ERROR_INSERT_EXTRA == nodeId)
   {
-    g_eventLogger->info(
-        "Ignoring DISCONNECT_REP for node %u that was force disconnected",
-        nodeId);
+    ndbout_c("Ignoring DISCONNECT_REP for node %u that was force disconnected",
+             nodeId);
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }
@@ -4502,7 +4475,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   }
 
 #if 0
-  g_eventLogger->info("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);
+  ndbout_c("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);
 #endif
 
   bool compatability_check;
@@ -5498,7 +5471,7 @@ Qmgr::sendCommitFailReq(Signal* signal)
 #ifdef ERROR_INSERT    
     if (false && ERROR_INSERTED(935) && nodePtr.i == c_error_insert_extra)
     {
-      g_eventLogger->info("skipping node %d", c_error_insert_extra);
+      ndbout_c("skipping node %d", c_error_insert_extra);
       CLEAR_ERROR_INSERT_VALUE;
       signal->theData[0] = 9999;
       sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
@@ -5982,10 +5955,9 @@ void Qmgr::failReport(Signal* signal,
     if (ERROR_INSERTED(938))
     {
       nodeFailCount++;
-      g_eventLogger->info(
-          "QMGR : execFAIL_REP(Failed : %u Source : %u  Cause : %u) : "
-          "%u nodes have failed",
-          aFailedNode, sourceNode, aFailCause, nodeFailCount);
+      ndbout_c("QMGR : execFAIL_REP(Failed : %u Source : %u  Cause : %u) : "
+               "%u nodes have failed", 
+               aFailedNode, sourceNode, aFailCause, nodeFailCount);
       /* Count DB nodes */
       Uint32 nodeCount = 0;
       for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
@@ -5997,8 +5969,7 @@ void Qmgr::failReport(Signal* signal,
       /* When > 25% of cluster has failed, resume communications */
       if (nodeFailCount > (nodeCount / 4))
       {
-        g_eventLogger->info(
-            "QMGR : execFAIL_REP > 25%% nodes failed, resuming comms");
+        ndbout_c("QMGR : execFAIL_REP > 25%% nodes failed, resuming comms");
         Signal save = *signal;
         signal->theData[0] = 9991;
         sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
@@ -6318,7 +6289,7 @@ Uint32 Qmgr::getArbitTimeout()
     break;
   case ARBIT_INIT:              // not used
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_FIND:
     jam();
     /* This timeout will be used only to print out a warning
@@ -6327,7 +6298,7 @@ Uint32 Qmgr::getArbitTimeout()
     return 60000;
   case ARBIT_PREP1:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_PREP2:
     jam();
     return 1000 + cnoOfNodes * Uint32(hb_send_timer.getDelay());
@@ -6393,13 +6364,13 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_PREP1:		// start from beginning
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_PREP2:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_START:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_RUN:
     if (cpresident == getOwnNodeId()) {
       jam();
@@ -6441,13 +6412,13 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_INIT:		// start from beginning
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_FIND:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_PREP1:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_PREP2:
     jam();
     arbitRec.state = ARBIT_INIT;
@@ -6457,7 +6428,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_START:		// process in RUN state
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_RUN:
     jam();
     arbitRec.newMask.set(nodeId);
@@ -6595,7 +6566,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     goto crashme;
   case ArbitCode::WinNodes:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ArbitCode::WinGroups:
     jam();
     if (arbitRec.state == ARBIT_RUN)
@@ -6711,7 +6682,7 @@ Qmgr::runArbitThread(Signal* signal)
     break;
   case ARBIT_PREP1:
     jam();
-    [[fallthrough]];
+    // Fall through
   case ARBIT_PREP2:
     jam();
     stateArbitPrep(signal);
@@ -6957,7 +6928,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     break;
   case ArbitCode::PrepPart2:    // non-president enters RUN state
     jam();
-    [[fallthrough]];
+    // Fall through
   case ArbitCode::PrepAtrun:
     jam();
     arbitRec.node = sd->node;
@@ -7568,7 +7539,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 900 && signal->getLength() == 2)
   {
-    g_eventLogger->info("disconnecting %u", signal->theData[1]);
+    ndbout_c("disconnecting %u", signal->theData[1]);
     api_failed(signal, signal->theData[1]);
   }
 
@@ -7640,9 +7611,8 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
           break;
         }
         }
-        g_eventLogger->info(
-            "QMGR : Mapping request on node id %u to node id %u (%s)", nodeId,
-            newNodeId, type);
+        ndbout_c("QMGR : Mapping request on node id %u to node id %u (%s)",
+                 nodeId, newNodeId, type);
         if (newNodeId != nodeId)
         {
           sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, length, JBB);
@@ -7653,7 +7623,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 
   if (dumpCode == 9994)
   {
-    g_eventLogger->info("setCCDelay(%u)", signal->theData[1]);
+    ndbout_c("setCCDelay(%u)", signal->theData[1]);
     setCCDelay(signal->theData[1]);
     m_connectivity_check.m_enabled = true;
   }
@@ -7663,7 +7633,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
-    g_eventLogger->info("Force close communication to %u", nodeId);
+    ndbout_c("Force close communication to %u", nodeId);
     SET_ERROR_INSERT_VALUE2(939, nodeId);
     CloseComReqConf * closeCom = CAST_PTR(CloseComReqConf,
                                           signal->getDataPtrSend());
@@ -7713,20 +7683,6 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   NodeReceiverGroup rg(API_CLUSTERMGR, mask);
   sendSignal(rg, api.gsn, signal, len, JBB,
 	     &handle);
-}
-
-void
-Qmgr::execTRP_KEEP_ALIVE(Signal* signal)
-{
-  /*
-   * This signal is sent via explicit transporter and signal may come in other
-   * order than other signals from same sender.
-   * That is ok since this signal is only there to generate traffic such that
-   * connection is not taken as idle connection and disconnected if one run in
-   * an environment there connection traffics are monitored and disconnected
-   * if idle for too long.
-   */
-  jamEntry();
 }
 
 void
@@ -8560,8 +8516,8 @@ Qmgr::execNODE_PINGCONF(Signal* signal)
 
   if (ERROR_INSERTED(938))
   {
-    g_eventLogger->info("QMGR : execNODE_PING_CONF() from %u in tick %u",
-                        sendersNodeId, m_connectivity_check.m_tick);
+    ndbout_c("QMGR : execNODE_PING_CONF() from %u in tick %u",
+             sendersNodeId, m_connectivity_check.m_tick);
   }
 
   /* Node must have been pinged, we must be waiting for the response,
@@ -8975,7 +8931,6 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr pathSectionPtr, hostSectionPtr;
 
-  ndbrequire(report->node_id < MAX_NODES);
   ProcessInfo * processInfo = getProcessInfo(report->node_id);
   if(processInfo)
   {
@@ -9114,7 +9069,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
       return;
     }
   }
-  [[fallthrough]];
+  // Fall through
   case IsolateOrd::IS_DELAY:
   {
     jam();
@@ -9709,72 +9664,6 @@ Qmgr::create_multi_transporter(NodeId node_id)
   DEB_MULTI_TRP(("Create multi trp for node %u", node_id));
   globalTransporterRegistry.createMultiTransporter(node_id,
                                                    m_num_multi_trps);
-}
-
-/*
- * TRP_KEEP_ALIVE
- */
-
-void Qmgr::send_trp_keep_alive_start(Signal* signal)
-{
-  jam();
-  c_keepalive_seqnum++;
-  if (c_keep_alive_send_in_progress)
-  {
-    jam();
-    g_eventLogger->warning("Sending keep alive messages on all links is slow, "
-                           "skipping one round (%u) of sending.",
-                           c_keepalive_seqnum);
-    return;
-  }
-  c_keep_alive_send_in_progress = true;
-  constexpr Uint32 node_id = 0;
-  signal->theData[0] = ZSEND_TRP_KEEP_ALIVE;
-  signal->theData[1] = node_id;
-  signal->theData[2] = c_keepalive_seqnum;
-  send_trp_keep_alive(signal);
-}
-
-void Qmgr::send_trp_keep_alive(Signal* signal)
-{
-  jam();
-
-  Uint32 node_id = signal->theData[1];
-  Uint32 keepalive_seqnum = signal->theData[2];
-
-  if ((node_id = c_clusterNodes.find(node_id)) != NdbNodeBitmask::NotFound)
-  {
-    jam();
-    NodeInfo nodeInfo = getNodeInfo(node_id);
-    ndbrequire(nodeInfo.m_type == NodeInfo::DB);
-    if (node_id != getOwnNodeId() &&
-        nodeInfo.m_version != 0 &&
-        ndbd_support_trp_keep_alive(nodeInfo.m_version))
-    {
-      jam();
-
-      const BlockReference qmgr_ref = calcQmgrBlockRef(node_id);
-
-      TrpKeepAlive* sig = reinterpret_cast<TrpKeepAlive*>(signal->theData);
-      sig->senderRef = reference();
-      sig->keepalive_seqnum = keepalive_seqnum;
-      Signal25* signal25 = reinterpret_cast<Signal25*>(signal);
-      sendSignalOverAllLinks(qmgr_ref, GSN_TRP_KEEP_ALIVE, signal25, 2, JBB);
-    }
-    node_id++;
-  }
-
-  if (node_id == NdbNodeBitmask::NotFound)
-  {
-    jam();
-    c_keep_alive_send_in_progress = false;
-    return;
-  }
-
-  signal->theData[0] = ZSEND_TRP_KEEP_ALIVE;
-  signal->theData[1] = node_id;
-  signal->theData[2] = keepalive_seqnum;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBA);
 }
 
 #include "../../../common/transporter/Transporter.hpp"

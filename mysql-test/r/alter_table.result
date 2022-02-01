@@ -478,43 +478,44 @@ show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	utf8mb4_0900_ai_ci	NULL		
 drop table t1;
+set names koi8r;
 create table t1 (a char(10) character set koi8r);
-insert into t1 values ('Ñ‚ÐµÑÑ‚');
+insert into t1 values ('ÔÅÓÔ');
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	D4C5D3D4
+ÔÅÓÔ	D4C5D3D4
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	F2E5F1F2
+ÔÅÓÔ	F2E5F1F2
 alter table t1 change a a binary(4);
-select hex(a) from t1;
-hex(a)
-F2E5F1F2
+select a,hex(a) from t1;
+a	hex(a)
+òåñò	F2E5F1F2
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	F2E5F1F2
+ÔÅÓÔ	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	D4C5D3D4
+ÔÅÓÔ	D4C5D3D4
 alter table t1 change a a varchar(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	F2E5F1F2
+ÔÅÓÔ	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	D4C5D3D4
+ÔÅÓÔ	D4C5D3D4
 alter table t1 change a a text character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	F2E5F1F2
+ÔÅÓÔ	F2E5F1F2
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
-Ñ‚ÐµÑÑ‚	D4C5D3D4
+ÔÅÓÔ	D4C5D3D4
 delete from t1;
 show create table t1;
 Table	Create Table
@@ -579,7 +580,7 @@ ALTER TABLE T12207 DISCARD TABLESPACE;
 ERROR HY000: Table storage engine for 'T12207' doesn't have this option
 DROP TABLE T12207;
 create table t1 (a text) character set koi8r;
-insert into t1 values ('Ñ‚ÐµÑÑ‚');
+insert into t1 values (_koi8r'ÔÅÓÔ');
 select hex(a) from t1;
 hex(a)
 D4C5D3D4
@@ -3481,7 +3482,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`d` AS `d`,`t2`.`e` AS `e`,`t2`.`f` AS `f` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`d` AS `d`,`t2`.`e` AS `e`,`t2`.`f` AS `f` from `t2`	koi8r	koi8r_general_ci
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM v1;
@@ -3985,6 +3986,7 @@ SET GLOBAL max_allowed_packet=default;
 # Testing wl#11605: Alter table with character set conversion as
 # inplace operation, Step 1, NO INDEX
 #
+SET NAMES UTF8MB4;
 # VARCHAR(512): SWE7 -> BINARY
 CREATE TABLE t1(c1 VARCHAR(512) CHARSET SWE7);
 ALTER TABLE t1 MODIFY COLUMN c1 VARCHAR(512) CHARSET BINARY,
@@ -4415,6 +4417,7 @@ SELECT * FROM t1;
 c
 a
 DROP TABLE t1;
+SET NAMES default;
 #
 #  Bug #31361838 WRONG RESULT FOR COLUMN CHANGED TO CASE-SENSITIVE COLLATION AFTER ADD INDEX
 #

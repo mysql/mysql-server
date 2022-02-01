@@ -1,47 +1,24 @@
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_type	object_schema	object_name
+object_schema	object_name
 CREATE TABLE test.t_before(a INT);
 INSERT INTO test.t_before VALUES (1);
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_type	object_schema	object_name
-TABLE	test	t_before
+object_schema	object_name
+test	t_before
 RENAME TABLE test.t_before TO test.t_after;
 SELECT COUNT(*) FROM test.t_after;
 COUNT(*)
 1
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_type	object_schema	object_name
-TABLE	test	t_after
+object_schema	object_name
+test	t_after
 DROP TABLE test.t_after;
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
-object_type	object_schema	object_name
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema='test';
-object_type	object_schema	object_name
-CREATE EVENT test.e_before ON SCHEDULE EVERY 1 SECOND DO SELECT 1;
-SELECT sleep(5);
-sleep(5)
-0
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema='test';
-object_type	object_schema	object_name
-EVENT	test	e_before
-ALTER EVENT test.e_before RENAME TO test.e_after;
-SELECT sleep(5);
-sleep(5)
-0
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema='test';
-object_type	object_schema	object_name
-EVENT	test	e_after
-DROP EVENT test.e_after;
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-WHERE object_schema='test';
-object_type	object_schema	object_name
+object_schema	object_name
 CREATE TABLE test.t1(a INT);
 INSERT INTO test.t1 VALUES (1);
 CREATE VIEW test.v1 AS SELECT * FROM test.t1;

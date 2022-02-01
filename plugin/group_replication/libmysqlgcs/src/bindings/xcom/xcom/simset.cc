@@ -42,3 +42,4 @@ char *dbg_linkage(linkage *self) {
            PTREXP(link_iter->suc); PTREXP(link_iter->pred));
   RET_GOUT;
 }
+/* purecov: end */

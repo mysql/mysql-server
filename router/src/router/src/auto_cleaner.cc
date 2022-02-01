@@ -31,7 +31,7 @@
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/utils.h"  // copy_file
+#include "utils.h"  // copy_file
 
 IMPORT_LOG_FUNCTIONS()
 

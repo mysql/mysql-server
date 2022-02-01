@@ -23,18 +23,20 @@
 */
 
 #include "mysqlrouter/uri.h"
+#include "mysql/harness/string_utils.h"
+#include "mysqlrouter/utils.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <cctype>
 #include <climits>
+#include <iostream>
 #include <memory>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
-#include "mysql/harness/string_utils.h"  // split_string
-
 using mysql_harness::split_string;
+using std::string;
 
 // RFC 3986
 //
@@ -42,19 +44,19 @@ using mysql_harness::split_string;
 //
 // TODO(jan): add IPvFuture
 
-const std::string kDigit = "0123456789";
-const std::string kHexLower = "abcdef";
-const std::string kHexUpper = "ABCDEF";
-const std::string kAlphaLower = kHexLower + "ghijklmnopqrstuvwxyz";
-const std::string kAlphaUpper = kHexUpper + "GHIJKLMNOPQRSTUVWXYZ";
-const std::string kAlpha = kAlphaLower + kAlphaUpper;
-const std::string kUnreserved = kAlpha + kDigit + "-" + "." + "_" + "~";
-const std::string kHexDigit = kDigit + kHexLower + kHexUpper;
-const std::string kGenDelims = ":/?#[]@";
-const std::string kSubDelims = "!$&'()*+,;=";
-const std::string kReserved = kGenDelims + kSubDelims;
-const std::string kPathCharNoPctEncoded = kUnreserved + kSubDelims + ":" + "@";
-const std::string kFragmentOrQuery = "/?";
+const string kDigit = "0123456789";
+const string kHexLower = "abcdef";
+const string kHexUpper = "ABCDEF";
+const string kAlphaLower = kHexLower + "ghijklmnopqrstuvwxyz";
+const string kAlphaUpper = kHexUpper + "GHIJKLMNOPQRSTUVWXYZ";
+const string kAlpha = kAlphaLower + kAlphaUpper;
+const string kUnreserved = kAlpha + kDigit + "-" + "." + "_" + "~";
+const string kHexDigit = kDigit + kHexLower + kHexUpper;
+const string kGenDelims = ":/?#[]@";
+const string kSubDelims = "!$&'()*+,;=";
+const string kReserved = kGenDelims + kSubDelims;
+const string kPathCharNoPctEncoded = kUnreserved + kSubDelims + ":" + "@";
+const string kFragmentOrQuery = "/?";
 
 namespace mysqlrouter {
 
@@ -67,11 +69,11 @@ URIError::URIError(const char *msg, const std::string &uri, size_t position)
  *
  * @returns matched length
  */
-static size_t match_zero_or_more(const std::string &s, const std::string &pat,
+static size_t match_zero_or_more(const string &s, const string &pat,
                                  size_t pos_start = 0) {
   size_t pos_matched = s.find_first_not_of(pat, pos_start);
 
-  if (pos_matched == std::string::npos) {
+  if (pos_matched == string::npos) {
     pos_matched = s.length();
   }
 
@@ -82,19 +84,19 @@ static size_t skip(size_t pos_start, size_t match_len) {
   return pos_start + match_len;
 }
 
-static std::string capture(const std::string &s, size_t pos_start,
-                           size_t match_len, size_t &pos_end) {
+static string capture(const string &s, size_t pos_start, size_t match_len,
+                      size_t &pos_end) {
   pos_end = skip(pos_start, match_len);
 
   return s.substr(pos_start, match_len);
 }
 
-static bool is_eol(const std::string &s, size_t pos_start) {
+static bool is_eol(const string &s, size_t pos_start) {
   return pos_start == s.length();
 }
 
-static bool match_pct_encoded(const std::string &s, size_t pos_start,
-                              size_t &pos_end, std::string &pct_enc) {
+static bool match_pct_encoded(const string &s, size_t pos_start,
+                              size_t &pos_end, string &pct_enc) {
   // pct-encoded = "%" HEXDIG HEXDIG
   if (s.length() - pos_start < 3) {
     return false;
@@ -110,12 +112,12 @@ static bool match_pct_encoded(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_path_chars(const std::string &s, size_t pos_start,
-                             size_t &pos_end, std::string &path_chars) {
+static bool match_path_chars(const string &s, size_t pos_start, size_t &pos_end,
+                             string &path_chars) {
   // pchar       = unreserved / pct-encoded / sub-delims / ":" / "@"
 
   bool made_progress;
-  std::string tmp;
+  string tmp;
   size_t pos_matched = pos_start;
 
   do {
@@ -130,7 +132,7 @@ static bool match_path_chars(const std::string &s, size_t pos_start,
       tmp.append(capture(s, pos_matched, match_len, pos_matched));
     }
 
-    std::string pct_enc;
+    string pct_enc;
     if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
       tmp.append(pct_enc);
 
@@ -144,8 +146,8 @@ static bool match_path_chars(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_scheme(const std::string &s, size_t pos_start,
-                         size_t &pos_end, std::string &scheme) {
+static bool match_scheme(const string &s, size_t pos_start, size_t &pos_end,
+                         string &scheme) {
   // scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
   //
   size_t match_len = match_zero_or_more(s, kAlpha, pos_start);
@@ -162,8 +164,7 @@ static bool match_scheme(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_colon(const std::string &s, size_t pos_start,
-                        size_t &pos_end) {
+static bool match_colon(const string &s, size_t pos_start, size_t &pos_end) {
   if (is_eol(s, pos_start)) {
     return false;
   }
@@ -176,7 +177,7 @@ static bool match_colon(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_double_colon(const std::string &s, size_t pos_start,
+static bool match_double_colon(const string &s, size_t pos_start,
                                size_t &pos_end) {
   if (s.length() - pos_start < 2) {
     return false;
@@ -190,12 +191,12 @@ static bool match_double_colon(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_userinfo(const std::string &s, size_t pos_start,
-                           size_t &pos_end, std::string &user_info) {
+static bool match_userinfo(const string &s, size_t pos_start, size_t &pos_end,
+                           string &user_info) {
   // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
 
   bool made_progress;
-  std::string tmp;
+  string tmp;
   size_t pos_matched = pos_start;
 
   do {
@@ -210,7 +211,7 @@ static bool match_userinfo(const std::string &s, size_t pos_start,
       tmp.append(capture(s, pos_matched, match_len, pos_matched));
     }
 
-    std::string pct_enc;
+    string pct_enc;
     if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
       tmp.append(pct_enc);
 
@@ -235,10 +236,10 @@ static bool match_userinfo(const std::string &s, size_t pos_start,
   return true;
 }
 
-static void split_userinfo(const std::string &user_info, std::string &username,
-                           std::string &password) {
+static void split_userinfo(const string &user_info, string &username,
+                           string &password) {
   size_t pos = user_info.find(':');
-  if (pos != std::string::npos) {
+  if (pos != string::npos) {
     username = user_info.substr(0, pos);
     password = user_info.substr(pos + 1, user_info.size() - (pos + 1));
   } else {
@@ -248,8 +249,8 @@ static void split_userinfo(const std::string &user_info, std::string &username,
   }
 }
 
-static bool match_port(const std::string &s, size_t pos_start, size_t &pos_end,
-                       std::string &port) {
+static bool match_port(const string &s, size_t pos_start, size_t &pos_end,
+                       string &port) {
   /* port        = *DIGIT
    */
   size_t match_len = match_zero_or_more(s, kDigit, pos_start);
@@ -259,9 +260,8 @@ static bool match_port(const std::string &s, size_t pos_start, size_t &pos_end,
   return true;
 }
 
-static bool match_reg_name(const std::string &s, size_t pos_start,
-                           size_t &pos_end, std::string &reg_name,
-                           bool with_pct_encoded) {
+static bool match_reg_name(const string &s, size_t pos_start, size_t &pos_end,
+                           string &reg_name, bool with_pct_encoded) {
   /* reg-name    = *( unreserved / pct-encoded / sub-delims )
    */
   bool made_progress;
@@ -279,7 +279,7 @@ static bool match_reg_name(const std::string &s, size_t pos_start,
     }
 
     if (with_pct_encoded) {
-      std::string pct_enc;
+      string pct_enc;
       if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
         reg_name.append(pct_enc);
 
@@ -297,8 +297,8 @@ static bool match_reg_name(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_dec_octet(const std::string &s, size_t pos_start,
-                            size_t &pos_end, std::string &dec_octet) {
+static bool match_dec_octet(const string &s, size_t pos_start, size_t &pos_end,
+                            string &dec_octet) {
   size_t match_len = match_zero_or_more(s, kDigit, pos_start);
 
   if (match_len == 0 || match_len > 3) {
@@ -311,9 +311,9 @@ static bool match_dec_octet(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv4(const std::string &s, size_t pos_start, size_t &pos_end,
-                       std::string &ipv4_addr) {
-  std::string dec_octet;
+static bool match_ipv4(const string &s, size_t pos_start, size_t &pos_end,
+                       string &ipv4_addr) {
+  string dec_octet;
   size_t pos_matched;
 
   if (!match_dec_octet(s, pos_start, pos_matched, dec_octet)) {
@@ -351,8 +351,8 @@ static bool match_ipv4(const std::string &s, size_t pos_start, size_t &pos_end,
   return true;
 }
 
-static bool match_ipv6_h16(const std::string &s, size_t pos_start,
-                           size_t &pos_end, std::string &h16) {
+static bool match_ipv6_h16(const string &s, size_t pos_start, size_t &pos_end,
+                           string &h16) {
   // 1*4HEXDIG
   size_t match_len = match_zero_or_more(s, kHexDigit, pos_start);
 
@@ -369,12 +369,12 @@ static bool match_ipv6_h16(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_ls32(const std::string &s, size_t pos_start,
-                            size_t &pos_end, std::string &ls32) {
+static bool match_ipv6_ls32(const string &s, size_t pos_start, size_t &pos_end,
+                            string &ls32) {
   // ( h16 ":" h16 ) / IPv4address
   //
   size_t pos_matched;
-  std::string tmp;
+  string tmp;
 
   if (!(match_ipv6_h16(s, pos_start, pos_matched, tmp) &&
         match_colon(s, pos_matched, pos_matched) &&
@@ -388,13 +388,13 @@ static bool match_ipv6_ls32(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_h16_colon(const std::string &s, size_t pos_start,
-                                 size_t &pos_end, std::string &h16_colon) {
+static bool match_ipv6_h16_colon(const string &s, size_t pos_start,
+                                 size_t &pos_end, string &h16_colon) {
   // h16 ":"
   //
   // ensure that we don't make h16 "::"
   size_t pos_matched;
-  std::string tmp;
+  string tmp;
 
   if (!match_ipv6_h16(s, pos_start, pos_matched, tmp)) {
     return false;
@@ -413,11 +413,11 @@ static bool match_ipv6_h16_colon(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_1(const std::string &s, size_t pos_start,
-                         size_t &pos_end, std::string &ipv6_addr) {
+static bool match_ipv6_1(const string &s, size_t pos_start, size_t &pos_end,
+                         string &ipv6_addr) {
   // 1st line in the IPv6Address line in the RFC
   size_t pos_matched = pos_start;
-  std::string tmp;
+  string tmp;
   size_t sections;
 
   for (sections = 0; sections < 6; sections++) {
@@ -439,11 +439,11 @@ static bool match_ipv6_1(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_2(const std::string &s, size_t pos_start,
-                         size_t &pos_end, std::string &ipv6_addr) {
+static bool match_ipv6_2(const string &s, size_t pos_start, size_t &pos_end,
+                         string &ipv6_addr) {
   // 2nd line in the IPv6Address line in the RFC
   size_t pos_matched = pos_start;
-  std::string tmp;
+  string tmp;
   size_t sections;
 
   if (!match_double_colon(s, pos_matched, pos_matched)) {
@@ -469,12 +469,11 @@ static bool match_ipv6_2(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_h16_colon_prefix(const std::string &s, size_t pos_start,
+static bool match_ipv6_h16_colon_prefix(const string &s, size_t pos_start,
                                         size_t max_pre_double_colon,
-                                        size_t &pos_end,
-                                        std::string &ipv6_addr) {
+                                        size_t &pos_end, string &ipv6_addr) {
   size_t pos_matched = pos_start;
-  std::string tmp;
+  string tmp;
   size_t sections;
 
   for (sections = 0; sections < max_pre_double_colon; sections++) {
@@ -492,12 +491,12 @@ static bool match_ipv6_h16_colon_prefix(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_3(const std::string &s, size_t pos_start,
+static bool match_ipv6_3(const string &s, size_t pos_start,
                          size_t max_pre_double_colon, size_t &pos_end,
-                         std::string &ipv6_addr) {
+                         string &ipv6_addr) {
   // 3rd-7th line in the IPv6Address line in the RFC
   size_t pos_matched = pos_start;
-  std::string tmp;
+  string tmp;
   size_t sections;
 
   size_t post_double_colon = 4 - max_pre_double_colon;
@@ -528,12 +527,12 @@ static bool match_ipv6_3(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_8(const std::string &s, size_t pos_start,
+static bool match_ipv6_8(const string &s, size_t pos_start,
                          size_t max_pre_double_colon, size_t &pos_end,
-                         std::string &ipv6_addr) {
+                         string &ipv6_addr) {
   // 8th-9th line in the IPv6Address line in the RFC
   size_t pos_matched = pos_start;
-  std::string tmp;
+  string tmp;
 
   match_ipv6_h16_colon_prefix(s, pos_matched, max_pre_double_colon, pos_matched,
                               tmp);
@@ -553,13 +552,13 @@ static bool match_ipv6_8(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6_zoneid(const std::string &s, size_t pos_start,
-                              size_t &pos_end, std::string &zoneid,
+static bool match_ipv6_zoneid(const string &s, size_t pos_start,
+                              size_t &pos_end, string &zoneid,
                               bool with_pct_encoded) {
   // zoneid       = unreserved / pct-encoded
 
   bool made_progress;
-  std::string tmp;
+  string tmp;
   size_t pos_matched = pos_start;
 
   do {
@@ -574,7 +573,7 @@ static bool match_ipv6_zoneid(const std::string &s, size_t pos_start,
     }
 
     if (with_pct_encoded) {
-      std::string pct_enc;
+      string pct_enc;
       if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
         tmp.append(pct_enc);
 
@@ -598,8 +597,8 @@ static bool match_ipv6_zoneid(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_ipv6(const std::string &s, size_t pos_start, size_t &pos_end,
-                       std::string &ipv6_addr) {
+static bool match_ipv6(const string &s, size_t pos_start, size_t &pos_end,
+                       string &ipv6_addr) {
   // we can have max 8 sections.
   // sections of all zeros may be compressed with :: once
   // the last two sections may be IPv4 notation
@@ -617,9 +616,8 @@ static bool match_ipv6(const std::string &s, size_t pos_start, size_t &pos_end,
          match_ipv6_8(s, pos_start, 6, pos_end, ipv6_addr);
 }
 
-static bool match_ip_literal(const std::string &s, size_t pos_start,
-                             size_t &pos_end, std::string &ip_literal,
-                             bool with_pct_encoded) {
+static bool match_ip_literal(const string &s, size_t pos_start, size_t &pos_end,
+                             string &ip_literal, bool with_pct_encoded) {
   // IP-literal = "[" ( IPv6address / IPv6addrz / IPvFuture ) "]"
   //
   // RFC 4291
@@ -636,7 +634,7 @@ static bool match_ip_literal(const std::string &s, size_t pos_start,
 
   pos_start += 1;
 
-  std::string tmp;
+  string tmp;
   size_t pos_matched;
 
   if (!match_ipv6(s, pos_start, pos_matched, tmp)) {
@@ -669,8 +667,8 @@ static bool match_ip_literal(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_host(const std::string &s, size_t pos_start, size_t &pos_end,
-                       std::string &host, bool with_pct_encoded) {
+static bool match_host(const string &s, size_t pos_start, size_t &pos_end,
+                       string &host, bool with_pct_encoded) {
   // host        = IP-literal / IPv4address / reg-name
   //
   // match_reg_name has to be last as it accepts the 'empty host'
@@ -680,10 +678,9 @@ static bool match_host(const std::string &s, size_t pos_start, size_t &pos_end,
          match_reg_name(s, pos_start, pos_end, host, with_pct_encoded);
 }
 
-static bool match_authority(const std::string &s, size_t pos_start,
-                            size_t &pos_end, std::string &tmp_host,
-                            std::string &tmp_port, std::string &tmp_username,
-                            std::string &tmp_password) {
+static bool match_authority(const string &s, size_t pos_start, size_t &pos_end,
+                            string &tmp_host, string &tmp_port,
+                            string &tmp_username, string &tmp_password) {
   /* RFC 2234 defines:
    *
    * - HEXDIG
@@ -726,7 +723,7 @@ static bool match_authority(const std::string &s, size_t pos_start,
   }
 
   size_t pos_matched = pos_start + 2;
-  std::string user_info;
+  string user_info;
 
   if (match_userinfo(s, pos_matched, pos_matched, user_info)) {
     split_userinfo(user_info, tmp_username, tmp_password);
@@ -747,14 +744,14 @@ static bool match_authority(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_path_segment(const std::string &s, size_t pos_start,
-                               size_t &pos_end, std::string &segment) {
+static bool match_path_segment(const string &s, size_t pos_start,
+                               size_t &pos_end, string &segment) {
   return match_path_chars(s, pos_start, pos_end, segment);
 }
 
-static bool match_path_empty(const std::string &s, size_t pos_start,
-                             size_t &pos_end, std::string &path) {
-  std::string segment;
+static bool match_path_empty(const string &s, size_t pos_start, size_t &pos_end,
+                             string &path) {
+  string segment;
 
   if (!match_path_chars(s, pos_start, pos_end, segment)) {
     path = "";
@@ -769,8 +766,8 @@ static bool match_path_empty(const std::string &s, size_t pos_start,
   return false;
 }
 
-static bool match_path_absolute(const std::string &s, size_t pos_start,
-                                size_t &pos_end, std::string &path) {
+static bool match_path_absolute(const string &s, size_t pos_start,
+                                size_t &pos_end, string &path) {
   // we rely on match_path_absolute being called after match_authority.
   // it allows us to simplify:
   //
@@ -792,9 +789,9 @@ static bool match_path_absolute(const std::string &s, size_t pos_start,
 
   size_t pos_matched = pos_start + 1;
 
-  std::string tmp;
+  string tmp;
   do {
-    std::string segment;
+    string segment;
 
     if (match_path_segment(s, pos_matched, pos_matched, segment)) {
       tmp.append(segment);
@@ -817,20 +814,20 @@ static bool match_path_absolute(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_path_absolute_or_empty(const std::string &s, size_t pos_start,
-                                         size_t &pos_end, std::string &path) {
+static bool match_path_absolute_or_empty(const string &s, size_t pos_start,
+                                         size_t &pos_end, string &path) {
   return match_path_absolute(s, pos_start, pos_end, path) ||
          match_path_empty(s, pos_start, pos_end, path);
 }
 
-static bool match_path_rootless(const std::string &s, size_t pos_start,
-                                size_t &pos_end, std::string &path) {
+static bool match_path_rootless(const string &s, size_t pos_start,
+                                size_t &pos_end, string &path) {
   // path-rootless = segment-nz *( "/" segment )
   if (is_eol(s, pos_start)) {
     return false;
   }
 
-  std::string tmp;
+  string tmp;
   size_t pos_matched;
 
   if (!match_path_segment(s, pos_start, pos_matched, tmp)) {
@@ -843,7 +840,7 @@ static bool match_path_rootless(const std::string &s, size_t pos_start,
   }
 
   while (!is_eol(s, pos_matched) && s.at(pos_matched) == '/') {
-    std::string segment;
+    string segment;
 
     tmp.append(capture(s, pos_matched, 1, pos_matched));
 
@@ -858,18 +855,18 @@ static bool match_path_rootless(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_fragment_query_chars(const std::string &s, size_t pos_start,
-                                       size_t &pos_end, std::string &chars) {
+static bool match_fragment_query_chars(const string &s, size_t pos_start,
+                                       size_t &pos_end, string &chars) {
   // fragment and query matcher both share the same allowed chars after the
   // initial char
   //
   // *( pchar / "/" / "?" )
-  std::string tmp;
+  string tmp;
   size_t pos_matched = pos_start;
   bool made_progress;
 
   do {
-    std::string segment;
+    string segment;
 
     made_progress = false;
 
@@ -893,8 +890,8 @@ static bool match_fragment_query_chars(const std::string &s, size_t pos_start,
   return true;
 }
 
-static bool match_fragment(const std::string &s, size_t pos_start,
-                           size_t &pos_end, std::string &fragment) {
+static bool match_fragment(const string &s, size_t pos_start, size_t &pos_end,
+                           string &fragment) {
   //
   // fragment    = *( pchar / "/" / "?" )
   //
@@ -911,8 +908,8 @@ static bool match_fragment(const std::string &s, size_t pos_start,
   return match_fragment_query_chars(s, pos_start, pos_end, fragment);
 }
 
-static bool match_query(const std::string &s, size_t pos_start, size_t &pos_end,
-                        std::string &query) {
+static bool match_query(const string &s, size_t pos_start, size_t &pos_end,
+                        string &query) {
   if (is_eol(s, pos_start)) {
     // already at EOL, we need to match at least ?
     return false;
@@ -927,10 +924,10 @@ static bool match_query(const std::string &s, size_t pos_start, size_t &pos_end,
   return match_fragment_query_chars(s, pos_start, pos_end, query);
 }
 
-// decode a std::string with pct-encoding
-static std::string pct_decode(const std::string &s) {
+// decode a string with pct-encoding
+static string pct_decode(const string &s) {
   size_t s_len = s.length();
-  std::string decoded;
+  string decoded;
 
   // only alloc once. We may alloc too much.
   decoded.reserve(s_len);
@@ -948,7 +945,7 @@ static std::string pct_decode(const std::string &s) {
   return decoded;
 }
 
-static URIQuery split_query(const std::string &s) {
+static URIQuery split_query(const string &s) {
   URIQuery query;
 
   for (auto &part : split_string(s, '&', false)) {
@@ -1027,13 +1024,12 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
   return URIParser::parse(uri, allow_path_rootless);
 }
 
-/*static*/ URI URIParser::parse(const std::string &uri,
-                                bool allow_path_rootless) {
+/*static*/ URI URIParser::parse(const string &uri, bool allow_path_rootless) {
   size_t pos = 0;
 
   // stage: match and extract fields
   //
-  std::string tmp_scheme;
+  string tmp_scheme;
   if (!match_scheme(uri, pos, pos, tmp_scheme)) {
     throw URIError("no scheme", uri, pos);
   }
@@ -1042,11 +1038,11 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
     throw URIError("expected colon after scheme", uri, pos);
   }
 
-  std::string tmp_path;
-  std::string tmp_host;
-  std::string tmp_username;
-  std::string tmp_password;
-  std::string tmp_port;
+  string tmp_path;
+  string tmp_host;
+  string tmp_username;
+  string tmp_password;
+  string tmp_port;
 
   if (match_authority(uri, pos, pos, tmp_host, tmp_port, tmp_username,
                       tmp_password)) {
@@ -1061,10 +1057,10 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
     throw URIError("neither authority nor path", uri, pos);
   }
 
-  std::string tmp_query;
+  string tmp_query;
   match_query(uri, pos, pos, tmp_query);
 
-  std::string tmp_fragment;
+  string tmp_fragment;
   match_fragment(uri, pos, pos, tmp_fragment);
 
   // did we match the whole string?
@@ -1121,8 +1117,8 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
   return u;
 }
 
-static bool is_ipv6(const std::string &s) {
-  std::string ipv6_addr;
+static bool is_ipv6(const string &s) {
+  string ipv6_addr;
   size_t pos_end;
 
   if (!match_ipv6(s, 0, pos_end, ipv6_addr)) {
@@ -1141,16 +1137,15 @@ static bool is_ipv6(const std::string &s) {
   return false;
 }
 
-static std::string pct_encode(const std::string &s,
-                              const std::string &allowed_chars) {
-  std::string encoded;
+static string pct_encode(const string &s, const string &allowed_chars) {
+  string encoded;
   const char hexchars[] = "0123456789abcdef";
 
   // assume the common case that nothing has to be encoded.
   encoded.reserve(s.length());
 
   for (auto &c : s) {
-    if (allowed_chars.find(c) == std::string::npos) {
+    if (allowed_chars.find(c) == string::npos) {
       // not a allowed char, encode
       encoded += '%';
       encoded += hexchars[(c >> 4) & 0xf];
@@ -1232,7 +1227,7 @@ std::string URI::str() const {
   return ss.str();
 }
 
-void URI::init_from_uri(const std::string &uri) {
+void URI::init_from_uri(const string &uri) {
   if (uri.empty()) {
     return;
   }

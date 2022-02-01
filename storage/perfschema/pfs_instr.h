@@ -609,10 +609,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
     Protected by @c m_session_lock.
   */
   uint m_groupname_length;
-  /**
-    Operating system name.
-  */
-  char m_os_name[PFS_MAX_OS_NAME_LENGTH];
   /** User-defined data. */
   void *m_user_data;
   /** Current command. */
@@ -651,7 +647,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   PFS_events_transactions m_transaction_current;
 
   THD *m_thd;
-  THD *m_cnt_thd;
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
@@ -726,11 +721,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
     }
     return m_instr_class_memory_stats;
   }
-  bool mem_cnt_alloc(size_t size);
-  void mem_cnt_free(size_t size);
-#ifndef NDEBUG
-  const char *current_key_name;
-#endif
 };
 
 void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
@@ -762,8 +752,8 @@ void destroy_rwlock(PFS_rwlock *pfs);
 PFS_cond *create_cond(PFS_cond_class *klass, const void *identity);
 void destroy_cond(PFS_cond *pfs);
 
-PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
-                          const void *identity, ulonglong processlist_id);
+PFS_thread *create_thread(PFS_thread_class *klass, const void *identity,
+                          ulonglong processlist_id);
 
 PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id);
 PFS_thread *find_thread_by_internal_id(ulonglong thread_id);

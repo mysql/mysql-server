@@ -182,7 +182,8 @@ INSERT INTO t VALUES (184467440737095516160000);
 INSERT INTO t VALUES (18446744073709551.3);
 ANALYZE TABLE t;
 
---echo 0x constant too large; gets truncated to zero
+--echo 0x constant too large; gets truncated to 0xFFFFFFFFFFFFFFFF
+--echo i.e. 18446744073709551615.
 let $query=SELECT * FROM t WHERE d <= 0x1FFFFFFFFFFFFFFFF;
 eval $query;
 eval EXPLAIN $query;

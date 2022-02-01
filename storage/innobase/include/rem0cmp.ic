@@ -42,8 +42,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
 @retval positive if dfield1 is greater than dfield2 */
-static inline int cmp_dfield_dfield(const dfield_t *dfield1,
-                                    const dfield_t *dfield2, bool is_asc) {
+UNIV_INLINE
+int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
+                      bool is_asc) {
   const dtype_t *type;
 
   /* The multi-value array data is not expected, however, if it's one
@@ -64,8 +65,9 @@ static inline int cmp_dfield_dfield(const dfield_t *dfield1,
       dfield_get_len(dfield2)));
 }
 
-static inline int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
-                                                const dfield_t *dfield2) {
+UNIV_INLINE
+int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                  const dfield_t *dfield2) {
   ut_ad(dfield_is_multi_value(dfield1));
   ut_ad(dfield_is_multi_value(dfield2));
   ut_ad(dfield_is_null(dfield2) ||
@@ -95,11 +97,11 @@ static inline int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
               : 1);
 }
 
-static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
-                              const ulint *offsets1, const ulint *offsets2,
-                              const dict_index_t *index,
-                              bool spatial_index_non_leaf,
-                              ulint *matched_fields, bool cmp_btree_recs) {
+UNIV_INLINE
+int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
+                const ulint *offsets2, const dict_index_t *index,
+                bool spatial_index_non_leaf, ulint *matched_fields,
+                bool cmp_btree_recs) {
   ulint match_f;
   int ret;
 
@@ -121,8 +123,9 @@ static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
 @return the comparison result of dfield1 and dfield2
 @retval true if dfield1 is equal to dfield2, or a prefix of dfield1
 @retval false otherwise */
-static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
-                                               const dfield_t *dfield2) {
+UNIV_INLINE
+bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
+                                 const dfield_t *dfield2) {
   const dtype_t *type;
 
   ut_ad(dfield_check_typed(dfield1));
@@ -156,9 +159,9 @@ static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
   }
 
 #ifdef UNIV_NO_ERR_MSGS
-  ib::fatal(UT_LOCATION_HERE)
+  ib::fatal()
 #else
-  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_627)
+  ib::fatal(ER_IB_MSG_627)
 #endif /* !UNIV_NO_ERR_MSGS */
       << "Unable to find charset-collation " << cs_num;
 

@@ -1,2 +1,2 @@
---log-replica-updates=off
+--log-slave-updates=off
 

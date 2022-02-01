@@ -86,30 +86,11 @@ class Reprepare_observer final {
     simple, we only need the THD to report an error.
   */
   bool report_error(THD *thd);
-  /**
-    @returns true if some table metadata is changed and statement should be
-                  re-prepared.
-  */
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated = false; }
-  /// @returns true if prepared statement can (and will) be retried
-  bool can_retry() const {
-    // Only call for a statement that is invalidated
-    assert(is_invalidated());
-    return m_attempt <= MAX_REPREPARE_ATTEMPTS &&
-           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
-                            true);
-  }
 
  private:
-  bool m_invalidated{false};
-  int m_attempt{0};
-
-  /*
-    We take only 3 attempts to reprepare the query, otherwise we might end up
-    in endless loop.
-  */
-  static constexpr int MAX_REPREPARE_ATTEMPTS = 3;
+  bool m_invalidated;
 };
 
 bool ask_to_reprepare(THD *thd);
@@ -168,14 +149,9 @@ class Ed_result_set final {
                 MEM_ROOT *mem_root_arg);
 
   /** We don't call member destructors, they all are POD types. */
-  ~Ed_result_set() = default;
+  ~Ed_result_set() {}
 
   size_t get_field_count() const { return m_column_count; }
-
-  static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t & = std::nothrow) noexcept {
-    return mem_root->Alloc(size);
-  }
 
   static void operator delete(void *, size_t) noexcept {
     // Does nothing because m_mem_root is deallocated in the destructor
@@ -424,7 +400,7 @@ class Prepared_statement final {
 
  private:
   void cleanup_stmt();
-  void setup_stmt_logging();
+  void setup_set_params();
   bool check_parameter_types();
   void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
@@ -433,9 +409,8 @@ class Prepared_statement final {
   bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
-  bool insert_parameters_from_vars(List<LEX_STRING> &varnames, String *query);
-  bool insert_parameters(String *query, bool has_new_types,
-                         PS_PARAM *parameters);
+  bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);
+  bool insert_params(String *query, PS_PARAM *parameters);
 };
 
 #endif  // SQL_PREPARE_H

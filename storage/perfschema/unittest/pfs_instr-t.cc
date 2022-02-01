@@ -189,10 +189,10 @@ static void test_no_instances() {
   ok(cond == nullptr, "no cond");
   ok(global_cond_container.m_lost == 2, "lost 2");
 
-  thread = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
-  thread = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 2, "lost 2");
 
@@ -319,37 +319,22 @@ static void test_with_instances() {
   dummy_mutex_class.m_event_name_index = 0;
   dummy_mutex_class.m_flags = 0;
   dummy_mutex_class.m_enabled = true;
-  dummy_mutex_class.m_timed = true;
   dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
-
   dummy_rwlock_class.m_event_name_index = 1;
   dummy_rwlock_class.m_flags = 0;
   dummy_rwlock_class.m_enabled = true;
-  dummy_rwlock_class.m_timed = true;
   dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
-
   dummy_cond_class.m_event_name_index = 2;
   dummy_cond_class.m_flags = 0;
   dummy_cond_class.m_enabled = true;
-  dummy_cond_class.m_timed = true;
   dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
-
-  dummy_thread_class.m_enabled = 0;
-  dummy_thread_class.m_flags = 0;
-  dummy_thread_class.m_singleton = nullptr;
-  dummy_thread_class.m_history = 0;
-  snprintf(dummy_thread_class.m_os_name, PFS_MAX_OS_NAME_LENGTH, "OS_NAME");
-
   dummy_file_class.m_event_name_index = 3;
   dummy_file_class.m_flags = 0;
   dummy_file_class.m_enabled = true;
-  dummy_file_class.m_timed = true;
   dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
-
   dummy_socket_class.m_event_name_index = 4;
   dummy_socket_class.m_flags = 0;
   dummy_socket_class.m_enabled = true;
-  dummy_socket_class.m_timed = true;
   dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
 
   dummy_table_share.m_enabled = true;
@@ -397,17 +382,17 @@ static void test_with_instances() {
   ok(cond_2 != nullptr, "cond");
   ok(global_cond_container.m_lost == 1, "no new loss");
 
-  thread_1 = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread_1 = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread_1 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread_2 == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
   destroy_thread(thread_1);
-  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
   ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 1, "no new loss");
 

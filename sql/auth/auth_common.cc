@@ -57,7 +57,7 @@ void Auth_id::create_key() {
   m_key.append(m_host.length() ? m_host : "");
 }
 
-Auth_id::Auth_id() = default;
+Auth_id::Auth_id() {}
 
 Auth_id::Auth_id(const char *user, size_t user_len, const char *host,
                  size_t host_len) {
@@ -93,7 +93,7 @@ Auth_id::Auth_id(const Auth_id &id) : m_user(id.m_user), m_host(id.m_host) {
   create_key();
 }
 
-Auth_id::~Auth_id() = default;
+Auth_id::~Auth_id() {}
 
 bool Auth_id::operator<(const Auth_id &id) const { return m_key < id.m_key; }
 

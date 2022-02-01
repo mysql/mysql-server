@@ -1,4 +1,4 @@
-# Only run this test if OpenSSL FIPS is enabled.
+# Only run this test if fips enabled openssl library is installed.
 if (!$OPENSSL_FIPS_INSTALLED) {
-  --skip The OpenSSL library in use is not built with FIPS module support.
+  --skip openssl is not build with fips modue, fips functionality is not supported. or env OPENSSL_FIPS_INSTALLED not set.
 }

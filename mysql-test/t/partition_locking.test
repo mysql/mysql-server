@@ -1085,7 +1085,6 @@ set @optimizer_switch_saved=@@optimizer_switch;
 set optimizer_switch='derived_merge=off';
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
 
 connection monitor;
@@ -1096,7 +1095,6 @@ connection default;
 --echo # 11 read_next
 --echo # 6 read_rnd_next (tmp table)
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3) t4;
 
 connection monitor;
@@ -1141,7 +1139,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 
 connection monitor;
@@ -1149,7 +1146,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 
 connection monitor;
@@ -1157,7 +1153,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 
 connection monitor;
@@ -1165,7 +1160,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 
 connection monitor;
@@ -1173,7 +1167,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 
 connection monitor;
@@ -1181,7 +1174,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 
 connection monitor;
@@ -1202,7 +1194,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 
@@ -1211,7 +1202,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 
@@ -1220,7 +1210,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2) t3) t4;
 
@@ -1229,7 +1218,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2) t4;
 
@@ -1238,7 +1226,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3) t4 UNION SELECT * FROM t2;
 
@@ -1247,7 +1234,6 @@ connection monitor;
 connection default;
 
 FLUSH STATUS;
---sorted_result
 --replace_column 10 #
 EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2 WHERE a = 1) t4;
 

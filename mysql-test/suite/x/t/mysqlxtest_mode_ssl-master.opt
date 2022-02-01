@@ -1,4 +1,3 @@
---auto-generate-certs=OFF
 --ssl-key=
 --ssl-cert=
 --ssl-ca=

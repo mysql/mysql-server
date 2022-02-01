@@ -43,6 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <windows.h>
 #endif /* _WIN32 */
 
+#include <list>
+
 /** The number of microseconds in a second. */
 static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
 
@@ -56,6 +58,9 @@ typedef CONDITION_VARIABLE os_cond_t;
 /** Native condition variable */
 typedef pthread_cond_t os_cond_t;
 #endif /* _WIN32 */
+
+typedef std::list<os_event_t, ut_allocator<os_event_t>> os_event_list_t;
+typedef os_event_list_t::iterator event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {
@@ -139,12 +144,11 @@ struct os_event {
 
   /** Waits for an event object until it is in the signaled state or
   a timeout is exceeded.
-  @param  time_in_usec    Timeout, or std::chrono::microseconds::max()
+  @param  time_in_usec    Timeout in microseconds, or OS_SYNC_INFINITE_TIME
   @param  reset_sig_count Zero or the value returned by previous call of
   os_event_reset().
   @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-  ulint wait_time_low(std::chrono::microseconds timeout,
-                      int64_t reset_sig_count) UNIV_NOTHROW;
+  ulint wait_time_low(ulint time_in_usec, int64_t reset_sig_count) UNIV_NOTHROW;
 
   /** @return true if the event is in the signalled state. */
   bool is_set() const UNIV_NOTHROW { return (m_set); }
@@ -232,10 +236,10 @@ struct os_event {
 
 #ifndef _WIN32
   /** Returns absolute time until which we should wait if
-  we wanted to wait for timeout since now.
+  we wanted to wait for time_in_usec microseconds since now.
   This method could be removed if we switched to the usage
   of std::condition_variable. */
-  struct timespec get_wait_timelimit(std::chrono::microseconds timeout);
+  struct timespec get_wait_timelimit(ulint time_in_usec);
 #endif /* !_WIN32 */
 
  private:
@@ -260,7 +264,7 @@ struct os_event {
   destroyed in the os_event::global_destroy(). */
   static pthread_condattr_t cond_attr;
 
-  /** True iff usage of the monotonic clock has been successfully
+  /** True iff usage of the monotonic clock has been successfuly
   enabled for the cond_attr object. */
   static bool cond_attr_has_monotonic_clock;
 #endif /* !_WIN32 */
@@ -270,6 +274,9 @@ struct os_event {
   static std::atomic_size_t n_objects_alive;
 #endif /* UNIV_DEBUG */
 
+ public:
+  event_iter_t event_iter; /*!< For O(1) removal from
+                           list */
  protected:
   // Disable copying
   os_event(const os_event &);
@@ -371,8 +378,7 @@ void os_event::wait_low(int64_t reset_sig_count) UNIV_NOTHROW {
 
 #ifndef _WIN32
 
-struct timespec os_event::get_wait_timelimit(
-    std::chrono::microseconds timeout) {
+struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
   /* We could get rid of this function if we switched to std::condition_variable
   from the pthread_cond_. The std::condition_variable::wait_for relies on the
   steady_clock internally and accepts timeout (not time increased by the
@@ -394,12 +400,8 @@ struct timespec os_event::get_wait_timelimit(
         errno = errno_clock_gettime;
 
       } else {
-        const auto increased =
-            tp.tv_nsec +
-            std::chrono::duration_cast<std::chrono::nanoseconds>(timeout)
-                .count();
-        if (increased >= static_cast<std::remove_cv<decltype(increased)>::type>(
-                             NANOSECS_IN_A_SECOND)) {
+        const auto increased = tp.tv_nsec + time_in_usec * uint64_t{1000};
+        if (increased >= NANOSECS_IN_A_SECOND) {
           tp.tv_sec += increased / NANOSECS_IN_A_SECOND;
           tp.tv_nsec = increased % NANOSECS_IN_A_SECOND;
         } else {
@@ -423,10 +425,9 @@ struct timespec os_event::get_wait_timelimit(
         errno = errno_gettimeofday;
 
       } else {
-        const auto increased = tv.tv_usec + timeout.count();
+        const auto increased = tv.tv_usec + uint64_t(time_in_usec);
 
-        if (increased >= static_cast<std::remove_cv<decltype(increased)>::type>(
-                             MICROSECS_IN_A_SECOND)) {
+        if (increased >= MICROSECS_IN_A_SECOND) {
           tv.tv_sec += increased / MICROSECS_IN_A_SECOND;
           tv.tv_usec = increased % MICROSECS_IN_A_SECOND;
         } else {
@@ -444,24 +445,29 @@ struct timespec os_event::get_wait_timelimit(
 
 #endif /* !_WIN32 */
 
-ulint os_event::wait_time_low(std::chrono::microseconds timeout,
+/** Waits for an event object until it is in the signaled state or
+a timeout is exceeded.
+@param  time_in_usec    Timeout in microseconds, or OS_SYNC_INFINITE_TIME
+@param  reset_sig_count Zero or the value returned by previous call of
+os_event_reset().
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+ulint os_event::wait_time_low(ulint time_in_usec,
                               int64_t reset_sig_count) UNIV_NOTHROW {
   bool timed_out = false;
 
 #ifdef _WIN32
   DWORD time_in_ms;
 
-  if (timeout != std::chrono::microseconds::max()) {
-    time_in_ms = static_cast<DWORD>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+  if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+    time_in_ms = DWORD(time_in_usec / 1000);
   } else {
     time_in_ms = INFINITE;
   }
 #else
   struct timespec abstime;
 
-  if (timeout != std::chrono::microseconds::max()) {
-    abstime = os_event::get_wait_timelimit(timeout);
+  if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+    abstime = os_event::get_wait_timelimit(time_in_usec);
   } else {
     abstime.tv_nsec = 999999999;
     abstime.tv_sec = std::numeric_limits<time_t>::max();
@@ -523,7 +529,7 @@ states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
 os_event_t os_event_create() {
-  os_event_t ret = (ut::new_withkey<os_event>(UT_NEW_THIS_FILE_PSI_KEY));
+  os_event_t ret = (UT_NEW_NOKEY(os_event()));
 /**
  On SuSE Linux we get spurious EBUSY from pthread_mutex_destroy()
  unless we grab and release the mutex here. Current OS version:
@@ -567,10 +573,19 @@ int64_t os_event_reset(os_event_t event) /*!< in/out: event to reset */
   return (event->reset());
 }
 
-ulint os_event_wait_time_low(os_event_t event,
-                             std::chrono::microseconds timeout,
-                             int64_t reset_sig_count) {
-  return (event->wait_time_low(timeout, reset_sig_count));
+/**
+Waits for an event object until it is in the signaled state or
+a timeout is exceeded.
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+ulint os_event_wait_time_low(os_event_t event,   /*!< in/out: event to wait */
+                             ulint time_in_usec, /*!< in: timeout in
+                                                 microseconds, or
+                                                 OS_SYNC_INFINITE_TIME */
+                             int64_t reset_sig_count) /*!< in: zero or the value
+                                                      returned by previous call
+                                                      of os_event_reset(). */
+{
+  return (event->wait_time_low(time_in_usec, reset_sig_count));
 }
 
 /**
@@ -593,7 +608,7 @@ void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 {
   if (event != nullptr) {
-    ut::delete_(event);
+    UT_DELETE(event);
     event = nullptr;
   }
 }

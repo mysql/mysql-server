@@ -42,7 +42,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
@@ -385,8 +384,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
     @param[in] socket_util Reference to a socket utility
-    @param[in] comms_operation_interface an unique_ptr to a
-                                          Network_provider_operations_interface
   */
 
   explicit Gcs_xcom_control(
@@ -397,9 +394,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
       Gcs_xcom_engine *gcs_engine,
       Gcs_xcom_state_exchange_interface *state_exchange,
       Gcs_xcom_view_change_control_interface *view_control, bool boot,
-      My_xp_socket_util *socket_util,
-      std::unique_ptr<Network_provider_operations_interface>
-          comms_operation_interface);
+      My_xp_socket_util *socket_util);
 
   ~Gcs_xcom_control() override;
 
@@ -457,14 +452,12 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] message_id the message that conveys the View Change
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                             to deliver the message
-    @param[in] do_not_deliver_to_client  Whether to filter this view from being
-                                         delivered to the client
+    @param[in] same_view  Whether this global view was already delivered.
     @param[in] max_synode XCom max synode
   */
 
   bool xcom_receive_global_view(synode_no const config_id, synode_no message_id,
-                                Gcs_xcom_nodes *xcom_nodes,
-                                bool do_not_deliver_to_client,
+                                Gcs_xcom_nodes *xcom_nodes, bool same_view,
                                 synode_no max_synode);
 
   /*
@@ -781,9 +774,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   // Proxy to GCS Sock Probe
   Gcs_sock_probe_interface *m_sock_probe_interface;
-
-  std::unique_ptr<Network_provider_operations_interface>
-      m_comms_operation_interface;
 
  protected:
   /*

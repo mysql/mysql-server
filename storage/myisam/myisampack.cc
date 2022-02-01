@@ -144,8 +144,8 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info, my_off_t records);
 static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
                                            HUFF_COUNTS *huff_counts,
                                            uint fields);
-static int compare_tree(const void *cmp_arg [[maybe_unused]], const void *a,
-                        const void *b);
+static int compare_tree(const void *cmp_arg MY_ATTRIBUTE((unused)),
+                        const void *a, const void *b);
 static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
                          my_off_t records);
@@ -322,7 +322,7 @@ static void usage(void) {
 }
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt [[maybe_unused]],
+                           const struct my_option *opt MY_ATTRIBUTE((unused)),
                            char *argument) {
   uint length;
 
@@ -1068,8 +1068,8 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
   return error != HA_ERR_END_OF_FILE;
 }
 
-static int compare_huff_elements(void *not_used [[maybe_unused]], uchar *a,
-                                 uchar *b) {
+static int compare_huff_elements(void *not_used MY_ATTRIBUTE((unused)),
+                                 uchar *a, uchar *b) {
   return *((my_off_t *)a) < *((my_off_t *)b)
              ? -1
              : (*((my_off_t *)a) == *((my_off_t *)b) ? 0 : 1);
@@ -1529,8 +1529,8 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
   return 0;
 }
 
-static int compare_tree(const void *cmp_arg [[maybe_unused]], const void *a,
-                        const void *b) {
+static int compare_tree(const void *cmp_arg MY_ATTRIBUTE((unused)),
+                        const void *a, const void *b) {
   uint length;
   const uchar *s = (const uchar *)a;
   const uchar *t = (const uchar *)b;
@@ -2313,7 +2313,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
             }
             DBUG_PRINT("fields", ("FIELD_SKIP_ZERO not only zeroes, bits:  1"));
             write_bits(0, 1);
-            [[fallthrough]];
+            /* Fall through */
           case FIELD_NORMAL:
             DBUG_PRINT("fields", ("FIELD_NORMAL %lu bytes",
                                   (ulong)(end_pos - start_pos)));
@@ -2503,7 +2503,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
           }
           case FIELD_LAST:
           case FIELD_enum_val_count:
-            my_abort(); /* Impossible */
+            abort(); /* Impossible */
         }
         start_pos += count->max_zero_fill;
         DBUG_PRINT("fields", ("---"));

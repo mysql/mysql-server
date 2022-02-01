@@ -167,15 +167,22 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-  rw_lock_t *rw_lock; /*!< read-write lock protecting
-                      the rest of this structure */
-  std::atomic<std::chrono::steady_clock::time_point> last_read{
-      std::chrono::steady_clock::time_point{}}; /*!< last time the cache was
-                                                   read; */
-  static_assert(decltype(last_read)::is_always_lock_free);
-
-  i_s_table_cache_t innodb_trx;   /*!< innodb_trx table */
-  i_s_table_cache_t innodb_locks; /*!< innodb_locks table */
+  rw_lock_t *rw_lock;               /*!< read-write lock protecting
+                                    the rest of this structure */
+  ib_time_monotonic_us_t last_read; /*!< last time the cache was read;
+                                    measured in microseconds since
+                                    epoch */
+  ib_mutex_t last_read_mutex;       /*!< mutex protecting the
+                            last_read member - it is updated
+                            inside a shared lock of the
+                            rw_lock member */
+  i_s_table_cache_t innodb_trx;     /*!< innodb_trx table */
+  i_s_table_cache_t innodb_locks;   /*!< innodb_locks table */
+/** the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
+#define LOCKS_HASH_CELLS_NUM 10000
+  hash_table_t *locks_hash; /*!< hash table used to eliminate
+                            duplicate entries in the
+                            innodb_locks table */
 /** Initial size of the cache storage */
 #define CACHE_STORAGE_INITIAL_SIZE 1024
 /** Number of hash cells in the cache storage */
@@ -252,7 +259,7 @@ static void table_cache_free(
     /* the memory is actually allocated in
     table_cache_create_empty_row() */
     if (table_cache->chunks[i].base) {
-      ut::free(table_cache->chunks[i].base);
+      ut_free(table_cache->chunks[i].base);
       table_cache->chunks[i].base = nullptr;
     }
   }
@@ -324,7 +331,7 @@ static void *table_cache_create_empty_row(
     chunk = &table_cache->chunks[i];
 
     got_bytes = req_bytes;
-    chunk->base = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, req_bytes);
+    chunk->base = ut_malloc_nokey(req_bytes);
 
     got_rows = got_bytes / table_cache->row_size;
 
@@ -436,7 +443,7 @@ static ibool fill_trx_row(
   ut_ad(locksys::owns_exclusive_global_latch());
 
   row->trx_id = trx_get_id_for_print(trx);
-  row->trx_started = trx->start_time.load(std::memory_order_relaxed);
+  row->trx_started = (ib_time_t)trx->start_time;
   row->trx_state = trx_get_que_state_str(trx);
   row->requested_lock_row = requested_lock_row;
   ut_ad(requested_lock_row == nullptr ||
@@ -444,10 +451,10 @@ static ibool fill_trx_row(
 
   if (trx->lock.wait_lock != nullptr) {
     ut_a(requested_lock_row != nullptr);
-    row->trx_wait_started = trx->lock.wait_started;
+    row->trx_wait_started = (ib_time_t)trx->lock.wait_started;
   } else {
     ut_a(requested_lock_row == nullptr);
-    row->trx_wait_started = {};
+    row->trx_wait_started = 0;
   }
 
   row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
@@ -812,6 +819,12 @@ static ibool add_trx_relevant_locks_to_cache(
   return (TRUE);
 }
 
+/** The minimum time that a cache must not be updated after it has been
+read for the last time; measured in microseconds. We use this technique
+to ensure that SELECTs which join several INFORMATION SCHEMA tables read
+the same version of the cache. */
+#define CACHE_MIN_IDLE_TIME_US 100000 /* 0.1 sec */
+
 /** Checks if the cache can safely be updated.
  @return true if can be updated */
 static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
@@ -825,13 +838,12 @@ static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
-  /** The minimum time that a cache must not be updated after it has been
-  read for the last time. We use this technique to ensure that SELECTs which
-  join several INFORMATION SCHEMA tables read the same version of the cache. */
-  constexpr std::chrono::milliseconds cache_min_idle_time{100};
+  const auto now = ut_time_monotonic_us();
+  if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
+    return (TRUE);
+  }
 
-  return std::chrono::steady_clock::now() - cache->last_read.load() >
-         cache_min_idle_time;
+  return (FALSE);
 }
 
 /** Declare a cache empty, preparing it to be filled up. Not all resources
@@ -842,60 +854,43 @@ static void trx_i_s_cache_clear(
   cache->innodb_trx.rows_used = 0;
   cache->innodb_locks.rows_used = 0;
 
+  hash_table_clear(cache->locks_hash);
+
   ha_storage_empty(&cache->storage);
 }
 
 /** Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
- table cache buffer. Cache must be locked for write.
-@param[in,out]  cache       the cache
-@param[in]      trx_list    the list to scan
-*/
-template <typename Trx_list>
-static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
-                                      Trx_list *trx_list) {
+ table cache buffer. Cache must be locked for write. */
+static void fetch_data_into_cache_low(
+    trx_i_s_cache_t *cache,  /*!< in/out: cache */
+    bool read_write,         /*!< in: only read-write
+                             transactions */
+    trx_ut_list_t *trx_list) /*!< in: trx list */
+{
   /* We are going to iterate over many different shards of lock_sys so we need
   exclusive access */
   ut_ad(locksys::owns_exclusive_global_latch());
-  constexpr bool rw_trx_list =
-      std::is_same<Trx_list, decltype(trx_sys->rw_trx_list)>::value;
+  trx_t *trx;
+  bool rw_trx_list = trx_list == &trx_sys->rw_trx_list;
 
-  static_assert(
-      rw_trx_list ||
-          std::is_same<Trx_list, decltype(trx_sys->mysql_trx_list)>::value,
-      "only rw_trx_list and mysql_trx_list are supported");
+  ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
 
   /* Iterate over the transaction list and add each one
   to innodb_trx's cache. We also add all locks that are relevant
   to each transaction into innodb_locks' and innodb_lock_waits'
   caches. */
 
-  for (auto trx : *trx_list) {
+  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
+       trx = (rw_trx_list ? UT_LIST_GET_NEXT(trx_list, trx)
+                          : UT_LIST_GET_NEXT(mysql_trx_list, trx))) {
     i_s_trx_row_t *trx_row;
     i_s_locks_row_t *requested_lock_row;
 
     trx_mutex_enter(trx);
 
     /* Note: Read only transactions that modify temporary
-    tables have a transaction ID.
-
-    Note: auto-commit non-locking read-only transactions
-    can have trx->state set from NOT_STARTED to ACTIVE and
-    then from ACTIVE to NOT_STARTED with neither trx_sys->mutex
-    nor trx->mutex acquired. However, as long as these transactions
-    are members of mysql_trx_list they are not freed. For such
-    transactions "trx_was_started(trx)" might be considered random,
-    but whatever is its result, the code below handles that well
-    (transaction won't release locks until its trx->mutex is acquired).
-
-    Note: locking read-only transactions can have trx->state set from
-    NOT_STARTED to ACTIVE with neither trx_sys->mutex nor trx->mutex
-    acquired. However, such transactions need to be marked as COMMITTED
-    before trx->state is set to NOT_STARTED and that is protected by the
-    trx->mutex. Therefore the assertion assert_trx_nonlocking_or_in_list()
-    should hold few lines below (note: the name of the assertion is wrong,
-    because it actually checks if the transaction is autocommit nonlocking,
-    whereas its name suggests that it only checks if the trx is nonlocking). */
-    if (!trx_was_started(trx) ||
+    tables an have a transaction ID */
+    if (!trx_is_started(trx) ||
         (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
       trx_mutex_exit(trx);
       continue;
@@ -946,10 +941,10 @@ static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
 
   /* Capture the state of the read-write transactions. This includes
   internal transactions too. They are not on mysql_trx_list */
-  fetch_data_into_cache_low(cache, &trx_sys->rw_trx_list);
+  fetch_data_into_cache_low(cache, true, &trx_sys->rw_trx_list);
 
   /* Capture the state of the read-only active transactions */
-  fetch_data_into_cache_low(cache, &trx_sys->mysql_trx_list);
+  fetch_data_into_cache_low(cache, false, &trx_sys->mysql_trx_list);
 
   cache->is_truncated = false;
 }
@@ -993,17 +988,23 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
   release locksys exclusive global latch
   release trx_i_s_cache_t::rw_lock
   acquire trx_i_s_cache_t::rw_lock, S
+  acquire trx_i_s_cache_t::last_read_mutex
+  release trx_i_s_cache_t::last_read_mutex
   release trx_i_s_cache_t::rw_lock */
 
-  cache->rw_lock = static_cast<rw_lock_t *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*cache->rw_lock)));
+  cache->rw_lock =
+      static_cast<rw_lock_t *>(ut_malloc_nokey(sizeof(*cache->rw_lock)));
 
   rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 
-  cache->last_read = std::chrono::steady_clock::time_point{};
+  cache->last_read = 0;
+
+  mutex_create(LATCH_ID_CACHE_LAST_READ, &cache->last_read_mutex);
 
   table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
   table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
+
+  cache->locks_hash = hash_create(LOCKS_HASH_CELLS_NUM);
 
   cache->storage =
       ha_storage_create(CACHE_STORAGE_INITIAL_SIZE, CACHE_STORAGE_HASH_CELLS);
@@ -1017,9 +1018,12 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 void trx_i_s_cache_free(trx_i_s_cache_t *cache) /*!< in, own: cache to free */
 {
   rw_lock_free(cache->rw_lock);
-  ut::free(cache->rw_lock);
+  ut_free(cache->rw_lock);
   cache->rw_lock = nullptr;
 
+  mutex_free(&cache->last_read_mutex);
+
+  hash_table_free(cache->locks_hash);
   ha_storage_free(cache->storage);
   table_cache_free(&cache->innodb_trx);
   table_cache_free(&cache->innodb_locks);
@@ -1037,7 +1041,10 @@ void trx_i_s_cache_end_read(trx_i_s_cache_t *cache) /*!< in: cache */
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
   /* update cache last read time */
-  cache->last_read.store(std::chrono::steady_clock::now());
+  const auto now = ut_time_monotonic_us();
+  mutex_enter(&cache->last_read_mutex);
+  cache->last_read = now;
+  mutex_exit(&cache->last_read_mutex);
 
   rw_lock_s_unlock(cache->rw_lock);
 }

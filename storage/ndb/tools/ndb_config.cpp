@@ -73,7 +73,6 @@
 
 #include <NdbOut.hpp>
 #include <mgmapi.h>
-#include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
 #include "../src/mgmsrv/ConfigInfo.hpp"
 #include <NdbAutoPtr.hpp>
@@ -230,14 +229,14 @@ static int print_diff(const ndb_mgm_configuration_iterator&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
-static ndb_mgm::config_ptr get_config()
+static ndb_mgm_config_unique_ptr get_config()
 {
   ndb_mgm_configuration* conf;
   if (g_config_file || g_mycnf)
     conf = load_configuration();
   else
     conf = fetch_configuration(g_config_from_node);
-  return ndb_mgm::config_ptr(conf);
+  return ndb_mgm_config_unique_ptr(conf);
 }
 
 int
@@ -295,8 +294,8 @@ main(int argc, char** argv){
   else if (g_system)
     g_section = CFG_SECTION_SYSTEM;
 
-  const ndb_mgm::config_ptr conf = get_config();
-  if (conf == nullptr)
+  ndb_mgm_config_unique_ptr conf = get_config();
+  if (!conf)
   {
     exit(255);
   }
@@ -873,6 +872,7 @@ noconnect:
 #include "../src/mgmsrv/Config.hpp"
 #include <EventLogger.hpp>
 
+extern EventLogger *g_eventLogger;
 
 static ndb_mgm_configuration*
 load_configuration()

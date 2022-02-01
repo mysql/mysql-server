@@ -43,17 +43,15 @@ class Transaction_message : public Transaction_message_interface {
   };
 
   /**
-   Constructor
-
-   @param[in] payload_capacity  The transaction data size
+   Default constructor
    */
-  Transaction_message(uint64_t payload_capacity);
+  Transaction_message();
   ~Transaction_message() override;
 
   /**
      Overrides Basic_ostream::write().
-     Transaction_message is a Basic_ostream, which appends
-     data into the a Gcs_message_data.
+     Transaction_message is a Basic_ostream. Callers can write data into
+     Transaction_message's data buffer though this method.
 
      @param[in] buffer  where the data will be read
      @param[in] length  the length of the data to write
@@ -63,22 +61,11 @@ class Transaction_message : public Transaction_message_interface {
   bool write(const unsigned char *buffer, my_off_t length) override;
 
   /**
-     Length of the message.
+     Length of data in data vector
 
-     @return message length
+     @return data length
   */
-  uint64_t length() override;
-
-  /**
-     Get the Gcs_message_data object, which contains the serialized
-     transaction data.
-     The internal Gcs_message_data is nullified, to avoid further usage
-     of this Transaction object and the caller receives a pointer to the
-     previously internal Gcs_message_data, which whom it is now responsible.
-
-     @return the serialized transaction data in a Gcs_message_data object
-  */
-  Gcs_message_data *get_message_data_and_reset() override;
+  my_off_t length() override;
 
  protected:
   /*
@@ -89,7 +76,7 @@ class Transaction_message : public Transaction_message_interface {
                       const unsigned char *) override;
 
  private:
-  Gcs_message_data *m_gcs_message_data{nullptr};
+  std::vector<uchar> m_data;
 };
 
 #endif /* TRANSACTION_MESSAGE_INCLUDED */

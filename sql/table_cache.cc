@@ -282,9 +282,9 @@ void Table_cache_manager::assert_owner_all_and_tdc() {
    @note Caller should own LOCK_open and locks on all table cache
          instances.
 */
-void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
+void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
                                      enum_tdc_remove_table_type remove_type
-                                     [[maybe_unused]],
+                                         MY_ATTRIBUTE((unused)),
                                      TABLE_SHARE *share) {
   Table_cache_element *cache_el[MAX_TABLE_CACHES];
 

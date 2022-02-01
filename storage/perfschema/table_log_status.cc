@@ -77,7 +77,7 @@ PFS_engine_table *table_log_status::create(PFS_engine_table_share *) {
 table_log_status::table_log_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_log_status::~table_log_status() = default;
+table_log_status::~table_log_status() {}
 
 void table_log_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -97,7 +97,7 @@ int table_log_status::rnd_next(void) {
   return res;
 }
 
-int table_log_status::rnd_pos(const void *pos [[maybe_unused]]) {
+int table_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused))) {
   int res = HA_ERR_RECORD_DELETED;
 
   set_position(pos);
@@ -310,10 +310,10 @@ end:
   return error ? HA_ERR_RECORD_DELETED : 0;
 }
 
-int table_log_status::read_row_values(TABLE *table [[maybe_unused]],
-                                      unsigned char *buf [[maybe_unused]],
-                                      Field **fields [[maybe_unused]],
-                                      bool read_all [[maybe_unused]]) {
+int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
+                                      unsigned char *buf MY_ATTRIBUTE((unused)),
+                                      Field **fields MY_ATTRIBUTE((unused)),
+                                      bool read_all MY_ATTRIBUTE((unused))) {
   Field *f;
 
   assert(table->s->null_bytes == 0);

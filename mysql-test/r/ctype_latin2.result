@@ -380,8 +380,6 @@ _
 ×
 ÷
 ÿ
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 End of 5.1 tests
 #

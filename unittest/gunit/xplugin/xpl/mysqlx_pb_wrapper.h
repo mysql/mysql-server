@@ -303,7 +303,7 @@ class Limit : public Wrapper<::Mysqlx::Crud::Limit> {
 
 class Limit_expr : public Wrapper<::Mysqlx::Crud::LimitExpr> {
  public:
-  Limit_expr() = default;
+  Limit_expr() {}
   Limit_expr(const Expr &row_count);  // NOLINT(runtime/explicit)
   Limit_expr(const Expr &row_count,
              const Expr &offset);  // NOLINT(runtime/explicit)

@@ -61,13 +61,11 @@ INSERT INTO t1(col1) VALUES(10), (20), (30), (40);
 
 ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
 
---sorted_result
 SELECT * FROM t1;
 
 ALTER TABLE t1 ADD COLUMN new_col_1 INT AFTER new_col, ADD COLUMN new_col_2 INT GENERATED ALWAYS AS (new_col * 3), ALGORITHM=INSTANT;
 
 INSERT INTO t1(col1, new_col, new_col_1) VALUES(100, 200, 300);
---sorted_result
 SELECT * FROM t1;
 
 SHOW CREATE TABLE t1;

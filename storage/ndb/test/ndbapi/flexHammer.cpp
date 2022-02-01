@@ -56,7 +56,6 @@ Revision history:
  * *************************************************** */
 
 #include <ndb_global.h>
-#include <cstring>
 #include <NdbApi.hpp>
 
 #include <NdbThread.h>
@@ -363,7 +362,7 @@ flexHammerThread(void* pArg)
   int tThreadResult = 0;
   MyOpType tMyOpType = otLast;
   int pkValue = 0;
-  int readValue[MAXATTR][MAXATTRSIZE]; std::memset(readValue, 0, sizeof(readValue));
+  int readValue[MAXATTR][MAXATTRSIZE]; bzero(readValue, sizeof(readValue));
   int attrValue[MAXATTRSIZE];
   NdbRecAttr* tTmp = NULL;
   int tNoOfAttempts = 0;

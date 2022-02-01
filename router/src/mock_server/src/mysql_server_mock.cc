@@ -24,34 +24,34 @@
 
 #include "mysql_server_mock.h"
 
+#include <array>
 #include <chrono>
+#include <cstring>
+#include <deque>
+#include <functional>
 #include <iostream>  // cout
 #include <memory>    // shared_ptr
 #include <mutex>
 #include <stdexcept>  // runtime_error
 #include <string>
 #include <system_error>
+#include <thread>
 #include <utility>  // move
 
 #include "classic_mock_session.h"
-#include "common.h"  // ScopeGuard
+#include "common.h"  // rename_thread()
 #include "duktape_statement_reader.h"
 #include "mock_session.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/mpmc_queue.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/net_ts/socket.h"
-#include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/monitor.h"
 #include "mysql/harness/tls_server_context.h"
-#include "mysqlrouter/classic_protocol_message.h"
-#include "mysqlrouter/utils.h"  // to_string
-#include "router/src/mock_server/src/statement_reader.h"
 #include "x_mock_session.h"
-
 IMPORT_LOG_FUNCTIONS()
 
 using namespace std::chrono_literals;
@@ -59,8 +59,9 @@ using namespace std::string_literals;
 
 namespace server_mock {
 
-MySQLServerMock::MySQLServerMock(net::io_context &io_ctx,
-                                 std::string expected_queries_file,
+static constexpr const size_t kWorkerThreadCount{8};
+
+MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
                                  std::vector<std::string> module_prefixes,
                                  std::string bind_address, unsigned bind_port,
                                  std::string protocol_name, bool debug_mode,
@@ -69,7 +70,6 @@ MySQLServerMock::MySQLServerMock(net::io_context &io_ctx,
     : bind_address_(std::move(bind_address)),
       bind_port_{bind_port},
       debug_mode_{debug_mode},
-      io_ctx_{io_ctx},
       expected_queries_file_{std::move(expected_queries_file)},
       module_prefixes_{std::move(module_prefixes)},
       protocol_name_(std::move(protocol_name)),
@@ -81,235 +81,273 @@ MySQLServerMock::MySQLServerMock(net::io_context &io_ctx,
               << std::flush;
 }
 
+// close all active connections
 void MySQLServerMock::close_all_connections() {
-  client_sessions_([](auto &socks) {
-    for (auto &conn : socks) {
-      conn->cancel();
+  // interrupt all worker threads.
+  shared_([](auto &shared) {
+    for (size_t ndx = 0; ndx < kWorkerThreadCount; ndx++) {
+      // either the thread is blocked on a poll() or a mpmc-pop()
+      std::array<const char, 1> ping_byte = {'.'};
+      shared.wakeup_sock_send_.send(net::buffer(ping_byte));
     }
   });
 }
 
-class Acceptor {
- public:
-  using protocol_type = net::ip::tcp;
+void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
+  mysql_harness::rename_thread("SM Main");
 
-  Acceptor(net::io_context &io_ctx, std::string protocol_name,
-           WaitableMonitor<std::list<std::unique_ptr<MySQLServerMockSession>>>
-               &client_sessions,
-           DuktapeStatementReaderFactory &&reader_maker,
-           TlsServerContext &tls_server_ctx, bool with_tls)
-      : io_ctx_{io_ctx},
-        reader_maker_{std::move(reader_maker)},
-        protocol_name_{std::move(protocol_name)},
-        client_sessions_{client_sessions},
-        tls_server_ctx_{tls_server_ctx},
-        with_tls_{with_tls} {}
+  setup_service();
+  mysql_harness::on_service_ready(env);
+  handle_connections(env);
+}
 
-  ~Acceptor() { stop(); }
+void MySQLServerMock::setup_service() {
+  net::ip::tcp::resolver resolver(io_ctx_);
 
-  stdx::expected<void, std::error_code> init(std::string address,
-                                             uint16_t port) {
-    net::ip::tcp::resolver resolver(io_ctx_);
-
-    auto resolve_res = resolver.resolve(address, std::to_string(port));
-    if (!resolve_res) return resolve_res.get_unexpected();
-
-    for (auto ainfo : resolve_res.value()) {
-      net::ip::tcp::acceptor sock(io_ctx_);
-
-      auto res = sock.open(ainfo.endpoint().protocol());
-      if (!res) return res.get_unexpected();
-
-      res = sock.set_option(net::socket_base::reuse_address{true});
-      if (!res) return res.get_unexpected();
-
-      res = sock.bind(ainfo.endpoint());
-      if (!res) return res.get_unexpected();
-
-      res = sock.listen(256);
-      if (!res) return res.get_unexpected();
-
-      sock_ = std::move(sock);
-
-      return {};
-    }
-
-    return stdx::make_unexpected(
-        make_error_code(std::errc::no_such_file_or_directory));
+  auto resolve_res =
+      resolver.resolve(bind_address_, std::to_string(bind_port_));
+  if (!resolve_res) {
+    throw std::system_error(resolve_res.error(),
+                            "resolve(" + bind_address_ + ", " +
+                                std::to_string(bind_port_) + ") failed");
   }
 
-  void accepted(protocol_type::socket client_sock) {
-    auto reader = reader_maker_();
+  auto &ainfo = *resolve_res.value().begin();
 
-    auto session_it = client_sessions_([&](auto &socks) {
-      if (protocol_name_ == "classic") {
-        socks.emplace_back(std::make_unique<MySQLServerMockSessionClassic>(
-            MySQLClassicProtocol{std::move(client_sock), client_ep_,
-                                 tls_server_ctx_},
-            std::move(reader), false, with_tls_));
-      } else {
-        socks.emplace_back(std::make_unique<MySQLServerMockSessionX>(
-            MySQLXProtocol{std::move(client_sock), client_ep_, tls_server_ctx_},
-            std::move(reader), false, with_tls_));
-      }
-      return std::prev(socks.end());
-    });
+  net::ip::tcp::acceptor sock(io_ctx_);
 
-    auto &session = *session_it;
-    session->disconnector([this, session_it]() mutable {
-      client_sessions_.serialize_with_cv(
-          [session_it](auto &sessions, auto &condvar) {
-            // remove the connection from the connection container
-            // which calls the destructor of the Connection
-            sessions.erase(session_it);
-
-            // notify the "wait for all sockets to shutdown"
-            condvar.notify_one();
-          });
-    });
-
-    net::defer(io_ctx_, [&session]() { session->run(); });
-
-    // accept the next connection.
-    async_run();
+  auto res = sock.open(ainfo.endpoint().protocol());
+  if (!res) {
+    throw std::system_error(res.error(), "socket.open() failed");
   }
 
-  /**
-   * accept connections asynchronously.
-   *
-   * runs until stopped().
-   */
-  void async_run() {
-    if (stopped()) return;
-
-    work_([](auto &work) { ++work; });
-
-    sock_.async_accept(client_ep_, [this](std::error_code ec,
-                                          protocol_type::socket client_sock) {
-      mysql_harness::ScopeGuard guard([&]() {
-        work_.serialize_with_cv([](auto &work, auto &cv) {
-          // leaving acceptor.
-          //
-          // Notify the stop() which may wait for the work to become zero.
-          --work;
-          cv.notify_one();
-        });
-      });
-
-      if (ec) {
-        return;
-      }
-
-      client_sock.set_option(net::ip::tcp::no_delay{true});
-
-      log_info("accepted from %s", mysqlrouter::to_string(client_ep_).c_str());
-
-      this->accepted(std::move(client_sock));
-    });
+  res = sock.set_option(net::socket_base::reuse_address{true});
+  if (!res) {
+    throw std::system_error(res.error(), "socket.set_option() failed");
   }
 
-  /**
-   * check if acceptor is stopped.
-   *
-   * @returns if acceptor is stopped.
-   */
-  bool stopped() const {
-    return (stopped_([](bool stopped) { return stopped; }));
+  res = sock.bind(ainfo.endpoint());
+  if (!res) {
+    throw std::system_error(res.error(), "socket.bind(" + bind_address_ + ":" +
+                                             std::to_string(bind_port_) +
+                                             ") failed");
   }
 
-  /**
-   * stop the acceptor.
-   */
-  void stop() {
-    if (!stopped_now()) return;
-
-    // close()s the listening socket and cancels possible async_wait() on the
-    // socket
-    sock_.close();
-
-    // wait until all async callbacks finished.
-    work_.wait([](auto work) { return work == 0; });
+  res = sock.listen(kListenQueueSize);
+  if (!res) {
+    throw std::system_error(res.error(), "socket.listen() failed");
   }
 
- private:
-  /**
-   * mark the acceptor as stopped.
-   *
-   * @returns whether the acceptor was marked as stopped by this call.
-   * @retval true marked acceptor as "stopped" _now_.
-   * @retval false already stopped before.
-   */
-  bool stopped_now() {
-    return stopped_([](bool &stopped) {
-      // already stopped.
-      if (stopped) return false;
+  listener_ = std::move(sock);
+}
 
-      stopped = true;
+// the MPMC queue creates a dummy Node<Work> which needs to be default
+// constructable.
+net::io_context dummy_io_ctx;
 
-      return true;
-    });
-  }
+struct Work {
+  net::ip::tcp::socket client_socket{dummy_io_ctx};
+  std::string expected_queries_file;
+  std::vector<std::string> module_prefixes;
+  bool debug_mode;
 
-  net::io_context &io_ctx_;
-  protocol_type::acceptor sock_{io_ctx_};
-
-  DuktapeStatementReaderFactory reader_maker_;
-
-  std::string protocol_name_;
-  WaitableMonitor<std::list<std::unique_ptr<MySQLServerMockSession>>>
-      &client_sessions_;
-  protocol_type::endpoint client_ep_;
-
-  TlsServerContext &tls_server_ctx_;
-
-  bool with_tls_{false};
-
-  Monitor<bool> stopped_{false};
-
-  // initial work to not exit before stop() is called.
-  //
-  // tracks if async_accept is currently waiting.
-  WaitableMonitor<int> work_{0};
+  net::impl::socket::native_handle_type wakeup_fd;
 };
 
-void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
-  Acceptor acceptor{io_ctx_,
-                    protocol_name_,
-                    client_sessions_,
-                    DuktapeStatementReaderFactory{
-                        expected_queries_file_,
-                        module_prefixes_,
-                        // expose session data as json-encoded string
-                        {{"port", std::to_string(bind_port_)},
-                         {"ssl_cipher", "\"\""},
-                         {"mysqlx_ssl_cipher", "\"\""}},
-                        MockServerComponent::get_instance().get_global_scope()},
-                    tls_server_ctx_,
-                    ssl_mode_ != SSL_MODE_DISABLED};
+using socket_pair_protocol =
+#if defined(_WIN32)
+    net::ip::tcp
+#else
+    local::stream_protocol
+#endif
+    ;
 
-  auto res = acceptor.init(bind_address_, bind_port_);
-  if (!res) {
-    throw std::system_error(res.error(), "binding to " + bind_address_ + ":" +
-                                             std::to_string(bind_port_) +
-                                             " failed");
+stdx::expected<void, std::error_code> connect_pair(
+    net::io_context &io_ctx, socket_pair_protocol::socket &sock1,
+    socket_pair_protocol::socket &sock2) {
+#if defined(_WIN32)
+  auto sockpair_proto = socket_pair_protocol::v4();
+  auto pair_res = net::impl::socket::socketpair(sockpair_proto.family(),
+                                                sockpair_proto.type(),
+                                                sockpair_proto.protocol());
+  if (!pair_res) {
+    return pair_res.get_unexpected();
   }
 
-  mysql_harness::on_service_ready(env);
+  auto assign_res = sock1.assign(sockpair_proto, pair_res.value().first);
+  if (!assign_res) {
+    return assign_res.get_unexpected();
+  }
+  assign_res = sock2.assign(sockpair_proto, pair_res.value().second);
+  if (!assign_res) {
+    return assign_res.get_unexpected();
+  }
 
+  return {};
+#else
+  return local::connect_pair(&io_ctx, sock1, sock2);
+#endif
+}
+
+void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   log_info("Starting to handle connections on port: %d", bind_port_);
 
-  acceptor.async_run();
+  mysql_harness::WaitingMPMCQueue<Work> work_queue;
 
-  mysql_harness::wait_for_stop(env, 0);
+  socket_pair_protocol::socket sock2(io_ctx_);
+  auto connect_pair_res = shared_([this, &sock2](auto &shared) {
+    return connect_pair(io_ctx_, shared.wakeup_sock_send_, sock2);
+  });
 
-  // wait until acceptor stopped.
-  acceptor.stop();
+  if (!connect_pair_res) {
+    log_error("%s", connect_pair_res.error().message().c_str());
+    return;
+  }
+
+  auto connection_handler = [&]() -> void {
+    mysql_harness::rename_thread("SM Worker");
+
+    while (true) {
+      auto work = work_queue.pop();
+
+      // exit
+      if (!work.client_socket.is_open()) break;
+
+      ProtocolBase *protocol{};
+      std::unique_ptr<MySQLXProtocol> x_protocol;
+      std::unique_ptr<MySQLClassicProtocol> classic_protocol;
+      if (protocol_name_ == "x") {
+        x_protocol = std::make_unique<MySQLXProtocol>(
+            std::move(work.client_socket), work.wakeup_fd, tls_server_ctx_);
+
+        protocol = x_protocol.get();
+      } else if (protocol_name_ == "classic") {
+        classic_protocol = std::make_unique<MySQLClassicProtocol>(
+            std::move(work.client_socket), work.wakeup_fd, tls_server_ctx_);
+        protocol = classic_protocol.get();
+      }
+
+      const auto &filename = work.expected_queries_file;
+      if (filename.substr(filename.size() - 3) != ".js") {
+        throw std::runtime_error("can't create reader for " + filename);
+      }
+      try {
+        std::unique_ptr<StatementReaderBase> statement_reader =
+            std::make_unique<DuktapeStatementReader>(
+                filename, work.module_prefixes,
+                // expose session data json-encoded string
+                std::map<std::string, std::string>{
+                    {"port", std::to_string(bind_port_)},
+                    {"ssl_cipher", "\"\""},
+                    {"mysqlx_ssl_cipher", "\"\""},
+                },
+                MySQLServerSharedGlobals::get());
+
+        std::unique_ptr<MySQLServerMockSession> session;
+        const bool with_tls = ssl_mode_ != SSL_MODE_DISABLED;
+        if (protocol_name_ == "classic") {
+          session = std::make_unique<MySQLServerMockSessionClassic>(
+              classic_protocol.get(), std::move(statement_reader),
+              work.debug_mode, with_tls);
+        } else if (protocol_name_ == "x") {
+          session = std::make_unique<MySQLServerMockSessionX>(
+              x_protocol.get(), std::move(statement_reader), work.debug_mode,
+              with_tls);
+        }
+
+        try {
+          session->run();
+        } catch (const std::exception &e) {
+          log_error("%s", e.what());
+        }
+      } catch (const std::exception &e) {
+        if (protocol != nullptr) {
+          protocol->send_error(1064, "reader error: "s + e.what());
+        }
+        // close the connection before Session took over.
+        log_error("%s", e.what());
+      }
+    }
+  };
+
+  auto res = listener_.native_non_blocking(true);
+  if (!res) {
+    log_error("set socket non-blocking failed, ignoring: %s",
+              res.error().message().c_str());
+  }
+
+  std::deque<std::thread> worker_threads;
+  // open enough worker threads to handle the needs of the tests:
+  //
+  // e.g. routertest_component_rest_routing keeps 4 connections open
+  // and tries to open another 3.
+  for (size_t ndx = 0; ndx < kWorkerThreadCount; ndx++) {
+    worker_threads.emplace_back(connection_handler);
+  }
+
+  while (is_running(env)) {
+    std::array<pollfd, 1> fds = {{
+        {listener_.native_handle(), POLLIN, 0},
+    }};
+
+    auto poll_res = net::impl::poll::poll(fds.data(), fds.size(), 10ms);
+    if (!poll_res) {
+      if (poll_res.error() == make_error_condition(std::errc::interrupted) ||
+          poll_res.error() ==
+              make_error_condition(std::errc::operation_would_block) ||
+          poll_res.error() == make_error_condition(std::errc::timed_out)) {
+        continue;
+      } else {
+        log_error("poll() failed with error: %s",
+                  poll_res.error().message().c_str());
+        // leave the loop
+        break;
+      }
+    }
+
+    if (fds[0].revents != 0) {
+      while (true) {
+        net::ip::tcp::endpoint client_ep;
+        auto accept_res = listener_.accept(client_ep);
+        if (!accept_res) {
+          auto accept_ec = accept_res.error();
+
+          // if we got interrupted at shutdown, just leave
+          if (!is_running(env)) break;
+
+          if (accept_ec == std::errc::resource_unavailable_try_again) break;
+          if (accept_ec == std::errc::operation_would_block) break;
+
+          if (accept_ec == std::errc::interrupted) continue;
+
+          log_error("%s",
+                    std::system_error(accept_ec, "accept() failed").what());
+          return;
+        }
+
+        auto client_socket = std::move(accept_res.value());
+
+        work_queue.push(Work{std::move(client_socket), expected_queries_file_,
+                             module_prefixes_, debug_mode_,
+                             sock2.native_handle()});
+      }
+    }
+  }
 
   close_all_connections();
 
-  // wait until all connections are closed.
-  client_sessions_.wait(
-      [](const auto &sessions) -> bool { return sessions.empty(); });
+  for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
+    work_queue.push(Work{
+        net::ip::tcp::socket(io_ctx_), "", {}, false, sock2.native_handle()});
+  }
+  for (auto &thr : worker_threads) {
+    thr.join();
+  }
 }
+
+std::shared_ptr<MockServerGlobalScope>
+    MySQLServerSharedGlobals::shared_globals_;
+
+std::mutex MySQLServerSharedGlobals::mtx_;
 
 }  // namespace server_mock

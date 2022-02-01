@@ -117,7 +117,7 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
   ++pos;
   if (pos == endpoint.size()) {
     // ] was last character,  no port
-    return {std::in_place, addr, 0};
+    return {stdx::in_place, addr, 0};
   }
 
   if (endpoint[pos] != ':') {
@@ -133,13 +133,13 @@ static stdx::expected<TCPAddress, std::error_code> make_tcp_address_ipv6(
 
   auto port = port_res.value();
 
-  return {std::in_place, addr, port};
+  return {stdx::in_place, addr, port};
 }
 
 stdx::expected<TCPAddress, std::error_code> make_tcp_address(
     const std::string &endpoint) {
   if (endpoint.empty()) {
-    return {std::in_place, "", 0};
+    return {stdx::in_place, "", 0};
   }
 
   if (endpoint[0] == '[') {
@@ -151,13 +151,13 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
       return addr_res.get_unexpected();
     }
 
-    return {std::in_place, endpoint, 0};
+    return {stdx::in_place, endpoint, 0};
   } else {
     // IPv4 or address
     const auto pos = endpoint.find(":");
     if (pos == std::string::npos) {
       // no port
-      return {std::in_place, endpoint, 0};
+      return {stdx::in_place, endpoint, 0};
     }
 
     auto addr = endpoint.substr(0, pos);
@@ -167,7 +167,7 @@ stdx::expected<TCPAddress, std::error_code> make_tcp_address(
       return port_res.get_unexpected();
     }
 
-    return {std::in_place, addr, port_res.value()};
+    return {stdx::in_place, addr, port_res.value()};
   }
 }
 

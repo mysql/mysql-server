@@ -68,7 +68,7 @@ class PFS_index_rpl_applier_status : public PFS_engine_index {
   PFS_index_rpl_applier_status()
       : PFS_engine_index(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_applier_status() override = default;
+  ~PFS_index_rpl_applier_status() override {}
 
   virtual bool match(Master_info *mi);
 

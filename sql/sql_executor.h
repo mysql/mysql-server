@@ -29,15 +29,17 @@
 */
 
 #include <sys/types.h>
+
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "my_alloc.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql/iterators/row_iterator.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
@@ -57,12 +59,9 @@ class KEY;
 class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;
-class RowIterator;
+class QUICK_SELECT_I;
 class THD;
 class Window;
-template <class T>
-class mem_root_deque;
-
 enum class Window_retrieve_cached_row_reason;
 struct AccessPath;
 struct CACHE_FIELD;
@@ -151,7 +150,7 @@ class Semijoin_mat_exec {
         inner_table_index(inner_table_index),
         table_param(),
         table(nullptr) {}
-  ~Semijoin_mat_exec() = default;
+  ~Semijoin_mat_exec() {}
   TABLE_LIST *const sj_nest;     ///< Semi-join nest for this materialization
   const bool is_scan;            ///< true if executing a scan, false if lookup
   const uint table_count;        ///< Number of tables in the sj-nest
@@ -163,10 +162,11 @@ class Semijoin_mat_exec {
 
 void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace);
 
-[[nodiscard]] bool copy_fields(Temp_table_param *param, const THD *thd,
-                               bool reverse_copy = false);
+MY_ATTRIBUTE((warn_unused_result))
+bool copy_fields(Temp_table_param *param, const THD *thd,
+                 bool reverse_copy = false);
 
-enum Copy_func_type : int {
+enum Copy_func_type {
   /**
     In non-windowing step, copies functions
   */
@@ -187,7 +187,7 @@ enum Copy_func_type : int {
     that is we need to read all rows of a partition before we can compute the
     wf's value for the the first row in the partition.
   */
-  CFT_WF_NEEDS_PARTITION_CARDINALITY,
+  CFT_WF_NEEDS_CARD,
   /**
     In windowing step, copies framing window functions that read only one row
     per frame.
@@ -208,15 +208,14 @@ enum Copy_func_type : int {
     Copies all window functions.
   */
   CFT_WF,
-  /**
-    Copies Item_field only (typically because other functions might depend
-    on those fields).
-  */
-  CFT_FIELDS,
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
                 Copy_func_type type = CFT_ALL);
+
+// Combines copy_fields() and copy_funcs().
+bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
+                           Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -232,6 +231,8 @@ bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
+
+int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 
@@ -254,7 +255,6 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
-int read_const(TABLE *table, TABLE_REF *ref);
 
 class QEP_TAB : public QEP_shared_owner {
  public:
@@ -268,10 +268,13 @@ class QEP_TAB : public QEP_shared_owner {
         match_tab(NO_PLAN_IDX),
         rematerialize(false),
         not_used_in_distinct(false),
+        cache_idx_cond(nullptr),
         having(nullptr),
         tmp_table_param(nullptr),
         filesort(nullptr),
         ref_item_slice(REF_SLICE_SAVED_BASE),
+        m_condition_optim(nullptr),
+        m_quick_optim(nullptr),
         m_keyread_optim(false),
         m_reversed_access(false),
         lateral_derived_tables_depend_on_me(0) {}
@@ -284,6 +287,8 @@ class QEP_TAB : public QEP_shared_owner {
   // Getters and setters
 
   Item *condition_optim() const { return m_condition_optim; }
+  QUICK_SELECT_I *quick_optim() const { return m_quick_optim; }
+  void set_quick_optim() { m_quick_optim = quick(); }
   void set_condition_optim() { m_condition_optim = condition(); }
   bool keyread_optim() const { return m_keyread_optim; }
   void set_keyread_optim() {
@@ -333,6 +338,15 @@ class QEP_TAB : public QEP_shared_owner {
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
+
+  /**
+     Used to begin a new execution of a subquery. Necessary if this subquery
+     has done a filesort which which has cleared condition/quick.
+  */
+  void restore_quick_optim_and_condition() {
+    if (m_condition_optim) set_condition(m_condition_optim);
+    if (m_quick_optim) set_quick(m_quick_optim);
+  }
 
   /**
     Construct an access path for reading from this table in the query,
@@ -399,6 +413,9 @@ class QEP_TAB : public QEP_shared_owner {
   // in older versions of MySQL.
   bool not_used_in_distinct;
 
+  /// Index condition for BKA access join
+  Item *cache_idx_cond;
+
   /** HAVING condition for checking prior saving a record into tmp table*/
   Item *having;
 
@@ -441,9 +458,26 @@ class QEP_TAB : public QEP_shared_owner {
   */
   uint ref_item_slice;
 
-  /// Condition as it was set by the optimizer, used for EXPLAIN.
-  /// m_condition may be overwritten at a later stage.
-  Item *m_condition_optim = nullptr;
+  /// @see m_quick_optim
+  Item *m_condition_optim;
+
+  /**
+     m_quick is the quick "to be used at this stage of execution".
+     It can happen that filesort uses the quick (produced by the optimizer) to
+     produce a sorted result, then the read of this result has to be done
+     without "quick", so we must reset m_quick to NULL, but we want to delay
+     freeing of m_quick or it would close the filesort's result and the table
+     prematurely.
+     In that case, we move m_quick to m_quick_optim (=> delay deletion), reset
+     m_quick to NULL (read of filesort's result will be without quick); if
+     this is a subquery which is later executed a second time,
+     QEP_TAB::reset() will restore the quick from m_quick_optim into m_quick.
+     quick_optim stands for "the quick decided by the optimizer".
+     EXPLAIN reads this member and m_condition_optim; so if you change them
+     after exposing the plan (setting plan_state), do it with the
+     LOCK_query_plan mutex.
+  */
+  QUICK_SELECT_I *m_quick_optim;
 
   /**
      True if only index is going to be read for this table. This is the
@@ -464,12 +498,33 @@ class QEP_TAB : public QEP_shared_owner {
      LDT, for efficiency (less useless calls to QEP_TAB::refresh_lateral())
      and clarity in EXPLAIN.
   */
-  qep_tab_map lateral_derived_tables_depend_on_me;
+  table_map lateral_derived_tables_depend_on_me;
 
   Mem_root_array<const AccessPath *> *invalidators = nullptr;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
+};
+
+/**
+   @returns a pointer to the QEP_TAB whose index is qtab->member. For
+   example, QEP_AT(x,first_inner) is the first_inner table of x.
+*/
+#define QEP_AT(qtab, member) (qtab->join()->qep_tab[qtab->member])
+
+/**
+   Use this class when you need a QEP_TAB not connected to any JOIN_TAB.
+*/
+class QEP_TAB_standalone {
+ public:
+  QEP_TAB_standalone() { m_qt.set_qs(&m_qs); }
+  ~QEP_TAB_standalone() { m_qt.cleanup(); }
+  /// @returns access to the QEP_TAB
+  QEP_TAB &as_QEP_TAB() { return m_qt; }
+
+ private:
+  QEP_shared m_qs;
+  QEP_TAB m_qt;
 };
 
 bool set_record_buffer(TABLE *table, double expected_rows_to_fetch);
@@ -491,12 +546,6 @@ struct PendingCondition {
   int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
 };
 
-/**
-  Create an AND conjuction of all given items. If there are no items, returns
-  nullptr. If there's only one item, returns that item.
- */
-Item *CreateConjunction(List<Item> *items);
-
 unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const std::vector<Item *> &conditions, THD *thd);
@@ -506,20 +555,14 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<PendingCondition> *predicates_above_join,
                      std::vector<PendingCondition> *join_conditions);
 
-/**
-  For a MATERIALIZE access path, move any non-basic iterators (e.g. sorts and
-  filters) from table_path to above the path, for easier EXPLAIN and generally
-  simpler structure. Note the assert in CreateIteratorFromAccessPath() that we
-  succeeded. (ALTERNATIVE counts as a basic iterator in this regard.)
-
-  We do this by finding the second-bottommost access path, and inserting our
-  materialize node as its child. The bottommost one becomes the actual table
-  access path.
-
-  If a ZERO_ROWS access path is materialized, we simply replace the MATERIALIZE
-  path with the ZERO_ROWS path, since there is nothing to materialize.
- */
-AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path);
+bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
+                                       const bool new_partition_or_eof,
+                                       bool *output_row_ready);
+bool buffer_windowing_record(THD *thd, Temp_table_param *param,
+                             bool *new_partition);
+bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
+                          int64 rowno, Window_retrieve_cached_row_reason reason,
+                          int fno = 0);
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
@@ -543,32 +586,5 @@ bool MaterializeIsDoingDeduplication(TABLE *table);
  */
 void ExtractConditions(Item *condition,
                        Mem_root_array<Item *> *condition_parts);
-
-AccessPath *create_table_access_path(THD *thd, TABLE *table,
-                                     AccessPath *range_scan,
-                                     TABLE_LIST *table_ref, POSITION *position,
-                                     bool count_examined_rows);
-
-/**
-  Creates an iterator for the given table, then calls Init() on the resulting
-  iterator. Unlike create_table_iterator(), this can create iterators for sort
-  buffer results (which are set in the TABLE object during query execution).
-  Returns nullptr on failure.
- */
-unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
-    POSITION *position, bool ignore_not_found_rows, bool count_examined_rows);
-
-/**
-  A short form for when there's no range scan, recursive CTEs or cost
-  information; just a unique_result or a simple table scan. Normally, you should
-  prefer just instantiating an iterator yourself -- this is for legacy use only.
- */
-inline unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, bool ignore_not_found_rows,
-    bool count_examined_rows) {
-  return init_table_iterator(thd, table, nullptr, nullptr, nullptr,
-                             ignore_not_found_rows, count_examined_rows);
-}
 
 #endif /* SQL_EXECUTOR_INCLUDED */

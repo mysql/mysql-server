@@ -72,7 +72,7 @@ void setOwnProcessInfoPort(Uint16 port)
 void getNameFromEnvironment()
 {
   HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
-                              false, singletonInfo.getPid());
+                              FALSE, singletonInfo.getPid());
   GetModuleFileNameEx(handle, 0, singletonInfo.process_name,
                       singletonInfo.ProcessNameLength);
 }

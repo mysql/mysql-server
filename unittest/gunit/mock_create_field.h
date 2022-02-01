@@ -25,8 +25,6 @@
 
 #include <assert.h>
 
-#include <optional>
-
 #include "sql/create_field.h"
 #include "sql/dd/types/column.h"
 
@@ -63,7 +61,7 @@ class Mock_create_field : public Create_field {
          0,              // uint fld_geom_type
          nullptr,        // gcol info
          nullptr,        // gen default val
-         {},             // std::optional<gis::srid_t> srid
+         {},             // Nullable<gis::srid_t> srid
          dd::Column::enum_hidden_type::HT_VISIBLE);  // Visible
   }
 };

@@ -209,8 +209,8 @@ class sys_var_pluginvar : public sys_var {
   const char *orig_pluginvar_name;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg
-                            [[maybe_unused]] = std::nothrow) noexcept {
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
@@ -218,8 +218,8 @@ class sys_var_pluginvar : public sys_var {
     return my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0));
   }
 
-  static void operator delete(void *ptr_arg [[maybe_unused]],
-                              size_t size [[maybe_unused]]) {
+  static void operator delete(void *ptr_arg MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused))) {
     TRASH(ptr_arg, size);
   }
 

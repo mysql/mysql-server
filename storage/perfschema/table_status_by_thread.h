@@ -92,7 +92,7 @@ class PFS_index_status_by_thread : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_thread() override = default;
+  ~PFS_index_status_by_thread() override {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const Status_variable *pfs);
@@ -128,7 +128,7 @@ class table_status_by_thread : public PFS_engine_table {
   table_status_by_thread();
 
  public:
-  ~table_status_by_thread() override = default;
+  ~table_status_by_thread() override {}
 
  protected:
   int make_row(PFS_thread *thread, const Status_variable *status_var);

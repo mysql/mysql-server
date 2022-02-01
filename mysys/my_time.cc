@@ -99,7 +99,7 @@ const uchar days_in_month[] = {31, 28, 31, 30, 31, 30, 31,
    Offset of system time zone from UTC in seconds used to speed up
    work of my_system_gmt_sec() function.
 */
-static my_time_t my_time_zone = 0;
+static long my_time_zone = 0;
 
 // Right-shift of a negative value is implementation-defined
 // Assert that we have arithmetic shift of negative numbers
@@ -756,7 +756,6 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   assert(status->warnings == 0 && status->fractional_digits == 0 &&
          status->nanoseconds == 0);
 
-  l_time->time_type = MYSQL_TIMESTAMP_NONE;
   l_time->neg = false;
   for (; str != end && isspace_char(*str); str++) length--;
   if (str != end && *str == '-') {
@@ -913,7 +912,6 @@ fractional:
 
   if (check_time_mmssff_range(*l_time)) {
     status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    l_time->time_type = MYSQL_TIMESTAMP_ERROR;
     return true;
   }
 
@@ -1067,8 +1065,8 @@ long calc_daynr(uint year, uint month, uint day) {
   my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
 
   @param my_time         - time value to be converted
-  @param my_timezone     - pointer to a my_time_t where offset of system time
-  zone from UTC will be stored for caching
+  @param my_timezone     - pointer to long where offset of system time zone
+                           from UTC will be stored for caching
   @param in_dst_time_gap - set to true if time falls into spring time-gap
 
   @note
@@ -1081,7 +1079,7 @@ long calc_daynr(uint year, uint month, uint day) {
 
   @return Time in UTC seconds since Unix Epoch representation.
 */
-my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
+my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
                             bool *in_dst_time_gap) {
   uint loop;
   time_t tmp = 0;
@@ -1090,7 +1088,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
   MYSQL_TIME *t = &tmp_time;
   struct tm *l_time;
   struct tm tm_tmp;
-  my_time_t diff, current_timezone;
+  long diff, current_timezone;
 
   /*
     Use temp variable to avoid trashing input data, which could happen in
@@ -1099,7 +1097,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
   // memcpy(&tmp_time, &my_time, sizeof(MYSQL_TIME));
   tmp_time = my_time;
 
-  if (!validate_my_time(*t)) return 0;
+  if (!validate_timestamp_range(*t)) return 0;
 
   /*
     Calculate the gmt time based on current time and timezone
@@ -1115,10 +1113,10 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     from real value (we assume that localtime_r(tmp) will return something
     within 24 hrs from t) which is probably true for all current time zones.
 
-    Note2: For the dates, which have time_t representation close to MAX_INT32
-    (efficient time_t limit for 32 bits time platforms) we should do a small
-    trick to avoid overflow. That is, convert the date, which is two days
-    earlier, and then add these days to the final value.
+    Note2: For the dates, which have time_t representation close to
+    MAX_INT32 (efficient time_t limit for supported platforms), we should
+    do a small trick to avoid overflow. That is, convert the date, which is
+    two days earlier, and then add these days to the final value.
 
     The same trick is done for the values close to 0 in time_t
     representation for platfroms with unsigned time_t (QNX).
@@ -1135,7 +1133,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     On some platforms, (E.g. on QNX) time_t is unsigned and localtime(-3600)
     wil give us a date around 2106 year. Which is no good.
 
-    Theoretically, there could be problems with the latter conversion:
+    Theoreticaly, there could be problems with the latter conversion:
     there are at least two timezones, which had time switches near 1 Jan
     of 1970 (because of political reasons). These are America/Hermosillo and
     America/Mazatlan time zones. They changed their offset on
@@ -1148,12 +1146,10 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     historical information for localtime_r() etc. That is, the problem is not
     relevant to QNX.
 
-    For 32 bits time platforms, We are safe with shifts close to MAX_INT32,
-    as there are no known time switches on Jan 2038 yet :)
+    We are safe with shifts close to MAX_INT32, as there are no known
+    time switches on Jan 2038 yet :)
   */
-  if (t->year > MYTIME_MAX_YEAR) {
-    return 0;  // out of range
-  } else if ((t->year == MYTIME_MAX_YEAR) && (t->month == 1) && (t->day > 4)) {
+  if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && (t->day > 4)) {
     /*
       Below we will pass static_cast<uint>(t->day - shift) to calc_daynr.
       As we don't want to get an overflow here, we will shift
@@ -1163,15 +1159,14 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     shift = 2;
   }
 
-  my_time_t tmp_days =
-      calc_daynr(static_cast<uint>(t->year), static_cast<uint>(t->month),
-                 static_cast<uint>(t->day));
-  tmp_days = tmp_days - static_cast<my_time_t>(days_at_timestart);
-  my_time_t tmp_seconds = tmp_days * SECONDS_IN_24H +
-                          (static_cast<int64_t>(t->hour) * 3600 +
-                           static_cast<int64_t>(t->minute * 60 + t->second));
-  // This will be a narrowing on 32 bit time platforms, but checked range above
-  tmp = static_cast<time_t>(tmp_seconds + my_time_zone - 3600);
+  tmp = static_cast<time_t>(
+      ((calc_daynr(static_cast<uint>(t->year), static_cast<uint>(t->month),
+                   static_cast<uint>(t->day)) -
+        static_cast<long>(days_at_timestart)) *
+           SECONDS_IN_24H +
+       static_cast<long>(t->hour) * 3600L +
+       static_cast<long>(t->minute * 60 + t->second)) +
+      static_cast<time_t>(my_time_zone) - 3600);
 
   current_timezone = my_time_zone;
   localtime_r(&tmp, &tm_tmp);
@@ -1229,6 +1224,16 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
   /* shift back, if we were dealing with boundary dates */
   tmp += shift * SECONDS_IN_24H;
 
+  /*
+    This is possible for dates, which slightly exceed boundaries.
+    Conversion will pass ok for them, but we don't allow them.
+    First check will pass for platforms with signed time_t.
+    instruction above (tmp+= shift*86400L) could exceed
+    MAX_INT32 (== TIMESTAMP_MAX_VALUE) and overflow will happen.
+    So, tmp < TIMESTAMP_MIN_VALUE will be triggered. On platfroms
+    with unsigned time_t tmp+= shift*86400L might result in a number,
+    larger then TIMESTAMP_MAX_VALUE, so another check will work.
+  */
   if (!is_time_t_valid_for_timestamp(tmp)) tmp = 0;
 
   return static_cast<my_time_t>(tmp);
@@ -1419,9 +1424,9 @@ int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   @param      dec Precision, in the range 0..6.
   @return         The length of the result string.
 */
-int my_timeval_to_str(const my_timeval *tm, char *to, uint dec) {
-  int len = sprintf(to, "%lld", static_cast<long long>(tm->m_tv_sec));
-  if (dec) len += my_useconds_to_str(to + len, tm->m_tv_usec, dec);
+int my_timeval_to_str(const struct timeval *tm, char *to, uint dec) {
+  int len = sprintf(to, "%d", static_cast<int>(tm->tv_sec));
+  if (dec) len += my_useconds_to_str(to + len, tm->tv_usec, dec);
   return len;
 }
 
@@ -2018,25 +2023,25 @@ void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec) {
   @param      ptr The pointer to read the value from.
   @param      dec Precision.
 */
-void my_timestamp_from_binary(my_timeval *tm, const uchar *ptr, uint dec) {
+void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec) {
   assert(dec <= DATETIME_MAX_DECIMALS);
-  tm->m_tv_sec = mi_uint4korr(ptr);
+  tm->tv_sec = mi_uint4korr(ptr);
   switch (dec) {
     case 0:
     default:
-      tm->m_tv_usec = 0;
+      tm->tv_usec = 0;
       break;
     case 1:
     case 2:
-      tm->m_tv_usec = (static_cast<int>(ptr[4])) * 10000;
+      tm->tv_usec = (static_cast<int>(ptr[4])) * 10000;
       break;
     case 3:
     case 4:
-      tm->m_tv_usec = mi_sint2korr(ptr + 4) * 100;
+      tm->tv_usec = mi_sint2korr(ptr + 4) * 100;
       break;
     case 5:
     case 6:
-      tm->m_tv_usec = mi_sint3korr(ptr + 4);
+      tm->tv_usec = mi_sint3korr(ptr + 4);
   }
 }
 
@@ -2047,12 +2052,12 @@ void my_timestamp_from_binary(my_timeval *tm, const uchar *ptr, uint dec) {
   @param [out]  ptr  The pointer to store the value to.
   @param        dec  Precision.
 */
-void my_timestamp_to_binary(const my_timeval *tm, uchar *ptr, uint dec) {
+void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec) {
   assert(dec <= DATETIME_MAX_DECIMALS);
   /* Stored value must have been previously properly rounded or truncated */
-  assert((tm->m_tv_usec %
+  assert((tm->tv_usec %
           static_cast<int>(log_10_int[DATETIME_MAX_DECIMALS - dec])) == 0);
-  mi_int4store(ptr, tm->m_tv_sec);
+  mi_int4store(ptr, tm->tv_sec);
   switch (dec) {
     case 0:
     default:
@@ -2060,16 +2065,16 @@ void my_timestamp_to_binary(const my_timeval *tm, uchar *ptr, uint dec) {
     case 1:
     case 2:
       ptr[4] =
-          static_cast<unsigned char>(static_cast<char>(tm->m_tv_usec / 10000));
+          static_cast<unsigned char>(static_cast<char>(tm->tv_usec / 10000));
       break;
     case 3:
     case 4:
-      mi_int2store(ptr + 4, tm->m_tv_usec / 100);
+      mi_int2store(ptr + 4, tm->tv_usec / 100);
       break;
       /* Impossible second precision. Fall through */
     case 5:
     case 6:
-      mi_int3store(ptr + 4, tm->m_tv_usec);
+      mi_int3store(ptr + 4, tm->tv_usec);
   }
 }
 /**
@@ -2609,16 +2614,16 @@ bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
   @param           decimals Precision.
   @return                   False on success, true on error.
 */
-bool my_timeval_round(struct my_timeval *tv, uint decimals) {
+bool my_timeval_round(struct timeval *tv, uint decimals) {
   assert(decimals <= DATETIME_MAX_DECIMALS);
   uint nanoseconds = msec_round_add[decimals];
-  tv->m_tv_usec += (nanoseconds + 500) / 1000;
-  if (tv->m_tv_usec < 1000000) goto ret;
+  tv->tv_usec += (nanoseconds + 500) / 1000;
+  if (tv->tv_usec < 1000000) goto ret;
 
-  tv->m_tv_usec = 0;
-  tv->m_tv_sec++;
-  if (!is_time_t_valid_for_timestamp(tv->m_tv_sec)) {
-    tv->m_tv_sec = MYTIME_MAX_VALUE;
+  tv->tv_usec = 0;
+  tv->tv_sec++;
+  if (!is_time_t_valid_for_timestamp(tv->tv_sec)) {
+    tv->tv_sec = TIMESTAMP_MAX_VALUE;
     return true;
   }
 

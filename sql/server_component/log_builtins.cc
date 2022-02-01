@@ -66,6 +66,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 extern CHARSET_INFO my_charset_utf16le_bin;  // used in Windows EventLog
 static HANDLE hEventLog = NULL;              // global
+#define MSG_DEFAULT 0xC0000064L
 #endif
 
 PSI_memory_key key_memory_log_error_loaded_services;
@@ -296,7 +297,7 @@ int log_string_compare(const char *a, const char *b, size_t len,
 }
 
 /*
-  Log-item helpers
+  log item helpers
 */
 
 /**
@@ -521,8 +522,8 @@ void log_item_free(log_item *li) {
 
 log_line *log_line_init() {
   log_line *ll;
-  if ((ll = static_cast<log_line *>(my_malloc(
-           key_memory_log_error_stack, sizeof(log_line), MYF(0)))) != nullptr)
+  if ((ll = (log_line *)my_malloc(key_memory_log_error_stack, sizeof(log_line),
+                                  MYF(0))) != nullptr)
     memset(ll, 0, sizeof(log_line));
   return ll;
 }
@@ -1163,7 +1164,7 @@ int log_line_submit(log_line *ll) {
       log_sink_buffer(nullptr, ll);
 
     else {
-      mysql_rwlock_rdlock(&THR_LOCK_log_stack);  // get S-lock
+      mysql_rwlock_rdlock(&THR_LOCK_log_stack);
 
       // set up output buffer
       char capture_buffer[LOG_BUFF_MAX];
@@ -1271,8 +1272,8 @@ int log_line_submit(log_line *ll) {
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
   Accepts the log_timestamps global variable in its third parameter.
 
-  @param buf       A buffer of at least iso8601_size bytes to store
-                   the timestamp in. The timestamp will be \0 terminated.
+  @param buf       A buffer of at least 26 bytes to store the timestamp in
+                   (19 + tzinfo tail + \0)
   @param utime     Microseconds since the epoch
   @param mode      if 0, use UTC; if 1, use local time
 
@@ -1328,7 +1329,6 @@ int make_iso8601_timestamp(char *buf, ulonglong utime,
     assert(false);
   }
 
-  // length depends on whether timezone is "Z" or "+12:34" style
   len = snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
                  my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday,
                  my_tm.tm_hour, my_tm.tm_min, my_tm.tm_sec,
@@ -1469,9 +1469,9 @@ static log_service_cache_entry *log_service_cache_entry_new(const char *name,
 
   if (n != nullptr) {
     // make new service cache entry
-    if ((sce = static_cast<log_service_cache_entry *>(
-             my_malloc(key_memory_log_error_stack,
-                       sizeof(log_service_cache_entry), MYF(0)))) == nullptr)
+    if ((sce = (log_service_cache_entry *)my_malloc(
+             key_memory_log_error_stack, sizeof(log_service_cache_entry),
+             MYF(0))) == nullptr)
       my_free(n);
     else {
       memset(sce, 0, sizeof(log_service_cache_entry));
@@ -1525,9 +1525,9 @@ log_service_instance *log_service_instance_new(log_service_cache_entry *sce,
   log_service_instance *lsi;
 
   // make new service instance entry
-  if ((lsi = static_cast<log_service_instance *>(
-           my_malloc(key_memory_log_error_stack, sizeof(log_service_instance),
-                     MYF(0)))) != nullptr) {
+  if ((lsi = (log_service_instance *)my_malloc(
+           key_memory_log_error_stack, sizeof(log_service_instance), MYF(0))) !=
+      nullptr) {
     memset(lsi, 0, sizeof(log_service_instance));
     lsi->sce = sce;
 
@@ -1584,67 +1584,29 @@ static void log_service_instance_release_all() {
   flush() function must not try to log anything, as we hold an
   exclusive lock on the stack.
 
-  @returns 0 if no problems occurred, otherwise the negative count
-             of the components that failed to flush
+  @retval   0   no problems
+  @retval  -1   error
 */
 int log_builtins_error_stack_flush() {
   int rr = 0;
   log_service_cache_entry *sce;
-  log_service_instance *lsi;  // instance
+  log_service_instance *lsi;
 
   if (!log_builtins_inited) return 0;
 
-  /*
-    We're getting an X-lock here. It's a trade-off.
-
-    If we got an S-lock, logging could go on while we're flushing.
-    In that case, we could log meaningful warnings on failure to flush,
-    which would be nice.
-
-    Conversely, if we get an X-lock, we don't allow logging during flush,
-    which guarantees that for each component's error log, log-rotation
-    will happen on the same row (i.e. the row with the same timestamp)
-    for all components' active error logs (assuming flush/open is
-    possible for that log).
-  */
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
   lsi = log_service_instances;
 
   while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
-    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {  // skip built-ins
-      SERVICE_TYPE(log_service) *ls =
-          nullptr;  // service that it is an instance of
+    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
+      SERVICE_TYPE(log_service) *ls = nullptr;
       ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
 
-      // If the instance has a service ...
       if (ls != nullptr) {
-        /*
-          If the service has a flush function, call it.
-          If it fails, count the failure.
-        */
-        if (ls->flush != nullptr) {
-          log_service_error flush_result = ls->flush(&lsi->instance);
-          /*
-            "Nothing done" counts as no error, as laid out in
-            enum_log_service_error.
-
-            Most filters (and any other components where flushing
-            is not supported nor necessary) will return this.
-          */
-          if ((flush_result != LOG_SERVICE_NOTHING_DONE) &&
-              (flush_result != LOG_SERVICE_SUCCESS))
-            rr--;
-        }
-      } else {
-        // If an instance has no service, count the bug.
+        if ((ls->flush != nullptr) && (ls->flush(&lsi->instance) < 0)) rr--;
+      } else
         rr--;
-        /*
-          Bail. An instance must have a service, even if that service
-          has no flush function, or one that fails.
-        */
-        assert(false);
-      }
     }
     lsi = lsi->next;
   }
@@ -1926,9 +1888,6 @@ done:
 
 /**
   Acquire an exclusive lock on the error logger core.
-
-  Used e.g. to pause all logging while the previous run's
-  log is read to performance_schema.error_log.
 */
 void log_builtins_error_stack_wrlock() {
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
@@ -2601,8 +2560,7 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
 
   // find out how many \0 to escape
   for (in_read = in_start, len = in_len;
-       ((in_read = static_cast<const char *>(memchr(in_read, '\0', len))) !=
-        nullptr);) {
+       ((in_read = (const char *)memchr(in_read, '\0', len)) != nullptr);) {
     nuls_found++;
     in_read++;  // skip over \0
     len = in_len - (in_read - in_start);
@@ -2613,8 +2571,8 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
   */
   out_len = in_len + (nuls_found * 3) + 1;
 
-  if ((out_start = static_cast<char *>(my_malloc(
-           key_memory_log_error_loaded_services, out_len, MYF(0)))) == nullptr)
+  if ((out_start = (char *)my_malloc(key_memory_log_error_loaded_services,
+                                     out_len, MYF(0))) == nullptr)
     return -1;
 
   /*
@@ -2714,7 +2672,6 @@ DEFINE_METHOD(ulonglong, log_builtins_imp::parse_iso8601_timestamp,
 
 /**
   Create a log-file name (path + name + extension).
-
   The path will be taken from @@log_error.
   If name + extension are given, they are used.
   If only an extension is given (argument starts with '.'),
@@ -2785,7 +2742,7 @@ log_service_error make_log_path(char *result, const char *name_or_ext) {
 }
 
 /**
-  Open an error log file.
+  open an error log file
 
   @param       name_or_ext   if beginning with '.':
                                @@global.log_error, except with this extension
@@ -2814,8 +2771,8 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::open_errstream,
 
   *my_errstream = nullptr;
 
-  les = static_cast<log_errstream *>(my_malloc(
-      key_memory_log_error_loaded_services, sizeof(log_errstream), MYF(0)));
+  les = (log_errstream *)my_malloc(key_memory_log_error_loaded_services,
+                                   sizeof(log_errstream), MYF(0));
 
   if (les == nullptr) return LOG_SERVICE_OUT_OF_MEMORY; /* purecov: inspected */
 
@@ -2881,14 +2838,13 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::open_errstream,
   return LOG_SERVICE_SUCCESS;
 
 fail_with_free:
-  mysql_mutex_destroy(&les->LOCK_errstream);
   my_free(les); /* purecov: begin inspected */
 
   return rr; /* purecov: end */
 }
 
 /**
-  Write to an error log file previously opened with open_errstream().
+  write to an error log file previously opened with open_errstream()
 
   @param       my_errstream  a handle describing the log file
   @param       buffer        pointer to the string to write
@@ -2899,7 +2855,7 @@ fail_with_free:
 */
 DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
               (void *my_errstream, const char *buffer, size_t length)) {
-  log_errstream *les = static_cast<log_errstream *>(my_errstream);
+  log_errstream *les = (log_errstream *)my_errstream;
 
   if ((les == nullptr) || (les->file == nullptr))
     log_write_errstream(buffer, length);
@@ -2914,7 +2870,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
 }
 
 /**
-  Are we writing to a dedicated errstream, or are we sharing it?
+  are we writing to a dedicated errstream, or are we sharing it?
 
   @param       my_errstream  a handle describing the log file
 
@@ -2924,7 +2880,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
 */
 DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream,
               (void *my_errstream)) {
-  log_errstream *les = static_cast<log_errstream *>(my_errstream);
+  log_errstream *les = (log_errstream *)my_errstream;
 
   if (les == nullptr) return -1;
 
@@ -2932,18 +2888,20 @@ DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream,
 }
 
 /**
-  Close an error log file previously opened with open_errstream().
+  close an error log file previously opened with open_errstream()
 
-  @param      my_errstream  a handle describing the log file
+  @param       my_errstream  a handle describing the log file
 
-  @returns    LOG_SERVICE_SUCCESS on success
+  @retval     LOG_SERVICE_SUCCESS          success
+  @retval     otherwise                    failure
 */
-log_service_error log_close_errstream(void **my_errstream) {
+DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
+              (void **my_errstream)) {
   int rr;
 
   if (my_errstream == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
-  log_errstream *les = static_cast<log_errstream *>(*my_errstream);
+  log_errstream *les = (log_errstream *)(*my_errstream);
 
   if (les == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
@@ -2951,22 +2909,7 @@ log_service_error log_close_errstream(void **my_errstream) {
 
   if (les->file != nullptr) {
     my_fclose(les->file, MYF(0));
-    /*
-      If you continue to log to a log-file after closing it,
-      you'll log to stderr instead. Since stderr is normally
-      redirected to the "traditional" log-file, this will in
-      effect mix formats in that file. This is undesireable,
-      but not as undesirable as losing error information.
-      This happening likely indicates a bug, very possibly
-      in a loadable log-sink, where we specifically asked for
-      a log to be closed, and then continue writing to it.
-
-      This should not happen in the context of a FLUSH, as
-      reopen_errstream() only closes the (old) log if it
-      manages to open the new one. I.e. FLUSH (and thus,
-      re-open) should not be able to create scenarios where
-      a log is closed when we didn't ask for it to be closed.
-    */
+    // Continue to log after closing, you'll log to stderr. That'll learn ya.
     les->file = nullptr;
   }
 
@@ -2977,113 +2920,6 @@ log_service_error log_close_errstream(void **my_errstream) {
   return rr ? LOG_SERVICE_LOCK_ERROR : LOG_SERVICE_SUCCESS;
 }
 
-/**
-  Close an error log file previously opened with open_errstream()
-  (wrapper for the component system).
-
-  @param      my_errstream  a handle describing the log file
-
-  @returns    LOG_SERVICE_SUCCESS on success
-*/
-DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
-              (void **my_errstream)) {
-  return log_close_errstream(my_errstream);
-}
-
-/**
-  Re-open an error log file
-  (primarily to facilitate flush/log-rotation)
-
-  The semantics here are, if we can open the file by name (again), we close
-  the original file (handle), and replace the old handle with the new one
-  in our stream-descriptor; if we can't, we'll leave the existing stream
-  as it is (e.g. it remains open so we can go on logging, but we don't
-  change over to a new log if log-rotation happened). This is different
-  from libc reopen semantics.
-
-  @param       name_or_ext   if beginning with '.':
-                               @@global.log_error, except with this extension
-                             otherwise:
-                               use this as file name in the same location as
-                               @@global.log_error
-
-                             Value may not contain folder separators!
-
-                             In the general case, the caller will be a
-                             log-writer, the log-writer will just pass
-                             its preferred file extension, and the resulting
-                             file name and path will therefore be the same
-                             as for the original log file.
-
-  @param[in,out]  my_errstream  an error log handle
-
-  @returns LOG_SERVICE_INVALID_ARGUMENT, or the result of open_errstream()
-*/
-DEFINE_METHOD(log_service_error, log_builtins_imp::reopen_errstream,
-              (const char *name_or_ext, void **my_errstream)) {
-  log_service_error oret;
-  log_errstream *old_les, *new_les = nullptr;
-
-  // need non-empty name
-  if ((name_or_ext == nullptr) || (*name_or_ext == '\0'))
-    return LOG_SERVICE_INVALID_ARGUMENT;
-  // need existing stream
-  if ((my_errstream == nullptr) || (*my_errstream == nullptr))
-    return LOG_SERVICE_INVALID_ARGUMENT;
-
-  // lock caller's errstream
-  old_les = static_cast<log_errstream *>(*my_errstream);
-  mysql_mutex_lock(&old_les->LOCK_errstream);
-
-  /*
-    Every write_errstream does this anyway,
-    but let's be explicity about our semantics.
-  */
-  fflush(old_les->file);
-
-  // try to open a log-file in the same position again
-  if ((oret =
-           open_errstream(name_or_ext, reinterpret_cast<void **>(&new_les))) ==
-      LOG_SERVICE_SUCCESS) {
-    /*
-      Success! We managed to open a log-file with
-      the given name again. This may or may not be
-      the same file as the existing log-file, depending
-      on whether or not log rotation has happened.
-
-      When all this is over, the les (log_error_stream)
-      structure in the caller should feature the new
-      file's handle (while retaining the existing lock,
-      as that's already being held).
-
-      The old file and the new lock can go (after we close
-      the old file).
-
-      This will still work if we later extend
-      log_errstream with more variables.
-    */
-    log_errstream tmp;
-    tmp.file = old_les->file;       // save old file
-    old_les->file = new_les->file;  // update caller to use new file
-    new_les->file =
-        tmp.file;  // update new stream to use old file (for close())
-    close_errstream(reinterpret_cast<void **>(
-        &new_les));              // close old file; dest new lock+stream
-    assert(new_les == nullptr);  // temporary errstream should be gone
-  }
-
-  /*
-    Unlock caller's errstream.
-    If opening the new file succeeded, it's now associated with this errstream.
-    If opening the new file failed, we're still logging to the old file, which
-    can be less than ideal if log rotation moved the file to slower storage.
-    It is however considered better than losing log data.
-  */
-  mysql_mutex_unlock(&old_les->LOCK_errstream);
-
-  return oret;
-}
-
 /*
   Service: some stand-ins for string functions we need until they are
   implemented in a more comprehensive service.
@@ -3091,7 +2927,9 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::reopen_errstream,
 */
 
 /**
-  Wrapper for my_malloc(): Alloc (len+1) bytes.
+  Wrapper for my_malloc()
+
+  Alloc (len+1) bytes.
 
   @param len  length of string to copy
 */
@@ -3100,7 +2938,8 @@ DEFINE_METHOD(void *, log_builtins_string_imp::malloc, (size_t len)) {
 }
 
 /**
-  Wrapper for my_strndup():
+  Wrapper for my_strndup()
+
   Alloc (len+1) bytes, then copy len bytes from fm, and \0 terminate.
   Like my_strndup(), and unlike strndup(), \0 in input won't end copying.
 
@@ -3113,21 +2952,21 @@ DEFINE_METHOD(char *, log_builtins_string_imp::strndup,
 }
 
 /**
-  Wrapper for my_free(): free allocated memory.
+  Wrapper for my_free() - free allocated memory
 */
 DEFINE_METHOD(void, log_builtins_string_imp::free, (void *ptr)) {
   return my_free(ptr);
 }
 
 /**
-  Wrapper for strlen(): length of a nul-terminated byte string.
+  Wrapper for strlen() - length of a nul-terminated byte string
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::length, (const char *s)) {
   return strlen(s);
 }
 
 /**
-  Wrapper for strchr(): find character in string, from the left.
+  Wrapper for strchr() - find character in string, from the left
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
               (const char *s, int c)) {
@@ -3135,7 +2974,7 @@ DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
 }
 
 /**
-  Wrapper for strrchr(): find character in string, from the right.
+  Wrapper for strrchr() - find character in string, from the right
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_last,
               (const char *s, int c)) {
@@ -3143,7 +2982,7 @@ DEFINE_METHOD(char *, log_builtins_string_imp::find_last,
 }
 
 /**
-  Compare two NUL-terminated byte strings.
+  Compare two NUL-terminated byte strings
 
   Note that when comparing without length limit, the long string
   is greater if they're equal up to the length of the shorter
@@ -3171,7 +3010,7 @@ DEFINE_METHOD(int, log_builtins_string_imp::compare,
 }
 
 /**
-  Wrapper for vsnprintf():
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 
   @param  to    buffer to write the result to
@@ -3187,7 +3026,7 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitutev,
 }
 
 /**
-  Wrapper for vsnprintf():
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitute,
@@ -3218,9 +3057,8 @@ DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
     ret = vsnprintf(to, n, format, ap);
     va_end(ap);
 
-    push_warning(static_cast<THD *>(thd),
-                 static_cast<Sql_condition::enum_severity_level>(severity),
-                 code, to);
+    push_warning((THD *)thd, (Sql_condition::enum_severity_level)severity, code,
+                 to);
   }
 
   return ret;

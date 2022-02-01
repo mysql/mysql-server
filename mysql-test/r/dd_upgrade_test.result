@@ -474,26 +474,26 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
 BEGIN
   SELECT COUNT(*) INTO param1 FROM t;
-END	utf8mb3	utf8_general_ci	latin1_swedish_ci
+END	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_123;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_123	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_123`(OUT param1 INT)
     READS SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Procedure to test Upgrade'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb3	utf8_general_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_456;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_456`(OUT param1 INT)
     MODIFIES SQL DATA
     DETERMINISTIC
     COMMENT 'Procedure to test Upgrade 2'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb3	utf8_general_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8	utf8_general_ci	latin1_swedish_ci
 # Without fix, server start on 5.7 data directory above will fail.
 SHOW CREATE PROCEDURE sp.bug24805140;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
-begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8mb3	utf8_general_ci	latin1_swedish_ci
+begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8	utf8_general_ci	latin1_swedish_ci
 call sp.bug24805140();
 ERROR HY000: Failed to load routine 'sp.bug24805140'.
 SHOW WARNINGS;
@@ -504,11 +504,11 @@ SHOW CREATE FUNCTION sp.hello;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
     DETERMINISTIC
-RETURN CONCAT('Hello, ',s,'!')	utf8mb3	utf8_general_ci	latin1_swedish_ci
+RETURN CONCAT('Hello, ',s,'!')	utf8	utf8_general_ci	latin1_swedish_ci
 # Check for events
 SHOW CREATE EVENT events.e_totals;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8mb3	utf8_general_ci	latin1_swedish_ci
+e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
 # Check for fulltext index
 SHOW CREATE TABLE test.opening_lines;
 Table	Create Table
@@ -624,13 +624,13 @@ triggers	trg_t1_after_update	UPDATE	AFTER	1
 triggers	trg1	DELETE	AFTER	1
 SHOW CREATE TRIGGER triggers.trg_t1_after_insert_3;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg_t1_after_insert_3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg_t1_after_insert_3` AFTER INSERT ON `t1` FOR EACH ROW insert into t2 values('After Insert 3rd Trigger executed for t1')	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
+trg_t1_after_insert_3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg_t1_after_insert_3` AFTER INSERT ON `t1` FOR EACH ROW insert into t2 values('After Insert 3rd Trigger executed for t1')	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.trg1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'ÂÌÁÂÌÁÂÌÁ'	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'ÂÌÁÂÌÁÂÌÁ'	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER test.tr1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 tr1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `vt2` FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
@@ -749,7 +749,7 @@ tf	CREATE TABLE `tf` (
   CONSTRAINT `tf_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tf` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart on the upgraded data dir
-# restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=MYSQLD_DATADIR1
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)

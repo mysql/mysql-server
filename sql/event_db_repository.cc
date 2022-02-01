@@ -260,19 +260,13 @@ bool Event_db_repository::drop_schema_events(THD *thd,
                                              const dd::Schema &schema) {
   DBUG_TRACE;
 
-  std::vector<dd::String_type> event_names;
-  if (thd->dd_client()->fetch_schema_component_names<dd::Event>(&schema,
-                                                                &event_names))
-    return true;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  for (const dd::String_type &name : event_names) {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Event *event_obj = nullptr;
+  std::vector<const dd::Event *> events;
+  if (thd->dd_client()->fetch_schema_components(&schema, &events)) return true;
 
-    if (thd->dd_client()->acquire(schema.name(), name, &event_obj)) return true;
-
-    if (event_obj == nullptr || thd->dd_client()->drop(event_obj)) {
-      assert(event_obj != nullptr);
+  for (const dd::Event *event_obj : events) {
+    if (thd->dd_client()->drop(event_obj)) {
       my_error(ER_SP_DROP_FAILED, MYF(0), "Drop failed for Event: %s",
                event_obj->name().c_str());
       return true;

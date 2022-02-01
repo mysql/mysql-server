@@ -60,8 +60,8 @@ void btr_search_enable();
 
 /** Returns search info for an index.
  @return search info; search mutex reserved */
-static inline btr_search_t *btr_search_get_info(
-    dict_index_t *index); /*!< in: index */
+UNIV_INLINE
+btr_search_t *btr_search_get_info(dict_index_t *index); /*!< in: index */
 
 /** Creates and initializes a search info struct.
 @param[in]	heap		heap where created.
@@ -78,8 +78,8 @@ ulint btr_search_info_get_ref_count(const btr_search_t *info,
 /** Updates the search info.
 @param[in]	index	index of the cursor
 @param[in]	cursor	cursor which was just positioned */
-static inline void btr_search_info_update(dict_index_t *index,
-                                          btr_cur_t *cursor);
+UNIV_INLINE
+void btr_search_info_update(dict_index_t *index, btr_cur_t *cursor);
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
@@ -164,64 +164,70 @@ void btr_search_update_hash_on_delete(btr_cur_t *cursor);
 bool btr_search_validate();
 
 /** X-Lock the search latch (corresponding to given index)
-@param[in]	index	index handler
-@param[in] location source location */
-static inline void btr_search_x_lock(const dict_index_t *index,
-                                     ut::Location location);
+@param[in]	index	index handler */
+UNIV_INLINE
+void btr_search_x_lock(const dict_index_t *index);
 
 /** X-Unlock the search latch (corresponding to given index)
 @param[in]	index	index handler */
-static inline void btr_search_x_unlock(const dict_index_t *index);
+UNIV_INLINE
+void btr_search_x_unlock(const dict_index_t *index);
 
-/** Lock all search latches in exclusive mode.
-@param[in] location source location */
-static inline void btr_search_x_lock_all(ut::Location location);
+/** Lock all search latches in exclusive mode. */
+UNIV_INLINE
+void btr_search_x_lock_all();
 
 /** Unlock all search latches from exclusive mode. */
-static inline void btr_search_x_unlock_all();
+UNIV_INLINE
+void btr_search_x_unlock_all();
 
 /** S-Lock the search latch (corresponding to given index)
-@param[in]	index	index handler
-@param[in] location source location */
-static inline void btr_search_s_lock(const dict_index_t *index,
-                                     ut::Location location);
+@param[in]	index	index handler */
+UNIV_INLINE
+void btr_search_s_lock(const dict_index_t *index);
 
 /** S-Unlock the search latch (corresponding to given index)
 @param[in]	index	index handler */
-static inline void btr_search_s_unlock(const dict_index_t *index);
+UNIV_INLINE
+void btr_search_s_unlock(const dict_index_t *index);
 
-/** Lock all search latches in shared mode.
-@param[in] location source location */
-static inline void btr_search_s_lock_all(ut::Location location);
+/** Lock all search latches in shared mode. */
+UNIV_INLINE
+void btr_search_s_lock_all();
 
 #ifdef UNIV_DEBUG
 /** Check if thread owns all the search latches.
 @param[in]	mode	lock mode check
 @retval true if owns all of them
 @retval false if does not own some of them */
-static inline bool btr_search_own_all(ulint mode);
+UNIV_INLINE
+bool btr_search_own_all(ulint mode);
 
 /** Check if thread owns any of the search latches.
 @param[in]	mode	lock mode check
 @retval true if owns any of them
 @retval false if owns no search latch */
-static inline bool btr_search_own_any(ulint mode);
+UNIV_INLINE
+bool btr_search_own_any(ulint mode);
 #endif /* UNIV_DEBUG */
 
 /** Unlock all search latches from shared mode. */
-static inline void btr_search_s_unlock_all();
+UNIV_INLINE
+void btr_search_s_unlock_all();
 
 /** Get the latch based on index attributes.
 A latch is selected from an array of latches using pair of index-id, space-id.
 @param[in]	index	index handler
 @return latch */
-static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index);
+UNIV_INLINE
+rw_lock_t *btr_get_search_latch(const dict_index_t *index);
 
 /** Get the hash-table based on index attributes.
 A table is selected from an array of tables using pair of index-id, space-id.
 @param[in]	index	index handler
 @return hash table */
-static inline hash_table_t *btr_get_search_table(const dict_index_t *index);
+UNIV_INLINE
+hash_table_t *btr_get_search_table(const dict_index_t *index);
 
 /** The search info struct in an index */
 struct btr_search_t {
@@ -253,15 +259,16 @@ struct btr_search_t {
   the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
   /** @} */
   /**---------------------- @{ */
-  /** recommended prefix length for hash search: number of full fields */
-  ulint n_fields;
-  /** recommended prefix: number of bytes in an incomplete field
-  @see BTR_PAGE_MAX_REC_SIZE */
-  ulint n_bytes;
-  /** true or false, depending on whether the leftmost record of several records
-  with the same prefix should be indexed in the hash index */
-  bool left_side;
-  /*---------------------- @} */
+  ulint n_fields;  /*!< recommended prefix length for hash search:
+                   number of full fields */
+  ulint n_bytes;   /*!< recommended prefix: number of bytes in
+                   an incomplete field
+                   @see BTR_PAGE_MAX_REC_SIZE */
+  ibool left_side; /*!< TRUE or FALSE, depending on whether
+                   the leftmost record of several records with
+                   the same prefix should be indexed in the
+                   hash index */
+                   /*---------------------- @} */
 #ifdef UNIV_SEARCH_PERF_STAT
   ulint n_hash_succ; /*!< number of successful hash searches thus
                      far */

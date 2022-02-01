@@ -94,9 +94,7 @@ static void mock_dd_obj(dd::Column_type_element *cte) {
 
 static void mock_dd_obj(dd::Column *c) {
   static dd::Object_id curid = 10000;
-  dd::Entity_object_impl *object_impl =
-      dynamic_cast<dd::Entity_object_impl *>(c);
-  object_impl->set_id(curid++);
+  dynamic_cast<dd::Entity_object_impl *>(c)->set_id(curid++);
   c->set_type(dd::enum_column_types::ENUM);
   c->set_char_length(42);
   c->set_numeric_precision(42);
@@ -143,9 +141,7 @@ static void mock_dd_obj(dd::Index_element *ie) {
 
 static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   static dd::Object_id curid = 10000;
-  dd::Entity_object_impl *object_impl =
-      dynamic_cast<dd::Entity_object_impl *>(i);
-  object_impl->set_id(curid++);
+  dynamic_cast<dd::Entity_object_impl *>(i)->set_id(curid++);
   i->set_comment("mocked index comment");
   mock_properties(i->options(), FANOUT);
   mock_properties(i->se_private_data(), FANOUT);
@@ -246,7 +242,7 @@ class SdiTest : public ::testing::Test {
 
   void TearDown() override {}
 
-  SdiTest() = default;
+  SdiTest() {}
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(SdiTest);
@@ -341,7 +337,8 @@ TEST(SdiTest, Column_statistics) {
   std::unique_ptr<dd::Column_statistics> dd_obj(
       dd::create_object<dd::Column_statistics>());
 
-  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
+  MEM_ROOT mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
 
   mock_column_statistics_obj(dd_obj.get(), &mem_root);
 
@@ -359,7 +356,7 @@ TEST(SdiTest, Column_statistics) {
   EXPECT_TRUE(dd_obj.get()->schema_name() == deserialized.get()->schema_name());
   EXPECT_TRUE(dd_obj.get()->table_name() == deserialized.get()->table_name());
   EXPECT_TRUE(dd_obj.get()->column_name() == deserialized.get()->column_name());
-  mem_root.Clear();
+  free_root(&mem_root, MYF(0));
 }
 
 TEST(SdiTest, Index_element) { simple_test<dd::Index_element>(); }

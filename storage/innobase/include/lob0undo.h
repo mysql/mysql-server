@@ -111,8 +111,7 @@ struct undo_seq_t {
   @param[in]	u1	the undo log record information. */
   void push_back(undo_data_t &u1) {
     if (m_undo_list == nullptr) {
-      m_undo_list =
-          ut::new_withkey<std::list<undo_data_t>>(UT_NEW_THIS_FILE_PSI_KEY);
+      m_undo_list = UT_NEW_NOKEY(std::list<undo_data_t>());
     }
     m_undo_list->push_back(u1);
   }
@@ -123,7 +122,7 @@ struct undo_seq_t {
       std::for_each(m_undo_list->begin(), m_undo_list->end(),
                     [](undo_data_t &obj) { obj.destroy(); });
       m_undo_list->clear();
-      ut::delete_(m_undo_list);
+      UT_DELETE(m_undo_list);
       m_undo_list = nullptr;
     }
   }
@@ -168,8 +167,7 @@ struct undo_vers_t {
   @return the undo sequence object. */
   undo_seq_t *get_undo_sequence(ulint field_no) {
     if (m_versions == nullptr) {
-      m_versions =
-          ut::new_withkey<std::list<undo_seq_t *>>(UT_NEW_THIS_FILE_PSI_KEY);
+      m_versions = UT_NEW_NOKEY(std::list<undo_seq_t *>());
     } else {
       for (auto iter = m_versions->begin(); iter != m_versions->end(); ++iter) {
         if ((*iter)->get_field_no() == field_no) {
@@ -178,8 +176,7 @@ struct undo_vers_t {
       }
     }
 
-    undo_seq_t *seq =
-        ut::new_withkey<undo_seq_t>(UT_NEW_THIS_FILE_PSI_KEY, field_no);
+    undo_seq_t *seq = UT_NEW_NOKEY(undo_seq_t(field_no));
     m_versions->push_back(seq);
 
     return (seq);
@@ -190,7 +187,7 @@ struct undo_vers_t {
     if (m_versions != nullptr) {
       for (auto iter = m_versions->begin(); iter != m_versions->end(); ++iter) {
         (*iter)->destroy();
-        ut::delete_(*iter);
+        UT_DELETE(*iter);
       }
       m_versions->clear();
     }
@@ -216,7 +213,7 @@ struct undo_vers_t {
   void destroy() {
     if (m_versions != nullptr) {
       reset();
-      ut::delete_(m_versions);
+      UT_DELETE(m_versions);
       m_versions = nullptr;
     }
   }

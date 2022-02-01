@@ -32,22 +32,24 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Get the first node in the list.
  @return first node, or NULL */
-static inline ib_list_node_t *ib_list_get_first(
-    ib_list_t *list) /*!< in: list */
+UNIV_INLINE
+ib_list_node_t *ib_list_get_first(ib_list_t *list) /*!< in: list */
 {
   return (list->first);
 }
 
 /** Get the last node in the list.
  @return last node, or NULL */
-static inline ib_list_node_t *ib_list_get_last(ib_list_t *list) /*!< in: list */
+UNIV_INLINE
+ib_list_node_t *ib_list_get_last(ib_list_t *list) /*!< in: list */
 {
   return (list->last);
 }
 
 /********************************************************************
 Check if list is empty. */
-static inline ibool ib_list_is_empty(
+UNIV_INLINE
+ibool ib_list_is_empty(
     /* out: TRUE if empty else FALSE */
     const ib_list_t *list) /* in: list */
 {

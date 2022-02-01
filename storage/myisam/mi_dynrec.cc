@@ -1144,7 +1144,7 @@ err:
   DBUG_PRINT("error", ("to_end: %p -> %p  from_end: %p -> %p", to, to_end, from,
                        from_end));
   DBUG_DUMP("from", (uchar *)info->rec_buff, info->s->base.min_pack_length);
-  return static_cast<ulong>(-1);
+  return MY_FILE_ERROR;
 } /* _mi_rec_unpack */
 
 /* Calc length of blob. Update info in blobs->length */

@@ -26,58 +26,36 @@
 /**
   @file include/mutex_lock.h
 */
+
 #include <mysql/psi/mysql_mutex.h>
-#include <utility>
 
 /**
   A simple wrapper around a mutex:
   Grabs the mutex in the CTOR, releases it in the DTOR.
   The mutex may be NULL, in which case this is a no-op.
-  Templated to allow unit testing with mocked mutex. Not copyable since
-  ownership of a mutex cannot be shared, but movable so that ownership can be
-  transferred to a different Mutex_lock.
 */
-template <class MUTEX>
-class Generic_mutex_lock {
+class Mutex_lock {
  public:
-  Generic_mutex_lock() noexcept = default;
-  Generic_mutex_lock(MUTEX *mutex, const char *src_file, int src_line) noexcept
+  explicit Mutex_lock(mysql_mutex_t *mutex, const char *src_file, int src_line)
       : m_mutex(mutex), m_src_file(src_file), m_src_line(src_line) {
     if (m_mutex) {
       mysql_mutex_lock_with_src(m_mutex, m_src_file, m_src_line);
     }
   }
-  ~Generic_mutex_lock() noexcept {
+  ~Mutex_lock() {
     if (m_mutex) {
       mysql_mutex_unlock_with_src(m_mutex, m_src_file, m_src_line);
     }
   }
-  Generic_mutex_lock(const Generic_mutex_lock &) = delete;
-  Generic_mutex_lock(Generic_mutex_lock &&src) noexcept
-      : m_mutex{src.m_mutex},
-        m_src_file{src.m_src_file},
-        m_src_line{src.m_src_line} {
-    src.m_mutex = nullptr;
-    src.m_src_file = nullptr;
-    src.m_src_line = 0;
-  }
-
-  Generic_mutex_lock &operator=(const Generic_mutex_lock &) = delete;
-  Generic_mutex_lock &operator=(Generic_mutex_lock &&src) noexcept {
-    Generic_mutex_lock tmp{std::move(src)};
-    std::swap(m_mutex, tmp.m_mutex);
-    m_src_file = tmp.m_src_file;
-    m_src_line = tmp.m_src_line;
-    return *this;
-  }
 
  private:
-  MUTEX *m_mutex = nullptr;
-  const char *m_src_file = nullptr;
-  int m_src_line = 0;
-};
+  mysql_mutex_t *m_mutex;
+  const char *m_src_file;
+  int m_src_line;
 
-using Mutex_lock = Generic_mutex_lock<mysql_mutex_t>;
+  Mutex_lock(const Mutex_lock &);     /* Not copyable. */
+  void operator=(const Mutex_lock &); /* Not assignable. */
+};
 
 #define MUTEX_LOCK(NAME, X) Mutex_lock NAME(X, __FILE__, __LINE__)
 

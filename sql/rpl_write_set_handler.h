@@ -48,6 +48,6 @@ const char *get_write_set_algorithm_string(unsigned int algorithm);
 
   @return true if an issues exists adding the pke, false otherwise
 */
-bool add_pke(TABLE *table, THD *thd, const uchar *record);
+bool add_pke(TABLE *table, THD *thd, uchar *record);
 
 #endif

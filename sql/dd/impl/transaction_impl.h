@@ -61,7 +61,7 @@
 #include "sql/sql_class.h"  // THD::killed_state
 #include "thr_lock.h"
 
-class Query_tables_list;
+struct LEX;
 
 namespace dd {
 
@@ -163,7 +163,7 @@ class Update_dictionary_tables_ctx {
 
   DD_kill_immunizer m_kill_immunizer;
 
-  Query_tables_list *m_query_tables_list_backup;
+  LEX *m_lex_saved;
 
   // Stores state before DD operations
   Open_tables_backup m_open_tables_state_backup;

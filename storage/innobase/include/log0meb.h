@@ -53,9 +53,9 @@ extern char *redo_log_archive_dirs;
   @param[in]	value     incoming string
   @return 0 for valid contents
 */
-int validate_redo_log_archive_dirs(THD *thd [[maybe_unused]],
-                                   SYS_VAR *var [[maybe_unused]], void *save,
-                                   st_mysql_value *value);
+int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
+                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                   void *save, st_mysql_value *value);
 
 /**
   Initialize redo log archiving.

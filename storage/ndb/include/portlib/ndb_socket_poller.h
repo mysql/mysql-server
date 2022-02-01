@@ -27,7 +27,6 @@
 
 #include <portlib/NdbTick.h>
 
-
 /*
   Portability layer used for waiting on socket events
 */
@@ -51,23 +50,19 @@ class ndb_socket_poller {
   // Utility functions for dynamically expanding the fd_set
   // on Windows to get around the hardcoded FD_SETSIZE limit.
   static bool
-  set_max_count(fd_set** set, fd_set* static_set, unsigned count) {
-    void* ptr = malloc(sizeof(fd_set) + (count-1)*sizeof(SOCKET));
+  set_max_count(fd_set* set, fd_set* static_set, unsigned count) {
+    void* ptr = malloc(sizeof(fd_set) + count-1*sizeof(SOCKET));
     if (!ptr)
       return false;
-    if (*set != static_set)
-      free(*set);
-    *set = (fd_set*)ptr;
-    clear(*set);
+    if (set != static_set)
+      free(set);
+    set = (fd_set*)ptr;
+    clear(set);
     return true;
   }
 
   static void
-  set_fd(fd_set* set, SOCKET s, unsigned max_count) {
-    // Make sure that no of socket in fd_set does not
-    // exceed the max socket set in set_max_count()
-    if (max_count <= set->fd_count)
-      assert(false);
+  set_fd(fd_set* set, SOCKET s) {
     // Avoid use of FD_SET since it silently drop
     // sockets when FD_SETSIZE fd_count is reached
     set->fd_array[set->fd_count++] = s;
@@ -154,9 +149,9 @@ public:
     if (count > FD_SETSIZE)
     {
       // Expand the arrays above the builtin FD_SETSIZE
-      if (!set_max_count(&m_read_set, &m_one_read_set, count) ||
-          !set_max_count(&m_write_set, &m_one_write_set, count) ||
-          !set_max_count(&m_excp_set, &m_one_excp_set, count))
+      if (!set_max_count(m_read_set, &m_one_read_set, count) ||
+          !set_max_count(m_write_set, &m_one_write_set, count) ||
+          !set_max_count(m_excp_set, &m_one_excp_set, count))
         return false;
     }
 #endif
@@ -191,20 +186,20 @@ public:
 #else
 #if defined(_WIN32)
     if (read)
-      set_fd(m_read_set, ndb_socket_get_native(sock), m_max_count);
+      set_fd(m_read_set, ndb_socket_get_native(sock));
     if (write)
-      set_fd(m_write_set, ndb_socket_get_native(sock), m_max_count);
+      set_fd(m_write_set, ndb_socket_get_native(sock));
     if (error)
-      set_fd(m_excp_set, ndb_socket_get_native(sock), m_max_count);
+      set_fd(m_excp_set, ndb_socket_get_native(sock));
     // Not counting nfds on Windows since select ignores it anyway
     assert(m_nfds == 0);
 #else
     int fd = ndb_socket_get_native(sock);
     if (fd < 0 || fd >= FD_SETSIZE)
     {
-      g_eventLogger->info(
-          "Maximum value for FD_SETSIZE: %d exceeded when trying to add fd: %d",
-          FD_SETSIZE, fd);
+      fprintf(stderr, "Maximum value for FD_SETSIZE: %d exceeded when"
+        "trying to add fd: %d", FD_SETSIZE, fd);
+      fflush(stderr);
       abort();
     }
     if (read)
@@ -311,8 +306,8 @@ public:
         if (timeout <= 0)
           return 0; // Timeout occurred
 
-        //g_eventLogger->info("Got interrupted, retrying... timeout left: %d",
-        //                    timeout_millis);
+        //fprintf(stderr, "Got interrupted, retrying... timeout left: %d\n",
+        //        timeout_millis);
 
         continue; // Retry interrupted poll
       }

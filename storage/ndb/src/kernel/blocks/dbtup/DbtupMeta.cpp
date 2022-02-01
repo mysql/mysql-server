@@ -26,7 +26,6 @@
 #define DBTUP_C
 #define DBTUP_META_CPP
 #include "Dbtup.hpp"
-#include <cstring>
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
@@ -57,6 +56,7 @@
 
 #define JAM_FILE_ID 424
 
+extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_DISK 1
@@ -105,8 +105,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   if (regTabPtr.p->tableStatus != NOT_DEFINED)
   {
     jam();
-    g_eventLogger->info("regTabPtr.p->tableStatus : %u",
-                        regTabPtr.p->tableStatus);
+    ndbout_c("regTabPtr.p->tableStatus : %u", regTabPtr.p->tableStatus);
     terrorCode = CreateTableRef::TableAlreadyExist;
     goto sendref;
   }
@@ -121,7 +120,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   seizeFragoperrec(fragOperPtr);
   fragOperPtr.p->tableidFrag = regTabPtr.i;
   fragOperPtr.p->attributeCount = req->noOfAttributes;
-  std::memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
+  memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
   fragOperPtr.p->charsetIndex = 0;
   fragOperPtr.p->lqhBlockrefFrag = req->senderRef;
   fragOperPtr.p->m_extra_row_gci_bits =
@@ -238,8 +237,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   Uint32 attrDescriptor = signal->theData[3];
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
-
-  ndbrequire(csNumber < NDB_ARRAY_SIZE(all_charsets));
 
   regTabPtr.i= fragOperPtr.p->tableidFrag;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
@@ -848,7 +845,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
   CreateFilegroupImplReq rep;
-  std::memset(&rep, 0, sizeof(rep));
+  bzero(&rep,sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     {
@@ -1122,10 +1119,9 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
         case Fragrecord::FS_REORG_COMMIT_NEW:
           jam();
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_REORG_COMMIT_NEW", "FS_REORG_COMPLETE_NEW");
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMMIT_NEW", "FS_REORG_COMPLETE_NEW");
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE_NEW;
           break;
         default:
@@ -1152,10 +1148,10 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
         case Fragrecord::FS_REORG_COMMIT:
           jam();
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s (gci: %u)",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_REORG_COMMIT", "FS_REORG_COMPLETE", gci);
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s (gci: %u)",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMMIT", "FS_REORG_COMPLETE",
+                   gci);
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE;
           break;
         default:
@@ -1434,19 +1430,17 @@ Dbtup::handleAlterTableCommit(Signal *signal,
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT;
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_ONLINE", "FS_REORG_COMMIT");
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_ONLINE", "FS_REORG_COMMIT");
           break;
         case Fragrecord::FS_REORG_NEW:
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT_NEW;
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_REORG_NEW", "FS_REORG_COMMIT_NEW");
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_NEW", "FS_REORG_COMMIT_NEW");
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
@@ -1478,19 +1472,17 @@ Dbtup::handleAlterTableComplete(Signal *signal,
         case Fragrecord::FS_REORG_COMPLETE:
           jam();
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_REORG_COMPLETE", "FS_ONLINE");
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMPLETE", "FS_ONLINE");
           regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
           break;
         case Fragrecord::FS_REORG_COMPLETE_NEW:
           jam();
           if (0)
-            g_eventLogger->info(
-                "tab: %u frag: %u toggle fragstate from %s to %s",
-                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                "FS_REORG_COMPLETE_NEW", "FS_ONLINE");
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMPLETE_NEW", "FS_ONLINE");
           regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
           break;
         default:
@@ -1669,8 +1661,8 @@ Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
   regTabPtr->notNullAttributeMask.clear();
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
-    std::memset(regTabPtr->dynVarSizeMask[i], 0, dyn_null_words[i]<<2);
-    std::memset(regTabPtr->dynFixSizeMask[i], 0, dyn_null_words[i]<<2);
+    bzero(regTabPtr->dynVarSizeMask[i], dyn_null_words[i]<<2);
+    bzero(regTabPtr->dynFixSizeMask[i], dyn_null_words[i]<<2);
   }
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)

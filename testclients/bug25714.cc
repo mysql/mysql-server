@@ -30,7 +30,7 @@
 
 int main(int argc, char **argv) {
   MYSQL conn;
-  int OK [[maybe_unused]];
+  int OK MY_ATTRIBUTE((unused));
 
   const char *query4 = "INSERT INTO federated.t1 SET Value=54";
   const char *query5 = "INSERT INTO federated.t1 SET Value=55";

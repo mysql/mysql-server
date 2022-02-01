@@ -199,7 +199,7 @@ inline size_t Cell_calculator::hash(const Cell &cell) const {
         std::min(static_cast<size_t>(data_length),
                  my_charpos(m_cs, data, data + data_length, m_char_length));
   } else {
-    my_abort();
+    abort();
   }
 
   /* If the field is space padded but collation do not want to use
@@ -264,7 +264,7 @@ inline int Cell_calculator::compare(const Cell &lhs, const Cell &rhs) const {
         static_cast<size_t>(rhs_data_length),
         my_charpos(m_cs, rhs_data, rhs_data + rhs_data_length, m_char_length));
   } else {
-    my_abort();
+    abort();
   }
 
   /* If the field is space padded but collation do not want to use

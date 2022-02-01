@@ -305,32 +305,6 @@ class MDL_checker {
                         enum_mdl_type lock_type) {
     if (!column_statistics) return true; /* purecov: deadcode */
 
-    // Take l_c_t_n into account when constructing the MDL key for table.
-    char schema_name_buf[NAME_LEN + 1];
-    char table_name_buf[NAME_LEN + 1];
-    const char *schema_name = dd::Object_table_definition_impl::fs_name_case(
-        column_statistics->schema_name(), schema_name_buf);
-    const char *table_name = dd::Object_table_definition_impl::fs_name_case(
-        column_statistics->table_name(), table_name_buf);
-
-    /*
-      We don't require any column statistics MDL if thread owns exclusive
-      lock on the table. This allows to save on column statistics MDL in
-      cases like DROP DATABASE that would have required acquiring lots of
-      such locks in extreme cases otherwise.
-
-      In order to be able to do this we have to enforce that thread which
-      acquires locks on statistics for table's column also needs to have
-      at least shared MDL on the table.
-    */
-    if (thd->mdl_context.owns_equal_or_stronger_lock(
-            MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE))
-      return true;
-
-    if (!thd->mdl_context.owns_equal_or_stronger_lock(
-            MDL_key::TABLE, schema_name, table_name, MDL_SHARED))
-      return false;
-
     MDL_key mdl_key;
     column_statistics->create_mdl_key(&mdl_key);
 
@@ -1148,7 +1122,7 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T **object) {
 
 // Retrieve an object by its object id without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached_impl(Object_id id, T **object) {
+bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
   const typename T::Id_key key(id);
   const typename T::Cache_partition *stored_object = nullptr;
 
@@ -1166,35 +1140,19 @@ bool Dictionary_client::acquire_uncached_impl(Object_id id, T **object) {
     *object = const_cast<T *>(dynamic_cast<const T *>(stored_object));
 
     // Delete the object if dynamic cast fails.
-    // Otherwise, it is caller's responsibility to manage returned object
-    // lifetime, for example, by registering it for auto-deletion.
-    if (stored_object && !*object) delete stored_object;
+    if (stored_object && !*object)
+      delete stored_object;
+    else
+      auto_delete<T>(*object);
   } else
     assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
 
-template <typename T>
-bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
-  if (acquire_uncached_impl(id, object)) return true;
-  if (*object != nullptr) auto_delete<T>(*object);
-  return false;
-}
-
-template <typename T>
-bool Dictionary_client::acquire_uncached(Object_id id,
-                                         std::unique_ptr<T> *object_ptr) {
-  T *object;
-  if (acquire_uncached_impl(id, &object)) return true;
-  object_ptr->reset(object);
-  return false;
-}
-
 // Retrieve an object by its object id without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached_uncommitted_impl(Object_id id,
-                                                          T **object) {
+bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
   const typename T::Id_key key(id);
   assert(object);
 
@@ -1215,11 +1173,11 @@ bool Dictionary_client::acquire_uncached_uncommitted_impl(Object_id id,
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return, but in this
     // case, we cannot delete the stored_object since it is present
-    // in the uncommitted registry.
-    // It is caller's responsibility to manage life time of the returned
-    // object e.g. by registering it for auto-deletion.
+    // in the uncommitted registry. The returned object, however,
+    // must be auto deleted.
     *object =
         const_cast<T *>(dynamic_cast<const T *>(uncommitted_object->clone()));
+    if (*object != nullptr) auto_delete<T>(*object);
     return false;
   }
 
@@ -1231,30 +1189,15 @@ bool Dictionary_client::acquire_uncached_uncommitted_impl(Object_id id,
   if (!error) {
     // Here, stored_object is a newly created instance, so we do not need to
     // clone() it, but we must delete it if dynamic cast fails.
-    // Otherwise, it is caller's responsibility to manage returned object
-    // lifetime, for example, by registering it for auto-deletion.
     *object = const_cast<T *>(dynamic_cast<const T *>(stored_object));
-    if (stored_object && !*object) delete stored_object;
+    if (stored_object && !*object)
+      delete stored_object;
+    else
+      auto_delete<T>(*object);
   } else
     assert(m_thd->is_error() || m_thd->killed);
 
   return error;
-}
-
-template <typename T>
-bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
-  if (acquire_uncached_uncommitted_impl(id, object)) return true;
-  if (*object != nullptr) auto_delete<T>(*object);
-  return false;
-}
-
-template <typename T>
-bool Dictionary_client::acquire_uncached_uncommitted(
-    Object_id id, std::unique_ptr<T> *object_ptr) {
-  T *object;
-  if (acquire_uncached_uncommitted_impl(id, &object)) return true;
-  object_ptr->reset(object);
-  return false;
 }
 
 // Retrieve an object by its name.
@@ -2078,30 +2021,6 @@ bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
       m_thd, schema, names, fetch_criteria);
 }
 
-template <>
-bool Dictionary_client::fetch_schema_component_names<Procedure>(
-    const Schema *schema, std::vector<String_type> *names) const {
-  auto fetch_criteria = [&](Raw_record *r) {
-    return static_cast<dd::Routine::enum_routine_type>(
-               r->read_int(dd::tables::Routines::FIELD_TYPE)) ==
-           dd::Routine::RT_PROCEDURE;  // Select only PROCEDUREs.
-  };
-  return fetch_schema_component_names_by_criteria<Routine>(m_thd, schema, names,
-                                                           fetch_criteria);
-}
-
-template <>
-bool Dictionary_client::fetch_schema_component_names<Function>(
-    const Schema *schema, std::vector<String_type> *names) const {
-  auto fetch_criteria = [&](Raw_record *r) {
-    return static_cast<dd::Routine::enum_routine_type>(
-               r->read_int(dd::tables::Routines::FIELD_TYPE)) ==
-           dd::Routine::RT_FUNCTION;  // Select only FUNCTIONs.
-  };
-  return fetch_schema_component_names_by_criteria<Routine>(m_thd, schema, names,
-                                                           fetch_criteria);
-}
-
 // Fetch the names of object type T that belong to schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
@@ -2523,14 +2442,11 @@ bool Dictionary_client::drop(const T *object) {
     return true;
   }
 
-  // Prepare an object placeholder to be added to the dropped registry.
-  // This must be done prior to cleaning up the committed registry since
-  // the instance we drop might be present there (since we are allowed to
-  // drop const object coming from acquire()).
-  // We use placeholder instead of simple clone of the original object in
-  // order to avoid consuming too much memory in cases when we need to drop
-  // many (thousands or more) objects within the single atomic operation.
-  T *dropped_object = object->clone_dropped_object_placeholder();
+  // Prepare an instance to be added to the dropped registry. This must be done
+  // prior to cleaning up the committed registry since the instance we drop
+  // might be present there (since we are allowed to drop const object coming
+  // from acquire()).
+  T *dropped_object = object->clone();
 
   // Invalidate the entry in the shared cache (if present).
   invalidate(object);
@@ -3067,8 +2983,6 @@ template bool Dictionary_client::acquire_for_modification(Object_id, Schema **);
 template bool Dictionary_client::acquire_uncached(Object_id, Schema **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               Schema **);
-template bool Dictionary_client::acquire_uncached_uncommitted(
-    Object_id, std::unique_ptr<Schema> *);
 template bool Dictionary_client::acquire_for_modification(const String_type &,
                                                           Schema **);
 template void Dictionary_client::remove_uncommitted_objects<Schema>(bool);
@@ -3117,8 +3031,6 @@ template bool Dictionary_client::store(Table *);
 template bool Dictionary_client::update(Table *);
 
 template bool Dictionary_client::acquire_uncached(Object_id, Tablespace **);
-template bool Dictionary_client::acquire_uncached(
-    Object_id, std::unique_ptr<Tablespace> *);
 template bool Dictionary_client::acquire(const String_type &,
                                          const Tablespace **);
 template bool Dictionary_client::acquire_for_modification(const String_type &,
@@ -3126,8 +3038,6 @@ template bool Dictionary_client::acquire_for_modification(const String_type &,
 template bool Dictionary_client::acquire(Object_id, const Tablespace **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               Tablespace **);
-template bool Dictionary_client::acquire_uncached_uncommitted(
-    Object_id, std::unique_ptr<Tablespace> *);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Tablespace **);
 template void Dictionary_client::remove_uncommitted_objects<Tablespace>(bool);
@@ -3139,8 +3049,6 @@ template void Dictionary_client::dump<Tablespace>() const;
 template bool Dictionary_client::acquire_uncached(Object_id, View **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               View **);
-template bool Dictionary_client::acquire_uncached_uncommitted(
-    Object_id, std::unique_ptr<View> *);
 template bool Dictionary_client::acquire(Object_id, const View **);
 template bool Dictionary_client::acquire_for_modification(Object_id, View **);
 template bool Dictionary_client::acquire(const String_type &,

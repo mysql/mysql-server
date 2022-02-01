@@ -918,7 +918,7 @@ static void uf_zerofill_normal(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 }
 
 static void uf_constant(MI_COLUMNDEF *rec,
-                        MI_BIT_BUFF *bit_buff [[maybe_unused]], uchar *to,
+                        MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)), uchar *to,
                         uchar *end) {
   memcpy(to, rec->huff_tree->intervalls, (size_t)(end - to));
 }
@@ -933,8 +933,8 @@ static void uf_intervall(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 /*ARGSUSED*/
-static void uf_zero(MI_COLUMNDEF *rec [[maybe_unused]],
-                    MI_BIT_BUFF *bit_buff [[maybe_unused]], uchar *to,
+static void uf_zero(MI_COLUMNDEF *rec MY_ATTRIBUTE((unused)),
+                    MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)), uchar *to,
                     uchar *end) {
   memset(to, 0, (end - to));
 }
@@ -960,7 +960,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
-                        uchar *end [[maybe_unused]]) {
+                        uchar *end MY_ATTRIBUTE((unused))) {
   if (get_bit(bit_buff))
     to[0] = 0; /* Zero lengths */
   else {
@@ -971,7 +971,7 @@ static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
-                        uchar *end [[maybe_unused]]) {
+                        uchar *end MY_ATTRIBUTE((unused))) {
   if (get_bit(bit_buff))
     to[0] = to[1] = 0; /* Zero lengths */
   else {
@@ -1430,10 +1430,9 @@ static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos,
 }
 
 /*ARGSUSED*/
-static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
-                                       my_off_t filepos,
-                                       bool skip_deleted_blocks
-                                       [[maybe_unused]]) {
+static int _mi_read_rnd_mempack_record(
+    MI_INFO *info, uchar *buf, my_off_t filepos,
+    bool skip_deleted_blocks MY_ATTRIBUTE((unused))) {
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share = info->s;
   uchar *pos, *start;

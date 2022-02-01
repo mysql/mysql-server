@@ -29,13 +29,12 @@
 class Rpl_async_conn_failover_add_managed : public Udf_service_impl {
  private:
   Udf_charset_service m_charset_service;
-  static constexpr const char *m_udf_name =
-      "asynchronous_connection_failover_add_managed";
+  static const std::string m_udf_name;
   bool m_initialized{false};
 
  public:
-  Rpl_async_conn_failover_add_managed() = default;
-  ~Rpl_async_conn_failover_add_managed() override = default;
+  Rpl_async_conn_failover_add_managed() {}
+  ~Rpl_async_conn_failover_add_managed() override {}
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the

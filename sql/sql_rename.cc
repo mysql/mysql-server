@@ -820,8 +820,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
 
       break;
     }
-    case dd::enum_table_type::SYSTEM_VIEW:
-      [[fallthrough]];
+    case dd::enum_table_type::SYSTEM_VIEW:  // Fall through
     case dd::enum_table_type::USER_VIEW: {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db)) {

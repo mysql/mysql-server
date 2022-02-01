@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <algorithm>
 #include <memory>
 #include <string>
 #include "include/my_rnd.h"

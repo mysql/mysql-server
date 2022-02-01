@@ -320,8 +320,7 @@ void Client::handle_message(ngs::Message_request *request) {
           s->handle_message(*request);
         }
         break;
-      }
-      [[fallthrough]];
+      }  // Fall through.
 
     default:
       // invalid message at this time
@@ -421,7 +420,7 @@ void Client::on_client_addr() {
     } break;
 
     case xpl::Connection_namedpipe:
-    case xpl::Connection_unixsocket:
+    case xpl::Connection_unixsocket:  // fall through
       m_client_host = "localhost";
       return;
 
@@ -512,7 +511,7 @@ void Client::on_session_auth_success(xpl::iface::Session *) {
   }
 }
 
-void Client::on_session_close(xpl::iface::Session *s [[maybe_unused]]) {
+void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
   log_debug("%s: Session %i removed", client_id(), s->session_id());
 
   // no more open sessions, disconnect
@@ -520,7 +519,7 @@ void Client::on_session_close(xpl::iface::Session *s [[maybe_unused]]) {
   remove_client_from_server();
 }
 
-void Client::on_session_reset(xpl::iface::Session *s [[maybe_unused]]) {
+void Client::on_session_reset(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
   log_debug("%s: Resetting session %i", client_id(), s->session_id());
 
   if (!create_session()) {

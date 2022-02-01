@@ -45,7 +45,7 @@ class RelTabMemReq {
   friend class Dbtc;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
 private:
   Uint32 userPtr;
@@ -69,7 +69,7 @@ class RelTabMemConf {
   friend class Dbtc;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
 private:
   Uint32 userPtr;

@@ -112,7 +112,7 @@ struct NodeStatePOD
   /**
    * Length in 32-bit words
    */
-  static constexpr Uint32 DataLength = 8 + NodeBitmask::Size;
+  STATIC_CONST( DataLength = 8 + NodeBitmask::Size );
   
   /**
    * Constructor(s)

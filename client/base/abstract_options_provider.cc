@@ -27,7 +27,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <iostream>
-#include <optional>
 #include <vector>
 
 #include "client/base/i_options_provider.h"
@@ -38,6 +37,7 @@ using std::map;
 using std::string;
 using std::vector;
 using namespace Mysql::Tools::Base::Options;
+using Mysql::Nullable;
 
 Simple_option *Abstract_options_provider::create_new_option(
     std::string name, std::string description) {
@@ -58,14 +58,13 @@ Char_array_option *Abstract_options_provider::create_new_option(
 }
 
 Password_option *Abstract_options_provider::create_new_password_option(
-    std::optional<string> *value, std::string name, std::string description) {
+    Nullable<string> *value, std::string name, std::string description) {
   return this->attach_new_option<Password_option>(
       new Password_option(value, name, description));
 }
 
 String_option *Abstract_options_provider::create_new_option(
-    std::optional<std::string> *value, std::string name,
-    std::string description) {
+    Nullable<std::string> *value, std::string name, std::string description) {
   return this->attach_new_option<String_option>(
       new String_option(value, name, description));
 }

@@ -45,9 +45,6 @@ SET SESSION sql_log_bin = 1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-#check which stack are we using
---let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
-
 --let $_group_replication_group_seeds=
 --let $_rpl_gcs_server_address= localhost
 
@@ -55,15 +52,7 @@ SET SESSION sql_log_bin = 1;
 while ($_rpl_server)
 {
 
-  --let $_rpl_gcs_server_port=
-  if ($have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
-  }
-  if (!$have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
-  }
+--let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
 
   if ($_group_replication_group_seeds != "")
   {
@@ -123,15 +112,7 @@ while ($_rpl_server)
 --let $_rpl_server=4
 while ($_rpl_server > 2)
 {
-  --let $_rpl_gcs_server_port=
-  if ($have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
-  }
-  if (!$have_xcom_stack)
-  {
-    --let $_rpl_gcs_server_port= \$SERVER_MYPORT_$_rpl_server
-  }
+  --let $_rpl_gcs_server_port= \$SERVER_GR_PORT_$_rpl_server
 
   if ($_group_replication_group_seeds != "")
   {

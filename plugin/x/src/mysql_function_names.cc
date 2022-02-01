@@ -126,7 +126,7 @@ const char *const native_mysql_functions[] = {
     "MAKEDATE",
     "MAKETIME",
     "MAKE_SET",
-    "SOURCE_POS_WAIT",
+    "MASTER_POS_WAIT",
     "MBRCONTAINS",
     "MBRCOVEREDBY",
     "MBRCOVERS",

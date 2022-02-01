@@ -119,7 +119,7 @@ class WkbWriterTest : public ::testing::Test {
     delete m_grad_srs;
   }
 
-  WkbWriterTest() = default;
+  WkbWriterTest() {}
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(WkbWriterTest);

@@ -107,8 +107,8 @@ int ename_rnd_next(PSI_table_handle *handle) {
   return PFS_HA_ERR_END_OF_FILE;
 }
 
-int ename_rnd_init(PSI_table_handle *h [[maybe_unused]],
-                   bool scan [[maybe_unused]]) {
+int ename_rnd_init(PSI_table_handle *h MY_ATTRIBUTE((unused)),
+                   bool scan MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
@@ -127,7 +127,8 @@ int ename_rnd_pos(PSI_table_handle *handle) {
 
 /* Initialize the table index */
 int ename_index_init(PSI_table_handle *handle, uint idx,
-                     bool sorted [[maybe_unused]], PSI_index_handle **index) {
+                     bool sorted MY_ATTRIBUTE((unused)),
+                     PSI_index_handle **index) {
   Ename_Table_Handle *h = (Ename_Table_Handle *)handle;
 
   /* If there are multiple indexes, initialize based on the idx provided */

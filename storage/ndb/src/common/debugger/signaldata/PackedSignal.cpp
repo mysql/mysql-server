@@ -27,8 +27,6 @@
 #include <signaldata/FireTrigOrd.hpp>
 #include <debugger/DebuggerNames.hpp>
 
-#include <EventLogger.hpp>
-
 bool
 printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
   fprintf(output, "Signal data: ");
@@ -153,7 +151,7 @@ PackedSignal::verify(const Uint32* data, Uint32 len, Uint32 receiverBlockNo,
 
   if (unlikely(len > 25))
   {
-    g_eventLogger->info("Bad PackedSignal length : %u", len);
+    fprintf(stderr, "Bad PackedSignal length : %u\n", len);
     bad = true;
   }
   else
@@ -163,9 +161,8 @@ PackedSignal::verify(const Uint32* data, Uint32 len, Uint32 receiverBlockNo,
       Uint32 sigType = data[pos] >> 28;
       if (unlikely(((1 << sigType) & typesExpected) == 0))
       {
-        g_eventLogger->info(
-            "Unexpected sigtype in packed signal: %u at pos %u. Expected : %u",
-            sigType, pos, typesExpected);
+        fprintf(stderr, "Unexpected sigtype in packed signal : %u at pos %u.  Expected : %u\n",
+                sigType, pos, typesExpected);
         bad = true;
         break;
       }
@@ -197,8 +194,8 @@ PackedSignal::verify(const Uint32* data, Uint32 len, Uint32 receiverBlockNo,
         pos+= FireTrigConf::SignalLength;
         break;
       default :
-        g_eventLogger->info("Unrecognised signal type %u at pos %u", sigType,
-                            pos);
+        fprintf(stderr, "Unrecognised signal type %u at pos %u\n",
+                sigType, pos);
         bad = true;
         break;
       }
@@ -212,9 +209,8 @@ PackedSignal::verify(const Uint32* data, Uint32 len, Uint32 receiverBlockNo,
     
     if (!bad)
     {
-      g_eventLogger->info(
-          "Packed signal component length (%u) != total length (%u)",
-          pos, len);
+      fprintf(stderr, "Packed signal component length (%u) != total length (%u)\n",
+               pos, len);
     }
   }
 

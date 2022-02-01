@@ -126,20 +126,19 @@
 #define mysql_cond_broadcast_with_src(C, F, L) \
   inline_mysql_cond_broadcast(C, F, L)
 
-static inline void inline_mysql_cond_register(const char *category
-                                              [[maybe_unused]],
-                                              PSI_cond_info *info
-                                              [[maybe_unused]],
-                                              int count [[maybe_unused]]) {
+static inline void inline_mysql_cond_register(
+    const char *category MY_ATTRIBUTE((unused)),
+    PSI_cond_info *info MY_ATTRIBUTE((unused)),
+    int count MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
   PSI_COND_CALL(register_cond)(category, info, count);
 #endif
 }
 
-static inline int inline_mysql_cond_init(PSI_cond_key key [[maybe_unused]],
-                                         mysql_cond_t *that,
-                                         const char *src_file [[maybe_unused]],
-                                         int src_line [[maybe_unused]]) {
+static inline int inline_mysql_cond_init(
+    PSI_cond_key key MY_ATTRIBUTE((unused)), mysql_cond_t *that,
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
   that->m_psi = PSI_COND_CALL(init_cond)(key, &that->m_cond);
 #else
@@ -148,10 +147,9 @@ static inline int inline_mysql_cond_init(PSI_cond_key key [[maybe_unused]],
   return native_cond_init(&that->m_cond);
 }
 
-static inline int inline_mysql_cond_destroy(mysql_cond_t *that,
-                                            const char *src_file
-                                            [[maybe_unused]],
-                                            int src_line [[maybe_unused]]) {
+static inline int inline_mysql_cond_destroy(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
     PSI_COND_CALL(destroy_cond)(that->m_psi);
@@ -161,10 +159,10 @@ static inline int inline_mysql_cond_destroy(mysql_cond_t *that,
   return native_cond_destroy(&that->m_cond);
 }
 
-static inline int inline_mysql_cond_wait(mysql_cond_t *that,
-                                         mysql_mutex_t *mutex,
-                                         const char *src_file [[maybe_unused]],
-                                         int src_line [[maybe_unused]]) {
+static inline int inline_mysql_cond_wait(
+    mysql_cond_t *that, mysql_mutex_t *mutex,
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
@@ -207,7 +205,8 @@ static inline int inline_mysql_cond_wait(mysql_cond_t *that,
 
 static inline int inline_mysql_cond_timedwait(
     mysql_cond_t *that, mysql_mutex_t *mutex, const struct timespec *abstime,
-    const char *src_file [[maybe_unused]], int src_line [[maybe_unused]]) {
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
@@ -249,10 +248,9 @@ static inline int inline_mysql_cond_timedwait(
   return result;
 }
 
-static inline int inline_mysql_cond_signal(mysql_cond_t *that,
-                                           const char *src_file
-                                           [[maybe_unused]],
-                                           int src_line [[maybe_unused]]) {
+static inline int inline_mysql_cond_signal(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
@@ -265,10 +263,9 @@ static inline int inline_mysql_cond_signal(mysql_cond_t *that,
   return result;
 }
 
-static inline int inline_mysql_cond_broadcast(mysql_cond_t *that,
-                                              const char *src_file
-                                              [[maybe_unused]],
-                                              int src_line [[maybe_unused]]) {
+static inline int inline_mysql_cond_broadcast(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {

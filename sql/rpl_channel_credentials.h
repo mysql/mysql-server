@@ -52,12 +52,12 @@ class Rpl_channel_credentials {
   /**
     Constructor
   */
-  Rpl_channel_credentials() = default;
+  Rpl_channel_credentials() {}
 
   /**
     Destructor
   */
-  virtual ~Rpl_channel_credentials() = default;
+  virtual ~Rpl_channel_credentials() {}
 
  public:
   /**

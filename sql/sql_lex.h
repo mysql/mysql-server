@@ -59,15 +59,14 @@
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"                // Prealloced_array
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/composite_iterators.h"
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
-#include "sql/iterators/composite_iterators.h"
-#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
@@ -75,6 +74,7 @@
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
@@ -381,7 +381,7 @@ struct LEX_MASTER_INFO {
   } ssl,
       ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
       retry_count_opt, auto_position, port_opt, get_public_key,
-      m_source_connection_auto_failover, m_gtid_only;
+      m_source_connection_auto_failover;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
   /*
@@ -848,12 +848,6 @@ class Query_expression {
     return move(m_root_iterator);
   }
   AccessPath *root_access_path() const { return m_root_access_path; }
-
-  // Asks each query block to switch to an access path with in2exists
-  // conditions removed (if they were ever added).
-  // See JOIN::change_to_access_path_without_in2exists().
-  void change_to_access_path_without_in2exists(THD *thd);
-
   void clear_root_access_path() {
     m_root_access_path = nullptr;
     m_root_iterator.reset();
@@ -926,25 +920,9 @@ class Query_expression {
     @param create_iterators If false, only access paths are created,
       not iterators. Only top level query blocks (these that we are to call
       exec() on) should have iterators. See also force_create_iterators().
-
-    @param finalize_access_paths Relevant for the hypergraph optimizer only.
-      If false, the given access paths will _not_ be finalized, so you cannot
-      create iterators from it before finalize() is called (see
-      FinalizePlanForQueryBlock()), and create_iterators must also be false.
-      This is relevant only if you are potentially optimizing multiple times
-      (see change_to_access_path_without_in2exists()), since you are only
-      allowed to finalize a query block once. The fake_query_block, if any,
-      is always finalized.
    */
-  bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
-                bool finalize_access_paths);
-
-  /**
-    For any non-finalized query block, finalize it so that we are allowed to
-    create iterators. Must be called after the final access path is chosen
-    (ie., after any calls to change_to_access_path_without_in2exists()).
-   */
-  bool finalize(THD *thd);
+  bool optimize(THD *thd, TABLE *materialize_destination,
+                bool create_iterators);
 
   /**
     Do everything that would be needed before running Init() on the root
@@ -1812,7 +1790,7 @@ class Query_block {
 
   bool setup_conds(THD *thd);
   bool prepare(THD *thd, mem_root_deque<Item *> *insert_field_list);
-  bool optimize(THD *thd, bool finalize_access_paths);
+  bool optimize(THD *thd);
   void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
 
   bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
@@ -2533,8 +2511,8 @@ class Query_tables_list {
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
   */
-  Query_tables_list() = default;
-  ~Query_tables_list() = default;
+  Query_tables_list() {}
+  ~Query_tables_list() {}
 
   /* Initializes (or resets) Query_tables_list object for "real" use. */
   void reset_query_tables_list(bool init);
@@ -3867,11 +3845,6 @@ struct LEX : public Query_tables_list {
     clause. Otherwise this is 0.
   */
   uint reparse_common_table_expr_at;
-  /**
-    If currently re-parsing a condition which is pushed down to a derived
-    table, this will be set to true.
-  */
-  bool reparse_derived_table_condition{false};
 
   enum SSL_type ssl_type; /* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -4330,18 +4303,6 @@ struct LEX : public Query_tables_list {
     m_is_replication_deprecated_syntax_used = true;
   }
 
- private:
-  bool m_was_replication_command_executed{false};
-
- public:
-  bool was_replication_command_executed() const {
-    return m_was_replication_command_executed;
-  }
-
-  void set_was_replication_command_executed() {
-    m_was_replication_command_executed = true;
-  }
-
   bool set_channel_name(LEX_CSTRING name = {});
 };
 
@@ -4449,24 +4410,9 @@ class Yacc_state {
   Input parameters to the parser.
 */
 struct Parser_input {
-  /**
-    True if the text parsed corresponds to an actual query,
-    and not another text artifact.
-    This flag is used to disable digest parsing of nested:
-    - view definitions
-    - table trigger definitions
-    - table partition definitions
-    - event scheduler event definitions
-  */
-  bool m_has_digest;
-  /**
-    True if the caller needs to compute a digest.
-    This flag is used to request explicitly a digest computation,
-    independently of the performance schema configuration.
-  */
   bool m_compute_digest;
 
-  Parser_input() : m_has_digest(false), m_compute_digest(false) {}
+  Parser_input() : m_compute_digest(false) {}
 };
 
 /**
@@ -4577,12 +4523,12 @@ struct st_lex_local : public LEX {
     return (*THR_MALLOC)->Alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg
-                            [[maybe_unused]] = std::nothrow) noexcept {
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr [[maybe_unused]],
-                              size_t size [[maybe_unused]]) {
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused))) {
     TRASH(ptr, size);
   }
   static void operator delete(
@@ -4640,45 +4586,13 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
 }
 
 /**
-   Check if the given string is invalid using the system charset.
-
-   @param       string_val       Reference to the string.
-   @param       charset_info     Pointer to charset info.
-   @param[out]  invalid_sub_str  If string has an invalid encoding then invalid
-                                 string in printable ASCII format is stored.
-
-   @return true if the string has an invalid encoding using
-                the system charset else false.
-*/
-
-inline bool is_invalid_string(const LEX_CSTRING &string_val,
-                              const CHARSET_INFO *charset_info,
-                              std::string &invalid_sub_str) {
-  size_t valid_len;
-  bool len_error;
-
-  if (validate_string(charset_info, string_val.str, string_val.length,
-                      &valid_len, &len_error)) {
-    char printable_buff[32];
-    convert_to_printable(
-        printable_buff, sizeof(printable_buff), string_val.str + valid_len,
-        static_cast<uint>(std::min<size_t>(string_val.length - valid_len, 3)),
-        charset_info, 3);
-    invalid_sub_str = printable_buff;
-    return true;
-  }
-  return false;
-}
-
-/**
   In debug mode, verify that we're not adding an item twice to the fields list
   with inconsistent hidden flags. Must be called before adding the item to
   fields.
  */
-inline void assert_consistent_hidden_flags(const mem_root_deque<Item *> &fields
-                                           [[maybe_unused]],
-                                           Item *item [[maybe_unused]],
-                                           bool hidden [[maybe_unused]]) {
+inline void assert_consistent_hidden_flags(
+    const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
+    Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
 #ifndef NDEBUG
   if (std::find(fields.begin(), fields.end(), item) != fields.end()) {
     // The item is already in the list, so we can't add it

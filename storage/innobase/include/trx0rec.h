@@ -53,25 +53,29 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	undo_offset	offset of the undo record in the page
 @param[in]	heap		heap where copied
 @return copy of undo log record */
-static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
-                                                uint32_t undo_offset,
-                                                mem_heap_t *heap);
+UNIV_INLINE
+trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
+                                  mem_heap_t *heap);
 
 /** Reads the undo log record type.
  @return record type */
-static inline ulint trx_undo_rec_get_type(
+UNIV_INLINE
+ulint trx_undo_rec_get_type(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Reads from an undo log record the record compiler info.
  @return compiler info */
-static inline ulint trx_undo_rec_get_cmpl_info(
+UNIV_INLINE
+ulint trx_undo_rec_get_cmpl_info(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Returns TRUE if an undo log record contains an extern storage field.
  @return true if extern */
-static inline ibool trx_undo_rec_get_extern_storage(
+UNIV_INLINE
+ibool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Reads the undo log record number.
  @return undo no */
-static inline undo_no_t trx_undo_rec_get_undo_no(
+UNIV_INLINE
+undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 
 /** Returns the start of the undo record data area. */
@@ -81,8 +85,8 @@ static inline undo_no_t trx_undo_rec_get_undo_no(
 /** Reads from an undo log record the table ID
 @param[in]	undo_rec	Undo log record
 @return the table ID */
-[[nodiscard]] table_id_t trx_undo_rec_get_table_id(
-    const trx_undo_rec_t *undo_rec);
+table_id_t trx_undo_rec_get_table_id(const trx_undo_rec_t *undo_rec)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Builds a row reference from an undo log record.
  @return pointer to remaining part of undo record */
@@ -140,7 +144,7 @@ byte *trx_undo_update_rec_get_update(
  It contains the columns which occur as ordering in any index of the table.
  Any missing columns are indicated by col->mtype == DATA_MISSING.
  @return pointer to remaining part of undo record */
-[[nodiscard]] byte *trx_undo_rec_get_partial_row(
+byte *trx_undo_rec_get_partial_row(
     const byte *ptr,     /*!< in: remaining part in update undo log
                          record of a suitable type, at the start of
                          the stored index columns;
@@ -153,14 +157,15 @@ byte *trx_undo_update_rec_get_update(
     ibool ignore_prefix, /*!< in: flag to indicate if we
                   expect blob prefixes in undo. Used
                   only in the assertion. */
-    mem_heap_t *heap);   /*!< in: memory heap from which the memory
-                        needed is allocated */
+    mem_heap_t *heap)    /*!< in: memory heap from which the memory
+                         needed is allocated */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Writes information to an undo log about an insert, update, or a delete
  marking of a clustered index record. This information is used in a rollback of
  the transaction and in consistent reads that must look to the history of this
  transaction.
  @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t trx_undo_report_row_operation(
+dberr_t trx_undo_report_row_operation(
     ulint flags,                 /*!< in: if BTR_NO_UNDO_LOG_FLAG bit is
                                  set, does nothing */
     ulint op_type,               /*!< in: TRX_UNDO_INSERT_OP or
@@ -178,10 +183,11 @@ byte *trx_undo_update_rec_get_update(
                                  marking, the record in the clustered
                                  index, otherwise NULL */
     const ulint *offsets,        /*!< in: rec_get_offsets(rec) */
-    roll_ptr_t *roll_ptr);       /*!< out: rollback pointer to the
-                                inserted undo log record,
-                                0 if BTR_NO_UNDO_LOG
-                                flag was specified */
+    roll_ptr_t *roll_ptr)        /*!< out: rollback pointer to the
+                                 inserted undo log record,
+                                 0 if BTR_NO_UNDO_LOG
+                                 flag was specified */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** status bit used for trx_undo_prev_version_build() */
 

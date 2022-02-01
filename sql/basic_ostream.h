@@ -45,7 +45,7 @@ class Basic_ostream {
      @retval true  Error.
   */
   virtual bool write(const unsigned char *buffer, my_off_t length) = 0;
-  virtual ~Basic_ostream() = default;
+  virtual ~Basic_ostream() {}
 };
 
 /**
@@ -86,7 +86,7 @@ class Truncatable_ostream : public Basic_ostream {
   */
   virtual bool sync() = 0;
 
-  ~Truncatable_ostream() override = default;
+  ~Truncatable_ostream() override {}
 };
 
 /**
@@ -157,7 +157,7 @@ template <int BUFFER_SIZE>
 class StringBuffer_ostream : public Basic_ostream,
                              public StringBuffer<BUFFER_SIZE> {
  public:
-  StringBuffer_ostream() = default;
+  StringBuffer_ostream() {}
   StringBuffer_ostream(const StringBuffer_ostream &) = delete;
   StringBuffer_ostream &operator=(const StringBuffer_ostream &) = delete;
 

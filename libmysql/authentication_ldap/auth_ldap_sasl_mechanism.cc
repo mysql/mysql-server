@@ -40,9 +40,9 @@ Ldap_logger *g_logger_client = NULL;
 #endif
 
 #if defined(KERBEROS_LIB_CONFIGURED)
-Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() = default;
+Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() {}
 
-Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() = default;
+Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() {}
 
 bool Sasl_mechanism_kerberos::pre_authentication() {
   m_kerberos = std::unique_ptr<Kerberos>(
@@ -111,9 +111,9 @@ void Sasl_mechanism::set_user_info(std::string user, std::string password) {
   m_password = password;
 }
 
-Sasl_mechanism::Sasl_mechanism() = default;
+Sasl_mechanism::Sasl_mechanism() {}
 
-Sasl_mechanism::~Sasl_mechanism() = default;
+Sasl_mechanism::~Sasl_mechanism() {}
 
 bool Sasl_mechanism::pre_authentication() { return true; }
 

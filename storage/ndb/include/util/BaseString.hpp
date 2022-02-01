@@ -238,12 +238,6 @@ public:
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap)
     ATTRIBUTE_FORMAT(printf, 3, 0);
 
-  /**
-   * Append to a character buf
-   */
-  static int snappend(char *str, size_t size, const char *format, ...)
-      ATTRIBUTE_FORMAT(printf, 3, 4);
-
   template<unsigned size>
   static BaseString getText(const Bitmask<size>& mask) {
     return BaseString::getText(size, mask.rep.data);

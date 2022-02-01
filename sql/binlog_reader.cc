@@ -203,7 +203,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case binary_log::QUERY_EVENT:
 #ifndef NDEBUG
       binary_log_debug::debug_query_mts_corrupt_db_names =
-          DBUG_EVALUATE_IF("query_log_event_mta_corrupt_db_names", true, false);
+          DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
 #endif
       ev = new Query_log_event(buf, fde, binary_log::QUERY_EVENT);
       break;

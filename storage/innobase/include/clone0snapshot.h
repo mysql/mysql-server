@@ -36,7 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "arch0log.h"
 #include "arch0page.h"
-#include "clone0api.h"
 #include "clone0desc.h"
 #include "clone0monitor.h"
 #include "fil0fil.h"
@@ -45,156 +44,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <map>
 #include <vector>
 
-struct Clone_file_ctx {
-  /** File state:
-  [CREATED] -------------> [DROPPING] --> [DROPPED] --> [DROPPED_HANDLED]
-      |                        ^
-      |                        |
-       ----> [RENAMING] -> [RENAMED]
-                 |             |
-                  <------------
-  */
-  enum class State {
-    /* Invalid state. */
-    NONE,
-    /* File is being dropped. */
-    DROPPING,
-    /* File is being renamed. */
-    RENAMING,
-    /* Newly created file or pre-existing before clone. */
-    CREATED,
-    /* File is renamed during clone. */
-    RENAMED,
-    /* File is deleted during clone. */
-    DROPPED,
-    /* File is deleted and chunk information is handled. */
-    DROPPED_HANDLED
-  };
-
-  /** File extension to use with name. */
-  enum class Extension {
-    /* No extension. */
-    NONE,
-    /* Replace extension - clone file to be replaced during recovery. */
-    REPLACE,
-    /* DDL extension - temporary extension used during rename. */
-    DDL
-  };
-
-  /** Initialize file state.
-  @param[in]	extn	file name extension */
-  void init(Extension extn) {
-    m_state.store(State::CREATED);
-    m_extension = extn;
-
-    m_pin.store(0);
-    m_modified_ddl = false;
-    m_waiting = 0;
-
-    m_next_state = CLONE_SNAPSHOT_NONE;
-
-    m_meta.init();
-  }
-
-  /** Get file name with extension.
-  @param[out]	name	file name. */
-  void get_file_name(std::string &name) const;
-
-  /** Mark file added by DDL.
-  @param[in]	next_state	next snapshot state */
-  void set_ddl(Snapshot_State next_state) {
-    m_modified_ddl = true;
-    m_next_state = next_state;
-  }
-
-  /** @return true iff added or modified by ddl in previous state.
-  @param[in]	state	current snapshot state */
-  bool by_ddl(Snapshot_State state) const {
-    return m_modified_ddl && (state <= m_next_state);
-  }
-
-  /** Start waiting for DDL */
-  void begin_wait() { ++m_waiting; }
-
-  /** Finish waiting for DDL */
-  void end_wait() {
-    ut_a(m_waiting > 0);
-    --m_waiting;
-  }
-
-  /** @return true, iff there are waiting clone tasks. */
-  bool is_waiting() const { return (m_waiting > 0); }
-
-  /** Pin the file. */
-  void pin() { ++m_pin; }
-
-  /** Unpin the file. */
-  void unpin() {
-    ut_a(m_pin > 0);
-    --m_pin;
-  }
-
-  /** @return true, iff clone tasks are using the file. */
-  bool is_pinned() const { return (m_pin.load() > 0); }
-
-  /** @return true, iff DDL is modifying file. */
-  bool modifying() const {
-    State state = m_state.load();
-    return (state == State::RENAMING || state == State::DROPPING);
-  }
-
-  /** @return true, iff DDL is deleting file. */
-  bool deleting() const {
-    State state = m_state.load();
-    return (state == State::DROPPING);
-  }
-
-  /** @return true, iff file is already deleted. */
-  bool deleted() const {
-    State state = m_state.load();
-    return (state == State::DROPPED || state == State::DROPPED_HANDLED);
-  }
-
-  /** @return true, iff file is already renamed. */
-  bool renamed() const {
-    State state = m_state.load();
-    return (state == State::RENAMED);
-  }
-
-  /** @return file metadata. */
-  Clone_File_Meta *get_file_meta() { return &m_meta; }
-
-  /** @return file metadata for read. */
-  const Clone_File_Meta *get_file_meta_read() const { return &m_meta; }
-
-  /** File metadata state. Modified by DDL commands. Protected by snapshot
-  mutex. Atomic operation helps clone to skip mutex when no ddl. */
-  std::atomic<State> m_state;
-
-  /** File name extension. */
-  Extension m_extension;
-
- private:
-  /** Pin count incremented and decremented by clone tasks to synchronize with
-  concurrent DDL. Protected by snapshot mutex. */
-  std::atomic<uint32_t> m_pin;
-
-  /** Waiting count incremented and decremented by clone tasks while waiting
-  DDL file operation in progress. Protected by snapshot mutex. */
-  uint32_t m_waiting;
-
-  /** true, if file created or modified after clone is started. */
-  bool m_modified_ddl{false};
-
-  /** Next state when ddl last modified file. */
-  Snapshot_State m_next_state{CLONE_SNAPSHOT_DONE};
-
-  /** File metadata. */
-  Clone_File_Meta m_meta;
-};
-
 /** Vector type for storing clone files */
-using Clone_File_Vec = std::vector<Clone_file_ctx *>;
+using Clone_File_Vec = std::vector<Clone_File_Meta *>;
 
 /** Map type for mapping space ID to clone file index */
 using Clone_File_Map = std::map<space_id_t, uint>;
@@ -258,37 +109,12 @@ const uint SNAPSHOT_DEF_BLOCK_SIZE_POW2 = 6;
 For 16k page size, maximum block size is 64M. */
 const uint SNAPSHOT_MAX_BLOCK_SIZE_POW2 = 12;
 
+/** Sleep time in microseconds while waiting for other clone/task */
+const uint SNAPSHOT_STATE_CHANGE_SLEEP = 100 * 1000;
+
 /** Dynamic database snapshot: Holds metadata and handle to data */
 class Clone_Snapshot {
  public:
-  /** RAII style guard for begin & end  of snapshot state transition. */
-  class State_transit {
-   public:
-    /** Constructor to begin state transition.
-    @param[in,out]	snapshot	Clone Snapshot
-    @param[in]		new_state	State to transit */
-    explicit State_transit(Clone_Snapshot *snapshot, Snapshot_State new_state);
-
-    /** Destructor to end state transition. */
-    ~State_transit();
-
-    /** @return error code */
-    int get_error() const { return m_error; }
-
-    /** Disable copy construction */
-    State_transit(State_transit const &) = delete;
-
-    /** Disable assignment */
-    State_transit &operator=(State_transit const &) = delete;
-
-   private:
-    /** Clone Snapshot */
-    Clone_Snapshot *m_snapshot;
-
-    /** Saved error while beginning transition. */
-    int m_error;
-  };
-
   /** Construct snapshot
   @param[in]	hdl_type	copy, apply
   @param[in]	clone_type	clone type
@@ -299,36 +125,6 @@ class Clone_Snapshot {
 
   /** Release contexts and free heap */
   ~Clone_Snapshot();
-
-  /** DDL notification before the operation.
-  @param[in]	type		type of DDL notification
-  @param[in]	space		space ID for the ddl operation
-  @param[in]	no_wait		return with error if needs to wait
-  @param[in]	check_intr	check for interrupt during wait
-  @param[out]	error		mysql error code
-  @return true iff clone state change is blocked. */
-  bool begin_ddl_state(Clone_notify::Type type, space_id_t space, bool no_wait,
-                       bool check_intr, int &error);
-
-  /** DDL notification after the operation.
-  @param[in]	type	type of DDL notification
-  @param[in]	space	space ID for the ddl operation */
-  void end_ddl_state(Clone_notify::Type type, space_id_t space);
-
-  /** Wait for concurrent DDL file operation and pin file.
-  @param[in,out]	file_ctx	file context
-  @param[out]		handle_delete	if caller needs to handle deleted state
-  @return mysql error code. */
-  int pin_file(Clone_file_ctx *file_ctx, bool &handle_delete);
-
-  /** Unpin a file.
-  @param[in,out]	file_ctx	file context */
-  void unpin_file(Clone_file_ctx *file_ctx) { file_ctx->unpin(); }
-
-  /** Check if DDL needs to block clone operation.
-  @param[in]	file_ctx	file context
-  @return true iff clone operation needs to be blocked. */
-  bool blocks_clone(const Clone_file_ctx *file_ctx);
 
   /** @return estimated bytes on disk */
   uint64_t get_disk_estimate() const { return (m_data_bytes_disk); }
@@ -387,22 +183,12 @@ class Clone_Snapshot {
     return (ret_len);
   }
 
-  using File_Cbk_Func = std::function<int(Clone_file_ctx *)>;
+  using File_Cbk_Func = std::function<int(Clone_File_Meta *)>;
 
   /** Iterate through all files in current state
   @param[in]	func	callback function
   @return error code */
   int iterate_files(File_Cbk_Func &&func);
-
-  /** Iterate through all data files
-  @param[in]	func	callback function
-  @return error code */
-  int iterate_data_files(File_Cbk_Func &&func);
-
-  /** Iterate through all redo files
-  @param[in]	func	callback function
-  @return error code */
-  int iterate_redo_files(File_Cbk_Func &&func);
 
   /** Fill state descriptor from snapshot
   @param[in]	do_estimate	estimate data bytes to transfer
@@ -423,15 +209,9 @@ class Clone_Snapshot {
   @return true if successfully attached */
   bool attach(Clone_Handle_Type hdl_type, bool pfs_monitor);
 
-  /** Detach from snapshot. */
-  void detach();
-
-  /** Set current snapshot aborted state. Used in error cases before exiting
-  clone to make sure any DDL notifier exits waiting. */
-  void set_abort();
-
-  /** @return true, iff clone has aborted. */
-  bool is_aborted() const;
+  /** Detach from snapshot
+  @return number of clones attached */
+  uint detach();
 
   /** Start transition to new state
   @param[in]	state_desc	descriptor for next state
@@ -439,48 +219,43 @@ class Clone_Snapshot {
   @param[in]	temp_buffer	buffer used for collecting page IDs
   @param[in]	temp_buffer_len	buffer length
   @param[in]	cbk		alter callback for long wait
+  @param[out]	pending_clones	clones yet to transit to next state
   @return error code */
   int change_state(Clone_Desc_State *state_desc, Snapshot_State new_state,
                    byte *temp_buffer, uint temp_buffer_len,
-                   Clone_Alert_Func cbk);
+                   Clone_Alert_Func cbk, uint &pending_clones);
+
+  /** Check if transition is complete
+  @param[in]	new_state	new state after transition
+  @param[in]	exit_on_wait	exit from transition if needs to wait
+  @return number of clones yet to transit to next state */
+  uint check_state(Snapshot_State new_state, bool exit_on_wait);
+
+  /* Don't allow to attach new clone - Not supported
+  void stop_attach_new_clone()
+  {
+          m_allow_new_clone = false;
+  }
+  */
 
   /** Add file metadata entry at destination
-  @param[in]	file_meta	file metadata from donor
+  @param[in,out]	file_desc	if there, set to current descriptor
   @param[in]	data_dir	destination data directory
   @param[in]	desc_create	create if doesn't exist
   @param[out]	desc_exists	descriptor already exists
-  @param[out]	file_ctx	if there, set to current file context
   @return error code */
-  int get_file_from_desc(const Clone_File_Meta *file_meta, const char *data_dir,
-                         bool desc_create, bool &desc_exists,
-                         Clone_file_ctx *&file_ctx);
-
-  /** Rename an existing file descriptor.
-  @param[in]	file_meta	renamed file metadata from donor
-  @param[in]	data_dir	destination data directory
-  @param[out]	file_ctx	if there, set to current file context
-  @return error code */
-  int rename_desc(const Clone_File_Meta *file_meta, const char *data_dir,
-                  Clone_file_ctx *&file_ctx);
-
-  /** Fix files renamed with ddl extension. The file name is checked against
-  existing file and added to appropriate status file.
-  @param[in]		data_dir	destination data directory
-  @param[in,out]	file_ctx	Set to correct extension
-  @return error code */
-  int fix_ddl_extension(const char *data_dir, Clone_file_ctx *file_ctx);
+  int get_file_from_desc(Clone_File_Meta *&file_desc, const char *data_dir,
+                         bool desc_create, bool &desc_exists);
 
   /** Add file descriptor to file list
-  @param[in,out]	file_ctx	current file context
-  @param[in]		ddl_create	added by DDL concurrently
+  @param[in,out]	file_desc	current file descriptor
   @return true, if it is the last file. */
-  bool add_file_from_desc(Clone_file_ctx *&file_ctx, bool ddl_create);
+  bool add_file_from_desc(Clone_File_Meta *&file_desc);
 
   /** Extract file information from node and add to snapshot
   @param[in]	node	file node
-  @param[in]	by_ddl	node is added concurrently by DDL
   @return error code */
-  dberr_t add_node(fil_node_t *node, bool by_ddl);
+  dberr_t add_node(fil_node_t *node);
 
   /** Add page ID to to the set of pages in snapshot
   @param[in]	space_id	page tablespace
@@ -501,43 +276,21 @@ class Clone_Snapshot {
   @return file metadata entry */
   Clone_File_Meta *get_file_by_index(uint index);
 
-  /** Get clone file context by index for current state
-  @param[in]	index	file index
-  @return file context */
-  Clone_file_ctx *get_file_ctx_by_index(uint index);
-
-  /** Get clone file context by chunk and block number.
-  @param[in]	chunk_num	chunk number
-  @param[in]	block_num	block number
-  @param[in]	hint_index	hint file index number to start search.
-  @return file context */
-  Clone_file_ctx *get_file_ctx(uint32_t chunk_num, uint32_t block_num,
-                               uint32_t hint_index);
-
   /** Get next block of data to transfer
   @param[in]	chunk_num	current chunk
   @param[in,out]	block_num	current/next block
-  @param[in,out]	file_ctx	current/next block file context
+  @param[in,out]	file_meta	current/next block file metadata
   @param[out]	data_offset	block offset in file
   @param[out]	data_buf	data buffer or NULL if transfer from file
   @param[out]	data_size	size of data in bytes
-  @param[out]	file_size	updated file size if extended
   @return error code */
   int get_next_block(uint chunk_num, uint &block_num,
-                     const Clone_file_ctx *&file_ctx, uint64_t &data_offset,
-                     byte *&data_buf, uint32_t &data_size, uint64_t &file_size);
+                     Clone_File_Meta *file_meta, ib_uint64_t &data_offset,
+                     byte *&data_buf, uint &data_size);
 
   /** Update snapshot block size based on caller's buffer size
   @param[in]	buff_size	buffer size for clone transfer */
   void update_block_size(uint buff_size);
-
-  /** @return chunk size in bytes. */
-  inline uint32_t get_chunk_size() const {
-    return chunk_size() * UNIV_PAGE_SIZE;
-  }
-
-  /** @return number of blocks per chunk for different states. */
-  uint32_t get_blocks_per_chunk() const;
 
   /** Check if copy snapshot
   @return true if snapshot is for copy */
@@ -561,133 +314,13 @@ class Clone_Snapshot {
   bool encrypt_key_in_log_header(byte *log_header, uint32_t header_len);
 
   /** Decrypt tablespace key in header page with master key.
-  @param[in]		file_meta	clone file metadata
+  @param[in]		space		tablespace
   @param[in]		page_size	page size descriptor
   @param[in,out]	page_data	page data to update */
-  void decrypt_key_in_header(const Clone_File_Meta *file_meta,
-                             const page_size_t &page_size, byte *&page_data);
-
-  /** @return maximum blocks to transfer with file pinned. */
-  uint32_t get_max_blocks_pin() const;
-
-  /** Skip all blocks belonging to currently deleted file context.
-  @param[in]		chunk_num	current chunk
-  @param[in,out]	block_num	current, next block */
-  void skip_deleted_blocks(uint32_t chunk_num, uint32_t &block_num);
+  void decrypt_key_in_header(fil_space_t *space, const page_size_t &page_size,
+                             byte *&page_data);
 
  private:
-  /** Allow DDL file operation after 64 pages. */
-  const static uint32_t S_MAX_PAGES_PIN = 64;
-
-  /** Allow DDL file operation after every block (1M data by default) */
-  const static uint32_t S_MAX_BLOCKS_PIN = 1;
-
-  /** File name allocation size base. */
-  const static size_t S_FILE_NAME_BASE_LEN = 256;
-
-  /** Various wait types related to snapshot state. */
-  enum class Wait_type {
-    /* DDL- limited wait if clone is waiting for another DDL. */
-    STATE_TRANSIT_WAIT,
-    /* DDL- Wait till snapshot state transition is over. */
-    STATE_TRANSIT,
-    /* DDL- Wait till PAGE COPY state is over. */
-    STATE_END_PAGE_COPY,
-    /* Clone - Wait till there are no blockers for state transition. */
-    STATE_BLOCKER,
-    /*DDL - Wait till the waiting clone threads are active. This are
-    clone threads from last DDL and useful to prevent starvation. */
-    DATA_FILE_WAIT,
-    /* DDL - Wait till all threads have closed active data files. */
-    DATA_FILE_CLOSE,
-    /* Clone - Wait till DDL file operation is complete. */
-    DDL_FILE_OPERATION
-  };
-
-#ifdef UNIV_DEBUG
-  /** Debug sync Wait during state transition. */
-  void debug_wait_state_transit();
-#endif /* UNIV_DEBUG */
-
-  /** Update deleted state of a file if not yet done.
-  @param[in,out]	file_ctx	file context
-  @return true, if updated state */
-  bool update_deleted_state(Clone_file_ctx *file_ctx);
-
-  /** Get clone data file context by chunk number.
-  @param[in]	chunk_num	chunk number
-  @param[in]	hint_index	hint file index number to start search.
-  @return file context */
-  Clone_file_ctx *get_data_file_ctx(uint32_t chunk_num, uint32_t hint_index);
-
-  /** Get clone page file context by chunk number and block number.
-  @param[in]	chunk_num	chunk number
-  @param[in]	block_num	block number
-  @return file context */
-  Clone_file_ctx *get_page_file_ctx(uint32_t chunk_num, uint32_t block_num);
-
-  /** Get clone redo file context by chunk number.
-  @param[in]	chunk_num	chunk number
-  @param[in]	hint_index	hint file index number to start search.
-  @return file context */
-  Clone_file_ctx *get_redo_file_ctx(uint32_t chunk_num, uint32_t hint_index);
-
-  /** Get wait information string based on wait type.
-  @param[in]	wait_type	wait type
-  @return wait information string. */
-  const char *wait_string(Wait_type wait_type) const;
-
-  /** Wait for various operations based on type.
-  @param[in]	type		wait type
-  @param[in]	ctx		file context when relevant
-  @param[in]	no_wait		return with error if needs to wait
-  @param[in]	check_intr	check for interrupt during wait
-  @return mysql error code. */
-  int wait(Wait_type type, const Clone_file_ctx *ctx, bool no_wait,
-           bool check_intr);
-
-  /** During wait get relevant message string for logging.
-  @param[in]	wait_type	wait type
-  @param[out]	info		notification to log while waiting
-  @param[out]	error		error message to log on timeout */
-  void get_wait_mesg(Wait_type wait_type, std::string &info,
-                     std::string &error);
-
-  /** Block clone state transition. Clone must wait.
-  @param[in]	type		type of DDL notification
-  @param[in]	space		space ID for the ddl operation
-  @param[in]	no_wait		return with error if needs to wait
-  @param[in]	check_intr	check for interrupt during wait`
-  @param[out]	error		mysql error code
-  @return true iff clone state change is blocked. */
-  bool block_state_change(Clone_notify::Type type, space_id_t space,
-                          bool no_wait, bool check_intr, int &error);
-
-  /** Unblock clone state transition. */
-  void unblock_state_change();
-
-  /** Get next file state while being modified by ddl.
-  @param[in]	type	ddl notification type
-  @param[in]	begin	true, if DDL begin notification
-                        false, if DDL end notification
-  @return target file state. */
-  Clone_file_ctx::State get_target_file_state(Clone_notify::Type type,
-                                              bool begin);
-
-  /** Handle files for DDL begin notification.
-  @param[in]	type		type of DDL notification
-  @param[in]	space		space ID for the ddl operation
-  @param[in]	no_wait		return with error if needs to wait
-  @param[in]	check_intr	check for interrupt during wait
-  @return mysql error code */
-  int begin_ddl_file(Clone_notify::Type type, space_id_t space, bool no_wait,
-                     bool check_intr);
-
-  /** Handle files for DDL end notification.
-  @param[in]	type	type of DDL notification
-  @param[in]	space	space ID for the ddl operation */
-  void end_ddl_file(Clone_notify::Type type, space_id_t space);
-
   /** Synchronize snapshot with binary log and GTID.
   @param[in]	cbk	alert callback for long wait
   @return error code. */
@@ -710,53 +343,25 @@ class Clone_Snapshot {
   @return error code. */
   int wait_trx_end(THD *thd, trx_id_t trx_id);
 
-  /** Begin state transition before waiting for DDL. */
-  void begin_transit_ddl_wait() {
-    mutex_own(&m_snapshot_mutex);
-    /* Update number of clones to transit to new state. Set this prior to
-    waiting for DDLs blocking state transfer. This would help a new DDL to
-    find if clone is blocked by other DDL before state transition. */
-    m_num_clones_transit = m_num_clones;
-  }
-
-  /** Begin state transition.
-  @param[in]	new_state	state to transit to */
-  void begin_transit(Snapshot_State new_state) {
-    mutex_own(&m_snapshot_mutex);
-    m_snapshot_next_state = new_state;
-    /* Move to next state. This is ok as the snapshot
-    mutex is not released till transition is ended, This
-    could change later when we ideally should release
-    the snapshot mutex during transition. */
-    m_snapshot_state = m_snapshot_next_state;
-  }
-
-  /** End state transition.
-  @param[in]	error	error code */
-  void end_transit(int error) {
-    mutex_own(&m_snapshot_mutex);
-    m_num_clones_transit = 0;
-    m_snapshot_next_state = CLONE_SNAPSHOT_NONE;
-  }
-
   /** Check if state transition is in progress
   @return true during state transition */
-  bool in_transit_state() const {
+  bool in_transit_state() {
     mutex_own(&m_snapshot_mutex);
     return (m_snapshot_next_state != CLONE_SNAPSHOT_NONE);
   }
 
-  /** @return true, if waiting before starting transition. Generally the
-  case when some DDL blocks state transition. */
-  bool in_transit_wait() const {
-    mutex_own(&m_snapshot_mutex);
-    return (!in_transit_state() && m_num_clones_transit != 0);
-  }
+  /** Initialize current state
+  @param[in]	state_desc	descriptor for the state
+  @param[in]	temp_buffer	buffer used during page copy initialize
+  @param[in]	temp_buffer_len	buffer length
+  @param[in]	cbk		alert callback for long wait
+  @return error code */
+  int init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
+                 uint temp_buffer_len, Clone_Alert_Func cbk);
 
   /** Initialize snapshot state for file copy
-  @param[in]	new_state	state to move for apply
   @return error code */
-  int init_file_copy(Snapshot_State new_state);
+  int init_file_copy();
 
   /** Initialize disk byte estimate. */
   void init_disk_estimate() {
@@ -765,18 +370,15 @@ class Clone_Snapshot {
   }
 
   /** Initialize snapshot state for page copy
-  @param[in]	new_state	state to move for apply
   @param[in]	page_buffer	temporary buffer to copy page IDs
   @param[in]	page_buffer_len	buffer length
   @return error code */
-  int init_page_copy(Snapshot_State new_state, byte *page_buffer,
-                     uint page_buffer_len);
+  int init_page_copy(byte *page_buffer, uint page_buffer_len);
 
   /** Initialize snapshot state for redo copy
-  @param[in]	new_state	state to move for apply
-  @param[in]	cbk		alert callback for long wait
+  @param[in]	cbk	alert callback for long wait
   @return error code */
-  int init_redo_copy(Snapshot_State new_state, Clone_Alert_Func cbk);
+  int init_redo_copy(Clone_Alert_Func cbk);
 
   /** Initialize state while applying cloned data
   @param[in]	state_desc	snapshot state descriptor
@@ -790,43 +392,39 @@ class Clone_Snapshot {
 
   /** Create file descriptor and add to current file list
   @param[in]	data_dir	destination data directory
-  @param[in]	file_meta	file metadata from donor
-  @param[in]	is_ddl		if ddl temporary file
-  @param[out]	file_ctx	file context
+  @param[in,out]	file_desc	file descriptor
   @return error code */
-  int create_desc(const char *data_dir, const Clone_File_Meta *file_meta,
-                  bool is_ddl, Clone_file_ctx *&file_ctx);
+  int create_desc(const char *data_dir, Clone_File_Meta *&file_desc);
 
-  /** Get file context for current chunk
+  /** Get file metadata for current chunk
   @param[in]	file_vector	clone file vector
+  @param[in]	num_files	total number of files
   @param[in]	chunk_num	current chunk number
   @param[in]	start_index	index for starting the search
-  @return file context */
-  Clone_file_ctx *get_file(Clone_File_Vec &file_vector, uint32_t chunk_num,
-                           uint32_t start_index);
+  @return file metadata */
+  Clone_File_Meta *get_file(Clone_File_Vec &file_vector, uint num_files,
+                            uint chunk_num, uint start_index);
 
   /** Get next page from buffer pool
   @param[in]	chunk_num	current chunk
   @param[in,out]	block_num	current, next block
-  @param[in,out]	file_ctx	current, next block file context
+  @param[in]	file_meta	file metadata for page
   @param[out]	data_offset	offset in file
   @param[out]	data_buf	page data
   @param[out]	data_size	page data size
-  @param[out]	file_size	updated file size if extended
   @return error code */
-  int get_next_page(uint chunk_num, uint &block_num,
-                    const Clone_file_ctx *&file_ctx, uint64_t &data_offset,
-                    byte *&data_buf, uint32_t &data_size, uint64_t &file_size);
+  int get_next_page(uint chunk_num, uint &block_num, Clone_File_Meta *file_meta,
+                    ib_uint64_t &data_offset, byte *&data_buf, uint &data_size);
 
   /** Get page from buffer pool and make ready for write
   @param[in]	page_id		page ID chunk
   @param[in]	page_size	page size descriptor
-  @param[in]	file_ctx	clone file context
+  @param[in]	file_meta	file metadata for page
   @param[out]	page_data	data page
   @param[out]	data_size	page size in bytes
   @return error code */
   int get_page_for_write(const page_id_t &page_id, const page_size_t &page_size,
-                         const Clone_file_ctx *file_ctx, byte *&page_data,
+                         Clone_File_Meta *file_meta, byte *&page_data,
                          uint &data_size);
 
   /* Make page ready for flush by updating LSN anc checksum
@@ -841,15 +439,11 @@ class Clone_Snapshot {
   @param[in]	file_size	file size in bytes
   @param[in]	file_offset	start offset
   @param[in]	num_chunks	total number of chunks in the file
-  @return file context */
-  Clone_file_ctx *build_file(const char *file_name, uint64_t file_size,
-                             uint64_t file_offset, uint &num_chunks);
-
-  /** Allocate and set clone file name.
-  @param[in,out]	file_meta	file metadata
-  @param[in]		file_name	file name
-  @return true iff successful. */
-  bool build_file_name(Clone_File_Meta *file_meta, const char *file_name);
+  @param[in]	copy_file_name	copy the file name or use reference
+  @return file metadata entry */
+  Clone_File_Meta *build_file(const char *file_name, uint64_t file_size,
+                              uint64_t file_offset, uint &num_chunks,
+                              bool copy_file_name);
 
   /** Add buffer pool dump file to the file list
   @return error code */
@@ -860,84 +454,67 @@ class Clone_Snapshot {
   @param[in]	size_bytes	file size in bytes
   @param[in]	alloc_bytes	allocation size on disk for sparse file
   @param[in]	node		file node
-  @param[in]	by_ddl		node is added concurrently by DDL
+  @param[in]	copy_name	copy the file name or use reference
   @return error code. */
   int add_file(const char *name, uint64_t size_bytes, uint64_t alloc_bytes,
-               fil_node_t *node, bool by_ddl);
-
-  /** Check if file context has been changed by ddl.
-  @param[in]	node		tablespace file node
-  @param[out]	file_ctx	file context if exists
-  @return true iff file is created or modified by DDL. */
-  bool file_ctx_changed(const fil_node_t *node, Clone_file_ctx *&file_ctx);
+               fil_node_t *node, bool copy_name);
 
   /** Get chunk size
   @return chunk size in pages */
-  inline uint32_t chunk_size() const {
-    auto size = static_cast<uint32_t>(ut_2_exp(m_chunk_size_pow2));
-    return size;
+  uint chunk_size() {
+    uint size;
+
+    size = static_cast<uint>(ut_2_exp(m_chunk_size_pow2));
+    return (size);
   }
 
-  /** Get block size for file copy
+  /** Get block size
   @return block size in pages */
-  uint32_t block_size() {
-    ut_a(m_block_size_pow2 <= SNAPSHOT_MAX_BLOCK_SIZE_POW2);
-    auto size = static_cast<uint32_t>(ut_2_exp(m_block_size_pow2));
+  uint block_size() {
+    uint size;
 
-    return size;
+    ut_a(m_block_size_pow2 <= SNAPSHOT_MAX_BLOCK_SIZE_POW2);
+    size = static_cast<uint>(ut_2_exp(m_block_size_pow2));
+
+    return (size);
   }
 
-  /** Get number of blocks per chunk for file copy
+  /** Get number of blocks per chunk
   @return blocks per chunk */
-  inline uint32_t blocks_per_chunk() const {
+  uint blocks_per_chunk() {
     ut_a(m_block_size_pow2 <= m_chunk_size_pow2);
     return (1 << (m_chunk_size_pow2 - m_block_size_pow2));
   }
 
-  /** Update system file name from configuration.
-  @param[in]		replace		if replacing current data directory
-  @param[in]		file_meta	file descriptor
-  @param[in,out]	file_name	file name to update
+  /** Update file name in descriptor from configuration.
+  @param[in]		data_dir	clone data directory
+  @param[in,out]	file_desc	file descriptor
+  @param[in,out]	path		buffer for updated path
+  @param[in]		path_len	path buffer length
   @return error code */
-  int update_sys_file_name(bool replace, const Clone_File_Meta *file_meta,
-                           std::string &file_name);
+  int update_file_name(const char *data_dir, Clone_File_Meta *file_desc,
+                       char *path, size_t path_len);
 
   /** Build file name along with path for cloned data files.
   @param[in]		data_dir	clone data directory
-  @param[in]		file_meta	file descriptor
-  @param[out]		built_path	file name with path
+  @param[in]		alloc_size	new file size to be allocated
+  @param[in,out]	file_desc	file descriptor
   @return error code */
-  int build_file_path(const char *data_dir, const Clone_File_Meta *file_meta,
-                      std::string &built_path);
+  int build_file_path(const char *data_dir, ulint alloc_size,
+                      Clone_File_Meta *&file_desc);
 
-  /** Build file context from file path.
-  @param[in]	extn		file extension type
-  @param[in]	file_meta	file descriptor
-  @param[in]	file_path	data file along with path
-  @param[out]	file_ctx	created file context
+  /** Check for existing file and add clone extension.
+  @param[in]		replace		if data directory is replaced
+  @param[in,out]	file_desc	file descriptor
   @return error code */
-  int build_file_ctx(Clone_file_ctx::Extension extn,
-                     const Clone_File_Meta *file_meta,
-                     const std::string &file_path, Clone_file_ctx *&file_ctx);
+  int handle_existing_file(bool replace, Clone_File_Meta *file_desc);
 
-  /** Check for existing file and if clone extension is needed. This function
-  has the side effect to add undo file indexes.
-  @param[in]	replace		if data directory is replaced
-  @param[in]	undo_file	if undo tablespace file
-  @param[in]	data_file_index	index of file
-  @param[in]	data_file	data file name
-  @param[out]	extn	        file extension needs to be used
-  @return error code */
-  int handle_existing_file(bool replace, bool undo_file,
-                           uint32_t data_file_index,
-                           const std::string &data_file,
-                           Clone_file_ctx::Extension &extn);
-
-  /** @return number of data files to transfer. */
-  inline size_t num_data_files() const { return m_data_file_vector.size(); }
-
-  /** @return number of redo files to transfer. */
-  inline size_t num_redo_files() const { return m_redo_file_vector.size(); }
+  /** Compute total length of cloned data file name and path.
+  @param[in]	data_dir	clone data directory
+  @param[in]	file_desc	file descriptor
+  @return total size in bytes */
+  size_t compute_path_length(const char *data_dir,
+                             const Clone_File_Meta *file_desc);
 
  private:
   /** @name Snapshot type and ID */
@@ -957,19 +534,19 @@ class Clone_Snapshot {
   /** @name Snapshot State  */
 
   /** Mutex to handle access by concurrent clones */
-  mutable ib_mutex_t m_snapshot_mutex;
+  ib_mutex_t m_snapshot_mutex;
 
-  /** Number of blockers for state change. Usually DDLs for short duration. */
-  uint32_t m_num_blockers;
-
-  /** Set to TRUE only if clone is aborted after error. */
-  bool m_aborted;
+  /** Allow new clones to get attached to this snapshot */
+  bool m_allow_new_clone;
 
   /** Number of clones attached to this snapshot */
   uint m_num_clones;
 
-  /** Number of clones in in state transition */
-  uint m_num_clones_transit;
+  /** Number of clones in current state */
+  uint m_num_clones_current;
+
+  /** Number of clones moved over to next state */
+  uint m_num_clones_next;
 
   /** Current state */
   Snapshot_State m_snapshot_state;
@@ -1001,6 +578,9 @@ class Clone_Snapshot {
 
   /** Map space ID to file vector index */
   Clone_File_Map m_data_file_map;
+
+  /** Number of data files to transfer */
+  uint m_num_data_files;
 
   /** Total number of data chunks */
   uint m_num_data_chunks;
@@ -1056,6 +636,9 @@ class Clone_Snapshot {
 
   /** Archived redo file size */
   ib_uint64_t m_redo_file_size;
+
+  /** Number of archived redo files to transfer */
+  uint m_num_redo_files;
 
   /** Total number of redo data chunks */
   uint m_num_redo_chunks;

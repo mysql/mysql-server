@@ -47,8 +47,8 @@ class Mock_field_timestampf : public Field_timestampf {
     initialize();
   }
 
-  my_timeval to_timeval() {
-    my_timeval tm;
+  timeval to_timeval() {
+    timeval tm;
     int warnings = 0;
     get_timestamp(&tm, &warnings);
     EXPECT_EQ(0, warnings);
@@ -58,7 +58,7 @@ class Mock_field_timestampf : public Field_timestampf {
   /* Averts ASSERT_COLUMN_MARKED_FOR_WRITE assertion. */
   void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
 
-  void store_timestamp_internal(const my_timeval *tm) override {
+  void store_timestamp_internal(const timeval *tm) override {
     store_timestamp_internal_called = true;
     return Field_timestampf::store_timestamp_internal(tm);
   }

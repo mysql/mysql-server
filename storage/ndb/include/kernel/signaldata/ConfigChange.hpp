@@ -40,7 +40,7 @@ struct ConfigChangeReq
    */
   friend class ConfigManager;
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 length; // Length of the config data in long signal
 };
@@ -58,7 +58,7 @@ struct ConfigChangeConf
    */
   friend class MgmtSrvr;
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 unused;
 };
@@ -97,7 +97,7 @@ struct ConfigChangeRef
     SendFailed              = 16
   };
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   static const char* errorMessage(Uint32 error) {
     switch (error){
@@ -156,7 +156,7 @@ struct ConfigChangeImplReq
     Abort
   };
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 requestType;
   Uint32 initial; // Valid when requestType = Prepare
@@ -172,7 +172,7 @@ struct ConfigChangeImplConf
    */
   friend class ConfigManager;
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 requestType;
 };
@@ -185,7 +185,7 @@ struct ConfigChangeImplRef
    */
   friend class ConfigManager;
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 errorCode;
 };
@@ -203,8 +203,8 @@ struct ConfigCheckReq
    */
   friend class ConfigManager;
 
-  static constexpr Uint32 SignalLengthBeforeChecksum = 2;
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLengthBeforeChecksum = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 state;
   Uint32 generation;
@@ -224,7 +224,7 @@ struct ConfigCheckConf
    */
   friend class MgmtSrvr;
 
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 state;
   Uint32 generation;
@@ -263,8 +263,8 @@ struct ConfigCheckRef
     }
   }
 
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 SignalLengthWithConfig = 6;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLengthWithConfig = 6 );
 
   Uint32 error;
   Uint32 generation;

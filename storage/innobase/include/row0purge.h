@@ -48,8 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	parent	parent node, i.e., a thr node
 @param[in]	heap	memory heap where created
 @return own: purge node */
-[[nodiscard]] purge_node_t *row_purge_node_create(que_thr_t *parent,
-                                                  mem_heap_t *heap);
+purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Determines if it is possible to remove a secondary index entry.
  Removal is possible if the secondary index entry does not refer to any
@@ -65,27 +65,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
  secondary index entry after purge has removed it and released the leaf
  page latch.
  @return true if the secondary index record can be purged */
-[[nodiscard]] bool row_purge_poss_sec(
-    purge_node_t *node,     /*!< in/out: row purge node */
-    dict_index_t *index,    /*!< in: secondary index */
-    const dtuple_t *entry); /*!< in: secondary index entry */
+bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
+                        dict_index_t *index,   /*!< in: secondary index */
+                        const dtuple_t *entry) /*!< in: secondary index entry */
+    MY_ATTRIBUTE((warn_unused_result));
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return query thread to run next or NULL */
-[[nodiscard]] que_thr_t *row_purge_step(
-    que_thr_t *thr); /*!< in: query thread */
-
-using Page_free_tuple = std::tuple<index_id_t, page_id_t, table_id_t>;
-
-struct Compare_page_free_tuple {
-  bool operator()(const Page_free_tuple &lhs,
-                  const Page_free_tuple &rhs) const {
-    const page_id_t &lpage_id = std::get<1>(lhs);
-    const page_id_t &rpage_id = std::get<1>(rhs);
-    return (lpage_id < rpage_id);
-  }
-};
+que_thr_t *row_purge_step(que_thr_t *thr) /*!< in: query thread */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /* Purge node structure */
 
@@ -172,18 +161,6 @@ struct purge_node_t {
   /** Undo recs to purge */
   Recs *recs;
 
-  void init() { new (&m_lob_pages) LOB_free_set(); }
-
-  /** Add an LOB page to the list of pages that will be freed at the end of a
-  purge batch.
-  @param[in]    index       the clust index to which the LOB belongs.
-  @param[in]    page_id     the page_id of the first page of the LOB. */
-  void add_lob_page(dict_index_t *index, const page_id_t &page_id);
-
-  /** Free the LOB first pages at end of purge batch. Since this function
-  acquires shared MDL table locks, the caller should not hold any latches. */
-  void free_lob_pages();
-
   /** Check if undo records of given table_id is there in this purge node.
   @param[in]	table_id	look for undo records of this table id.
   @return true if undo records of table id exists, false otherwise. */
@@ -206,13 +183,6 @@ struct purge_node_t {
      the ref member.*/
   bool validate_pcur();
 #endif
-
- private:
-  using LOB_free_set = std::set<Page_free_tuple, Compare_page_free_tuple,
-                                ut::allocator<Page_free_tuple>>;
-
-  /** Set of LOB first pages that are to be freed. */
-  LOB_free_set m_lob_pages;
 };
 
 #endif

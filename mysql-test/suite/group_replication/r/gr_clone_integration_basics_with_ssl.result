@@ -11,14 +11,9 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 
 ############################################################
 # 2. Create a user that requires SSL
-SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 GRANT BACKUP_ADMIN ON *.* TO "rec_ssl_user";
-GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
-FLUSH PRIVILEGES;
-SET SESSION sql_log_bin=1;
-SET GLOBAL group_replication_ssl_mode= REQUIRED;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 
 ############################################################
@@ -31,14 +26,6 @@ INSERT INTO t1 VALUES (2);
 #######################################################################
 # 4. Restart server 2 with a monitoring process (mysqld_safe) if needed
 [connection server2]
-SET SESSION sql_log_bin=0;
-CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
-GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
-GRANT BACKUP_ADMIN ON *.* TO "rec_ssl_user";
-GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
-FLUSH PRIVILEGES;
-SET SESSION sql_log_bin=1;
-SET GLOBAL group_replication_ssl_mode= REQUIRED;
 include/spawn_monitoring_process.inc
 
 ############################################################
@@ -65,8 +52,6 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
-RESET PERSIST IF EXISTS group_replication_communication_stack;
-RESET PERSIST IF EXISTS group_replication_ssl_mode;
 RESET PERSIST IF EXISTS group_replication_recovery_use_ssl;
 RESET PERSIST IF EXISTS group_replication_recovery_ssl_ca;
 RESET PERSIST IF EXISTS group_replication_recovery_ssl_cert;
@@ -79,5 +64,4 @@ call mtr.add_suppression("Clone removing all user data for provisioning: Started
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;
 include/clean_monitoring_process.inc
-server1
 include/group_replication_end.inc

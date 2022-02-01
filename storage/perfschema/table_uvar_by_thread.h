@@ -54,11 +54,12 @@ struct THR_LOCK;
 
 struct User_variable {
  public:
-  User_variable() = default;
+  User_variable() {}
 
-  User_variable(const User_variable &uv) = default;
+  User_variable(const User_variable &uv)
+      : m_name(uv.m_name), m_value(uv.m_value) {}
 
-  ~User_variable() = default;
+  ~User_variable() {}
 
   PFS_variable_name_row m_name;
   PFS_user_variable_value_row m_value;
@@ -145,7 +146,7 @@ class PFS_index_uvar_by_thread : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_uvar_by_thread() override = default;
+  ~PFS_index_uvar_by_thread() override {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const User_variable *pfs);

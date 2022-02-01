@@ -84,7 +84,7 @@ class TableCollection {
  public:
   TableCollection() = default;
 
-  TableCollection(const Prealloced_array<TABLE *, 4> &tables, bool store_rowids,
+  TableCollection(const JOIN *join, table_map tables, bool store_rowids,
                   table_map tables_to_get_rowid_for);
 
   // A single table (typically one for which there is no map bit).

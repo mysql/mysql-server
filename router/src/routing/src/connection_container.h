@@ -205,9 +205,8 @@ class ConnectionContainer {
    *
    * @param nodes Allowed servers. Connections to servers that are not in nodes
    *        are closed.
-   * @returns number of connections marked to be disconnected
    */
-  unsigned disconnect(const AllowedNodes &nodes);
+  void disconnect(const AllowedNodes &nodes);
 
   /**
    * @brief Disconnects all connection in the ConnectionContainer.

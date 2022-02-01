@@ -22,23 +22,18 @@
 
 #include "sql/join_optimizer/access_path.h"
 
+#include "sql/basic_row_iterators.h"
+#include "sql/bka_iterator.h"
+#include "sql/composite_iterators.h"
 #include "sql/filesort.h"
+#include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
-#include "sql/iterators/basic_row_iterators.h"
-#include "sql/iterators/bka_iterator.h"
-#include "sql/iterators/composite_iterators.h"
-#include "sql/iterators/hash_join_iterator.h"
-#include "sql/iterators/ref_row_iterators.h"
-#include "sql/iterators/sorting_iterator.h"
-#include "sql/iterators/timing_iterator.h"
-#include "sql/join_optimizer/print_utils.h"
-#include "sql/join_optimizer/relational_expression.h"
-#include "sql/range_optimizer/group_index_skip_scan_plan.h"
-#include "sql/range_optimizer/index_skip_scan_plan.h"
-#include "sql/range_optimizer/internal.h"
-#include "sql/range_optimizer/range_optimizer.h"
+#include "sql/opt_range.h"
+#include "sql/ref_row_iterators.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
+#include "sql/timing_iterator.h"
 
 #include <functional>
 #include <string>
@@ -47,9 +42,6 @@
 using std::function;
 using std::string;
 using std::vector;
-
-static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
-                          const KEY_PART_INFO *key_part, bool single_part_only);
 
 struct ExplainData {
   /**
@@ -104,7 +96,6 @@ static string JoinTypeToString(JoinType join_type) {
 static string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
     case RelationalExpression::INNER_JOIN:
-    case RelationalExpression::STRAIGHT_INNER_JOIN:
       return "Inner hash join";
     case RelationalExpression::LEFT_JOIN:
       return "Left hash join";
@@ -112,6 +103,8 @@ static string HashJoinTypeToString(RelationalExpression::Type join_type) {
       return "Hash antijoin";
     case RelationalExpression::SEMIJOIN:
       return "Hash semijoin";
+    case RelationalExpression::CARTESIAN_PRODUCT:
+      return "Hash cartesian product";
     default:
       assert(false);
       return "<error>";
@@ -140,9 +133,6 @@ static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; run only once)",
                query_block->select_number, source_text);
-    }
-    if (query_block->join->needs_finalize) {
-      subselect->unit->finalize(current_thd);
     }
     AccessPath *path;
     if (subselect->unit->root_access_path() != nullptr) {
@@ -181,9 +171,12 @@ vector<ExplainData::Child> GetAccessPathsFromSelectList(JOIN *join) {
 
 ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join);
 
-// The table iterator could be a slightly more complicated iterator than
-// the basic iterators (in particular, ALTERNATIVE), so show the entire
-// thing.
+// The table iterator could be a whole string of iterators
+// (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
+//
+// TODO(sgunders): Make the optimizer put these on top of the
+// MaterializeIterator instead (or perhaps better yet, on the subquery
+// iterator), so that table_iterator is always just a single basic iterator.
 static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
                                         vector<string> *description) {
   const AccessPath *subpath = path;
@@ -191,7 +184,7 @@ static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
     ExplainData explain = ExplainAccessPath(subpath, join);
     for (string str : explain.description) {
       if (explain.children.size() > 1) {
-        // This can happen if we have AlternativeIterator.
+        // This can happen if e.g. a filter has subqueries in it.
         // TODO(sgunders): Consider having a RowIterator::parent(),
         // so that we can show the entire tree.
         str += " [other sub-iterators not shown]";
@@ -311,115 +304,6 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
   }
 }
 
-static void ExplainIndexSkipScanAccessPath(const AccessPath *path,
-                                           JOIN *join [[maybe_unused]],
-                                           vector<string> *description,
-                                           vector<ExplainData::Child> *children
-                                           [[maybe_unused]]) {
-  TABLE *table = path->index_skip_scan().table;
-  KEY *key_info = table->key_info + path->index_skip_scan().index;
-
-  // NOTE: Currently, index skip scan is always covering, but there's no
-  // good reason why we cannot fix this limitation in the future.
-  string ret = string(table->key_read ? "Covering index skip scan on "
-                                      : "Index skip scan on ") +
-               table->alias + " using " + key_info->name + " over ";
-  IndexSkipScanParameters *param = path->index_skip_scan().param;
-
-  // Print out any equality ranges.
-  bool first = true;
-  for (unsigned key_part_idx = 0; key_part_idx < param->eq_prefix_key_parts;
-       ++key_part_idx) {
-    if (!first) {
-      ret += ", ";
-    }
-    first = false;
-
-    ret += param->index_info->key_part[key_part_idx].field->field_name;
-    Bounds_checked_array<unsigned char *> prefixes =
-        param->eq_prefixes[key_part_idx].eq_key_prefixes;
-    if (prefixes.size() == 1) {
-      ret += " = ";
-      String out;
-      print_key_value(&out, &param->index_info->key_part[key_part_idx],
-                      prefixes[0]);
-      ret += to_string(out);
-    } else {
-      ret += " IN (";
-      for (unsigned i = 0; i < prefixes.size(); ++i) {
-        if (i == 2 && prefixes.size() > 3) {
-          ret += StringPrintf(", (%zu more)", prefixes.size() - 2);
-          break;
-        } else if (i != 0) {
-          ret += ", ";
-        }
-        String out;
-        print_key_value(&out, &param->index_info->key_part[key_part_idx],
-                        prefixes[i]);
-        ret += to_string(out);
-      }
-      ret += ")";
-    }
-  }
-
-  // Then the ranges.
-  if (!first) {
-    ret += ", ";
-  }
-  String out;
-  append_range(&out, param->range_key_part, param->min_range_key,
-               param->max_range_key, param->range_cond_flag);
-  ret += to_string(out);
-
-  description->push_back(ret);
-}
-
-static void ExplainGroupIndexSkipScanAccessPath(
-    const AccessPath *path, JOIN *join [[maybe_unused]],
-    vector<string> *description,
-    vector<ExplainData::Child> *children [[maybe_unused]]) {
-  TABLE *table = path->group_index_skip_scan().table;
-  KEY *key_info = table->key_info + path->group_index_skip_scan().index;
-  GroupIndexSkipScanParameters *param = path->group_index_skip_scan().param;
-
-  // NOTE: Currently, group index skip scan is always covering, but there's no
-  // good reason why we cannot fix this limitation in the future.
-  string ret;
-  if (param->min_max_arg_part != nullptr) {
-    ret = string(table->key_read ? "Covering index skip scan for grouping on "
-                                 : "Index skip scan for grouping on ") +
-          table->alias + " using " + key_info->name;
-  } else {
-    ret = string(table->key_read
-                     ? "Covering index skip scan for deduplication on "
-                     : "Index skip scan for deduplication on ") +
-          table->alias + " using " + key_info->name;
-  }
-
-  // Print out prefix ranges, if any.
-  if (!param->prefix_ranges.empty()) {
-    ret += " over ";
-    ret += PrintRanges(param->prefix_ranges.data(), param->prefix_ranges.size(),
-                       key_info->key_part, /*single_part_only=*/false);
-  }
-
-  // Print out the ranges on the MIN/MAX keypart, if we have them.
-  // (We don't print infix ranges, because they seem to be in an unusual
-  // format.)
-  if (!param->min_max_ranges.empty()) {
-    if (param->prefix_ranges.empty()) {
-      ret += " over ";
-    } else {
-      ret += ", ";
-    }
-    ret += PrintRanges(param->min_max_ranges.data(),
-                       param->min_max_ranges.size(), param->min_max_arg_part,
-                       /*single_part_only=*/true);
-  }
-
-  description->push_back(ret);
-}
-
 static void AddChildrenFromPushedCondition(
     const TABLE *table, vector<ExplainData::Child> *children) {
   /*
@@ -437,35 +321,6 @@ static void AddChildrenFromPushedCondition(
   }
 }
 
-static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
-                          const KEY_PART_INFO *key_part,
-                          bool single_part_only) {
-  string ret;
-  for (unsigned range_idx = 0; range_idx < num_ranges; ++range_idx) {
-    if (range_idx == 2 && num_ranges > 3) {
-      char str[256];
-      snprintf(str, sizeof(str), " OR (%u more)", num_ranges - 2);
-      ret += str;
-      break;
-    } else if (range_idx > 0) {
-      ret += " OR ";
-    }
-    String str;
-    if (single_part_only) {
-      // key_part is the part we are printing on,
-      // and we have to ignore min_keypart_map / max_keypart_map,
-      // so we cannot use append_range_to_string().
-      append_range(&str, key_part, ranges[range_idx]->min_key,
-                   ranges[range_idx]->max_key, ranges[range_idx]->flag);
-    } else {
-      // NOTE: key_part is the first keypart in the key.
-      append_range_to_string(ranges[range_idx], key_part, &str);
-    }
-    ret += "(" + to_string(str) + ")";
-  }
-  return ret;
-}
-
 ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
   vector<string> description;
   vector<ExplainData::Child> children;
@@ -481,9 +336,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       assert(table->file->pushed_idx_cond == nullptr);
 
       const KEY *key = &table->key_info[path->index_scan().idx];
-      string str = string(table->key_read ? "Covering index scan on "
-                                          : "Index scan on ") +
-                   table->alias + " using " + key->name;
+      string str =
+          string("Index scan on ") + table->alias + " using " + key->name;
       if (path->index_scan().reverse) {
         str += " (reverse)";
       }
@@ -496,9 +350,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     case AccessPath::REF: {
       TABLE *table = path->ref().table;
       const KEY *key = &table->key_info[path->ref().ref->key];
-      string str = string(table->key_read ? "Covering index lookup on "
-                                          : "Index lookup on ") +
-                   table->alias + " using " + key->name + " (" +
+      string str = string("Index lookup on ") + table->alias + " using " +
+                   key->name + " (" +
                    RefToString(*path->ref().ref, key, /*include_nulls=*/false);
       if (path->ref().reverse) {
         str += "; iterate backwards";
@@ -517,9 +370,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->ref_or_null().table;
       const KEY *key = &table->key_info[path->ref_or_null().ref->key];
       string str =
-          string(table->key_read ? "Covering index lookup on "
-                                 : "Index lookup on ") +
-          table->alias + " using " + key->name + " (" +
+          string("Index lookup on ") + table->alias + " using " + key->name +
+          " (" +
           RefToString(*path->ref_or_null().ref, key, /*include_nulls=*/true) +
           ")";
       if (table->file->pushed_idx_cond != nullptr) {
@@ -535,9 +387,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->eq_ref().table;
       const KEY *key = &table->key_info[path->eq_ref().ref->key];
       string str =
-          string(table->key_read ? "Single-row covering index lookup on "
-                                 : "Single-row index lookup on ") +
-          table->alias + " using " + key->name + " (" +
+          string("Single-row index lookup on ") + table->alias + " using " +
+          key->name + " (" +
           RefToString(*path->eq_ref().ref, key, /*include_nulls=*/false) + ")";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
@@ -554,10 +405,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       const KEY *key = &table->key_info[path->pushed_join_ref().ref->key];
       string str;
       if (path->pushed_join_ref().is_unique) {
-        str =
-            table->key_read ? "Single-row covering index" : "Single-row index";
+        str = string("Single-row index");
       } else {
-        str = table->key_read ? "Covering index" : "Index";
+        str = string("Index");
       }
       str += " lookup on " + string(table->alias) + " using " + key->name +
              " (" +
@@ -571,9 +421,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->full_text_search().table;
       assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->full_text_search().ref->key];
-      description.push_back(string(table->key_read
-                                       ? "Full-text covering index search on "
-                                       : "Full-text index search on ") +
+      description.push_back(string("Indexed full text search on ") +
                             table->alias + " using " + key->name + " (" +
                             RefToString(*path->full_text_search().ref, key,
                                         /*include_nulls=*/false) +
@@ -590,14 +438,17 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     case AccessPath::MRR: {
       TABLE *table = path->mrr().table;
       const KEY *key = &table->key_info[path->mrr().ref->key];
-      string str =
-          string(table->key_read ? "Multi-range covering index lookup on "
-                                 : "Multi-range index lookup on ") +
-          table->alias + " using " + key->name + " (" +
-          RefToString(*path->mrr().ref, key, /*include_nulls=*/false) + ")";
+      string str = string("Multi-range index lookup on ") + table->alias +
+                   " using " + key->name + " (" +
+                   RefToString(*path->mrr().ref, key, /*include_nulls=*/false) +
+                   ")";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
+      }
+      if (path->mrr().cache_idx_cond != nullptr) {
+        str += ", with dependent index condition: " +
+               ItemToString(path->mrr().cache_idx_cond);
       }
       str += table->file->explain_extra();
       description.push_back(move(str));
@@ -610,14 +461,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       AddChildrenFromPushedCondition(path->follow_tail().table, &children);
       break;
     case AccessPath::INDEX_RANGE_SCAN: {
-      const auto &param = path->index_range_scan();
-      TABLE *table = param.used_key_part[0].field->table;
-      KEY *key_info = table->key_info + param.index;
-      string ret = string(table->key_read ? "Covering index range scan on "
-                                          : "Index range scan on ") +
-                   table->alias + " using " + key_info->name + " over ";
-      ret += PrintRanges(param.ranges, param.num_ranges, key_info->key_part,
-                         /*single_part_only=*/false);
+      TABLE *table = path->index_range_scan().table;
+      // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
+      // get better outputs here (similar to dbug_dump()).
+      String str;
+      path->index_range_scan().quick->add_info_string(&str);
+      string ret = string("Index range scan on ") + table->alias + " using " +
+                   to_string(str);
       if (table->file->pushed_idx_cond != nullptr) {
         ret += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
@@ -627,47 +477,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       AddChildrenFromPushedCondition(table, &children);
       break;
     }
-    case AccessPath::INDEX_MERGE: {
-      const auto &param = path->index_merge();
-      description.push_back("Sort-deduplicate by row ID");
-      for (AccessPath *child : *path->index_merge().children) {
-        if (param.table->file->primary_key_is_clustered() &&
-            child->index_range_scan().index == param.table->s->primary_key) {
-          children.push_back(
-              {child, "Clustered primary key (scanned separately)"});
-        } else {
-          children.push_back({child});
-        }
-      }
-      break;
-    }
-    case AccessPath::ROWID_INTERSECTION: {
-      description.push_back("Intersect rows sorted by row ID");
-      for (AccessPath *child : *path->rowid_intersection().children) {
-        children.push_back({child});
-      }
-      break;
-    }
-    case AccessPath::ROWID_UNION: {
-      description.push_back("Deduplicate rows sorted by row ID");
-      for (AccessPath *child : *path->rowid_union().children) {
-        children.push_back({child});
-      }
-      break;
-    }
-    case AccessPath::INDEX_SKIP_SCAN: {
-      ExplainIndexSkipScanAccessPath(path, join, &description, &children);
-      break;
-    }
-    case AccessPath::GROUP_INDEX_SKIP_SCAN: {
-      ExplainGroupIndexSkipScanAccessPath(path, join, &description, &children);
-      break;
-    }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {
       TABLE *table = path->dynamic_index_range_scan().table;
-      string str = string(table->key_read ? "Covering index range scan on "
-                                          : "Index range scan on ") +
-                   table->alias + " (re-planned for each iteration)";
+      // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
+      // get better outputs here (similar to dbug_dump()), although it might get
+      // tricky when there are many alternatives.
+      string str = string("Index range scan on ") + table->alias +
+                   " (re-planned for each iteration)";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
@@ -722,10 +538,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
-      RelationalExpression::Type type = path->hash_join().rewrite_semi_to_inner
-                                            ? RelationalExpression::INNER_JOIN
-                                            : predicate->expr->type;
-      string ret = HashJoinTypeToString(type);
+      string ret = HashJoinTypeToString(predicate->expr->type);
 
       if (predicate->expr->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
@@ -888,10 +701,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
         children.push_back({child.path, "", child.join});
       }
       break;
-    case AccessPath::WINDOW: {
+    case AccessPath::WINDOWING: {
       string buf;
-      if (path->window().needs_buffering) {
-        Window *window = path->window().temp_table_param->m_window;
+      if (path->windowing().needs_buffering) {
+        Window *window = path->windowing().temp_table_param->m_window;
         if (window->optimizable_row_aggregates() ||
             window->optimizable_range_aggregates() ||
             window->static_aggregates()) {
@@ -905,7 +718,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
 
       bool first = true;
       for (const Func_ptr &func :
-           *(path->window().temp_table_param->items_to_copy)) {
+           *(path->windowing().temp_table_param->items_to_copy)) {
         if (func.func()->m_is_window_function) {
           if (!first) {
             buf += ", ";
@@ -915,7 +728,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
         }
       }
       description.push_back(move(buf));
-      children.push_back({path->window().child});
+      children.push_back({path->windowing().child});
       break;
     }
     case AccessPath::WEEDOUT: {
@@ -939,22 +752,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       children.push_back({path->weedout().child});
       break;
     }
-    case AccessPath::REMOVE_DUPLICATES: {
-      string ret = "Remove duplicates from input grouped on ";
-      for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
-        if (i != 0) {
-          ret += ", ";
-        }
-        ret += ItemToString(path->remove_duplicates().group_items[i]);
-      }
-      description.push_back(std::move(ret));
-      children.push_back({path->remove_duplicates().child});
-      break;
-    }
-    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
+    case AccessPath::REMOVE_DUPLICATES:
       description.push_back(string("Remove duplicates from input sorted on ") +
-                            path->remove_duplicates_on_index().key->name);
-      children.push_back({path->remove_duplicates_on_index().child});
+                            path->remove_duplicates().key->name);
+      children.push_back({path->remove_duplicates().child});
       break;
     case AccessPath::ALTERNATIVE: {
       const TABLE *table =
@@ -1000,26 +801,6 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
           path->cache_invalidator().name + ")");
       children.push_back({path->cache_invalidator().child});
       break;
-    case AccessPath::DELETE_ROWS: {
-      string tables;
-      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
-           t = t->next_leaf) {
-        if (Overlaps(t->map(), path->delete_rows().tables_to_delete_from)) {
-          if (!tables.empty()) {
-            tables.append(", ");
-          }
-          tables.append(t->alias);
-          if (Overlaps(t->map(), path->delete_rows().immediate_tables)) {
-            tables.append(" (immediate)");
-          } else {
-            tables.append(" (buffered)");
-          }
-        }
-      }
-      description.push_back(string("Delete from ") + tables);
-      children.push_back({path->delete_rows().child});
-      break;
-    }
   }
   if (path->num_output_rows >= 0.0) {
     double first_row_cost;
@@ -1080,21 +861,9 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
     ++level;
   }
 
-  // If we are crossing into a different query block, but there's a streaming
-  // or materialization node in the way, don't count it as the root; we want
-  // any SELECT printouts to be on the actual root node.
-  // TODO(sgunders): This gives the wrong result if a query block ends in a
-  // materialization.
-  bool delayed_root_of_join = false;
-  if (path->type == AccessPath::STREAM ||
-      path->type == AccessPath::MATERIALIZE) {
-    delayed_root_of_join = is_root_of_join;
-    is_root_of_join = false;
-  }
-
   for (const ExplainData::Child &child : explain.children) {
     JOIN *subjoin = child.join != nullptr ? child.join : join;
-    bool child_is_root_of_join = subjoin != join || delayed_root_of_join;
+    bool child_is_root_of_join = subjoin != join;
     if (!child.description.empty()) {
       ret.append(level * 4, ' ');
       ret.append("-> ");

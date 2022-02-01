@@ -40,7 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Gets pointer to the page frame where the cursor is positioned.
  @return page */
-static inline page_t *page_cur_get_page(page_cur_t *cur) /*!< in: page cursor */
+UNIV_INLINE
+page_t *page_cur_get_page(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
   ut_ad(page_align(cur->rec) == cur->block->frame);
@@ -50,8 +51,8 @@ static inline page_t *page_cur_get_page(page_cur_t *cur) /*!< in: page cursor */
 
 /** Gets pointer to the buffer block where the cursor is positioned.
  @return page */
-static inline buf_block_t *page_cur_get_block(
-    page_cur_t *cur) /*!< in: page cursor */
+UNIV_INLINE
+buf_block_t *page_cur_get_block(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
   ut_ad(page_align(cur->rec) == cur->block->frame);
@@ -60,15 +61,16 @@ static inline buf_block_t *page_cur_get_block(
 
 /** Gets pointer to the page frame where the cursor is positioned.
  @return page */
-static inline page_zip_des_t *page_cur_get_page_zip(
-    page_cur_t *cur) /*!< in: page cursor */
+UNIV_INLINE
+page_zip_des_t *page_cur_get_page_zip(page_cur_t *cur) /*!< in: page cursor */
 {
   return (buf_block_get_page_zip(page_cur_get_block(cur)));
 }
 
 /** Gets the record where the cursor is positioned.
  @return record */
-static inline rec_t *page_cur_get_rec(page_cur_t *cur) /*!< in: page cursor */
+UNIV_INLINE
+rec_t *page_cur_get_rec(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
   ut_ad(page_align(cur->rec) == cur->block->frame);
@@ -79,9 +81,9 @@ static inline rec_t *page_cur_get_rec(page_cur_t *cur) /*!< in: page cursor */
 
 /** Sets the cursor object to point before the first user record
  on the page. */
-static inline void page_cur_set_before_first(
-    const buf_block_t *block, /*!< in: index page */
-    page_cur_t *cur)          /*!< in: cursor */
+UNIV_INLINE
+void page_cur_set_before_first(const buf_block_t *block, /*!< in: index page */
+                               page_cur_t *cur)          /*!< in: cursor */
 {
   cur->block = (buf_block_t *)block;
   cur->rec = page_get_infimum_rec(buf_block_get_frame(cur->block));
@@ -89,9 +91,9 @@ static inline void page_cur_set_before_first(
 
 /** Sets the cursor object to point after the last user record on
  the page. */
-static inline void page_cur_set_after_last(
-    const buf_block_t *block, /*!< in: index page */
-    page_cur_t *cur)          /*!< in: cursor */
+UNIV_INLINE
+void page_cur_set_after_last(const buf_block_t *block, /*!< in: index page */
+                             page_cur_t *cur)          /*!< in: cursor */
 {
   cur->block = (buf_block_t *)block;
   cur->rec = page_get_supremum_rec(buf_block_get_frame(cur->block));
@@ -99,8 +101,8 @@ static inline void page_cur_set_after_last(
 
 /** Returns TRUE if the cursor is before first user record on page.
  @return true if at start */
-static inline ibool page_cur_is_before_first(
-    const page_cur_t *cur) /*!< in: cursor */
+UNIV_INLINE
+ibool page_cur_is_before_first(const page_cur_t *cur) /*!< in: cursor */
 {
   ut_ad(cur);
   ut_ad(page_align(cur->rec) == cur->block->frame);
@@ -109,8 +111,8 @@ static inline ibool page_cur_is_before_first(
 
 /** Returns TRUE if the cursor is after last user record.
  @return true if at end */
-static inline ibool page_cur_is_after_last(
-    const page_cur_t *cur) /*!< in: cursor */
+UNIV_INLINE
+ibool page_cur_is_after_last(const page_cur_t *cur) /*!< in: cursor */
 {
   ut_ad(cur);
   ut_ad(page_align(cur->rec) == cur->block->frame);
@@ -118,11 +120,11 @@ static inline ibool page_cur_is_after_last(
 }
 
 /** Positions the cursor on the given record. */
-static inline void page_cur_position(
-    const rec_t *rec,         /*!< in: record on a page */
-    const buf_block_t *block, /*!< in: buffer block
-                              containing the record */
-    page_cur_t *cur)          /*!< out: page cursor */
+UNIV_INLINE
+void page_cur_position(const rec_t *rec,         /*!< in: record on a page */
+                       const buf_block_t *block, /*!< in: buffer block
+                                                 containing the record */
+                       page_cur_t *cur)          /*!< out: page cursor */
 {
   ut_ad(rec && block && cur);
   ut_ad(page_align(rec) == block->frame);
@@ -132,7 +134,8 @@ static inline void page_cur_position(
 }
 
 /** Moves the cursor to the next record on page. */
-static inline void page_cur_move_to_next(
+UNIV_INLINE
+void page_cur_move_to_next(
     page_cur_t *cur) /*!< in/out: cursor; must not be after last */
 {
   ut_ad(!page_cur_is_after_last(cur));
@@ -141,7 +144,8 @@ static inline void page_cur_move_to_next(
 }
 
 /** Moves the cursor to the previous record on page. */
-static inline void page_cur_move_to_prev(
+UNIV_INLINE
+void page_cur_move_to_prev(
     page_cur_t *cur) /*!< in/out: page cursor, not before first */
 {
   ut_ad(!page_cur_is_before_first(cur));
@@ -157,10 +161,10 @@ static inline void page_cur_move_to_prev(
 @param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
 @param[out] cursor page cursor
 @return number of matched fields on the left */
-static inline ulint page_cur_search(const buf_block_t *block,
-                                    const dict_index_t *index,
-                                    const dtuple_t *tuple, page_cur_mode_t mode,
-                                    page_cur_t *cursor) {
+UNIV_INLINE
+ulint page_cur_search(const buf_block_t *block, const dict_index_t *index,
+                      const dtuple_t *tuple, page_cur_mode_t mode,
+                      page_cur_t *cursor) {
   ulint low_match = 0;
   ulint up_match = 0;
 
@@ -177,9 +181,9 @@ static inline ulint page_cur_search(const buf_block_t *block,
 @param[in] tuple data tuple
 @param[out] cursor page cursor
 @return number of matched fields on the left */
-static inline ulint page_cur_search(const buf_block_t *block,
-                                    const dict_index_t *index,
-                                    const dtuple_t *tuple, page_cur_t *cursor) {
+UNIV_INLINE
+ulint page_cur_search(const buf_block_t *block, const dict_index_t *index,
+                      const dtuple_t *tuple, page_cur_t *cursor) {
   return (page_cur_search(block, index, tuple, PAGE_CUR_LE, cursor));
 }
 
@@ -194,7 +198,8 @@ static inline ulint page_cur_search(const buf_block_t *block,
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return pointer to record if succeed, NULL otherwise */
-static inline rec_t *page_cur_tuple_insert(
+UNIV_INLINE
+rec_t *page_cur_tuple_insert(
     page_cur_t *cursor,    /*!< in/out: a page cursor */
     const dtuple_t *tuple, /*!< in: pointer to a data tuple */
     dict_index_t *index,   /*!< in: record descriptor */
@@ -251,17 +256,18 @@ the page from tuple without creating intermediate copy of the record.
 @param[in]	tuple	Pointer to a data tuple
 @param[in]	index	Record descriptor
 @param[in]	mtr	Mini-transaction handle, or NULL
-@param[in]      rec_size  The size of new record
 
 @return pointer to record if succeed, NULL otherwise */
-static inline rec_t *page_cur_tuple_direct_insert(page_cur_t *cursor,
-                                                  const dtuple_t *tuple,
-                                                  dict_index_t *index,
-                                                  mtr_t *mtr, ulint rec_size) {
+UNIV_INLINE
+rec_t *page_cur_tuple_direct_insert(page_cur_t *cursor, const dtuple_t *tuple,
+                                    dict_index_t *index, mtr_t *mtr) {
+  rec_t *rec;
+
   ut_ad(index->table->is_intrinsic());
 
-  return page_cur_direct_insert_rec_low(cursor->rec, index, tuple, mtr,
-                                        rec_size);
+  rec = page_cur_direct_insert_rec_low(cursor->rec, index, tuple, mtr);
+
+  return (rec);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -276,7 +282,8 @@ static inline rec_t *page_cur_tuple_direct_insert(page_cur_t *cursor,
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return pointer to record if succeed, NULL otherwise */
-static inline rec_t *page_cur_rec_insert(
+UNIV_INLINE
+rec_t *page_cur_rec_insert(
     page_cur_t *cursor,  /*!< in/out: a page cursor */
     const rec_t *rec,    /*!< in: record to insert */
     dict_index_t *index, /*!< in: record descriptor */

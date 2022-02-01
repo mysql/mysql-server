@@ -1,9 +1,6 @@
 -- source include/have_log_bin.inc
 
-call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
-
-SET @old_log_output=@@global.log_output;
-SET GLOBAL log_output="FILE,TABLE";
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
 #
 # SQL Syntax for Prepared Statements test
 #
@@ -3498,57 +3495,3 @@ SET @b = 2;
 EXECUTE s USING @a, @b;
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
-
---echo #
---echo # Bug #32751973: REGRESSION: HEAP-USE-AFTER-FREE IN ITEM_FIELD::BIND_FIELDS
---echo #
-
-CREATE TABLE t1 (a INTEGER);
-PREPARE s FROM 'SELECT 1 FROM t1 WHERE TRUE OR ( SELECT 1 FROM (SELECT a) q ) = 1';
-EXECUTE s;
-DROP TABLE t1;
-
---echo #
---echo # Bug #32808790: DON'T ADD CACHES AROUND PREPARED STATEMENT PARAMETERS
---echo #
-
-CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
-
-# Verify there's no <cache> around the 2.
-PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
-SET @v = 2;
---replace_regex /  \(cost=.*//
-EXECUTE q USING @v;
-
-DROP TABLE t1;
-
---echo # Bug#32213576: MySQL tries to parse string-bound float as integer
---echo #               and returns wrong error
-
-CREATE TABLE t (f INT NOT NULL) ENGINE=InnoDB;
-INSERT INTO t (f) VALUES (0);
-PREPARE stmt FROM 'UPDATE t SET f = 100 * ?';
-SET @a = '0.3';
-EXECUTE stmt USING @a;
-DEALLOCATE PREPARE stmt;
-SELECT * FROM t;
-DROP TABLE t;
-
---echo # Bug#32787037: Passed string type binding for integer column
---echo #               incorrectly cast to integer
-
-CREATE TABLE t1 (int_column INT NOT NULL);
-INSERT INTO t1 VALUES (1), (2), (3), (4);
-
-SELECT * from t1 where int_column < '1.9';
-
-PREPARE stmt FROM 'SELECT * from t1 where int_column < ?';
-SET @a = '1.9';
-EXECUTE stmt USING @a;
-DEALLOCATE PREPARE stmt;
-
-DROP TABLE t1;
-
-SET GLOBAL log_output=@old_log_output;
-TRUNCATE TABLE mysql.general_log;
-TRUNCATE TABLE mysql.slow_log;

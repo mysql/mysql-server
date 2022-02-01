@@ -32,9 +32,9 @@
 
 struct File_formats 
 {
-  static constexpr Uint32 NDB_PAGE_SIZE = 32768;
-  static constexpr Uint32 NDB_DATA_PAGE_HEADER_SIZE = 128;
-  static constexpr Uint32 NDB_PAGE_SIZE_WORDS = NDB_PAGE_SIZE >> 2;
+  STATIC_CONST( NDB_PAGE_SIZE = 32768 );
+  STATIC_CONST( NDB_DATA_PAGE_HEADER_SIZE = 128);
+  STATIC_CONST( NDB_PAGE_SIZE_WORDS = NDB_PAGE_SIZE >> 2);
   
   enum File_type
   {
@@ -72,7 +72,7 @@ struct File_formats
     int validate(File_type ft, Uint32 node_id, Uint32 version, Uint32 now);
   };
 
-  static constexpr Uint32 NDB_PAGE_HEADER_WORDS = sizeof(Page_header) >> 2;
+  STATIC_CONST( NDB_PAGE_HEADER_WORDS = sizeof(Page_header) >> 2);
   
   struct Datafile 
   {
@@ -121,8 +121,8 @@ struct File_formats
       Extent_header() {}
     };
     
-    static constexpr Uint32 EXTENT_HEADER_BITMASK_BITS_PER_PAGE = 4;
-    static constexpr Uint32 EXTENT_HEADER_FIXED_WORDS = (sizeof(Extent_header)>>2) - 1;
+    STATIC_CONST( EXTENT_HEADER_BITMASK_BITS_PER_PAGE = 4 );
+    STATIC_CONST( EXTENT_HEADER_FIXED_WORDS = (sizeof(Extent_header)>>2) - 1);
     
     struct Extent_header_v2
     {
@@ -138,9 +138,9 @@ struct File_formats
       Extent_header_v2() {}
     };
     
-    static constexpr Uint32 EXTENT_HEADER_BITMASK_BITS_PER_PAGE_v2 = 4;
-    static constexpr Uint32 EXTENT_HEADER_FIXED_WORDS_v2 =
-                  (sizeof(Extent_header_v2)>>2) - 1;
+    STATIC_CONST( EXTENT_HEADER_BITMASK_BITS_PER_PAGE_v2 = 4 );
+    STATIC_CONST( EXTENT_HEADER_FIXED_WORDS_v2 =
+                  (sizeof(Extent_header_v2)>>2) - 1);
     static Uint32 extent_header_words(Uint32 extent_size_in_pages, bool v2);
     static Uint32 extent_page_words(bool v2);
 
@@ -173,8 +173,8 @@ struct File_formats
                                        bool v2);
     };
     
-    static constexpr Uint32 EXTENT_PAGE_WORDS = NDB_PAGE_SIZE_WORDS -
-                                                NDB_PAGE_HEADER_WORDS;
+    STATIC_CONST( EXTENT_PAGE_WORDS = NDB_PAGE_SIZE_WORDS -
+                                      NDB_PAGE_HEADER_WORDS );
     
     struct Extent_page_v2
     {
@@ -188,8 +188,8 @@ struct File_formats
       Extent_header_v2* get_header_v2(Uint32 extent_no, Uint32 extent_size);
     };
     
-    static constexpr Uint32 EXTENT_PAGE_WORDS_v2 = NDB_PAGE_SIZE_WORDS -
-                                                   NDB_PAGE_HEADER_WORDS - 6;
+    STATIC_CONST( EXTENT_PAGE_WORDS_v2 = NDB_PAGE_SIZE_WORDS -
+                                         NDB_PAGE_HEADER_WORDS - 6 );
     
     struct Data_page 
     {
@@ -280,10 +280,10 @@ struct File_formats
       Uint32 m_type_length; // 16 bit type, 16 bit length
     };
   };
-  static constexpr Uint32 UNDO_PAGE_WORDS = NDB_PAGE_SIZE_WORDS -
-                                            NDB_PAGE_HEADER_WORDS - 1;
-  static constexpr Uint32 UNDO_PAGE_WORDS_v2 = NDB_PAGE_SIZE_WORDS -
-                                               NDB_PAGE_HEADER_WORDS - 9;
+  STATIC_CONST( UNDO_PAGE_WORDS = NDB_PAGE_SIZE_WORDS -
+                                  NDB_PAGE_HEADER_WORDS - 1);
+  STATIC_CONST( UNDO_PAGE_WORDS_v2 = NDB_PAGE_SIZE_WORDS -
+                                     NDB_PAGE_HEADER_WORDS - 9);
 };
 
 

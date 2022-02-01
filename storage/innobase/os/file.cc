@@ -166,8 +166,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
     /* Add a safety margin of an additional 50% */
     ulint n_bytes = header.m_original_size + (header.m_original_size / 2);
 
-    dst = reinterpret_cast<byte *>(
-        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, n_bytes));
+    dst = reinterpret_cast<byte *>(ut_malloc_nokey(n_bytes));
 
     if (dst == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -190,7 +189,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
 
       if (uncompress(dst, &zlen, ptr, header.m_compressed_size) != Z_OK) {
         if (allocated) {
-          ut::free(dst);
+          ut_free(dst);
         }
 
         return (DB_IO_DECOMPRESS_FAIL);
@@ -224,7 +223,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
 
       if (ret < 0) {
         if (allocated) {
-          ut::free(dst);
+          ut_free(dst);
         }
 
         return (DB_IO_DECOMPRESS_FAIL);
@@ -242,7 +241,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
           << Compression::to_string(compression.m_type);
 
       if (allocated) {
-        ut::free(dst);
+        ut_free(dst);
       }
 
       return (DB_UNSUPPORTED);
@@ -257,7 +256,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
                           src, header.m_original_size + FIL_PAGE_DATA));
 
   if (allocated) {
-    ut::free(dst);
+    ut_free(dst);
   }
 
   return (DB_SUCCESS);

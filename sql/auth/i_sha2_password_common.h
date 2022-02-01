@@ -58,7 +58,7 @@ class Generate_digest {
   virtual bool update_digest(const void *src, unsigned int length) = 0;
   virtual bool retrieve_digest(unsigned char *digest, unsigned int length) = 0;
   virtual void scrub() = 0;
-  virtual ~Generate_digest() = default;
+  virtual ~Generate_digest() {}
 };
 
 /**

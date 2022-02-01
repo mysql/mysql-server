@@ -42,7 +42,7 @@ class PFS_index_users : public PFS_engine_index {
  public:
   PFS_index_users(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_users() override = default;
+  ~PFS_index_users() override {}
 
   virtual bool match(PFS_user *pfs) = 0;
 };
@@ -63,7 +63,7 @@ class cursor_by_user : public PFS_engine_table {
   cursor_by_user(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_user() override = default;
+  ~cursor_by_user() override {}
 
  protected:
   virtual int make_row(PFS_user *user) = 0;

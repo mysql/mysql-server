@@ -44,7 +44,7 @@ class View_routine : virtual public Weak_object {
   typedef tables::View_routine_usage DD_table;
 
  public:
-  ~View_routine() override = default;
+  ~View_routine() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // View routine catalog name.

@@ -23,9 +23,6 @@
 */
 
 #include <ndb_global.h>
-
-#include <time.h>
-
 #include <FileLogHandler.hpp>
 #include <util/File.hpp>
 

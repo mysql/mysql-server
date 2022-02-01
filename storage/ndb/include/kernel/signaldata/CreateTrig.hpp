@@ -48,7 +48,7 @@ struct CreateTrigReq
     TriggerSrc = 2  // LQH "producing" block(s)
   };
 
-  static constexpr Uint32 SignalLength = 13;
+  STATIC_CONST( SignalLength = 13 );
   SECTION( TRIGGER_NAME_SECTION = 0 );
   SECTION( ATTRIBUTE_MASK_SECTION = 1 );
 
@@ -74,7 +74,7 @@ struct CreateTrigReq
 };
 
 struct CreateTrigConf {
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -103,7 +103,7 @@ struct CreateTrigRef
     OutOfSectionMemory = 795
   };
 
-  static constexpr Uint32 SignalLength = 10;
+  STATIC_CONST( SignalLength = 10 );
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

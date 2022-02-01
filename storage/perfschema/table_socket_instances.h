@@ -85,7 +85,7 @@ class PFS_index_socket_instances : public PFS_engine_index {
   PFS_index_socket_instances(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_socket_instances() override = default;
+  ~PFS_index_socket_instances() override {}
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
@@ -96,7 +96,7 @@ class PFS_index_socket_instances_by_instance
   PFS_index_socket_instances_by_instance()
       : PFS_index_socket_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_socket_instances_by_instance() override = default;
+  ~PFS_index_socket_instances_by_instance() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -109,7 +109,7 @@ class PFS_index_socket_instances_by_thread : public PFS_index_socket_instances {
   PFS_index_socket_instances_by_thread()
       : PFS_index_socket_instances(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_socket_instances_by_thread() override = default;
+  ~PFS_index_socket_instances_by_thread() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -122,7 +122,7 @@ class PFS_index_socket_instances_by_socket : public PFS_index_socket_instances {
   PFS_index_socket_instances_by_socket()
       : PFS_index_socket_instances(&m_key), m_key("SOCKET_ID") {}
 
-  ~PFS_index_socket_instances_by_socket() override = default;
+  ~PFS_index_socket_instances_by_socket() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -138,7 +138,7 @@ class PFS_index_socket_instances_by_ip_port
         m_key_1("IP"),
         m_key_2("PORT") {}
 
-  ~PFS_index_socket_instances_by_ip_port() override = default;
+  ~PFS_index_socket_instances_by_ip_port() override {}
 
   bool match(const PFS_socket *pfs) override;
 
@@ -169,7 +169,7 @@ class table_socket_instances : public PFS_engine_table {
   table_socket_instances();
 
  public:
-  ~table_socket_instances() override = default;
+  ~table_socket_instances() override {}
 
  protected:
   int make_row(PFS_socket *pfs);

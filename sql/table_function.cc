@@ -71,9 +71,7 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(
-            current_thd, table, error, /*insert_last_record=*/true,
-            /*ignore_last_dup=*/true, /*is_duplicate=*/nullptr))
+        create_ondisk_from_heap(current_thd, table, error, true, nullptr))
       return true;  // Not a table_is_full error
   }
   return false;
@@ -245,11 +243,6 @@ bool Table_function_json::do_init_args() {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");
     return true;
   }
-
-  if (source->check_cols(1)) {
-    return true;
-  }
-
   try {
     /*
       Check whether given JSON source is a const and it's valid, see also
@@ -294,14 +287,23 @@ bool Table_function_json::init() {
   if (m_vt_list.elements == 0) {
     uint nest_idx = 0;
     if (init_json_table_col_lists(&nest_idx, &top)) return true;
+    List_iterator<Json_table_column> li(m_vt_list);
 
-    // Check for duplicate field names.
-    for (Create_field &outer : m_vt_list) {
-      Name_string outer_name(to_lex_cstring(outer.field_name));
-      for (Create_field &inner : m_vt_list) {
-        if (&outer == &inner) break;
-        if (outer_name.eq(inner.field_name)) {
-          my_error(ER_DUP_FIELDNAME, MYF(0), inner.field_name);
+    /*
+      Check for duplicate names.
+      Two iterators over vt_list are used. First is used to get a field,
+      second - to compare the field with fields in the rest of the list.
+      For each iteration of the first list, we skip fields prior to the
+      first iterator's field.
+    */
+    Json_table_column *first;
+    while ((first = li++)) {
+      Json_table_column *col;
+      List_iterator<Json_table_column> li2(m_vt_list);
+      // Compare 'first' with all columns prior to it
+      while ((col = li2++) && col != first) {
+        if (!strncmp(first->field_name, col->field_name, NAME_CHAR_LEN)) {
+          my_error(ER_DUP_FIELDNAME, MYF(0), first->field_name);
           return true;
         }
       }
@@ -616,15 +618,11 @@ bool Table_function_json::fill_result_table() {
       3. Non-const, e.g. a table field: source will be parsed here EVERY TIME
          fill_result_table() is called
     */
-    if (!source->const_item() || !is_source_parsed) {
-      if (get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) {
-        return true;
-      }
-    }
-    if (args[0]->null_value) {
+    if (((!source->const_item() || !is_source_parsed) &&
+         get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) ||
+        args[0]->null_value)
       // No need to set null_value as it's not used by table functions
       return false;
-    }
     is_source_parsed = true;
     return fill_json_table();
   } catch (...) {
@@ -662,26 +660,6 @@ void print_on_empty_or_error(const THD *thd, String *str,
     str->append(STRING_WITH_LEN(" on error"));
 }
 
-/// Prints the type of a column in a JSON_TABLE expression.
-static bool print_json_table_column_type(const Field *field, String *str) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> type;
-  field->sql_type(type);
-  if (str->append(type)) return true;
-  if (field->has_charset()) {
-    // Append the character set.
-    if (str->append(STRING_WITH_LEN(" character set ")) ||
-        str->append(field->charset()->csname))
-      return true;
-    // Append the collation, if it is not the primary collation of the
-    // character set.
-    if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
-        (str->append(STRING_WITH_LEN(" collate ")) ||
-         str->append(field->charset()->name)))
-      return true;
-  }
-  return false;
-}
-
 /**
   Helper function to print a single NESTED PATH column.
 
@@ -713,13 +691,21 @@ static bool print_nested_path(const THD *thd, const TABLE *table,
       case enum_jt_column::JTC_PATH: {
         append_identifier(thd, str, jtc.field_name, strlen(jtc.field_name));
         if (str->append(' ')) return true;
-        if (table == nullptr) {
-          if (str->append(STRING_WITH_LEN("<column type not resolved yet>"))) {
+        const Field *field = table->field[jtc.m_field_idx];
+        StringBuffer<STRING_BUFFER_USUAL_SIZE> type;
+        field->sql_type(type);
+        if (str->append(type)) return true;
+        if (field->has_charset()) {
+          // Append the character set.
+          if (str->append(STRING_WITH_LEN(" character set ")) ||
+              str->append(field->charset()->csname))
             return true;
-          }
-        } else if (print_json_table_column_type(table->field[jtc.m_field_idx],
-                                                str)) {
-          return true;
+          // Append the collation, if it is not the primary collation of the
+          // character set.
+          if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
+              (str->append(STRING_WITH_LEN(" collate ")) ||
+               str->append(field->charset()->name)))
+            return true;
         }
         if (jtc.m_jtc_type == enum_jt_column::JTC_EXISTS) {
           if (str->append(STRING_WITH_LEN(" exists"))) return true;

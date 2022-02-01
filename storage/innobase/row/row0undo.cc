@@ -243,9 +243,9 @@ func_exit:
  If none left, or a partial rollback completed, returns control to the
  parent node, which is always a query thread node.
  @return DB_SUCCESS if operation successfully completed, else error code */
-[[nodiscard]] static dberr_t row_undo(
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo(undo_node_t *node, /*!< in: row undo node */
+             que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
   trx_t *trx;
@@ -367,12 +367,11 @@ que_thr_t *row_undo_step(que_thr_t *thr) /*!< in: query thread */
     /* SQL error detected */
 
     if (err == DB_OUT_OF_FILE_SPACE) {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1041)
-          << "Out of tablespace during rollback."
-             " Consider increasing your tablespace.";
+      ib::fatal(ER_IB_MSG_1041) << "Out of tablespace during rollback."
+                                   " Consider increasing your tablespace.";
     }
 
-    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1042)
+    ib::fatal(ER_IB_MSG_1042)
         << "Error (" << ut_strerr(err) << ") in rollback.";
   }
 

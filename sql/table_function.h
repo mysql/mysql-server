@@ -59,7 +59,7 @@ class Table_function {
  public:
   explicit Table_function() : table(nullptr), inited(false) {}
 
-  virtual ~Table_function() = default;
+  virtual ~Table_function() {}
   /**
     Create, but not instantiate the result table
 

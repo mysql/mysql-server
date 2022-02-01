@@ -55,6 +55,7 @@
 
 #define JAM_FILE_ID 484
 
+extern EventLogger * g_eventLogger;
 
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
@@ -714,21 +715,23 @@ get_multithreaded_config(EmulatorData& ed)
   // multithreaded is compiled in ndbd/ndbmtd for now
   if (!globalData.isNdbMt)
   {
-    g_eventLogger->info("NDBMT: non-mt");
+    ndbout << "NDBMT: non-mt" << endl;
     return 0;
   }
 
   THRConfig & conf = ed.theConfiguration->m_thr_config;
   Uint32 threadcount = conf.getThreadCount();
-  g_eventLogger->info("NDBMT: MaxNoOfExecutionThreads=%u", threadcount);
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  g_eventLogger->info("NDBMT: workers=%u threads=%u tc=%u send=%u receive=%u",
-                      globalData.ndbMtLqhWorkers, globalData.ndbMtLqhThreads,
-                      globalData.ndbMtTcThreads, globalData.ndbMtSendThreads,
-                      globalData.ndbMtReceiveThreads);
+  ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
+         << " threads=" << globalData.ndbMtLqhThreads
+         << " tc=" << globalData.ndbMtTcThreads
+         << " send=" << globalData.ndbMtSendThreads
+         << " receive=" << globalData.ndbMtReceiveThreads
+         << endl;
 
   return 0;
 }
@@ -1039,7 +1042,7 @@ ndbd_run(bool foreground, int report_fd,
     _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
               "ndbd_shutdown_%d", GetCurrentProcessId());
 
-    g_shutdown_event = CreateEvent(NULL, true, false, shutdown_event_name);
+    g_shutdown_event = CreateEvent(NULL, TRUE, FALSE, shutdown_event_name);
     if (g_shutdown_event == NULL)
     {
       g_eventLogger->error("Failed to create shutdown event, error: %d",
@@ -1212,7 +1215,7 @@ ndbd_run(bool foreground, int report_fd,
       BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
       for (char* q = buf; *q != 0; q++)
         *q = toupper(toascii(*q));
-      g_eventLogger->info("Turning on signal logging using block spec.: '%s'", buf);
+      ndbout_c("Turning on signal logging using block spec.: '%s'", buf);
       globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
       globalData.testOn = 1;
     }
@@ -1220,8 +1223,8 @@ ndbd_run(bool foreground, int report_fd,
   else
   {
     // Failed to open signal log, print an error and ignore
-    g_eventLogger->info("Failed to open signal logging file '%s', errno: %d",
-                        signal_log_name, errno);
+    ndbout_c("Failed to open signal logging file '%s', errno: %d",
+             signal_log_name, errno);
   }
   free(signal_log_name);
 #endif
@@ -1271,7 +1274,7 @@ ndbd_run(bool foreground, int report_fd,
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
-    g_eventLogger->info("globalTransporterRegistry.start_service() failed");
+    ndbout_c("globalTransporterRegistry.start_service() failed");
     ndbd_exit(-1);
   }
   // Re-use the mgm handle as a transporter
@@ -1283,7 +1286,7 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
-    g_eventLogger->info("globalTransporterRegistry.start_clients() failed");
+    ndbout_c("globalTransporterRegistry.start_clients() failed");
     ndbd_exit(-1);
   }
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();

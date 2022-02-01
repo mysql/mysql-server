@@ -37,7 +37,7 @@ enum enum_return_id { FOUND_ID = 1, NOT_FOUND_ID, ERROR_ID };
 class Rpl_info_table_access : public System_table_access {
  public:
   Rpl_info_table_access() : thd_created(false) {}
-  ~Rpl_info_table_access() override = default;
+  ~Rpl_info_table_access() override {}
 
   /**
     Prepares before opening table.
@@ -52,8 +52,7 @@ class Rpl_info_table_access : public System_table_access {
                    bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
-  std::pair<bool, bool> is_table_in_use(TABLE *table);
-  bool count_info(TABLE *table, ulonglong *counter);
+  bool count_info(TABLE *table, uint *counter);
   bool load_info_values(uint max_num_field, Field **fields,
                         Rpl_info_values *field_values);
   bool store_info_values(uint max_num_field, Field **fields,

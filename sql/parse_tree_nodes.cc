@@ -93,6 +93,8 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+extern bool pfs_processlist_enabled;
+
 namespace {
 
 template <typename Context, typename Node>
@@ -1706,8 +1708,7 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
              value->csname);
     return true;
   }
-  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) == 0)
-    create_info->default_table_charset = value;
+  create_info->default_table_charset = value;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
   return false;
 }
@@ -2346,11 +2347,8 @@ Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
-  // Read once, to avoid race conditions.
-  bool use_pfs = pfs_processlist_enabled;
-
-  m_sql_cmd.set_use_pfs(use_pfs);
-  if (use_pfs) {
+  m_sql_cmd.set_use_pfs(pfs_processlist_enabled);
+  if (pfs_processlist_enabled) {
     if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
       return nullptr;
   }
@@ -2556,8 +2554,7 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->interval_list, m_field_def->charset,
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
       m_field_def->gcol_info, m_field_def->default_val_info, m_opt_place,
-      m_field_def->m_srid, m_field_def->check_const_spec_list,
-      field_hidden_type);
+      m_field_def->m_srid, nullptr, field_hidden_type);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
@@ -3524,9 +3521,12 @@ bool PT_into_destination_dumpfile::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
-  lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  lex->result = new (pc->thd->mem_root) Query_result_dump(&m_exchange);
-  return lex->result == nullptr;
+  if (!lex->is_explain()) {
+    lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+    lex->result = new (pc->thd->mem_root) Query_result_dump(&m_exchange);
+    if (lex->result == nullptr) return true;
+  }
+  return false;
 }
 
 bool PT_select_var_list::contextualize(Parse_context *pc) {
@@ -3539,6 +3539,8 @@ bool PT_select_var_list::contextualize(Parse_context *pc) {
   }
 
   LEX *const lex = pc->thd->lex;
+  if (lex->is_explain()) return false;
+
   Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar();
   if (dumpvar == nullptr) return true;
 

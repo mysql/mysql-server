@@ -37,7 +37,7 @@
 #endif
 #endif /* MYSQL_ABI_CHECK */
 
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifdef _WIN32
 typedef DWORD my_thread_t;
 typedef struct thread_attr {
   DWORD dwStackSize;
@@ -50,7 +50,7 @@ typedef pthread_attr_t my_thread_attr_t;
 
 struct my_thread_handle {
   my_thread_t thread{0};
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifdef _WIN32
   HANDLE handle{INVALID_HANDLE_VALUE};
 #endif
 };

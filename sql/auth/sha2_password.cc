@@ -1194,11 +1194,10 @@ static int caching_sha2_password_validate(char *const inbuf,
   @returns Always returns success (0)
 */
 
-static int caching_sha2_password_salt(const char *password [[maybe_unused]],
-                                      unsigned int password_len
-                                      [[maybe_unused]],
-                                      unsigned char *salt [[maybe_unused]],
-                                      unsigned char *salt_len) {
+static int caching_sha2_password_salt(
+    const char *password MY_ATTRIBUTE((unused)),
+    unsigned int password_len MY_ATTRIBUTE((unused)),
+    unsigned char *salt MY_ATTRIBUTE((unused)), unsigned char *salt_len) {
   DBUG_TRACE;
   *salt_len = 0;
   return 0;
@@ -1233,7 +1232,8 @@ static int caching_sha2_authentication_init(MYSQL_PLUGIN plugin_ref) {
   @returns Always returns success
 */
 
-static int caching_sha2_authentication_deinit(void *arg [[maybe_unused]]) {
+static int caching_sha2_authentication_deinit(
+    void *arg MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   if (g_caching_sha2_password) {
     delete g_caching_sha2_password;
@@ -1305,11 +1305,9 @@ static int compare_caching_sha2_password_with_hash(
   @param [out] var Status variable structure
   @param [in]  buff Value buffer
 */
-static int show_caching_sha2_password_rsa_public_key(MYSQL_THD thd
-                                                     [[maybe_unused]],
-                                                     SHOW_VAR *var,
-                                                     char *buff
-                                                     [[maybe_unused]]) {
+static int show_caching_sha2_password_rsa_public_key(
+    MYSQL_THD thd MY_ATTRIBUTE((unused)), SHOW_VAR *var,
+    char *buff MY_ATTRIBUTE((unused))) {
   var->type = SHOW_CHAR;
   var->value =
       const_cast<char *>(g_caching_sha2_rsa_keys->get_public_key_as_pem());
@@ -1439,13 +1437,13 @@ struct st_mysql_audit sha2_cache_cleaner = {
     }};
 
 /** Init function for sha2_cache_cleaner */
-static int caching_sha2_cache_cleaner_init(MYSQL_PLUGIN plugin_info
-                                           [[maybe_unused]]) {
+static int caching_sha2_cache_cleaner_init(
+    MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
 /** Deinit function for sha2_cache_cleaner */
-static int caching_sha2_cache_cleaner_deinit(void *arg [[maybe_unused]]) {
+static int caching_sha2_cache_cleaner_deinit(void *arg MY_ATTRIBUTE((unused))) {
   return 0;
 }
 

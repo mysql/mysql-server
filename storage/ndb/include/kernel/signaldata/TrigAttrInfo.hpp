@@ -69,8 +69,8 @@ enum AttrInfoType {
   AFTER_VALUES = 2 
 };
 
-  static constexpr Uint32 DataLength = 22;
-  static constexpr Uint32 StaticLength = 3;
+  STATIC_CONST( DataLength = 22 );
+  STATIC_CONST( StaticLength = 3 );
 
 private:
   Uint32 m_connectionPtr; 

@@ -570,13 +570,13 @@ buf_block_t *z_frag_page_t::alloc(z_first_page_t &first, page_no_t hint,
   set_version_0();
 
   /* All allocated fragment pages are linked via the next page of the first page
-  of LOB. */
+   * of LOB. */
   page_no_t frag_page_no = first.get_frag_page_no();
 
   if (frag_page_no == 0) {
     /* If the frag_page_no is equal to 0, it means that this LOB was created
-    before storing the fragment page list in the FIL_PAGE_PREV of the first
-    page.  So don't change that. */
+     * before storing the fragment page list in the FIL_PAGE_PREV of the first
+     * page.  So don't change that. */
   } else {
     if (frag_page_no != FIL_NULL) {
       /* Load the first fragment page and updates its prev page. */
@@ -776,8 +776,8 @@ void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
 
   if (top_frag_page == 0) {
     /* If the first page contains 0 in FIL_PAGE_PREV, then this LOB does not use
-    FIL_PAGE_PREV to point to the doubly-linked list of fragment pages.  In
-    this case, don't touch FIL_PAGE_PREV. */
+     * FIL_PAGE_PREV to point to the doubly-linked list of fragment pages.  In
+     * this case, don't touch FIL_PAGE_PREV. */
   } else {
     page_no_t next_frag_page = get_next_page_no();
     page_no_t prev_frag_page = get_prev_page_no();
@@ -791,7 +791,7 @@ void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
     }
 
     /* The fragment pages are doubly linked via FIL_PAGE_NEXT and
-    FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
+     * FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
     if (next_frag_page != FIL_NULL) {
       z_frag_page_t zfp_next(alloc_mtr, m_index);
       zfp_next.load_x(next_frag_page);

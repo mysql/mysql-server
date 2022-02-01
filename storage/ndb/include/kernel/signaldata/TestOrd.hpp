@@ -67,7 +67,7 @@ public:
   };
 
 private:
-  static constexpr Uint32 SignalLength = 25;
+  STATIC_CONST( SignalLength = 25 );
 
   /**
    * Clear Signal

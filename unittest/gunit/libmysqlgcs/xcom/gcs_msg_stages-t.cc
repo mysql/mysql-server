@@ -38,7 +38,7 @@ namespace gcs_xcom_stages_unittest {
 
 class XcomStagesTest : public GcsBaseTest {
  protected:
-  XcomStagesTest() = default;
+  XcomStagesTest() {}
 
  public:
   static const unsigned long long LARGE_PAYLOAD_LEN;
@@ -142,7 +142,7 @@ TEST_F(XcomStagesTest, CompressDecompressMessage) {
   unsigned long long buffer_size;
   std::tie(buffer, buffer_size) = packet.serialize();
   auto packet_from_network = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      std::move(buffer), buffer_size, null_synode, pipeline);
 
   Gcs_pipeline_incoming_result error_code;
   Gcs_packet packet_in;
@@ -218,7 +218,7 @@ TEST_F(XcomStagesTest, DecompressCorruptedPayload) {
   }
 
   auto packet_from_network = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      std::move(buffer), buffer_size, null_synode, pipeline);
 
   Gcs_pipeline_incoming_result error_code;
   Gcs_packet packet_in;
@@ -351,7 +351,7 @@ TEST_F(XcomStagesTest, ReceiveFragmentFromSenderNotInGroup) {
   std::tie(buffer, buffer_size) = packet.serialize();
 
   auto packet_from_network = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      std::move(buffer), buffer_size, null_synode, pipeline);
 
   Gcs_pipeline_incoming_result error_code;
   Gcs_packet packet_in;
@@ -405,7 +405,7 @@ TEST_F(XcomStagesTest, ReceivePacketWithUnknownStage) {
   std::tie(buffer, buffer_size) = packet.serialize();
 
   auto packet_from_network = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      std::move(buffer), buffer_size, null_synode, pipeline);
 
   // Configure the receiver pipeline without compression.
   Gcs_message_pipeline receiver_pipeline;
@@ -508,7 +508,7 @@ class Gcs_new_stage_1 : public Gcs_message_stage {
  public:
   explicit Gcs_new_stage_1() : m_id(std::rand()) {}
 
-  virtual ~Gcs_new_stage_1() override = default;
+  virtual ~Gcs_new_stage_1() override {}
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -527,9 +527,9 @@ const unsigned short Gcs_new_stage_1::MESSAGE_ID_SIZE;
  */
 class Gcs_new_stage_2 : public Gcs_new_stage_1 {
  public:
-  explicit Gcs_new_stage_2() = default;
+  explicit Gcs_new_stage_2() {}
 
-  ~Gcs_new_stage_2() override = default;
+  ~Gcs_new_stage_2() override {}
 
   Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -538,9 +538,9 @@ class Gcs_new_stage_2 : public Gcs_new_stage_1 {
 
 class Gcs_new_stage_3 : public Gcs_new_stage_1 {
  public:
-  explicit Gcs_new_stage_3() = default;
+  explicit Gcs_new_stage_3() {}
 
-  ~Gcs_new_stage_3() override = default;
+  ~Gcs_new_stage_3() override {}
 
   Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -552,7 +552,7 @@ class Gcs_new_stage_split_4 : public Gcs_message_stage_split_v2 {
   explicit Gcs_new_stage_split_4(bool enabled, unsigned long long threshold)
       : Gcs_message_stage_split_v2(enabled, threshold) {}
 
-  ~Gcs_new_stage_split_4() override = default;
+  ~Gcs_new_stage_split_4() override {}
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -564,7 +564,7 @@ class Gcs_new_stage_lz4_5 : public Gcs_message_stage_lz4 {
   explicit Gcs_new_stage_lz4_5(bool enable, unsigned long long threshold)
       : Gcs_message_stage_lz4(enable, threshold) {}
 
-  ~Gcs_new_stage_lz4_5() override = default;
+  ~Gcs_new_stage_lz4_5() override {}
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -573,7 +573,7 @@ class Gcs_new_stage_lz4_5 : public Gcs_message_stage_lz4 {
 
 class XcomMultipleStagesTest : public GcsBaseTest {
  protected:
-  XcomMultipleStagesTest() = default;
+  XcomMultipleStagesTest() {}
 
   void SetUp() override {}
 
@@ -683,7 +683,7 @@ TEST_F(XcomMultipleStagesTest, MultipleStagesCheckVersion) {
       Gcs_protocol_version::V2, Gcs_protocol_version::V3,
       Gcs_protocol_version::V5};
   std::vector<Gcs_protocol_version> configured_inc_versions = {
-      Gcs_protocol_version::HIGHEST_KNOWN, Gcs_protocol_version::V1,
+      Gcs_protocol_version::V2, Gcs_protocol_version::V1,
       Gcs_protocol_version::V2, Gcs_protocol_version::V3,
       Gcs_protocol_version::V3};
   std::vector<int> configured_inc_success = {false, true, true, true, false};
@@ -826,8 +826,8 @@ TEST_F(XcomMultipleStagesTest, MultipleStagesCheckData) {
       unsigned long long buffer_size;
       std::tie(buffer, buffer_size) = out.serialize();
 
-      auto in = Gcs_packet::make_incoming_packet(
-          std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      auto in = Gcs_packet::make_incoming_packet(std::move(buffer), buffer_size,
+                                                 null_synode, pipeline);
       Gcs_pipeline_incoming_result error_code;
       Gcs_packet packet_in;
       std::tie(error_code, packet_in) =
@@ -908,7 +908,7 @@ TEST_F(XcomMultipleStagesTest, SingleFragment) {
   unsigned long long buffer_size;
   std::tie(buffer, buffer_size) = packet.serialize();
   auto packet_from_network = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      std::move(buffer), buffer_size, null_synode, pipeline);
 
   Gcs_pipeline_incoming_result error_code;
   Gcs_packet packet_in;
@@ -1026,8 +1026,8 @@ TEST_F(XcomMultipleStagesTest, SplitMessages) {
       unsigned long long buffer_size;
       std::tie(buffer, buffer_size) = out.serialize();
 
-      auto in = Gcs_packet::make_incoming_packet(
-          std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+      auto in = Gcs_packet::make_incoming_packet(std::move(buffer), buffer_size,
+                                                 null_synode, pipeline);
       Gcs_pipeline_incoming_result error_code;
       Gcs_packet packet_in;
       std::tie(error_code, packet_in) =

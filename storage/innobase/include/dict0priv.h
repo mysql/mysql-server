@@ -49,7 +49,8 @@ inline dict_table_t *dict_table_get_low(
 
 /** Checks if a table is in the dictionary cache.
  @return table, NULL if not found */
-static inline dict_table_t *dict_table_check_if_in_cache_low(
+UNIV_INLINE
+dict_table_t *dict_table_check_if_in_cache_low(
     const char *table_name); /*!< in: table name */
 
 #include "dict0priv.ic"
