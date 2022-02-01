@@ -78,6 +78,7 @@ static const std::set<String_type> default_valid_option_keys = {
     "plugin_version",
     "row_type",
     "secondary_engine",
+    "secondary_load",
     "server_i_s_table",
     "server_p_s_table",
     "stats_auto_recalc",

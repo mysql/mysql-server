@@ -2136,10 +2136,12 @@ static bool fill_dd_table_from_create_info(
   assert(create_info->default_table_charset);
   tab_obj->set_collation_id(create_info->default_table_charset->number);
 
-  // Secondary engine.
-  if (create_info->secondary_engine.str != nullptr)
+  // Secondary engine and secondary load.
+  if (create_info->secondary_engine.str != nullptr) {
     table_options->set("secondary_engine",
                        make_string_type(create_info->secondary_engine));
+    table_options->set("secondary_load", false);
+  }
 
   tab_obj->set_engine_attribute(create_info->engine_attribute);
   tab_obj->set_secondary_engine_attribute(
