@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -400,7 +400,6 @@ bool Materialized_cursor::fetch(ulong num_rows) {
   THD *thd = current_thd;
 
   int res = 0;
-  result->begin_dataset();
   for (fetch_limit += num_rows; fetch_count < fetch_limit; fetch_count++) {
     if ((res = table->file->ha_rnd_next(table->record[0]))) break;
     /* Send data only if the read was successful. */

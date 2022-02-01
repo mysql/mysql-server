@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,7 @@
 #include <assert.h>
 #include <sys/types.h>
 
-#include <cstddef>
-
-#include "m_ctype.h"
-#include "mem_root_deque.h"
 #include "my_base.h"
-#include "my_compiler.h"  // MY_ATTRIBUTE
 
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -47,6 +42,8 @@ class Query_expression;
 class THD;
 struct CHARSET_INFO;
 struct TABLE_LIST;
+template <class Element_type>
+class mem_root_deque;
 
 /*
   This is used to get result from a query
@@ -130,9 +127,6 @@ class Query_result {
                                         const mem_root_deque<Item *> &list,
                                         uint flags) = 0;
   virtual bool send_data(THD *thd, const mem_root_deque<Item *> &items) = 0;
-  virtual void send_error(THD *, uint errcode, const char *err) {
-    my_message(errcode, err, MYF(0));
-  }
   virtual bool send_eof(THD *thd) = 0;
   /**
     Check if this query returns a result set and therefore is allowed in
@@ -161,15 +155,6 @@ class Query_result {
   */
   virtual void cleanup(THD *) { /* do nothing */
   }
-
-  void begin_dataset() {}
-
-  /// @returns Pointer to count of rows retained by this result.
-  virtual const ha_rows *row_count() const /* purecov: inspected */
-  {
-    assert(false);
-    return nullptr;
-  } /* purecov: inspected */
 
   /**
     Checks if this Query_result intercepts and transforms the result set.
@@ -246,7 +231,6 @@ class Query_result_to_file : public Query_result_interceptor {
 
   bool needs_file_privilege() const override { return true; }
 
-  void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void cleanup(THD *thd) override;
 };

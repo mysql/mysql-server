@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,14 @@
 
 #include <sys/types.h>
 
-#include <cstddef>
-
+#include "mem_root_deque.h"
 #include "my_base.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "sql/query_result.h"  // Query_result_interceptor
 #include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 #include "sql/sql_list.h"
+#include "sql/thr_malloc.h"
 
 class COPY_INFO;
 class Copy_field;
@@ -128,7 +129,6 @@ class Query_result_update final : public Query_result_interceptor {
   bool optimize() override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
-  void send_error(THD *thd, uint errcode, const char *err) override;
   bool do_updates(THD *thd);
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;

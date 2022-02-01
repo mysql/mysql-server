@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #ifndef SQL_UNION_INCLUDED
 #define SQL_UNION_INCLUDED
 
-#include "my_base.h"
-#include "my_compiler.h"
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "sql/query_result.h"  // Query_result_interceptor
 #include "sql/table.h"
@@ -33,20 +33,17 @@
 class Item;
 class Query_expression;
 class THD;
-template <class T>
-class List;
+template <class Element_type>
+class mem_root_deque;
 
 class Query_result_union : public Query_result_interceptor {
  protected:
   Temp_table_param tmp_table_param;
-  /// Count of rows successfully stored in tmp table
-  ha_rows m_rows_in_table;
 
  public:
   TABLE *table;
 
-  Query_result_union()
-      : Query_result_interceptor(), m_rows_in_table(0), table(nullptr) {}
+  Query_result_union() : Query_result_interceptor(), table(nullptr) {}
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
   /**
@@ -74,7 +71,6 @@ class Query_result_union : public Query_result_interceptor {
                            bool create_table);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
   friend bool TABLE_LIST::optimize_derived(THD *thd);
-  const ha_rows *row_count() const override { return &m_rows_in_table; }
   uint get_hidden_field_count() { return tmp_table_param.hidden_field_count; }
 };
 

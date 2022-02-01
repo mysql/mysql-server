@@ -31,45 +31,46 @@
 #include <string.h>
 
 #include <atomic>
+#include <iterator>
 #include <map>
 #include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/psi/mysql_table.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant_all_columns
 #include "sql/binlog.h"
 #include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"            // dd::get_dictionary
-#include "sql/dd/dictionary.h"    // dd::Dictionary
-#include "sql/dd/types/column.h"  // dd::Column
-#include "sql/dd/types/table.h"   // dd::Table
-#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
-#include "sql/debug_sync.h"       // DEBUG_SYNC
-#include "sql/derror.h"           // ER_THD
+#include "sql/dd/dd.h"          // dd::get_dictionary
+#include "sql/dd/dictionary.h"  // dd::Dictionary
+#include "sql/dd_sql_view.h"    // update_referencing_views_metadata
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/derror.h"         // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/lock.h"  // mysql_unlock_tables
+#include "sql/locked_tables_list.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // stage_update
 #include "sql/nested_join.h"
@@ -80,6 +81,7 @@
 #include "sql/query_options.h"
 #include "sql/rpl_replica.h"  // rpl_master_has_bug
 #include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/select_lex_visitor.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // setup_fields
@@ -87,19 +89,20 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_resolver.h"  // validate_gc_assignment
 #include "sql/sql_select.h"    // check_privileges_for_list
 #include "sql/sql_show.h"      // store_create_info
 #include "sql/sql_table.h"     // quick_rm_table
-#include "sql/sql_update.h"    // records_are_comparable
 #include "sql/sql_view.h"      // check_key_in_view
+#include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
+#include "sql/visible_fields.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
@@ -2442,12 +2445,6 @@ void Query_result_insert::store_values(THD *thd,
   check_that_all_fields_are_given_values(thd, table, table_list);
 }
 
-void Query_result_insert::send_error(THD *, uint errcode, const char *err) {
-  DBUG_TRACE;
-
-  my_message(errcode, err, MYF(0));
-}
-
 bool Query_result_insert::stmt_binlog_is_trans() const {
   return table->file->has_transactions();
 }
@@ -3068,30 +3065,6 @@ void Query_result_create::store_values(THD *thd,
 
   fill_record_n_invoke_before_triggers(thd, table_fields, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
-}
-
-void Query_result_create::send_error(THD *thd, uint errcode, const char *err) {
-  DBUG_TRACE;
-
-  DBUG_PRINT("info",
-             ("Current statement %s row-based",
-              thd->is_current_stmt_binlog_format_row() ? "is" : "is NOT"));
-  DBUG_PRINT("info",
-             ("Current table (at %p) %s a temporary (or non-existant) table",
-              table, table && !table->s->tmp_table ? "is NOT" : "is"));
-  /*
-    This will execute any rollbacks that are necessary before writing
-    the transcation cache.
-
-    We disable the binary log since nothing should be written to the
-    binary log.  This disabling is important, since we potentially do
-    a "roll back" of non-transactional tables by removing the table,
-    and the actual rollback might generate events that should not be
-    written to the binary log.
-
-  */
-  Disable_binlog_guard binlog_guard(thd);
-  Query_result_insert::send_error(thd, errcode, err);
 }
 
 bool Query_result_create::stmt_binlog_is_trans() const {

@@ -30,9 +30,6 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "field_types.h"
 #include "lex_string.h"
@@ -43,6 +40,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -63,14 +61,13 @@
 #include "sql/item_json_func.h"  // Item_json_func
 #include "sql/item_subselect.h"  // Item_subselect
 #include "sql/iterators/basic_row_iterators.h"
-#include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/row_iterator.h"
-#include "sql/iterators/sorting_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
 #include "sql/locked_tables_list.h"
+#include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_... mysql_tmpdir
 #include "sql/opt_explain.h"  // Modification_plan
@@ -93,7 +90,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -111,6 +107,7 @@
 #include "sql/transaction_info.h"
 #include "sql/trigger_chain.h"
 #include "sql/trigger_def.h"
+#include "sql/visible_fields.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -2484,11 +2481,6 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
     }
   }
   return false;
-}
-
-void Query_result_update::send_error(THD *, uint errcode, const char *err) {
-  /* First send error what ever it is ... */
-  my_error(errcode, MYF(0), err);
 }
 
 void Query_result_update::abort_result_set(THD *thd) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,25 +24,27 @@
 #define SQL_INSERT_INCLUDED
 
 #include <assert.h>
-#include <stddef.h>
 #include <sys/types.h>
 
+#include "mem_root_deque.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql/current_thd.h"
 #include "sql/query_result.h"     // Query_result_interceptor
 #include "sql/sql_cmd_dml.h"      // Sql_cmd_dml
 #include "sql/sql_data_change.h"  // enum_duplicates
-#include "sql/sql_list.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 class Alter_info;
 class Field;
 class Item;
 class Query_expression;
+class Select_lex_visitor;
 class THD;
 struct HA_CREATE_INFO;
 struct handlerton;
+struct MYSQL_LEX_CSTRING;
+struct MY_BITMAP;
 
 using List_item = mem_root_deque<Item *>;
 struct MYSQL_LOCK;
@@ -148,7 +150,6 @@ are found inside the COPY_INFO.
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   virtual void store_values(THD *thd, const mem_root_deque<Item *> &values);
-  void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
@@ -197,7 +198,6 @@ class Query_result_create final : public Query_result_insert {
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
   void store_values(THD *thd, const mem_root_deque<Item *> &values) override;
-  void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   bool create_table_for_query_block(THD *thd) override;
