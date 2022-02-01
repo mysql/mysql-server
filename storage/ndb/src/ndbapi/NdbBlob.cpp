@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -924,7 +924,7 @@ NdbBlob::getBlobKeyHash()
 
     const Uint32 numKeyCols = cmpTab->m_noOfKeys;
     uint64 nr1 = 0;
-    uint64 nr2 = 0;
+    uint64 nr2 = 4;
     const uchar* dataPtr = (const uchar*) keyBuf.data;
 
     Uint32 n = 0;
