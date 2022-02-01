@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ registry_type_t *components_registry = nullptr;
 dynamic_loader_type_t *components_dynamic_loader = nullptr;
 
 void init_components_subsystem() {
-  minimal_chassis_init((&components_registry), NULL);
+  minimal_chassis_init((&components_registry), nullptr);
   components_registry->acquire(
       "dynamic_loader",
       reinterpret_cast<my_h_service *>(&components_dynamic_loader));
@@ -52,7 +52,7 @@ void init_components_subsystem() {
 void deinit_components_subsystem() {
   components_registry->release(
       reinterpret_cast<my_h_service>(components_dynamic_loader));
-  minimal_chassis_deinit(components_registry, NULL);
+  minimal_chassis_deinit(components_registry, nullptr);
 }
 
 Keyring_component_load::Keyring_component_load(const std::string component_name,

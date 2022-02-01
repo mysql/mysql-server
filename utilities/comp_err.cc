@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,8 +180,8 @@ std::set<err_range> reserved_sections;
 
 static struct my_option my_long_options[] = {
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #else
     {"debug", '#', "Output debug log", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,13 @@ void impl_min_chassis_rwlock_register(const char *, PSI_rwlock_info *, int) {
 
 int impl_min_chassis_rwlock_init(PSI_rwlock_key, mysql_rwlock_t *that,
                                  const char *, unsigned int) {
-  that->m_psi = NULL;
+  that->m_psi = nullptr;
 #ifdef _WIN32
   InitializeSRWLock(&that->m_rwlock.srwlock);
   that->m_rwlock.have_exclusive_srwlock = false;
   return 0;
 #else
-  return pthread_rwlock_init(&that->m_rwlock, NULL);
+  return pthread_rwlock_init(&that->m_rwlock, nullptr);
 #endif
 }
 

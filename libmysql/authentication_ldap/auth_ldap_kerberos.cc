@@ -30,7 +30,7 @@
 #include <sasl/sasl.h>
 #endif
 
-Ldap_logger *g_logger_client = NULL;
+Ldap_logger *g_logger_client = nullptr;
 
 namespace auth_ldap_client_kerberos_context {
 Kerberos::Kerberos(const char *user, const char *password)
@@ -41,7 +41,7 @@ Kerberos::Kerberos(const char *user, const char *password)
       m_context(nullptr),
       m_krb_credentials_cache(nullptr),
       m_credentials_created(false) {
-  if (g_logger_client == NULL) {
+  if (g_logger_client == nullptr) {
     g_logger_client = new Ldap_logger();
   }
   setup();
@@ -112,7 +112,7 @@ krb5_error_code Kerberos::store_credentials() {
 
 krb5_error_code Kerberos::obtain_credentials() {
   krb5_error_code res_kerberos = 0;
-  krb5_get_init_creds_opt *options = NULL;
+  krb5_get_init_creds_opt *options = nullptr;
   char *password = const_cast<char *>(m_password.c_str());
   krb5_principal principal = nullptr;
 
@@ -153,9 +153,9 @@ krb5_error_code Kerberos::obtain_credentials() {
   /*
     Getting TGT from TGT server.
   */
-  res_kerberos =
-      krb5_get_init_creds_password(m_context, &m_credentials, principal,
-                                   password, NULL, NULL, 0, NULL, options);
+  res_kerberos = krb5_get_init_creds_password(m_context, &m_credentials,
+                                              principal, password, nullptr,
+                                              nullptr, 0, nullptr, options);
 
   if (res_kerberos) {
     log_info("SASL kerberos obtain credentials: failed to obtain credentials.");
@@ -165,8 +165,8 @@ krb5_error_code Kerberos::obtain_credentials() {
   /*
     Verifying TGT.
   */
-  res_kerberos =
-      krb5_verify_init_creds(m_context, &m_credentials, NULL, NULL, NULL, NULL);
+  res_kerberos = krb5_verify_init_creds(m_context, &m_credentials, nullptr,
+                                        nullptr, nullptr, nullptr);
   if (res_kerberos) {
     log_info("SASL kerberos obtain credentials: failed to verify credentials.");
     goto EXIT;
@@ -186,7 +186,7 @@ krb5_error_code Kerberos::obtain_credentials() {
 EXIT:
   if (options) {
     krb5_get_init_creds_opt_free(m_context, options);
-    options = NULL;
+    options = nullptr;
   }
   if (principal) {
     krb5_free_principal(m_context, principal);
@@ -315,9 +315,9 @@ bool Kerberos::get_kerberos_config() {
   const char ldap_destroy_option[] = "ldap_destroy_tgt";
 
   krb5_error_code res_kerberos = 0;
-  _profile_t *profile = NULL;
-  char *host_value = NULL;
-  char *default_realm = NULL;
+  _profile_t *profile = nullptr;
+  char *host_value = nullptr;
+  char *default_realm = nullptr;
 
   /*
     Get default realm.
@@ -347,14 +347,14 @@ bool Kerberos::get_kerberos_config() {
   if (res_kerberos || !strcmp(host_value, "")) {
     if (host_value) {
       profile_release_string(host_value);
-      host_value = NULL;
+      host_value = nullptr;
     }
     res_kerberos = profile_get_string(profile, realms_heading, default_realm,
                                       "kdc", host_default, &host_value);
     if (res_kerberos) {
       if (host_value) {
         profile_release_string(host_value);
-        host_value = NULL;
+        host_value = nullptr;
       }
       log_error("get_kerberos_config: failed to get ldap server host.");
       goto EXIT;
@@ -406,11 +406,11 @@ EXIT:
   profile_release(profile);
   if (host_value) {
     profile_release_string(host_value);
-    host_value = NULL;
+    host_value = nullptr;
   }
   if (default_realm) {
     krb5_free_default_realm(m_context, default_realm);
-    default_realm = NULL;
+    default_realm = nullptr;
   }
   return res_kerberos;
 }
@@ -423,7 +423,7 @@ bool Kerberos::credential_valid() {
   bool credentials_retrieve = false;
   krb5_creds matching_credential;
   std::stringstream info_stream;
-  char *realm = NULL;
+  char *realm = nullptr;
 
   memset(&matching_credential, 0, sizeof(matching_credential));
   memset(&credentials, 0, sizeof(credentials));
@@ -501,7 +501,7 @@ EXIT:
   }
   if (realm) {
     krb5_free_default_realm(m_context, realm);
-    realm = NULL;
+    realm = nullptr;
   }
   if (matching_credential.server) {
     krb5_free_principal(m_context, matching_credential.server);

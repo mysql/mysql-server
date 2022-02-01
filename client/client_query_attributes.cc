@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ int client_query_attributes::set_params(MYSQL *mysql) {
 }
 
 void client_query_attributes::clear(MYSQL *mysql) {
-  if (mysql != nullptr) mysql_bind_param(mysql, 0, NULL, NULL);
+  if (mysql != nullptr) mysql_bind_param(mysql, 0, nullptr, nullptr);
   while (count) {
     count--;
     my_free(const_cast<char *>(names[count]));

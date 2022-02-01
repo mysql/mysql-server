@@ -1692,13 +1692,14 @@ static struct my_option my_long_options[] = {
      &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
      0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
-     0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.",
+     nullptr, nullptr, nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
@@ -2677,15 +2678,12 @@ static char **new_mysql_completion(const char *text, int start, int end);
 */
 
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
-char *no_completion(const char *, int)
+char *no_completion(const char *, int) { return nullptr; }
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
-int no_completion(const char *, int)
+int no_completion(const char *, int) { return 0; }
 #else
-char *no_completion()
+char *no_completion() { return nullptr; }
 #endif
-{
-  return 0; /* No filename completion */
-}
 
 /*
   returns 0 if line matches the previous history entry
@@ -4412,7 +4410,7 @@ static int com_query_attributes(String *buffer [[maybe_unused]], char *line) {
 
     if (global_attrs->push_param(name, param))
       return put_info("Failed to push a parameter", INFO_ERROR, 0);
-  } while (param != 0);
+  } while (param != nullptr);
   return 0;
 }
 
