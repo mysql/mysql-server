@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ bool verify(const std::string &digest, const std::string &message,
   EVP_MD_CTX *ctx;
   {
     FILE *f = fopen(public_key_content.c_str(), "rb");
-    pkey = PEM_read_PUBKEY(f, NULL, NULL, NULL);
+    pkey = PEM_read_PUBKEY(f, nullptr, nullptr, nullptr);
     if (pkey == nullptr) return false;
   }
   ctx = EVP_MD_CTX_create();

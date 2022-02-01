@@ -1360,7 +1360,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
           cli_safe_read will also set error variables in net,
           and we are already in error state.
         */
-        if (cli_safe_read(mysql, NULL) == packet_error) {
+        if (cli_safe_read(mysql, nullptr) == packet_error) {
           goto end;
         }
         /* Can this happen in any other case than COM_QUIT? */
@@ -6804,7 +6804,7 @@ static mysql_state_machine_status csm_parse_handshake(
        to 0.
       */
       if (ctx->scramble_data + ctx->scramble_data_len > pkt_end) {
-        ctx->scramble_data = 0;
+        ctx->scramble_data = nullptr;
         ctx->scramble_data_len = 0;
         ctx->scramble_plugin = const_cast<char *>("");
       }
@@ -7739,7 +7739,7 @@ int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
     return 1;
   int ret = (*mysql->methods->advanced_command)(
       mysql, COM_QUERY, ret_data, ret_data_length,
-      pointer_cast<const uchar *>(query), length, true, NULL);
+      pointer_cast<const uchar *>(query), length, true, nullptr);
   if (ret_data) my_free(ret_data);
   return ret;
 }
@@ -7772,7 +7772,7 @@ static net_async_status mysql_send_query_nonblocking_inner(MYSQL *mysql,
   if ((*mysql->methods->advanced_command_nonblocking)(
           mysql, COM_QUERY, async_context->async_qp_data,
           async_context->async_qp_data_length,
-          pointer_cast<const uchar *>(query), length, true, NULL,
+          pointer_cast<const uchar *>(query), length, true, nullptr,
           &ret) == NET_ASYNC_NOT_READY) {
     return NET_ASYNC_NOT_READY;
   }

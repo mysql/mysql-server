@@ -1879,9 +1879,9 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
     }
 
     if (mysql_int_serialize_param_data(
-            &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
-            &param_length, stmt->send_types_to_server, send_named_params, false,
-            can_deal_with_flags)) {
+            &mysql->net, stmt->param_count, stmt->params, nullptr, 1,
+            &param_data, &param_length, stmt->send_types_to_server,
+            send_named_params, false, can_deal_with_flags)) {
       set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }

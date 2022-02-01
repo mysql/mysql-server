@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ bool fido_prepare_assert::sign_challenge() {
         "Please insert FIDO device and perform gesture action for"
         " authentication to complete.");
     get_plugin_messages(s, message_type::INFO);
-    if (fido_dev_get_assert(dev, m_assert, NULL) != FIDO_OK) {
+    if (fido_dev_get_assert(dev, m_assert, nullptr) != FIDO_OK) {
       get_plugin_messages(
           "Assertion failed.Please check relying party ID "
           "(@@global.authentication_fido_rp_id) of server.",

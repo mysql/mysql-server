@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -439,7 +439,7 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
 #ifndef NDEBUG
 end:
 #endif
-  if (point == NULL) {
+  if (point == nullptr) {
     if (my_flags & MY_HOLD_ON_ERROR) return oldpoint;
     if (my_flags & MY_FREE_ON_ERROR) my_free(oldpoint);
     set_my_errno(errno);
