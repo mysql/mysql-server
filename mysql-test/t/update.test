@@ -702,6 +702,12 @@ UPDATE IGNORE t1 SET f2 = 400;
 # 2 (was 0) matched, 0 changed
 UPDATE IGNORE v2 SET f2 = 400;
 
+# 2 (was 0) matched, 0 changed
+UPDATE IGNORE v2 STRAIGHT_JOIN (SELECT 1) AS t0 SET f2 = 400;
+
+# 2 matched, 0 changed
+UPDATE IGNORE (SELECT 1) AS t0 STRAIGHT_JOIN v2 SET f2 = 400;
+
 # 2 matched, 2 changed
 UPDATE IGNORE t2 SET f2 = 400;
 --disable_info

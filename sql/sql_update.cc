@@ -2359,7 +2359,6 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       int error = 0;
       if (is_row_changed) {
         if ((error = cur_table->view_check_option(thd)) != VIEW_CHECK_OK) {
-          found_rows--;
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
