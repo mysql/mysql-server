@@ -1980,7 +1980,7 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2717,7 +2717,8 @@ void Dblqh::execLQHADDATTREQ(Signal* signal)
   {
     SectionHandle handle(this, signal);
     SegmentedSectionPtr defValSection;
-    handle.getSection(defValSection, LqhAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+    ndbrequire(handle.getSection(defValSection,
+                                 LqhAddAttrReq::DEFAULT_VALUE_SECTION_NUM));
     addfragptr.p->defValSectionI = defValSection.i;
     addfragptr.p->defValNextPos = 0;
     //Don't free Section here. Section is freed after default values are trasfered to TUP
@@ -8678,8 +8679,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      */
     SegmentedSectionPtr keyInfoSection, attrInfoSection;
     
-    handle.getSection(keyInfoSection,
-                      LqhKeyReq::KeyInfoSectionNum);
+    ndbrequire(handle.getSection(keyInfoSection,
+                                 LqhKeyReq::KeyInfoSectionNum));
 
     ndbassert(keyInfoSection.i != RNIL);
 
@@ -14284,7 +14285,7 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -16409,12 +16410,12 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   ndbassert(numSections != 0);
   {
     /* Long request, get Attr + Key len from section sizes */
-    handle.getSection(attrInfoPtr, ScanFragReq::AttrInfoSectionNum);
+    ndbrequire(handle.getSection(attrInfoPtr, ScanFragReq::AttrInfoSectionNum));
     aiLen= attrInfoPtr.sz;
     
     if (numSections == 2)
     {
-      handle.getSection(keyInfoPtr, ScanFragReq::KeyInfoSectionNum);
+      ndbrequire(handle.getSection(keyInfoPtr, ScanFragReq::KeyInfoSectionNum));
       keyLen= keyInfoPtr.sz;
     }
   }
@@ -27928,7 +27929,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this,signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(req->sr_nodes, 0 , sizeof(req->sr_nodes));
     copy(req->sr_nodes, ptr);

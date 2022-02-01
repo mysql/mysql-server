@@ -976,7 +976,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
       getNodeInfo(cmasterNodeId).m_version));
     SegmentedSectionPtr ptr;
     ndbrequire(num_sections == 1);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= (sizeof(cdata)/4));
     copy(cdata, ptr);
     cdata_size_in_words = ptr.sz;
@@ -2390,7 +2390,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2709,7 +2709,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= (sizeof(cdata)/4));
     copy(cdata, ptr);
     cdata_size_in_words = ptr.sz;
@@ -9869,7 +9869,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(allFailed.rep.data, ptr);
     releaseSections(handle);
@@ -11060,7 +11060,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
 
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(temp_lcpActive,
@@ -15211,7 +15211,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     jam();
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     union {
       Uint16 buf[MAX_FRAGMENT_DATA_ENTRIES];
       Uint32 _align[MAX_FRAGMENT_DATA_WORDS];
@@ -18921,14 +18921,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() <= 2);
     SegmentedSectionPtr ptr1;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr1, 0);
+    ndbrequire(handle.getSection(ptr1, 0));
     ndbrequire(ptr1.sz <= NdbNodeBitmask::Size);
     copy(req->participatingLQH.rep.data, ptr1);
     if (noOfSections == 2)
     {
       jam();
       SegmentedSectionPtr ptr2;
-      handle.getSection(ptr2, 1);
+      ndbrequire(handle.getSection(ptr2, 1));
       ndbrequire(ptr2.sz <= NdbNodeBitmask::Size);
       copy(req->participatingDIH.rep.data, ptr2);
     }
@@ -25651,7 +25651,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(node_bitmask,
            0,

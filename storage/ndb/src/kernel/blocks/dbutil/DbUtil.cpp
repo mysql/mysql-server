@@ -482,7 +482,7 @@ DbUtil::execNODE_FAILREP(Signal* signal){
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
@@ -1168,7 +1168,7 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
 		       senderRef, senderData);
     return;
   };
-  handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
+  ndbrequire(handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION));
   const Uint32 noPages  = (ptr.sz + sizeof(Page32)) / sizeof(Page32);
   ndbassert(noPages > 0);
   if (!prepPtr.p->preparePages.seize(noPages)) {
@@ -1292,7 +1292,7 @@ DbUtil::execGET_TABINFO_CONF(Signal* signal){
   
   SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO));
   ndbrequire(dictTabInfoPtr.sz == totalLen);
   
   if (prepI != RNIL)
@@ -2209,9 +2209,9 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
+  ndbrequire(handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION));
   SectionReader headerReader(headerPtr, getSectionSegmentPool());
-  handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
+  ndbrequire(handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION));
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
 
 #if 0 //def EVENT_DEBUG

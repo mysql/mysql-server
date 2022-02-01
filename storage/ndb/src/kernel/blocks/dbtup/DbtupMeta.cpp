@@ -563,7 +563,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   jam();
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+  ndbrequire(handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM));
 
   SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
   r.reset();

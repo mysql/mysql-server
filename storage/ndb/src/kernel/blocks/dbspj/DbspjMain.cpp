@@ -735,7 +735,7 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&conf->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -820,7 +820,7 @@ Dbspj::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
@@ -921,7 +921,7 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
 
   SegmentedSectionPtr ptr;
   SectionHandle handle(this,signal);
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
   copy(failed.rep.data, ptr);
   releaseSections(handle);
@@ -1011,7 +1011,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
    */
   SegmentedSectionPtr attrPtr;
   SectionHandle handle(this, signal);
-  handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum);
+  ndbrequire(handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum));
   const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
   Uint32 err;
@@ -1333,7 +1333,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
    */
   SectionHandle handle(this, signal);
   SegmentedSectionPtr attrPtr;
-  handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
+  ndbrequire(handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum));
 
   Uint32 err;
   Ptr<Request> requestPtr(0, RNIL);
@@ -3764,7 +3764,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   {
     SegmentedSectionPtr dataPtr;
     SectionHandle handle(this, signal);
-    handle.getSection(dataPtr, 0);
+    ndbrequire(handle.getSection(dataPtr, 0));
 
     // Use the Dbspj::m_buffer1[] as temporary Linear storage for row.
     static_assert(sizeof(m_buffer1) >=

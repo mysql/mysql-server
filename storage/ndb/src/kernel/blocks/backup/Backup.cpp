@@ -311,7 +311,7 @@ Backup::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&conf->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -3999,7 +3999,7 @@ Backup::execNODE_FAILREP(Signal* signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
@@ -4399,7 +4399,7 @@ Backup::execBACKUP_REQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() >= 1)
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
     copy((Uint32*)&epd, ptr);
     ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
@@ -6431,13 +6431,13 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this,signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
 
     if (signal->getNoOfSections() >=2 || handle.m_cnt >= 2)
     {
-      handle.getSection(ptr, 1);
+      ndbrequire(handle.getSection(ptr, 1));
       ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
       copy((Uint32*)&epd, ptr);
       ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
@@ -6874,7 +6874,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     ListTablesData ltd;
     const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
     SegmentedSectionPtr tableDataPtr;
-    handle.getSection(tableDataPtr, ListTablesConf::TABLE_DATA);
+    ndbrequire(handle.getSection(tableDataPtr, ListTablesConf::TABLE_DATA));
     SimplePropertiesSectionReader
       tableDataReader(tableDataPtr, getSectionSegmentPool());
 
@@ -7430,7 +7430,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO));
   ndbrequire(dictTabInfoPtr.sz == len);
 
   TablePtr tabPtr ;
@@ -8867,7 +8867,7 @@ Backup::execTRANSID_AI(Signal* signal)
       jam();
       SectionHandle handle(this, signal);
       SegmentedSectionPtr dataPtr;
-      handle.getSection(dataPtr, 0);
+      ndbrequire(handle.getSection(dataPtr, 0));
       dataLen = dataPtr.sz;
 
       * dst = htonl(dataLen);
@@ -10993,9 +10993,9 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     jam();
     SectionHandle handle(this,signal);
     SegmentedSectionPtr dataPtr[3];
-    handle.getSection(dataPtr[0], 0);
-    handle.getSection(dataPtr[1], 1);
-    handle.getSection(dataPtr[2], 2);
+    ndbrequire(handle.getSection(dataPtr[0], 0));
+    ndbrequire(handle.getSection(dataPtr[1], 1));
+    ndbrequire(handle.getSection(dataPtr[2], 2));
     /**
      * dataPtr[0] : Primary key info
      * dataPtr[1] : Before values

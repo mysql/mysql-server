@@ -1366,7 +1366,7 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -3776,16 +3776,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     /* Store i value for first long section of KeyInfo
      * and AttrInfo in Cache Record
      */
-    handle.getSection(keyInfoSection,
-                      TcKeyReq::KeyInfoSectionNum);
+    ndbrequire(handle.getSection(keyInfoSection,
+                                 TcKeyReq::KeyInfoSectionNum));
 
     regCachePtr->keyInfoSectionI= keyInfoSection.i;
   
     if (regCachePtr->attrlength != 0)
     {
       ndbassert( handle.m_cnt == 2 );
-      handle.getSection(attrInfoSection,
-                        TcKeyReq::AttrInfoSectionNum);
+      ndbrequire(handle.getSection(attrInfoSection,
+                                   TcKeyReq::AttrInfoSectionNum));
       regCachePtr->attrInfoSectionI= attrInfoSection.i;
     }
     else
@@ -10707,7 +10707,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -13472,7 +13472,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
-  handle.getSection(api_op_ptr, ScanTabReq::ReceiverIdSectionNum);
+  ndbrequire(handle.getSection(api_op_ptr, ScanTabReq::ReceiverIdSectionNum));
 
   // Scan parallelism is determined by the number of receiver ids sent
   Uint32 scanParallel = api_op_ptr.sz;
@@ -13487,11 +13487,11 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   {
     SegmentedSectionPtr attrInfoPtr, keyInfoPtr;
     /* Long SCANTABREQ, determine Ai and Key length from sections */
-    handle.getSection(attrInfoPtr, ScanTabReq::AttrInfoSectionNum);
+    ndbrequire(handle.getSection(attrInfoPtr, ScanTabReq::AttrInfoSectionNum));
     aiLength= attrInfoPtr.sz;
     if (numSections == 3)
     {
-      handle.getSection(keyInfoPtr, ScanTabReq::KeyInfoSectionNum);
+      ndbrequire(handle.getSection(keyInfoPtr, ScanTabReq::KeyInfoSectionNum));
       keyLen= keyInfoPtr.sz;
     }
   }
@@ -18584,7 +18584,7 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
 
   // So far need only attribute count
   SegmentedSectionPtr ssPtr;
-  handle.getSection(ssPtr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
+  ndbrequire(handle.getSection(ssPtr, CreateIndxReq::ATTRIBUTE_LIST_SECTION));
   SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
   r0.reset(); // undo implicit first()
   if (!r0.getWord(&indexData->attributeList.sz) ||
@@ -18703,7 +18703,7 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
 
     {
       SegmentedSectionPtr ssPtr;
-      handle.getSection(ssPtr, CreateFKImplReq::PARENT_COLUMNS);
+      ndbrequire(handle.getSection(ssPtr, CreateFKImplReq::PARENT_COLUMNS));
       fkPtr.p->parentTableColumns.sz = ssPtr.sz;
       if (ssPtr.sz > NDB_ARRAY_SIZE(fkPtr.p->parentTableColumns.id))
       {
@@ -18715,7 +18715,7 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
 
     {
       SegmentedSectionPtr ssPtr;
-      handle.getSection(ssPtr, CreateFKImplReq::CHILD_COLUMNS);
+      ndbrequire(handle.getSection(ssPtr, CreateFKImplReq::CHILD_COLUMNS));
       fkPtr.p->childTableColumns.sz = ssPtr.sz;
       if (ssPtr.sz > NDB_ARRAY_SIZE(fkPtr.p->childTableColumns.id))
       {
@@ -19290,15 +19290,15 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     /* Store i value for first long section of KeyInfo
      * and AttrInfo in Index operation
      */
-    handle.getSection(keyInfoSection,
-                      TcKeyReq::KeyInfoSectionNum);
+    ndbrequire(handle.getSection(keyInfoSection,
+                                 TcKeyReq::KeyInfoSectionNum));
 
     indexOp->keyInfoSectionIVal= keyInfoSection.i;
   
     if (handle.m_cnt == 2)
     {
-      handle.getSection(attrInfoSection,
-                        TcKeyReq::AttrInfoSectionNum);
+      ndbrequire(handle.getSection(attrInfoSection,
+                                   TcKeyReq::AttrInfoSectionNum));
       indexOp->attrInfoSectionIVal= attrInfoSection.i;
     }
 
@@ -21239,12 +21239,13 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
   /* Store i value for first long section of KeyInfo
    * and AttrInfo in Index operation
    */
-  handle.getSection(keyInfoSection, TcKeyReq::KeyInfoSectionNum);
+  ndbrequire(handle.getSection(keyInfoSection, TcKeyReq::KeyInfoSectionNum));
   indexOpPtr.p->keyInfoSectionIVal = keyInfoSection.i;
 
   if (handle.m_cnt == 2)
   {
-    handle.getSection(attrInfoSection, TcKeyReq::AttrInfoSectionNum);
+    ndbrequire(handle.getSection(attrInfoSection,
+                                 TcKeyReq::AttrInfoSectionNum));
     indexOpPtr.p->attrInfoSectionIVal = attrInfoSection.i;
   }
 
@@ -23512,7 +23513,7 @@ Dbtc::execUPD_QUERY_DIST_ORD(Signal *signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SegmentedSectionPtr ptr;
   SectionHandle handle(this, signal);
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NDB_ARRAY_SIZE(dist_handle->m_weights));
 
   memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));

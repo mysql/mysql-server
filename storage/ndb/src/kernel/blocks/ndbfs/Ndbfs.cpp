@@ -607,14 +607,14 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   if (handle.m_cnt)
   {
     jam();
-    handle.getSection(ptr, FsOpenReq::FILENAME);
+    ndbrequire(handle.getSection(ptr, FsOpenReq::FILENAME));
   }
   file->theFileName.set(this, userRef, fsOpenReq->fileNumber, false, ptr);
   if (handle.m_cnt > FsOpenReq::PASSWORD)
   {
     jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, FsOpenReq::PASSWORD);
+    ndbrequire(handle.getSection(ptr, FsOpenReq::PASSWORD));
     ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_password));
     copy((Uint32*)&file->m_password, ptr);
     ndbrequire(4 + file->m_password.password_length <= ptr.sz * sizeof(Uint32));
@@ -812,7 +812,7 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   if(handle.m_cnt)
   {
     jam();
-    handle.getSection(ptr, FsOpenReq::FILENAME);
+    ndbrequire(handle.getSection(ptr, FsOpenReq::FILENAME));
   }
 
   file->theFileName.set(this, userRef, req->fileNumber, req->directory, ptr);

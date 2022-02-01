@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2014,7 +2014,7 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2159,7 +2159,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
 
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(&signal->theData[CntrStartConf::SignalLength],
            0,
            NdbNodeBitmask::Size * sizeof(Uint32));
@@ -2167,7 +2167,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
     c_start.m_starting.assign(NdbNodeBitmask::Size,
                               &signal->theData[CntrStartConf::SignalLength]);
 
-    handle.getSection(ptr, 1);
+    ndbrequire(handle.getSection(ptr, 1));
     memset(&signal->theData[CntrStartConf::SignalLength],
            0,
            NdbNodeBitmask::Size * sizeof(Uint32));
@@ -2182,7 +2182,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
       NdbNodeBitmask tmp2;
       jam();
       ndbrequire(num_sections == 3);
-      handle.getSection(ptr, 2);
+      ndbrequire(handle.getSection(ptr, 2));
       memset(&signal->theData[CntrStartConf::SignalLength],
              0,
              NdbNodeBitmask::Size * sizeof(Uint32));
@@ -3149,7 +3149,7 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
           getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
       SegmentedSectionPtr ptr;
       SectionHandle handle(this,signal);
-      handle.getSection(ptr, 0);
+      ndbrequire(handle.getSection(ptr, 0));
       ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
       copy(tmp.rep.data, ptr);
       releaseSections(handle);
@@ -3629,7 +3629,7 @@ void Ndbcntr::execCNTR_WAITREP(Signal* signal)
     {
       SectionHandle handle(this, signal);
       SegmentedSectionPtr ptr;
-      handle.getSection(ptr, 0);
+      ndbrequire(handle.getSection(ptr, 0));
       ndbrequire(ptr.sz <= c_start.m_starting.Size);
       copy(c_start.m_starting.rep.data, ptr);
       releaseSections(handle);
@@ -3707,7 +3707,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
 
     if (ERROR_INSERTED(1001))
     {
@@ -4571,7 +4571,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
         getNodeInfo(req->senderRef).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     NdbNodeBitmask::clear(req->nodes);
     copy(req->nodes, ptr);
     releaseSections(handle);

@@ -3362,7 +3362,7 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -4352,7 +4352,7 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr schemaDataPtr;
-  handle.getSection(schemaDataPtr, 0);
+  ndbrequire(handle.getSection(schemaDataPtr, 0));
 
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   ndbrequire(schemaDataPtr.sz % NDB_SF_PAGE_SIZE_IN_WORDS == 0);
@@ -5220,7 +5220,7 @@ Dbdict::restartCreateObj_getTabInfoConf(Signal* signal)
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr objInfoPtr;
-  handle.getSection(objInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(objInfoPtr, GetTabInfoConf::DICT_TAB_INFO));
   handle.clear();
 
   restartCreateObj_parse(signal, objInfoPtr, false);
@@ -5497,7 +5497,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -7270,7 +7270,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
   {
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, CreateTabReq::DICT_TAB_INFO);
+    ndbrequire(handle.getSection(ptr, CreateTabReq::DICT_TAB_INFO));
     if (ptr.sz > MAX_WORDS_META_FILE)
     {
       jam();
@@ -10229,7 +10229,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
   {
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, AlterTabReq::DICT_TAB_INFO);
+    ndbrequire(handle.getSection(ptr, AlterTabReq::DICT_TAB_INFO));
     if (ptr.sz > MAX_WORDS_META_FILE)
     {
       jam();
@@ -12361,7 +12361,7 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
 
     Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
-    handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
+    ndbrequire(handle.getSection(ssPtr, GetTabInfoReq::TABLE_NAME));
     ndbrequire(ssPtr.sz <= NDB_ARRAY_SIZE(tableName));
     copy(tableName, ssPtr);
 
@@ -13195,7 +13195,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   IndexAttributeList& attrList = createIndexPtr.p->m_attrList;
   {
     SegmentedSectionPtr ss_ptr;
-    handle.getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
+    ndbrequire(handle.getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION));
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     r.reset(); // undo implicit first()
     if (!r.getWord(&attrList.sz) ||
@@ -13214,7 +13214,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   bits = 0;
   {
     SegmentedSectionPtr ss_ptr;
-    handle.getSection(ss_ptr, CreateIndxReq::INDEX_NAME_SECTION);
+    ndbrequire(handle.getSection(ss_ptr, CreateIndxReq::INDEX_NAME_SECTION));
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     DictTabInfo::Table tableDesc;
     tableDesc.init();
@@ -18143,7 +18143,7 @@ sendref:
   if (handle.m_cnt >= CreateEvntReq::ATTRIBUTE_MASK)
   {
     jam();
-    handle.getSection(ssPtr, CreateEvntReq::ATTRIBUTE_MASK);
+    ndbrequire(handle.getSection(ssPtr, CreateEvntReq::ATTRIBUTE_MASK));
     if (ssPtr.sz >= NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2))
     {
       jam();
@@ -18569,10 +18569,10 @@ void Dbdict::parseReadEventSys(Signal* signal, sysTab_NDBEVENTS_0& m_eventRec)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
+  ndbrequire(handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION));
   SectionReader headerReader(headerPtr, getSectionSegmentPool());
 
-  handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
+  ndbrequire(handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION));
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
 
   char *base = (char*)&m_eventRec;
@@ -18748,7 +18748,7 @@ Dbdict::createEvent_RT_USER_GET(Signal* signal,
 
   SegmentedSectionPtr ssPtr;
 
-  handle.getSection(ssPtr, 0);
+  ndbrequire(handle.getSection(ssPtr, 0));
 
   SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
 #ifdef EVENT_DEBUG
@@ -19827,7 +19827,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
 
   SegmentedSectionPtr ssPtr;
 
-  handle.getSection(ssPtr, 0);
+  ndbrequire(handle.getSection(ssPtr, 0));
 
   SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
 #ifdef EVENT_DEBUG
@@ -20430,7 +20430,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   }
 
   SegmentedSectionPtr ss_ptr;
-  handle.getSection(ss_ptr, CreateTrigReq::TRIGGER_NAME_SECTION);
+  ndbrequire(handle.getSection(ss_ptr, CreateTrigReq::TRIGGER_NAME_SECTION));
   SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
   DictTabInfo::Table tableDesc;
   tableDesc.init();
@@ -20538,7 +20538,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   {
     jam();
     SegmentedSectionPtr mask_ptr;
-    handle.getSection(mask_ptr, CreateTrigReq::ATTRIBUTE_MASK_SECTION);
+    ndbrequire(handle.getSection(mask_ptr, CreateTrigReq::ATTRIBUTE_MASK_SECTION));
     if (mask_ptr.sz > triggerPtr.p->attributeMask.getSizeInWords())
     {
       jam();
@@ -21437,7 +21437,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
   if (reqByName) {
     jam();
     SegmentedSectionPtr ss_ptr;
-    handle.getSection(ss_ptr, DropTrigImplReq::TRIGGER_NAME_SECTION);
+    ndbrequire(handle.getSection(ss_ptr, DropTrigImplReq::TRIGGER_NAME_SECTION));
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     DictTabInfo::Table tableDesc;
     tableDesc.init();
@@ -33887,7 +33887,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     jam();
     SimpleProperties::UnpackStatus status;
 
-    handle.getSection(objInfoPtr, CreateHashMapReq::INFO);
+    ndbrequire(handle.getSection(objInfoPtr, CreateHashMapReq::INFO));
     SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
     status = SimpleProperties::unpack(it, &hm,
 				      DictHashMapInfo::Mapping,

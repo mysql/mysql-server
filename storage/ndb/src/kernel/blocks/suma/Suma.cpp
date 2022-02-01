@@ -629,7 +629,7 @@ Suma::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&conf->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -823,7 +823,7 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(node_bitmask,
            0,
@@ -1551,7 +1551,7 @@ Suma::execNODE_FAILREP(Signal* signal){
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);
@@ -2730,7 +2730,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     if(handle.m_cnt > 0)
     {
       SegmentedSectionPtr ptr;
-      handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
+      ndbrequire(handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST));
       LocalSyncRecordBuffer attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
     }
@@ -2739,7 +2739,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       jam();
       ndbrequire(handle.m_cnt > 1)
       SegmentedSectionPtr ptr;
-      handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
+      ndbrequire(handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO));
       LocalSyncRecordBuffer boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
       append(boundBuf, ptr, getSectionSegmentPool());
     }
@@ -3091,7 +3091,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   TablePtr tabPtr;
   ndbrequire(c_tablePool.getPtr(tabPtr, conf->senderData));
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
+  ndbrequire(handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO));
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
   releaseSections(handle);
 
@@ -4605,7 +4605,7 @@ Suma::execTRANSID_AI(Signal* signal)
     /* Copy long data into linear signal buffer */
     SectionHandle handle(this, signal);
     SegmentedSectionPtr dataPtr;
-    handle.getSection(dataPtr, 0);
+    ndbrequire(handle.getSection(dataPtr, 0));
     length = dataPtr.sz;
     ndbrequire(length <= (NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength));
     copy(data->attrData, dataPtr);
@@ -5065,21 +5065,21 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     ndbrequire( setTriggerBufferLock(trigId) );
 
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0); // Keys
+    ndbrequire(handle.getSection(ptr, 0)); // Keys
     const Uint32 sz = ptr.sz;
     ndbrequire(sz <= SUMA_BUF_SZ);
     copy(f_buffer, ptr);
     lsptr[0].sz = ptr.sz;
     lsptr[0].p = f_buffer;
 
-    handle.getSection(ptr, 2); // After values
+    ndbrequire(handle.getSection(ptr, 2)); // After values
     ndbrequire(ptr.sz <= (SUMA_BUF_SZ - sz));
     copy(f_buffer + sz, ptr);
     f_trigBufferSize = sz + ptr.sz;
     lsptr[2].sz = ptr.sz;
     lsptr[2].p = f_buffer + sz;
 
-    handle.getSection(ptr, 1); // Before values
+    ndbrequire(handle.getSection(ptr, 1)); // Before values
     ndbrequire(ptr.sz <= SUMA_BUF_SZ);
     copy(b_buffer, ptr);
     b_trigBufferSize = ptr.sz;
@@ -6001,7 +6001,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   // Copy DICT_TAB_INFO to local linear buffer
   SectionHandle handle(this, signal);
   SegmentedSectionPtr tabInfoPtr;
-  handle.getSection(tabInfoPtr, 0);
+  ndbrequire(handle.getSection(tabInfoPtr, 0));
 
   if (!c_tables.find(tabPtr, tableId))
   {
