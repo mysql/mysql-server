@@ -479,9 +479,9 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
    * index records now.
    */
   while (1) {
-    IndexPtr indexPtr;
     jam();
     refresh_watch_dog();
+    IndexPtr indexPtr;
     if (!c_indexPool.seize(indexPtr))
     {
       jam();
