@@ -280,12 +280,18 @@ UPDATE t3 SET a=x'8243' where a=x'6162';
 SET SQL_MODE="";
 INSERT INTO t1 values(x'8142', x'8142', x'8142');
 INSERT INTO t1 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 2$/at row 3/
 UPDATE t1 SET a=x'8243' where a=x'6162';
 INSERT INTO t2 values(x'8142', x'8142', x'8142');
 INSERT INTO t2 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 2$/at row 3/
 UPDATE t2 SET a=x'8243' where a=x'6162';
 INSERT INTO t3 values(x'8142', x'8142', x'8142');
 INSERT INTO t3 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 2$/at row 3/
 UPDATE t3 SET a=x'8243' where a=x'6162';
 
 CREATE VIEW v1 AS SELECT * FROM t1;
@@ -296,27 +302,39 @@ SET SQL_MODE="STRICT_TRANS_TABLES";
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
 INSERT INTO v1 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 UPDATE v1 SET a=x'8243' where a=x'6162';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
 INSERT INTO v2 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 UPDATE v2 SET a=x'8243' where a=x'6162';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
 INSERT INTO v3 values(x'6162', x'6162', x'6162');
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 UPDATE v3 SET a=x'8243' where a=x'6162';
 SET SQL_MODE="";
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
 INSERT INTO v1 values(x'6162', x'6162', x'6162');
+# Different row numbers with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/ /at row 2$/at row 6/
 UPDATE v1 SET a=x'8243' where a=x'6162';
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
 INSERT INTO v2 values(x'6162', x'6162', x'6162');
+# Different row numbers with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/ /at row 2$/at row 6/
 UPDATE v2 SET a=x'8243' where a=x'6162';
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
 INSERT INTO v3 values(x'6162', x'6162', x'6162');
+# Different row numbers with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/ /at row 2$/at row 6/
 UPDATE v3 SET a=x'8243' where a=x'6162';
 
 DROP VIEW v1;
@@ -387,6 +405,8 @@ INSERT INTO v_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
 --enable_abort_on_error
 UPDATE v_utf8 SET a=x'e69687' where a=x'e4b8ad';
 --disable_abort_on_error
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/
 UPDATE v_utf8 SET a=x'f69687' where a=x'e69687';
 --enable_abort_on_error
 SET SQL_MODE="";
@@ -401,6 +421,8 @@ INSERT INTO v_utf8 values(x'f4b8ad', x'f4b8ad', x'f4b8ad');
 --enable_abort_on_error
 UPDATE v_utf8 SET a=x'e69687' where a=x'e4b8ad';
 --disable_abort_on_error
+# Different row numbers with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/ /at row 2$/at row 5/
 UPDATE v_utf8 SET a=x'f69687' where a=x'e69687';
 --enable_abort_on_error
 

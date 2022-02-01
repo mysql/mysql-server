@@ -854,6 +854,8 @@ INSERT INTO Sow6_2f VALUES (11);
 -- error 1264
 INSERT INTO Sow6_2f VALUES (101.55);
 #-- should return SQLSTATE 22003 numeric value out of range
+# Different row number with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 5/
 -- error 1264
 UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
 #-- should return SQLSTATE 22003 numeric value out of range

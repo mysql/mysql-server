@@ -1471,6 +1471,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   TABLE_LIST *single_table_updated = nullptr;
 
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
+  const bool is_single_table_syntax = !multitable;
 
   assert(select->fields.size() == select->num_visible_fields());
   assert(select->num_visible_fields() == update_value_list->size());
@@ -1535,6 +1536,15 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     }
     // Perform multi-table operation if table to be updated is multi-table view
     if (table_list->is_multiple_tables()) multitable = true;
+  }
+
+  // The hypergraph optimizer has a unified execution path for single-table and
+  // multi-table UPDATE, and does not need to distinguish between the two. This
+  // enables it to perform optimizations like sort avoidance and semi-join
+  // flattening even if features specific to single-table UPDATE (that is, ORDER
+  // BY and LIMIT) are used.
+  if (lex->using_hypergraph_optimizer) {
+    multitable = true;
   }
 
   if (!multitable && select->first_inner_query_expression() != nullptr &&
@@ -1738,13 +1748,15 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     Syntax rule for multi-table update prevents these constructs.
     But they are possible for single-table UPDATE against multi-table view.
   */
-  if (multitable && select->order_list.elements) {
-    my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", "ORDER BY");
-    return true;
-  }
-  if (multitable && select->select_limit) {
-    my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", "LIMIT");
-    return true;
+  if (is_single_table_syntax && table_list->is_multiple_tables()) {
+    if (select->order_list.elements) {
+      my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", "ORDER BY");
+      return true;
+    }
+    if (select->select_limit) {
+      my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", "LIMIT");
+      return true;
+    }
   }
   if (select->order_list.first) {
     mem_root_deque<Item *> fields(thd->mem_root);

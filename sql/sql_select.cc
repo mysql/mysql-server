@@ -339,7 +339,8 @@ bool Sql_cmd_dml::prepare(THD *thd) {
        lex->sql_command == SQLCOM_INSERT ||
        lex->sql_command == SQLCOM_DELETE_MULTI ||
        lex->sql_command == SQLCOM_DELETE ||
-       lex->sql_command == SQLCOM_UPDATE_MULTI);
+       lex->sql_command == SQLCOM_UPDATE_MULTI ||
+       lex->sql_command == SQLCOM_UPDATE);
 
   /*
     Constant folding could cause warnings during preparation. Make

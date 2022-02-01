@@ -26,6 +26,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2`))
+# This line exists only to help --skip_if_hypergraph diffing.
 explain update t1 set t1.a=3 where a in (select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary

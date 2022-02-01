@@ -71,6 +71,8 @@ alter table t1 modify c char(4);
 SET sql_mode = default;
 alter table t1 add d char(2);
 update ignore t1 set a=NULL where a=10;
+# Different row number in warning with the hypergraph optimizer.
+--replace_regex /at row 1$/at row 4/
 update ignore t1 set c='mysql ab' where c='test';
 update ignore t1 set d=c;
 create table t2(a tinyint NOT NULL, b char(3));
