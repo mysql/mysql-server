@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_LIBRARY
 #ifdef UNIV_DEBUG
 
-constexpr uint32_t MUTEX_MAGIC_N = 979585;
+constexpr uint32_t MUTEX_MAGIC_N{0xb251b04bU};
 
 template <typename Mutex>
 class MutexDebug {
@@ -138,6 +138,7 @@ class MutexDebug {
   /** Mutex is being destroyed. */
   void destroy() UNIV_NOTHROW {
     ut_ad(m_context.m_thread_id == std::thread::id{});
+    ut_ad(m_magic_n == MUTEX_MAGIC_N);
 
     m_magic_n = 0;
 
@@ -185,7 +186,7 @@ class MutexDebug {
   }
 
   /** Magic number to check for memory corruption. */
-  ulint m_magic_n;
+  uint32_t m_magic_n;
 
   /** Latch state of the mutex owner */
   Context m_context;
