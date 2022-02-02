@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,7 @@ static MYSQL_THDVAR_ULONG(
   NULL,                              /* update func. */
   32768,                             /* default */
   0,                                 /* min */
-  ONE_YEAR_IN_SECONDS,               /* max */
+  2 * 1024L * 1024L * 1024L,         /* max */
   0                                  /* block */
 );
 
