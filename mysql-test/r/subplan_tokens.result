@@ -6,41 +6,41 @@ test.t1	analyze	status	OK
 SET DEBUG='+d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1;
 EXPLAIN
--> [0x383f9723be72015d] Table scan on t1  (cost=0.08..0.25 rows=3)
+-> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x383f9723be72015d';
+SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
--> [0x4f56594d4fd521c9] Index scan on t1 using a  (cost=0.08..0.25 rows=3)
+-> [0x2215d3ce44f01b0d] Index scan on t1 using a  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x4f56594d4fd521c9';
+SET DEBUG='+d,subplan_tokens,force_subplan_0x2215d3ce44f01b0d';
 
-SET DEBUG='+d,subplan_tokens,force_subplan_0x383f9723be72015d';
+SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
--> [0x685afbd3f088dc87] Sort: t1.a  (cost=1.03..1.03 rows=3)
-    -> [0x383f9723be72015d] Table scan on t1  (cost=0.08..0.25 rows=3)
+-> [0xd3135ef8a92cb9b8] Sort: t1.a  (cost=1.03..1.03 rows=3)
+    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x685afbd3f088dc87,force_subplan_0x383f9723be72015d';
+SET DEBUG='+d,subplan_tokens,force_subplan_0xd3135ef8a92cb9b8,force_subplan_0xeed2c0bd3e39ba93';
 
 SET DEBUG='+d,subplan_tokens,'
-  'force_subplan_0x90b6f02248424220,'
-  'force_subplan_0x383f9723be72015d,'
-  'force_subplan_0xedd60db81c76aaf5';
+  'force_subplan_0x38d170e70c04e92c,'
+  'force_subplan_0xeed2c0bd3e39ba93,'
+  'force_subplan_0x079e429c703ec298';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
--> [0x9fe1924c5f48742c] Sort: t1.a  (cost=2.09..2.09 rows=3)
-    -> [0x90b6f02248424220] Inner hash join (t1.a = t2.a)  (cost=0.80..1.31 rows=3)
-        -> [0x383f9723be72015d] Table scan on t1  (cost=0.08..0.25 rows=3)
+-> [0x1836646581797f8f] Sort: t1.a  (cost=2.09..2.09 rows=3)
+    -> [0x38d170e70c04e92c] Inner hash join (t1.a = t2.a)  (cost=0.80..1.31 rows=3)
+        -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
         -> Hash
-            -> [0xedd60db81c76aaf5] Table scan on t2  (cost=0.08..0.25 rows=3)
+            -> [0x079e429c703ec298] Table scan on t2  (cost=0.08..0.25 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x9fe1924c5f48742c,force_subplan_0x90b6f02248424220,force_subplan_0x383f9723be72015d,force_subplan_0xedd60db81c76aaf5';
+SET DEBUG='+d,subplan_tokens,force_subplan_0x1836646581797f8f,force_subplan_0x38d170e70c04e92c,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298';
 
 SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;

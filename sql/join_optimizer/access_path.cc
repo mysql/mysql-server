@@ -1091,8 +1091,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       }
       case AccessPath::DELETE_ROWS: {
         const auto &param = path->delete_rows();
-        SetUpTablesForDelete(thd, join);
         if (job.children.is_null()) {
+          // Setting up tables for delete must be done before the child
+          // iterators are created, as some of the child iterators need to see
+          // the final read set when they are constructed, so doing it in
+          // DeleteRowsIterator's constructor or Init() is too late.
+          SetUpTablesForDelete(thd, join);
           SetupJobsForChildren(mem_root, param.child, join,
                                eligible_for_batch_mode, &job, &todo);
           continue;

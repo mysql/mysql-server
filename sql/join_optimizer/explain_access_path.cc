@@ -22,8 +22,13 @@
 
 #include "sql/join_optimizer/explain_access_path.h"
 
-#include "my_md5.h"
-#include "my_md5_size.h"
+#include <functional>
+#include <string>
+#include <vector>
+
+#include <openssl/sha.h>
+
+#include "sha2.h"
 #include "sql/filesort.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
@@ -42,10 +47,7 @@
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
-
-#include <functional>
-#include <string>
-#include <vector>
+#include "template_utils.h"
 
 using std::string;
 using std::vector;
@@ -1172,7 +1174,7 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
 }
 
 // 0x
-// truncated_md5(desc1,desc2,...,[child1_desc:]0xchild1,[child2_desc:]0xchild2,...)
+// truncated_sha256(desc1,desc2,...,[child1_desc:]0xchild1,[child2_desc:]0xchild2,...)
 string GetForceSubplanToken(AccessPath *path, JOIN *join) {
   if (path == nullptr) {
     return "";
@@ -1194,13 +1196,14 @@ string GetForceSubplanToken(AccessPath *path, JOIN *join) {
     digest += GetForceSubplanToken(child.path, join);
   }
 
-  unsigned char md5sum[MD5_HASH_SIZE];
-  compute_md5_hash(pointer_cast<char *>(md5sum), digest.data(), digest.size());
+  unsigned char sha256sum[SHA256_DIGEST_LENGTH];
+  (void)SHA_EVP256(pointer_cast<const unsigned char *>(digest.data()),
+                   digest.size(), sha256sum);
 
   char ret[8 * 2 + 2 + 1];
-  snprintf(ret, sizeof(ret), "0x%02x%02x%02x%02x%02x%02x%02x%02x", md5sum[0],
-           md5sum[1], md5sum[2], md5sum[3], md5sum[4], md5sum[5], md5sum[6],
-           md5sum[7]);
+  snprintf(ret, sizeof(ret), "0x%02x%02x%02x%02x%02x%02x%02x%02x", sha256sum[0],
+           sha256sum[1], sha256sum[2], sha256sum[3], sha256sum[4], sha256sum[5],
+           sha256sum[6], sha256sum[7]);
 
   return ret;
 }
