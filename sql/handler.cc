@@ -168,7 +168,7 @@
           m_psi_locker = PSI_TABLE_CALL(start_table_io_wait)(               \
               &m_psi_locker_state, m_psi, OP, INDEX, __FILE__, __LINE__);   \
           PAYLOAD                                                           \
-          if (!RESULT) m_psi_numrows++;                                     \
+          if (RESULT != HA_ERR_END_OF_FILE) m_psi_numrows++;                \
           m_psi_batch_mode = PSI_BATCH_MODE_STARTED;                        \
           break;                                                            \
         }                                                                   \
@@ -176,7 +176,7 @@
         default: {                                                          \
           assert(m_psi_batch_mode == PSI_BATCH_MODE_STARTED);               \
           PAYLOAD                                                           \
-          if (!RESULT) m_psi_numrows++;                                     \
+          if (RESULT != HA_ERR_END_OF_FILE) m_psi_numrows++;                \
           break;                                                            \
         }                                                                   \
       }                                                                     \

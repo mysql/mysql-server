@@ -97,10 +97,10 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 show global status like 'performance_schema_%_lost';
