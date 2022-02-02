@@ -28,7 +28,7 @@ if ($is_debug) {
   SELECT NAME, SE_PRIVATE_DATA FROM mysql.tables WHERE ID=@tid;
 
   --echo # DD Metadata of columns in table
-  --replace_result $table_id TABLE_ID
+  --replace_regex /table_id=[0-9]+;/table_id=TABLE_ID;/
   SELECT NAME, ORDINAL_POSITION, TYPE, HAS_NO_DEFAULT, HIDDEN, SE_PRIVATE_DATA
      FROM mysql.columns
      WHERE TABLE_ID=@tid

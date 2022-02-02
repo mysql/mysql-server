@@ -861,6 +861,52 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+--echo # Scenario 64
+--echo # When nullbitmap size on physical record changes after INSTANT ADD columns.
+eval CREATE TABLE t1 (c0 char(9) KEY, c1 char (10), c2 char(20), c3 char(30), c4 char(40), c5 char(50), c6 char(60), c7 char(70), c8 char(80)) ROW_FORMAT=$row_format;
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+Insert into t1 values(
+ REPEAT("a", 8),
+ REPEAT("1", 9),
+ REPEAT("2", 19),
+ REPEAT("3", 29),
+ REPEAT("4", 39),
+ REPEAT("5", 49),
+ REPEAT("6", 59),
+ REPEAT("7", 69),
+ REPEAT("8", 79));
+
+Insert into t1 values(
+ REPEAT("b", 8),
+ REPEAT("1", 9),
+ REPEAT("2", 19),
+ REPEAT("3", 29),
+ REPEAT("4", 39),
+ REPEAT("5", 49),
+ REPEAT("6", 59),
+ REPEAT("7", 69),
+ REPEAT("8", 79));
+
+Alter table t1 add column c9 char(90);
+
+Insert into t1 values(
+ REPEAT("c", 8),
+ REPEAT("1", 9),
+ REPEAT("2", 19),
+ REPEAT("3", 29),
+ REPEAT("4", 39),
+ REPEAT("5", 49),
+ REPEAT("6", 59),
+ REPEAT("7", 69),
+ REPEAT("8", 79),
+ REPEAT("9", 89));
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=0;
+
+DROP table t1;
+
 --echo ###########
 --echo # CLEANUP #
 --echo ###########
