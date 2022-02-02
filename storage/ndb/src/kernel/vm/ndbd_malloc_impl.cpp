@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -852,16 +852,22 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
         break;
     }
     pages += ZONE_COUNT - zones_needed;
-    /*
-     * Always allocate even number of pages to cope with 64K system page size
-     * on ARM.
-     */
-    if (pages % ALLOC_PAGES_PER_SYSTEM_PAGE != 0)
-    {
-      // Round up page count
-      pages = (pages / ALLOC_PAGES_PER_SYSTEM_PAGE + 1) *
-              ALLOC_PAGES_PER_SYSTEM_PAGE;
-    }
+  }
+#endif
+
+  /*
+   * Always allocate even number of pages to cope with 64K system page size
+   * on ARM.
+   */
+  if (pages % ALLOC_PAGES_PER_SYSTEM_PAGE != 0)
+  {
+    // Round up page count
+    pages = (pages / ALLOC_PAGES_PER_SYSTEM_PAGE + 1) *
+            ALLOC_PAGES_PER_SYSTEM_PAGE;
+  }
+
+#ifdef USE_DO_VIRTUAL_ALLOC
+  {
     InitChunk chunks[ZONE_COUNT];
     if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
     {
@@ -923,7 +929,7 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
       if (allocated < pages)
       {
         /* Add one more page for another chunk */
-        pages++;
+        pages += ALLOC_PAGES_PER_SYSTEM_PAGE;
       }
     }
     else
