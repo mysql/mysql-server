@@ -1106,6 +1106,16 @@ static void srv_init(void) {
   ulint n_sys_threads = 0;
   ulint srv_sys_sz = sizeof(*srv_sys);
 
+  /* Create mutex to protect encryption master_key_id. */
+  {
+    /* This is defined in ha_innodb.cc and used during create_log_files(), which
+    we call after calling srv_boot() which defines types of mutexes, so we have
+    to create this mutex in between the two calls. */
+    extern ib_mutex_t master_key_id_mutex;
+
+    mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
+  }
+
   mutex_create(LATCH_ID_SRV_INNODB_MONITOR, &srv_innodb_monitor_mutex);
 
   ut_d(srv_threads.m_shutdown_cleanup_dbg = os_event_create());

@@ -5414,9 +5414,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
-  /* Create mutex to protect encryption master_key_id. */
-  mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
-
   innobase_old_blocks_pct = static_cast<uint>(
       buf_LRU_old_ratio_update(innobase_old_blocks_pct, true));
 
