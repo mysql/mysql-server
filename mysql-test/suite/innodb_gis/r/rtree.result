@@ -888,5 +888,5 @@ geo
 SELECT index_name,count_read FROM performance_schema .
 table_io_waits_summary_by_index_usage WHERE INDEX_NAME LIKE 'spatialkey';
 index_name	count_read
-spatialkey	0
+spatialkey	1
 DROP TABLE events;
