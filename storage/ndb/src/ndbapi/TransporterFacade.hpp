@@ -43,7 +43,6 @@ struct ndb_mgm_configuration;
 
 class Ndb;
 class NdbApiSignal;
-class ReceiveThreadClient;
 class trp_client;
 
 extern "C" {
@@ -324,7 +323,7 @@ private:
   NdbThread* theSendThread;
   void threadMainReceive(void);
   NdbThread* theReceiveThread;
-  ReceiveThreadClient* recv_client;
+  trp_client* recv_client;
   bool raise_thread_prio();
 
   friend void* runSendRequest_C(void*);
