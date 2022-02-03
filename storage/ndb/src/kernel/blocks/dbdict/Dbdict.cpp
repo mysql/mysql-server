@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -14603,6 +14603,13 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
   ok = find_object(tablePtr, indexPtr.p->primaryTableId);
   ndbrequire(ok); // TODO:msundell set error
 
+  // Save primary table name to check for system tables later
+  char primaryTableName[MAX_TAB_NAME_SIZE];
+  {
+    ConstRope r(c_rope_pool, tablePtr.p->tableName);
+    r.copy(primaryTableName);
+  }
+
   // master sets primary table, participant verifies it agrees
   if (master)
   {
@@ -14687,8 +14694,9 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
       set_index_stat_frag(signal, indexPtr);
     }
 
-    // skip system indexes (at least index stats indexes)
-    if (strstr(indexName, "/" NDB_INDEX_STAT_PREFIX) != 0) {
+    // skip system indexes
+    if (strstr(indexName, "/" NDB_INDEX_STAT_PREFIX) != 0 ||
+        strstr(primaryTableName, "/ndb_sql_metadata") != 0) {
       jam();
       D("skip index stats operations for system index");
       alterIndexPtr.p->m_sub_index_stat_dml = true;

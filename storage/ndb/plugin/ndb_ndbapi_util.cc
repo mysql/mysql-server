@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,16 +282,8 @@ bool ndb_get_table_names_in_schema(
          strcmp(elmt.name, "ndb_sql_metadata") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_head") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_sample") == 0)) {
-      // Skip NDB utility tables.
-      //
-      // The first three tables and marked as hidden in the DD and are handled
-      // specifically by the binlog thread.
-      //
-      // The index stat tables are created by the index stat thread and are not
-      // installed in the DD at all. The contents of these tables are
-      // incomprehensible without some kind of parsing and are thus not exposed
-      // to the MySQL Server. They remain visible and accessible via the
-      // ndb_select_all tool.
+      // Skip NDB utility tables. They are marked as hidden in the DD and are
+      // specially handled by the binlog thread.
       continue;
     }
 

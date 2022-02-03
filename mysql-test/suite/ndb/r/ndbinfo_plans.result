@@ -288,10 +288,10 @@ SELECT event_id, e.name, table_name
   FROM events e JOIN dictionary_tables t using(table_id)
   WHERE event_id < 6 ORDER BY event_id;
 event_id	name	table_name
-1	ndb_index_stat_head_event	ndb_index_stat_head
-2	REPL$mysql/ndb_schema	ndb_schema
-3	NDB$BLOBEVENT_REPL$mysql/ndb_schema_3	NDB$BLOB_7_3
-4	REPL$mysql/ndb_schema_result	ndb_schema_result
+1	REPL$mysql/ndb_schema	ndb_schema
+2	NDB$BLOBEVENT_REPL$mysql/ndb_schema_3	NDB$BLOB_4_3
+3	REPL$mysql/ndb_schema_result	ndb_schema_result
+4	ndb_index_stat_head_event	ndb_index_stat_head
 5	REPL$mysql/ndb_apply_status	ndb_apply_status
 
 ## Query uses primary keys on both tables:
@@ -309,19 +309,19 @@ SELECT table_name from dictionary_tables where table_id = -1;
 table_name
 SELECT table_name from dictionary_tables where table_id = 9990;
 table_name
-SELECT table_name from dictionary_tables where table_id = 8;
+SELECT table_name from dictionary_tables where table_id = 5;
 table_name
-NDB$BLOB_7_3
-SELECT table_name from dictionary_tables where table_id = 9;
+NDB$BLOB_4_3
+SELECT table_name from dictionary_tables where table_id = 6;
 table_name
 ndb_schema_result
 
 select * from blobs;
 table_id	database_name	table_name	column_id	column_name	inline_size	part_size	stripe_size	blob_table_name
-7	mysql	ndb_schema	3	query	256	2000	0	NDB$BLOB_7_3
+4	mysql	ndb_schema	3	query	256	2000	0	NDB$BLOB_4_3
 select * from index_columns order by index_object_id;
 table_id	database_name	table_name	index_object_id	index_name	index_type	status	columns
-5	mysql	ndb_index_stat_sample	6	ndb_index_stat_sample_x1	6	retrieved	index_id,index_version,sample_version
+8	mysql	ndb_index_stat_sample	9	ndb_index_stat_sample_x1	6	retrieved	index_id,index_version,sample_version
 11	mysql	ndb_sql_metadata	12	PRIMARY	6	retrieved	type,name,seq
 select * from hash_maps order by id limit 1;
 id	version	state	fq_name
