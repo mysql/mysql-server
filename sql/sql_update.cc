@@ -2298,9 +2298,6 @@ void Query_result_update::cleanup(THD *thd) {
   assert(trans_safe || updated_rows == 0 ||
          thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
-  if (update_operations != nullptr)
-    for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
-
   if (main_table != nullptr && main_table->is_created()) {
     main_table->file->try_semi_consistent_read(false);
   }
