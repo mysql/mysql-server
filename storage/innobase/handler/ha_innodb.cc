@@ -20073,7 +20073,7 @@ static int innodb_stopword_table_validate(THD *thd, SYS_VAR *, void *save,
 
   stopword_table_name = value->val_str(value, buff, &len);
 
-  if (stopword_table_name != NULL) {
+  if (stopword_table_name != nullptr) {
     if (stopword_table_name == buff) {
       /* Allocate from thd's memroot */
       stopword_table_name = thd_strmake(thd, stopword_table_name, len);
@@ -20878,12 +20878,12 @@ static int innodb_srv_buf_dump_filename_validate(THD *thd, SYS_VAR *,
   char buff[OS_FILE_MAX_PATH];
   int len = sizeof(buff);
 
-  ut_a(save != NULL);
-  ut_a(value != NULL);
+  ut_a(save != nullptr);
+  ut_a(value != nullptr);
 
   const char *buf_name = value->val_str(value, buff, &len);
 
-  if (buf_name == NULL) {
+  if (buf_name == nullptr) {
     return (1);
   }
 
@@ -22006,23 +22006,23 @@ static MYSQL_SYSVAR_BOOL(
 
 static MYSQL_SYSVAR_STR(
     doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
-    "Use a separate directory for the doublewrite buffer files, ", NULL, NULL,
-    NULL);
+    "Use a separate directory for the doublewrite buffer files, ", nullptr, nullptr,
+    nullptr);
 
 static MYSQL_SYSVAR_ULONG(
     doublewrite_pages, dblwr::n_pages,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write pages per thread" , NULL, NULL, 0, 0, 512, 0);
+    "Number of double write pages per thread" , nullptr, nullptr, 0, 0, 512, 0);
 
 static MYSQL_SYSVAR_ULONG(
     doublewrite_files, dblwr::n_files,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write files", NULL, NULL, 0, 0, 256, 0);
+    "Number of double write files", nullptr, nullptr, 0, 0, 256, 0);
 
 static MYSQL_SYSVAR_ULONG(
     doublewrite_batch_size, dblwr::batch_size,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of double write pages to write in a batch", NULL, NULL,
+    "Number of double write pages to write in a batch", nullptr, nullptr,
     0, 0, 256, 0);
 // clang-format on
 

@@ -13826,7 +13826,7 @@ uint8 Transaction_payload_log_event::get_mts_dbs(Mts_db_names *arg,
                                                  [[maybe_unused]]) {
   Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
-    arg->name[0] = 0;
+    arg->name[0] = nullptr;
     arg->num = OVER_MAX_DBS_IN_EVENT_MTS;
   } else {
     for (int i = 0; i < mts_dbs.num; i++) arg->name[i] = mts_dbs.name[i];
@@ -13956,7 +13956,7 @@ bool Transaction_payload_log_event::apply_payload_event(
   thd->server_id = ev->server_id;  // use the original server id for logging
   thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();  // time the query
-  thd->lex->set_current_query_block(0);
+  thd->lex->set_current_query_block(nullptr);
   if (!ev->common_header->when.tv_sec)
     my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
   ev->thd = thd;  // because up to this point, ev->thd == 0

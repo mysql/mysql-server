@@ -7833,7 +7833,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
       local_stat = &event_name_local_array[index];
       free_delta = local_stat->count_free(size, &free_delta_buffer);
 
-      if (free_delta != NULL) {
+      if (free_delta != nullptr) {
         old_thread->carry_memory_stat_free_delta(free_delta, index);
       }
 

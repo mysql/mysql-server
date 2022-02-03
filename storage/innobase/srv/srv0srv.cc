@@ -132,7 +132,7 @@ names, where the file name itself may also contain a path */
 char *srv_data_home = nullptr;
 
 /** Separate directory for doublewrite files, if it is not NULL */
-char *srv_doublewrite_dir = NULL;
+char *srv_doublewrite_dir = nullptr;
 
 /** The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */

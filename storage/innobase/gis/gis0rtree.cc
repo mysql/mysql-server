@@ -644,7 +644,7 @@ static void rtr_adjust_upper_level(
     cursor.rtr_info = sea_cur->rtr_info;
     cursor.tree_height = sea_cur->tree_height;
 
-    mem_heap_t *new_heap = NULL;
+    mem_heap_t *new_heap = nullptr;
 
     DBUG_EXECUTE_IF("rtr_page_need_first_split",
                     { DBUG_SET("+d,rtr_page_need_second_split"); });

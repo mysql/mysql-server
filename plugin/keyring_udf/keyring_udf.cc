@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,11 +459,11 @@ char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
 
   if (validate_run_time(args, VALIDATE_KEY_ID)) {
     *error = 1;
-    return 0;
+    return nullptr;
   }
 
-  if (fetch("keyring_key_fetch", args->args[0], &key, NULL, &key_len)) {
-    if (key != NULL) my_free(key);
+  if (fetch("keyring_key_fetch", args->args[0], &key, nullptr, &key_len)) {
+    if (key != nullptr) my_free(key);
     *error = 1;
     return nullptr;
   }
@@ -509,12 +509,13 @@ char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
                              unsigned char *error) {
   if (validate_run_time(args, VALIDATE_KEY_ID)) {
     *error = 1;
-    return 0;
+    return nullptr;
   }
 
-  char *key_type = NULL;
-  if (fetch("keyring_key_type_fetch", args->args[0], NULL, &key_type, NULL)) {
-    if (key_type != NULL) my_free(key_type);
+  char *key_type = nullptr;
+  if (fetch("keyring_key_type_fetch", args->args[0], nullptr, &key_type,
+            nullptr)) {
+    if (key_type != nullptr) my_free(key_type);
     *error = 1;
     return nullptr;
   }
@@ -571,7 +572,7 @@ long long keyring_key_length_fetch(UDF_INIT *, UDF_ARGS *args,
 
   if (*error == 0 && key == nullptr) *is_null = 1;
 
-  if (key != NULL) my_free(key);
+  if (key != nullptr) my_free(key);
 
   // For the UDF 0 == failure.
   return (*error) ? 0 : key_len;

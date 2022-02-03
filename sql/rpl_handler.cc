@@ -205,7 +205,7 @@ void Delegate::update_plugin_ref_count() {
   if (intern_value == DELEGATE_SPIN_LOCK && opt_value == DELEGATE_OS_LOCK) {
     for (auto ref : m_acquired_references) {
       for (size_t count = ref.second; count != 0; --count)
-        plugin_unlock(NULL, ref.first);
+        plugin_unlock(nullptr, ref.first);
     }
     m_acquired_references.clear();
   } else if (intern_value == DELEGATE_OS_LOCK &&
@@ -242,7 +242,7 @@ bool Delegate::use_spin_lock_type() {
 }
 
 void Delegate::acquire_plugin_ref_count(Observer_info *info) {
-  plugin_ref internal_ref = plugin_lock(NULL, &info->plugin);
+  plugin_ref internal_ref = plugin_lock(nullptr, &info->plugin);
   ++(m_acquired_references[internal_ref]);
 }
 

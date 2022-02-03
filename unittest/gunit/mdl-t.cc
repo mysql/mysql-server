@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4646,7 +4646,7 @@ TEST_F(MDLKeyTest, TruncateTooLongNames) {
 struct Mock_MDL_context_owner : public Test_MDL_context_owner {
   void notify_shared_lock(MDL_context_owner *in_use,
                           bool needs_thr_lock_abort) final {
-    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 };
 

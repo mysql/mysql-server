@@ -7391,7 +7391,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     create one, so that a GTID is generated and is written prior to flushing
     the stmt_cache.
   */
-  if (cache_mngr == NULL ||
+  if (cache_mngr == nullptr ||
       DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {
     if (thd->binlog_setup_trx_data() ||
         DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {

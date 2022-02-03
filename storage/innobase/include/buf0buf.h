@@ -427,8 +427,8 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
 inline buf_block_t *buf_page_get(const page_id_t &id, const page_size_t &size,
                                  ulint latch, ut::Location location,
                                  mtr_t *mtr) {
-  return buf_page_get_gen(id, size, latch, 0, Page_fetch::NORMAL, location,
-                          mtr);
+  return buf_page_get_gen(id, size, latch, nullptr, Page_fetch::NORMAL,
+                          location, mtr);
 }
 /** Use these macros to bufferfix a page with no latching. Remember not to
  read the contents of the page unless you know it is safe. Do not modify
@@ -439,7 +439,7 @@ inline buf_block_t *buf_page_get_with_no_latch(const page_id_t &id,
                                                const page_size_t &size,
                                                ut::Location location,
                                                mtr_t *mtr) {
-  return buf_page_get_gen(id, size, RW_NO_LATCH, 0, Page_fetch::NO_LATCH,
+  return buf_page_get_gen(id, size, RW_NO_LATCH, nullptr, Page_fetch::NO_LATCH,
                           location, mtr);
 }
 
@@ -1004,11 +1004,11 @@ inline buf_page_t *buf_page_hash_get_x_locked(buf_pool_t *b,
   return buf_page_hash_get_locked(b, page_id, l, RW_LOCK_X);
 }
 inline buf_page_t *buf_page_hash_get(buf_pool_t *b, const page_id_t &page_id) {
-  return buf_page_hash_get_locked(b, page_id, NULL, 0);
+  return buf_page_hash_get_locked(b, page_id, nullptr, 0);
 }
 inline buf_page_t *buf_page_get_also_watch(buf_pool_t *b,
                                            const page_id_t &page_id) {
-  return buf_page_hash_get_locked(b, page_id, NULL, 0, true);
+  return buf_page_hash_get_locked(b, page_id, nullptr, 0, true);
 }
 
 inline buf_block_t *buf_block_hash_get_s_locked(buf_pool_t *b,
@@ -1023,7 +1023,7 @@ inline buf_block_t *buf_block_hash_get_x_locked(buf_pool_t *b,
 }
 inline buf_block_t *buf_block_hash_get(buf_pool_t *b,
                                        const page_id_t &page_id) {
-  return buf_block_hash_get_locked(b, page_id, NULL, 0);
+  return buf_block_hash_get_locked(b, page_id, nullptr, 0);
 }
 
 /** Gets the current length of the free list of buffer blocks.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,8 @@ class Table_columns_view {
   Table_columns_view(
       TABLE const *table, unsigned long options = 0,
       typename std::enable_if<std::is_same<
-          U, std::function<bool(TABLE const *, size_t)>>::value>::type * = 0);
+          U, std::function<bool(TABLE const *, size_t)>>::value>::type * =
+          nullptr);
   /**
     Constructor which takes a predicate used to filter this container iteration.
 

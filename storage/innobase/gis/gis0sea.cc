@@ -685,7 +685,7 @@ void rtr_page_get_father(dict_index_t *index, buf_block_t *block, mtr_t *mtr,
 
   ut_ad(page_no == block->page.id.page_no());
 #else
-  rtr_page_get_father_block(NULL, heap, index, block, mtr, sea_cur, cursor);
+  rtr_page_get_father_block(nullptr, heap, index, block, mtr, sea_cur, cursor);
 #endif
 
   mem_heap_free(heap);

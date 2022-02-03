@@ -1659,7 +1659,7 @@ dberr_t FTS::scan_finished(dberr_t err) noexcept {
         auto name = m_ctx.m_old_table->name.m_name;
         const auto max_doc_id{fts.m_doc_id->max_doc_id()};
 
-        fts_update_next_doc_id(0, m_ctx.m_new_table, name, max_doc_id);
+        fts_update_next_doc_id(nullptr, m_ctx.m_new_table, name, max_doc_id);
       }
     }
   }

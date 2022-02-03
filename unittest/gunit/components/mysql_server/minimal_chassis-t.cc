@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,9 @@ using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 class minimal_chassis : public ::testing::Test {
  protected:
   void SetUp() override {
-    reg = NULL;
-    loader = NULL;
-    ASSERT_FALSE(minimal_chassis_init((&reg), NULL));
+    reg = nullptr;
+    loader = nullptr;
+    ASSERT_FALSE(minimal_chassis_init((&reg), nullptr));
     ASSERT_FALSE(reg->acquire("dynamic_loader",
                               reinterpret_cast<my_h_service *>(
                                   const_cast<loader_type_t **>(&loader))));
@@ -63,7 +63,7 @@ class minimal_chassis : public ::testing::Test {
       ASSERT_FALSE(reg->release(
           reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader))));
     }
-    ASSERT_FALSE(minimal_chassis_deinit(reg, NULL));
+    ASSERT_FALSE(minimal_chassis_deinit(reg, nullptr));
   }
   SERVICE_TYPE_NO_CONST(registry) * reg;
   SERVICE_TYPE(dynamic_loader) * loader;

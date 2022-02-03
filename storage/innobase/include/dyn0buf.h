@@ -327,7 +327,7 @@ class dyn_buf_t {
 
   /**
   @return true if m_first_block block was not filled fully */
-  [[nodiscard]] bool is_small() const { return (m_heap == NULL); }
+  [[nodiscard]] bool is_small() const { return (m_heap == nullptr); }
 
  private:
   // Disable copying
