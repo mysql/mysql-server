@@ -215,7 +215,7 @@ static MYSQL_THDVAR_ULONG(
   NULL,                              /* update func. */
   32768,                             /* default */
   0,                                 /* min */
-  2 * 1024L * 1024L * 1024L,         /* max */
+  2UL * 1024 * 1024 * 1024 ,         /* max */
   0                                  /* block */
 );
 
