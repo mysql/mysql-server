@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -855,9 +855,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
           For example:
             INSERT INTO t1 (utf32_column) VALUES (0x110000);
           We'll pad the value to 0x00110000, which is a wrong UTF32 sequence!
-          The valid characters range is limited to 0x00000000..0x0010FFFF.
-
           Make sure we didn't pad to an incorrect character.
+          See my_well_formed_len_utf32().
         */
         if (to_cs->cset->well_formed_len(to_cs, to, to + to_cs->mbminlen, 1,
                                          &well_formed_error) !=
