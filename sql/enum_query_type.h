@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,13 +96,8 @@ enum enum_query_type {
     Items we insert, since they are inserted during resolving and not
     optimization. Used when getting the canonical representation of a view.
    */
-  QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14),
+  QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14)
 
-  /**
-    When printing Item_view_ref, print the reference (i.e. column name of the
-    derived table), not the referenced (underlying) expression.
-  */
-  QT_DERIVED_TABLE_ORIG_FIELD_NAMES = (1 << 15),
 };
 
 #endif  // ENUM_QUERY_TYPE_INCLUDED
