@@ -25,7 +25,7 @@
 #ifndef MGMAPI_INTERNAL_H
 #define MGMAPI_INTERNAL_H
 
-#include <portlib/NdbTCP.h>
+#include "portlib/ndb_socket.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,7 +93,7 @@ extern "C" {
    *
    * @note the socket is now able to be used as a transporter connection
    */
-  NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
+  ndb_socket_t ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
   int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 
@@ -107,7 +107,7 @@ extern "C" {
                                 struct ndb_mgm_configuration* config);
 
 
-  NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle handle);
+  ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle handle);
 
   /**
    * Get configuration

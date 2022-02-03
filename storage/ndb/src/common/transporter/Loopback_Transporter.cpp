@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ Loopback_Transporter::~Loopback_Transporter()
 bool
 Loopback_Transporter::connect_client()
 {
-  NDB_SOCKET_TYPE pair[2];
+  ndb_socket_t pair[2];
   if (ndb_socketpair(pair))
   {
     perror("socketpair failed!");
@@ -74,7 +74,7 @@ err:
 void
 Loopback_Transporter::disconnectImpl()
 {
-  NDB_SOCKET_TYPE pair[] = { theSocket, m_send_socket };
+  ndb_socket_t pair[] = { theSocket, m_send_socket };
 
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 

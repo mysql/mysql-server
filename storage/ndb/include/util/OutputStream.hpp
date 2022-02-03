@@ -27,7 +27,7 @@
 
 #include <ndb_global.h>
 #include "portlib/ndb_compiler.h"
-#include <NdbTCP.h>
+#include "portlib/ndb_socket.h"
 
 /**
  * Output stream
@@ -84,12 +84,12 @@ public:
 
 class SocketOutputStream : public OutputStream {
 protected:
-  NDB_SOCKET_TYPE m_socket;
+  ndb_socket_t m_socket;
   unsigned m_timeout_ms;
   bool m_timedout;
   unsigned m_timeout_remain;
 public:
-  SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned write_timeout_ms = 1000);
+  SocketOutputStream(ndb_socket_t socket, unsigned write_timeout_ms = 1000);
   ~SocketOutputStream() override {}
   bool timedout() { return m_timedout; }
   void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
@@ -105,7 +105,7 @@ public:
 class BufferedSockOutputStream : public SocketOutputStream {
   class UtilBuffer& m_buffer;
 public:
-  BufferedSockOutputStream(NDB_SOCKET_TYPE socket,
+  BufferedSockOutputStream(ndb_socket_t socket,
                            unsigned write_timeout_ms = 1000);
   ~BufferedSockOutputStream() override;
 

@@ -38,7 +38,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
-#include "ndb_socket.h"
+#include "portlib/ndb_socket.h"
 
 
 #define DISCONNECT_ERRNO(e, sz) ( \
@@ -127,15 +127,15 @@ public:
    *    Use isConnected() to check status
    */
   virtual bool connect_client();
-  bool connect_client(NDB_SOCKET_TYPE sockfd);
-  bool connect_server(NDB_SOCKET_TYPE socket, BaseString& errormsg);
+  bool connect_client(ndb_socket_t sockfd);
+  bool connect_server(ndb_socket_t socket, BaseString& errormsg);
 
   /**
    * Returns socket used (sockets are used for all transporters to ensure
    * we can wake up also shared memory transporters and other types of
    * transporters in consistent manner.
    */
-  NDB_SOCKET_TYPE getSocket() const;
+  ndb_socket_t getSocket() const;
 
   /**
    * Blocking
@@ -241,9 +241,9 @@ protected:
    * Blocking, for max timeOut milli seconds
    *   Returns true if connect succeded
    */
-  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd) = 0;
-  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd) = 0;
-  virtual int pre_connect_options(NDB_SOCKET_TYPE /*sockfd*/) { return 0;}
+  virtual bool connect_server_impl(ndb_socket_t) = 0;
+  virtual bool connect_client_impl(ndb_socket_t) = 0;
+  virtual int pre_connect_options(ndb_socket_t) { return 0;}
   
   /**
    * Blocking
@@ -287,7 +287,7 @@ protected:
   Uint32 m_slowdown_count;
 
   // Sending/Receiving socket used by both client and server
-  NDB_SOCKET_TYPE theSocket;
+  ndb_socket_t theSocket;
 private:
   SocketClient *m_socket_client;
   struct in6_addr m_connect_address;
@@ -330,7 +330,7 @@ protected:
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 
-  void set_get(NDB_SOCKET_TYPE fd,
+  void set_get(ndb_socket_t fd,
                int level,
                int optval,
                const char *optname, 
@@ -368,7 +368,7 @@ protected:
 };
 
 inline
-NDB_SOCKET_TYPE
+ndb_socket_t
 Transporter::getSocket() const {
   return theSocket;
 }

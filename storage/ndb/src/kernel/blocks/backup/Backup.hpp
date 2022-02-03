@@ -38,7 +38,6 @@
 #include <SignalCounter.hpp>
 #include <blocks/mutexes.hpp>
 
-#include <NdbTCP.h>
 #include <NdbTick.h>
 #include <Array.hpp>
 #include <Mutex.hpp>

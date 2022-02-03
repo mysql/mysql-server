@@ -321,7 +321,7 @@ SHM_Transporter::setupBuffers()
 }
 
 bool
-SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_server_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_server_impl(%u)\n",
@@ -424,7 +424,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 }
 
 void
-SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::set_socket(ndb_socket_t sockfd)
 {
   set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
   set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
@@ -436,7 +436,7 @@ SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
 }
 
 bool
-SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_client_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_client_impl(%u)\n",
@@ -557,7 +557,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 }
 
 bool
-SHM_Transporter::connect_common(NDB_SOCKET_TYPE /*sockfd*/)
+SHM_Transporter::connect_common(ndb_socket_t)
 {
   if (!checkConnected())
   {
@@ -617,15 +617,15 @@ SHM_Transporter::disconnect_socket()
 {
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
-  NDB_SOCKET_TYPE sock = theSocket;
+  ndb_socket_t sock = theSocket;
   ndb_socket_invalidate(&theSocket);
-
 
   if(ndb_socket_valid(sock))
   {
     if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
+    ndb_socket_invalidate(&sock);
   }
   setupBuffersUndone();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);

@@ -36,6 +36,7 @@
 #include <ndb_version.h>
 #include "my_getopt.h"
 #include "util/ndb_openssl_evp.h" // ndb_openssl_evp::library_init()
+#include "portlib/NdbTick.h"
 
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include "consumer_printer.hpp"

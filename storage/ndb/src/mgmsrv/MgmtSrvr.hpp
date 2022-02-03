@@ -46,7 +46,7 @@ class Ndb_mgmd_event_service : public EventLoggerBase
 public:
   struct Event_listener : public EventLoggerBase {
     Event_listener() {}
-    NDB_SOCKET_TYPE m_socket;
+    ndb_socket_t m_socket;
     Uint32 m_parsable;
   };
   
@@ -355,7 +355,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(NDB_SOCKET_TYPE sockfd,
+  bool transporter_connect(ndb_socket_t sockfd,
                            BaseString& errormsg,
                            bool& close_with_reset);
 

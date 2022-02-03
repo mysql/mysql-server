@@ -50,7 +50,7 @@ class NdbMgmd {
   bool m_verbose;
   unsigned int m_timeout;
   unsigned int m_version;
-  NDB_SOCKET_TYPE m_event_socket;
+  ndb_socket_t m_event_socket;
   
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
@@ -104,7 +104,7 @@ public:
     return m_handle;
   }
 
-  NDB_SOCKET_TYPE socket(void) const {
+  ndb_socket_t socket(void) const {
     return _ndb_mgm_get_socket(m_handle);
   }
 

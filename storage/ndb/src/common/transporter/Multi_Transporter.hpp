@@ -21,8 +21,6 @@
 #include "util/require.h"
 #include "Transporter.hpp"
 
-#include <NdbTCP.h>
-
 class Multi_Transporter : public Transporter {
   friend class TransporterRegistry;
   friend class Qmgr;
@@ -145,9 +143,9 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  bool connect_server_impl(NDB_SOCKET_TYPE sockfd) override;
-  bool connect_client_impl(NDB_SOCKET_TYPE sockfd) override;
-  bool connect_common(NDB_SOCKET_TYPE sockfd);
+  bool connect_server_impl(ndb_socket_t sockfd) override;
+  bool connect_client_impl(ndb_socket_t sockfd) override;
+  bool connect_common(ndb_socket_t sockfd);
  
   /**
    * Disconnects a TCP/IP node, possibly blocking.

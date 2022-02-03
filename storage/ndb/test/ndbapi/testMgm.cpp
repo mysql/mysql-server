@@ -51,7 +51,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
-  ndb_native_socket_t s = ndb_mgm_get_fd(h);
+  socket_t s = ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
   ndbout << "MGM Session id: " << session_id << endl;
   send(s,"get",3,0);
@@ -458,7 +458,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
 
-    ndb_native_socket_t fd= ndb_mgm_listen_event(h, filter);
+    socket_t fd= ndb_mgm_listen_event(h, filter);
     ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
     if(!ndb_socket_valid(my_fd))

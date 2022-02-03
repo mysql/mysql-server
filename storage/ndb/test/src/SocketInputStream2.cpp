@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "util/require.h"
 #include <SocketInputStream2.hpp>
+#include "portlib/ndb_socket_poller.h"
 
 bool
 SocketInputStream2::gets(BaseString& str)
@@ -53,8 +54,7 @@ SocketInputStream2::gets(BaseString& str)
 bool
 SocketInputStream2::has_data_to_read()
 {
-  const int res = ndb_poll(m_socket, true, false, false,
-                           m_read_timeout * 1000);
+  const int res = ndb_poll(m_socket, true, false, m_read_timeout * 1000);
 
   if (res == 1)
     return true; // Yes, there was data

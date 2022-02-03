@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,53 +22,32 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
 /* Link with winsock library */
 #pragma comment(lib, "ws2_32")
 
+#include <ws2tcpip.h>
+
+#include <string>
+#include <cstring>
+
 #include <ndb_global.h>
+#include "my_stacktrace.h"
 
-#define MY_SOCKET_FORMAT "%p"
-#define MY_SOCKET_FORMAT_VALUE(x) (x.s)
+using posix_poll_fd = WSAPOLLFD;
 
-typedef int ndb_socket_len_t;
-
-typedef SOCKET ndb_native_socket_t;
-typedef struct { SOCKET s; } ndb_socket_t;
-
-static inline ndb_native_socket_t
-ndb_socket_get_native(ndb_socket_t s)
-{
-  return s.s;
-}
+using socklen_t = int;
 
 static inline
-int ndb_socket_valid(ndb_socket_t s)
-{
-  return (s.s != INVALID_SOCKET);
-}
+int ndb_setsockopt(ndb_socket_t, int, int, const int *);
 
 static inline
-ndb_socket_t* ndb_socket_invalidate(ndb_socket_t *s)
+std::string ndb_socket_to_string(ndb_socket_t s)
 {
-  s->s= INVALID_SOCKET;
-  return s;
-}
-
-static inline ndb_socket_t
-ndb_socket_create_invalid()
-{
-  ndb_socket_t s;
-  ndb_socket_invalidate(&s);
-  return s;
-}
-
-static inline
-int ndb_socket_close(ndb_socket_t s)
-{
-  return closesocket(s.s);
+  char buff[20];
+  std::string str;
+  snprintf(buff, sizeof(buff), "%p", (void *) s.s);
+  str.assign(buff);
+  return str;
 }
 
 static inline int ndb_socket_errno()
@@ -77,45 +56,41 @@ static inline int ndb_socket_errno()
 }
 
 static inline
-int ndb_getsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t *optlen)
+std::string ndb_socket_err_message(int error_code)
 {
-  return getsockopt(s.s, level, optname, (char*)optval, optlen);
+  LPTSTR tmp_str = NULL;
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                    FORMAT_MESSAGE_IGNORE_INSERTS |
+                    FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&tmp_str, 0, NULL);
+  std::string err_str(tmp_str);
+  LocalFree(tmp_str);
+  return err_str;
 }
 
 static inline
-int ndb_setsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t optlen)
+int ndb_socket_configure_reuseaddr(ndb_socket_t s, int enable)
 {
-  return setsockopt(s.s, level, optname, (char*)optval, optlen);
+  const int on = enable;
+  return ndb_setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &on);
 }
 
 static inline
-ndb_socket_t ndb_socket_create(int domain, int type,int protocol)
+int ndb_socket_close(ndb_socket_t s)
 {
-  ndb_socket_t s;
-  s.s= socket(domain, type, protocol);
-
-  return s;
+  return closesocket(s.s);
 }
 
 static inline
-ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
+int ndb_socket_nonblock(ndb_socket_t s, int enable)
 {
-  ndb_socket_t s;
-  int on = 0;
-  s.s= socket(AF_INET6, type, protocol);
+  unsigned long ul = enable;
 
-  if (s.s == INVALID_SOCKET)
-    return s;
+  if(ioctlsocket(s.s, FIONBIO, &ul))
+    return ndb_socket_errno();
 
-  if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-                     (char *)&on, sizeof(on)) == -1)
-  {
-    ndb_socket_close(s);
-    ndb_socket_invalidate(&s);
-  }
-  return s;
+  return 0;
 }
 
 static inline
@@ -136,113 +111,6 @@ ssize_t ndb_send(ndb_socket_t s, const char* buf, size_t len, int flags)
   return ret;
 }
 
-static inline
-int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
-{
-  const int on = enable;
-  return setsockopt(s.s, SOL_SOCKET, SO_REUSEADDR,
-                    (const char*)&on, sizeof(on));
-}
-
-static inline
-int ndb_socket_excladdruse(ndb_socket_t s, int enable)
-{
-  const int on = enable;
-  return setsockopt(s.s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
-                    (const char*)&on, sizeof(on));
-}
-
-static inline
-int ndb_socket_nonblock(ndb_socket_t s, int enable)
-{
-  unsigned long  ul = enable;
-
-  if(ioctlsocket(s.s, FIONBIO, &ul))
-    return ndb_socket_errno();
-
-  return 0;
-}
-
-static inline
-int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in6 *addr)
-{
-  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in6));
-}
-
-static inline
-int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
-{
-  struct sockaddr_in6 servaddr;
-  ndb_socket_len_t sock_len = sizeof(servaddr);
-  if(getsockname(s.s, (struct sockaddr*)&servaddr, &sock_len) < 0) {
-    return 1;
-  }
-
-  *port= ntohs(servaddr.sin6_port);
-  return 0;
-}
-
-static inline
-int ndb_listen(ndb_socket_t s, int backlog)
-{
-  return listen(s.s, backlog);
-}
-
-static inline
-ndb_socket_t ndb_accept(ndb_socket_t s, struct sockaddr *addr,
-                       ndb_socket_len_t *addrlen)
-{
-  ndb_socket_t r;
-  r.s= accept(s.s, addr, addrlen);
-  return r;
-}
-
-static inline
-int ndb_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr)
-{
-  return connect(s.s, (const struct sockaddr*) addr,
-                 sizeof(struct sockaddr_in));
-}
-
-static inline
-int ndb_connect_inet6(ndb_socket_t s, const struct sockaddr_in6 *addr)
-{
-  return connect(s.s, (const struct sockaddr*) addr,
-                 sizeof(struct sockaddr_in6));
-}
-
-static inline
-int ndb_socket_connect_address(ndb_socket_t s, struct in6_addr *a)
-{
-  struct sockaddr_in6 addr;
-  ndb_socket_len_t addrlen= sizeof(addr);
-  if(getpeername(s.s, (struct sockaddr*)&addr, &addrlen)==SOCKET_ERROR)
-    return ndb_socket_errno();
-
-  *a= addr.sin6_addr;
-  return 0;
-}
-
-static inline
-int ndb_getpeername(ndb_socket_t s, struct sockaddr *a,
-                    ndb_socket_len_t *addrlen)
-{
-  if(getpeername(s.s, a, addrlen))
-    return ndb_socket_errno();
-
-  return 0;
-}
-
-static inline
-int ndb_getsockname(ndb_socket_t s, struct sockaddr *a,
-                                 ndb_socket_len_t *addrlen)
-{
-  if(getsockname(s.s, a, addrlen))
-    return 1;
-
-  return 0;
-}
-
 /*
  * NOTE: the order of len and base are *DIFFERENT* on Linux and Win32.
  * casting our iovec to a WSABUF is fine as it's the same structure,
@@ -254,8 +122,7 @@ struct iovec {
 };
 
 static inline
-ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov,
-                         int iovcnt)
+ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov, int iovcnt)
 {
   DWORD rv=0;
   if (WSARecv(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
@@ -264,11 +131,26 @@ ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov,
 }
 
 static inline
-ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov,
-                                       int iovcnt)
+ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov, int iovcnt)
 {
   DWORD rv=0;
   if (WSASend(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
     return -1;
   return rv;
+}
+
+
+static inline
+int ndb_poll_sockets(posix_poll_fd *fdarray, unsigned long nfds, int timeout)
+{
+  if (nfds == 0)
+  {
+    Sleep(timeout);
+    return 0;  // "timeout occurred"
+  }
+  int r = WSAPoll(fdarray, nfds, timeout);
+  if(r == SOCKET_ERROR) {
+    return -1;
+  }
+  return r;
 }

@@ -30,7 +30,7 @@
 #include <ndb_limits.h>
 #include <ConfigSection.hpp>
 #include "ConfigObject.hpp"
-#include "ndb_net.h"
+#include "portlib/ndb_socket.h"  // ntohl()
 #include <stdlib.h>
 #include <algorithm>
 #include <EventLogger.hpp>

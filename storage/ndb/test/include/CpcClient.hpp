@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ class SimpleCpcClient {
  private:
   class ParserDummy : SocketServer::Session {
    public:
-    ParserDummy(NDB_SOCKET_TYPE sock);
+    ParserDummy(ndb_socket_t sock);
   };
 
   typedef Parser<ParserDummy> Parser_t;
@@ -78,7 +78,7 @@ class SimpleCpcClient {
 
   char *host;
   int port;
-  NDB_SOCKET_TYPE cpc_sock;
+  ndb_socket_t cpc_sock;
 
   enum { CPC_PROTOCOL_VERSION = 2 };
 

@@ -26,7 +26,7 @@
 #include <ndb_global.h>
 #include <SimpleProperties.hpp>
 #include <NdbOut.hpp>
-#include <NdbTCP.h>
+#include "portlib/ndb_socket.h"  // ntohl()
 #include <UtilBuffer.hpp>
 
 bool

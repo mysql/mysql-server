@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -43,8 +43,8 @@ FileInputStream::gets(char * buf, int bufLen){
   return 0;
 }
 
-SocketInputStream::SocketInputStream(NDB_SOCKET_TYPE socket, 
-				     unsigned read_timeout_ms)
+SocketInputStream::SocketInputStream(ndb_socket_t socket,
+                                     unsigned read_timeout_ms)
   : m_socket(socket) {
   m_startover= true;
   m_timeout_remain= m_timeout_ms = read_timeout_ms;

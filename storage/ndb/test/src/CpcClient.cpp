@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -418,7 +418,7 @@ int SimpleCpcClient::select_protocol(Properties &reply) {
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
-  ndb_socket_invalidate(&cpc_sock);
+  ndb_socket_initialize(&cpc_sock);
   m_cpcd_protocol_version = 0;
 }
 
@@ -591,7 +591,7 @@ const Properties *SimpleCpcClient::cpc_call(const char *cmd,
   return ret;
 }
 
-SimpleCpcClient::ParserDummy::ParserDummy(NDB_SOCKET_TYPE sock)
+SimpleCpcClient::ParserDummy::ParserDummy(ndb_socket_t sock)
     : SocketServer::Session(sock) {}
 
 template class Vector<SimpleCpcClient::Process>;

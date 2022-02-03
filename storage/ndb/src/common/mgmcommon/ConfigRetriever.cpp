@@ -37,6 +37,7 @@
 #include <ConfigValues.hpp>
 #include <DnsCache.hpp>
 #include <EventLogger.hpp>
+#include "portlib/NdbTCP.h"
 
 //****************************************************************************
 //****************************************************************************

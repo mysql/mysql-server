@@ -85,10 +85,10 @@
 class ParserDummy : private SocketServer::Session 
 {
 public:
-  ParserDummy(NDB_SOCKET_TYPE sock);
+  ParserDummy(ndb_socket_t sock);
 };
 
-ParserDummy::ParserDummy(NDB_SOCKET_TYPE sock) : SocketServer::Session(sock) 
+ParserDummy::ParserDummy(ndb_socket_t sock) : SocketServer::Session(sock)
 {
 }
 
@@ -105,7 +105,7 @@ struct ndb_mgm_handle {
   char last_error_desc[NDB_MGM_MAX_ERR_DESC_SIZE];
   unsigned int timeout;
 
-  NDB_SOCKET_TYPE socket;
+  ndb_socket_t socket;
 
   LocalConfig cfg;
 
@@ -249,7 +249,7 @@ ndb_mgm_create_handle()
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
-  ndb_socket_invalidate(&(h->socket));
+  ndb_socket_initialize(&(h->socket));
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
@@ -491,8 +491,8 @@ ndb_mgm_call(NdbMgmHandle handle,
              const char* cmd_bulk= NULL)
 {
   DBUG_ENTER("ndb_mgm_call");
-  DBUG_PRINT("enter",("handle->socket: " MY_SOCKET_FORMAT ", cmd: %s",
-		      MY_SOCKET_FORMAT_VALUE(handle->socket), cmd));
+  DBUG_PRINT("enter",("handle->socket: %s, cmd: %s",
+                      ndb_socket_to_string(handle->socket).c_str(), cmd));
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
@@ -820,8 +820,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    * Do connect
    */
   LocalConfig &cfg= handle->cfg;
-  NDB_SOCKET_TYPE sockfd;
-  ndb_socket_invalidate(&sockfd);
+  ndb_socket_t sockfd = ndb_socket_create();
   Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
@@ -989,7 +988,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
  * Or anybody who doesn't know exactly what they're doing.
  */
 extern "C"
-ndb_native_socket_t
+socket_t
 ndb_mgm_get_fd(NdbMgmHandle handle)
 {
   return ndb_socket_get_native(handle->socket);
@@ -2403,7 +2402,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 int
 ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
-			      int parsable, NDB_SOCKET_TYPE* sock)
+                              int parsable, ndb_socket_t* sock)
 {
   DBUG_ENTER("ndb_mgm_listen_event_internal");
   CHECK_HANDLE(handle, -1);
@@ -2443,7 +2442,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
       DBUG_RETURN(-1);
     }
   }
-  const NDB_SOCKET_TYPE sockfd = s.connect(hostname, port);
+  const ndb_socket_t sockfd = s.connect(hostname, port);
   if (!ndb_socket_valid(sockfd))
   {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
@@ -2466,7 +2465,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("filter", tmp.c_str());
   }
 
-  NDB_SOCKET_TYPE tmp = handle->socket;
+  ndb_socket_t tmp = handle->socket;
   handle->socket = sockfd;
 
   const Properties *reply;
@@ -2484,16 +2483,11 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   DBUG_RETURN(1);
 }
 
-/*
-  This API function causes ugly code in mgmapi - it returns native socket
-  type as we can't force everybody to use our abstraction or break current
-  applications.
- */
 extern "C"
-ndb_native_socket_t
+socket_t
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
-  NDB_SOCKET_TYPE s;
+  ndb_socket_t s;
   if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
     ndb_socket_invalidate(&s);
   return ndb_socket_get_native(s);
@@ -3598,11 +3592,11 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 }
 
 extern "C"
-NDB_SOCKET_TYPE
+ndb_socket_t
 ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
   DBUG_ENTER("ndb_mgm_convert_to_transporter");
-  NDB_SOCKET_TYPE s;
+  ndb_socket_t s;
 
   if(handle == 0)
   {
@@ -4036,7 +4030,7 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
 }
 
 
-NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle h)
+ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle h)
 {
   return h->socket;
 }

@@ -50,7 +50,6 @@ ENDIF()
 ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbCondition.cpp
   NdbMutex.cpp
-  ndb_socket.cpp
   NdbEnv.cpp
   NdbThread.cpp
   NdbHost.cpp
@@ -63,6 +62,8 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   ndb_daemon.cpp
   ndb_file_common.cpp
   ndb_password.cpp
+  ndb_socket_poller.cpp
+  ndb_socketpair.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp

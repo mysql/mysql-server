@@ -126,7 +126,7 @@ const ParserRow<CPCDAPISession> commands[] = {
     CPCD_ARG("version", Int, Mandatory, "Protocol version to use"),
 
     CPCD_END()};
-CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock, CPCD &cpcd)
+CPCDAPISession::CPCDAPISession(ndb_socket_t sock, CPCD &cpcd)
     : SocketServer::Session(sock), m_cpcd(cpcd), m_protocol_version(1) {
   m_input = new SocketInputStream(sock, 7 * 24 * 60 * 60000);
   m_output = new SocketOutputStream(sock);
@@ -134,7 +134,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock, CPCD &cpcd)
 }
 
 CPCDAPISession::CPCDAPISession(FILE *f, CPCD &cpcd)
-    : SocketServer::Session(ndb_socket_create_invalid()),
+    : SocketServer::Session(ndb_socket_create()),
       m_cpcd(cpcd),
       m_protocol_version(1) {
   m_input = new FileInputStream(f);

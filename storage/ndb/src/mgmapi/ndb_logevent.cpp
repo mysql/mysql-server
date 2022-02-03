@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 
 extern
 int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[],
-                                  int, NDB_SOCKET_TYPE*);
+                                  int, ndb_socket_t*);
 
 struct ndb_logevent_error_msg {
   enum ndb_logevent_handle_error code;
@@ -54,7 +54,7 @@ struct ndb_logevent_error_msg ndb_logevent_error_messages[]= {
 };
 
 struct ndb_logevent_handle {
-  NDB_SOCKET_TYPE socket;
+  ndb_socket_t socket;
   enum ndb_logevent_handle_error m_error;
 };
 
@@ -86,7 +86,7 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
   if (!h)
     return NULL;
 
-  NDB_SOCKET_TYPE sock;
+  ndb_socket_t sock;
   if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
   {
     free(h);
@@ -99,7 +99,7 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 }
 
 extern "C"
-ndb_native_socket_t
+socket_t
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
   return ndb_socket_get_native(h->socket);

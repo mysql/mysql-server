@@ -279,7 +279,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   /* Setup clusterlog as client[0] in m_event_listner */
   {
     Ndb_mgmd_event_service::Event_listener se;
-    ndb_socket_invalidate(&(se.m_socket));
+    ndb_socket_initialize(&(se.m_socket));
     for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
     }
@@ -5102,7 +5102,7 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 
 
 bool
-MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
+MgmtSrvr::transporter_connect(ndb_socket_t sockfd,
                               BaseString& msg,
                               bool& close_with_reset)
 {

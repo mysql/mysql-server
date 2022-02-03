@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,12 +43,12 @@
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
 
-#include <NdbTCP.h>
-
 #include <mgmapi/mgmapi.h>
 
 #include <NodeBitmask.hpp>
 #include <NdbMutex.h>
+
+#include "portlib/NdbTick.h"
 
 #ifndef _WIN32
 /*
@@ -105,7 +105,7 @@ public:
   {
     m_transporter_registry= t;
   }
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket) override;
+  SocketServer::Session * newSession(ndb_socket_t socket) override;
 };
 
 /**
@@ -243,7 +243,7 @@ public:
 
      @returns false on failure and true on success
   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd,
+  bool connect_server(ndb_socket_t sockfd,
                       BaseString& msg,
                       bool& close_with_reset,
                       bool& log_failure);
@@ -254,14 +254,14 @@ public:
    * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(const char* server_name,
-                                   unsigned short server_port);
+  ndb_socket_t connect_ndb_mgmd(const char* server_name,
+                                unsigned short server_port);
 
   /**
    * Given a connected NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
+  ndb_socket_t connect_ndb_mgmd(NdbMgmHandle *h);
 
   /**
    * Manage allTransporters and theNodeIdTransporters when using
@@ -670,7 +670,7 @@ public:
   }
 private:
   bool m_has_extra_wakeup_socket;
-  NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
+  ndb_socket_t m_extra_wakeup_sockets[2];
   void consume_extra_sockets();
 
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,

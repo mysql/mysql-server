@@ -61,10 +61,7 @@
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
 #include <NdbSleep.h>
-#ifdef _WIN32
-#include <ws2tcpip.h>
-#endif
-
+#include "portlib/NdbTCP.h"
 
 #include <TransporterRegistry.hpp> // Get connect address
 

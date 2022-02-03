@@ -23,15 +23,16 @@
 */
 
 #include "trpman.hpp"
-#include <TransporterRegistry.hpp>
-#include <signaldata/CloseComReqConf.hpp>
-#include <signaldata/DisconnectRep.hpp>
-#include <signaldata/EnableCom.hpp>
-#include <signaldata/RouteOrd.hpp>
-#include <signaldata/DumpStateOrd.hpp>
+#include "TransporterRegistry.hpp"
+#include "signaldata/CloseComReqConf.hpp"
+#include "signaldata/DisconnectRep.hpp"
+#include "signaldata/EnableCom.hpp"
+#include "signaldata/RouteOrd.hpp"
+#include "signaldata/DumpStateOrd.hpp"
+#include "portlib/NdbTCP.h"
 
-#include <mt.hpp>
-#include <EventLogger.hpp>
+#include "mt.hpp"
+#include "EventLogger.hpp"
 
 #define JAM_FILE_ID 430
 

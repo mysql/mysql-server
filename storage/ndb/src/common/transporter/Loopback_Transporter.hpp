@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ private:
    * m_send_socket is used to send
    * theSocket (in base class) is used for receive
    */
-  NDB_SOCKET_TYPE m_send_socket;
+  ndb_socket_t m_send_socket;
 
   /**
    * overloads TCP_Transporter::send_is_possible

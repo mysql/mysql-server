@@ -104,7 +104,7 @@ FileOutputStream::write(const void * buf, size_t len)
   return (int)fwrite(buf, len, 1, f);
 }
 
-SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
+SocketOutputStream::SocketOutputStream(ndb_socket_t socket,
 				       unsigned write_timeout_ms) :
   m_socket(socket),
   m_timeout_ms(write_timeout_ms),
@@ -203,7 +203,7 @@ SocketOutputStream::write(const void * buf, size_t len)
 
 #include <UtilBuffer.hpp>
 
-BufferedSockOutputStream::BufferedSockOutputStream(NDB_SOCKET_TYPE socket,
+BufferedSockOutputStream::BufferedSockOutputStream(ndb_socket_t socket,
                                                    unsigned write_timeout_ms) :
   SocketOutputStream(socket, write_timeout_ms),
   m_buffer(*new UtilBuffer)

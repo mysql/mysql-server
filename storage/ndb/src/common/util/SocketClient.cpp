@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
 
 #include <ndb_global.h>
 
-#include <SocketClient.hpp>
-#include <SocketAuthenticator.hpp>
+#include "SocketClient.hpp"
+#include "SocketAuthenticator.hpp"
+#include "portlib/ndb_socket_poller.h"
+#include "portlib/NdbTCP.h"
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -39,7 +41,7 @@ SocketClient::SocketClient(SocketAuthenticator *sa) :
   m_last_used_port(0),
   m_auth(sa)
 {
-  ndb_socket_invalidate(&m_sockfd);
+  ndb_socket_initialize(&m_sockfd);
 }
 
 SocketClient::~SocketClient()
@@ -60,9 +62,7 @@ SocketClient::init()
   if (!ndb_socket_valid(m_sockfd)) {
     return false;
   }
-  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
-                     MY_SOCKET_FORMAT_VALUE(m_sockfd)));
-
+  DBUG_PRINT("info",("NDB_SOCKET: %s", ndb_socket_to_string(m_sockfd).c_str()));
   return true;
 }
 
@@ -127,7 +127,7 @@ SocketClient::bind(const char* local_hostname,
 #endif
 
 
-NDB_SOCKET_TYPE
+ndb_socket_t
 SocketClient::connect(const char* server_hostname,
                       unsigned short server_port)
 {
@@ -167,27 +167,25 @@ SocketClient::connect(const char* server_hostname,
   }
 
   // Start non blocking connect
-  DEBUG_FPRINTF((stderr, "Connect to %s:%u\n",
-                         server_hostname, server_port));
+  DEBUG_FPRINTF((stderr, "Connect to %s:%u\n", server_hostname, server_port));
   int r = ndb_connect_inet6(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
 
   if (r < 0 && NONBLOCKERR(ndb_socket_errno())) {
     // Start of non blocking connect failed
-    DEBUG_FPRINTF((stderr, "Failed to to connect_inet in connect\n"));
+    DEBUG_FPRINTF((stderr, "Failed to connect_inet in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
-  if (ndb_poll(m_sockfd, true, true, true,
+  if (ndb_poll(m_sockfd, true, true,
                m_connect_timeout_millisec > 0 ?
                m_connect_timeout_millisec : -1) <= 0)
   {
     // Nothing has happened on the socket after timeout
     // or an error occurred
-    DEBUG_FPRINTF((stderr, "Timeout after connect_inet in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
@@ -198,8 +196,7 @@ SocketClient::connect(const char* server_hostname,
   {
     // Check socket level error code
     int so_error = 0;
-    ndb_socket_len_t len= sizeof(so_error);
-    if (ndb_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
+    if (ndb_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error) < 0)
     {
       DEBUG_FPRINTF((stderr, "Failed to set sockopt in connect\n"));
       ndb_socket_close(m_sockfd);
@@ -239,7 +236,7 @@ done:
     }
   }
 
-  NDB_SOCKET_TYPE sockfd = m_sockfd;
+  ndb_socket_t sockfd = m_sockfd;
 
   ndb_socket_invalidate(&m_sockfd);
 

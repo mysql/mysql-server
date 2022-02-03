@@ -41,12 +41,13 @@
 #endif
 
 #include "NdbOut.hpp"
-#include <NdbSleep.h>
-#include <NdbMutex.h>
-#include <NdbSpin.h>
-#include <InputStream.hpp>
-#include <OutputStream.hpp>
-#include <socket_io.h>
+#include "NdbSleep.h"
+#include "NdbMutex.h"
+#include "NdbSpin.h"
+#include "InputStream.hpp"
+#include "OutputStream.hpp"
+#include "socket_io.h"
+#include "portlib/NdbTCP.h"
 
 #include <mgmapi/mgmapi.h>
 #include <mgmapi_internal.h>
@@ -112,7 +113,7 @@ TransporterRegistry::get_bytes_received(NodeId node_id) const
   return theNodeIdTransporters[node_id]->get_bytes_received();
 }
 
-SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
+SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   DEBUG_FPRINTF((stderr, "New session created\n"));
@@ -174,7 +175,7 @@ TransporterReceiveData::init(unsigned maxTransporters)
   m_epoll_fd = epoll_create(maxTransporters);
   if (m_epoll_fd == -1)
   {
-    perror("epoll_create failed... falling back to select!");
+    perror("epoll_create failed... falling back to poll()!");
     goto fallback;
   }
   m_epoll_events = new struct epoll_event[maxTransporters];
@@ -202,7 +203,7 @@ TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
     bool add = true;
     struct epoll_event event_poll;
     memset(&event_poll, 0, sizeof(event_poll));
-    NDB_SOCKET_TYPE sock_fd = t->getSocket();
+    ndb_socket_t sock_fd = t->getSocket();
     int node_id = t->getRemoteNodeId();
     int op = EPOLL_CTL_ADD;
     int ret_val, error;
@@ -212,7 +213,8 @@ TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
 
     event_poll.data.u32 = t->getTransporterIndex();
     event_poll.events = EPOLLIN;
-    ret_val = epoll_ctl(m_epoll_fd, op, sock_fd.fd, &event_poll);
+    ret_val = epoll_ctl(m_epoll_fd, op, ndb_socket_get_native(sock_fd),
+                        &event_poll);
     if (!ret_val)
       goto ok;
     error= errno;
@@ -231,11 +233,11 @@ TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
        * have permission problems or the socket doesn't support
        * epoll!!
        */
-      g_eventLogger->info("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
+      g_eventLogger->info("Failed to %s epollfd: %u fd: %d "
                           " node %u to epoll-set,"
                           " errno: %u %s",
                           add ? "ADD" : "DEL", m_epoll_fd,
-                          MY_SOCKET_FORMAT_VALUE(sock_fd), node_id, error,
+                          ndb_socket_get_native(sock_fd), node_id, error,
                           strerror(error));
       abort();
     }
@@ -467,7 +469,7 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 }
 
 bool
-TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
+TransporterRegistry::connect_server(ndb_socket_t sockfd,
                                     BaseString & msg,
                                     bool& close_with_reset,
                                     bool& log_failure)
@@ -1396,7 +1398,7 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
 #if defined(HAVE_EPOLL_CREATE)
   if (recvdata.m_epoll_fd != -1)
   {
-    int sock = m_extra_wakeup_sockets[0].fd;
+    int sock = ndb_socket_get_native(m_extra_wakeup_sockets[0]);
     struct epoll_event event_poll;
     memset(&event_poll, 0, sizeof(event_poll));
     event_poll.data.u32 = 0;
@@ -1788,11 +1790,11 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
   const bool extra_socket = m_has_extra_wakeup_socket;
   if (extra_socket && recvdata.m_transporters.get(0))
   {
-    const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
+    const ndb_socket_t socket = m_extra_wakeup_sockets[0];
     assert(&recvdata == receiveHandle); // not used by ndbmtd...
 
     // Poll the wakup-socket for read
-    recvdata.m_socket_poller.add(socket, true, false, false);
+    recvdata.m_socket_poller.add_readable(socket);
   }
 
   Uint16 idx[MAX_NTRANSPORTERS];
@@ -1800,7 +1802,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
   for (; i < recvdata.nTCPTransporters; i++)
   {
     TCP_Transporter * t = theTCPTransporters[i];
-    const NDB_SOCKET_TYPE socket = t->getSocket();
+    const ndb_socket_t socket = t->getSocket();
     Uint32 node_id = t->getRemoteNodeId();
     Uint32 trp_id = t->getTransporterIndex();
 
@@ -1810,7 +1812,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
     if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
-      idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
+      idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
   }
 
@@ -1825,7 +1827,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
      * memory transporter.
      */
     SHM_Transporter * t = theSHMTransporters[j];
-    const NDB_SOCKET_TYPE socket = t->getSocket();
+    const ndb_socket_t socket = t->getSocket();
     Uint32 node_id = t->getRemoteNodeId();
     Uint32 trp_id = t->getTransporterIndex();
     idx[i] = maxTransporters + 1;
@@ -1836,7 +1838,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
     if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
-      idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
+      idx[i] = recvdata.m_socket_poller.add_readable(socket);
     }
     i++;
   }
@@ -2160,7 +2162,7 @@ TransporterRegistry::consume_extra_sockets()
   char buf[4096];
   ssize_t ret;
   int err;
-  NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
+  ndb_socket_t sock = m_extra_wakeup_sockets[0];
   do
   {
     ret = ndb_recv(sock, buf, sizeof(buf), 0);
@@ -3748,10 +3750,9 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
  * Given a connected NdbMgmHandle, turns it into a transporter
  * and returns the socket.
  */
-NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
+ndb_socket_t TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
-  NDB_SOCKET_TYPE sockfd;
-  ndb_socket_invalidate(&sockfd);
+  ndb_socket_t sockfd = ndb_socket_create();
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
@@ -3786,13 +3787,12 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
  * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
  * and returns the socket.
  */
-NDB_SOCKET_TYPE
+ndb_socket_t
 TransporterRegistry::connect_ndb_mgmd(const char* server_name,
                                       unsigned short server_port)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
-  NDB_SOCKET_TYPE s;
-  ndb_socket_invalidate(&s);
+  ndb_socket_t s= ndb_socket_create();
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
 

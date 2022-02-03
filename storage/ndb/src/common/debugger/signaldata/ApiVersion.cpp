@@ -20,12 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <signaldata/ApiVersion.hpp>
-#include <RefConvert.hpp>
-#include <NdbTCP.h>
-#ifdef _WIN32
-#include <ws2tcpip.h>
-#endif
+#include "signaldata/ApiVersion.hpp"
+#include "RefConvert.hpp"
+#include "portlib/NdbTCP.h"
 
 bool printAPI_VERSION_REQ(FILE *output,
                           const Uint32 *theData,

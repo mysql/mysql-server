@@ -43,6 +43,7 @@
 
 #include <ndb_base64.h>
 #include <ndberror.h>
+#include "portlib/NdbTCP.h"
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
@@ -349,7 +350,7 @@ extern int g_errorInsert;
 
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
-MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
+MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock, Uint64 session_id)
   : SocketServer::Session(sock), m_mgmsrv(mgm),
     m_session_id(session_id), m_name("unknown:0")
 {
@@ -364,8 +365,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_vMajor = m_vMinor = m_vBuild = 0;
 
   struct sockaddr_in6 addr;
-  ndb_socket_len_t addrlen= sizeof(addr);
-  if (ndb_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
+  if (ndb_getpeername(sock, &addr) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
     char *addr_str = Ndb_inet_ntop(AF_INET6,
@@ -555,13 +555,11 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in6 client_addr;
   {
-    ndb_socket_len_t addrlen= sizeof(client_addr);
-    int r = ndb_getpeername(m_socket, (struct sockaddr*)&client_addr, &addrlen);
+    int r = ndb_getpeername(m_socket, &client_addr);
     if (r != 0 )
     {
-      m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
-                        ") failed, err= %d",
-                        MY_SOCKET_FORMAT_VALUE(m_socket), r);
+      m_output->println("result: getpeername() failed, err= %d",
+                        ndb_socket_errno());
       m_output->println("%s", "");
       return;
     }
@@ -1574,7 +1572,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   logevent2str(str, eventType, theData, len, nodeId, 0,
                pretty_text, sizeof(pretty_text));
 
-  Vector<NDB_SOCKET_TYPE> copy;
+  Vector<ndb_socket_t> copy;
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--)
   {
@@ -1661,9 +1659,9 @@ Ndb_mgmd_event_service::check_listeners()
 
     SocketOutputStream out(m_clients[i].m_socket);
 
-    DBUG_PRINT("info",("%d " MY_SOCKET_FORMAT,
+    DBUG_PRINT("info",("%d %s",
                        i,
-                       MY_SOCKET_FORMAT_VALUE(m_clients[i].m_socket)));
+                       ndb_socket_to_string(m_clients[i].m_socket).c_str()));
 
     if(out.println("<PING>") < 0)
     {
@@ -1687,8 +1685,8 @@ void
 Ndb_mgmd_event_service::add_listener(const Event_listener& client)
 {
   DBUG_ENTER("Ndb_mgmd_event_service::add_listener");
-  DBUG_PRINT("enter",("client.m_socket: " MY_SOCKET_FORMAT,
-                      MY_SOCKET_FORMAT_VALUE(client.m_socket)));
+  DBUG_PRINT("enter",("client.m_socket: %s",
+                      ndb_socket_to_string(client.m_socket).c_str()));
 
   check_listeners();
 
@@ -2649,5 +2647,5 @@ MgmApiSession::set_ports(Parser_t::Context &,
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
-template class Vector<NDB_SOCKET_TYPE>;
+template class Vector<ndb_socket_t>;
 template class Vector<SimpleSignal>;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 #ifndef INPUT_STREAM_HPP
 #define INPUT_STREAM_HPP
 
-#include <ndb_global.h>
-#include <NdbTCP.h>
-#include <NdbMutex.h>
+#include "ndb_global.h"
+#include "portlib/ndb_socket.h"
+#include "portlib/NdbMutex.h"
 
 /**
  * Input stream
@@ -57,13 +57,13 @@ public:
 extern FileInputStream Stdin;
 
 class SocketInputStream : public InputStream {
-  NDB_SOCKET_TYPE m_socket;
+  ndb_socket_t m_socket;
   unsigned m_timeout_ms;
   unsigned m_timeout_remain;
   bool m_startover;
   bool m_timedout;
 public:
-  SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 3000);
+  SocketInputStream(ndb_socket_t socket, unsigned read_timeout_ms = 3000);
   ~SocketInputStream() override {}
   char* gets(char * buf, int bufLen) override;
   bool timedout() { return m_timedout; }

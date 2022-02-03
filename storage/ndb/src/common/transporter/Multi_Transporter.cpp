@@ -68,12 +68,12 @@ Multi_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE /*sockfd*/)
+bool Multi_Transporter::connect_server_impl(ndb_socket_t)
 {
   return true;
 }
 
-bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE /*sockfd*/)
+bool Multi_Transporter::connect_client_impl(ndb_socket_t)
 {
   return true;
 }

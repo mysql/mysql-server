@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,10 @@
 #ifndef SOCKET_SERVER_HPP
 #define SOCKET_SERVER_HPP
 
-#include <NdbTCP.h>
-#include <NdbMutex.h>
-#include <NdbThread.h>
+#include "portlib/NdbMutex.h"
+#include "portlib/NdbThread.h"
+#include "portlib/ndb_socket_poller.h"
+
 #include <Vector.hpp>
 
 extern "C" void* sessionThread_C(void*);
@@ -49,19 +50,19 @@ public:
   protected:
     friend class SocketServer;
     friend void* sessionThread_C(void*);
-    Session(NDB_SOCKET_TYPE sock) :
+    Session(ndb_socket_t sock) :
       m_stop(false),
       m_socket(sock),
       m_refCount(0),
       m_thread_stopped(false)
       {
 	DBUG_ENTER("SocketServer::Session");
-	DBUG_PRINT("enter",("NDB_SOCKET: " MY_SOCKET_FORMAT,
-                            MY_SOCKET_FORMAT_VALUE(m_socket)));
+	DBUG_PRINT("enter",("NDB_SOCKET: %s",
+                            ndb_socket_to_string(m_socket).c_str()));
 	DBUG_VOID_RETURN;
       }
     bool m_stop;    // Has the session been ordered to stop?
-    NDB_SOCKET_TYPE m_socket;
+    ndb_socket_t m_socket;
     unsigned m_refCount;
   private:
     bool m_thread_stopped; // Has the session thread stopped?
@@ -80,7 +81,7 @@ public:
      *
      * To manage threads self, just return NULL
      */
-    virtual Session * newSession(NDB_SOCKET_TYPE theSock) = 0;
+    virtual Session * newSession(ndb_socket_t theSock) = 0;
     virtual void stopSessions(){}
   };
   
@@ -137,7 +138,7 @@ private:
   };
   struct ServiceInstance {
     Service * m_service;
-    NDB_SOCKET_TYPE m_socket;
+    ndb_socket_t m_socket;
   };
   NdbLockable m_session_mutex;
   Vector<SessionInstance> m_sessions;

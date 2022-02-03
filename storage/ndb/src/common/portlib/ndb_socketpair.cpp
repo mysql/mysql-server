@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,14 +35,8 @@
 int ndb_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in6 addr;
-  ndb_socket_len_t addrlen = sizeof(addr);
-  ndb_socket_t listener;
 
-  ndb_socket_invalidate(&listener);
-  ndb_socket_invalidate(&s[0]);
-  ndb_socket_invalidate(&s[1]);
-
-  listener= ndb_socket_create_dual_stack(SOCK_STREAM, 0);
+  ndb_socket_t listener = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(listener))
     return -1;
 
@@ -56,13 +50,13 @@ int ndb_socketpair(ndb_socket_t s[2])
     goto err;
 
   /* get sockname */
-  if (ndb_getsockname(listener, (struct sockaddr*)&addr, &addrlen) != 0)
+  if (ndb_getsockname(listener, &addr) != 0)
     goto err;
 
   if (ndb_listen(listener, 1) == -1)
     goto err;
 
-  s[0]= ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
+  s[0] = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
 
   if (!ndb_socket_valid(s[0]))
     goto err;
@@ -104,8 +98,8 @@ int ndb_socketpair(ndb_socket_t s[2])
   ret= socketpair(AF_UNIX, SOCK_STREAM, 0, sock);
   if (ret == 0)
   {
-    s[0].fd = sock[0];
-    s[1].fd = sock[1];
+    s[0] = ndb_socket_create_from_native(sock[0]);
+    s[1] = ndb_socket_create_from_native(sock[1]);
   }
   return ret;
 }
