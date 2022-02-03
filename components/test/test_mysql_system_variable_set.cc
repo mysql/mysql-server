@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ long long test_set_system_variable_string(UDF_INIT * /*initd*/, UDF_ARGS *args,
                                           unsigned char *error) {
   bool make_new_thread = *((long long *)args->args[0]) > 0;
 
-  MYSQL_THD thd = NULL;
+  MYSQL_THD thd = nullptr;
 
   *error = 0;
 

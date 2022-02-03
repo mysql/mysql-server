@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -245,7 +245,7 @@ TEST_F(UtilsTests, uint64_conversion) {
   const uint64_t kDefault{66};
 
   EXPECT_EQ(kDefault, strtoull_checked(nullptr, kDefault));
-  EXPECT_EQ(kDefault, strtoull_checked(0, kDefault));
+  EXPECT_EQ(kDefault, strtoull_checked(nullptr, kDefault));
   EXPECT_EQ(kDefault, strtoull_checked("18446744073709551617", kDefault));
 
   EXPECT_EQ(static_cast<uint64_t>(0), strtoull_checked("0", kDefault));

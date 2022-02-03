@@ -1505,7 +1505,7 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     DEFAULT(binary_log::transaction::compression::Zstd_comp::
                 DEFAULT_COMPRESSION_LEVEL),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(NULL));
+    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
@@ -5291,7 +5291,7 @@ static Sys_var_bool Sys_temptable_use_mmap(
     "Use mmap files for temptables. "
     "This variable is deprecated and will be removed in a future release.",
     GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(update_deprecated_with_removal_message), nullptr,
     sys_var::PARSE_NORMAL);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -584,7 +584,7 @@ PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
 
 bool Opt_hints_table::is_hint_conflicting(Opt_hints_key *key_hint,
                                           opt_hints_enum type) {
-  if ((key_hint == NULL) && is_specified(type)) return true;
+  if ((key_hint == nullptr) && is_specified(type)) return true;
   return (key_hint && key_hint->is_specified(type));
 }
 

@@ -20417,12 +20417,12 @@ static void test_bug32391415() {
 
   myheader("test_bug32391415");
 
-  lmysql = mysql_client_init(NULL);
-  DIE_UNLESS(lmysql != NULL);
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql != nullptr);
 
   lmysql = mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
                               current_db, opt_port, opt_unix_socket, 0);
-  DIE_UNLESS(lmysql != 0);
+  DIE_UNLESS(lmysql != nullptr);
   if (!opt_silent) fprintf(stdout, "Established a test connection\n");
 
   rc = mysql_query(lmysql, "CREATE USER b32391415@localhost");
@@ -20437,7 +20437,7 @@ static void test_bug32391415() {
   rc = mysql_options4(lmysql, MYSQL_OPT_CONNECT_ATTR_ADD, "key1", "value1");
   DIE_UNLESS(rc == 0);
 
-  rc = mysql_change_user(lmysql, "b32391415", NULL, NULL);
+  rc = mysql_change_user(lmysql, "b32391415", nullptr, nullptr);
   myquery2(lmysql, rc);
 
   /* success: the query attribute should be present */
@@ -21606,7 +21606,7 @@ static void test_bug31082201() {
   MYSQL_ROW row;
 
   /*make new non blocking connection to do asynchronous operations */
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
     exit(1);
   }
@@ -21682,7 +21682,7 @@ static void test_bug31104389() {
 
   MYSQL *mysql_local;
 
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     myerror("mysql_client_init() failed");
     exit(1);
   }
@@ -21807,7 +21807,7 @@ static void test_wl12542() {
     mytest(res);
     row = mysql_fetch_row(res);
     mytest(row);
-    DIE_UNLESS(row[0] == 0);
+    DIE_UNLESS(row[0] == nullptr);
     mysql_free_result(res);
   }
 
@@ -21865,7 +21865,7 @@ static void test_wl12542() {
     row = mysql_fetch_row(res);
     mytest(row);
     printf("return '%s'\n", row[0] ? row[0] : "<NULL>");
-    DIE_UNLESS(row[0] == 0);
+    DIE_UNLESS(row[0] == nullptr);
     mysql_free_result(res);
   }
 
@@ -22222,7 +22222,7 @@ static void test_bug32558782() {
   bind[0].buffer_type = MYSQL_TYPE_BLOB;  // Same thing with MYSQL_TYPE_STRING
   bind[0].buffer = data_buf.get();
   bind[0].buffer_length = buflen;
-  bind[0].is_null = 0;
+  bind[0].is_null = nullptr;
   bind[0].length = &len;
 
   /* INT COLUMN */

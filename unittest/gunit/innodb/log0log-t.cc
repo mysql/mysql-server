@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ static bool log_test_general_init() {
 
   /* Below function will initialize the srv_registry variable which is
   required for the mysql_plugin_registry_acquire() */
-  minimal_chassis_init(&srv_registry, NULL);
+  minimal_chassis_init(&srv_registry, nullptr);
   fil_init(max_n_open_files);
 
   log_space = fil_space_create(
@@ -541,7 +541,7 @@ static void log_test_general_close() {
 
   fil_close();
 
-  minimal_chassis_deinit(srv_registry, NULL);
+  minimal_chassis_deinit(srv_registry, nullptr);
 
   os_thread_close();
 

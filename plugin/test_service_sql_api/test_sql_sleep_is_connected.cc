@@ -52,7 +52,7 @@ static void ensure_api_ok(const char *function, int result) {
 }
 
 static void ensure_api_ok(const char *function, MYSQL_SESSION result) {
-  if (result == 0) {
+  if (result == nullptr) {
     test_context->log_test_line("ERROR calling ", function, ": returned ",
                                 reinterpret_cast<uintptr_t>(result), "\n");
   }
@@ -404,11 +404,11 @@ mysql_declare_plugin(test_daemon){
     "Test sql service commands",
     PLUGIN_LICENSE_GPL,
     test_session_plugin_init,   /* Plugin Init */
-    NULL,                       /* Plugin Check uninstall */
+    nullptr,                    /* Plugin Check uninstall */
     test_session_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

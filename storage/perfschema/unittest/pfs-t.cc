@@ -2293,15 +2293,15 @@ static void test_file_operations() {
 
   /* Create Thread A and B to simulate operations from different threads. */
   thread_A = thread_service->new_thread(thread_key, 12, nullptr, 0);
-  ok(thread_A != NULL, "Thread A");
+  ok(thread_A != nullptr, "Thread A");
   thread_service->set_thread_id(thread_A, 1);
 
   thread_B = thread_service->new_thread(thread_key, 12, nullptr, 0);
-  ok(thread_B != NULL, "Thread B");
+  ok(thread_B != nullptr, "Thread B");
   thread_service->set_thread_id(thread_B, 1);
 
   file_class = find_file_class(file_key);
-  ok(file_class != NULL, "File Class");
+  ok(file_class != nullptr, "File Class");
 
   flag_global_instrumentation = true;
   flag_thread_instrumentation = true;
@@ -2324,8 +2324,8 @@ static void test_file_operations() {
   thread_service->set_thread(thread_A);
   /* Create a temporary file */
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2335,7 +2335,7 @@ static void test_file_operations() {
   /* Start mysql_file_close */
   locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
                                                              PSI_FILE_CLOSE);
-  ok(locker_A != NULL, "locker A");
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
   rc = my_close(fd1, true); /* successful close, FD released */
 
@@ -2345,8 +2345,8 @@ static void test_file_operations() {
      mysql_file_close()
   */
   locker_B = file_service->get_thread_file_name_locker(
-      &state_B, file_key, PSI_FILE_CREATE, NULL, &locker_B);
-  ok(locker_B != NULL, "locker B");
+      &state_B, file_key, PSI_FILE_CREATE, nullptr, &locker_B);
+  ok(locker_B != nullptr, "locker B");
   file_service->start_file_open_wait(locker_B, __FILE__, __LINE__);
   /* Returns same FD and filename as Thread A */
   fd2 = my_create_temp_file(&filename2);
@@ -2361,7 +2361,7 @@ static void test_file_operations() {
   /* Close the file and clean up */
   locker_B = file_service->get_thread_file_descriptor_locker(&state_B, fd2,
                                                              PSI_FILE_CLOSE);
-  ok(locker_B != NULL, "locker A");
+  ok(locker_B != nullptr, "locker A");
   file_service->start_file_close_wait(locker_B, __FILE__, __LINE__);
   rc = my_close(fd2, true); /* successful close, FD released */
   file_service->end_file_close_wait(locker_B, rc);
@@ -2376,8 +2376,8 @@ static void test_file_operations() {
   /* Create a temporary file */
   thread_service->set_thread(thread_A);
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2391,7 +2391,7 @@ static void test_file_operations() {
   locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
                                                              PSI_FILE_CLOSE);
   /* File instrumentation should be deleted for temporary files. */
-  ok(locker_A == NULL, "locker A is NULL");
+  ok(locker_A == nullptr, "locker A is NULL");
   rc = my_close(fd1, true); /* successful close, FD released */
 
   /* Re-enable the file instrumentation */
@@ -2400,8 +2400,8 @@ static void test_file_operations() {
 
   /* Open the same temporary file with the same FD */
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2410,7 +2410,7 @@ static void test_file_operations() {
   /* mysql_file_close() */
   locker_A = file_service->get_thread_file_descriptor_locker(&state_A, fd1,
                                                              PSI_FILE_CLOSE);
-  ok(locker_A != NULL, "locker A");
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
   rc = my_close(fd1, true); /* successful close, FD released */
   /* Checks for correct open count */
@@ -2426,8 +2426,8 @@ static void test_file_operations() {
   /* Create a temporary file */
   thread_service->set_thread(thread_A);
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2441,7 +2441,7 @@ static void test_file_operations() {
   locker_A = file_service->get_thread_file_name_locker(
       &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
   /* Locker should be NULL if instrumentation disabled. */
-  ok(locker_A == NULL, "locker A");
+  ok(locker_A == nullptr, "locker A");
   rc = my_delete(temp_filename1, true); /* successful delete */
 
   /* Re-enable the file instrumentation */
@@ -2450,8 +2450,8 @@ static void test_file_operations() {
 
   /* Open the same temporary file with the same FD */
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2461,7 +2461,7 @@ static void test_file_operations() {
   /* mysql_file_delete() */
   locker_A = file_service->get_thread_file_name_locker(
       &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
-  ok(locker_A != NULL, "locker A");
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
   rc = my_delete(temp_filename1, true); /* successful delete */
   file_service->end_file_close_wait(locker_A, rc);
@@ -2476,8 +2476,8 @@ static void test_file_operations() {
   /* Create a temporary file */
   thread_service->set_thread(thread_A);
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2491,7 +2491,7 @@ static void test_file_operations() {
   locker_A = file_service->get_thread_file_name_locker(
       &state_A, file_key, PSI_FILE_RENAME, temp_filename1, &locker_A);
   /* Locker should be NULL if file instrumentation disabled. */
-  ok(locker_A == NULL, "locker A");
+  ok(locker_A == nullptr, "locker A");
   rc = my_rename(temp_filename1, temp_filename2, true); /* success */
 
   /* Re-enable the file instrumentation */
@@ -2501,15 +2501,15 @@ static void test_file_operations() {
   /* mysql_file_delete() */
   locker_A = file_service->get_thread_file_name_locker(
       &state_A, file_key, PSI_FILE_DELETE, temp_filename2, &locker_A);
-  ok(locker_A != NULL, "locker A");
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
   rc = my_delete(temp_filename2, true); /* success */
   file_service->end_file_close_wait(locker_A, rc);
 
   /* Open the original file with the same FD */
   locker_A = file_service->get_thread_file_name_locker(
-      &state_A, file_key, PSI_FILE_CREATE, NULL, &locker_A);
-  ok(locker_A != NULL, "locker A");
+      &state_A, file_key, PSI_FILE_CREATE, nullptr, &locker_A);
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_open_wait(locker_A, __FILE__, __LINE__);
   /* Returns filename with embedded FD */
   fd1 = my_create_temp_file(&filename1);
@@ -2518,7 +2518,7 @@ static void test_file_operations() {
   /* mysql_file_delete() */
   locker_A = file_service->get_thread_file_name_locker(
       &state_A, file_key, PSI_FILE_DELETE, temp_filename1, &locker_A);
-  ok(locker_A != NULL, "locker A");
+  ok(locker_A != nullptr, "locker A");
   file_service->start_file_close_wait(locker_A, __FILE__, __LINE__);
   rc = my_delete(temp_filename1, true); /* successful delete */
   file_service->end_file_close_wait(locker_A, rc);

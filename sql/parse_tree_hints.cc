@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -415,7 +415,8 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
   if (key_list.empty())  // Table level hint
   {
     if ((is_compound_hint(type()) &&
-         tab->get_compound_key_hint(type())->is_hint_conflicting(tab, NULL)) ||
+         tab->get_compound_key_hint(type())->is_hint_conflicting(tab,
+                                                                 nullptr)) ||
         tab->set_switch(switch_on(), type(), false)) {
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
                  &table_name.table, nullptr, this);
@@ -453,7 +454,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
          tab->get_compound_key_hint(type())->is_hint_conflicting(tab, key))) {
       is_conflicting = true;
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
-                 &table_name.table, NULL, this);
+                 &table_name.table, nullptr, this);
       break;
     }
     key_hints.push_back(key);

@@ -256,7 +256,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   MEM_ROOT alloc{key_memory_persisted_variables, 512};
   char *ptr, **res, *datadir = nullptr;
   char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0};
-  const char *dirs = NULL;
+  const char *dirs = nullptr;
   bool persist_load = true;
 
   my_option persist_options[] = {

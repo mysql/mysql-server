@@ -6030,7 +6030,7 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
     err = os_file_write(request, name, file, buf, offset, n_bytes);
 #else
     err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
-                 read_only_mode, NULL, NULL);
+                 read_only_mode, nullptr, nullptr);
 #endif /* UNIV_HOTBACKUP */
 
     if (err != DB_SUCCESS) {

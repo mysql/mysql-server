@@ -2337,7 +2337,7 @@ Sql_cmd *PT_show_engines::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
-  if (prepare_schema_table(thd, lex, 0, SCH_ENGINES)) return nullptr;
+  if (prepare_schema_table(thd, lex, nullptr, SCH_ENGINES)) return nullptr;
 
   return &m_sql_cmd;
 }
@@ -2410,7 +2410,7 @@ Sql_cmd *PT_show_open_tables::make_cmd(THD *thd) {
   }
   lex->query_block->db = m_opt_db;
 
-  if (prepare_schema_table(thd, lex, 0, SCH_OPEN_TABLES)) return nullptr;
+  if (prepare_schema_table(thd, lex, nullptr, SCH_OPEN_TABLES)) return nullptr;
 
   return &m_sql_cmd;
 }
@@ -2419,7 +2419,7 @@ Sql_cmd *PT_show_plugins::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
-  if (prepare_schema_table(thd, lex, 0, SCH_PLUGINS)) return nullptr;
+  if (prepare_schema_table(thd, lex, nullptr, SCH_PLUGINS)) return nullptr;
 
   return &m_sql_cmd;
 }
@@ -2464,7 +2464,7 @@ Sql_cmd *PT_show_profile::make_cmd(THD *thd) {
   Parse_context pc(thd, thd->lex->current_query_block());
   if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
 
-  if (prepare_schema_table(thd, lex, 0, SCH_PROFILES)) return nullptr;
+  if (prepare_schema_table(thd, lex, nullptr, SCH_PROFILES)) return nullptr;
 
   return &m_sql_cmd;
 }

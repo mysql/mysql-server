@@ -7818,8 +7818,8 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
       try {
         MY_BITMAP save_read_set;
         MY_BITMAP save_write_set;
-        if (bitmap_init(&save_read_set, NULL, table->s->fields) ||
-            bitmap_init(&save_write_set, NULL, table->s->fields)) {
+        if (bitmap_init(&save_read_set, nullptr, table->s->fields) ||
+            bitmap_init(&save_write_set, nullptr, table->s->fields)) {
           my_error(ER_OUT_OF_RESOURCES, MYF(0));
           return HA_ERR_RBR_LOGGING_FAILED;
         }

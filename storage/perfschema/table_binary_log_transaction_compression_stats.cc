@@ -133,7 +133,7 @@ PFS_engine_table_share table_binary_log_transaction_compression_stats::m_share =
     {
         &pfs_truncatable_acl,
         &table_binary_log_transaction_compression_stats::create,
-        NULL, /* write_row */
+        nullptr, /* write_row */
         table_binary_log_transaction_compression_stats::delete_all_rows,
         table_binary_log_transaction_compression_stats::get_row_count,
         sizeof(pos_t), /* ref length */

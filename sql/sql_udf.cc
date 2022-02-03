@@ -261,7 +261,7 @@ void udf_read_functions_table() {
     name.str = get_field(&mem, table->field[0]);
 
     // Check the name.str is NULL or not.
-    if (name.str == NULL) {
+    if (name.str == nullptr) {
       sql_print_error("Invalid row in mysql.func table for column 'name'");
       continue;
     }
@@ -269,7 +269,7 @@ void udf_read_functions_table() {
     name.length = strlen(name.str);
     char *dl_name = get_field(&mem, table->field[2]);
 
-    if (dl_name == NULL) {
+    if (dl_name == nullptr) {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
                       name.str);
       continue;
