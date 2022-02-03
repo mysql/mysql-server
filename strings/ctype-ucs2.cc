@@ -2125,6 +2125,9 @@ static size_t my_charpos_utf32(const CHARSET_INFO *cs [[maybe_unused]],
   return pos * 4 > string_length ? string_length + 4 : pos * 4;
 }
 
+/*
+  Valid characters are 0x00000000..0x0000D7FF and 0x0000E000..0x0010FFFF
+ */
 static size_t my_well_formed_len_utf32(const CHARSET_INFO *cs [[maybe_unused]],
                                        const char *b, const char *e,
                                        size_t nchars, int *error) {
@@ -2142,8 +2145,12 @@ static size_t my_well_formed_len_utf32(const CHARSET_INFO *cs [[maybe_unused]],
     e = b + nchars;
   }
   for (; b < e; b += 4) {
-    /* Don't accept characters greater than U+10FFFF */
-    if (b[0] || (uchar)b[1] > 0x10) {
+    if (b[0] != 0 || static_cast<unsigned char>(b[1]) > 0x10) {
+      *error = 1;
+      return b - b0;
+    }
+    if (b[1] == 0 && (static_cast<unsigned char>(b[2]) >= 0xd8 &&
+                      static_cast<unsigned char>(b[2]) < 0xe0)) {
       *error = 1;
       return b - b0;
     }
