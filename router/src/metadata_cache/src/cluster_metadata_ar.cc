@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ ARClusterMetadata::fetch_cluster_topology(
   result.cluster_data.members = std::move(new_instances);
   result.cluster_data.writable_server =
       find_rw_server(result.cluster_data.members);
-  result.cluster_data.view_id = this->view_id_;
+  result.view_id = this->view_id_;
 
   // for ReplicaSet Cluster we assume metadata servers are just Cluster nodes
   for (const auto &cluster_node : result.cluster_data.members) {

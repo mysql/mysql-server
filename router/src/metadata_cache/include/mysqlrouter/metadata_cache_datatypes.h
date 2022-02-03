@@ -144,17 +144,24 @@ using metadata_servers_list_t = std::vector<metadata_server_t>;
  */
 class METADATA_CACHE_EXPORT ManagedCluster {
  public:
+  /** @brief UUID in the metadata */
+  std::string id;
+  /** @brief Name of the cluster */
+  std::string name;
   /** @brief List of the members that belong to the cluster */
   cluster_nodes_list_t members;
   /** @brief Whether the cluster is in single_primary_mode (from PFS in case of
    * GR) */
   bool single_primary_mode;
-  /** @brief Id of the view this metadata represents (only used for AR now)*/
-  uint64_t view_id{0};
   /** @brief Metadata for the cluster is not consistent (only applicable for
    * the GR cluster when the data in the GR metadata is not consistent with the
    * cluster metadata)*/
   bool md_discrepancy{false};
+
+  /** @brief Is this a PRIMARY Cluster in case of ClusterSet */
+  bool is_primary{true};
+  /** @brief Is the Cluster marked as invalid in the metadata */
+  bool is_invalidated{false};
 
   // address of the writable metadata server that can be used for updating the
   // metadata (router version, last_check_in), error code if not found
@@ -173,6 +180,10 @@ class METADATA_CACHE_EXPORT ManagedCluster {
 struct METADATA_CACHE_EXPORT ClusterTopology {
   ManagedCluster cluster_data;
   metadata_servers_list_t metadata_servers;
+
+  /** @brief Id of the view this metadata represents (used for AR and
+   * ClusterSets)*/
+  uint64_t view_id{0};
 };
 
 /**

@@ -179,7 +179,7 @@ void MetadataCache::refresh_thread() {
         std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
         // if the metadata is not consistent refresh it at a higher rate (if the
         // ttl>1s) until it becomes consistent again
-        if (cluster_data_.md_discrepancy) {
+        if (cluster_topology_.cluster_data.md_discrepancy) {
           break;
         }
       }
@@ -218,7 +218,7 @@ void MetadataCache::stop() noexcept {
  */
 metadata_cache::cluster_nodes_list_t MetadataCache::get_cluster_nodes() {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  return cluster_data_.members;
+  return cluster_topology_.cluster_data.members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(
@@ -250,14 +250,19 @@ metadata_cache::ManagedInstance::operator TCPAddress() const {
   return result;
 }
 
+namespace metadata_cache {
+
 bool operator==(const metadata_cache::ManagedCluster &cluster_a,
                 const metadata_cache::ManagedCluster &cluster_b) {
-  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy) return false;
+  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy ||
+      cluster_a.id != cluster_b.id || cluster_a.name != cluster_b.name ||
+      cluster_a.is_invalidated != cluster_b.is_invalidated ||
+      cluster_a.is_primary != cluster_b.is_primary)
+    return false;
   // we need to compare 2 vectors if their content is the same
   // but order of their elements can be different as we use
   // SQL with no "ORDER BY" to fetch them from different nodes
   if (cluster_a.members.size() != cluster_b.members.size()) return false;
-  if (cluster_a.view_id != cluster_b.view_id) return false;
   if (!std::is_permutation(cluster_a.members.begin(), cluster_a.members.end(),
                            cluster_b.members.begin())) {
     return false;
@@ -270,6 +275,28 @@ bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
                 const metadata_cache::ManagedCluster &cluster_b) {
   return !(cluster_a == cluster_b);
 }
+
+bool operator==(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b) {
+  if (a.cluster_data != b.cluster_data) {
+    return false;
+  }
+
+  if (!std::is_permutation(a.metadata_servers.begin(), a.metadata_servers.end(),
+                           b.metadata_servers.begin(),
+                           b.metadata_servers.end())) {
+    return false;
+  }
+
+  return a.view_id == b.view_id;
+}
+
+bool operator!=(const metadata_cache::ClusterTopology &a,
+                const metadata_cache::ClusterTopology &b) {
+  return !(a == b);
+}
+
+}  // namespace metadata_cache
 
 std::string to_string(metadata_cache::ServerMode mode) {
   switch (mode) {
@@ -322,8 +349,8 @@ void MetadataCache::on_refresh_failed(bool terminated,
     bool clearing;
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      clearing = !cluster_data_.empty();
-      if (clearing) cluster_data_.clear();
+      clearing = !cluster_topology_.cluster_data.members.empty();
+      if (clearing) cluster_topology_.cluster_data.members.clear();
     }
     if (clearing) {
       const auto log_level =
@@ -581,8 +608,9 @@ void MetadataCache::update_router_attributes() {
     return;
   }
 
-  if (cluster_data_.writable_server) {
-    const auto &rw_server = cluster_data_.writable_server.value();
+  if (cluster_topology_.cluster_data.writable_server) {
+    const auto &rw_server =
+        cluster_topology_.cluster_data.writable_server.value();
     try {
       meta_data_->update_router_attributes(rw_server, router_id_,
                                            router_attributes_);
@@ -631,8 +659,9 @@ void MetadataCache::update_router_attributes() {
 void MetadataCache::update_router_last_check_in() {
   if (last_check_in_updated_ % 10 == 0) {
     last_check_in_updated_ = 0;
-    if (cluster_data_.writable_server) {
-      const auto &rw_server = cluster_data_.writable_server.value();
+    if (cluster_topology_.cluster_data.writable_server) {
+      const auto &rw_server =
+          cluster_topology_.cluster_data.writable_server.value();
       try {
         meta_data_->update_router_last_check_in(rw_server, router_id_);
       } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
