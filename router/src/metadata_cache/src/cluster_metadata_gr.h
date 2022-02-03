@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,13 @@
 
 struct GroupReplicationMember;
 class GRMetadataBackend;
+
+enum class GRClusterStatus {
+  AvailableWritable,
+  AvailableReadOnly,
+  UnavailableRecovering,
+  Unavailable
+};
 
 class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
  public:
@@ -153,7 +160,7 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
   void update_cluster_status(const mysqlrouter::TargetCluster &target_cluster,
                              metadata_cache::ManagedCluster &cluster);
 
-  metadata_cache::ClusterStatus check_cluster_status(
+  GRClusterStatus check_cluster_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
       const std::map<std::string, GroupReplicationMember> &member_status,
       bool &metadata_gr_discrepancy) const noexcept;

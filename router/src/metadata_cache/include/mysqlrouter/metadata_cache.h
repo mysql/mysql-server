@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,32 +69,6 @@ constexpr const unsigned int kDefaultReadTimeout{
 constexpr const std::string_view kNodeTagHidden{"_hidden"};
 constexpr const std::string_view kNodeTagDisconnectWhenHidden{
     "_disconnect_existing_sessions_when_hidden"};
-
-enum class ClusterStatus {
-  AvailableWritable,
-  AvailableReadOnly,
-  UnavailableRecovering,
-  Unavailable
-};
-
-enum class InstanceStatus {
-  Reachable,
-  InvalidHost,  // Network connection cannot even be attempted (ie bad IP)
-  Unreachable,  // TCP connection cannot be opened
-  Unusable      // TCP connection can be opened but session can't be opened
-};
-
-/** @class connection_error
- *
- * Class that represents all the exceptions thrown while trying to
- * connect with a node managed by the topology.
- *
- */
-class connection_error : public std::runtime_error {
- public:
-  explicit connection_error(const std::string &what_arg)
-      : std::runtime_error(what_arg) {}
-};
 
 /** @class metadata_error
  * Class that represents all the exceptions that are thrown while fetching the
