@@ -236,12 +236,12 @@ static MYSQL_THDVAR_UINT(optimized_node_selection, /* name */
 
 static MYSQL_THDVAR_ULONG(batch_size, /* name */
                           PLUGIN_VAR_RQCMDARG, "Batch size in bytes.",
-                          NULL,                      /* check func. */
-                          NULL,                      /* update func. */
-                          32768,                     /* default */
-                          0,                         /* min */
-                          2 * 1024L * 1024L * 1024L, /* max */
-                          0                          /* block */
+                          NULL,                     /* check func. */
+                          NULL,                     /* update func. */
+                          32768,                    /* default */
+                          0,                        /* min */
+                          2UL * 1024 * 1024 * 1024, /* max */
+                          0                         /* block */
 );
 
 static MYSQL_THDVAR_ULONG(
