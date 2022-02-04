@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,11 +261,11 @@ int iamtheleader(site_def const *s) {
 extern synode_no executed_msg;
 extern synode_no max_synode;
 
-static site_def *last_x_site = 0;
+static site_def *last_x_site = nullptr;
 
 void invalidate_detector_sites(site_def *site) {
   if (last_x_site == site) {
-    last_x_site = NULL;
+    last_x_site = nullptr;
   }
 }
 
@@ -279,7 +279,7 @@ int detector_task(task_arg arg [[maybe_unused]]) {
   END_ENV;
 
   TASK_BEGIN
-  last_x_site = 0;
+  last_x_site = nullptr;
   ep->notify = 1;
   ep->local_notify = 1;
   IFDBG(D_DETECT, FN;);
@@ -356,7 +356,7 @@ int detector_task(task_arg arg [[maybe_unused]]) {
 node_set detector_node_set(site_def const *site) {
   node_set new_set;
   new_set.node_set_len = 0;
-  new_set.node_set_val = 0;
+  new_set.node_set_val = nullptr;
   if (site) {
     u_int nodes = get_maxnodes(site);
     alloc_node_set(&new_set, nodes);
@@ -418,7 +418,7 @@ int alive_task(task_arg arg [[maybe_unused]]) {
   END_ENV;
   TASK_BEGIN
 
-  ep->i_p = ep->you_p = NULL;
+  ep->i_p = ep->you_p = nullptr;
 
   while (!xcom_shutdown) {
     {
@@ -472,7 +472,7 @@ int alive_task(task_arg arg [[maybe_unused]]) {
   }
   FINALLY
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
-  replace_pax_msg(&ep->i_p, NULL);
-  replace_pax_msg(&ep->you_p, NULL);
+  replace_pax_msg(&ep->i_p, nullptr);
+  replace_pax_msg(&ep->you_p, nullptr);
   TASK_END;
 }

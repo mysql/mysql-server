@@ -406,7 +406,7 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
 
   Replication_thread_api applier_channel("group_replication_applier");
   if (!critical_error && !applier_channel.is_applier_thread_running() &&
-      applier_channel.start_threads(false, true, NULL, false)) {
+      applier_channel.start_threads(false, true, nullptr, false)) {
     abort_plugin_process(
         "The plugin was not able to start the group_replication_applier "
         "channel.");

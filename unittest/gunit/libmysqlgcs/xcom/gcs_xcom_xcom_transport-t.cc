@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,26 +67,26 @@ TEST_F(XcomTransport, SerializeTooManySynodes) {
 TEST_F(XcomTransport, is_new_node_eligible_for_ipv6) {
   char const *invalid_address = "127.0.0.257:123456";
   node_address node{const_cast<char *>(invalid_address),
-                    {{0, 0}},
+                    {{0, nullptr}},
                     {x_1_0, x_1_0},
                     P_PROP | P_ACC | P_LEARN};
   site_def site{null_synode,
                 null_synode,
                 VOID_NODE_NO,
                 {1, &node},
-                {0},
+                {nullptr},
                 {0},
                 0,
-                {0, 0},
-                {0, 0},
+                {0, nullptr},
+                {0, nullptr},
                 0,
                 x_1_0,
                 {null_synode},
                 0.0,
                 EVENT_HORIZON_MIN,
                 0,
-                {0, 0},
-                0};
+                {0, nullptr},
+                nullptr};
   /* Any protocol version besides x_1_6 is okay as long as it is older than
      MY_XCOM_PROTO */
   ASSERT_EQ(1, is_new_node_eligible_for_ipv6(x_1_6, &site));

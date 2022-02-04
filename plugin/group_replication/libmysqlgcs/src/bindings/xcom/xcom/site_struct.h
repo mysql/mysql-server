@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,9 @@ struct site_def {
   synode_no start NULL_SYNODE; /* Config is active from this message number */
   synode_no boot_key
       NULL_SYNODE; /* The message number of the original unified_boot */
-  node_no nodeno{VOID_NODE_NO}; /* Node number of this node */
-  node_list nodes{0, nullptr};  /* Set of nodes in this config */
-  server *servers[NSERVERS]{0}; /* Connections to other nodes */
+  node_no nodeno{VOID_NODE_NO};       /* Node number of this node */
+  node_list nodes{0, nullptr};        /* Set of nodes in this config */
+  server *servers[NSERVERS]{nullptr}; /* Connections to other nodes */
   detector_state detected{
       0.0}; /* Time of last incoming message for each node */
   node_no global_node_count{0}; /* Number of live nodes in global_node_set */

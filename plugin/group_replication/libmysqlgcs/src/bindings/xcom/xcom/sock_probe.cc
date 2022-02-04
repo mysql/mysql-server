@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,8 @@ static inline struct addrinfo *probe_get_addrinfo(char *name) {
   return xcom_caching_getaddrinfo(name);
 #else
   {
-    struct addrinfo *addr = 0;
-    checked_getaddrinfo(name, 0, 0, &addr);
+    struct addrinfo *addr = nullptr;
+    checked_getaddrinfo(name, nullptr, nullptr, &addr);
     return addr;
   }
 #endif
@@ -133,10 +133,10 @@ node_no xcom_find_node_index(node_list *nodes) {
          * Skip disabled interfaces when using root namespace. Don't skip it
          * otherwise*/
         for (j = 0; j < number_of_interfaces(s); j++) {
-          struct sockaddr *tmp_sockaddr = NULL;
+          struct sockaddr *tmp_sockaddr = nullptr;
           get_sockaddr_address(s, j, &tmp_sockaddr);
           bool should_skip_active = using_net_ns ? true : is_if_running(s, j);
-          if (tmp_sockaddr != NULL &&
+          if (tmp_sockaddr != nullptr &&
               sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
               should_skip_active) {
             retval = i;
@@ -146,7 +146,7 @@ node_no xcom_find_node_index(node_list *nodes) {
         addr = addr->ai_next;
       }
       probe_free_addrinfo(saved_addr);
-      saved_addr = 0;
+      saved_addr = nullptr;
     }
   }
 /* Free resources and return result */
@@ -196,10 +196,10 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
       /* Match sockaddr of host with list of interfaces on this machine.
        * Skip disabled interfaces */
       for (j = 0; j < number_of_interfaces(s); j++) {
-        struct sockaddr *tmp_sockaddr = NULL;
+        struct sockaddr *tmp_sockaddr = nullptr;
         get_sockaddr_address(s, j, &tmp_sockaddr);
         bool should_skip_active = using_net_ns ? true : is_if_running(s, j);
-        if (tmp_sockaddr != NULL &&
+        if (tmp_sockaddr != nullptr &&
             sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
             should_skip_active) {
           retval = 1;

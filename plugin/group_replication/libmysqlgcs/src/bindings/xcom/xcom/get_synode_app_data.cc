@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ xcom_get_synode_app_data_result xcom_get_synode_app_data(
    they are not.
    */
   if (reply->synode_app_data_array_len != 0) goto end;
-  if (reply->synode_app_data_array_val != NULL) goto end;
+  if (reply->synode_app_data_array_val != nullptr) goto end;
 
   error_code = can_satisfy_request(synodes);
   if (error_code != XCOM_GET_SYNODE_APP_DATA_OK) goto end;
@@ -101,7 +101,7 @@ static xcom_get_synode_app_data_result have_decided_synode_app_data(
   bool_t is_decided = FALSE;
 
   pax_machine *paxos = hash_get(*synode);
-  bool_t const is_cached = (paxos != NULL);
+  bool_t const is_cached = (paxos != nullptr);
   if (!is_cached) {
     error_code = XCOM_GET_SYNODE_APP_DATA_NOT_CACHED;
     goto end;
@@ -137,7 +137,7 @@ static xcom_get_synode_app_data_result prepare_reply(
 
   reply->synode_app_data_array_val =
       (synode_app_data *)xcom_calloc(nr_synodes, sizeof(synode_app_data));
-  if (reply->synode_app_data_array_val == NULL) {
+  if (reply->synode_app_data_array_val == nullptr) {
     /* purecov: begin inspected */
     error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
     goto end;

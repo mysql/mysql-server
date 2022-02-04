@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ node_set *realloc_node_set(node_set *set, u_int n) {
 void copy_node_set(node_set const *from, node_set *to) {
   if (from->node_set_len > 0) {
     u_int i;
-    if (to->node_set_val == 0 || from->node_set_len != to->node_set_len) {
+    if (to->node_set_val == nullptr || from->node_set_len != to->node_set_len) {
       init_node_set(to, from->node_set_len);
     }
     for (i = 0; i < from->node_set_len; i++) {
@@ -103,7 +103,7 @@ node_set *init_node_set(node_set *set, u_int n) {
 
 void free_node_set(node_set *set) {
   if (set) {
-    if (set->node_set_val != 0) X_FREE(set->node_set_val);
+    if (set->node_set_val != nullptr) X_FREE(set->node_set_val);
     set->node_set_len = 0;
   }
 }
@@ -113,7 +113,7 @@ void free_node_set(node_set *set) {
 node_set clone_node_set(node_set set) {
   node_set new_set;
   new_set.node_set_len = 0;
-  new_set.node_set_val = 0;
+  new_set.node_set_val = nullptr;
   copy_node_set(&set, &new_set);
   return new_set;
 }

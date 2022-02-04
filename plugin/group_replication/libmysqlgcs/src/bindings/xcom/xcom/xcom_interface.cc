@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ void set_xcom_global_view_receiver(xcom_global_view_receiver x) {
   xcom_receive_global_view = x;
 }
 
-static xcom_config_receiver xcom_receive_config = 0;
+static xcom_config_receiver xcom_receive_config = nullptr;
 
 /* purecov: begin deadcode */
 void set_xcom_config_receiver(xcom_config_receiver x) {
@@ -97,9 +97,9 @@ void set_xcom_config_receiver(xcom_config_receiver x) {
 }
 /* purecov: end */
 
-xcom_logger xcom_log = NULL;
-xcom_debugger xcom_debug = NULL;
-xcom_debugger_check xcom_debug_check = NULL;
+xcom_logger xcom_log = nullptr;
+xcom_debugger xcom_debug = nullptr;
+xcom_debugger_check xcom_debug_check = nullptr;
 int64_t xcom_debug_options = GCS_DEBUG_NONE;
 
 void set_xcom_logger(xcom_logger x) { xcom_log = x; }
@@ -112,9 +112,9 @@ void set_xcom_debugger_check(xcom_debugger_check x) { xcom_debug_check = x; }
 
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status) {
-  site_def const *site = 0;
-  int full_doit = xcom_full_receive_data != 0;
-  int doit = (xcom_receive_data != 0 && app_status == delivery_ok);
+  site_def const *site = nullptr;
+  int full_doit = xcom_full_receive_data != nullptr;
+  int doit = (xcom_receive_data != nullptr && app_status == delivery_ok);
 
   if (app_status == delivery_ok) {
     if (!pma) {
@@ -150,7 +150,7 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
         if (doit) {
           u_int copy_len = 0;
           char *copy = (char *)xcom_malloc(app->body.app_u_u.data.data_len);
-          if (copy == NULL) {
+          if (copy == nullptr) {
             /* purecov: begin inspected */
             G_ERROR("Unable to allocate memory for the received message.");
             /* purecov: end */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,16 +132,16 @@ static unsigned char dh2048_g[] = {0x05};
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
+    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
     if (!p || !g
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
+        || !DH_set0_pqg(dh, p, nullptr, g)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     ) {
       /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      return NULL;
+      return nullptr;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p = p;
@@ -151,11 +151,11 @@ static DH *get_dh2048(void) {
   return (dh);
 }
 
-static char *ssl_pw = NULL;
+static char *ssl_pw = nullptr;
 static int ssl_init_done = 0;
 
-SSL_CTX *server_ctx = NULL;
-SSL_CTX *client_ctx = NULL;
+SSL_CTX *server_ctx = nullptr;
+SSL_CTX *client_ctx = nullptr;
 
 /*
   Note that the functions, i.e. strtok and strcasecmp, are not
@@ -164,7 +164,7 @@ SSL_CTX *client_ctx = NULL;
 */
 static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
-  char *token = NULL;
+  char *token = nullptr;
 #ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
 #else
@@ -188,7 +188,7 @@ static long process_tls_version(const char *tls_version) {
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
-  char *saved_ctx = NULL;
+  char *saved_ctx = nullptr;
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
@@ -204,7 +204,7 @@ static long process_tls_version(const char *tls_version) {
         break;
       }
     }
-    token = xcom_strtok(NULL, separator, &saved_ctx);
+    token = xcom_strtok(nullptr, separator, &saved_ctx);
   }
 
   if (!tls_found)
@@ -226,7 +226,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
                                     const char *tls_version,
                                     const char *tls_ciphersuites
                                     [[maybe_unused]]) {
-  DH *dh = NULL;
+  DH *dh = nullptr;
   long ssl_ctx_options =
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
@@ -263,7 +263,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
        If the ciphersuites are unspecified, i.e. tls_ciphersuites == NULL, then
        we use whatever OpenSSL uses by default. Note that an empty list is
        permissible; it disallows all ciphersuites. */
-    if (tls_ciphersuites != NULL) {
+    if (tls_ciphersuites != nullptr) {
       /*
         Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
         (that's permissible and mentioned in the documentation),
@@ -516,7 +516,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   if (Network_provider_manager::getInstance().xcom_get_ssl_mode() !=
       SSL_REQUIRED)
     verify_server = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
-  SSL_CTX_set_verify(server_ctx, verify_server, NULL);
+  SSL_CTX_set_verify(server_ctx, verify_server, nullptr);
 
   G_DEBUG("Configuring SSL for the client")
 #ifdef HAVE_TLSv13
@@ -536,7 +536,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
       SSL_REQUIRED) {
     verify_client = SSL_VERIFY_PEER;
   }
-  SSL_CTX_set_verify(client_ctx, verify_client, NULL);
+  SSL_CTX_set_verify(client_ctx, verify_client, nullptr);
 
   ssl_init_done = 1;
 
@@ -583,7 +583,7 @@ void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
 
 int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
     SSL *ssl, const char *server_hostname) {
-  X509 *server_cert = NULL;
+  X509 *server_cert = nullptr;
   int ret_validation = 1;
 
 #if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
@@ -626,7 +626,7 @@ int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
   */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
   if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       0) != 1) &&
+                       nullptr) != 1) &&
       (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
     G_ERROR(
         "Failed to verify the server certificate via X509 certificate "

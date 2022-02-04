@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ extern int oom_abort;
 
 static inline void *xcom_malloc(size_t size) {
   void *retval = malloc(size);
-  if (retval == NULL) {
+  if (retval == nullptr) {
     oom_abort = 1;
   }
   return retval;
@@ -52,7 +52,7 @@ static inline void *xcom_malloc(size_t size) {
 
 static inline void *xcom_calloc(size_t nmemb, size_t size) {
   void *retval = calloc(nmemb, size);
-  if (retval == NULL) {
+  if (retval == nullptr) {
     oom_abort = 1;
   }
   return retval;
