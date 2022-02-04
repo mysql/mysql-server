@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     uint16_t http_port;
     std::string js_filename;
     bool unaccessible{false};
-    std::string cluster_specific_id{"cluster-specific-id"};
+    std::string cluster_specific_id{"00000000-0000-0000-0000-0000000000g1"};
   };
 
   void bootstrap_failover(

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2147,6 +2147,7 @@ void add_metadata_cache_routing_section(
     std::ostream &config_file, bool is_classic, bool is_writable,
     const ConfigGenerator::Options::Endpoint endpoint,
     const ConfigGenerator::Options &options, const std::string &metadata_key,
+    const std::string &cluster_name,
     const std::map<std::string, std::string> &config_cmdln_options) {
   if (!endpoint) return;
 
@@ -2163,7 +2164,7 @@ void add_metadata_cache_routing_section(
                                        "routing:" + metadata_key + key_suffix);
   add_endpoint_option(section_printer, options, endpoint);
   section_printer
-      .add_line("destinations", "metadata-cache://" + metadata_key + "/" +
+      .add_line("destinations", "metadata-cache://" + cluster_name + "/" +
                                     metadata_replicaset + "?role=" + role)
       .add_line("routing_strategy", strategy)
       .add_line("protocol", protocol);
@@ -2276,6 +2277,13 @@ static void save_initial_dynamic_state(
   mdc_dynamic_state.save(state_stream);
 }
 
+static std::string strip_dashes(const std::string &uuid) {
+  std::string result = uuid;
+  result.erase(std::remove(result.begin(), result.end(), '-'), result.end());
+
+  return result;
+}
+
 void ConfigGenerator::create_config(
     std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
     const std::string &router_name, const std::string &system_username,
@@ -2324,11 +2332,10 @@ void ConfigGenerator::create_config(
       .add_line(mysql_harness::logging::kConfigOptionLogLevel, "INFO")
       .add_line("filename", options.override_logfilename);
 
-  const auto &metadata_key = cluster_info.name;
+  const auto &metadata_key = strip_dashes(cluster_info.cluster_id);
   {
     ConfigSectionPrinter metadata_section_printer(
-        config_file, config_cmdln_options,
-        "metadata_cache:" + cluster_info.name);
+        config_file, config_cmdln_options, "metadata_cache:" + metadata_key);
 
     metadata_section_printer
         .add_line("cluster_type", mysqlrouter::to_string(metadata_->get_type()))
@@ -2372,7 +2379,7 @@ void ConfigGenerator::create_config(
                              Options::Endpoint endpoint) {
     add_metadata_cache_routing_section(config_file, is_classic, is_writable,
                                        endpoint, options, metadata_key,
-                                       config_cmdln_options);
+                                       cluster_info.name, config_cmdln_options);
   };
   add_mdc_rt_sect(true, true, options.rw_endpoint);
   add_mdc_rt_sect(true, false, options.ro_endpoint);
