@@ -164,8 +164,8 @@ EXPLAIN SELECT event_id, e.name, table_name FROM events e
 SELECT * from events where event_id = -1;
 SELECT table_name from dictionary_tables where table_id = -1;
 SELECT table_name from dictionary_tables where table_id = 9990;
-SELECT table_name from dictionary_tables where table_id = 8;
-SELECT table_name from dictionary_tables where table_id = 9;
+SELECT table_name from dictionary_tables where table_id = 5;
+SELECT table_name from dictionary_tables where table_id = 6;
 
 select * from blobs;
 select * from index_columns order by index_object_id;

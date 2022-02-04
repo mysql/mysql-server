@@ -12006,19 +12006,6 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     return 1;
   }
 
-  // Don't allow discovery of the index stat tables which aren't synchronized
-  // to the DD by the binlog thread due to a timing issue post initial system
-  // restarts. The table contents are incomprehensible without some kind of
-  // parsing and are thus not exposed to the MySQL Server.
-  if (!strcmp("mysql", db) && (!strcmp("ndb_index_stat_head", name) ||
-                               !strcmp("ndb_index_stat_sample", name))) {
-    thd_ndb->push_warning(
-        "NDB index statistics tables are not exposed to the "
-        "MySQL Server. The tables can be accessed using NDB "
-        "tools such as ndb_select_all");
-    return 1;
-  }
-
   Ndb_table_guard ndbtab_g(ndb, db, name);
   const NDBTAB *ndbtab = ndbtab_g.get_table();
   if (ndbtab == nullptr) {
@@ -12343,7 +12330,7 @@ static bool wait_setup_completed(ulong max_wait_seconds) {
 
   while (std::chrono::steady_clock::now() < timeout_time) {
     if (ndb_binlog_is_initialized() &&
-        Ndb_index_stat_thread::is_setup_complete()) {
+        ndb_index_stat_thread.is_setup_complete()) {
       return true;
     }
     ndb_milli_sleep(100);

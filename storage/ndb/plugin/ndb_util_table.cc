@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,6 +265,17 @@ bool Ndb_util_table::create_index(const NdbDictionary::Table &new_table,
   return true;
 }
 
+bool Ndb_util_table::create_event_in_NDB(
+    const NdbDictionary::Event &new_event) const {
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+  if (dict->createEvent(new_event) != 0) {
+    push_ndb_error_warning(dict->getNdbError());
+    push_warning("Failed to create event '%s'", new_event.getName());
+    return false;
+  }
+  return true;
+}
+
 bool Ndb_util_table::create_primary_ordered_index(
     const NdbDictionary::Table &new_table) const {
   NdbDictionary::Index index("PRIMARY");
@@ -355,10 +366,16 @@ bool Ndb_util_table::create(bool is_upgrade) {
   // Load the new table definition into the Ndb_util_table object
   if (!open(is_upgrade)) return false;
 
+  const NdbDictionary::Table *util_table = get_table();
+  if (!create_events_in_NDB(*util_table)) {
+    (void)drop_table_in_NDB(*util_table);
+    return false;
+  }
+
   if (!post_install()) {
     // Failed to perform post_install actions, attempt to drop the table in
     // order to start all over again from scratch on next retry
-    (void)drop_table_in_NDB(*get_table());
+    (void)drop_table_in_NDB(*util_table);
     return false;
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1967,63 +1967,25 @@ void ndb_index_stat_end() {
 
 /* Index stats thread */
 
-int Ndb_index_stat_thread::check_or_create_systables(
+int Ndb_index_stat_thread::check_systables(
     const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
-  NdbIndexStat *is = pr.is_util;
-  Ndb *ndb = pr.ndb;
-
-  if (is->check_systables(ndb) == 0) {
+  if (pr.is_util->check_systables(pr.ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats tables"));
     return 0;
   }
-
-  if (is->create_systables(ndb) == 0) {
-    DBUG_PRINT("index_stat", ("created index stats tables"));
-    return 0;
-  }
-
-  if (is->getNdbError().code == 4009) {
-    // No connection
-    DBUG_PRINT("index_stat",
-               ("create index stats tables failed: error %d line %d",
-                is->getNdbError().code, is->getNdbError().line));
-    return -1;
-  }
-
-  log_info("create tables failed, error: %d, line: %d", is->getNdbError().code,
-           is->getNdbError().line);
   return -1;
 }
 
-int Ndb_index_stat_thread::check_or_create_sysevents(
+int Ndb_index_stat_thread::check_sysevents(
     const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
-  NdbIndexStat *is = pr.is_util;
-  Ndb *ndb = pr.ndb;
-
-  if (is->check_sysevents(ndb) == 0) {
+  if (pr.is_util->check_sysevents(pr.ndb) == 0) {
     DBUG_PRINT("index_stat", ("using existing index stats events"));
     return 0;
   }
-
-  if (is->create_sysevents(ndb) == 0) {
-    DBUG_PRINT("index_stat", ("created index stats events"));
-    return 0;
-  }
-
-  if (is->getNdbError().code == 746) {
-    // Probably race between mysqlds
-    DBUG_PRINT("index_stat",
-               ("create index stats events failed: error %d line %d",
-                is->getNdbError().code, is->getNdbError().line));
-    return -1;
-  }
-
-  log_info("create events failed, error: %d, line: %d", is->getNdbError().code,
-           is->getNdbError().line);
   return -1;
 }
 
@@ -2163,33 +2125,10 @@ void Ndb_index_stat_thread::do_run() {
   bool enable_ok;
   enable_ok = false;
 
-  // Set up Ndb object, stats tables and events, and the listener. This is done
-  // as an initial step. They could be re-created later after an initial start.
-  // See the check_sys flag used below
-  if (create_ndb(&pr, g_ndb_cluster_connection) == -1) {
-    log_error("Could not create Ndb object");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Check or create stats tables and events
-  if (check_or_create_systables(pr) == -1 ||
-      check_or_create_sysevents(pr) == -1) {
-    log_error("Could not create index stat system tables");
-    mysql_mutex_lock(&LOCK_client_waiting);
-    goto ndb_index_stat_thread_end;
-  }
-
-  // Listener is not critical. There's a reattempt to start it as part of the
-  // normal processing below should it fail here
-  if (start_listener(pr) == -1) {
-    log_info("Could not start listener");
-  }
-
   // Flag used to indicate if there's a need to check for creation of index
-  // stat tables and events. Initially off since they've just been created
+  // stat tables and events
   bool check_sys;
-  check_sys = false;
+  check_sys = true;
 
   struct timespec abstime;
   set_timespec(&abstime, 0);
@@ -2224,7 +2163,6 @@ void Ndb_index_stat_thread::do_run() {
     do {
       // An initial restart may have occurred while this mysqld was left running
       if (ndb_index_stat_restart_flag) {
-        log_info("Restart flag is true inside do_run()");
         ndb_index_stat_restart_flag = false;
         ndb_index_stat_set_allow(false);
         // Stop the listener thus enforcing that it's started again further
@@ -2261,9 +2199,7 @@ void Ndb_index_stat_thread::do_run() {
       // sys objects
       if (check_sys) {
         // at enable check or create stats tables and events
-        if (check_or_create_systables(pr) == -1 ||
-            check_or_create_sysevents(pr) == -1)
-          break;
+        if (check_systables(pr) == -1 || check_sysevents(pr) == -1) break;
       }
 
       // listener is not critical but error means something is wrong

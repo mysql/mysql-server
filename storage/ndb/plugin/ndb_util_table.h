@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,12 @@ class Ndb_util_table {
                     const NdbDictionary::Index &new_index) const;
   bool create_primary_ordered_index(
       const NdbDictionary::Table &new_table) const;
+
+  virtual bool create_events_in_NDB(const NdbDictionary::Table &new_table
+                                    [[maybe_unused]]) const {
+    return true;
+  }
+  bool create_event_in_NDB(const NdbDictionary::Event &new_event) const;
 
   /**
     @brief Code to be executed before upgrading the table.

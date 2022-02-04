@@ -47,7 +47,6 @@
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
-#include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
@@ -64,6 +63,8 @@
 #include "storage/ndb/plugin/ndb_dd_table.h"
 #include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
+#include "storage/ndb/plugin/ndb_index_stat_head_table.h"
+#include "storage/ndb/plugin/ndb_index_stat_sample_table.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
@@ -825,16 +826,6 @@ class Ndb_binlog_setup {
       if (!dd_sync.remove_all_metadata()) {
         return false;
       }
-      // The index stat thread must be restarted. An additional wait
-      // for the setup to complete is required for the ndb_sql_metadata
-      // table to be created below. This also ensures that the index stat
-      // functionality is ready to be used as soon as binlog setup is done
-      ndb_log_info("Waiting for index stat setup to complete");
-      ndb_index_stat_restart();
-      while (!Ndb_index_stat_thread::is_setup_complete()) {
-        ndb_milli_sleep(100);
-      }
-      ndb_log_info("Index stat setup complete");
     } else {
       /*
         Not an initial restart. Delete DD table definitions corresponding to NDB
@@ -896,6 +887,19 @@ class Ndb_binlog_setup {
     if (!initial_system_restart && !schema_result_table.delete_all_rows()) {
       ndb_log_warning("Failed to remove obsolete rows from ndb_schema_result");
       return false;
+    }
+
+    Ndb_index_stat_head_table index_stat_head_table(thd_ndb);
+    if (!index_stat_head_table.create_or_upgrade(m_thd, true)) return false;
+
+    Ndb_index_stat_sample_table index_stat_sample_table(thd_ndb);
+    if (!index_stat_sample_table.create_or_upgrade(m_thd, true)) return false;
+
+    if (initial_system_restart) {
+      // The index stat thread must be restarted to ensure that the index stat
+      // functionality is ready to be used as soon as binlog setup is done
+      ndb_log_info("Signalling the index stat thread to restart");
+      ndb_index_stat_restart();
     }
 
     Ndb_apply_status_table apply_status_table(thd_ndb);
