@@ -12,7 +12,7 @@ if ($IS_WINDOWS) {
 --eval create table t1 (a $col_type not null auto_increment primary key, b int, c bigint) engine ndb
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::'
+      --fields-terminated-by="::" --csvopt=n
       test
       $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -38,7 +38,7 @@ drop table t1, t1ver;
 --eval create table t1 (a int, b $col_type not null auto_increment, c bigint, primary key(a, b)) engine ndb
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::'
+      --fields-terminated-by="::" --csvopt=n
       test
       $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -64,7 +64,7 @@ drop table t1, t1ver;
 --eval create table t1 (a int primary key, b $col_type not null auto_increment, c bigint, key(b)) engine ndb
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::'
+      --fields-terminated-by="::" --csvopt=n
       test
       $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -90,7 +90,7 @@ drop table t1, t1ver;
 --eval create table t1 (a int, b bigint, c $col_type not null auto_increment primary key) engine ndb
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::'
+      --fields-terminated-by="::" --csvopt=n
       test
       $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 

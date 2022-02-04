@@ -1165,7 +1165,6 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
     m_input.reject_line(line, (Field*)0, error);
     line->m_reject = true;
   }
-  require(fieldcnt <= attrcnt);
 
   Field* field = line->m_field_list.front();
   for (uint n = 0; n < attrcnt; n++)

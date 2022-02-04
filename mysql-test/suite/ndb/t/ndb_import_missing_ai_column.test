@@ -66,7 +66,7 @@ create table t1 (a int not null primary key, b int, c bigint) engine ndb;
 --error 1
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::'
+      --fields-terminated-by="::" --csvopt=n
       test
       $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -84,7 +84,8 @@ create table t2 (a int not null auto_increment primary key, b int, c bigint) eng
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --missing-ai-column
-      --fields-terminated-by='::' test
+      --fields-terminated-by="::" --csvopt=n
+      test
       $MYSQLTEST_VARDIR/tmp/t1.csv $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 select count(*) from t1;
