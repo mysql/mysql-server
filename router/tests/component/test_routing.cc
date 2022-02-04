@@ -110,7 +110,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"));
 }
 
 struct ConnectTimeoutTestParam {

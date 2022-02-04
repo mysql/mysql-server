@@ -11,9 +11,9 @@ var defaults = {
   // - state
   // - xport (if available and needed)
   group_replication_membership: [],
-  group_replication_name: "cluster-specific-id",
+  group_replication_name: "00000000-0000-0000-0000-0000000000g1",
   port: mysqld.session.port,
-  cluster_id: "cluster-specific-id",
+  cluster_id: "00000000-0000-0000-0000-0000000000c1",
   innodb_cluster_name: "test",
   innodb_cluster_replicaset_name: "default",
   use_bootstrap_big_data: false,

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -239,7 +239,7 @@ TEST_F(MasterKeyReaderWriterTest,
   // check if the bootstraping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(router.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'mycluster'"))
+      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -289,7 +289,7 @@ TEST_F(MasterKeyReaderWriterTest,
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -492,7 +492,7 @@ TEST_F(MasterKeyReaderWriterTest,
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -811,7 +811,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'mycluster'"))
+                           "InnoDB Cluster 'my-cluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
