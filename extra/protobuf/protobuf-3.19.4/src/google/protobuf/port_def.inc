@@ -459,7 +459,10 @@
 #ifdef PROTOBUF_NODISCARD
 #error PROTOBUF_NODISCARD was previously defined
 #endif
-#if __has_cpp_attribute(nodiscard)
+
+#ifdef WIN32_CLANG  // an attribute list cannot appear here
+#define PROTOBUF_NODISCARD
+#elif __has_cpp_attribute(nodiscard)
 #define PROTOBUF_NODISCARD [[nodiscard]]
 #elif __has_attribute(warn_unused_result) || PROTOBUF_GNUC_MIN(4, 8)
 #define PROTOBUF_NODISCARD __attribute__((warn_unused_result))

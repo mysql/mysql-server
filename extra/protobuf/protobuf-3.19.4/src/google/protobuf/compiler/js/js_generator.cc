@@ -1498,6 +1498,8 @@ void GenerateJspbFileOrder(const std::vector<const FileDescriptor*>& input,
       ordered->end());
 }
 
+}  // namespace
+
 // If we're generating code in file-per-type mode, avoid overwriting files
 // by choosing the last descriptor that writes each filename and permitting
 // only those to generate code.
@@ -1525,6 +1527,8 @@ struct DepsGenerator {
     return deps;
   }
 };
+
+namespace {
 
 bool GenerateJspbAllowedMap(const GeneratorOptions& options,
                             const std::vector<const FileDescriptor*>& files,

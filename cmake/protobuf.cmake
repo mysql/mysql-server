@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #  Other values will be ignored, and we fall back to "bundled"
 #
 
-# Bundled version is currently 3.11.1
+# Bundled version is currently 3.19.4
 # Lowest checked system version is 3.5.0 on Oracle Linux 8.
 # Older versions may generate code which breaks the -Werror build.
 SET(MIN_PROTOBUF_VERSION_REQUIRED "3.5.0")
@@ -77,7 +77,7 @@ MACRO(COULD_NOT_FIND_PROTOBUF)
     )
 ENDMACRO()
 
-SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.11.4/src)
+SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.19.4/src)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(WITH_PROTOBUF "bundled" CACHE STRING
