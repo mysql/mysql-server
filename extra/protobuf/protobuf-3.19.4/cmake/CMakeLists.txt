@@ -1,5 +1,5 @@
 # Minimum CMake required
-cmake_minimum_required(VERSION 3.1.3)
+### cmake_minimum_required(VERSION 3.1.3)
 
 if(protobuf_VERBOSE)
   message(STATUS "Protocol Buffers Configuring...")
@@ -27,8 +27,8 @@ project(protobuf C CXX)
 if (CYGWIN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 else()
-  set(CMAKE_CXX_STANDARD 11)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#  set(CMAKE_CXX_STANDARD 11)
+#  set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
@@ -99,7 +99,7 @@ string(REGEX REPLACE     "${protobuf_VERSION_REGEX}" "\\3"
 string(REGEX REPLACE     "${protobuf_VERSION_REGEX}" "\\5"
   protobuf_VERSION_PRERELEASE "${protobuf_VERSION_STRING}")
 
-message(STATUS "${protobuf_VERSION_PRERELEASE}")
+### message(STATUS "${protobuf_VERSION_PRERELEASE}")
 
 # Package version
 set(protobuf_VERSION
@@ -108,9 +108,9 @@ set(protobuf_VERSION
 if(protobuf_VERSION_PRERELEASE)
   set(protobuf_VERSION "${protobuf_VERSION}.${protobuf_VERSION_PRERELEASE}")
 else()
-  set(protobuf_VERSION "${protobuf_VERSION}.0")
+  set(protobuf_VERSION "${protobuf_VERSION}")
 endif()
-message(STATUS "${protobuf_VERSION}")
+### message(STATUS "${protobuf_VERSION}")
 
 if(protobuf_VERBOSE)
   message(STATUS "Configuration script parsing status [")
@@ -128,31 +128,36 @@ endif()
 
 find_package(Threads REQUIRED)
 
-set(_protobuf_FIND_ZLIB)
-if (protobuf_WITH_ZLIB)
-  find_package(ZLIB)
-  if (ZLIB_FOUND)
-    set(HAVE_ZLIB 1)
-    # FindZLIB module define ZLIB_INCLUDE_DIRS variable
-    # Set ZLIB_INCLUDE_DIRECTORIES for compatible
-    set(ZLIB_INCLUDE_DIRECTORIES ${ZLIB_INCLUDE_DIRECTORIES} ${ZLIB_INCLUDE_DIRS})
-    # Using imported target if exists
-    if (TARGET ZLIB::ZLIB)
-      set(ZLIB_LIBRARIES ZLIB::ZLIB)
-      set(_protobuf_FIND_ZLIB "if(NOT ZLIB_FOUND)\n  find_package(ZLIB)\nendif()")
-    endif (TARGET ZLIB::ZLIB)
-  else (ZLIB_FOUND)
-    set(HAVE_ZLIB 0)
-    # Explicitly set these to empty (override NOT_FOUND) so cmake doesn't
-    # complain when we use them later.
-    set(ZLIB_INCLUDE_DIRECTORIES)
-    set(ZLIB_LIBRARIES)
-  endif (ZLIB_FOUND)
-endif (protobuf_WITH_ZLIB)
+### set(_protobuf_FIND_ZLIB)
+### if (protobuf_WITH_ZLIB)
+###   find_package(ZLIB)
+###   if (ZLIB_FOUND)
+###     set(HAVE_ZLIB 1)
+###     # FindZLIB module define ZLIB_INCLUDE_DIRS variable
+###     # Set ZLIB_INCLUDE_DIRECTORIES for compatible
+###     set(ZLIB_INCLUDE_DIRECTORIES ${ZLIB_INCLUDE_DIRECTORIES} ${ZLIB_INCLUDE_DIRS})
+###     # Using imported target if exists
+###     if (TARGET ZLIB::ZLIB)
+###       set(ZLIB_LIBRARIES ZLIB::ZLIB)
+###       set(_protobuf_FIND_ZLIB "if(NOT ZLIB_FOUND)\n  find_package(ZLIB)\nendif()")
+###     endif (TARGET ZLIB::ZLIB)
+###   else (ZLIB_FOUND)
+###     set(HAVE_ZLIB 0)
+###     # Explicitly set these to empty (override NOT_FOUND) so cmake doesn't
+###     # complain when we use them later.
+###     set(ZLIB_INCLUDE_DIRECTORIES)
+###     set(ZLIB_LIBRARIES)
+###   endif (ZLIB_FOUND)
+### endif (protobuf_WITH_ZLIB)
+### 
+### if (HAVE_ZLIB)
+###   add_definitions(-DHAVE_ZLIB)
+### endif (HAVE_ZLIB)
 
-if (HAVE_ZLIB)
+### An extra option instead this above
+if (protobuf_WITH_ZLIB)
   add_definitions(-DHAVE_ZLIB)
-endif (HAVE_ZLIB)
+endif (protobuf_WITH_ZLIB)
 
 # We need to link with libatomic on systems that do not have builtin atomics, or
 # don't have builtin support for 8 byte atomics
@@ -301,7 +306,7 @@ if (protobuf_BUILD_CONFORMANCE)
   include(conformance.cmake)
 endif (protobuf_BUILD_CONFORMANCE)
 
-include(install.cmake)
+### include(install.cmake)
 
 if (protobuf_BUILD_EXAMPLES)
   include(examples.cmake)

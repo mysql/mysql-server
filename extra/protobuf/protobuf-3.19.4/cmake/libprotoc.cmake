@@ -130,3 +130,18 @@ set_target_properties(libprotoc PROPERTIES
     OUTPUT_NAME ${LIB_PREFIX}protoc
     DEBUG_POSTFIX "${protobuf_DEBUG_POSTFIX}")
 add_library(protobuf::libprotoc ALIAS libprotoc)
+
+###
+IF(protobuf_BUILD_SHARED_LIBS)
+  SET_TARGET_PROPERTIES(libprotoc PROPERTIES
+    DEBUG_POSTFIX ""
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+  IF(WIN32)
+    ADD_CUSTOM_COMMAND(TARGET libprotoc POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libprotoc.dll"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libprotoc.dll"
+      )
+  ENDIF()
+ENDIF()
