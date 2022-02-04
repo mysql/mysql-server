@@ -5062,6 +5062,15 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
   enum_resolution_type resolution;
 
   /*
+    If a query block is a table constructor, both the SELECT list and the GROUP
+    BY list don't exist. So there is no reason to search any of the lists.
+    Besides, for a table constructor, we don't initialize the base_ref_items
+    array until we process all the ROW() values. So we should give up if
+    base_ref_items is empty.
+  */
+  if (select->base_ref_items.empty()) return not_found_item;
+
+  /*
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
