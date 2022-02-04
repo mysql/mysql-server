@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -262,6 +262,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     Bucket* bucket= c_buckets+i;
     bucket->m_buffer_tail = RNIL;
+    bucket->m_max_acked_gci = 0;
     bucket->m_buffer_head.m_page_id = RNIL;
     bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS;
   }
@@ -6903,21 +6904,25 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   printf("start_resend(%d, ", buck);
 
   /**
-   * Resend from m_max_acked_gci + 1 until max_gci + 1
+   * Resend from m_max_acked_gci + 1 until m_max_seen_gci
    */
   ndbrequire(buck < NO_OF_BUCKETS);
   Bucket* bucket = c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
 
+  // Start resending from the epoch that is not yet ack'd
+  const Uint64 min= bucket->m_max_acked_gci + 1;
+
+  // Out of buffer release is ongoing. So don't start resending in order
+  // to avoid sending epochs where part of them are already released.
+  // Inform about the first in-doubt epoch that resending will start from.
   if(m_out_of_buffer_gci)
   {
-    Ptr<Gcp_record> gcp;
-    c_gcp_list.last(gcp);
     signal->theData[0] = NDB_LE_SubscriptionStatus;
     signal->theData[1] = 2; // INCONSISTENT;
     signal->theData[2] = 0; // Not used
-    signal->theData[3] = (Uint32) pos.m_max_gci;
-    signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
+    signal->theData[3] = (Uint32) min;
+    signal->theData[4] = (Uint32) (min >> 32);
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
     m_missing_data = true;
     return;
@@ -6936,11 +6941,7 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     return;
   }
 
-  Uint64 min= bucket->m_max_acked_gci + 1;
   Uint64 max = m_max_seen_gci;
-
-  ndbrequire(max <= m_max_seen_gci);
-
   if(min > max)
   {
     ndbrequire(pos.m_page_id == bucket->m_buffer_tail);
