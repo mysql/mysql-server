@@ -370,9 +370,19 @@ POINT(52.381389 13.064444)
 #
 # Transformation to/from projected SRSs.
 #
-# Verify that it isn't possible to transform to/from a projection.
-# Transformation between SRID 0 and geographic SRSs should fail.
-DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 3857);
-ERROR 22S00: Transformation to SRID 3857 is not supported.
-DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 3857), 4326);
-ERROR 22S00: Transformation from SRID 3857 is not supported.
+# Only EPSG 1024 projection is supported.
+DO ST_ASTEXT(ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(24.381786962 -100.33333332)', 4326), 3857));
+DO ST_ASTEXT(ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(-11169055.574774178 2800000.005281789)', 3857), 4326));
+CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 33001 NAME 'webmodairy' ORGANIZATION 'EPSG' IDENTIFIED BY 33001 DEFINITION 'PROJCS["Modified Airy / Pseudo-Mercator",GEOGCS["modairy",DATUM["modairy",SPHEROID["Bessel 1841",  6377340.189,299.324937365, AUTHORITY["EPSG","7004"]], TOWGS84[0,0,0,0,0,0,0],   AUTHORITY["EPSG","6120"]],PRIMEM["Greenwich",0, AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278, AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST], AUTHORITY["EPSG","4120"]],PROJECTION["Popular Visualisation Pseudo Mercator",AUTHORITY["EPSG","1024"]],PARAMETER["Latitude of natural origin",0,AUTHORITY["EPSG","8801"]],PARAMETER["Longitude of natural origin",0.01,AUTHORITY["EPSG","8802"]],PARAMETER["False easting",100,AUTHORITY["EPSG","8806"]],PARAMETER["False northing",-10,AUTHORITY["EPSG","8807"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","3857"]]';
+DO ST_ASTEXT(ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0.0008983333 0.001796667)', 4326, 'axis-order=long-lat'), 33001));
+DO ST_ASTEXT(ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(-913.0663257585971 189.97410223677596)', 33001, 'axis-order=long-lat'), 4326), 'axis-order=long-lat');
+DROP SPATIAL REFERENCE SYSTEM 33001;
+# Verify that it isn't possible to transform to/from other projections.
+DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 27397);
+ERROR 22S00: Transformation to SRID 27397 is not supported. The spatial reference system has no TOWGS84 clause.
+DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 27397), 4326);
+ERROR 22S00: Transformation from SRID 27397 is not supported. The spatial reference system has no TOWGS84 clause.
+DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 32766);
+ERROR 22S00: Transformation to SRID 32766 is not supported.
+DO ST_TRANSFORM(ST_GEOMFROMTEXT('POINT(0 0)', 32766), 4326);
+ERROR 22S00: Transformation from SRID 32766 is not supported.

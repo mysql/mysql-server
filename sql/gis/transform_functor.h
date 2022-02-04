@@ -78,12 +78,19 @@ class Transform : public Unary_functor<std::unique_ptr<Geometry>> {
 
   std::unique_ptr<Geometry> operator()(const Geometry &g) const override;
   std::unique_ptr<Geometry> eval(const Geometry &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_point &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_point &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_linestring &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_linestring &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_polygon &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_polygon &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_geometrycollection &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_geometrycollection &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multipoint &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multipoint &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multilinestring &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multilinestring &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multipolygon &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multipolygon &g) const;
 };
 

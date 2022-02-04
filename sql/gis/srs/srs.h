@@ -264,6 +264,8 @@ class Geographic_srs : public Spatial_reference_system {
     return m_axes[axis];
   }
 
+  std::string partial_proj4_parameters() const;
+
   double semi_major_axis() const { return m_semi_major_axis; }
 
   double inverse_flattening() const { return m_inverse_flattening; }
@@ -353,6 +355,10 @@ class Projected_srs : public Spatial_reference_system {
   bool is_wgs84_based() const override {
     return m_geographic_srs.is_wgs84_based();
   }
+
+  std::string partial_proj4_parameters() const {
+    return m_geographic_srs.partial_proj4_parameters();
+  }
 };
 
 /// A projected SRS of an unknown projection type.
@@ -409,6 +415,8 @@ class Popular_visualisation_pseudo_mercator_srs : public Projected_srs {
   }
 
   bool can_be_modified_to(const Spatial_reference_system &) const override;
+
+  std::string proj4_parameters() const override;
 };
 
 /// A Lambert Azimuthal Equal Area (Spherical) projection (EPSG 1027).

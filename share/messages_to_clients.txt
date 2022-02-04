@@ -9767,6 +9767,15 @@ ER_REDUCED_DBLWR_FILE_CORRUPTED
 ER_REDUCED_DBLWR_PAGE_FOUND
   eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
+ER_SRS_INVALID_LATITUDE_OF_ORIGIN SR002
+  eng "Latitude of origin must be within [-90, 90] degrees, specified in the SRS angular unit."
+
+ER_SRS_INVALID_LONGITUDE_OF_ORIGIN SR002
+  eng "Longitude of origin must be within (-180, 180] degrees, specified in the SRS angular unit."
+
+ER_SRS_UNUSED_PROJ_PARAMETER_PRESENT SR002
+  eng "The spatial reference system definition for SRID %u contains unused projection parameter \"%s\"."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

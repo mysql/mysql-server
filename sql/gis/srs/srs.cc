@@ -186,6 +186,7 @@ static bool set_parameters(gis::srid_t srid,
     it. If not, use the parameter name.
   */
   for (auto i = proj->parameters.begin(); i != proj->parameters.end(); i++) {
+    bool unused = true;
     for (size_t j = 0; j < params->size(); j++) {
       if (!my_strcasecmp(&my_charset_latin1, "EPSG",
                          i->authority.name.c_str())) {
@@ -193,28 +194,54 @@ static bool set_parameters(gis::srid_t srid,
                            std::to_string(params->at(j).first).c_str(),
                            i->authority.code.c_str())) {
           *(params->at(j).second) = i->value;
+          unused = false;
         }
       } else if (!my_strcasecmp(&my_charset_latin1,
                                 param_names[params->at(j).first].c_str(),
                                 i->name.c_str())) {
         *(params->at(j).second) = i->value;
+        unused = false;
       } else if (!my_strcasecmp(&my_charset_latin1,
                                 param_aliases[params->at(j).first].c_str(),
                                 i->name.c_str())) {
         *(params->at(j).second) = i->value;
+        unused = false;
       }
+    }
+    if (unused) {
+      my_error(ER_SRS_UNUSED_PROJ_PARAMETER_PRESENT, MYF(0), srid,
+               i->name.c_str());
+      return true;
     }
   }
 
   // All mandatory parameters are set to NAN before calling this
   // function. If any parameters are still NAN, raise an exception
   // condition.
-  for (size_t i = 0; i < params->size(); i++) {
-    if (std::isnan(*(params->at(i).second))) {
-      int epsg_code = params->at(i).first;
+  for (auto param : *params) {
+    int epsg_code = param.first;
+    double param_value = *(param.second);
+    if (std::isnan(param_value)) {
       my_error(ER_SRS_PROJ_PARAMETER_MISSING, MYF(0), srid,
                param_names[epsg_code].c_str(), epsg_code);
       return true;
+    }
+    // Latitude of origin must be in [-90, 90] degrees
+    if (epsg_code == 8801 || epsg_code == 8811 || epsg_code == 8821) {
+      param_value *= proj->geographic_cs.angular_unit.conversion_factor;
+      if (param_value < -M_PI_2 || param_value > M_PI_2) {
+        my_error(ER_SRS_INVALID_LATITUDE_OF_ORIGIN, MYF(0), srid);
+        return true;
+      }
+    }
+    // Longitude of origin must be within (-180, 180] degrees
+    if (epsg_code == 8802 || epsg_code == 8812 || epsg_code == 8830 ||
+        epsg_code == 8833) {
+      param_value *= proj->geographic_cs.angular_unit.conversion_factor;
+      if (param_value < -M_PI || param_value > M_PI) {
+        my_error(ER_SRS_INVALID_LONGITUDE_OF_ORIGIN, MYF(0), srid);
+        return true;
+      }
     }
   }
 
@@ -414,19 +441,14 @@ bool Projected_srs::common_proj_parameters_can_be_modified_to(
   return false;
 }
 
-std::string Geographic_srs::proj4_parameters() const {
+std::string Geographic_srs::partial_proj4_parameters() const {
   char double_str[FLOATING_POINT_BUFFER];
   bool error;
   std::stringstream proj4;
 
-  if (!m_is_wgs84 && !has_towgs84())
-    return proj4.str();  // Can't convert if there's no path to WGS 84.
-
-  proj4 << "+proj=lonlat ";
-
   my_fcvt_compact(semi_major_axis(), double_str, &error);
   if (error) return std::string();
-  proj4 << "+a=" << double_str;
+  proj4 << " +a=" << double_str;
 
   if (inverse_flattening() == 0.0) {
     proj4 << " +b=" << double_str;
@@ -454,11 +476,24 @@ std::string Geographic_srs::proj4_parameters() const {
       proj4 << double_str;
     }
   } else {
-    assert(m_is_wgs84);
+    assert(is_wgs84_based());
     proj4 << "0,0,0,0,0,0,0";
   }
 
   proj4 << " +no_defs";  // Don't set any defaults.
+
+  return proj4.str();
+}
+
+std::string Geographic_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  if (!is_wgs84_based() && !has_towgs84())
+    return proj4.str();  // Can't convert if there's no path to WGS 84.
+
+  proj4 << "+proj=lonlat";
+
+  proj4 << partial_proj4_parameters();
 
   return proj4.str();
 }
@@ -519,6 +554,24 @@ bool Popular_visualisation_pseudo_mercator_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Popular_visualisation_pseudo_mercator_srs::proj4_parameters()
+    const {
+  std::stringstream proj4;
+
+  if (!is_wgs84_based() && !has_towgs84())
+    return proj4.str();  // Can't convert if there's no path to WGS 84.
+
+  proj4 << "+proj=webmerc";
+
+  proj4 << partial_proj4_parameters();
+
+  proj4 << " +lon_0=" << m_longitude_of_origin;
+  proj4 << " +x_0=" << m_false_easting;
+  proj4 << " +y_0=" << m_false_northing;
+
+  return proj4.str();
 }
 
 bool Lambert_azimuthal_equal_area_spherical_srs::init(

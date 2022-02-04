@@ -238,6 +238,7 @@ SET(SERVER_TESTS
   gis_setops
   gis_srs
   gis_symdifference
+  gis_transform
   gis_union
   gis_wkb_parser
   gis_wkb_writer
