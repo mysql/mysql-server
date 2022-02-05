@@ -275,7 +275,13 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
       }
     }
   }
-  return tokens;
+  std::vector<std::string> final_tokens;
+  for(size_t i=0;i<tokens.size();++i) {
+    if(tokens[i] == "") continue;
+    final_tokens.push_back(tokens[i]);
+  }
+
+  return final_tokens;
   
 }
 
@@ -653,12 +659,21 @@ std::vector<std::pair<std::string, uint64_t>>sort_from(std::map<string, uint64_t
 
 bool is_remote_query(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
-  
+  bool in_string = false; 
   bool next_is_table_name = false;
   for(size_t i=0; i < tokens.size(); ++i) {
+//	  std::cerr << i << ": " << tokens[i];
     std::string lower = strtolower(tokens[i]);
-    
-    if((lower == "from") || (lower == "join")) {
+    if(!in_string && (lower[0] == '\'' || lower[0] == '"') && (lower[lower.length()-1] != '\'' && lower[lower.length()-1] != '"')) {
+	    in_string = true;
+    } else {
+
+      if(in_string == true && (lower[lower.length()-1] == '\'' || lower[lower.length()-1] == '"')) {
+  	    in_string=false;
+      }
+    }
+
+    if( !in_string && ((lower == "from") || (lower == "join"))) {
       next_is_table_name = true;
       continue;
     }
@@ -867,9 +882,10 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
        * allocated via the MySQL allocator.  However, since remote is a copy of local, we can only mysql_close
        * the local copy later!
        */
-      MYSQL *remote = (MYSQL *)my_malloc(key_memory_warp_rewrite, sizeof(MYSQL),
-		                                           MYF(MY_WME | MY_ZEROFILL));
-      memcpy(remote, local, sizeof(MYSQL));
+      //MYSQL *remote = (MYSQL *)my_malloc(key_memory_warp_rewrite, sizeof(MYSQL),
+	//	                                           MYF(MY_WME | MY_ZEROFILL));
+      //memcpy(remote, local, sizeof(MYSQL));
+      MYSQL *remote = mysql_init(NULL);
       MYSQL_RES *result;
       MYSQL_ROW row = NULL;
       if (local == NULL) {
@@ -886,7 +902,7 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
         return sqlstr;
       }
       
-      std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
+      std::string sql = "select * from mysql.servers where server_name=\"" + escape_for_call(servername) + "\"";
       mysql_real_query(local, sql.c_str(), sql.length());
       result = mysql_use_result(local);
       
@@ -1037,10 +1053,11 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
           if(insert_sql != "") {
             insert_sql += ", ";
           }
-          if(row[n] == NULL) {
+          if( row[n] == nullptr ) {
             insert_sql += "NULL";
-          } else {
-            insert_sql += '\'' + escape_for_call(std::string(row[n])) + '\'';
+	  } else {
+	    //std::cerr << "INSERT: " << insert_sql << "\n";
+	    insert_sql += '"' + escape_for_call(std::string(row[n])) + '"';
           }
         }
         insert_sql = "INSERT INTO leapdb." + remote_tmp_name + " VALUES(" + insert_sql + ");";
@@ -1149,7 +1166,10 @@ static int warp_rewrite_query_notify(
             sqlstr = ddl + " " + execute_remote_query(tokens);
             is_create_table = true;
         }
-      } else {
+      } else {/*
+	      for(auto i=0;i<tokens.size();++i) {
+		      std::cerr << i << ": " << tokens[i] << "\n";
+	      }*/
         // handle create [incremental] materialized view
         if(strtolower(tokens[0]) == "create") {
           if(strtolower(tokens[1]) == "incremental") {
@@ -1357,9 +1377,9 @@ static int warp_rewrite_query_notify(
           coord_query += alias + " AS " + orig_alias;
 
           if(select_lex.group_list_size() > 0) {
-            commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
+            commands += "CALL leapdb.add_expr(@mvid, 'GROUP', \"";
           } else {
-            commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', '";
+            commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', \"";
           }
           if(orig_alias == "`*`") {
             std::string new_alias = orig_alias;
@@ -1367,9 +1387,9 @@ static int warp_rewrite_query_notify(
               new_alias += std::to_string(star_count);
             }
             ++star_count;
-            commands += escape_for_call(raw_field) + "','" + escape_for_call(new_alias) + "')";
+            commands += escape_for_call(raw_field) + "\",\"" + escape_for_call(new_alias) + "\")";
           } else {
-            commands += escape_for_call(raw_field) + "','" + escape_for_call(orig_alias) + "')";
+            commands += escape_for_call(raw_field) + "\",\"" + escape_for_call(orig_alias) + "\")";
           }
           continue;
         break;
@@ -1382,11 +1402,11 @@ static int warp_rewrite_query_notify(
             tmp.set("",0,default_charset_info);
             field->this_item()->print(current_thd, &tmp, QT_ORDINARY);
             if(select_lex.group_list_size() > 0) {
-              commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
+              commands += "CALL leapdb.add_expr(@mvid, 'GROUP', \"";
             } else {
-              commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', '";
+              commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', \"";
             }
-            commands+=escape_for_call(std::string(tmp.c_ptr(), tmp.length())) + "','" + escape_for_call(orig_alias) + "')";
+            commands+=escape_for_call(std::string(tmp.c_ptr(), tmp.length())) + "\",\"" + escape_for_call(orig_alias) + "\")";
             
           }
           continue;
@@ -1411,7 +1431,7 @@ static int warp_rewrite_query_notify(
               }
               //remove distinct from the inner expression
               inner_field = "(" + inner_field.substr(strlen("(distinct"), inner_field.length()-strlen("(distinct ")) + ")";
-              commands += "CALL leapdb.add_expr(@mvid, 'COUNT_DISTINCT', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+              commands += "CALL leapdb.add_expr(@mvid, 'COUNT_DISTINCT', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
             }
             continue;
           }
@@ -1503,8 +1523,8 @@ static int warp_rewrite_query_notify(
           if(commands != "") {
             commands += ";;";
           }
-          commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
-          commands += escape_for_call(std::string(field_str.ptr())) + "','" + escape_for_call(std::string(field_str.ptr())) + "')";
+          commands += "CALL leapdb.add_expr(@mvid, 'GROUP', \"";
+          commands += escape_for_call(std::string(field_str.ptr())) + "\",\"" + escape_for_call(std::string(field_str.ptr())) + "\")";
         }
       } else {
         ll_group += std::string("`expr$") + std::to_string(used_fields_it->second) + "`";
@@ -1557,13 +1577,13 @@ static int warp_rewrite_query_notify(
              std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
              " AS `" + std::string(tbl->alias) + "` ";
       
-      commands += "CALL leapdb.add_table(@mvid, '" + escape_for_call(std::string(tbl->db, tbl->db_length)) + "','";
+      commands += "CALL leapdb.add_table(@mvid, \"" + escape_for_call(std::string(tbl->db, tbl->db_length)) + "\",\"";
       commands += escape_for_call(std::string(tbl->table_name, tbl->table_name_length));
       if(remote_name != NULL) {
         commands += std::string(remote_name);
       }
-      commands += "','";
-      commands += escape_for_call(std::string(tbl->alias)) + "',";
+      commands += "\",\"";
+      commands += escape_for_call(std::string(tbl->alias)) + "\",";
       if(!from_clause.empty()) {
         if(tbl->is_inner_table_of_outer_join()) {
           has_outer_joins = true;
@@ -1593,14 +1613,14 @@ static int warp_rewrite_query_notify(
         }
         tmp_from += std::string("/*%TOKEN%*/USING(") + join_columns + ")\n";
         
-        commands += "'" + escape_for_call(join_columns) + "')";
+        commands += "\"" + escape_for_call(join_columns) + "\")";
       } else {
         String join_str;
         join_str.reserve(1024 * 1024);
         if(tbl->join_cond() != nullptr) {
           tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
           tmp_from += "/*%TOKEN%*/ON " + std::string(join_str.ptr(), join_str.length());
-          commands += "' ON (" + escape_for_call(std::string(join_str.ptr(), join_str.length())) + ")')";
+          commands += "\" ON (" + escape_for_call(std::string(join_str.ptr(), join_str.length())) + ")\")";
         } else {
           if(is_mv_create && i>0) {
             return -1;
