@@ -1,0 +1,19 @@
+--source include/not_valgrind.inc
+--source include/not_asan.inc
+--source include/have_debug.inc
+--source include/have_odirect.inc
+--source include/not_windows.inc
+
+--echo ###########################################
+--echo # Test with O_DIRECT enabled
+--echo ###########################################
+
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to create check sector file*");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Failed to set O_DIRECT on file.*");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to set DIRECTIO_ON on file*");
+--enable_query_log
+
+--let $O_DIRECT=1
+--source ../include/doublewrite_reduced.inc
+

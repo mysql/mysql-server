@@ -1,17 +1,15 @@
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
 
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--Error ER_WRONG_ARGUMENTS
 SET @@GLOBAL.innodb_doublewrite=off;
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@GLOBAL.innodb_doublewrite=on;
 
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
 
-
 --disable_warnings
-SELECT IF(@@GLOBAL.innodb_doublewrite, "ON", "OFF") = VARIABLE_VALUE
+SELECT @@GLOBAL.innodb_doublewrite = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_doublewrite';
 --enable_warnings
@@ -44,4 +42,430 @@ SELECT COUNT(@@SESSION.innodb_doublewrite);
 
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=ON"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=DETECT_AND_RECOVER"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=off"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=FALSE"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=DETECT_ONLY"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=off;
+SELECT @@global.innodb_doublewrite;
+
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=false;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=on;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=detect_only;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=DETECT_AND_RECOVER;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=true;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=off;
+SELECT @@global.innodb_doublewrite;
+
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=false;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=on;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=detect_only;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=true;
+SELECT @@global.innodb_doublewrite;
+
+SET @@GLOBAL.innodb_doublewrite=detect_and_recover;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=0"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=1"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=3"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=4"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=5"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--echo "##############################################"
+--let $restart_parameters = "restart: --innodb-doublewrite=2"
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is OFF
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=0;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is ON
+SET @@GLOBAL.innodb_doublewrite=1;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_ONLY
+SET @@GLOBAL.innodb_doublewrite=2;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is DETECT_AND_RECOVER
+SET @@GLOBAL.innodb_doublewrite=3;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is FALSE
+--Error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.innodb_doublewrite=4;
+SELECT @@global.innodb_doublewrite;
+
+--echo # doublewrite mode is TRUE
+SET @@GLOBAL.innodb_doublewrite=5;
+SELECT @@global.innodb_doublewrite;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_doublewrite=6;
+SELECT @@global.innodb_doublewrite;
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_doublewrite=ON;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_doublewrite=OFF;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_doublewrite=DETECT_ONLY;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_doublewrite=ON;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_doublewrite=OFF;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_doublewrite=DETECT_ONLY;
 

@@ -135,12 +135,13 @@ segment or garbage
 @param[in]      contiguous_lsn          it is known that all log
 groups contain contiguous log data up to this lsn
 @param[out]     group_scanned_lsn       scanning succeeded up to this lsn
-@retval true    if limit_lsn has been reached, or not able to scan any
+@param[out]     err  error code as returned by recv_init_crash_recovery().
+@retval	true  if limit_lsn has been reached, or not able to scan any
 more in this log group
 @retval false   otherwise */
 bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
                        lsn_t start_lsn, lsn_t *contiguous_lsn,
-                       lsn_t *group_scanned_lsn);
+                       lsn_t *group_scanned_lsn, dberr_t &err);
 
 /** Creates an IORequest object for decrypting redo log with
 Encryption::decrypt_log() method. If the encryption_info parameter is
@@ -251,7 +252,7 @@ pages.
                                 no new log records can be generated during
                                 the application; the caller must in this case
                                 own the log mutex */
-void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
+dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.

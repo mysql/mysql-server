@@ -11629,6 +11629,12 @@ ER_MY_MALLOC_LOADLIBRARY_FAILED
 ER_MY_MALLOC_GETPROCADDRESS_FAILED
   eng "%s."
 
+ER_IB_DBLWR_BYTES_INFO
+  eng "%s"
+
+ER_IB_RDBLWR_BYTES_INFO
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -221,7 +221,7 @@ static void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
 
 /** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
-static void recv_init_crash_recovery();
+static dberr_t recv_init_crash_recovery();
 #endif /* !UNIV_HOTBACKUP */
 
 /** Calculates the new value for lsn when more data is added to the log.
@@ -1217,7 +1217,7 @@ pages.
                                 no new log records can be generated during
                                 the application; the caller must in this case
                                 own the log mutex */
-void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
+dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (;;) {
     mutex_enter(&recv_sys->mutex);
 
@@ -1257,18 +1257,26 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (const auto &space : *recv_sys->spaces) {
     bool dropped;
 
-    if (space.first != TRX_SYS_SPACE &&
-        !fil_tablespace_open_for_recovery(space.first)) {
-      /* Tablespace was dropped. It should not have been scanned unless it
-      is an undo space that was under construction. */
-
-      if (fil_tablespace_lookup_for_recovery(space.first)) {
-        ut_ad(fsp_is_undo_tablespace(space.first));
-      }
-
-      dropped = true;
-    } else {
+    if (space.first == TRX_SYS_SPACE) {
       dropped = false;
+    } else {
+      dberr_t err = fil_tablespace_open_for_recovery(space.first);
+      if (err == DB_SUCCESS) {
+        dropped = false;
+      } else if (err == DB_CORRUPTION) {
+        /* Page couldn't be recovered from doublewrite, we cannot proceed
+        with recovery. Skip applying redos and abort the startup. */
+        mutex_exit(&recv_sys->mutex);
+        return err;
+      } else {
+        /* Tablespace was dropped. It should not have been scanned unless it
+        is an undo space that was under construction. */
+
+        if (fil_tablespace_lookup_for_recovery(space.first)) {
+          ut_ad(fsp_is_undo_tablespace(space.first));
+        }
+        dropped = true;
+      }
     }
 
     for (auto pages : space.second.m_pages) {
@@ -1353,6 +1361,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   mutex_exit(&recv_sys->mutex);
 
   ib::info(ER_IB_MSG_710);
+  return DB_SUCCESS;
 }
 
 #else /* !UNIV_HOTBACKUP */
@@ -2453,8 +2462,9 @@ static byte *recv_parse_or_apply_log_rec_body(
         ptr = log_test->parse_mlog_rec(ptr, end_ptr);
       } else {
         /* Just parse and ignore record to pass it and go forward. Note that
-        this record is also used in the innodb.log_first_rec_group mtr test. The
-        record is written in the buf0flu.cc when flushing page in that case. */
+        this record is also used in the innodb.log_first_rec_group mtr test.
+        The record is written in the buf0flu.cc when flushing page in that
+        case. */
         Log_test::Key key;
         Log_test::Value value;
         lsn_t start_lsn, end_lsn;
@@ -2464,7 +2474,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       }
       break;
 #endif /* !UNIV_HOTBACKUP */
-       /* Fall through. */
+      /* Fall through. */
 
     default:
       ptr = nullptr;
@@ -2621,8 +2631,8 @@ bool recv_page_is_brand_new(buf_block_t *block) {
   return false;
 }
 
-/** Applies the hashed log records to the page, if the page lsn is less than the
-lsn of a log record. This can be called when a buffer page has just been
+/** Applies the hashed log records to the page, if the page lsn is less than
+the lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 
 @param[in]      just_read_in    true if the IO handler calls this for a freshly
@@ -2780,8 +2790,9 @@ void recv_recover_page_func(
     } else if (recv->data != nullptr) {
       buf = ((byte *)(recv->data)) + sizeof(recv_data_t);
     } else {
-      /* Redo record that does not have a payload, such as MLOG_UNDO_ERASE_END,
-       MLOG_COMP_PAGE_CREATE, MLOG_INIT_FILE_PAGE2 etc. */
+      /* Redo record that does not have a payload, such as
+       MLOG_UNDO_ERASE_END, MLOG_COMP_PAGE_CREATE, MLOG_INIT_FILE_PAGE2 etc.
+     */
       ut_ad(recv->data == nullptr);
       ut_ad(recv->len == 0);
     }
@@ -3452,7 +3463,8 @@ automatically when the hash table becomes full.
 @param[in]      start_lsn       buffer start lsn
 @param[in,out]  contiguous_lsn  it is known that log contain
                                 contiguous log data up to this lsn
-@param[out]     read_upto_lsn   scanning succeeded up to this lsn
+@param[out]  read_upto_lsn  scanning succeeded up to this lsn
+@param[out]  err             DB_SUCCESS when no dblwr corruptions.
 @return true if not able to scan any more in this log */
 #ifndef UNIV_HOTBACKUP
 static bool recv_scan_log_recs(log_t &log,
@@ -3461,11 +3473,12 @@ bool meb_scan_log_recs(
 #endif /* !UNIV_HOTBACKUP */
                                ulint max_memory, const byte *buf, ulint len,
                                lsn_t start_lsn, lsn_t *contiguous_lsn,
-                               lsn_t *read_upto_lsn) {
+                               lsn_t *read_upto_lsn, dberr_t &err) {
   const byte *log_block = buf;
   lsn_t scanned_lsn = start_lsn;
   bool finished = false;
   bool more_data = false;
+  err = DB_SUCCESS;
 
   ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -3604,7 +3617,10 @@ bool meb_scan_log_recs(
                  scanned_lsn > recv_sys->checkpoint_lsn) {
         ib::info(ER_IB_MSG_722, ulonglong{recv_sys->scanned_lsn});
 
-        recv_init_crash_recovery();
+        err = recv_init_crash_recovery();
+        if (err != DB_SUCCESS) {
+          return true;
+        }
       }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3812,7 +3828,7 @@ Parses and hashes the log records if new data found.
 @param[in,out]  contiguous_lsn          log sequence number
                                         until which all redo log has been
                                         scanned */
-static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
+static dberr_t recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
   mutex_enter(&recv_sys->mutex);
 
   recv_sys->len = 0;
@@ -3858,22 +3874,29 @@ static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
   bool finished = false;
 
   while (!finished) {
+    dberr_t err;
     lsn_t end_lsn = start_lsn + RECV_SCAN_SIZE;
 
     recv_read_log_seg(log, log.buf, start_lsn, end_lsn);
 
-    finished = recv_scan_log_recs(log, max_mem, log.buf, RECV_SCAN_SIZE,
-                                  start_lsn, contiguous_lsn, &log.scanned_lsn);
+    finished =
+        recv_scan_log_recs(log, max_mem, log.buf, RECV_SCAN_SIZE, start_lsn,
+                           contiguous_lsn, &log.scanned_lsn, err);
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     start_lsn = end_lsn;
   }
 
   DBUG_PRINT("ib_log", ("scan " LSN_PF " completed", log.scanned_lsn));
+  return DB_SUCCESS;
 }
 
 /** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
-static void recv_init_crash_recovery() {
+static dberr_t recv_init_crash_recovery() {
   ut_ad(!srv_read_only_mode);
   ut_a(!recv_needed_recovery);
 
@@ -3882,7 +3905,7 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-  recv_sys->dblwr->recover();
+  dberr_t err = recv_sys->dblwr->recover();
 
   if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
     /* Spawn the background thread to flush dirty pages
@@ -3893,6 +3916,8 @@ static void recv_init_crash_recovery() {
 
     srv_threads.m_recv_writer.start();
   }
+
+  return err;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3962,9 +3987,9 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     after the redo log was copied by MEB. */
 
     /* Restore state after recovery completes. */
-    recv_sys->dblwr_state = dblwr::enabled;
+    recv_sys->dblwr_state = dblwr::g_mode;
 
-    dblwr::enabled = false;
+    dblwr::g_mode = dblwr::Mode::OFF;
 
     dblwr::set();
 
@@ -4070,13 +4095,19 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
         return (DB_READ_ONLY);
       }
 
-      recv_init_crash_recovery();
+      err = recv_init_crash_recovery();
+      if (err != DB_SUCCESS) {
+        return err;
+      }
     }
   }
 
   contiguous_lsn = checkpoint_lsn;
 
-  recv_recovery_begin(log, &contiguous_lsn);
+  err = recv_recovery_begin(log, &contiguous_lsn);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   lsn_t recovered_lsn;
 
@@ -4197,7 +4228,7 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   mutex_enter(&recv_sys->writer_mutex);
 
   /* Restore state. */
-  if (recv_sys->is_meb_recovery) dblwr::enabled = recv_sys->dblwr_state;
+  if (recv_sys->is_meb_recovery) dblwr::g_mode = recv_sys->dblwr_state;
 
   /* Free the resources of the recovery system */
   recv_recovery_on = false;

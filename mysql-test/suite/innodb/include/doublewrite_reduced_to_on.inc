@@ -1,0 +1,354 @@
+# Slow shutdown and restart to make sure ibuf merge is finished
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
+--let $restart_parameters = "restart: --innodb_doublewrite=detect_only"
+
+--disable_query_log
+call mtr.add_suppression("Database page [0-9]+:1 contained only zeroes.");
+call mtr.add_suppression("Header page consists of zero bytes");
+call mtr.add_suppression("Checksum mismatch in datafile");
+call mtr.add_suppression("but the innodb_page_size start-up parameter is");
+call mtr.add_suppression("Database page corruption");
+call mtr.add_suppression("Wrong server version");
+--enable_query_log
+
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+let MYSQLD_DATADIR=`select @@datadir`;
+
+SHOW VARIABLES LIKE 'innodb_doublewrite';
+SHOW VARIABLES LIKE 'innodb_fil_make_page_dirty_debug';
+SHOW VARIABLES LIKE 'innodb_saved_page_number_debug';
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is full of zeroes.
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
+WHERE name = 'test/t1' INTO @space_id;
+
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+SET GLOBAL innodb_doublewrite=DETECT_ONLY;
+SELECT @@innodb_doublewrite;
+
+INSERT INTO t1 VALUES(7, repeat('.',12));
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the first page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 0;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Make the first page (page_no=0) of the user tablespace
+--echo # full of zeroes.
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM="0"
+--let ALL_ZEROES=1
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is corrupted.
+
+SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the first page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 0;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Corrupt the first page (page_no=0) of the user tablespace.
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM="0"
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of user
+--echo # tablespace is full of zeroes.
+
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the 2nd page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 1;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Make the 2nd page (page_no=1) of the tablespace all zeroes.
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM=1
+--let ALL_ZEROES=1
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of user
+--echo # tablespace is corrupted.
+
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' into @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET GLOBAL innodb_checkpoint_disabled=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the 2nd page dirty for table t1
+SET GLOBAL innodb_saved_page_number_debug = 1;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
+--let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
+--let PAGE_NUM=1
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of
+--echo # system tablespace is full of zeroes.
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the first page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 0;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Make the first page (page_no=0) of the system tablespace
+--echo # all zeroes.
+--let IBD_FILE=$MYSQLD_DATADIR/ibdata1
+--let PAGE_NUM="0"
+--let ALL_ZEROES=1
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of
+--echo # system tablespace is corrupted.
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the first page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 0;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Corrupt the first page (page_no=0) of the system tablespace.
+--let IBD_FILE=$MYSQLD_DATADIR/ibdata1
+--let PAGE_NUM="0"
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of
+--echo # system tablespace is full of zeroes.
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the second page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 1;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Make the 2nd page (page_no=1) of the system tablespace
+--echo # all zeroes.
+--let IBD_FILE=$MYSQLD_DATADIR/ibdata1
+--let PAGE_NUM=1
+--let ALL_ZEROES=1
+--source corrupt_page.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of
+--echo # system tablespace is corrupted.
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
+SELECT @@innodb_doublewrite;
+SET GLOBAL innodb_doublewrite=ON;
+SELECT @@innodb_doublewrite;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+--echo # Make the second page dirty for system tablespace
+SET GLOBAL innodb_saved_page_number_debug = 1;
+
+# Set the page dirty and force a flush to disk
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Make the 2nd page (page_no=1) of the system tablespace
+--echo # all zeroes.
+--let IBD_FILE=$MYSQLD_DATADIR/ibdata1
+--let PAGE_NUM=1
+--source corrupt_page.inc
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+
+DROP TABLE t1;
+
+

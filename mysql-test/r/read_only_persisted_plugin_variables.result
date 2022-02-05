@@ -28,7 +28,6 @@ set @@persist_only.innodb_api_enable_mdl=0;
 set @@persist_only.innodb_autoinc_lock_mode=1;
 set @@persist_only.innodb_buffer_pool_chunk_size=134217728;
 set @@persist_only.innodb_buffer_pool_instances=1;
-set @@persist_only.innodb_doublewrite=1;
 set @@persist_only.innodb_force_recovery=0;
 set @@persist_only.innodb_ft_cache_size=16777216;
 set @@persist_only.innodb_ft_max_token_size=84;
@@ -112,7 +111,7 @@ set @@persist_only.report_user=NULL;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-96
+95
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
@@ -131,7 +130,6 @@ innodb_api_enable_mdl	0
 innodb_autoinc_lock_mode	1
 innodb_buffer_pool_chunk_size	134217728
 innodb_buffer_pool_instances	1
-innodb_doublewrite	1
 innodb_force_recovery	0
 innodb_ft_cache_size	16777216
 innodb_ft_max_token_size	84
@@ -229,7 +227,6 @@ innodb_api_enable_mdl
 innodb_autoinc_lock_mode
 innodb_buffer_pool_chunk_size
 innodb_buffer_pool_instances
-innodb_doublewrite
 innodb_force_recovery
 innodb_ft_cache_size
 innodb_ft_max_token_size

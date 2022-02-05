@@ -1,0 +1,7 @@
+--source include/not_valgrind.inc
+--source include/not_asan.inc
+--source include/have_debug.inc
+
+--let $O_DIRECT=0
+--source ../include/doublewrite_reduced.inc
+

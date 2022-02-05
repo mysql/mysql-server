@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buf_h
 #define buf0buf_h
 
-#include "buf0dblwr.h"
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"

@@ -9733,11 +9733,16 @@ ER_IF_NOT_EXISTS_UNSUPPORTED_TRG_EXISTS_ON_DIFFERENT_TABLE
 ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION
   eng "This function '%-.192s' has the same name as a native function. The 'IF NOT EXISTS' clause is not supported while creating a loadable function with the same name as a native function."
 
+ER_REDUCED_DBLWR_FILE_CORRUPTED
+  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
 #
-
 
 ################################################################################
 # Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use

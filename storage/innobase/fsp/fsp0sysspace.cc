@@ -536,6 +536,12 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
     return (err);
   }
 
+  err = recv_sys->dblwr->reduced_load();
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
   /* Check the contents of the first page of the first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
     err = it->validate_first_page(it->m_space_id, flushed_lsn, false);
@@ -850,11 +856,11 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     the tablespace should be on the same medium. */
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (dblwr::enabled) {
+      if (dblwr::is_enabled()) {
         ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
                                    " disabling the double write buffer";
 
-        dblwr::enabled = false;
+        dblwr::g_mode = dblwr::Mode::OFF;
       }
 
       it->m_atomic_write = true;

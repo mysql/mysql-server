@@ -72,7 +72,7 @@ let $cleanup= drop TABLE t1,t2,t3,t4;
 
 --echo # Restart mysqld without keyring plugin
 
---error 1
+--error 1,2
 --exec $MYSQLD_CMD
 
 --echo # Restart mysqld with keyring plugin
