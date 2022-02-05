@@ -201,7 +201,7 @@ TEST_P(StrnxfrmTest, ModifiedUnrolledSrcSrc) {
 }
 
 TEST(StrXfrmTest, SimpleUTF8Correctness) {
-  CHARSET_INFO *cs = init_collation("utf8_bin");
+  CHARSET_INFO *cs = init_collation("utf8mb3_bin");
 
   const char *src = "abc æøå 日本語";
   unsigned char buf[32];
@@ -501,7 +501,7 @@ TEST(StrXfrmTest, NullPointer) {
 static void BM_SimpleUTF8(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  CHARSET_INFO *cs = init_collation("utf8_bin");
+  CHARSET_INFO *cs = init_collation("utf8mb3_bin");
 
   static constexpr int key_cols = 12;
   static constexpr int set_key_cols = 6;  // Only the first half is set.
@@ -2538,7 +2538,7 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf32_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
       {"utf32_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf32_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8mb3_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
       {"utf8mb3_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb3_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
       {"utf8mb3_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -542,9 +542,6 @@ class Column_impl : public Entity_object_impl, public Column {
 
   Object_id m_collation_id;
   bool m_is_explicit_collation;
-
-  // TODO-WIKI21 should the columns.name be defined utf8_general_cs ?
-  // instead of utf8_general_ci.
 
   enum_column_key m_column_key;
 

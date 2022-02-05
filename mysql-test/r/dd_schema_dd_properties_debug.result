@@ -30,7 +30,7 @@ catalogs=
       elem2=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=3
-      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_NAME
             pos=1
       elem4=def=options MEDIUMTEXT
@@ -366,10 +366,10 @@ check_constraints=
       elem5=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=7
-      elem6=def=schema_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem6=def=schema_name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_SCHEMA_NAME
             pos=3
-      elem7=def=table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem7=def=table_name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_TABLE_NAME
             pos=4
     foreign_keys=
@@ -1012,13 +1012,13 @@ foreign_key_column_usage=
       elem4=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=11
-      elem5=def=referenced_table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem5=def=referenced_table_name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_REFERENCED_TABLE
             pos=10
-      elem6=def=referenced_table_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem6=def=referenced_table_catalog VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_REFERENCED_TABLE_CATALOG
             pos=8
-      elem7=def=referenced_table_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem7=def=referenced_table_schema VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_REFERENCED_TABLE_SCHEMA
             pos=9
       elem8=def=schema_id BIGINT UNSIGNED NOT NULL
@@ -2260,7 +2260,7 @@ schemata=
       elem5=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=5
-      elem6=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem6=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_NAME
             pos=2
       elem7=def=options MEDIUMTEXT
@@ -2777,7 +2777,7 @@ tables=
       elem11=def=mysql_version_id INT UNSIGNED NOT NULL
             lbl=FIELD_MYSQL_VERSION_ID
             pos=5
-      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_NAME
             pos=2
       elem13=def=options MEDIUMTEXT
@@ -3096,7 +3096,7 @@ tablespaces=
       elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem4=def=name VARCHAR(268) NOT NULL COLLATE utf8_bin
+      elem4=def=name VARCHAR(268) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_NAME
             pos=1
       elem5=def=options MEDIUMTEXT
@@ -3325,13 +3325,13 @@ view_routine_usage=
   data=
   def=
     fields=
-      elem0=def=routine_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem0=def=routine_catalog VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_ROUTINE_CATALOG
             pos=1
       elem1=def=routine_name VARCHAR(64) NOT NULL COLLATE  utf8_general_ci
             lbl=FIELD_ROUTINE_NAME
             pos=3
-      elem2=def=routine_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem2=def=routine_schema VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_ROUTINE_SCHEMA
             pos=2
       elem3=def=view_id BIGINT UNSIGNED NOT NULL
@@ -3390,13 +3390,13 @@ view_table_usage=
   data=
   def=
     fields=
-      elem0=def=table_catalog VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem0=def=table_catalog VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_TABLE_CATALOG
             pos=1
-      elem1=def=table_name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem1=def=table_name VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_TABLE_NAME
             pos=3
-      elem2=def=table_schema VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem2=def=table_schema VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_TABLE_SCHEMA
             pos=2
       elem3=def=view_id BIGINT UNSIGNED NOT NULL

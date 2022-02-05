@@ -40,7 +40,7 @@ SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
   `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
-  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8mb3_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Update_priv` enum('N','Y') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
@@ -78,8 +78,8 @@ user	CREATE TABLE `user` (
   `max_updates` int unsigned NOT NULL DEFAULT '0',
   `max_connections` int unsigned NOT NULL DEFAULT '0',
   `max_user_connections` int unsigned NOT NULL DEFAULT '0',
-  `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'caching_sha2_password',
-  `authentication_string` text COLLATE utf8_bin,
+  `plugin` char(64) COLLATE utf8mb3_bin NOT NULL DEFAULT 'caching_sha2_password',
+  `authentication_string` text COLLATE utf8mb3_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `password_last_changed` timestamp NULL DEFAULT NULL,
   `password_lifetime` smallint unsigned DEFAULT NULL,
@@ -91,31 +91,31 @@ user	CREATE TABLE `user` (
   `Password_require_current` enum('N','Y') CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
 Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
-  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `database_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8mb3_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `n_rows` bigint unsigned NOT NULL,
   `clustered_index_size` bigint unsigned NOT NULL,
   `sum_of_other_index_sizes` bigint unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.innodb_index_stats;
 Table	Create Table
 innodb_index_stats	CREATE TABLE `innodb_index_stats` (
-  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
-  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `database_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8mb3_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `stat_value` bigint unsigned NOT NULL,
   `sample_size` bigint unsigned DEFAULT NULL,
-  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  `stat_description` varchar(1024) COLLATE utf8mb3_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS col
 JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name

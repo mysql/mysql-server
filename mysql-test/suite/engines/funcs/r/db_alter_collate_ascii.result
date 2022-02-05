@@ -170,6 +170,7 @@ utf32_turkish_ci	utf32	169		#	#	PAD SPACE
 utf32_unicode_520_ci	utf32	182		#	#	PAD SPACE
 utf32_unicode_ci	utf32	160		#	#	PAD SPACE
 utf32_vietnamese_ci	utf32	183		#	#	PAD SPACE
+utf8mb3_bin	utf8mb3	83		#	#	PAD SPACE
 utf8mb3_croatian_ci	utf8mb3	213		#	#	PAD SPACE
 utf8mb3_czech_ci	utf8mb3	202		#	#	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		#	#	PAD SPACE
@@ -283,7 +284,6 @@ utf8mb4_vietnamese_ci	utf8mb4	247		#	#	PAD SPACE
 utf8mb4_vi_0900_ai_ci	utf8mb4	277		#	#	NO PAD
 utf8mb4_vi_0900_as_cs	utf8mb4	300		#	#	NO PAD
 utf8mb4_zh_0900_as_cs	utf8mb4	308		#	#	NO PAD
-utf8_bin	utf8mb3	83		#	#	PAD SPACE
 utf8_general_ci	utf8mb3	33	Yes	#	#	PAD SPACE
 utf8_general_mysql500_ci	utf8mb3	223		#	#	PAD SPACE
 utf8_tolower_ci	utf8mb3	76		#	#	PAD SPACE

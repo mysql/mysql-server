@@ -322,10 +322,10 @@ SELECT @@session.collation_connection;
 utf8_general_ci
 SET @@session.collation_connection = utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
-utf8_bin
+utf8mb3_bin
 SET @@session.collation_connection = utf8_unicode_ci;
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -955,10 +955,10 @@ SELECT @@global.collation_connection;
 utf8_general_ci
 SET @@global.collation_connection = utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
-utf8_bin
+utf8mb3_bin
 SET @@global.collation_connection = utf8_unicode_ci;
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.

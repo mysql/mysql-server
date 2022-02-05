@@ -48,14 +48,13 @@ static inline ulint dtype_get_charset_coll(
  @return true if a subset of UTF-8 */
 static inline bool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
 {
-  /* These codes have been copied from strings/ctype-extra.c
-  and strings/ctype-utf8.c. */
+  /* These codes have been copied from strings/ctype-extra.cc
+  and strings/ctype-utf8.cc. */
   switch (dtype_get_charset_coll(prtype)) {
-    case 11:  /* ascii_general_ci */
-    case 65:  /* ascii_bin */
-    case 33:  /* utf8_general_ci */
-    case 83:  /* utf8_bin */
-    case 254: /* utf8_general_cs */
+    case 11: /* ascii_general_ci */
+    case 65: /* ascii_bin */
+    case 33: /* utf8_general_ci */
+    case 83: /* utf8mb3_bin */
       return true;
   }
 

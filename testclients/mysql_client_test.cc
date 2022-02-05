@@ -18307,7 +18307,7 @@ static void test_bug12337762() {
                    "create table charset_tab("
                    "txt1 varchar(32) character set Latin1,"
                    "txt2 varchar(32) character set Latin1 collate latin1_bin,"
-                   "txt3 varchar(32) character set utf8 collate utf8_bin"
+                   "txt3 varchar(32) character set utf8 collate utf8mb3_bin"
                    ")");
 
   DIE_UNLESS(rc == 0);
@@ -20573,7 +20573,7 @@ static void test_bug25701141() {
                    "pretty CHAR(20) DEFAULT NULL,"
                    "CONSTRAINT UNIQUE KEY unique_serial (serial) USING HASH,"
                    "INDEX pretty_index USING HASH (pretty)"
-                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8_bin");
+                   ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8mb3_bin");
   myquery(rc);
 
   my_stpcpy(query, "INSERT IGNORE INTO t1 SET `serial`=?, `pretty`=?");

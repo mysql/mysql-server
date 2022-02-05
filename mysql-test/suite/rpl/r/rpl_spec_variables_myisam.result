@@ -73,10 +73,10 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_server=utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET @@session.collation_server=utf8_bin;
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 [On Master]
 CREATE SCHEMA s1;
 SHOW CREATE SCHEMA s1;
@@ -95,7 +95,7 @@ include/sync_slave_sql_with_master.inc
 CREATE SCHEMA s2;
 SHOW CREATE SCHEMA s2;
 Database	Create Database
-s2	CREATE DATABASE `s2` /*!40100 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+s2	CREATE DATABASE `s2` /*!40100 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
 CREATE TABLE s1.t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 CREATE TABLE s2.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE s1.t1;
@@ -116,9 +116,9 @@ SHOW CREATE TABLE s2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  `b` varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 DROP TABLE s2.t1;
 DROP SCHEMA s2;
 SET @@global.collation_server=latin1_swedish_ci;

@@ -5103,7 +5103,7 @@ pad:
   Store sorting weights using 2 bytes per character.
 
   This function is shared between
-  - utf8mb3_general_ci, utf8_bin, ucs2_general_ci, ucs2_bin
+  - utf8mb3_general_ci, utf8mb3_bin, ucs2_general_ci, ucs2_bin
     which support BMP only (U+0000..U+FFFF).
   - utf8mb4_general_ci, utf16_general_ci, utf32_general_ci,
     which map all supplementary characters to weight 0xFFFD.
@@ -5890,7 +5890,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     0, /* number       */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8mb3",           /* cs name      */
-    "utf8_bin",          /* m_coll_name  */
+    "utf8mb3_bin",       /* m_coll_name  */
     "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */

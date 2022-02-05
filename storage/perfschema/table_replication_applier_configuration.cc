@@ -55,7 +55,8 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
     "  DESIRED_DELAY INTEGER not null,\n"
-    "  PRIVILEGE_CHECKS_USER TEXT CHARACTER SET utf8mb3 COLLATE utf8_bin null"
+    "  PRIVILEGE_CHECKS_USER TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin "
+    "null"
     "    COMMENT 'User name for the security context of the applier.',\n"
     "  REQUIRE_ROW_FORMAT ENUM('YES', 'NO') not null COMMENT "
     "    'Indicates whether the channel shall only accept row based events.',\n"
@@ -71,7 +72,7 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     " anonymous transactions will be assigned a newly generated GTID based on"
     " Assign_gtids_to_anonymous_transactions_value',\n"
     "  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE TEXT CHARACTER SET utf8mb3 "
-    "COLLATE utf8_bin null "
+    "COLLATE utf8mb3_bin null "
     "    COMMENT 'Indicates the UUID used while generating GTIDs for anonymous"
     " transactions',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",

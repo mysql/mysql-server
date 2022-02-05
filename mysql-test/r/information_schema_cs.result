@@ -212,7 +212,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c	varchar(64)	utf8_bin	NO		NULL		select,insert,update,references	
+c	varchar(64)	utf8mb3_bin	NO		NULL		select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
@@ -1549,7 +1549,7 @@ information_schema
 SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 TABLE_COLLATION
-utf8_bin
+utf8mb3_bin
 select * from information_schema.columns where table_schema = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
@@ -2294,8 +2294,8 @@ AND t.table_name = 't1' limit 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_bin NOT NULL,
-  `TABLE_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_bin NOT NULL,
+  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `TABLE_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `COLUMN_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_tolower_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
@@ -2980,7 +2980,6 @@ SELECT * FROM information_schema.COLLATIONS
 WHERE COLLATION_NAME LIKE "utf8\_%"
 ORDER BY collation_name;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
-utf8_bin	utf8mb3	83		Yes	1	PAD SPACE
 utf8_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
 utf8_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
 utf8_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
@@ -2988,6 +2987,7 @@ SELECT * FROM information_schema.COLLATIONS
 WHERE COLLATION_NAME LIKE "utf8mb3\_%"
 ORDER BY collation_name;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
+utf8mb3_bin	utf8mb3	83		Yes	1	PAD SPACE
 utf8mb3_croatian_ci	utf8mb3	213		Yes	8	PAD SPACE
 utf8mb3_czech_ci	utf8mb3	202		Yes	8	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		Yes	8	PAD SPACE
@@ -3014,12 +3014,12 @@ utf8mb3_unicode_ci	utf8mb3	192		Yes	8	PAD SPACE
 utf8mb3_vietnamese_ci	utf8mb3	215		Yes	8	PAD SPACE
 SHOW COLLATION LIKE 'utf8\_%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_bin	utf8mb3	83		Yes	1	PAD SPACE
 utf8_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
 utf8_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
 utf8_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
 SHOW COLLATION LIKE 'utf8mb3\_%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8mb3_bin	utf8mb3	83		Yes	1	PAD SPACE
 utf8mb3_croatian_ci	utf8mb3	213		Yes	8	PAD SPACE
 utf8mb3_czech_ci	utf8mb3	202		Yes	8	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		Yes	8	PAD SPACE
