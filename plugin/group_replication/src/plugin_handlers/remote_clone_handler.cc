@@ -99,9 +99,9 @@ int Remote_clone_handler::after_view_change(
   return 0;
 }
 
-int Remote_clone_handler::after_primary_election(std::string, bool,
-                                                 enum_primary_election_mode,
-                                                 int) {
+int Remote_clone_handler::after_primary_election(
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 

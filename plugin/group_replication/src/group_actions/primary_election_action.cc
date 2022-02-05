@@ -45,8 +45,6 @@ Primary_election_action::Primary_election_action(
       is_primary(false),
       invoking_thread_id(thread_id),
       is_primary_election_invoked(false),
-      is_primary_elected(false),
-      primary_changed(false),
       is_transaction_queue_applied(false),
       m_transaction_wait_timeout(transaction_wait_timeout_arg) {
   mysql_mutex_init(key_GR_LOCK_primary_election_action_phase, &phase_lock,
@@ -205,7 +203,7 @@ int Primary_election_action::process_action_message(
     delete all_members_info;
   }
 
-  is_primary_elected = false;
+  m_execution_status = PRIMARY_ELECTION_INIT;
   is_transaction_queue_applied = false;
   change_action_phase(PRIMARY_VALIDATION_PHASE);
   group_events_observation_manager->register_group_event_observer(this);
@@ -325,7 +323,8 @@ Primary_election_action::execute_action(
   stage_handler->set_stage(stage_key, __FILE__, __LINE__, 2, 0);
 
   mysql_mutex_lock(&notification_lock);
-  while (!is_primary_elected && !single_election_action_aborted) {
+  while (PRIMARY_ELECTION_INIT == m_execution_status &&
+         !single_election_action_aborted) {
     DBUG_PRINT("sleep", ("Waiting for the primary to be elected."));
     mysql_cond_wait(&notification_cond, &notification_lock);
   }
@@ -333,7 +332,8 @@ Primary_election_action::execute_action(
 
   stage_handler->set_completed_work(1);
 
-  if (!primary_changed) {
+  if (PRIMARY_ELECTION_END_ERROR == m_execution_status ||
+      PRIMARY_ELECTION_INIT == m_execution_status) {
     goto end;
   }
 
@@ -647,7 +647,8 @@ int Primary_election_action::after_view_change(
 }
 
 int Primary_election_action::after_primary_election(
-    std::string elected_uuid, bool did_primary_change,
+    std::string elected_uuid,
+    enum_primary_election_primary_change_status primary_change_status,
     enum_primary_election_mode primary_election_mode, int error) {
   // We are leaving the group but we can speed up the process
   if (error == PRIMARY_ELECTION_PROCESS_ERROR) {
@@ -666,15 +667,16 @@ int Primary_election_action::after_primary_election(
     mysql_mutex_unlock(&notification_lock);
     /* purecov: end */
   }
-
-  if (did_primary_change || (!appointed_primary_uuid.empty() &&
-                             elected_uuid == appointed_primary_uuid)) {
+  if (enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE ==
+          primary_change_status ||
+      enum_primary_election_primary_change_status::
+              PRIMARY_DID_NOT_CHANGE_PRIMARY_LEFT_FORCE_ELECTION_END ==
+          primary_change_status) {
     mysql_mutex_lock(&notification_lock);
 
-    is_primary_elected = true;
+    m_execution_status = PRIMARY_ELECTION_END_ELECTION;
     // Set this also to true for election invoked on member leaves
     is_primary_election_invoked = true;
-    primary_changed = did_primary_change;
 
     /*
       Note that for all elections types besides DEAD_OLD_PRIMARY this observer

@@ -51,6 +51,13 @@ class Primary_election_action : public Group_action, Group_event_observer {
     PRIMARY_ELECTED_PHASE = 4        //  Primary was elected/group in read mode
   };
 
+  /** Enum for the phases on the primary action */
+  enum enum_primary_election_status {
+    PRIMARY_ELECTION_INIT = 0,          // Initiated
+    PRIMARY_ELECTION_END_ELECTION = 1,  // End the election
+    PRIMARY_ELECTION_END_ERROR = 2,     // Error in election
+  };
+
   /**
     Create a new primary election action
   */
@@ -146,9 +153,10 @@ class Primary_election_action : public Group_action, Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
@@ -196,10 +204,8 @@ class Primary_election_action : public Group_action, Group_event_observer {
 
   /** Is the primary election invoked*/
   bool is_primary_election_invoked;
-  /** Is the primary elected*/
-  bool is_primary_elected;
-  /** Did the primary change*/
-  bool primary_changed;
+  /** primary election status*/
+  enum_primary_election_status m_execution_status{PRIMARY_ELECTION_INIT};
   /** Is the transaction back log consumed*/
   bool is_transaction_queue_applied;
 
