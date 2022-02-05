@@ -314,7 +314,8 @@ int Multi_primary_migration_action::after_view_change(
 }
 
 int Multi_primary_migration_action::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0; /* purecov: inspected */
 }
 
