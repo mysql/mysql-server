@@ -122,12 +122,17 @@ static MYSQL_THDVAR_ULONG(remote_signal_id, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_ULONG(remote_server_id, PLUGIN_VAR_RQCMDARG,
                           "Server id of server used in last remote query execution",
                           nullptr, nullptr, 0, 0, LONG_LONG_MAX, 0);                         
+static MYSQL_THDVAR_ULONG(remote_query_timeout, PLUGIN_VAR_RQCMDARG,
+                          "Timeout value for remote query execution",
+                          nullptr, nullptr, 86400, 0, LONG_LONG_MAX, 0);   
+
 SYS_VAR* plugin_system_variables[] = {
   MYSQL_SYSVAR(parallel_query),
   MYSQL_SYSVAR(reorder_outer),
   MYSQL_SYSVAR(extended_syntax),
   MYSQL_SYSVAR(remote_signal_id),
   MYSQL_SYSVAR(remote_server_id),
+  MYSQL_SYSVAR(remote_query_timeout),
   NULL
 };
 
@@ -874,6 +879,7 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
       std::string servername = get_remote_server(tokens);
       // get rid of the leading @
       servername = std::string(servername.c_str()+1);
+      
       MYSQL *local = mysql_init(NULL);
       /*FIXME HACK
        * This is necessary in 8.0.28 on AWS outside of debug mode.  Instead of using mysql_init twice
@@ -886,6 +892,11 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
 	//	                                           MYF(MY_WME | MY_ZEROFILL));
       //memcpy(remote, local, sizeof(MYSQL));
       MYSQL *remote = mysql_init(NULL);
+      int timeout=THDVAR(current_thd, remote_query_timeout);
+      mysql_options(local, MYSQL_OPT_READ_TIMEOUT, &timeout);
+      mysql_options(local, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
+      mysql_options(remote, MYSQL_OPT_READ_TIMEOUT, &timeout);
+      mysql_options(remote, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
       MYSQL_RES *result;
       MYSQL_ROW row = NULL;
       if (local == NULL) {
