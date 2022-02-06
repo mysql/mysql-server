@@ -587,9 +587,28 @@ EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
 # Demonstrates EXPLAIN ANALYZE on a DELETE statement.
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
-# Should EXPLAIN ANALYZE DELETE actually delete rows? Currently, it
-# does not. (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table
-# either.)
+# EXPLAIN ANALYZE DELETE should delete rows. Currently, it does not.
+# (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table either.)
+# Tracked in bug#33962407.
+--sorted_result
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # WL#14672: Enable the hypergraph optimizer for UPDATE
+--echo #
+
+CREATE TABLE t(x INTEGER, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+ANALYZE TABLE t;
+
+# Demonstrates EXPLAIN ANALYZE on an UPDATE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
+# EXPLAIN ANALYZE UPDATE should update rows. Currently, it does not.
+# (And EXPLAIN ANALYZE INSERT/DELETE don't modify the table either.)
+# Tracked in bug#33962407.
 --sorted_result
 SELECT * FROM t;
 

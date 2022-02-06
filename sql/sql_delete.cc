@@ -1044,9 +1044,9 @@ bool DeleteRowsIterator::Init() {
 bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
   DBUG_TRACE;
 
-  // For now, don't actually delete anything in EXPLAIN ANALYZE. (Maybe we
-  // should have done the deletions. If so, INSERT and UPDATE should also be
-  // changed to have side effects when running under EXPLAIN ANALYZE.)
+  // For now, don't actually delete anything in EXPLAIN ANALYZE. (If we enable
+  // it, INSERT and UPDATE should also be changed to have side effects when
+  // running under EXPLAIN ANALYZE.)
   if (thd()->lex->is_explain_analyze) {
     return false;
   }

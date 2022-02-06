@@ -979,6 +979,28 @@ x
 3
 DROP TABLE t;
 #
+# WL#14672: Enable the hypergraph optimizer for UPDATE
+#
+CREATE TABLE t(x INTEGER, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
+EXPLAIN
+-> Update t1 (buffered)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Nested loop inner join  (cost=2.20 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Filter: (t2.x = t1.x)  (cost=0.28 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=3)
+            -> Table scan on t2  (cost=0.28 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=3)
+
+SELECT * FROM t;
+x	y
+1	2
+2	3
+3	4
+DROP TABLE t;
+#
 # Bug#33905399 Missing profiling data for CTE
 #
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);

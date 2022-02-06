@@ -30,12 +30,14 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <utility>
 
 #include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -63,6 +65,7 @@
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/iterators/timing_iterator.h"
+#include "sql/iterators/update_rows_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
@@ -1884,7 +1887,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   if (thd->is_error()) return true;
 
   /* Allocate copy fields */
-  max_fields = 0;
+  size_t max_fields = 0;
   for (uint i = 0; i < update_table_count; i++)
     max_fields = std::max(max_fields, size_t(fields_for_table[i]->size() +
                                              select->leaf_table_count));
@@ -2340,7 +2343,6 @@ bool Query_result_update::optimize() {
 bool Query_result_update::start_execution(THD *thd) {
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
   thd->num_truncated_fields = 0L;
-  update_completed = false;
   return false;
 }
 
@@ -2366,31 +2368,37 @@ void Query_result_update::cleanup(THD *thd) {
   }
   tmp_table_param = nullptr;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;  // Restore this setting
-  assert(trans_safe || updated_rows == 0 ||
-         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   if (main_table != nullptr && main_table->is_created()) {
     main_table->file->try_semi_consistent_read(false);
   }
   main_table = nullptr;
   // Reset state and statistics members:
-  trans_safe = true;
-  transactional_tables = false;
-  error_handled = false;
-  found_rows = 0;
-  updated_rows = 0;
   unupdated_check_opt_tables.clear();
 }
 
-bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
+bool Query_result_update::send_data(THD *, const mem_root_deque<Item *> &) {
   DBUG_TRACE;
-  if (main_table->file->was_semi_consistent_read()) {
+  assert(false);  // UPDATE does not return any data.
+  return false;
+}
+
+bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
+    bool *trans_safe, bool *transactional_tables) {
+  if (m_outermost_table->file->was_semi_consistent_read()) {
     // This will let the nested-loop iterator repeat the read of the same row if
     // it still exists.
     return false;
   }
 
-  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
+  // For now, don't actually update anything in EXPLAIN ANALYZE. (If we enable
+  // it, INSERT and DELETE should also be changed to have side effects when
+  // running under EXPLAIN ANALYZE.)
+  if (thd()->lex->is_explain_analyze) {
+    return false;
+  }
+
+  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     TABLE *table = cur_table->table;
     uint offset = cur_table->shared;
@@ -2408,21 +2416,21 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
     */
     if (table->has_null_row() || table->has_updated_row()) continue;
 
-    if (table == table_to_update) {
+    if (table == m_immediate_table) {
       table->clear_partial_update_diffs();
       table->set_updated_row();
       store_record(table, record[1]);
       bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
-              thd, update_operations[offset], *fields_for_table[offset],
-              *values_for_table[offset], table, TRG_EVENT_UPDATE, 0, false,
+              thd(), m_update_operations[offset], *m_fields_for_table[offset],
+              *m_values_for_table[offset], table, TRG_EVENT_UPDATE, 0, false,
               &is_row_changed))
         return true;
 
-      found_rows++;
+      ++m_found_rows;
       int error = 0;
       if (is_row_changed) {
-        if ((error = cur_table->view_check_option(thd)) != VIEW_CHECK_OK) {
+        if ((error = cur_table->view_check_option(thd())) != VIEW_CHECK_OK) {
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
@@ -2441,61 +2449,63 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
           valid and is probably going to be confusing for users. So it makes
           sense to stick to current behavior.
         */
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) return true;
+        if (invoke_table_check_constraints(thd(), table)) {
+          if (thd()->is_error()) return true;
           // continue when IGNORE clause is used.
           continue;
         }
 
-        if (!updated_rows++) {
+        if (m_updated_rows == 0) {
           /*
             Inform the main table that we are going to update the table even
             while we may be scanning it.  This will flush the read cache
             if it's used.
           */
-          main_table->file->ha_extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+          m_outermost_table->file->ha_extra(HA_EXTRA_PREPARE_FOR_UPDATE);
         }
+
+        ++m_updated_rows;
         if ((error = table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&
             error != HA_ERR_RECORD_IS_THE_SAME) {
-          updated_rows--;
+          --m_updated_rows;
           myf error_flags = MYF(0);
           if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
 
           table->file->print_error(error, error_flags);
 
           /* Errors could be downgraded to warning by IGNORE */
-          if (thd->is_error()) return true;
+          if (thd()->is_error()) return true;
         } else {
           if (error == HA_ERR_RECORD_IS_THE_SAME) {
             error = 0;
-            updated_rows--;
+            --m_updated_rows;
           }
           /* non-transactional or transactional table got modified   */
           /* either Query_result_update class' flag is raised in its branch */
           if (table->file->has_transactions())
-            transactional_tables = true;
+            *transactional_tables = true;
           else {
-            trans_safe = false;
-            thd->get_transaction()->mark_modified_non_trans_table(
+            *trans_safe = false;
+            thd()->get_transaction()->mark_modified_non_trans_table(
                 Transaction_ctx::STMT);
           }
         }
       }
       if (!error && table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+          table->triggers->process_triggers(thd(), TRG_EVENT_UPDATE,
                                             TRG_ACTION_AFTER, true))
         return true;
     } else {
       int error;
-      TABLE *tmp_table = tmp_tables[offset];
+      TABLE *tmp_table = m_tmp_tables[offset];
       /*
        For updatable VIEW store rowid of the updated table and
        rowids of tables used in the CHECK OPTION condition.
       */
       int field_num = 0;
       StoreRowId(table, tmp_table, field_num++);
-      for (TABLE &tbl : unupdated_check_opt_tables) {
+      for (TABLE &tbl : m_unupdated_check_opt_tables) {
         StoreRowId(&tbl, tmp_table, field_num++);
       }
 
@@ -2505,17 +2515,17 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       */
       if (tmp_table->triggers) {
         for (Field **modified_fields = tmp_table->visible_field_ptr() + 1 +
-                                       unupdated_check_opt_tables.size();
+                                       m_unupdated_check_opt_tables.size();
              *modified_fields; ++modified_fields) {
           (*modified_fields)->set_tmp_nullable();
         }
       }
 
       /* Store regular updated fields in the row. */
-      fill_record(thd, tmp_table,
+      fill_record(thd(), tmp_table,
                   tmp_table->visible_field_ptr() + 1 +
-                      unupdated_check_opt_tables.size(),
-                  *values_for_table[offset], nullptr, nullptr, false);
+                      m_unupdated_check_opt_tables.size(),
+                  *m_values_for_table[offset], nullptr, nullptr, false);
 
       // check if a record exists with the same hash value
       if (!check_unique_constraint(tmp_table))
@@ -2525,62 +2535,20 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE) {
         if (error && (create_ondisk_from_heap(
-                          thd, tmp_table, error, /*insert_last_record=*/true,
+                          thd(), tmp_table, error, /*insert_last_record=*/true,
                           /*ignore_last_dup=*/true, /*is_duplicate=*/nullptr) ||
                       tmp_table->file->ha_index_init(0, false /*sorted*/))) {
-          update_completed = true;
           return true;  // Not a table_is_full error
         }
-        found_rows++;
+        ++m_found_rows;
       }
     }
   }
   return false;
 }
 
-void Query_result_update::abort_result_set(THD *thd) {
-  /* the error was handled or nothing deleted and no side effects return */
-  if (error_handled ||
-      (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT) &&
-       updated_rows == 0))
-    return;
-
-  /*
-    If all tables that has been updated are trans safe then just do rollback.
-    If not attempt to do remaining updates.
-  */
-
-  if (!trans_safe) {
-    assert(
-        thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
-    if (!update_completed && update_table_count > 1) {
-      /* @todo: Add warning here */
-      (void)do_updates(thd);
-    }
-  }
-  if (thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
-    /*
-      The query has to binlog because there's a modified non-transactional table
-      either from the query's list or via a stored routine: bug#13270,23333
-    */
-    if (mysql_bin_log.is_open()) {
-      /*
-        THD::killed status might not have been set ON at time of an error
-        got caught and if happens later the killed error is written
-        into repl event.
-      */
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
-      /* the error of binary logging is ignored */
-      (void)thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
-                              thd->query().length, transactional_tables, false,
-                              false, errcode);
-    }
-  }
-  assert(trans_safe || updated_rows == 0 ||
-         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
-}
-
-bool Query_result_update::do_updates(THD *thd) {
+bool UpdateRowsIterator::DoDelayedUpdates(bool *trans_safe,
+                                          bool *transactional_tables) {
   int local_error = 0;
   ha_rows org_updated;
   TABLE *table, *tmp_table;
@@ -2588,9 +2556,7 @@ bool Query_result_update::do_updates(THD *thd) {
 
   DBUG_TRACE;
 
-  update_completed = true;  // Don't retry this function
-
-  if (found_rows == 0) {
+  if (m_found_rows == 0) {
     /*
       If the binary log is on, we still need to check
       if there are transactional tables involved. If
@@ -2602,27 +2568,29 @@ bool Query_result_update::do_updates(THD *thd) {
       the binary log when the format is STMT or MIXED.
     */
     if (mysql_bin_log.is_open()) {
-      for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
+      for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
            cur_table = cur_table->next_local) {
-        table = cur_table->table;
-        transactional_tables |= table->file->has_transactions();
+        if (cur_table->table->file->has_transactions()) {
+          *transactional_tables = true;
+          break;
+        }
       }
     }
     return false;
   }
 
   // All rows which we will now read must be updated and thus locked:
-  main_table->file->try_semi_consistent_read(false);
+  m_outermost_table->file->try_semi_consistent_read(false);
 
   // If we're updating based on an outer join, the executor may have left some
   // rows in NULL row state. Reset them before we start looking at rows,
   // so that generated fields don't inadvertedly get NULL inputs.
-  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
+  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     cur_table->table->reset_null_row();
   }
 
-  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
+  for (TABLE_LIST *cur_table = m_update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     uint offset = cur_table->shared;
 
@@ -2636,11 +2604,12 @@ bool Query_result_update::do_updates(THD *thd) {
       mode logging).
      */
     if (mysql_bin_log.is_open())
-      transactional_tables |= table->file->has_transactions();
+      *transactional_tables |= table->file->has_transactions();
 
-    if (table == table_to_update) continue;  // Already updated
-    org_updated = updated_rows;
-    tmp_table = tmp_tables[cur_table->shared];
+    if (table == m_immediate_table) continue;  // Already updated
+    org_updated = m_updated_rows;
+    tmp_table = m_tmp_tables[offset];
+    table->file->ha_index_or_rnd_end();
     if ((local_error = table->file->ha_rnd_init(false))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
@@ -2649,7 +2618,8 @@ bool Query_result_update::do_updates(THD *thd) {
       goto err;
     }
 
-    for (TABLE &tbl : unupdated_check_opt_tables) {
+    for (TABLE &tbl : m_unupdated_check_opt_tables) {
+      tbl.file->ha_index_or_rnd_end();
       if (tbl.file->ha_rnd_init(true))
         // No known handler error code present, print_error makes no sense
         goto err;
@@ -2658,10 +2628,10 @@ bool Query_result_update::do_updates(THD *thd) {
     /*
       Setup copy functions to copy fields from temporary table
     */
-    auto field_it = fields_for_table[offset]->begin();
+    auto field_it = m_fields_for_table[offset]->begin();
     Field **field = tmp_table->visible_field_ptr() + 1 +
-                    unupdated_check_opt_tables.size();  // Skip row pointers
-    Copy_field *copy_field_ptr = copy_field, *copy_field_end;
+                    m_unupdated_check_opt_tables.size();  // Skip row pointers
+    Copy_field *copy_field_ptr = m_copy_fields, *copy_field_end;
     for (; *field; field++) {
       Item_field *item = down_cast<Item_field *>(*field_it++);
       (copy_field_ptr++)->set(item->field, *field);
@@ -2679,7 +2649,7 @@ bool Query_result_update::do_updates(THD *thd) {
     }
 
     for (;;) {
-      if (thd->killed && trans_safe)
+      if (thd()->killed && *trans_safe)
         // No known handler error code present, print_error makes no sense
         goto err;
       if ((local_error = tmp_table->file->ha_rnd_next(tmp_table->record[0]))) {
@@ -2696,7 +2666,7 @@ bool Query_result_update::do_updates(THD *thd) {
       /* call ha_rnd_pos() using rowids from temporary table */
       int field_num = 0;
       if (PositionScanOnRow(table, table, tmp_table, field_num++)) goto err;
-      for (TABLE &tbl : unupdated_check_opt_tables) {
+      for (TABLE &tbl : m_unupdated_check_opt_tables) {
         if (PositionScanOnRow(table, &tbl, tmp_table, field_num++)) goto err;
       }
 
@@ -2704,11 +2674,11 @@ bool Query_result_update::do_updates(THD *thd) {
       store_record(table, record[1]);
 
       /* Copy data from temporary table to current table */
-      for (copy_field_ptr = copy_field; copy_field_ptr != copy_field_end;
+      for (copy_field_ptr = m_copy_fields; copy_field_ptr != copy_field_end;
            copy_field_ptr++)
         copy_field_ptr->invoke_do_copy();
 
-      if (thd->is_error()) goto err;
+      if (thd()->is_error()) goto err;
 
       // The above didn't update generated columns
       if (table->vfield &&
@@ -2716,7 +2686,7 @@ bool Query_result_update::do_updates(THD *thd) {
         goto err;
 
       if (table->triggers) {
-        bool rc = table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+        bool rc = table->triggers->process_triggers(thd(), TRG_EVENT_UPDATE,
                                                     TRG_ACTION_BEFORE, true);
 
         // Trigger might have changed dependencies of generated columns
@@ -2733,7 +2703,7 @@ bool Query_result_update::do_updates(THD *thd) {
 
         table->triggers->disable_fields_temporary_nullability();
 
-        if (rc || check_record(thd, table->field)) goto err;
+        if (rc || check_record(thd(), table->field)) goto err;
       }
 
       if (!records_are_comparable(table) || compare_records(table)) {
@@ -2745,7 +2715,7 @@ bool Query_result_update::do_updates(THD *thd) {
           are set before before-triggers are called; here, it's the opposite
           order.
         */
-        if (update_operations[offset]->set_function_defaults(table)) {
+        if (m_update_operations[offset]->set_function_defaults(table)) {
           goto err;
         }
         /*
@@ -2754,7 +2724,7 @@ bool Query_result_update::do_updates(THD *thd) {
           the CHECK OPTION.
         */
         int error;
-        if ((error = cur_table->view_check_option(thd)) != VIEW_CHECK_OK) {
+        if ((error = cur_table->view_check_option(thd())) != VIEW_CHECK_OK) {
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
@@ -2774,8 +2744,8 @@ bool Query_result_update::do_updates(THD *thd) {
           probably going to be confusing for users. So it makes sense to stick
           to current behavior.
         */
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) goto err;
+        if (invoke_table_check_constraints(thd(), table)) {
+          if (thd()->is_error()) goto err;
           // continue when IGNORE clause is used.
           continue;
         }
@@ -2783,7 +2753,7 @@ bool Query_result_update::do_updates(THD *thd) {
         local_error =
             table->file->ha_update_row(table->record[1], table->record[0]);
         if (!local_error)
-          updated_rows++;
+          ++m_updated_rows;
         else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
           local_error = 0;
         else {
@@ -2792,26 +2762,26 @@ bool Query_result_update::do_updates(THD *thd) {
 
           table->file->print_error(local_error, error_flags);
           /* Errors could be downgraded to warning by IGNORE */
-          if (thd->is_error()) goto err;
+          if (thd()->is_error()) goto err;
         }
       }
 
       if (!local_error && table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+          table->triggers->process_triggers(thd(), TRG_EVENT_UPDATE,
                                             TRG_ACTION_AFTER, true))
         goto err;
     }
 
-    if (updated_rows != org_updated) {
+    if (m_updated_rows != org_updated) {
       if (!table->file->has_transactions()) {
-        trans_safe = false;  // Can't do safe rollback
-        thd->get_transaction()->mark_modified_non_trans_table(
+        *trans_safe = false;  // Can't do safe rollback
+        thd()->get_transaction()->mark_modified_non_trans_table(
             Transaction_ctx::STMT);
       }
     }
     (void)table->file->ha_rnd_end();
     (void)tmp_table->file->ha_rnd_end();
-    for (TABLE &tbl : unupdated_check_opt_tables) {
+    for (TABLE &tbl : m_unupdated_check_opt_tables) {
       tbl.file->ha_rnd_end();
     }
   }
@@ -2820,40 +2790,64 @@ bool Query_result_update::do_updates(THD *thd) {
 err:
   if (table->file->inited) (void)table->file->ha_rnd_end();
   if (tmp_table->file->inited) (void)tmp_table->file->ha_rnd_end();
-  for (TABLE &tbl : unupdated_check_opt_tables) {
+  for (TABLE &tbl : m_unupdated_check_opt_tables) {
     if (tbl.file->inited) (void)tbl.file->ha_rnd_end();
   }
 
-  if (updated_rows != org_updated) {
+  if (m_updated_rows != org_updated) {
     if (table->file->has_transactions())
-      transactional_tables = true;
+      *transactional_tables = true;
     else {
-      trans_safe = false;
-      thd->get_transaction()->mark_modified_non_trans_table(
+      *trans_safe = false;
+      thd()->get_transaction()->mark_modified_non_trans_table(
           Transaction_ctx::STMT);
     }
   }
   return true;
 }
 
-bool Query_result_update::send_eof(THD *thd) {
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  ulonglong id;
-  THD::killed_state killed_status = THD::NOT_KILLED;
-  DBUG_TRACE;
-  THD_STAGE_INFO(thd, stage_updating_reference_tables);
+bool UpdateRowsIterator::Init() { return m_source->Init(); }
 
-  /*
-     Does updates for the last n - 1 tables, returns 0 if ok;
-     error takes into account killed status gained in do_updates()
-  */
-  int local_error = thd->is_error();
-  if (!local_error) local_error = (update_table_count) ? do_updates(thd) : 0;
-  /*
-    if local_error is not set ON until after do_updates() then
-    later carried out killing should not affect binlogging.
-  */
-  killed_status = (local_error == 0) ? THD::NOT_KILLED : thd->killed.load();
+int UpdateRowsIterator::Read() {
+  bool local_error = false;
+  bool trans_safe = true;
+  bool transactional_tables = false;
+
+  // First process all the rows returned by the join. Update immediately the
+  // tables that allow immediate delete, and buffer row IDs for the rows to
+  // delete in the other tables.
+  Diagnostics_area *const diagnostics = thd()->get_stmt_da();
+  while (!local_error) {
+    const int read_error = m_source->Read();
+    DBUG_EXECUTE_IF("bug13822652_1", thd()->killed = THD::KILL_QUERY;);
+    if (read_error > 0 || thd()->is_error()) {
+      local_error = true;
+    } else if (read_error < 0) {
+      break;  // EOF
+    } else if (thd()->killed) {
+      thd()->send_kill_message();
+      return 1;
+    } else {
+      local_error =
+          DoImmediateUpdatesAndBufferRowIds(&trans_safe, &transactional_tables);
+      diagnostics->inc_current_row_for_condition();
+    }
+  }
+
+  const bool error_before_do_delayed_updates = local_error;
+
+  // Do the delayed updates if no error occurred, or if the statement cannot be
+  // rolled back (typically because a non-transactional table has been updated).
+  if (!local_error ||
+      thd()->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
+    THD_STAGE_INFO(thd(), stage_updating_reference_tables);
+    if (DoDelayedUpdates(&trans_safe, &transactional_tables)) {
+      local_error = true;
+    }
+  }
+
+  const THD::killed_state killed_status =
+      !local_error ? THD::NOT_KILLED : thd()->killed.load();
 
   /*
     Write the SQL statement to the binlog if we updated
@@ -2864,38 +2858,43 @@ bool Query_result_update::send_eof(THD *thd) {
     either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  if (local_error == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
+  if (!local_error ||
+      thd()->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
     if (mysql_bin_log.is_open()) {
       int errcode = 0;
-      if (local_error == 0)
-        thd->clear_error();
+      if (!local_error)
+        thd()->clear_error();
       else
-        errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
-      if (thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
-                            thd->query().length, transactional_tables, false,
-                            false, errcode)) {
-        local_error = 1;  // Rollback update
+        errcode = query_error_code(thd(), killed_status == THD::NOT_KILLED);
+      if (thd()->binlog_query(THD::ROW_QUERY_TYPE, thd()->query().str,
+                              thd()->query().length, transactional_tables,
+                              false, false, errcode)) {
+        local_error = true;  // Rollback update
       }
     }
   }
-  assert(trans_safe || updated_rows == 0 ||
-         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(
+      trans_safe || m_updated_rows == 0 ||
+      thd()->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
-  if (local_error != 0)
-    error_handled = true;  // to force early leave from ::send_error()
-
-  if (local_error > 0)  // if the above log write did not fail ...
-  {
-    /* Safety: If we haven't got an error before (can happen in do_updates) */
+  // Safety: If we haven't got an error before (can happen in DoDelayedUpdates).
+  if (local_error && !error_before_do_delayed_updates) {
     my_message(ER_UNKNOWN_ERROR, "An error occurred in multi-table update",
                MYF(0));
-    return true;
   }
 
-  id = thd->arg_of_last_insert_id_function
-           ? thd->first_successful_insert_id_in_prev_stmt
-           : 0;
+  return local_error ? 1 : -1;
+}
+
+bool Query_result_update::send_eof(THD *thd) {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const ulonglong id = thd->arg_of_last_insert_id_function
+                           ? thd->first_successful_insert_id_in_prev_stmt
+                           : 0;
+  const UpdateRowsIterator *iterator =
+      down_cast<UpdateRowsIterator *>(unit->root_iterator()->real_iterator());
+  const ha_rows found_rows = iterator->found_rows();
+  const ha_rows updated_rows = iterator->updated_rows();
 
   snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (long)found_rows,
            (long)updated_rows,
@@ -2985,4 +2984,38 @@ table_map GetImmediateUpdateTable(const JOIN *join, bool single_target) {
 bool FinalizeOptimizationForUpdate(JOIN *join) {
   return down_cast<Query_result_update *>(join->query_block->query_result())
       ->optimize();
+}
+
+UpdateRowsIterator::UpdateRowsIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> source,
+    TABLE *outermost_table, TABLE *immediate_table, TABLE_LIST *update_tables,
+    TABLE **tmp_tables, Copy_field *copy_fields,
+    List<TABLE> unupdated_check_opt_tables, COPY_INFO **update_operations,
+    mem_root_deque<Item *> **fields_for_table,
+    mem_root_deque<Item *> **values_for_table)
+    : RowIterator(thd),
+      m_source(std::move(source)),
+      m_outermost_table(outermost_table),
+      m_immediate_table(immediate_table),
+      m_update_tables(update_tables),
+      m_tmp_tables(tmp_tables),
+      m_copy_fields(copy_fields),
+      m_unupdated_check_opt_tables(unupdated_check_opt_tables),
+      m_update_operations(update_operations),
+      m_fields_for_table(fields_for_table),
+      m_values_for_table(values_for_table) {}
+
+unique_ptr_destroy_only<RowIterator> CreateUpdateRowsIterator(
+    THD *thd, MEM_ROOT *mem_root, JOIN *join,
+    unique_ptr_destroy_only<RowIterator> source) {
+  return down_cast<Query_result_update *>(join->query_block->query_result())
+      ->create_iterator(thd, mem_root, std::move(source));
+}
+
+unique_ptr_destroy_only<RowIterator> Query_result_update::create_iterator(
+    THD *thd, MEM_ROOT *mem_root, unique_ptr_destroy_only<RowIterator> source) {
+  return NewIterator<UpdateRowsIterator>(
+      thd, mem_root, std::move(source), main_table, table_to_update,
+      update_tables, tmp_tables, copy_field, unupdated_check_opt_tables,
+      update_operations, fields_for_table, values_for_table);
 }

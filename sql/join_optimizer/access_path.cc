@@ -1131,10 +1131,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                                eligible_for_batch_mode, &job, &todo);
           continue;
         }
-        // TODO(khatlen): We should have an iterator for the update operation.
-        // For now, return the child. Query_result_update will act as a
-        // substitute for the update rows iterator.
-        iterator = std::move(job.children[0]);
+        iterator = CreateUpdateRowsIterator(thd, mem_root, join,
+                                            std::move(job.children[0]));
         break;
       }
     }
