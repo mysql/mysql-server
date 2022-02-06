@@ -1429,6 +1429,15 @@ static int warp_rewrite_query_notify(
           Item_sum* sum_item = (Item_sum*)field->this_item(); 
           std::string func_name = std::string(sum_item->func_name());
           std::string inner_field = raw_field.substr(func_name.length(), raw_field.length() - func_name.length());
+          if(func_name == "group_concat") {
+            inner_field = inner_field.substr(1,inner_field.length()-2);
+          }
+          if(func_name == "std") {
+            func_name = "stddev_pop";
+          }
+          if(func_name == "var") {
+            func_name = "var_pop";
+          }
           if(sum_item->has_with_distinct()) {
             ll_query += raw_field.substr(func_name.length(), raw_field.length() - func_name.length()) + " AS " + alias;
             coord_query += func_name + "( DISTINCT " + alias + ") AS " + orig_alias;
@@ -1452,20 +1461,20 @@ static int warp_rewrite_query_notify(
             //coord_query += std::string("`expr$") + std::to_string(expr_num) + std::string("`");
             ll_query += raw_field + " AS " + alias;
             coord_query += "SUM(" + alias + ")" + " AS " + orig_alias; 
-            commands += "CALL leapdb.add_expr(@mvid, 'SUM', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+            commands += "CALL leapdb.add_expr(@mvid, 'SUM', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
           } else if (func_name == "count") {
             //ll_query += "COUNT" + raw_field.substr(3,raw_field.length()-3) + " AS " + alias;
             ll_query += raw_field + " AS " + alias;
             coord_query += "SUM(" + alias + ") AS " + orig_alias;
-            commands += "CALL leapdb.add_expr(@mvid, 'COUNT', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+            commands += "CALL leapdb.add_expr(@mvid, 'COUNT', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
           } else if(func_name == "avg") {
             const char* raw_field_ptr = raw_field.c_str() + 4;
             ll_query += "COUNT( " + std::string(raw_field_ptr) + " AS `" + raw_alias + "_cnt` , SUM(" + std::string(raw_field_ptr) + " AS `" + raw_alias + "_sum`";
             coord_query += "SUM(`" + raw_alias + "_cnt`) / SUM(`" + raw_alias + "_sum`)" + " AS " + orig_alias ; 
-            commands += "CALL leapdb.add_expr(@mvid, 'AVG', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+            commands += "CALL leapdb.add_expr(@mvid, 'AVG', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
           } else {
             if(is_mv_create) {
-              commands += "CALL leapdb.add_expr(@mvid, '" + func_name + "', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+              commands += "CALL leapdb.add_expr(@mvid, '" + func_name + "', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
             } else { 
               std::cout << "UNSUPPORTED PARALLEL QUERY SUM_FUNC_TYPE: " << func_name << "\n";
               return 0;
