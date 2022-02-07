@@ -26,6 +26,7 @@
 #include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
+#include <vector>
 #include <kernel_types.h>
 #include "m_ctype.h"
 #include "API.hpp"
@@ -2231,7 +2232,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
       {
         if ((buckets + search)->m_gci == gci)
         {
-          memcpy(buckets + pos, buckets + search, sizeof(Gci_container));
+          buckets[pos] = buckets[search];
           buckets[search].clear();
           if (0)
             printf("moved from %u to %u", search, pos);
@@ -2267,6 +2268,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
 
 newbucket:
   Gci_container* bucket = buckets + pos;
+  bucket->clear();
   bucket->m_gci = gci;
   bucket->m_gcp_complete_rep_count = m_total_buckets;
 
@@ -3325,8 +3327,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     EventBufData_hash::Pos hpos;
     if (use_hash)
     {
-      bucket->m_data_hash.search(hpos, op, ptr);
-      data = hpos.data;
+      data = bucket->m_data_hash.search(hpos, op, ptr);
     }
     
     if (data == 0)
@@ -3364,8 +3365,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         {
           if (use_hash)
           {
-            main_data->m_pkhash = main_hpos.pkhash;
-            bucket->m_data_hash.append(main_hpos, main_data);
+            main_hpos.data = main_data;
+            bucket->m_data_hash.append(main_hpos);
           }
         }
         // link blob event under main event
@@ -3373,8 +3374,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       }
       if (use_hash)
       {
-        data->m_pkhash = hpos.pkhash;
-        bucket->m_data_hash.append(hpos, data);
+        hpos.data = data;
+        bucket->m_data_hash.append(hpos);
       }
 #ifdef VM_TRACE
       op->m_data_count++;
@@ -4608,8 +4609,94 @@ EpochDataList::count_event_data() const
 }
 #endif
 
+/////////////////
+/**
+ * EventBufAllocator is a C++ STL memory allocator.
+ *
+ * It can be used to construct STL container objects which allocate
+ * its memory in the NdbEventBuffer's EventMemoryBlock
+ */
+
+// Allocate from the EventBuffer
+template <class T>
+[[nodiscard]] T*
+EventBufAllocator<T>::allocate(std::size_t n) {
+  if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
+    throw std::bad_array_new_length();
+
+  if (auto p = static_cast<T*>(m_eventBuffer->alloc(n*sizeof(T)))) {
+    //printf("Alloc: %lu bytes\n", sizeof(T)*n);
+    return p;
+  }
+  throw std::bad_alloc();
+}
+
+// We do not deallocate in the EventBuffer, it is eventually garbage collected
+template <class T>
+void
+EventBufAllocator<T>::deallocate(T* p, std::size_t n) noexcept {}
+
+//////////////////
+
 
 // hash table routines
+
+EventBufData_hash::EventBufData_hash(NdbEventBuffer *event_buffer)
+  : m_event_buffer(event_buffer),
+    m_hash(nullptr),
+    m_hash_size(0),
+    m_element_count(0)
+{
+  clear();
+}
+
+void
+EventBufData_hash::clear()
+{
+  m_element_count = 0;
+  m_hash_size = 0;
+  m_hash = nullptr;
+}
+
+void
+EventBufData_hash::append(const Pos hpos)
+{
+  if (m_element_count >= 10*m_hash_size &&
+      m_hash_size < GCI_EVENT_HASH_SIZE_MAX) {
+    expand();
+  }
+  const Uint32 index = hpos.pkhash % m_hash_size;
+  m_hash[index].push_back(hpos);
+  m_element_count++;
+}
+
+void
+EventBufData_hash::expand()
+{
+  const HashBucket *const old_hash = m_hash;
+  const size_t old_hash_size = m_hash_size;
+
+  // Extend hash bucket size 3x
+  if (m_hash_size == 0)
+    m_hash_size = GCI_EVENT_HASH_SIZE_MIN;
+  else
+    m_hash_size *= 3;
+
+  void* memptr = m_event_buffer->alloc(m_hash_size*sizeof(HashBucket));
+  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  m_hash = static_cast<HashBucket *>(memptr);
+  for (size_t i = 0; i < m_hash_size; i++) {
+    new(&m_hash[i]) HashBucket(m_event_buffer);
+  }
+
+  // Insert into extended hash buckets
+  m_element_count = 0;
+  for (size_t i = 0; i < old_hash_size; i++) {
+    for (const Pos item : old_hash[i]) {
+      append(item);
+    }
+  }
+}
 
 // could optimize the all-fixed case
 Uint32
@@ -4719,28 +4806,35 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
   DBUG_RETURN_EVENT(equal);
 }
 
-void
+EventBufData*
 EventBufData_hash::search(Pos& hpos,
                           NdbEventOperationImpl* op,
                           const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::search");
-  Uint32 pkhash = getpkhash(op, ptr);
-  Uint32 index = (op->m_oid ^ pkhash) % GCI_EVENT_HASH_SIZE;
-  EventBufData* data = m_hash[index];
-  while (data != 0)
+  const Uint32 event_id = op->m_oid;
+  const Uint32 pkhash = event_id ^ getpkhash(op, ptr);
+  if (m_hash != nullptr)  // Anything appended at all?
   {
-    if (data->m_event_op == op &&
-        data->m_pkhash == pkhash &&
-        getpkequal(op, data->ptr, ptr))
-      break;
-    data = data->m_next_hash;
+    const Uint32 index = pkhash % m_hash_size;
+    for (const Pos pos : m_hash[index])
+    {
+      if (pos.pkhash == pkhash &&
+          pos.event_id == event_id &&
+          getpkequal(op, pos.data->ptr, ptr))
+      {
+        hpos = pos;
+        DBUG_PRINT_EVENT("info", ("search result=%p", hpos.data));
+        DBUG_RETURN_EVENT(pos.data);
+      }
+    }
   }
-  hpos.index = index;
-  hpos.data = data;
+  hpos.data = nullptr;
   hpos.pkhash = pkhash;
-  DBUG_PRINT_EVENT("info", ("search result=%p", data));
-  DBUG_VOID_RETURN_EVENT;
+  hpos.event_id = event_id;
+  DBUG_PRINT_EVENT("info", ("search result=%p", hpos.data));
+  DBUG_RETURN_EVENT(nullptr);
 }
+
 
 template class Vector<Gci_container_pod>;
