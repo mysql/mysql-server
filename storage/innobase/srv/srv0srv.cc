@@ -606,6 +606,7 @@ static ulint srv_n_system_rows_read_old = 0;
 ulint srv_truncated_status_writes = 0;
 
 bool srv_print_innodb_monitor = false;
+std::atomic_uint32_t srv_innodb_needs_monitoring{0};
 bool srv_print_innodb_lock_monitor = false;
 
 /* Array of English strings describing the current state of an
@@ -615,7 +616,7 @@ const char *srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char *srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 #ifndef UNIV_HOTBACKUP
-static std::chrono::steady_clock::time_point srv_last_monitor_time;
+static std::chrono::steady_clock::time_point srv_monitor_stats_refreshed_at;
 #endif /* !UNIV_HOTBACKUP */
 
 static ib_mutex_t srv_innodb_monitor_mutex;
@@ -1294,7 +1295,7 @@ void srv_boot(void) {
 static void srv_refresh_innodb_monitor_stats(void) {
   mutex_enter(&srv_innodb_monitor_mutex);
 
-  srv_last_monitor_time = std::chrono::steady_clock::now();
+  srv_monitor_stats_refreshed_at = std::chrono::steady_clock::now();
 
   os_aio_refresh_stats();
 
@@ -1354,11 +1355,11 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   same time */
 
   const auto time_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                                current_time - srv_last_monitor_time)
+                                current_time - srv_monitor_stats_refreshed_at)
                                 .count() +
                             0.001;
 
-  srv_last_monitor_time = std::chrono::steady_clock::now();
+  srv_monitor_stats_refreshed_at = current_time;
 
   fputs("\n=====================================\n", file);
 
@@ -1760,35 +1761,17 @@ void srv_export_innodb_status(void) {
 
 /** A thread which prints the info output by various InnoDB monitors. */
 void srv_monitor_thread() {
-  int64_t sig_count;
-  ulint mutex_skipped;
+  uint16_t mutex_skipped{0};
   bool last_srv_print_monitor = srv_print_innodb_monitor;
 
   ut_ad(!srv_read_only_mode);
 
-  auto last_monitor_time = std::chrono::steady_clock::now();
-  srv_last_monitor_time = last_monitor_time;
-
-  mutex_skipped = 0;
-
-loop:
-  /* Wake up every 5 seconds to see if we need to print
-  monitor information or if signaled at shutdown. */
-
-  sig_count = os_event_reset(srv_monitor_event);
-
-  os_event_wait_time_low(srv_monitor_event, std::chrono::seconds{5}, sig_count);
-
-  auto current_time = std::chrono::steady_clock::now();
-
-  auto time_elapsed = current_time - last_monitor_time;
-
-  if (time_elapsed > std::chrono::seconds(15)) {
-    last_monitor_time = std::chrono::steady_clock::now();
-
-    if (srv_print_innodb_monitor) {
-      /* Reset mutex_skipped counter every time srv_print_innodb_monitor
-      changes. This is to ensure we will not be blocked by lock_sys global
+  srv_monitor_stats_refreshed_at = std::chrono::steady_clock::now();
+  const auto sleep_interval = std::chrono::seconds{15};
+  while (0 != os_event_wait_time(srv_monitor_event, sleep_interval)) {
+    if (srv_print_innodb_monitor || 0 < srv_innodb_needs_monitoring.load()) {
+      /* Reset mutex_skipped counter every time the condition above becomes
+      true. This is to ensure we will not be blocked by lock_sys global
       latch for short duration information printing, such as requested by
       sync_array_print_long_waits() */
       if (!last_srv_print_monitor) {
@@ -1807,8 +1790,7 @@ loop:
       last_srv_print_monitor = false;
     }
 
-    /* We don't create the temp files or associated
-    mutexes in read-only-mode */
+    /* We don't create the temp files or associated mutexes in read-only-mode */
 
     if (!srv_read_only_mode && srv_innodb_status) {
       mutex_enter(&srv_monitor_file_mutex);
@@ -1824,11 +1806,16 @@ loop:
       os_file_set_eof(srv_monitor_file);
       mutex_exit(&srv_monitor_file_mutex);
     }
-  }
 
-  if (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
-    goto loop;
+    if (srv_monitor_stats_refreshed_at + std::chrono::minutes{1} <
+        std::chrono::steady_clock::now() + sleep_interval) {
+      /* We refresh InnoDB Monitor values so that averages are printed from at
+      most 60 last seconds and at least 15 seconds*/
+
+      srv_refresh_innodb_monitor_stats();
+    }
   }
+  ut_ad(SRV_SHUTDOWN_CLEANUP <= srv_shutdown_state.load());
 }
 
 /** A thread which prints warnings about semaphore waits which have lasted
@@ -1863,23 +1850,17 @@ loop:
 
   old_lsn = new_lsn;
 
-  if (std::chrono::steady_clock::now() - srv_last_monitor_time >
-      std::chrono::minutes{1}) {
-    /* We refresh InnoDB Monitor values so that averages are
-    printed from at most 60 last seconds */
-
-    srv_refresh_innodb_monitor_stats();
-  }
-
-  /* Update the statistics collected for deciding LRU
-  eviction policy. */
+  /* Update the statistics collected for deciding LRU eviction policy.
+  NOTE: While this doesn't relate to error monitoring, it's here for historical
+  reasons, as it depends on being called ~1Hz. It is lock-free, so can't cause a
+  deadlock itself. */
   buf_LRU_stat_update();
 
   /* In case mutex_exit is not a memory barrier, it is
   theoretically possible some threads are left waiting though
   the semaphore is already released. Wake up those threads: */
-
   sync_arr_wake_threads_if_sema_free();
+
   sync_array_detect_deadlock();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
