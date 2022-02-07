@@ -149,15 +149,14 @@ static bool srv_start_has_been_called = false;
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
 enum srv_start_state_t {
-  SRV_START_STATE_NONE = 0,     /*!< No thread started */
-  SRV_START_STATE_LOCK_SYS = 1, /*!< Started lock-timeout
-                                thread. */
-  SRV_START_STATE_IO = 2,       /*!< Started IO threads */
-  SRV_START_STATE_MONITOR = 4,  /*!< Started montior thread */
-  SRV_START_STATE_MASTER = 8,   /*!< Started master threadd. */
-  SRV_START_STATE_PURGE = 16,   /*!< Started purge thread(s) */
-  SRV_START_STATE_STAT = 32     /*!< Started bufdump + dict stat
-                                and FTS optimize thread. */
+  /** No thread started */
+  SRV_START_STATE_NONE = 0,
+  /** Started IO threads */
+  SRV_START_STATE_IO = 1,
+  /** Started purge thread(s) */
+  SRV_START_STATE_PURGE = 2,
+  /** Started bufdump + dict stat and FTS optimize thread. */
+  SRV_START_STATE_STAT = 4
 };
 
 /** Track server thrd starting phases */
@@ -1656,6 +1655,43 @@ static inline bool srv_start_state_is_set(
   return (srv_start_state & state);
 }
 
+struct Thread_to_stop {
+  /** Name of the thread, printed to the error log if we waited too
+  long (after 60 seconds and then every 60 seconds). */
+  const char *m_name;
+
+  /** Future which allows to check if given task is completed. */
+  const IB_thread &m_thread;
+
+  /** Function which can be called any number of times to wake
+  the possibly waiting thread, so it could exit. */
+  std::function<void()> m_notify;
+
+  /** Shutdown state in which we are waiting until thread is exited
+  (earlier we keep notifying but we don't require it to exit before
+  we may switch to the next state). */
+  srv_shutdown_t m_wait_on_state;
+};
+
+static const Thread_to_stop threads_to_stop[]{
+    {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
+     lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
+
+    {"error_monitor", srv_threads.m_error_monitor,
+     []() { os_event_set(srv_error_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"monitor", srv_threads.m_monitor,
+     []() { os_event_set(srv_monitor_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"buf_dump", srv_threads.m_buf_dump,
+     []() { os_event_set(srv_buf_dump_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"buf_resize", srv_threads.m_buf_resize,
+     []() { os_event_set(srv_buf_resize_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"master", srv_threads.m_master, srv_wake_master_thread,
+     SRV_SHUTDOWN_MASTER_STOP}};
+
 void srv_shutdown_exit_threads() {
   srv_shutdown_state.store(SRV_SHUTDOWN_EXIT_THREADS);
 
@@ -1672,29 +1708,23 @@ void srv_shutdown_exit_threads() {
     /* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
     HERE OR EARLIER */
 
+    /* These threads normally finish when reaching SRV_SHUTDOWN_CLEANUP or
+    SRV_SHUTDOWN_MASTER_STOP state, which we might have jumped over. */
+    for (const auto &thread_info : threads_to_stop) {
+      if (srv_thread_is_active(thread_info.m_thread)) {
+        thread_info.m_notify();
+      }
+    }
+
     if (!srv_read_only_mode) {
-      if (srv_start_state_is_set(SRV_START_STATE_LOCK_SYS)) {
-        /* a. Let the lock timeout thread exit */
-        os_event_set(lock_sys->timeout_event);
-      }
-
-      /* b. srv error monitor thread exits automatically,
-      no need to do anything here */
-
-      if (srv_start_state_is_set(SRV_START_STATE_MASTER)) {
-        /* c. We wake the master thread so that
-        it exits */
-        srv_wake_master_thread();
-      }
-
       if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
-        /* d. Wakeup purge threads. */
+        /* Wakeup purge threads. */
         srv_purge_wakeup();
       }
     }
 
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
-      /* e. Exit the i/o threads */
+      /* Exit the i/o threads */
       if (!srv_read_only_mode) {
         if (recv_sys->flush_start != nullptr) {
           os_event_set(recv_sys->flush_start);
@@ -2140,7 +2170,6 @@ dberr_t srv_start(bool create_new_db) {
   recv_sys_init();
   trx_sys_create();
   lock_sys_create(srv_lock_table_size);
-  srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
   /* Create i/o-handler threads: */
 
@@ -2828,8 +2857,6 @@ files_checked:
         os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
     srv_threads.m_monitor.start();
-
-    srv_start_state_set(SRV_START_STATE_MONITOR);
   }
 
   srv_sys_tablespaces_open = true;
@@ -3067,8 +3094,6 @@ void srv_start_threads(bool bootstrap) {
   operations */
   srv_threads.m_master =
       os_thread_create(srv_master_thread_key, 0, srv_master_thread);
-
-  srv_start_state_set(SRV_START_STATE_MASTER);
 
   srv_threads.m_master.start();
 
@@ -3319,44 +3344,6 @@ static void srv_shutdown_cleanup_and_master_stop() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_DD);
 
   srv_shutdown_set_state(SRV_SHUTDOWN_CLEANUP);
-
-  struct Thread_to_stop {
-    /** Name of the thread, printed to the error log if we waited too
-    long (after 60 seconds and then every 60 seconds). */
-    const char *m_name;
-
-    /** Future which allows to check if given task is completed. */
-    const IB_thread &m_thread;
-
-    /** Function which can be called any number of times to wake
-    the possibly waiting thread, so it could exit. */
-    std::function<void()> m_notify;
-
-    /** Shutdown state in which we are waiting until thread is exited
-    (earlier we keep notifying but we don't require it to exit before
-    we may switch to the next state). */
-    srv_shutdown_t m_wait_on_state;
-  };
-
-  const Thread_to_stop threads_to_stop[]{
-
-      {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
-       lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
-
-      {"error_monitor", srv_threads.m_error_monitor,
-       std::bind(os_event_set, srv_error_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"monitor", srv_threads.m_monitor,
-       std::bind(os_event_set, srv_monitor_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"buf_dump", srv_threads.m_buf_dump,
-       std::bind(os_event_set, srv_buf_dump_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"buf_resize", srv_threads.m_buf_resize,
-       std::bind(os_event_set, srv_buf_resize_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"master", srv_threads.m_master, srv_wake_master_thread,
-       SRV_SHUTDOWN_MASTER_STOP}};
 
   const srv_shutdown_t max_wait_on_state{SRV_SHUTDOWN_MASTER_STOP};
 

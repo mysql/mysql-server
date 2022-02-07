@@ -875,8 +875,6 @@ bool sync_array_print_long_waits(
             "InnoDB: ###### Starts InnoDB Monitor"
             " for 30 secs to print diagnostic info:\n");
 
-    auto old_val = srv_print_innodb_monitor;
-
     /* If some crucial semaphore is reserved, then also the InnoDB
     Monitor can hang, and we do not get diagnostics. Since in
     many cases an InnoDB hang is caused by a pwrite() or a pread()
@@ -886,7 +884,7 @@ bool sync_array_print_long_waits(
     fprintf(stderr, "InnoDB: Pending preads %lu, pwrites %lu\n",
             (ulong)os_n_pending_reads, (ulong)os_n_pending_writes);
 
-    srv_print_innodb_monitor = true;
+    srv_innodb_needs_monitoring++;
 
 #ifndef UNIV_NO_ERR_MSGS
     lock_set_timeout_event();
@@ -894,7 +892,7 @@ bool sync_array_print_long_waits(
 
     std::this_thread::sleep_for(std::chrono::seconds(30));
 
-    srv_print_innodb_monitor = static_cast<bool>(old_val);
+    srv_innodb_needs_monitoring--;
     fprintf(stderr,
             "InnoDB: ###### Diagnostic info printed"
             " to the standard error stream\n");

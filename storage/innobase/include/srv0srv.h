@@ -696,6 +696,11 @@ std::chrono::milliseconds get_srv_replication_delay();
 /*-------------------------------------------*/
 
 extern bool srv_print_innodb_monitor;
+/** In contrast to srv_print_innodb_monitor which is controlled by the user,
+this variable is controlled by InnoDB itself: if some module of InnoDB decides
+it would be good to print the monitoring information it increments this value,
+and decrements it when it no longer needs it. */
+extern std::atomic_uint32_t srv_innodb_needs_monitoring;
 extern bool srv_print_innodb_lock_monitor;
 
 extern ulong srv_n_spin_wait_rounds;

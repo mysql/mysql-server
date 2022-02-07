@@ -85,7 +85,7 @@ static const ulint BUF_LRU_SEARCH_SCAN_THRESHOLD = 100;
 
 /** If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to true */
-static bool buf_lru_switched_on_innodb_mon = false;
+static std::atomic_bool buf_lru_switched_on_innodb_mon = false;
 
 /** These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
  and page_zip_decompress() operations.  Based on the statistics,
@@ -1292,7 +1292,7 @@ static void buf_LRU_check_size_of_non_data_objects(
              buf_pool->curr_size == buf_pool->old_size &&
              (UT_LIST_GET_LEN(buf_pool->free) +
               UT_LIST_GET_LEN(buf_pool->LRU)) < buf_pool->curr_size / 3) {
-    if (!buf_lru_switched_on_innodb_mon) {
+    if (!buf_lru_switched_on_innodb_mon.exchange(true)) {
       /* Over 67 % of the buffer pool is occupied by lock
       heaps or the adaptive hash index. This may be a memory
       leak! */
@@ -1309,19 +1309,13 @@ static void buf_LRU_check_size_of_non_data_objects(
              " diagnostics, including lock heap and hash"
              " index sizes.";
 
-      buf_lru_switched_on_innodb_mon = true;
-      srv_print_innodb_monitor = true;
-      os_event_set(srv_monitor_event);
+      srv_innodb_needs_monitoring++;
     }
 
-  } else if (buf_lru_switched_on_innodb_mon) {
-    /* Switch off the InnoDB Monitor; this is a simple way
-    to stop the monitor if the situation becomes less urgent,
-    but may also surprise users if the user also switched on the
-    monitor! */
-
-    buf_lru_switched_on_innodb_mon = false;
-    srv_print_innodb_monitor = false;
+  } else if (buf_lru_switched_on_innodb_mon.load()) {
+    if (buf_lru_switched_on_innodb_mon.exchange(false)) {
+      srv_innodb_needs_monitoring--;
+    }
   }
 }
 
@@ -1354,7 +1348,6 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   bool freed = false;
   ulint n_iterations = 0;
   ulint flush_failures = 0;
-  bool mon_value_was = false;
   bool started_monitor = false;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
@@ -1372,7 +1365,7 @@ loop:
     memset(&block->page.zip, 0, sizeof block->page.zip);
 
     if (started_monitor) {
-      srv_print_innodb_monitor = static_cast<bool>(mon_value_was);
+      srv_innodb_needs_monitoring--;
     }
 
     block->page.reset_flush_observer();
@@ -1424,11 +1417,10 @@ loop:
         << " OS file writes, " << os_n_fsyncs
         << " OS fsyncs. Starting InnoDB Monitor to print"
            " further diagnostics to the standard output.";
-
-    mon_value_was = srv_print_innodb_monitor;
-    started_monitor = true;
-    srv_print_innodb_monitor = true;
-    os_event_set(srv_monitor_event);
+    if (!started_monitor) {
+      started_monitor = true;
+      srv_innodb_needs_monitoring++;
+    }
   }
 
   /* If we have scanned the whole LRU and still are unable to

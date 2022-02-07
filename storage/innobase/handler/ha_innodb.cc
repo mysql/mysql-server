@@ -21662,18 +21662,6 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *, void *,
   }
 }
 
-/** Update innodb_status_output or innodb_status_output_locks,
-which control InnoDB "status monitor" output to the error log.
-@param[out]     var_ptr   current value
-@param[in]      save      to-be-assigned value */
-static void innodb_status_output_update(THD *, SYS_VAR *, void *var_ptr,
-                                        const void *save) {
-  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
-  /* The lock timeout monitor thread also takes care of this
-  output. */
-  os_event_set(srv_monitor_event);
-}
-
 /** Update the innodb_log_checksums parameter.
 @param[out]     var_ptr   current value
 @param[in]      save      immediate result from check function */
@@ -22769,13 +22757,13 @@ static MYSQL_SYSVAR_STR(monitor_reset_all, innobase_reset_all_monitor_counter,
 static MYSQL_SYSVAR_BOOL(status_output, srv_print_innodb_monitor,
                          PLUGIN_VAR_OPCMDARG,
                          "Enable InnoDB monitor output to the error log.",
-                         nullptr, innodb_status_output_update, false);
+                         nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(status_output_locks, srv_print_innodb_lock_monitor,
                          PLUGIN_VAR_OPCMDARG,
                          "Enable InnoDB lock monitor output to the error log."
                          " Requires innodb_status_output=ON.",
-                         nullptr, innodb_status_output_update, false);
+                         nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     print_all_deadlocks, srv_print_all_deadlocks, PLUGIN_VAR_OPCMDARG,
