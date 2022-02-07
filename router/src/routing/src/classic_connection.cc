@@ -59,6 +59,7 @@
 IMPORT_LOG_FUNCTIONS()
 
 #undef DEBUG_IO
+#undef DEBUG_SSL
 
 // enable to add tracing for the clone-cmd-stream
 #undef DEBUG_CMD_CLONE
@@ -1136,13 +1137,18 @@ void MysqlRoutingClassicConnection::finish() {
   auto &client_socket = this->socket_splicer()->client_conn();
   auto &server_socket = this->socket_splicer()->server_conn();
 
-  if (server_socket.is_open() && !client_socket.is_open() &&
-      !client_greeting_sent_) {
-    // client hasn't sent a greeting to the server. The server would track
-    // this as "connection error" and block the router. Better send our own
-    // client-greeting.
-    client_greeting_sent_ = true;
-    return server_side_client_greeting();
+  if (server_socket.is_open() && !client_socket.is_open()) {
+    // client side closed while server side is still open ...
+    if (!client_greeting_sent_) {
+      // client hasn't sent a greeting to the server. The server would track
+      // this as "connection error" and block the router. Better send our own
+      // client-greeting.
+      client_greeting_sent_ = true;
+      return server_side_client_greeting();
+    } else {
+      // if the server is waiting on something, as client is already gone.
+      (void)server_socket.cancel();
+    }
   }
 
   if (active_work_ == 0) {
@@ -4106,7 +4112,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return async_recv_client(Function::kClientRecvCmd);
     }
 
-    return recv_server_failed(ec);
+    return recv_client_failed(ec);
   }
 
   const uint8_t msg_type = src_protocol->current_msg_type().value();
