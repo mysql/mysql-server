@@ -864,22 +864,3 @@ INSERT INTO `address` VALUES (1,'47 MySakila Drive',NULL,'Alberta',300,'','',/*!
 COMMIT;
 
 DROP TABLE address;
-
-# bug#29488350 was caused by mbr_intersection in R-trees answering that all
-# MBRs intersected, leading to all leaves being checked. To guard against
-# regressions we can see how many reads we do through an index lookup which
-# we know should be false and check that no reads were done.
-
-CREATE TABLE events ( geo LINESTRING NOT NULL SRID 0,
-SPATIAL KEY spatialkey (geo));
-
-INSERT INTO events(geo)
-VALUES(ST_Geomfromtext('LINESTRING(0 0, 1 0)'));
-
-SELECT * FROM events FORCE INDEX(spatialkey) WHERE MBRINTERSECTS(geo,
-ST_Geomfromtext('LINESTRING( -10 0, -9 0)'));
-
-SELECT index_name,count_read FROM performance_schema .
-table_io_waits_summary_by_index_usage WHERE INDEX_NAME LIKE 'spatialkey';
-
-DROP TABLE events;
