@@ -2241,6 +2241,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     // Free items created when executing the instruction, etc.
     thd->cleanup_after_query();
 
+    // Release memory allocated during execution of the instruction
+    execute_mem_root.ClearForReuse();
+
     /*
       Find and process SQL handlers unless it is a fatal error (fatal
       errors are not catchable by SQL handlers) or the connection has been
