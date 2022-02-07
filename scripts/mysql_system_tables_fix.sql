@@ -1529,3 +1529,21 @@ SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUD
 INSERT INTO mysql.global_grants
   SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
    FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
+
+
+-- add the PK for mysql.firewall_membership, if missing and if the table is present
+SET @had_firewall_membership =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_membership' AND
+           table_type = 'BASE TABLE');
+SET @had_firewall_membership_pk =
+  (SELECT COUNT(table_name) FROM information_schema.table_constraints
+     WHERE constraint_type = 'PRIMARY KEY' AND
+           constraint_schema='mysql' AND
+           constraint_name = 'firewall_membership');
+SET @cmd="ALTER TABLE mysql.firewall_membership ADD PRIMARY KEY(GROUP_ID,MEMBER_ID)";
+SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
+              @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
