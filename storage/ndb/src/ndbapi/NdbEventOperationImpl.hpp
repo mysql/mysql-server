@@ -26,6 +26,8 @@
 #define NdbEventOperationImpl_H
 
 #include <cstring>
+#include <vector>
+
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <NdbRecAttr.hpp>
@@ -60,6 +62,35 @@ class NdbEventOperationImpl;
 class EpochData;
 class EventBufDataHead;
 
+/////////////////////////////////
+
+/**
+ * EventBufAllocator is a C++ STL memory allocator.
+ *
+ * It can be used to construct STL container objects which allocate
+ * its memory in the NdbEventBuffer
+ */
+template <class T>
+class EventBufAllocator
+{
+ public:
+  typedef T value_type;
+
+  EventBufAllocator () = default;
+  EventBufAllocator (NdbEventBuffer* e) : m_eventBuffer(e) {}
+
+  template <class U> constexpr
+    EventBufAllocator (const EventBufAllocator <U>&) noexcept {}
+
+  [[nodiscard]] T* allocate(std::size_t n);
+  void deallocate(T* p, std::size_t n) noexcept;
+
+private:
+  NdbEventBuffer *m_eventBuffer{nullptr};
+};
+
+/////////////////////////////////
+
 class EventBufData
 {
 public:
@@ -83,9 +114,6 @@ public:
   };
   EventBufData *m_next_blob; // First part in next blob
   EventBufDataHead *m_main; // Head of set of events
-
-  EventBufData *m_next_hash; // Next in per-GCI hash
-  Uint32 m_pkhash; // PK hash (without op) for fast compare
 
   EventBufData()
     : memory(NULL),
@@ -255,32 +283,47 @@ private:
 class EventBufData_hash
 {
 public:
-  struct Pos { // search result
-    Uint32 index;         // index into hash array
+  EventBufData_hash(NdbEventBuffer *event_buffer);
+
+  void clear();
+
+  struct Pos { // Hash head, and search result
+    Uint32 pkhash;        // PK hash
+    Uint32 event_id;      // Id of event operation
     union {               // hash either blob_data or main_data
-      EventBufData* data; // non-zero if found
+      EventBufData* data; // non-null if found
       EventBufDataHead* main_data;
     };
-    Uint32 pkhash;        // PK hash
   };
 
-  static Uint32 getpkhash(NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
-  static bool getpkequal(NdbEventOperationImpl* op, const LinearSectionPtr ptr1[3],
+  void append(const Pos hpos);
+  EventBufData* search(Pos& hpos, NdbEventOperationImpl* op,
+                       const LinearSectionPtr ptr[3]);
+
+private:
+  // Allocate and move into a larger m_hash[]
+  void expand();
+
+  static Uint32 getpkhash(NdbEventOperationImpl* op,
+                          const LinearSectionPtr ptr[3]);
+
+  static bool getpkequal(NdbEventOperationImpl* op,
+                         const LinearSectionPtr ptr1[3],
                          const LinearSectionPtr ptr2[3]);
 
-  void search(Pos& hpos, NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
-  void append(Pos& hpos, EventBufData* data);
+  NdbEventBuffer *m_event_buffer;
 
-  enum { GCI_EVENT_HASH_SIZE = 101 };
-  EventBufData* m_hash[GCI_EVENT_HASH_SIZE];
+  // We start out with a m_hash[] of SIZE_MIN.
+  // It will expand on demand, being allocated from m_event_buffer.
+  static constexpr int GCI_EVENT_HASH_SIZE_MIN = 37;
+  static constexpr int GCI_EVENT_HASH_SIZE_MAX = 4711;
+
+  typedef std::vector<Pos,EventBufAllocator<Pos>> HashBucket;
+  HashBucket *m_hash;
+  size_t m_hash_size;
+  size_t m_element_count;
 };
 
-inline
-void EventBufData_hash::append(Pos& hpos, EventBufData* data)
-{
-  data->m_next_hash = m_hash[hpos.index];
-  m_hash[hpos.index] = data;
-}
 
 /**
  * The Gci_container creates a collection of EventBufData and
@@ -306,12 +349,11 @@ public:
     m_gcp_complete_rep_sub_data_streams(),
     m_gci(0),
     m_head(NULL), m_tail(NULL),
+    m_data_hash(event_buffer),
     m_gci_op_list(NULL),
     m_gci_op_count(0),
     m_gci_op_alloc(0)
-  {
-    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
-  }
+  {}
 
   void clear()
   {
@@ -321,7 +363,7 @@ public:
     m_gcp_complete_rep_sub_data_streams.clear();
     m_gci = 0;
     m_head = m_tail = NULL;
-    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
+    m_data_hash.clear();
 
     m_gci_op_list = NULL;
     m_gci_op_count = 0;
@@ -339,7 +381,7 @@ public:
     ,GC_OUT_OF_MEMORY = 0x8 // Not enough event buffer memory to buffer data
   };
 
-  NdbEventBuffer *const m_event_buffer;  //Owner
+  NdbEventBuffer *m_event_buffer;  //Owner
 
   Uint16 m_state;
   Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
