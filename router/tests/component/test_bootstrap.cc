@@ -113,7 +113,7 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
   const char *expected_config_default_part = "unknown_config_option=error";
 
   const char *expected_config_gr_part1 =
-      R"([metadata_cache:000000000000000000000000000000c1]
+      R"([metadata_cache:bootstrap]
 cluster_type=gr
 router_id=1)";
   // we skip user as it is random and would require regex matching which would
@@ -126,28 +126,28 @@ auth_cache_ttl=-1
 auth_cache_refresh_interval=2
 use_gr_notifications=0
 
-[routing:000000000000000000000000000000c1_rw]
+[routing:bootstrap_rw]
 bind_address=0.0.0.0
 bind_port=6446
 destinations=metadata-cache://my-cluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
-[routing:000000000000000000000000000000c1_ro]
+[routing:bootstrap_ro]
 bind_address=0.0.0.0
 bind_port=6447
 destinations=metadata-cache://my-cluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
-[routing:000000000000000000000000000000c1_x_rw]
+[routing:bootstrap_x_rw]
 bind_address=0.0.0.0
 bind_port=6448
 destinations=metadata-cache://my-cluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
-[routing:000000000000000000000000000000c1_x_ro]
+[routing:bootstrap_x_ro]
 bind_address=0.0.0.0
 bind_port=6449
 destinations=metadata-cache://my-cluster/?role=SECONDARY
@@ -155,7 +155,7 @@ routing_strategy=round-robin-with-fallback
 protocol=x)";
 
   const char *expected_config_ar_part1 =
-      R"([metadata_cache:000000000000000000000000000000c1]
+      R"([metadata_cache:bootstrap]
 cluster_type=rs
 router_id=1)";
   // we skip user as it is random and would require regex matching which would
@@ -167,28 +167,28 @@ ttl=0.5
 auth_cache_ttl=-1
 auth_cache_refresh_interval=2
 
-[routing:000000000000000000000000000000c1_rw]
+[routing:bootstrap_rw]
 bind_address=0.0.0.0
 bind_port=6446
 destinations=metadata-cache://my-cluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
-[routing:000000000000000000000000000000c1_ro]
+[routing:bootstrap_ro]
 bind_address=0.0.0.0
 bind_port=6447
 destinations=metadata-cache://my-cluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
-[routing:000000000000000000000000000000c1_x_rw]
+[routing:bootstrap_x_rw]
 bind_address=0.0.0.0
 bind_port=6448
 destinations=metadata-cache://my-cluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
-[routing:000000000000000000000000000000c1_x_ro]
+[routing:bootstrap_x_ro]
 bind_address=0.0.0.0
 bind_port=6449
 destinations=metadata-cache://my-cluster/?role=SECONDARY
@@ -304,20 +304,20 @@ TEST_P(RouterBootstrapOkBasePortTest, RouterBootstrapOkBasePort) {
   const std::string config_file_str = get_file_output(config_file);
 
   // classic RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_rw",
-                  "classic", "PRIMARY", param.expected_port_classic_rw);
+  check_bind_port(config_file_str, "bootstrap_rw", "classic", "PRIMARY",
+                  param.expected_port_classic_rw);
 
   // classic RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_ro",
-                  "classic", "SECONDARY", param.expected_port_classic_ro);
+  check_bind_port(config_file_str, "bootstrap_ro", "classic", "SECONDARY",
+                  param.expected_port_classic_ro);
 
   // x RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_rw", "x",
-                  "PRIMARY", param.expected_port_x_rw);
+  check_bind_port(config_file_str, "bootstrap_x_rw", "x", "PRIMARY",
+                  param.expected_port_x_rw);
 
   // x RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_ro", "x",
-                  "SECONDARY", param.expected_port_x_ro);
+  check_bind_port(config_file_str, "bootstrap_x_ro", "x", "SECONDARY",
+                  param.expected_port_x_ro);
 }
 
 const BootstrapOkBasePortTestParam bootstrap_ok_base_port_test_param[] = {
@@ -479,20 +479,20 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
   const std::string config_file_str = get_file_output(conf_file);
 
   // classic RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_rw",
-                  "classic", "PRIMARY", param.expected_port_classic_rw);
+  check_bind_port(config_file_str, "bootstrap_rw", "classic", "PRIMARY",
+                  param.expected_port_classic_rw);
 
   // classic RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_ro",
-                  "classic", "SECONDARY", param.expected_port_classic_ro);
+  check_bind_port(config_file_str, "bootstrap_ro", "classic", "SECONDARY",
+                  param.expected_port_classic_ro);
 
   // x RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_rw", "x",
-                  "PRIMARY", param.expected_port_x_rw);
+  check_bind_port(config_file_str, "bootstrap_x_rw", "x", "PRIMARY",
+                  param.expected_port_x_rw);
 
   // x RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_ro", "x",
-                  "SECONDARY", param.expected_port_x_ro);
+  check_bind_port(config_file_str, "bootstrap_x_ro", "x", "SECONDARY",
+                  param.expected_port_x_ro);
 }
 
 const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
@@ -2104,10 +2104,10 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
   };
 
   // mysqlrouter -B ...
-  // --conf-set-option=routing:000000000000000000000000000000c1_rw.bind_port=A -
-  // --conf-set-option=routing:000000000000000000000000000000c1_ro.bind_port=B
-  // --conf-set-option=routing:000000000000000000000000000000c1_x_rw.bind_port=C
-  // --conf-set-option=routing:000000000000000000000000000000c1_x_ro.bind_port=D
+  // --conf-set-option=routing:bootstrap_rw.bind_port=A -
+  // --conf-set-option=routing:bootstrap_ro.bind_port=B
+  // --conf-set-option=routing:bootstrap_x_rw.bind_port=C
+  // --conf-set-option=routing:bootstrap_x_ro.bind_port=D
   // --conf-set-option=logger.level=DEBUG
   // --conf-set-option=DEFAULT.read_timeout=50
   // --conf-set-option=DEFAULT.connect_timeout=38
@@ -2126,17 +2126,13 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
           std::to_string(mock_servers.at(0).port),
       "-d",
       bootstrap_dir.name(),
-      "--conf-set-option=routing:000000000000000000000000000000c1_rw.bind_"
-      "port=" +
+      "--conf-set-option=routing:bootstrap_rw.bind_port=" +
           std::to_string(classic_rw_port),
-      "--conf-set-option=routing:000000000000000000000000000000c1_ro.bind_"
-      "port=" +
+      "--conf-set-option=routing:bootstrap_ro.bind_port=" +
           std::to_string(classic_ro_port),
-      "--conf-set-option=routing:000000000000000000000000000000c1_x_rw.bind_"
-      "port=" +
+      "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
           std::to_string(x_rw_port),
-      "--conf-set-option=routing:000000000000000000000000000000c1_x_ro.bind_"
-      "port=" +
+      "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
           std::to_string(x_ro_port),
       "--conf-set-option=logger.level=" + log_level,
       "--conf-set-option=DEFAULT.read_timeout=" + std::to_string(read_tout),
@@ -2154,20 +2150,19 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
   const std::string config_file_str = get_file_output(config_file);
 
   // classic RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_rw",
-                  "classic", "PRIMARY", classic_rw_port);
+  check_bind_port(config_file_str, "bootstrap_rw", "classic", "PRIMARY",
+                  classic_rw_port);
 
   // classic RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_ro",
-                  "classic", "SECONDARY", classic_ro_port);
+  check_bind_port(config_file_str, "bootstrap_ro", "classic", "SECONDARY",
+                  classic_ro_port);
 
   // x RW
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_rw", "x",
-                  "PRIMARY", x_rw_port);
+  check_bind_port(config_file_str, "bootstrap_x_rw", "x", "PRIMARY", x_rw_port);
 
   // x RO
-  check_bind_port(config_file_str, "000000000000000000000000000000c1_x_ro", "x",
-                  "SECONDARY", x_ro_port);
+  check_bind_port(config_file_str, "bootstrap_x_ro", "x", "SECONDARY",
+                  x_ro_port);
 
   EXPECT_TRUE(config_file_contains(config_file_str, "level=" + log_level))
       << config_file_str;
@@ -2358,13 +2353,12 @@ INSTANTIATE_TEST_SUITE_P(
             /*unexpected_conf_entry=*/{"read_timeout=20"}},
         ConfSetOptionTestParam{
             {"--conf-base-port=1000",
-             "--conf-set-option=routing:000000000000000000000000000000c1_rw."
-             "bind_port=2000"},
+             "--conf-set-option=routing:bootstrap_rw.bind_port=2000"},
             /*expected_conf_entries=*/{"bind_port=2000"},
             /*unexpected_conf_entries=*/{"bind_port=1000"}},
         // ConfSetOptionTestParam{
         //     {"--ssl-mode=REQUIRED",
-        //      "--conf-set-option=metadata_cache:my-cluster.ssl_mode=DISABLED"},
+        //      "--conf-set-option=metadata_cache:bootstrap.ssl_mode=DISABLED"},
         //     /*expected_conf_entries=*/{"ssl_mode=DISABLED"},
         //     /*unexpected_conf_entries=*/{"ssl-mode=REQUIRED"}}
         ConfSetOptionTestParam{
@@ -2400,14 +2394,11 @@ INSTANTIATE_TEST_SUITE_P(
             /*unexpected_conf_entries=*/{"[LOGGER]", "level=debug"}},
 
         ConfSetOptionTestParam{
-            {"--conf-set-option=METADATA_cache:"
-             "000000000000000000000000000000C1.router_id=1"},
+            {"--conf-set-option=METADATA_cache:BOOTSTRAP.router_id=1"},
             /*expected_conf_entries=*/
-            {"[metadata_cache:000000000000000000000000000000c1]",
-             "router_id=1"},
+            {"[metadata_cache:bootstrap]", "router_id=1"},
             /*unexpected_conf_entries=*/
-            {"[METADATA_cache:000000000000000000000000000000C1]",
-             "[metadata_cache:000000000000000000000000000000C1]"}},
+            {"[METADATA_cache:BOOTSTRAP]", "[metadata_cache:BOOTSTRAP]"}},
 
         ConfSetOptionTestParam{
             {"--conf-set-option=test_section.para1=10",
