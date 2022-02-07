@@ -932,21 +932,28 @@ EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+# Hypergraph ignores FORCE INDEX, so we need --sorted_result in case
+# it does not use the index.
+--sorted_result
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
 
 EXPLAIN SELECT * FROM t WHERE doc_id is NOT NULL;
 SELECT * FROM t WHERE doc_id is NOT NULL;
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+--sorted_result
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+--sorted_result
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+--sorted_result
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+--sorted_result
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
 
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
