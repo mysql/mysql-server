@@ -1222,6 +1222,7 @@ fi
 
 %if 0%{?with_debuginfo}
 %files server-debug
+%doc %{?license_files_server}
 %endif # with_debuginfo
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/plugin/debug
