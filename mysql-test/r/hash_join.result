@@ -1956,7 +1956,7 @@ EXPLAIN
         -> Hash
             -> Table scan on const_table  (cost=1.26..2.52 rows=2)
                 -> Materialize  (cost=1.46..2.73 rows=2)
-                    -> Rows fetched before execution  (cost=0.00 rows=2)
+                    -> Rows fetched before execution  (cost=0.00..0.00 rows=2)
     -> Limit: 1 row(s)  (cost=8.61 rows=1)
         -> Nested loop inner join  (cost=8.61 rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (cost=0.01 rows=1)
