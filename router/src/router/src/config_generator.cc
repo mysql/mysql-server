@@ -120,6 +120,8 @@ static constexpr unsigned kDefaultPasswordRetries =
          // for the router user during the bootstrap
 static constexpr unsigned kMaxPasswordRetries = 10000;
 
+static const std::string kDefaultMetadataCacheSectionKey = "bootstrap";
+
 using mysql_harness::DIM;
 using mysql_harness::get_from_map;
 using mysql_harness::Path;
@@ -2277,13 +2279,6 @@ static void save_initial_dynamic_state(
   mdc_dynamic_state.save(state_stream);
 }
 
-static std::string strip_dashes(const std::string &uuid) {
-  std::string result = uuid;
-  result.erase(std::remove(result.begin(), result.end(), '-'), result.end());
-
-  return result;
-}
-
 void ConfigGenerator::create_config(
     std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
     const std::string &router_name, const std::string &system_username,
@@ -2332,10 +2327,10 @@ void ConfigGenerator::create_config(
       .add_line(mysql_harness::logging::kConfigOptionLogLevel, "INFO")
       .add_line("filename", options.override_logfilename);
 
-  const auto &metadata_key = strip_dashes(cluster_info.cluster_id);
   {
     ConfigSectionPrinter metadata_section_printer(
-        config_file, config_cmdln_options, "metadata_cache:" + metadata_key);
+        config_file, config_cmdln_options,
+        "metadata_cache:" + kDefaultMetadataCacheSectionKey);
 
     metadata_section_printer
         .add_line("cluster_type", mysqlrouter::to_string(metadata_->get_type()))
@@ -2378,7 +2373,8 @@ void ConfigGenerator::create_config(
   auto add_mdc_rt_sect = [&](bool is_classic, bool is_writable,
                              Options::Endpoint endpoint) {
     add_metadata_cache_routing_section(config_file, is_classic, is_writable,
-                                       endpoint, options, metadata_key,
+                                       endpoint, options,
+                                       kDefaultMetadataCacheSectionKey,
                                        cluster_info.name, config_cmdln_options);
   };
   add_mdc_rt_sect(true, true, options.rw_endpoint);
