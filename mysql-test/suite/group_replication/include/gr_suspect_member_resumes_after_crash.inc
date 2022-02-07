@@ -44,6 +44,10 @@
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 --let $server1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
+set session sql_log_bin=0;
+call mtr.add_suppression("Old incarnation found while trying to add node*.*");
+set session sql_log_bin=1;
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 3600;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5571,7 +5571,7 @@ static u_int allow_add_node(app_data_ptr a) {
         to the system where there is an old incarnation will
         not fix this problem since other changes are required.
         */
-        G_MESSAGE(
+        G_WARNING(
             "Old incarnation found while trying to "
             "add node %s %.*s. Please stop the old node or wait for it to "
             "leave the group.",
