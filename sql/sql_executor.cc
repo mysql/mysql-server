@@ -2830,6 +2830,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     path = NewTableValueConstructorAccessPath(thd);
     path->num_output_rows = query_block->row_value_list->size();
     path->cost = 0.0;
+    path->init_cost = 0.0;
   } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
