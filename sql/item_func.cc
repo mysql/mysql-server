@@ -5043,22 +5043,29 @@ bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
 */
 longlong Item_wait_for_executed_gtid_set::val_int() {
   DBUG_TRACE;
-  assert(fixed == 1);
+  assert(fixed);
   THD *thd = current_thd;
-  String *gtid_text = args[0]->val_str(&value);
 
   null_value = false;
 
+  String *gtid_text = args[0]->val_str(&value);
   if (gtid_text == nullptr) {
-    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
-    return 0;
+    /*
+      Usually, an argument that is NULL causes an SQL function to return NULL,
+      however since this is a function with side-effects, a NULL value is
+      treated as an error.
+    */
+    if (!thd->is_error()) {
+      my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    }
+    return error_int();
   }
 
   // Waiting for a GTID in a slave thread could cause the slave to
   // hang/deadlock.
+  // @todo: Return error instead of NULL
   if (thd->slave_thread) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
@@ -5067,15 +5074,14 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
       RETURN_STATUS_OK) {
     global_sid_lock->unlock();
     // Error has already been generated.
-    return 1;
+    return error_int();
   }
 
   // Cannot wait for a GTID that the thread owns since that would
@@ -5087,7 +5093,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     global_sid_lock->unlock();
     my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
              buf);
-    return 0;
+    return error_int();
   }
 
   gtid_state->begin_gtid_wait();
@@ -5100,11 +5106,10 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                           ER_THD(thd, ER_WRONG_ARGUMENTS),
                           "WAIT_FOR_EXECUTED_GTID_SET.");
-      null_value = true;
     }
     gtid_state->end_gtid_wait();
     global_sid_lock->unlock();
-    return 0;
+    return error_int();
   }
 
   bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
@@ -5143,13 +5148,17 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
 }
 
 longlong Item_master_gtid_set_wait::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   DBUG_TRACE;
   int event_count = 0;
 
   null_value = false;
 
   String *gtid = args[0]->val_str(&value);
+  if (gtid == nullptr) {
+    return error_int();
+  }
+
   THD *thd = current_thd;
   Master_info *mi = nullptr;
   double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
@@ -5161,14 +5170,12 @@ longlong Item_master_gtid_set_wait::val_int() {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                           ER_THD(thd, ER_WRONG_ARGUMENTS),
                           "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
-      null_value = true;
     }
-    return 0;
+    return error_int();
   }
 
-  if (thd->slave_thread || !gtid) {
-    null_value = true;
-    return 0;
+  if (thd->slave_thread) {
+    return error_int();
   }
 
   channel_map.rdlock();
@@ -5178,8 +5185,7 @@ longlong Item_master_gtid_set_wait::val_int() {
     String *channel_str;
     if (!(channel_str = args[2]->val_str(&value))) {
       channel_map.unlock();
-      null_value = true;
-      return 0;
+      return error_int();
     }
     mi = channel_map.get_mi(channel_str->ptr());
   } else {
@@ -5187,7 +5193,7 @@ longlong Item_master_gtid_set_wait::val_int() {
       channel_map.unlock();
       mi = nullptr;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
-      return 0;
+      return error_int();
     } else
       mi = channel_map.get_default_channel_mi();
   }
@@ -5198,12 +5204,11 @@ longlong Item_master_gtid_set_wait::val_int() {
     my_error(ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS,
              MYF(0));
     channel_map.unlock();
-    return 0;
+    return error_int();
   }
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    null_value = true;
     channel_map.unlock();
-    return 0;
+    return error_int();
   }
   gtid_state->begin_gtid_wait();
 
@@ -5214,15 +5219,14 @@ longlong Item_master_gtid_set_wait::val_int() {
   if (mi && mi->rli) {
     event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
     if (event_count == -2) {
-      null_value = true;
-      event_count = 0;
+      return error_int();
     }
-  } else
+  } else {
     /*
       Replication has not been set up, we should return NULL;
      */
-    null_value = true;
-
+    return error_int();
+  }
   if (mi != nullptr) mi->dec_reference();
 
   gtid_state->end_gtid_wait();
@@ -5237,26 +5241,35 @@ longlong Item_master_gtid_set_wait::val_int() {
 */
 longlong Item_func_gtid_subset::val_int() {
   DBUG_TRACE;
-  if (args[0]->null_value || args[1]->null_value) {
-    null_value = true;
-    return 0;
+
+  assert(fixed);
+
+  null_value = false;
+
+  // Evaluate strings without lock
+  String *string1 = args[0]->val_str(&buf1);
+  if (string1 == nullptr) {
+    return error_int();
   }
-  String *string1, *string2;
-  const char *charp1, *charp2;
+  String *string2 = args[1]->val_str(&buf2);
+  if (string2 == nullptr) {
+    return error_int();
+  }
+
+  const char *charp1 = string1->c_ptr_safe();
+  assert(charp1 != nullptr);
+  const char *charp2 = string2->c_ptr_safe();
+  assert(charp2 != nullptr);
   int ret = 1;
   enum_return_status status;
-  // get strings without lock
-  if ((string1 = args[0]->val_str(&buf1)) != nullptr &&
-      (charp1 = string1->c_ptr_safe()) != nullptr &&
-      (string2 = args[1]->val_str(&buf2)) != nullptr &&
-      (charp2 = string2->c_ptr_safe()) != nullptr) {
-    Sid_map sid_map(nullptr /*no rwlock*/);
-    // compute sets while holding locks
-    const Gtid_set sub_set(&sid_map, charp1, &status);
+
+  Sid_map sid_map(nullptr /*no rwlock*/);
+  // compute sets while holding locks
+  const Gtid_set sub_set(&sid_map, charp1, &status);
+  if (status == RETURN_STATUS_OK) {
+    const Gtid_set super_set(&sid_map, charp2, &status);
     if (status == RETURN_STATUS_OK) {
-      const Gtid_set super_set(&sid_map, charp2, &status);
-      if (status == RETURN_STATUS_OK)
-        ret = sub_set.is_subset(&super_set) ? 1 : 0;
+      ret = sub_set.is_subset(&super_set) ? 1 : 0;
     }
   }
   return ret;

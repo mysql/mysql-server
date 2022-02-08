@@ -25,8 +25,15 @@ CREATE TABLE t1 (a INT);
 ---- 1.1. NULL or invalid string ----
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
 ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, NULL);
+ERROR HY000: Malformed GTID set specification 'NULL'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL);
 ERROR HY000: Malformed GTID set specification 'NULL'.
+set @null = NULL;
+SELECT WAIT_FOR_EXECUTED_GTID_SET(@null, @null);
+ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET(5, NULL);
+ERROR HY000: Malformed GTID set specification '5'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
 ERROR HY000: Malformed GTID set specification 'Incorrect_value'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);

@@ -2444,7 +2444,6 @@ class Item_func_gtid_subset final : public Item_int_func {
   const char *func_name() const override { return "gtid_subset"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, ~0U)) return true;
-    set_nullable(false);
     return false;
   }
   bool is_bool_func() const override { return true; }

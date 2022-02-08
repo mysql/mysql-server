@@ -4149,7 +4149,7 @@ String *Item_func_uuid::val_str(String *str) {
 
 bool Item_func_gtid_subtract::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
-  set_nullable(args[0]->is_nullable() || args[1]->is_nullable());
+
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   /*
     In the worst case, the string grows after subtraction. This
@@ -4167,39 +4167,44 @@ bool Item_func_gtid_subtract::resolve_type(THD *thd) {
 
 String *Item_func_gtid_subtract::val_str_ascii(String *str) {
   DBUG_TRACE;
-  String *str1, *str2;
-  const char *charp1, *charp2;
+
+  assert(fixed);
+
+  null_value = false;
+
+  String *str1 = args[0]->val_str_ascii(&buf1);
+  if (str1 == nullptr) {
+    return error_str();
+  }
+  String *str2 = args[1]->val_str_ascii(&buf2);
+  if (str2 == nullptr) {
+    return error_str();
+  }
+
+  const char *charp1 = str1->c_ptr_safe();
+  assert(charp1 != nullptr);
+  const char *charp2 = str2->c_ptr_safe();
+  assert(charp2 != nullptr);
+
   enum_return_status status;
-  /*
-    We must execute args[*]->val_str_ascii() before checking
-    args[*]->null_value to ensure that them are updated when
-    this function is executed inside a stored procedure.
-  */
-  if ((str1 = args[0]->val_str_ascii(&buf1)) != nullptr &&
-      (charp1 = str1->c_ptr_safe()) != nullptr &&
-      (str2 = args[1]->val_str_ascii(&buf2)) != nullptr &&
-      (charp2 = str2->c_ptr_safe()) != nullptr && !args[0]->null_value &&
-      !args[1]->null_value) {
-    Sid_map sid_map(nullptr /*no rwlock*/);
-    // compute sets while holding locks
-    Gtid_set set1(&sid_map, charp1, &status);
+
+  Sid_map sid_map(nullptr /*no rwlock*/);
+  // compute sets while holding locks
+  Gtid_set set1(&sid_map, charp1, &status);
+  if (status == RETURN_STATUS_OK) {
+    Gtid_set set2(&sid_map, charp2, &status);
+    size_t length;
+    // subtract, save result, return result
     if (status == RETURN_STATUS_OK) {
-      Gtid_set set2(&sid_map, charp2, &status);
-      size_t length;
-      // subtract, save result, return result
-      if (status == RETURN_STATUS_OK) {
-        set1.remove_gtid_set(&set2);
-        if (!str->mem_realloc((length = set1.get_string_length()) + 1)) {
-          null_value = false;
-          set1.to_string(str->ptr());
-          str->length(length);
-          return str;
-        }
+      set1.remove_gtid_set(&set2);
+      if (!str->mem_realloc((length = set1.get_string_length()) + 1)) {
+        set1.to_string(str->ptr());
+        str->length(length);
+        return str;
       }
     }
   }
-  null_value = true;
-  return nullptr;
+  return error_str();
 }
 
 /**
