@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,7 @@ plugin/group_replication/src/applier.cc:[0-9]+: warning:
 plugin/version_token/version_token.cc:[0-9]+: warning:
 sql-common/client.cc:[0-9]+: warning:
 sql-common/compression.cc:[0-9]+: warning:
+sql-common/json_dom.h:[0-9]+: warning:
 sql-common/net_serv.cc:[0-9]+: warning:
 sql/auth/partitioned_rwlock.h:[0-9]+: warning:
 sql/auth/sha2_password.cc:[0-9]+: warning:
@@ -151,7 +152,6 @@ sql/handler.h:[0-9]+: warning:
 sql/item.h:[0-9]+: warning:
 sql/item_func.h:[0-9]+: warning:
 sql/join_optimizer/explain_access_path.h:[0-9]+: warning:
-sql/json_dom.h:[0-9]+: warning:
 sql/key.cc:[0-9]+: warning:
 sql/log.cc:[0-9]+: warning:
 sql/log_event.h:[0-9]+: warning:

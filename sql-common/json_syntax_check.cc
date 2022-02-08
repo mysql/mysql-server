@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/json_syntax_check.h"
+#include "sql-common/json_syntax_check.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 

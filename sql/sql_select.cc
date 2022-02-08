@@ -59,6 +59,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -81,7 +82,6 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/replace_item.h"
-#include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
 #include "sql/lock.h"  // mysql_unlock_some_tables,

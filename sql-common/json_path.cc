@@ -28,7 +28,7 @@
   attached to WL#7909.
 */
 
-#include "sql/json_path.h"
+#include "sql-common/json_path.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
@@ -44,7 +44,7 @@
 #include "m_string.h"
 
 #include "my_inttypes.h"
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"       // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"          // String

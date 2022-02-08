@@ -37,14 +37,15 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_compiler.h"
+
 #include "my_inttypes.h"
 #include "my_time.h"  // my_time_flags_t
 #include "mysql/mysql_lex_string.h"
-#include "mysql_time.h"            // MYSQL_TIME
-#include "prealloced_array.h"      // Prealloced_array
-#include "sql/json_binary.h"       // json_binary::Value
-#include "sql/malloc_allocator.h"  // Malloc_allocator
-#include "sql/my_decimal.h"        // my_decimal
+#include "mysql_time.h"              // MYSQL_TIME
+#include "prealloced_array.h"        // Prealloced_array
+#include "sql-common/json_binary.h"  // json_binary::Value
+#include "sql/malloc_allocator.h"    // Malloc_allocator
+#include "sql/my_decimal.h"          // my_decimal
 
 class Field_json;
 class Json_array;
@@ -65,7 +66,7 @@ using Json_array_ptr = std::unique_ptr<Json_array>;
 using Json_object_ptr = std::unique_ptr<Json_object>;
 
 /**
-  @file sql/json_dom.h
+  @file
   JSON DOM.
 
   When a JSON value is retrieved from a column, a prior it exists in

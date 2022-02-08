@@ -33,12 +33,12 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"  // current_thd
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"   // Json_dom, Json_wrapper
+#include "sql-common/json_path.h"  // Json_path
+#include "sql/current_thd.h"       // current_thd
 #include "sql/debug_sync.h"
-#include "sql/field.h"  // Field_json
-#include "sql/json_binary.h"
-#include "sql/json_dom.h"   // Json_dom, Json_wrapper
-#include "sql/json_path.h"  // Json_path
+#include "sql/field.h"      // Field_json
 #include "sql/log_event.h"  // net_field_length_checked
 #include "sql/psi_memory_key.h"
 #include "sql/sql_const.h"

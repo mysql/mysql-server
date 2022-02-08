@@ -71,6 +71,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "priority_queue.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
@@ -84,7 +85,6 @@
 #include "sql/item_subselect.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/iterators/sorting_iterator.h"
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"

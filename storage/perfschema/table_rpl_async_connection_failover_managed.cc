@@ -31,8 +31,8 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql-common/json_dom.h"
 #include "sql/field.h"
-#include "sql/json_dom.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"

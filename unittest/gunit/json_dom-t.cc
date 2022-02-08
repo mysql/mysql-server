@@ -27,10 +27,10 @@
 #include "base64.h"
 #include "my_byteorder.h"
 #include "my_inttypes.h"
-#include "sql/json_binary.h"
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"
+#include "sql-common/json_path.h"
 #include "sql/json_diff.h"
-#include "sql/json_dom.h"
-#include "sql/json_path.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_time.h"
@@ -1305,6 +1305,61 @@ static void BM_JsonDomSearchKey(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
 BENCHMARK(BM_JsonDomSearchKey)
+
+/**
+  Microbenchmark for Json_dom::parse(const json_binary::Value &v).
+
+  @param num_iterations the number of iterations to run
+  @param json_text      the string to be parsed(after being converted to binary)
+*/
+static void benchmark_dom_parse(size_t num_iterations, const char *json_text) {
+  StopBenchmarkTiming();
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  auto dom = parse_json(json_text);
+
+  String buffer;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), dom.get(), &buffer));
+
+  json_binary::Value binary =
+      json_binary::parse_binary(buffer.ptr(), buffer.length());
+
+  StartBenchmarkTiming();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    Json_dom_ptr ptr = Json_dom::parse(binary);
+    assert(ptr);
+  }
+
+  StopBenchmarkTiming();
+}
+
+/**
+  Microbenchmark that tests Json_dom::parse(const json_binary::Value &v)
+  with a deep JSON value
+
+  @param num_iterations the number of iterations to run
+*/
+static void BM_JsonDomParseDeep(size_t num_iterations) {
+  benchmark_dom_parse(num_iterations,
+                      "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["
+                      "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["
+                      R"({"key":123})"
+                      "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+                      "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
+}
+BENCHMARK(BM_JsonDomParseDeep)
+
+/**
+  Microbenchmark that tests Json_dom::parse(const json_binary::Value &v)
+  with a shallow JSON value
+
+  @param num_iterations the number of iterations to run
+*/
+static void BM_JsonDomParseShallow(size_t num_iterations) {
+  benchmark_dom_parse(num_iterations, R"([{"key":123}])");
+}
+BENCHMARK(BM_JsonDomParseShallow)
 
 /**
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on

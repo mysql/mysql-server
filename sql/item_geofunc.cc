@@ -54,6 +54,7 @@
 #include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_config.h"
 #include "my_dbug.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -80,7 +81,6 @@
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/options_parser.h"
 #include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/psi_memory_key.h"

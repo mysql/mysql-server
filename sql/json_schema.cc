@@ -39,7 +39,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/json_syntax_check.h"
+#include "sql-common/json_syntax_check.h"
 #include "sql/sql_exception_handler.h"
 
 /**

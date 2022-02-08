@@ -77,6 +77,7 @@
 #include "mysql/service_thd_wait.h"
 #include "mysql/status_var.h"
 #include "prealloced_array.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_strength
 #include "sql/auth/sql_security_ctx.h"
@@ -100,7 +101,6 @@
 #include "sql/item_json_func.h"  // get_json_wrapper
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/item_subselect.h"  // Item_subselect
-#include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
 #include "sql/log_event.h"  // server_version
 #include "sql/mdl.h"

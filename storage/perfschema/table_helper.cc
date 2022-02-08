@@ -37,8 +37,8 @@
 
 #include "my_macros.h"
 #include "my_thread.h"
+#include "sql-common/json_dom.h"
 #include "sql/field.h"
-#include "sql/json_dom.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"

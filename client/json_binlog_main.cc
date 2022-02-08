@@ -29,7 +29,7 @@
 
 #include <string>
 
-#include "sql/json_binary.h"
+#include "sql-common/json_binary.h"
 
 int main() {
   json_binary::Value value = json_binary::parse_binary(nullptr, 0);

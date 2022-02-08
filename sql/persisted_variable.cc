@@ -68,6 +68,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -75,7 +76,6 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/item.h"
-#include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"

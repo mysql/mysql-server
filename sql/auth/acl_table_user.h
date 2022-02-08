@@ -36,11 +36,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 
 #include "my_alloc.h"
+#include "sql-common/json_dom.h"
 #include "sql/auth/acl_table_base.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_mfa.h" /* I_multi_factor_auth */
 #include "sql/auth/user_table.h"
-#include "sql/json_dom.h"
 
 class ACL_USER;
 class RowIterator;

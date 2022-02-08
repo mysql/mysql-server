@@ -48,6 +48,8 @@
 #include "my_double2ulonglong.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
+#include "sql-common/json_binary.h"  // json_binary::serialize
+#include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
 #include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -62,9 +64,7 @@
 #include "sql/item_json_func.h"  // ensure_utf8mb4
 #include "sql/item_timefunc.h"   // Item_func_now_local
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/json_binary.h"  // json_binary::serialize
-#include "sql/json_diff.h"    // Json_diff_vector
-#include "sql/json_dom.h"     // Json_dom, Json_wrapper
+#include "sql/json_diff.h"  // Json_diff_vector
 #include "sql/key.h"
 #include "sql/log_event.h"  // class Table_map_log_event
 #include "sql/my_decimal.h"

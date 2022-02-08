@@ -22,9 +22,9 @@
 
 #include "mysql/components/services/log_builtins.h"
 
+#include "sql-common/json_dom.h"
 #include "sql/current_thd.h"
 #include "sql/handler.h"
-#include "sql/json_dom.h"
 #include "sql/mysqld.h"
 #include "sql/protobuf/generated/protobuf_lite/replication_asynchronous_connection_failover.pb.h"
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"

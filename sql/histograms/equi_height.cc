@@ -37,9 +37,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"  // Json_*
 #include "sql/histograms/equi_height_bucket.h"
 #include "sql/histograms/value_map.h"  // Value_map
-#include "sql/json_dom.h"              // Json_*
 #include "sql/mem_root_allocator.h"
 #include "sql_string.h"
 #include "template_utils.h"

@@ -20,26 +20,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/json_binary.h"
+#include "sql-common/json_binary.h"
 
 #include <string.h>
+
 #include <algorithm>  // std::min
 #include <cassert>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
-
 #include "m_ctype.h"
+
 #include "my_byteorder.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
-#include "sql/field.h"     // Field_json
-#include "sql/json_dom.h"  // Json_dom
-#include "sql/json_syntax_check.h"
+#include "sql-common/json_dom.h"  // Json_dom
+#include "sql-common/json_syntax_check.h"
+#include "sql/field.h"      // Field_json
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"

@@ -62,6 +62,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
@@ -80,8 +81,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
-#include "sql/json_dom.h"  // Json_wrapper
-#include "sql/key.h"       // key_cmp
+#include "sql/key.h"  // key_cmp
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/nested_join.h"

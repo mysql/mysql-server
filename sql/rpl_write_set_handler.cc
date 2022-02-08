@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,9 @@
 #include "my_murmur3.h"  // murmur3_32
 #include "my_xxhash.h"   // IWYU pragma: keep
 #include "mysql_com.h"
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"
 #include "sql/field.h"  // Field
-#include "sql/json_binary.h"
-#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_transaction_write_set_ctx.h"

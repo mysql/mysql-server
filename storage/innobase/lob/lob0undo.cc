@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "lob0undo.h"
 #include "dict0dict.h"
-#include "sql/json_binary.h"
+#include "sql-common/json_binary.h"
 
 namespace lob {
 

@@ -47,6 +47,9 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "scope_guard.h"
+#include "sql-common/json_dom.h"
+#include "sql-common/json_path.h"
+#include "sql-common/json_syntax_check.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/error_handler.h"
 #include "sql/field.h"
@@ -54,10 +57,7 @@
 #include "sql/item_create.h"
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
-#include "sql/json_dom.h"
-#include "sql/json_path.h"
 #include "sql/json_schema.h"
-#include "sql/json_syntax_check.h"
 #include "sql/my_decimal.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON

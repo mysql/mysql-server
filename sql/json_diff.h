@@ -39,7 +39,7 @@
 #include <memory>  // std::unique_ptr
 #include <vector>
 
-#include "sql/json_path.h"
+#include "sql-common/json_path.h"
 #include "sql/mem_root_allocator.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 

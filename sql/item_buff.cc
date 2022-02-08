@@ -34,9 +34,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/item.h"         // Cached_item, ...
-#include "sql/json_dom.h"     // Json_wrapper
+#include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql/current_thd.h"      // current_thd
+#include "sql/item.h"             // Cached_item, ...
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/system_variables.h"

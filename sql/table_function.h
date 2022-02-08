@@ -29,10 +29,10 @@
 
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "sql-common/json_dom.h"   // Json_wrapper
+#include "sql-common/json_path.h"  // Json_path
 #include "sql/create_field.h"
 #include "sql/enum_query_type.h"
-#include "sql/json_dom.h"   // Json_wrapper
-#include "sql/json_path.h"  // Json_path
 #include "sql/mem_root_array.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"       // Item_processor, enum_walk

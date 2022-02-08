@@ -34,6 +34,7 @@
 #include "m_string.h"  // STRING_WITH_LEN
 
 #include "mysql_com.h"
+#include "sql-common/json_dom.h"  // Json_*
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"                       // current_thd
 #include "sql/dd/impl/dictionary_impl.h"           // Dictionary_impl
@@ -43,7 +44,6 @@
 #include "sql/dd/impl/tables/column_statistics.h"  // Column_statistics
 #include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "sql/histograms/histogram.h"              // histograms::Histogram
-#include "sql/json_dom.h"                          // Json_*
 #include "template_utils.h"
 
 namespace dd {

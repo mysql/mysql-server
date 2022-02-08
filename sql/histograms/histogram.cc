@@ -49,7 +49,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "scope_guard.h"  // create_scope_guard
+#include "scope_guard.h"          // create_scope_guard
+#include "sql-common/json_dom.h"  // Json_*
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"
@@ -64,7 +65,6 @@
 #include "sql/histograms/singleton.h"    // Singleton<T>
 #include "sql/histograms/value_map.h"    // Value_map
 #include "sql/item.h"
-#include "sql/json_dom.h"  // Json_*
 #include "sql/key.h"
 #include "sql/mdl.h"  // MDL_request
 #include "sql/my_decimal.h"

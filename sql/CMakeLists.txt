@@ -433,12 +433,8 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/overflow_bitset.cc
   join_optimizer/print_utils.cc
   join_optimizer/replace_item.cc
-  json_binary.cc
   json_diff.cc
-  json_dom.cc
-  json_path.cc
   json_schema.cc
-  json_syntax_check.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -772,7 +768,11 @@ SET(SQL_SOURCE
   ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
+  ../sql-common/json_binary.cc
+  ../sql-common/json_dom.cc
   ../sql-common/json_error_handler.cc
+  ../sql-common/json_path.cc
+  ../sql-common/json_syntax_check.cc
   command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc

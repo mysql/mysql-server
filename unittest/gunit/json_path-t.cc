@@ -30,8 +30,8 @@
 #include <utility>
 
 #include "m_ctype.h"
-#include "sql/json_dom.h"
-#include "sql/json_path.h"
+#include "sql-common/json_dom.h"
+#include "sql-common/json_path.h"
 #include "sql_string.h"
 #include "unittest/gunit/test_utils.h"
 

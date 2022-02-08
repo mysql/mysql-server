@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 
 #include <errno.h>
 #include <float.h>
@@ -43,14 +43,11 @@
 
 #include "base64.h"
 #include "decimal.h"
-#include "json_binary.h"
 #include "m_ctype.h"
 #include "m_string.h"  // my_gcvt, _dig_vec_lower
-#include "malloc_allocator.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -58,14 +55,17 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
+#include "sql/malloc_allocator.h"
+#include "sql/my_decimal.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
+#include "sql-common/json_binary.h"
+#include "sql-common/json_path.h"
+#include "sql-common/json_syntax_check.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"
-#include "sql/json_path.h"
-#include "sql/json_syntax_check.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_const.h"       // STACK_MIN_SIZE

@@ -53,6 +53,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"  // Json_scalar_holder
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
@@ -66,7 +67,6 @@
 #include "sql/item_sum.h"        // Item_sum_hybrid
 #include "sql/item_timefunc.h"   // Item_typecast_date
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/json_dom.h"  // Json_scalar_holder
 #include "sql/key.h"
 #include "sql/mysqld.h"  // log_10
 #include "sql/nested_join.h"

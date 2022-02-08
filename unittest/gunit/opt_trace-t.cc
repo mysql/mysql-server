@@ -41,7 +41,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysys_err.h"  // for testing of OOM
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 

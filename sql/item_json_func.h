@@ -38,14 +38,14 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "prealloced_array.h"  // Prealloced_array
+#include "prealloced_array.h"      // Prealloced_array
+#include "sql-common/json_path.h"  // Json_path
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"    // Item_str_func
-#include "sql/json_path.h"       // Json_path
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_location.h"  // POS
 #include "sql/psi_memory_key.h"  // key_memory_JSON

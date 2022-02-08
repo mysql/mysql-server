@@ -30,12 +30,12 @@
 #include "my_inttypes.h"
 #include "my_systime.h"                  // my_micro_time()
 #include "my_time.h"                     // MYSQL_TIME
+#include "sql-common/json_dom.h"         // Json_object
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
 #include "sql/histograms/histogram.h"    // Histogram, Histogram_comparator
 #include "sql/histograms/singleton.h"    // Singleton
 #include "sql/histograms/value_map.h"    // Value_map<T>
-#include "sql/json_dom.h"                // Json_object
 #include "sql/my_decimal.h"              // my_decimal
 #include "sql/sql_time.h"                // my_time_compare
 #include "sql/tztime.h"                  // my_tz_UTC

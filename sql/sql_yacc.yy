@@ -104,8 +104,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"
 #include "sql/item_timefunc.h"
-#include "sql/json_dom.h"
-#include "sql/json_syntax_check.h"           // is_valid_json_syntax
+#include "sql-common/json_dom.h"
+#include "sql-common/json_syntax_check.h"           // is_valid_json_syntax
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"

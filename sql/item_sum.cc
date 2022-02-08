@@ -47,6 +47,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/json_dom.h"
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/create_field.h"
 #include "sql/current_thd.h"  // current_thd
@@ -62,7 +63,6 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
-#include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
 #include "sql/parse_tree_helpers.h"    // PT_item_list

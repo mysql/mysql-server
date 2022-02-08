@@ -34,7 +34,7 @@
 #include "my_base.h"
 #include "my_io.h"
 #include "mysql_com.h"
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 #include "sql/rpl_info.h" /* CHANNEL_NAME_LENGTH*/
 #include "storage/perfschema/pfs_engine_table.h"

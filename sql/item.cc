@@ -46,6 +46,7 @@
 #include "myisampack.h"  // mi_int8store
 #include "mysql.h"       // IS_NUM
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // get_column_grant
@@ -62,7 +63,6 @@
 #include "sql/item_strfunc.h"  // Item_func_conv_charset
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mysqld.h"     // lower_case_table_names files_charset_info

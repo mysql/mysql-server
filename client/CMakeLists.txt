@@ -99,11 +99,7 @@ OPTION(WITH_JSON_BINLOG_LIBRARY
 IF(WITH_JSON_BINLOG_LIBRARY)
   UNSET(INSTALL_JSON_BINLOG_LIBRARY)
   INSTALL(FILES
-    ../sql/json_binary.h
-    DESTINATION ${INSTALL_INCLUDEDIR}/sql
-    COMPONENT Development
-    )
-  INSTALL(FILES
+    ../sql-common/json_binary.h
     ../sql-common/json_error_handler.h
     DESTINATION ${INSTALL_INCLUDEDIR}/sql-common
     COMPONENT Development
@@ -131,10 +127,10 @@ ENDIF()
 # Always build it, but do not *use* it for mysqlbinlog unless
 # WITH_JSON_BINLOG_LIBRARY=ON
 ADD_SHARED_LIBRARY(json_binlog
-  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_path.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX EXPORT_JSON_FUNCTIONS
@@ -147,10 +143,10 @@ ADD_SHARED_LIBRARY(json_binlog
   )
 
 ADD_CONVENIENCE_LIBRARY(json_client_library
-  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_path.cc
-  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX
