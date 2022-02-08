@@ -55,12 +55,17 @@
 #    or, on Apple silicon:
 # 'cmake -DWITH_SSL=/opt/homebrew/opt/openssl'
 # we will treat the libraries as external, and copy them into our build tree.
+#
+# On el7:
+# pkg-config --libs openssl11
+#    -L/usr/lib64/openssl11 -lssl -lcrypto
+# pkg-config --cflags openssl11
+#    -I/usr/include/openssl11
 
 SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, \nyes (synonym for system)")
-SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
+SET(WITH_SSL_DOC "\nopenssl[0-9]+ (use alternative system library)")
+STRING_APPEND(WITH_SSL_DOC "\nyes (synonym for system)")
+STRING_APPEND(WITH_SSL_DOC "\n</path/to/custom/openssl/installation>")
 
 STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
 
@@ -98,7 +103,90 @@ MACRO(RESET_SSL_VARIABLES)
   UNSET(CRYPTO_LIBRARY CACHE)
   UNSET(HAVE_SHA512_DIGEST_LENGTH)
   UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
-ENDMACRO()
+ENDMACRO(RESET_SSL_VARIABLES)
+
+MACRO(FIND_OPENSSL_VERSION)
+  # Verify version number. Version information looks like:
+  #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+  # Encoded as MNNFFPPS: major minor fix patch status
+  FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+    OPENSSL_VERSION_NUMBER
+    REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+    )
+  STRING(REGEX REPLACE
+    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+    OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+    )
+  STRING(REGEX REPLACE
+    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+    OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+    )
+  STRING(REGEX REPLACE
+    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+    OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+    )
+  SET(OPENSSL_MAJOR_MINOR_FIX_VERSION "${OPENSSL_MAJOR_VERSION}")
+  STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_MINOR_VERSION}")
+  STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_FIX_VERSION}")
+  MESSAGE(STATUS
+    "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_MAJOR_MINOR_FIX_VERSION}")
+ENDMACRO(FIND_OPENSSL_VERSION)
+
+MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
+  MYSQL_CHECK_PKGCONFIG()
+  EXECUTE_PROCESS(COMMAND ${PKG_CONFIG_EXECUTABLE} --cflags ${WITH_SSL}
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    OUTPUT_VARIABLE OPENSSL_NN_FLAGS
+    RESULT_VARIABLE OPENSSL_NN_FLAGS_RESULT
+    ERROR_VARIABLE OPENSSL_NN_FLAGS_ERROR
+    )
+  IF(NOT OPENSSL_NN_FLAGS_RESULT EQUAL 0)
+    MESSAGE(FATAL_ERROR "${OPENSSL_NN_FLAGS_ERROR}")
+  ENDIF()
+  EXECUTE_PROCESS(COMMAND ${PKG_CONFIG_EXECUTABLE} --libs ${WITH_SSL}
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    OUTPUT_VARIABLE OPENSSL_NN_LIBS
+    RESULT_VARIABLE OPENSSL_NN_LIBS_RESULT
+    ERROR_VARIABLE OPENSSL_NN_LIBS_ERROR
+    )
+  IF(NOT OPENSSL_NN_LIBS_RESULT EQUAL 0)
+    MESSAGE(FATAL_ERROR "${OPENSSL_NN_LIBS_ERROR}")
+  ENDIF()
+  STRING(REPLACE "-I/" "/" OPENSSL_INCLUDE_DIR ${OPENSSL_NN_FLAGS})
+  STRING(REPLACE "-L/" "/" OPENSSL_LIB_DIR ${OPENSSL_NN_LIBS})
+  STRING(REPLACE " -lssl" "" OPENSSL_LIB_DIR ${OPENSSL_LIB_DIR})
+  STRING(REPLACE " -lcrypto" "" OPENSSL_LIB_DIR ${OPENSSL_LIB_DIR})
+  SET(ALTERNATIVE_SYSTEM_SSL 1)
+
+  # First search in the alternative system directory.
+  FIND_PATH(OPENSSL_ROOT_DIR
+    NAMES openssl/ssl.h
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_DEFAULT_PATH
+    HINTS ${OPENSSL_INCLUDE_DIR}
+    )
+
+  FIND_LIBRARY(OPENSSL_LIBRARY
+    NAMES ssl
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_DEFAULT_PATH
+    HINTS ${OPENSSL_LIB_DIR}
+    )
+  FIND_LIBRARY(CRYPTO_LIBRARY
+    NAMES crypto
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_DEFAULT_PATH
+    HINTS ${OPENSSL_LIB_DIR}
+    )
+  IF(NOT OPENSSL_ROOT_DIR OR
+      NOT OPENSSL_LIBRARY OR
+      NOT CRYPTO_LIBRARY)
+    FATAL_SSL_NOT_FOUND_ERROR("Could not find system OpenSSL ${WITH_SSL}")
+  ENDIF()
+ENDMACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
 
 # MYSQL_CHECK_SSL
 #
@@ -124,8 +212,13 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL "system" CACHE INTERNAL "Use system SSL libraries" FORCE)
   ENDIF()
 
+  # On e.g. el7: openssl11, el8: openssl3
+  STRING(REGEX MATCH "^openssl([0-9]+)$" UNUSED ${WITH_SSL})
+  IF(CMAKE_MATCH_1)
+    FIND_ALTERNATIVE_SYSTEM_SSL()
+  ENDIF()
 
-  IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH)
+  IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH OR ALTERNATIVE_SYSTEM_SSL)
     IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
       # FindOpenSSL.cmake knows about
       # http://www.slproweb.com/products/Win32OpenSSL.html
@@ -218,27 +311,9 @@ MACRO (MYSQL_CHECK_SSL)
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
 
     IF(OPENSSL_INCLUDE_DIR)
-      # Verify version number. Version information looks like:
-      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-      # Encoded as MNNFFPPS: major minor fix patch status
-      FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-        OPENSSL_VERSION_NUMBER
-        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
+      FIND_OPENSSL_VERSION()
     ENDIF()
-    IF("${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}" VERSION_GREATER "1.1.0")
+    IF("${OPENSSL_MAJOR_MINOR_FIX_VERSION}" VERSION_GREATER "1.1.0")
        ADD_DEFINITIONS(-DHAVE_TLSv13)
     ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
@@ -331,12 +406,14 @@ MACRO (MYSQL_CHECK_SSL)
       FATAL_SSL_NOT_FOUND_ERROR(
         "Cannot find appropriate system libraries for WITH_SSL=${WITH_SSL}.")
     ENDIF()
+  ELSEIF(ALTERNATIVE_SYSTEM_SSL)
+    MESSAGE(STATUS "Using alternative system OpenSSL: ${WITH_SSL}")
   ELSE()
     RESET_SSL_VARIABLES()
     FATAL_SSL_NOT_FOUND_ERROR(
       "Wrong option or path for WITH_SSL=${WITH_SSL}.")
   ENDIF()
-ENDMACRO()
+ENDMACRO(MYSQL_CHECK_SSL)
 
 # If cmake is invoked with -DWITH_SSL=</path/to/custom/openssl>
 # and we discover that the installation has dynamic libraries,
