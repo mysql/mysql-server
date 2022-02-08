@@ -1,3 +1,5 @@
+--source include/have_innodb_16k.inc
+
 --echo #
 --echo # Bug #33454557 Innodb asserts due to corruption in the fsp layer while
 --echo # running MTR tests
