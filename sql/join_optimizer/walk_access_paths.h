@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
                       post_order_traversal);
       break;
     case AccessPath::APPEND:
-      if (cross_query_blocks != WalkAccessPathPolicy::ENTIRE_TREE) {
+      if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE) {
         for (const AppendPathParameters &child : *path->append().children) {
           WalkAccessPaths(child.path, child.join, cross_query_blocks,
                           std::forward<Func &&>(func), post_order_traversal);
