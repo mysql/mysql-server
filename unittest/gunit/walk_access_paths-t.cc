@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "my_alloc.h"  // MEM_ROOT
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/mem_root_array.h"
 #include "sql/table.h"
 
 class JOIN;
@@ -64,6 +66,22 @@ AccessPath MakeZeroRows(AccessPath *child) {
   AccessPath path;
   path.type = AccessPath::ZERO_ROWS;
   path.zero_rows().child = child;
+  return path;
+}
+
+AccessPath MakeAppend(MEM_ROOT *mem_root, AccessPath *c1, AccessPath *c2) {
+  AccessPath path;
+  path.type = AccessPath::APPEND;
+
+  Mem_root_array<AppendPathParameters> *params =
+      new (mem_root) Mem_root_array<AppendPathParameters>(mem_root);
+  AppendPathParameters param1, param2;
+  param1.path = c1;
+  param2.path = c2;
+  params->push_back(param1);
+  params->push_back(param2);
+
+  path.append().children = params;
   return path;
 }
 
@@ -254,6 +272,42 @@ TEST(WalkAccessPaths, ZeroRowsNoChild) {
         },
         include_pruned_tables);
   }
+}
+
+TEST(WalkAccessPaths, Append) {
+  /*
+   * Set up this access path tree:
+   *
+   *                APPEND
+   *                /    \
+   *              TS1    TS2
+   */
+
+  TABLE t1;
+  TABLE t2;
+
+  AccessPath ts1 = MakeTableScan(&t1);
+  AccessPath ts2 = MakeTableScan(&t2);
+
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 1024);
+  AccessPath append = MakeAppend(&mem_root, &ts1, &ts2);
+
+  vector<AccessPath *> paths;
+  WalkAccessPaths(&append, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&paths](AccessPath *path, const JOIN *) {
+                    paths.push_back(path);
+                    return false;
+                  });
+  EXPECT_THAT(paths, ElementsAre(&append, &ts1, &ts2));
+  paths.clear();
+
+  WalkAccessPaths(&append, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&paths](AccessPath *path, const JOIN *) {
+                    paths.push_back(path);
+                    return false;
+                  });
+  EXPECT_THAT(paths, ElementsAre(&append));
 }
 
 }  // namespace walk_access_paths_test
