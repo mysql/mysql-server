@@ -1113,7 +1113,9 @@ static int warp_rewrite_query_notify(
     std::string sqlstr = "";
     bool capture_sql = false;
     bool is_create_table = false;
-
+    if(tokens.size() < 4) {
+      return 0;
+    }
     if(strtolower(tokens[0]) == "prepare") {
       return 0;
     }
