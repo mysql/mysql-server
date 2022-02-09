@@ -1123,7 +1123,10 @@ static int warp_rewrite_query_notify(
     if(strtolower(tokens[0]) == "set") {
       goto process_sql;
     }
-    if ( (tokens.size() == 6) && strtolower(tokens[0]) == "rename" && strtolower(tokens[1]) == "materialized" && strtolower(tokens[2])=="view" && strtolower(tokens[4]) == "to" ) {
+
+    if ( (tokens.size() == 4) && strtolower(tokens[0])=="show" && strtolower(tokens[1])=="materialized" && strtolower(tokens[2]) == "view" && strtolower(tokens[3])== "logs") {
+      sqlstr = "call leapdb.show_materialized_view_logs(database());";
+    } else if ( (tokens.size() == 6) && strtolower(tokens[0]) == "rename" && strtolower(tokens[1]) == "materialized" && strtolower(tokens[2])=="view" && strtolower(tokens[4]) == "to" ) {
       std::string from_table = tokens[3];
       std::string to_table = tokens[5];
       std::string from_db = "database()";
@@ -1150,7 +1153,7 @@ static int warp_rewrite_query_notify(
       to_table = "'" + to_table + "'";
       sqlstr = "CALL leapdb.rename(leapdb.get_id(" + from_db + "," + from_table + "), " + to_db + "," + to_table + ");";
       
-    }else if( tokens.size() == 7 && (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
+    } else if( tokens.size() == 7 && (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
        strtolower(tokens[1]) == "materialized" && 
        strtolower(tokens[2]) == "view" && 
        strtolower(tokens[3]) == "log" && 
