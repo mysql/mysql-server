@@ -99,7 +99,7 @@ SELECT * FROM t2;
 --let $assert_select= Detected a normal system restart
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
 --let $assert_only_after= NDB Binlog: Detected server start
---let $assert_count= 1
+--let $assert_match= .*Detected a normal system restart.*
 --source include/assert_grep.inc
 
 --connection server2
@@ -108,7 +108,6 @@ SELECT * FROM t2;
 
 --let $assert_text= Detect normal restart in MySQL Server 2
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
---let $assert_count= 1
 --source include/assert_grep.inc
 
 --connection server1
@@ -141,7 +140,7 @@ SELECT * FROM t2 ORDER BY a;
 --let $assert_select= Detected an initial system restart
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
 --let $assert_only_after= NDB Binlog: Detected server start
---let $assert_count= 1
+--let $assert_match= .*Detected an initial system restart.*
 --source include/assert_grep.inc
 
 --connection server2
@@ -150,7 +149,6 @@ SELECT * FROM t2 ORDER BY a;
 
 --let $assert_text= Detect initial restart in MySQL Server 2
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
---let $assert_count= 1
 --source include/assert_grep.inc
 
 --connection server1
