@@ -60,8 +60,8 @@ INSERT INTO rplvars (varname, varvalue)
 
 CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
-  ('gtid_executed'), ('gtid_owned'), ('log_bin'), ('log_bin_basename'),
-  ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
+  ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
+  ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
   ('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
   ('slave_load_tmpdir'), ('log_bin_use_v1_row_events');
 
@@ -116,7 +116,7 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $expected = 102
+--let $expected = 101
 --let $assert_text = Expect $expected persisted variables in persisted_variables table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
