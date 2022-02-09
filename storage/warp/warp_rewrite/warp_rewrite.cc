@@ -1086,6 +1086,16 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
   } 
   return sqlstr;
 }
+
+std::string strip_backticks(const std::string str) {
+  std::string out = "";
+  for(size_t i = 0; i< str.size();++i) {
+    if(str[i] != '`') {
+      out += str[i];
+    }
+  }
+  return out;
+}
 /**
   Entry point to the plugin. The server calls this function after each parsed
   query when the plugin is active. The function extracts the digest of the
@@ -1127,8 +1137,8 @@ static int warp_rewrite_query_notify(
     if ( (tokens.size() == 4) && strtolower(tokens[0])=="show" && strtolower(tokens[1])=="materialized" && strtolower(tokens[2]) == "view" && strtolower(tokens[3])== "logs") {
       sqlstr = "call leapdb.show_materialized_view_logs(database());";
     } else if ( (tokens.size() == 6) && strtolower(tokens[0]) == "rename" && strtolower(tokens[1]) == "materialized" && strtolower(tokens[2])=="view" && strtolower(tokens[4]) == "to" ) {
-      std::string from_table = tokens[3];
-      std::string to_table = tokens[5];
+      std::string from_table = strip_backticks(tokens[3]);
+      std::string to_table = strip_backticks(tokens[5]);
       std::string from_db = "database()";
       std::string to_db = "database()";
       const char *dot_at;
