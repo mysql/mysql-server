@@ -81,7 +81,7 @@ static MYSQL_PLUGIN plugin_info;
 static PSI_memory_key key_memory_warp_rewrite;
 
 static PSI_memory_info all_rewrite_memory[] = {
-    {&key_memory_warp_rewrite, "rewrite_example", 0, 0, PSI_DOCUMENT_ME}};
+    {&key_memory_warp_rewrite, "warp_rewriter", 0, 0, PSI_DOCUMENT_ME}};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -1121,8 +1121,34 @@ static int warp_rewrite_query_notify(
     if(strtolower(tokens[0]) == "set") {
       goto process_sql;
     }
-
-    if( (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
+    if ( (tokens.size() == 6) && strtolower(tokens[0]) == "rename" && strtolower(tokens[1]) == "materialized" && strtolower(tokens[2])=="view" && strtolower(tokens[4]) == "to" ) {
+      std::string from_table = tokens[3];
+      std::string to_table = tokens[5];
+      std::string from_db = "database()";
+      std::string to_db = "database()";
+      const char *dot_at;
+      
+      if((dot_at = strstr(from_table.c_str(), ".")) != NULL) {
+        if(dot_at != nullptr) {
+          from_db = "'" + from_table.substr(0, dot_at - from_table.c_str() ) + "'";
+          from_table = from_table.substr(dot_at - from_table.c_str()+1, -1);
+        } else {
+          from_db = "database()";
+        }
+      }
+      if((dot_at = strstr(to_table.c_str(), ".")) != NULL) {
+        if(dot_at != nullptr) {
+          to_db = "'" + to_table.substr(0, dot_at - to_table.c_str() ) + "'";
+          to_table = to_table.substr(dot_at - to_table.c_str()+1, -1);
+        } else {
+          to_db = "database()";
+        }
+      }
+      from_table = "'" + from_table + "'";
+      to_table = "'" + to_table + "'";
+      sqlstr = "CALL leapdb.rename(leapdb.get_id(" + from_db + "," + from_table + "), " + to_db + "," + to_table + ");";
+      
+    }else if( tokens.size() == 7 && (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
        strtolower(tokens[1]) == "materialized" && 
        strtolower(tokens[2]) == "view" && 
        strtolower(tokens[3]) == "log" && 
@@ -1145,7 +1171,7 @@ static int warp_rewrite_query_notify(
       
       sqlstr = "CALL leapdb." + proc_name + "(" + mvlog_db + ", " + escape_for_call(mvlog_table) + ");";
       
-    } else if( (strtolower(tokens[0]) == "drop") &&
+    } else if( tokens.size() == 4 && (strtolower(tokens[0]) == "drop") &&
                (strtolower(tokens[1]) == "materialized") &&
                (strtolower(tokens[2]) == "view")
       ) {
@@ -1182,7 +1208,7 @@ static int warp_rewrite_query_notify(
 		      std::cerr << i << ": " << tokens[i] << "\n";
 	      }*/
         // handle create [incremental] materialized view
-        if(strtolower(tokens[0]) == "create") {
+        if(tokens.size()>4 && strtolower(tokens[0]) == "create") {
           if(strtolower(tokens[1]) == "incremental") {
             is_incremental = true;
             if(strtolower(tokens[2]) != "materialized" && strtolower(tokens[3]) != "view") {
