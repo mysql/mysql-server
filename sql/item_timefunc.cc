@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2351,7 +2351,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
   }
 
   // Return NULL for timestamps after 2038-01-19 03:14:07 UTC (32 bits OS time)
-  // or after 9999-12-31 23:59:59 (64 bits OS time)
+  // or after 3001-01-18 23:59:59 (64 bits OS time)
   if ((null_value = (args[0]->null_value || lld.quot > MYTIME_MAX_VALUE) ||
                     lld.quot < 0 || lld.rem < 0))
     return true;

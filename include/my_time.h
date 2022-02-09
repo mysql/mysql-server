@@ -76,6 +76,11 @@ constexpr const my_time_t MYTIME_MAX_VALUE =
     HAVE_64_BITS_TIME_T ? 32536771199
                         : std::numeric_limits<std::int32_t>::max();
 
+/**
+  Zero represents the first time value we allow, i.e. UNIX epoch.
+  We do not allow times before UNIX epoch, except for inside computations,
+  hence we use a signed integer as the base type, cf. prepare_tz_info.
+*/
 constexpr const int MYTIME_MIN_VALUE = 0;
 
 /** max seconds from epoch that can be stored in a column of type TIMESTAMP.
