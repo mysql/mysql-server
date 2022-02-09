@@ -643,7 +643,7 @@ class Item_bool_func2 : public Item_bool_func {
   /// function's arguments. Also sets up caches to hold constant values
   /// converted to the type expected by the comparator. See
   /// Arg_comparator::set_cmp_func().
-  bool set_cmp_func() {
+  virtual bool set_cmp_func() {
     return cmp.set_cmp_func(this, args, args + 1, is_nullable());
   }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
@@ -1083,6 +1083,10 @@ class Item_func_equal final : public Item_func_comparison {
   Item_func_equal(const POS &pos, Item *a, Item *b)
       : Item_func_comparison(pos, a, b) {
     null_on_null = false;
+  }
+  // Needs null value propagated to parent, even though operator is not nullable
+  bool set_cmp_func() override {
+    return cmp.set_cmp_func(this, args, args + 1, true);
   }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
