@@ -2931,7 +2931,11 @@ bool Prepared_statement::check_parameter_types() {
       case MYSQL_TYPE_LONG_BLOB:
         if (item->data_type_actual() == MYSQL_TYPE_LONGLONG ||
             item->data_type_actual() == MYSQL_TYPE_NEWDECIMAL ||
-            item->data_type_actual() == MYSQL_TYPE_DOUBLE)
+            item->data_type_actual() == MYSQL_TYPE_DOUBLE ||
+            item->data_type_actual() == MYSQL_TYPE_DATETIME ||
+            item->data_type_actual() == MYSQL_TYPE_TIMESTAMP ||
+            item->data_type_actual() == MYSQL_TYPE_DATE ||
+            item->data_type_actual() == MYSQL_TYPE_TIME)
           return false;
         break;
       default:
