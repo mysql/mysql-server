@@ -3206,7 +3206,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[1].id = -1;
     options[0].var_type = options[1].var_type = GET_ENUM;
     options[0].arg_type = options[1].arg_type = OPT_ARG;
-    options[0].def_value = options[1].def_value = 1; /* ON */
+    options[0].def_value = options[1].def_value = tmp->load_option;
     options[0].typelib = options[1].typelib = &global_plugin_typelib;
 
     strxnmov(comment, max_comment_len, "Enable or disable ", plugin_name,
