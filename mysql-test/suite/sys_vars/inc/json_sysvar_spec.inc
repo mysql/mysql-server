@@ -253,7 +253,7 @@ let $sysvar_specs =
   {
     "name": "replica_allow_batching",
     "alias": "slave_allow_batching",
-    "default": 0,
+    "default": 1,
     $bool
   },
   {

@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 show variables like 'replica_allow_batching';
 Variable_name	Value
-replica_allow_batching	OFF
+replica_allow_batching	ON
 set global replica_allow_batching=ON;
 show variables like 'replica_allow_batching';
 Variable_name	Value
@@ -724,6 +724,5 @@ include/sync_slave_sql_with_master.inc
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global replica_allow_batching=OFF;
 include/start_slave.inc
 include/rpl_end.inc

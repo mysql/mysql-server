@@ -1138,6 +1138,7 @@ The following options may be given as the first argument:
  --replica-allow-batching 
  Allow this replica to batch requests when using the NDB
  storage engine.
+ (Defaults to on; use --skip-replica-allow-batching to disable.)
  --replica-checkpoint-group=# 
  When using multi-threaded applier
  (replica_parallel_workers>0), it will update the worker
@@ -1404,6 +1405,7 @@ The following options may be given as the first argument:
  --slave-allow-batching 
  This option is deprecated. Use replica_allow_batching
  instead.
+ (Defaults to on; use --skip-slave-allow-batching to disable.)
  --slave-checkpoint-group=# 
  This option is deprecated. Use replica_checkpoint_group
  instead.
@@ -1941,7 +1943,7 @@ relay-log-info-repository TABLE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
-replica-allow-batching FALSE
+replica-allow-batching TRUE
 replica-checkpoint-group 512
 replica-checkpoint-period 300
 replica-compressed-protocol FALSE
@@ -1991,7 +1993,7 @@ skip-networking FALSE
 skip-replica-start FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
-slave-allow-batching FALSE
+slave-allow-batching TRUE
 slave-checkpoint-group 512
 slave-checkpoint-period 300
 slave-compressed-protocol FALSE
