@@ -5473,8 +5473,7 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   jamEntry();
   
   CommitAckMarkerPtr removedPtr;
-  m_commitAckMarkerHash.remove(removedPtr, key);
-  if (removedPtr.i != RNIL)
+  if (m_commitAckMarkerHash.remove(removedPtr, key))
   {
     jam();
     ndbrequire(removedPtr.p->in_hash);
@@ -13451,8 +13450,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
     key.transid1 = regTcPtr->transid[0];
     key.transid2 = regTcPtr->transid[1];
     CommitAckMarkerPtr removedPtr;
-    m_commitAckMarkerHash.remove(removedPtr, key);
-    ndbrequire(removedPtr.i != RNIL);
+    ndbrequire(m_commitAckMarkerHash.remove(removedPtr, key));
     ndbrequire(removedPtr.i == tmp.i);
     removedPtr.p->in_hash = false;
     m_commitAckMarkerPool.release(removedPtr);
@@ -18462,7 +18460,7 @@ bool Dblqh::finishScanrec(Signal* signal,
     g_eventLogger->info("removing (%d %d)", scanPtr->scanNumber,
                         scanPtr->fragPtrI);
 #endif
-    c_scanTakeOverHash.remove(tmp, * scanPtr);
+    ndbrequire(c_scanTakeOverHash.remove(tmp, * scanPtr));
     ndbrequire(tmp.p == scanPtr);
   }
 

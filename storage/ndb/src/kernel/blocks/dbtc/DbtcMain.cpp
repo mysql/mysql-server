@@ -7596,8 +7596,7 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal)
   key.transid2 = signal->theData[1];
 
   CommitAckMarkerPtr removedMarker;
-  m_commitAckMarkerHash.remove(removedMarker, key);
-  if (unlikely(removedMarker.i == RNIL))
+  if (!m_commitAckMarkerHash.remove(removedMarker, key))
   {
     jam();
     warningHandlerLab(signal, __LINE__);

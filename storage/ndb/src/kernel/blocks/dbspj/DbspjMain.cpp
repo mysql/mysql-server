@@ -1016,6 +1016,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
 
   Uint32 err;
   Ptr<Request> requestPtr(0, RNIL);
+  bool in_hash = false;
   do
   {
     ArenaHead ah;
@@ -1083,6 +1084,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
      * Store request in list(s)/hash(es)
      */
     store_lookup(requestPtr);
+    in_hash = true;
 
     /**
      * A query being shipped as a LQHKEYREQ may return at most a row
@@ -1109,7 +1111,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    cleanup(requestPtr);
+    cleanup(requestPtr, in_hash);
   }
   releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_lqhkey_ref(signal, req, err);
@@ -1337,6 +1339,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
 
   Uint32 err;
   Ptr<Request> requestPtr(0, RNIL);
+  bool in_hash = false;
   do
   {
     ArenaHead ah;
@@ -1430,6 +1433,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
      * Store request in list(s)/hash(es)
      */
     store_scan(requestPtr);
+    in_hash = true;
 
     if (ERROR_INSERTED_CLEAR(17013) ||
         unlikely(!requestPtr.p->isScan() || requestPtr.p->m_node_cnt != cnt))
@@ -1452,7 +1456,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    cleanup(requestPtr);
+    cleanup(requestPtr, in_hash);
   }
   releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_scanfrag_ref(signal, req, err);
@@ -2601,7 +2605,8 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
     /**
      * Entire Request completed
      */
-    cleanup(requestPtr);
+    constexpr bool in_hash = true;
+    cleanup(requestPtr, in_hash);
   }
   else
   {
@@ -3223,8 +3228,7 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
  * The Request itself is *not* released yet as it may still be needed
  * to track the state of the request. (Set to include RS_DONE)
  */
-void
-Dbspj::cleanup(Ptr<Request> requestPtr)
+void Dbspj::cleanup(Ptr<Request> requestPtr, bool in_hash)
 {
   ndbrequire(requestPtr.p->m_cnt_active == 0);
   {
@@ -3262,15 +3266,16 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
     if (unlikely((requestPtr.p->m_state & Request::RS_WAITING) != 0))
     {
       jam();
+      ndbrequire(in_hash);
       requestPtr.p->m_state = Request::RS_ABORTED;
       return;
     }
-    m_scan_request_hash.remove(requestPtr, *requestPtr.p);
+    ndbrequire(in_hash == m_scan_request_hash.remove(requestPtr, *requestPtr.p));
   }
   else
   {
     jam();
-    m_lookup_request_hash.remove(requestPtr, *requestPtr.p);
+    ndbrequire(in_hash == m_lookup_request_hash.remove(requestPtr, *requestPtr.p));
   }
   ArenaHead ah = requestPtr.p->m_arena;
   m_request_pool.release(requestPtr);
