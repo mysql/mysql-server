@@ -4686,14 +4686,14 @@ EventBufData_hash::expand()
   assert(memptr != NULL);  // alloc failure catched in ::alloc()
   m_hash = static_cast<HashBucket *>(memptr);
   for (size_t i = 0; i < m_hash_size; i++) {
-    new(&m_hash[i]) HashBucket(m_event_buffer);
+    new(&m_hash[i]) HashBucket(EventBufAllocator<Pos>(m_event_buffer));
   }
 
   // Insert into extended hash buckets
-  m_element_count = 0;
   for (size_t i = 0; i < old_hash_size; i++) {
     for (const Pos item : old_hash[i]) {
-      append(item);
+      const Uint32 index = item.pkhash % m_hash_size;
+      m_hash[index].push_back(item);
     }
   }
 }

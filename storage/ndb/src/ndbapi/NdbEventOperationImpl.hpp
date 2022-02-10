@@ -76,17 +76,17 @@ class EventBufAllocator
  public:
   typedef T value_type;
 
-  EventBufAllocator () = default;
   EventBufAllocator (NdbEventBuffer* e) : m_eventBuffer(e) {}
 
   template <class U> constexpr
-    EventBufAllocator (const EventBufAllocator <U>&) noexcept {}
+    EventBufAllocator (const EventBufAllocator <U>&other) noexcept
+      : m_eventBuffer(other.m_eventBuffer)
+  {}
 
   [[nodiscard]] T* allocate(std::size_t n);
   void deallocate(T* p, std::size_t n) noexcept;
 
-private:
-  NdbEventBuffer *m_eventBuffer{nullptr};
+  NdbEventBuffer *const m_eventBuffer;
 };
 
 /////////////////////////////////
