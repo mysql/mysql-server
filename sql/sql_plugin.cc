@@ -1068,7 +1068,8 @@ static bool plugin_add(MEM_ROOT *tmp_root, LEX_CSTRING name,
       tmp.name.length = name_len;
       tmp.ref_count = 0;
       tmp.state = PLUGIN_IS_UNINITIALIZED;
-      tmp.load_option = PLUGIN_ON;
+      tmp.load_option =
+          (plugin->flags & PLUGIN_OPT_DEFAULT_OFF) ? PLUGIN_OFF : PLUGIN_ON;
       if (test_plugin_options(tmp_root, &tmp, argc, argv))
         tmp.state = PLUGIN_IS_DISABLED;
 
@@ -1561,7 +1562,10 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
       tmp.name.str = plugin->name;
       tmp.name.length = strlen(plugin->name);
       tmp.state = 0;
-      tmp.load_option = mandatory ? PLUGIN_FORCE : PLUGIN_ON;
+      tmp.load_option = mandatory ? PLUGIN_FORCE
+                                  : (plugin->flags & PLUGIN_OPT_DEFAULT_OFF)
+                                        ? PLUGIN_OFF
+                                        : PLUGIN_ON;
 
       /*
         If the performance schema is compiled in,
@@ -3504,14 +3508,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   DBUG_TRACE;
   assert(tmp->plugin && tmp->name.str);
 
-  /*
-    The 'federated' and 'ndbcluster' storage engines are always disabled by
-    default.
-  */
-  if (!(my_strcasecmp(&my_charset_latin1, tmp->name.str, "federated") &&
-        my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster")))
-    plugin_load_option = PLUGIN_OFF;
-
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++)
     count += 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
 
@@ -3526,14 +3522,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       LogErr(ERROR_LEVEL, ER_PLUGIN_BAD_OPTIONS, tmp->name.str);
       return -1;
     }
-
-    /*
-      We adjust the default value to account for the hardcoded exceptions
-      we have set for the federated and ndbcluster storage engines.
-    */
-    if (tmp->load_option != PLUGIN_FORCE &&
-        tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
-      opts[0].def_value = opts[1].def_value = plugin_load_option;
 
     error = handle_options(argc, &argv, opts, check_if_option_is_deprecated);
     (*argc)++; /* add back one for the program name */

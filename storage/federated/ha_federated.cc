@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -3166,8 +3166,8 @@ mysql_declare_plugin(federated){
     nullptr,           /* Plugin check uninstall */
     federated_done,    /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    nullptr, /* status variables                */
-    nullptr, /* system variables                */
-    nullptr, /* config options                  */
-    0,       /* flags                           */
+    nullptr,                /* status variables                */
+    nullptr,                /* system variables                */
+    nullptr,                /* config options                  */
+    PLUGIN_OPT_DEFAULT_OFF, /* flags            */
 } mysql_declare_plugin_end;
