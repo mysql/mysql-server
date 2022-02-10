@@ -2392,6 +2392,23 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   return digraph;
 }
 
+size_t EstimateHashJoinKeyWidth(const RelationalExpression *expr) {
+  size_t ret = 0;
+  for (Item_eq_base *join_condition : expr->equijoin_conditions) {
+    // We heuristically limit our estimate of blobs to 4 kB.
+    // Otherwise, the mere presence of a LONGBLOB field would mean
+    // we'd estimate essentially infinite row width for a join.
+    //
+    // TODO(sgunders): Do as we do in the old optimizer,
+    // where we only store hashes for strings.
+    const Item *left = join_condition->get_arg(0);
+    const Item *right = join_condition->get_arg(1);
+    ret += min<size_t>(
+        max<size_t>(left->max_char_length(), right->max_char_length()), 4096);
+  }
+  return ret;
+}
+
 namespace {
 
 NodeMap IntersectIfNotDegenerate(NodeMap used_nodes, NodeMap available_nodes) {
@@ -2595,21 +2612,8 @@ Hyperedge FindHyperedgeAndJoinConflicts(THD *thd, NodeMap used_nodes,
 
 size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
                                const RelationalExpression *expr) {
-  size_t ret = 0;
-
   // Estimate size of the join keys.
-  for (Item_eq_base *join_condition : expr->equijoin_conditions) {
-    // We heuristically limit our estimate of blobs to 4 kB.
-    // Otherwise, the mere presence of a LONGBLOB field would mean
-    // we'd estimate essentially infinite row width for a join.
-    //
-    // TODO(sgunders): Do as we do in the old optimizer,
-    // where we only store hashes for strings.
-    const Item *left = join_condition->get_arg(0);
-    const Item *right = join_condition->get_arg(1);
-    ret += min<size_t>(
-        max<size_t>(left->max_char_length(), right->max_char_length()), 4096);
-  }
+  size_t ret = EstimateHashJoinKeyWidth(expr);
 
   // Estimate size of the values.
   for (int node_idx : BitsSetIn(expr->nodes_in_subtree)) {

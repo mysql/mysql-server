@@ -176,6 +176,10 @@ hypergraph::NodeMap GetNodeMapFromTableMap(
 
 std::string PrintDottyHypergraph(const JoinHypergraph &graph);
 
+/// Estimates the size of the hash join keys generated from the equi-join
+/// predicates in "expr".
+size_t EstimateHashJoinKeyWidth(const RelationalExpression *expr);
+
 table_map GetVisibleTables(const RelationalExpression *expr);
 
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

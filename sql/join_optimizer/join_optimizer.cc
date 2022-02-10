@@ -34,7 +34,6 @@
 #include <bitset>
 #include <initializer_list>
 #include <memory>
-#include <optional>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -123,10 +122,8 @@
 using hypergraph::Hyperedge;
 using hypergraph::Node;
 using hypergraph::NodeMap;
-using std::bitset;
 using std::find_if;
 using std::min;
-using std::optional;
 using std::pair;
 using std::string;
 using std::swap;
@@ -3266,8 +3263,37 @@ void CostingReceiver::ProposeHashJoin(
   join_path.num_output_rows = num_output_rows;
   join_path.init_cost = build_cost + left_path->init_cost;
 
+  double estimated_bytes_per_row = edge->estimated_bytes_per_row;
+
+  // If the edge is part of a cycle in the hypergraph, there may be other usable
+  // join predicates in other edges. MoveFilterPredicatesIntoHashJoinCondition()
+  // will widen the hash join predicate in that case, so account for that here.
+  // Only relevant when joining more than two tables. Say {t1,t2} HJ {t3}, which
+  // could be joined both along a t1-t3 edge and a t2-t3 edge.
+  //
+  // TODO(khatlen): The cost is still calculated as if the hash join only uses
+  // "edge", and that the alternative edges are put in filters on top of the
+  // join.
+  if (edge->expr->join_predicate_first != edge->expr->join_predicate_last &&
+      PopulationCount(left | right) > 2) {
+    // Only inner joins are part of cycles.
+    assert(edge->expr->type == RelationalExpression::INNER_JOIN);
+    for (size_t edge_idx = 0; edge_idx < m_graph->graph.edges.size();
+         ++edge_idx) {
+      Hyperedge hyperedge = m_graph->graph.edges[edge_idx];
+      if (IsSubset(hyperedge.left, left) && IsSubset(hyperedge.right, right)) {
+        const JoinPredicate *other_edge = &m_graph->edges[edge_idx / 2];
+        assert(other_edge->expr->type == RelationalExpression::INNER_JOIN);
+        assert(PassesConflictRules(left | right, other_edge->expr));
+        if (other_edge != edge) {
+          estimated_bytes_per_row += EstimateHashJoinKeyWidth(other_edge->expr);
+        }
+      }
+    }
+  }
+
   const double hash_memory_used_bytes =
-      edge->estimated_bytes_per_row * right_path->num_output_rows;
+      estimated_bytes_per_row * right_path->num_output_rows;
   if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9 &&
       right_path->parameter_tables == 0) {
     // Fits in memory (with 10% estimation margin), and has

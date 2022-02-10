@@ -25,6 +25,7 @@
 #include "my_base.h"
 #include "sql/filesort.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
@@ -38,8 +39,10 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/mem_root_array.h"
 #include "sql/range_optimizer/geometry_index_range_scan.h"
 #include "sql/range_optimizer/group_index_skip_scan.h"
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
@@ -1227,6 +1230,68 @@ void FindTablesToGetRowidFor(AccessPath *path) {
   }
 }
 
+// Move the join conditions that are left in path->filter_predicates into the
+// hash join predicate of the given HASH_JOIN access path.
+//
+// TODO(khatlen): It's a bit of a hack to widen the hash join condition like
+// this after the plan has been found. It would be better if we found a way to
+// encode the necessary information in the hypergraph itself. For example, when
+// creating cycles in the hypergraph, we could add redundant complex hyperedges
+// in addition to the simple cycle edges that we currently add.
+static void MoveFilterPredicatesIntoHashJoinCondition(
+    THD *thd, AccessPath *path, const Mem_root_array<Predicate> &predicates,
+    int num_where_predicates) {
+  Mem_root_array<Item_eq_base *> equijoin_conditions(thd->mem_root);
+  Mem_root_array<Item *> join_conditions(thd->mem_root);
+  MutableOverflowBitset moved_predicates(thd->mem_root, predicates.size());
+
+  for (int filter_idx : BitsSetIn(path->filter_predicates)) {
+    if (filter_idx >= num_where_predicates) break;
+    const Predicate &predicate = predicates[filter_idx];
+    if (!predicate.was_join_condition) continue;
+    moved_predicates.SetBit(filter_idx);
+
+    Item *condition = predicate.condition;
+    if (is_function_of_type(condition, Item_func::EQ_FUNC) &&
+        down_cast<Item_func_eq *>(condition)
+            ->contains_only_equi_join_condition()) {
+      equijoin_conditions.push_back(down_cast<Item_func_eq *>(condition));
+    } else {
+      join_conditions.push_back(condition);
+    }
+  }
+
+  if (equijoin_conditions.empty() && join_conditions.empty()) {
+    // No join conditions were found in the filter predicates.
+    return;
+  }
+
+  // Create a new JoinPredicate with all the conditions. We don't fully
+  // initialize it, since we're done planning and don't need most of the
+  // information any more. Just add enough to make EXPLAIN and
+  // CreateIteratorFromAccessPath() happy.
+  // TODO(khatlen): Maybe it's better to put directly into the access path those
+  // few parts of the join predicate that are needed, and leave the actual
+  // predicate and relational expression out.
+  auto &param = path->hash_join();
+  for (Item_eq_base *item : param.join_predicate->expr->equijoin_conditions) {
+    equijoin_conditions.push_back(item);
+  }
+  for (Item *item : param.join_predicate->expr->join_conditions) {
+    join_conditions.push_back(item);
+  }
+  RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
+  expr->type = param.join_predicate->expr->type;
+  expr->equijoin_conditions = std::move(equijoin_conditions);
+  expr->join_conditions = std::move(join_conditions);
+  JoinPredicate *join_predicate = new (thd->mem_root) JoinPredicate;
+  join_predicate->expr = expr;
+  param.join_predicate = join_predicate;
+
+  path->filter_predicates = OverflowBitset::Xor(
+      thd->mem_root, path->filter_predicates, std::move(moved_predicates));
+}
+
 static Item *ConditionFromFilterPredicates(
     const Mem_root_array<Predicate> &predicates, OverflowBitset mask,
     int num_where_predicates) {
@@ -1298,6 +1363,19 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     // of them, we need to make sure we don't add the join predicates
     // more than once, so mark them as done here.
     path->nested_loop_join().already_expanded_predicates = true;
+  }
+
+  // If a hash join follows an edge that is part of a cycle in the hypergraph,
+  // there may be other applicable join predicates left in filter_predicates.
+  // Say we have {t1,t2} HJ {t3} along the t1.a=t3.a edge. If there is also a
+  // t2.b=t3.b edge, that predicate will be in filtered_predicates. In this
+  // case, it is desirable to have t1.a=t3.a AND t2.b=t3.b as the hash join
+  // predicate, and remove t2.b=t3.b from the filter predicates.
+  if (path->type == AccessPath::HASH_JOIN &&
+      path->hash_join().join_predicate->expr->join_predicate_first !=
+          path->hash_join().join_predicate->expr->join_predicate_last) {
+    MoveFilterPredicatesIntoHashJoinCondition(thd, path, predicates,
+                                              num_where_predicates);
   }
 
   // Expand filters _after_ the access path (these are much more common).

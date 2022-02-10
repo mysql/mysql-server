@@ -46,6 +46,7 @@
 #include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -2887,6 +2888,59 @@ TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
 
   ASSERT_EQ(AccessPath::REF, inner->type);
   EXPECT_STREQ("t1", inner->ref().table->alias);
+}
+
+TEST_F(HypergraphOptimizerTest, MultiPredicateHashJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 "
+      "WHERE t1.x = t2.x AND t2.y = t3.y AND t1.z = t3.z",
+      /*nullable=*/true);
+
+  // Sizes that make (t1 HJ t2) HJ t3 the preferred join order.
+  m_fake_tables["t1"]->file->stats.records = 90000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 9e7;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e3;
+  m_fake_tables["t3"]->file->stats.records = 3000;
+  m_fake_tables["t3"]->file->stats.data_file_length = 3e5;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The top-level path should be a HASH_JOIN with two equi-join predicates. In
+  // earlier versions, the hash join had only one of the predicates, and the
+  // other predicate was in a FILTER on top of it.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(0, root->hash_join().join_predicate->expr->join_conditions.size());
+  {
+    vector<string> equijoin_conditions;
+    for (Item_eq_base *item :
+         root->hash_join().join_predicate->expr->equijoin_conditions) {
+      equijoin_conditions.push_back(ItemToString(item));
+    }
+    EXPECT_THAT(equijoin_conditions,
+                UnorderedElementsAre("(t2.y = t3.y)", "(t1.z = t3.z)"));
+  }
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->hash_join().inner->type);
+  EXPECT_STREQ("t3", root->hash_join().inner->table_scan().table->alias);
+
+  EXPECT_EQ(0, root->hash_join()
+                   .outer->hash_join()
+                   .join_predicate->expr->join_conditions.size());
+  {
+    const Mem_root_array<Item_eq_base *> &equijoin_conditions =
+        root->hash_join()
+            .outer->hash_join()
+            .join_predicate->expr->equijoin_conditions;
+    ASSERT_EQ(1, equijoin_conditions.size());
+    EXPECT_EQ("(t1.x = t2.x)", ItemToString(equijoin_conditions[0]));
+  }
 }
 
 namespace {
