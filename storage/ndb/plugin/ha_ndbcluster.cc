@@ -18347,14 +18347,14 @@ mysql_declare_plugin(ndbcluster){
     PLUGIN_AUTHOR_ORACLE,
     "Clustered, fault-tolerant tables",
     PLUGIN_LICENSE_GPL,
-    ndbcluster_init,       /* plugin init */
-    NULL,                  /* plugin check uninstall */
-    ndbcluster_deinit,     /* plugin deinit */
-    0x0100,                /* plugin version */
-    ndb_status_vars,       /* status variables */
-    system_variables,      /* system variables */
-    NULL,                  /* config options */
-    PLUGIN_OPT_DEFAULT_OFF /* flags */
+    ndbcluster_init,   /* plugin init */
+    NULL,              /* plugin check uninstall */
+    ndbcluster_deinit, /* plugin deinit */
+    0x0100,            /* plugin version */
+    ndb_status_vars,   /* status variables */
+    system_variables,  /* system variables */
+    NULL,              /* config options */
+    PLUGIN_OPT_DEFAULT_OFF | PLUGIN_OPT_DEPENDENT_EXTRA_PLUGINS /* flags */
 },
     ndbinfo_plugin,
     ndb_transid_mysql_connection_map_table mysql_declare_plugin_end;

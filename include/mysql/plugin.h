@@ -171,6 +171,18 @@ struct MYSQL_XID {
 #define PLUGIN_OPT_NO_UNINSTALL 2UL /* Not dynamically unloadable */
 #define PLUGIN_OPT_ALLOW_EARLY 4UL  /* allow --early-plugin-load */
 #define PLUGIN_OPT_DEFAULT_OFF 8UL  /* Turned off by default */
+/*
+  All "extra" plugins declared together, same mysql_declare_plugin statement,
+  depends on the first "main" plugin.
+
+  This option is used to turn off the extra plugins if the main plugin is off,
+  even if extra option by default should be on or user specifies that some
+  extra plugin should be on.
+
+  Use it when it does not make sense to have the extra plugins on when the main
+  plugin is off.
+ */
+#define PLUGIN_OPT_DEPENDENT_EXTRA_PLUGINS 16UL
 
 /*
   declarations for server variables and command line options
