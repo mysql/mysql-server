@@ -169,6 +169,12 @@ ulonglong my_timer_cycles(void) {
     __asm __volatile__("mrs %[rt],cntvct_el0" : [ rt ] "=r"(result));
     return result;
   }
+#elif defined(__GNUC__) && defined(__s390x__)
+  {
+    uint64_t result;
+    __asm __volatile__("stck %0" : "=Q" (result) : : "cc");
+    return result;
+  }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
   return (ulonglong)gethrtime();
@@ -491,6 +497,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__aarch64__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
+#elif defined(__GNUC__) && defined(__s390x__)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_S390X;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine = MY_TIMER_ROUTINE_GETHRTIME;
 #else
