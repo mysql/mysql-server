@@ -254,9 +254,9 @@ class ndbxfrm_file
   static bool print_file_header_and_trailer;
   static constexpr size_t BUFFER_SIZE = ndbxfrm_buffer::size();
   static constexpr Uint64 INDEFINITE_SIZE = UINT64_MAX;
-  static constexpr Uint64 INDEFINITE_OFFSET = UINT64_MAX;
+  static constexpr off_t INDEFINITE_OFFSET = -1;
   static_assert((off_t)INDEFINITE_SIZE == -1);
-  static_assert((off_t)INDEFINITE_OFFSET == -1);
+  static_assert(UINT64_MAX == Uint64(INDEFINITE_OFFSET));
 
   using byte = unsigned char;
   ndbxfrm_file();
@@ -296,7 +296,7 @@ class ndbxfrm_file
   bool has_definite_data_size() const { return (m_data_size != INDEFINITE_SIZE); }
   bool has_definite_file_size() const { return (m_file_size != INDEFINITE_SIZE); }
   static bool is_definite_size(Uint64 size) { return (size != INDEFINITE_SIZE); }
-  static bool is_definite_offset(Uint64 offset) { return (offset != INDEFINITE_OFFSET); }
+  static bool is_definite_offset(off_t offset) { return (offset != INDEFINITE_OFFSET); }
   bool is_compressed() const { return m_compressed; }
   bool is_encrypted() const { return m_encrypted; }
   size_t get_random_access_block_size() const;

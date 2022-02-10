@@ -240,6 +240,11 @@ ndb_file::off_t ndb_file::get_size() const
 int ndb_file::extend(off_t end, extend_flags flags) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
+  const off_t saved_file_pos = get_pos();
+  if (saved_file_pos == -1)
+  {
+    return -1;
+  }
   const off_t size = get_size();
   if (size == -1)
   {
@@ -280,7 +285,10 @@ int ndb_file::extend(off_t end, extend_flags flags) const
       SetLastError(0);
     }
   }
-  set_pos(0);
+  if (set_pos(saved_file_pos) == -1)
+  {
+    return -1;
+  }
   return 0;
 }
 
