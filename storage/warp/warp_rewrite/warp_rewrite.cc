@@ -1117,6 +1117,7 @@ static int warp_rewrite_query_notify(
   
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
+    
     bool is_incremental = false;
     std::string mvname;
 
@@ -1337,7 +1338,9 @@ static int warp_rewrite_query_notify(
   if(mysql_parser_get_statement_type(thd) != STATEMENT_TYPE_SELECT) {
     return 0;
   }
-  
+  if(thd->lex->query_block->is_part_of_union()) {
+    return -1;
+  }
   // currently prepared statements are not supported
   if(mysql_parser_get_number_params(thd) != 0) {
     return 0;
@@ -1370,7 +1373,7 @@ static int warp_rewrite_query_notify(
     //bool is_straight_join = (stristr(strtolower(orig_query.str), "straight_join") != NULL);
     bool is_straight_join = 1;
   if(!is_mv_create || (is_mv_create && is_incremental)) {
-  
+    
     // query has no tables - do nothing
     if(tables.size() == 0) {
       return 0;
@@ -1527,8 +1530,8 @@ static int warp_rewrite_query_notify(
         break;
         
         default:
-          std::cout << "UNSUPPORTED PARALLEL QUERY ITEM TYPE: " << field->type() << "\n";
-          return 0;
+          //std::cout << "UNSUPPORTED PARALLEL QUERY ITEM TYPE: " << field->type() << "\n";
+          return -1;
       }
     }
     
@@ -1611,13 +1614,11 @@ static int warp_rewrite_query_notify(
       }
       tmp_from = "";
       if(tbl->is_table_function()) {
-        std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
-        return 0;
+        return -1;
       }
       
       if(tbl->is_derived()) {
-        std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
-        return 0;
+        return -1;
       }
       
       // figure out the the WARP table with the most rows
@@ -1639,6 +1640,9 @@ static int warp_rewrite_query_notify(
              " AS `" + std::string(tbl->alias) + "` ";
       
       commands += "CALL leapdb.add_table(@mvid, \"" + escape_for_call(std::string(tbl->db, tbl->db_length)) + "\",\"";
+      if( std::string(tbl->table_name, tbl->table_name_length) == "dual" ) {
+        return(-1);
+      }
       commands += escape_for_call(std::string(tbl->table_name, tbl->table_name_length));
       if(remote_name != NULL) {
         commands += std::string(remote_name);
