@@ -337,7 +337,8 @@ struct Slot {
   dberr_t err{DB_ERROR_UNSET};
 
 #ifdef WIN_ASYNC_IO
-  /** handle object we need in the OVERLAPPED struct */
+  /** handle object to Event that we need in the OVERLAPPED struct for kernel to
+  signal async operation completion. */
   HANDLE handle{INVALID_HANDLE_VALUE};
 
   /** Windows control block for the aio request */
@@ -581,9 +582,9 @@ class AIO {
   [[nodiscard]] static AIO *sync_array() { return s_sync; }
 
   /**
-  Get the AIO handles for a segment.
+  Get the pointer to array of AIO handles of Events for a given segment.
   @param[in]    segment         The local segment.
-  @return the handles for the segment. */
+  @return the handles of Events for the segment. */
   [[nodiscard]] HANDLE *handles(ulint segment) {
     ut_ad(segment < m_handles->size() / slots_per_segment());
 
@@ -1121,11 +1122,6 @@ class SyncFileIO {
   @param[in]    request The IO context and type
   @return the number of bytes read/written or negative value on error */
   ssize_t execute(const IORequest &request);
-
-  /** Do the read/write
-  @param[in,out]        slot    The IO slot, it has the IO context
-  @return the number of bytes read/written or negative value on error */
-  static ssize_t execute(Slot *slot);
 
   /** Move the read/write offset up to where the partial IO succeeded.
   @param[in]    n_bytes The number of bytes to advance */
@@ -3755,27 +3751,6 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   return (ret ? static_cast<ssize_t>(n_bytes) : -1);
 }
 
-/** Do the read/write
-@param[in,out]  slot    The IO slot, it has the IO context
-@return the number of bytes read/written or negative value on error */
-ssize_t SyncFileIO::execute(Slot *slot) {
-  BOOL ret;
-
-  if (slot->type.is_read()) {
-    ret = ReadFile(slot->file.m_file, slot->ptr, slot->len, &slot->n_bytes,
-                   &slot->control);
-  } else {
-    ut_ad(slot->type.is_write());
-    ret = WriteFile(slot->file.m_file, slot->ptr, slot->len, &slot->n_bytes,
-                    &slot->control);
-  }
-
-  /* Sync IO can't be done on a file opened in AIO mode. */
-  ut_a(ret || GetLastError() != ERROR_IO_PENDING);
-
-  return (ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
-}
-
 /** Free storage space associated with a section of the file.
 @param[in]      fh              Open file handle
 @param[in]      page_size       Tablespace page size
@@ -3950,8 +3925,13 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   if (report_all_errors || (!on_error_silent && err != ERROR_DISK_FULL &&
                             err != ERROR_FILE_EXISTS)) {
-    ib::error(ER_IB_MSG_786)
-        << "Operating system error number " << err << " in a file operation.";
+    if (err == ERROR_OPERATION_ABORTED) {
+      ib::info(ER_IB_MSG_786)
+          << "Operating system error number " << err << " in a file operation.";
+    } else {
+      ib::error(ER_IB_MSG_786)
+          << "Operating system error number " << err << " in a file operation.";
+    }
 
     if (err == ERROR_PATH_NOT_FOUND) {
       ib::error(ER_IB_MSG_787) << "The error means the system cannot find"
@@ -3989,11 +3969,11 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
                                   " complete the operation.";
 
     } else if (err == ERROR_OPERATION_ABORTED) {
-      ib::error(ER_IB_MSG_792) << "The error means that the I/O"
-                                  " operation has been aborted"
-                                  " because of either a thread exit"
-                                  " or an application request."
-                                  " Retry attempt is made.";
+      ib::info(ER_IB_MSG_792) << "The error means that the I/O"
+                                 " operation has been aborted"
+                                 " because of either a thread exit"
+                                 " or an application request."
+                                 " Retry attempt is made.";
     } else {
       ib::info(ER_IB_MSG_793) << OPERATING_SYSTEM_ERROR_MSG;
     }
@@ -5387,6 +5367,7 @@ and the error type, if should_exit is true then on_error_silent is ignored.
 
     case OS_FILE_AIO_RESOURCES_RESERVED:
     case OS_FILE_AIO_INTERRUPTED:
+    case OS_FILE_OPERATION_ABORTED:
 
       return (true);
 
@@ -5401,7 +5382,6 @@ and the error type, if should_exit is true then on_error_silent is ignored.
       std::this_thread::sleep_for(std::chrono::seconds(10));
       return (true);
 
-    case OS_FILE_OPERATION_ABORTED:
     case OS_FILE_INSUFFICIENT_RESOURCE:
 
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -7049,8 +7029,8 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 }
 
 #ifdef WIN_ASYNC_IO
-/** This function is only used in Windows asynchronous i/o.
-Waits for an aio operation to complete. This function is used to wait the
+/** This function is only used in Windows asynchronous (overlapped) i/o.
+Waits for an overlapped operation to complete. This function is used to wait the
 for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
@@ -7085,113 +7065,114 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
     segment = AIO::get_array_and_local_segment(array, segment);
   }
 
-  /* NOTE! We only access constant fields in os_aio_array. Therefore
-  we do not have to acquire the protecting mutex yet */
+  dberr_t err = DB_ERROR_UNSET;
+  while (err == DB_ERROR_UNSET) {
+    /* NOTE! We only access constant fields in AIO's arrays - number of slots
+    and array of event handles, both initialized on startup. Therefore
+    we do not have to acquire the protecting mutex yet.  */
 
 #ifndef UNIV_HOTBACKUP
-  ut_ad(os_aio_validate_skip());
+    ut_ad(os_aio_validate_skip());
 #endif /* !UNIV_HOTBACKUP */
 
-  if (array == AIO::sync_array()) {
-    WaitForSingleObject(array->at(pos)->handle, INFINITE);
+    if (array == AIO::sync_array()) {
+      WaitForSingleObject(array->at(pos)->handle, INFINITE);
+    } else {
+      if (orig_seg != ULINT_UNDEFINED) {
+        srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
+      }
 
-  } else {
-    if (orig_seg != ULINT_UNDEFINED) {
-      srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
+      pos = WaitForMultipleObjects((DWORD)array->slots_per_segment(),
+                                   array->handles(segment), FALSE, INFINITE);
     }
 
-    pos = WaitForMultipleObjects((DWORD)array->slots_per_segment(),
-                                 array->handles(segment), FALSE, INFINITE);
-  }
+    array->acquire();
 
-  array->acquire();
-
-  if (
+    if (
 #ifndef UNIV_HOTBACKUP
-      srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
+        srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
 #else  /* !UNIV_HOTBACKUP */
-      true
+        true
 #endif /* !UNIV_HOTBACKUP */
-      && array->is_empty() && !buf_flush_page_cleaner_is_active()) {
+        && array->is_empty() && !buf_flush_page_cleaner_is_active()) {
 
-    *m1 = NULL;
-    *m2 = NULL;
+      *m1 = NULL;
+      *m2 = NULL;
+
+      array->release();
+
+      return (DB_SUCCESS);
+    }
+
+    ulint n = array->slots_per_segment();
+
+    ut_a(pos >= WAIT_OBJECT_0 && pos <= WAIT_OBJECT_0 + n);
+
+    slot = array->at(pos + segment * n);
+
+    ut_a(slot->is_reserved);
+
+    if (orig_seg != ULINT_UNDEFINED) {
+      srv_set_io_thread_op_info(orig_seg, "get windows aio return value");
+    }
+
+    BOOL ret = GetOverlappedResult(slot->file.m_file, &slot->control,
+                                   &slot->n_bytes, TRUE);
+
+    *m1 = slot->m1;
+    *m2 = slot->m2;
+
+    *type = slot->type;
+
+    bool retry = false;
+
+    /* We will finish the outer loop if the err is not reset to DB_ERROR_UNSET.
+     */
+    err = DB_IO_ERROR;
+    if (ret && slot->n_bytes == slot->len) {
+      err = DB_SUCCESS;
+    } else if (os_file_handle_error(slot->name, "Windows aio")) {
+      retry = true;
+    }
 
     array->release();
 
-    return (DB_SUCCESS);
-  }
-
-  ulint n = array->slots_per_segment();
-
-  ut_a(pos >= WAIT_OBJECT_0 && pos <= WAIT_OBJECT_0 + n);
-
-  slot = array->at(pos + segment * n);
-
-  ut_a(slot->is_reserved);
-
-  if (orig_seg != ULINT_UNDEFINED) {
-    srv_set_io_thread_op_info(orig_seg, "get windows aio return value");
-  }
-
-  BOOL ret = GetOverlappedResult(slot->file.m_file, &slot->control,
-                                 &slot->n_bytes, TRUE);
-
-  *m1 = slot->m1;
-  *m2 = slot->m2;
-
-  *type = slot->type;
-
-  bool retry = false;
-
-  dberr_t err = DB_IO_ERROR;
-  if (ret && slot->n_bytes == slot->len) {
-    err = DB_SUCCESS;
-  } else if (os_file_handle_error(slot->name, "Windows aio")) {
-    retry = true;
-  }
-
-  array->release();
-
-  if (retry) {
-    /* Retry failed read/write operation synchronously.
-    No need to hold array->m_mutex. */
+    if (retry) {
+      /* Retry failed read/write async operation.
+      No need to hold array->m_mutex. */
 
 #ifdef UNIV_PFS_IO
-    /* This read/write does not go through os_file_read
-    and os_file_write APIs, need to register with
-    performance schema explicitly here. */
-    struct PSI_file_locker *locker = NULL;
-    PSI_file_locker_state state;
-    register_pfs_file_io_begin(
-        &state, locker, slot->file, slot->len,
-        slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ, __FILE__,
-        __LINE__);
+      /* This read/write does not go through os_file_read
+      and os_file_write APIs, need to register with
+      performance schema explicitly here. */
+      struct PSI_file_locker *locker = NULL;
+      PSI_file_locker_state state;
+      register_pfs_file_io_begin(
+          &state, locker, slot->file, slot->len,
+          slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ, __FILE__,
+          __LINE__);
 #endif /* UNIV_PFS_IO */
 
-    ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
-
-    ssize_t n_bytes = SyncFileIO::execute(slot);
+      if (slot->type.is_read()) {
+        ret = ReadFile(slot->file.m_file, slot->ptr, slot->len, &slot->n_bytes,
+                       &slot->control);
+      } else {
+        ret = WriteFile(slot->file.m_file, slot->ptr, slot->len, &slot->n_bytes,
+                        &slot->control);
+      }
 
 #ifdef UNIV_PFS_IO
-    register_pfs_file_io_end(locker, slot->len);
+      register_pfs_file_io_end(locker, slot->len);
 #endif /* UNIV_PFS_IO */
 
-    if (n_bytes < 0 && GetLastError() == ERROR_IO_PENDING) {
-      /* AIO was queued successfully!
-      We want a synchronous I/O operation on a
-      file where we also use async I/O: in Windows
-      we must use the same wait mechanism as for
-      async I/O */
-
-      BOOL ret;
-      ret = GetOverlappedResult(slot->file.m_file, &slot->control,
-                                &slot->n_bytes, TRUE);
-
-      n_bytes = ret ? slot->n_bytes : -1;
+      if ((ret && slot->len == slot->n_bytes) ||
+          (!ret && GetLastError() == ERROR_IO_PENDING)) {
+        /* The overlapped operation was queued successfully. We will now retry
+        the wait. For sync operation we will just wait again till it's executed,
+        and for async we will get any next AIO completion. */
+        err = DB_ERROR_UNSET;
+      }
     }
-
-    err = (n_bytes == slot->len) ? DB_SUCCESS : DB_IO_ERROR;
   }
 
   if (err == DB_SUCCESS) {
@@ -7250,7 +7231,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   ) {
     /* This is actually an ordinary synchronous read or write:
     no need to use an i/o-handler thread. NOTE that if we use
-    Windows async i/o, Windows does not allow us to use
+    Windows "async" overlapped i/o, Windows does not allow us to use
     ordinary synchronous os_file_read etc. on the same file,
     therefore we have built a special mechanism for synchronous
     wait in the Windows case.
@@ -7318,7 +7299,7 @@ try_again:
   if (srv_use_native_aio) {
     if ((ret && slot->len == slot->n_bytes) ||
         (!ret && GetLastError() == ERROR_IO_PENDING)) {
-      /* AIO was queued successfully! */
+      /* overlapped IO was queued successfully! */
 
       if (aio_mode == AIO_mode::SYNC) {
         void *dummy_mess2;
