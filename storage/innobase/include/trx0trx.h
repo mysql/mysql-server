@@ -1179,7 +1179,7 @@ static inline void assert_trx_is_free(const trx_t *t) {
         trx_state_eq(t, TRX_STATE_FORCED_ROLLBACK));
   ut_ad(!trx_is_rseg_updated(t));
   ut_ad(!MVCC::is_view_active(t->read_view));
-  ut_ad((t)->lock.wait_thr == NULL);
+  ut_ad((t)->lock.wait_thr == nullptr);
   ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);
   ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);
 }

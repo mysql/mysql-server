@@ -623,7 +623,7 @@ static server *mksrv(char *srv, xcom_port port) {
 
 static server *addsrv(char *srv, xcom_port port) {
   server *s = mksrv(srv, port);
-  assert(all_servers[maxservers] == 0);
+  assert(all_servers[maxservers] == nullptr);
   assert(maxservers < SERVER_MAX);
   all_servers[maxservers] = s;
   /*

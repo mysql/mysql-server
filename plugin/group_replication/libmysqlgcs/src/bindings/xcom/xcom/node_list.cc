@@ -244,7 +244,7 @@ node_address *init_single_node_address(node_address *na, char const *name,
   na->address = strdup(name);
   init_proto_range(&(na->proto));
   na->services = services;
-  assert(na->uuid.data.data_len == 0 && na->uuid.data.data_val == 0);
+  assert(na->uuid.data.data_len == 0 && na->uuid.data.data_val == nullptr);
   return na;
 }
 

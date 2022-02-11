@@ -51,7 +51,7 @@ void xcom_input_request_free(xcom_input_request_ptr request) {
   /* We own the app_data we point to, so it's our job to free it. */
   if (request->a != nullptr) {
     /* The app_data is supposed to be unlinked. */
-    assert(request->a->next == NULL);
+    assert(request->a->next == nullptr);
     /* Because the app_data_ptr is allocated on the heap and not on the stack.
      */
     xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&request->a);

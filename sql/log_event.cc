@@ -2840,7 +2840,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       for (i = 0;
            i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
            i++) {
-        if (mts_dbs.name[i] != 0) {
+        if (mts_dbs.name[i] != nullptr) {
           oss << mts_dbs.name[i] << ", ";
         }
       }

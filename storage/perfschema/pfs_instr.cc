@@ -937,7 +937,7 @@ int normalize_filename(const char *filename, uint name_len,
   char safe_buffer[FN_REFLEN];
   const char *safe_filename;
 
-  assert(filename != NULL);
+  assert(filename != nullptr);
 
   if (name_len >= FN_REFLEN) {
     /*

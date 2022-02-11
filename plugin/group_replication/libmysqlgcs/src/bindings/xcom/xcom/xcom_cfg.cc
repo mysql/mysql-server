@@ -62,7 +62,7 @@ node_address *cfg_app_xcom_get_identity() {
 
 void cfg_app_xcom_set_identity(node_address *identity) {
   /* Validate preconditions. */
-  assert(identity != NULL);
+  assert(identity != nullptr);
 
   /*
    If the configuration structure was setup, store the identity.

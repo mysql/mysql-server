@@ -100,7 +100,7 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
     IFDBG(D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval)));
 #endif
   }
-  assert((errval == 0 && *res) || (errval != 0 && *res == NULL));
+  assert((errval == 0 && *res) || (errval != 0 && *res == nullptr));
   return errval;
 }
 
