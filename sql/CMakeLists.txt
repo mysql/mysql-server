@@ -1343,9 +1343,12 @@ MY_ADD_CUSTOM_TARGET(
 )
 
 ADD_DEPENDENCIES(clang_tidy_prerequisites
-  GenServerSource
+  GenBootstrapPriv
   GenDigestServerSource
+  GenFixPrivs
   GenKeywordList
+  GenServerSource
+  GenSysSchema
   )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
