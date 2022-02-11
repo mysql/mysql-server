@@ -1527,6 +1527,19 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
   }  // end for
 }
 
+void evaluate_access_through_abac(ACL_USER *acl_user, ulong *access) {
+  DBUG_TRACE;
+  if (acl_user_abacs == nullptr) {
+    DBUG_PRINT("error", ("acl_map couldnot be constructed for abac"));
+    return;
+  }
+  for (ACL_USER_ABAC acl_user_abac: (*acl_user_abacs)) {
+    if (!strcmp(acl_user_abac.user, acl_user->user) && !strcmp(acl_user_abac.host.hostname, acl_user->host.hostname)) {
+      *access |= acl_user_abac.access;
+    }
+  }
+}
+
 /**
   A graph visitor used for doing breadth-first traversal of the global role
   graph. The visitor takes a set of access maps and aggregate all discovered
@@ -4582,6 +4595,8 @@ void get_privilege_access_maps(
 
   DBUG_PRINT("info", ("Global access for acl_user %s@%s is %lu", acl_user->user,
                       acl_user->host.get_host(), acl_user->access));
+  //Get access through abac
+  evaluate_access_through_abac(acl_user, access);
   // Get database access
   get_database_access_map(acl_user, db_map, db_wild_map);
   // Get table- and column privileges
@@ -4626,10 +4641,12 @@ void get_privilege_access_maps(
     if (!acl_user_has_vertex) return;
     user_vertex = user_vertex_it->second;
     if (acl_user_has_vertex) {
-      get_granted_roles(user_vertex, [&](const Role_id &rid, bool with_admin) {
-        all_granted_roles.insert(rid);
-        granted_roles->push_back(std::make_pair(rid, with_admin));
-      });
+      if (false) {
+        get_granted_roles(user_vertex, [&](const Role_id &rid, bool with_admin) {
+          all_granted_roles.insert(rid);
+          granted_roles->push_back(std::make_pair(rid, with_admin));
+        });
+      }
       for (auto &rid : mandatory_roles) {
         all_granted_roles.insert(rid);
       }
@@ -4786,7 +4803,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
                             &db_wild_map, &table_map, &sp_map, &func_map,
-                            &granted_roles, &with_admin_acl, &dynamic_acl,
+                            &granted_roles,
+                            &with_admin_acl, &dynamic_acl,
                             restrictions);
   String output;
   make_global_privilege_statement(thd, access, acl_user, &output);

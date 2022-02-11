@@ -353,6 +353,16 @@ class ACL_DB : public ACL_ACCESS {
   void set_host(MEM_ROOT *mem, const char *host_arg);
 };
 
+class ACL_USER_ABAC : public ACL_ACCESS {
+  public:
+    char *user;
+    user_attribute_map attrib_map;
+    void set_user(MEM_ROOT *mem, const char *user_arg);
+    void set_host(MEM_ROOT *mem, const char *host_arg);
+    void set_attribute_value(std::string attrib, std::string value);
+    std::string get_attribute_value(std::string attrib);
+};
+
 class ACL_PROXY_USER : public ACL_ACCESS {
   const char *user;
   ACL_HOST_AND_IP proxied_host;
@@ -514,6 +524,7 @@ const size_t ACL_PREALLOC_SIZE = 10U;
 extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
 extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
 extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
+extern Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs;
 extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
 extern std::unique_ptr<malloc_unordered_multimap<
     std::string, unique_ptr_destroy_only<GRANT_TABLE>>>

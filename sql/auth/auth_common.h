@@ -355,6 +355,20 @@ enum mysql_dynamic_priv_table_field {
   MYSQL_DYNAMIC_PRIV_FIELD_COUNT
 };
 
+enum mysql_user_attrib_val_table_field {
+  MYSQL_USER_ATTRIB_VAL_USER = 0,
+  MYSQL_USER_ATTRIB_VAL_HOST,
+  MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME,
+  MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL,
+  MYSQL_USER_ATTRIB_VAL_FIELD_COUNT
+};
+
+enum mysql_pol_table_field {
+  MYSQL_POL_USER_ATTRIB_NAME = 0,
+  MYSQL_POL_USER_ATTRIB_VAL,
+  MYSQL_POL_FIELD_COUNT
+};
+
 /* When we run mysql_upgrade we must make sure that the server can be run
    using previous mysql.user table schema during acl_load.
 

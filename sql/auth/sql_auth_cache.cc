@@ -130,6 +130,7 @@ Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
 Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
+Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs = nullptr;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
 std::vector<Role_id> *g_mandatory_roles = nullptr;
@@ -681,6 +682,21 @@ void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
   set_hostname(&host, host_arg, mem);
 }
 
+void ACL_USER_ABAC::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(&user, user_arg, mem);
+}
+
+void ACL_USER_ABAC::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
+}
+
+void ACL_USER_ABAC::set_attribute_value(std::string attrib, std::string value) {
+  attrib_map[attrib] = value;
+}
+
+std::string ACL_USER_ABAC::get_attribute_value(std::string attrib){
+  return attrib_map[attrib];
+}
 /**
   Append the authorization id for the user
 
@@ -1947,6 +1963,65 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
+  /* Load user attributes */
+  if (tables[6].table) {
+    iterator = init_table_iterator(thd, table = tables[6].table,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    acl_user_abacs->clear();
+    while (!(read_rec_errcode = iterator->Read())) {
+      char *user = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]);
+      char *host = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]);
+      int user_abac_index_in_list = -1;
+      ACL_USER_ABAC user_abac;
+      for (int i = 0; i < (int)(acl_user_abacs->size()); i++) {
+        if (!strcmp((*acl_user_abacs)[i].user, user) && !strcmp((*acl_user_abacs)[i].host.hostname, host)) {
+          user_abac = (*acl_user_abacs)[i];
+          user_abac_index_in_list = i;
+        }
+      }
+      if (user_abac_index_in_list == -1) {
+        user_abac = ACL_USER_ABAC();
+        user_abac.set_user(&global_acl_memory, user);
+        user_abac.set_host(&global_acl_memory, host);
+      }
+      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
+      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
+      user_abac.set_attribute_value(attrib, value);
+      if (user_abac_index_in_list == -1) {
+        acl_user_abacs->push_back(user_abac);
+      } else {
+        acl_user_abacs->assign_at(user_abac_index_in_list, user_abac);
+      }
+    }
+    acl_user_abacs->shrink_to_fit();
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  } 
+  std::cout<<"user_attrib_val table processed\n";
+
+  /* Get privileges using abac */
+  if (tables[7].table) {
+    iterator = init_table_iterator(thd, table = tables[7].table,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while(!(read_rec_errcode = iterator->Read())) {
+      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_NAME]));
+      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_VAL]));
+      for (int i = 0; i < (int)acl_user_abacs->size(); i++) {
+        if (acl_user_abacs->at(i).get_attribute_value(attrib) == value) {
+          (*acl_user_abacs)[i].access |= SELECT_ACL;
+        }
+      }
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+  std::cout<<"pol table processed\n";
   initialized = true;
   return_val = false;
 
@@ -1980,6 +2055,8 @@ void acl_free(bool end /*= false*/) {
   acl_proxy_users = nullptr;
   delete acl_check_hosts;
   acl_check_hosts = nullptr;
+  delete acl_user_abacs;
+  acl_user_abacs = nullptr;
   if (!end)
     clear_and_init_db_cache();
   else {
@@ -2158,6 +2235,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs = nullptr;
   Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *old_acl_proxy_users =
       nullptr;
+  Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *old_acl_user_abacs = nullptr; 
   Granted_roles_graph *old_granted_roles = nullptr;
   Default_roles *old_default_roles = nullptr;
   Role_index_map *old_authid_to_vertex = nullptr;
@@ -2183,7 +2261,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     To avoid deadlocks we should obtain table locks before obtaining
     acl_cache->lock mutex.
   */
-  TABLE_LIST tables[6] = {
+  TABLE_LIST tables[8] = {
       TABLE_LIST("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
       /*
         For a TABLE_LIST element that is inited with a lock type TL_READ
@@ -2199,19 +2277,27 @@ bool acl_reload(THD *thd, bool mdl_locked) {
 
       TABLE_LIST("mysql", "role_edges", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY)};
-
+      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY),
+      
+      TABLE_LIST("mysql", "user_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
+      
+      TABLE_LIST("mysql", "pol", TL_READ, MDL_SHARED_READ_ONLY)};
+  std::cout<<"Table list created\n";
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
   tables[2].next_local = tables[2].next_global = tables + 3;
   tables[3].next_local = tables[3].next_global = tables + 4;
   tables[4].next_local = tables[4].next_global = tables + 5;
+  tables[5].next_local = tables[5].next_global = tables + 6;
+  tables[6].next_local = tables[6].next_global = tables + 7;
 
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       tables[3].open_type = tables[4].open_type = tables[5].open_type =
-          OT_BASE_ONLY;
+          tables[6].open_type = tables[7].open_type =
+              OT_BASE_ONLY;
   tables[3].open_strategy = tables[4].open_strategy = tables[5].open_strategy =
-      TABLE_LIST::OPEN_IF_EXISTS;
+      tables[6].open_strategy = tables[7].open_strategy =
+          TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, flags)) {
     /*
@@ -2234,6 +2320,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
   old_acl_restrictions = move(acl_restrictions);
+  old_acl_user_abacs = acl_user_abacs;
   swap_role_cache();
   roles_init();
 
@@ -2242,6 +2329,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   acl_dbs = new Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_proxy_users = new Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE>(
       key_memory_acl_mem);
+  acl_user_abacs = new Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_restrictions = make_unique<Acl_restrictions>();
 
   // acl_load() overwrites global_acl_memory, so we need to free it.
@@ -2267,6 +2355,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     acl_free(); /* purecov: inspected */
     acl_users = old_acl_users;
     acl_dbs = old_acl_dbs;
+    acl_user_abacs = old_acl_user_abacs;
     acl_proxy_users = old_acl_proxy_users;
     global_acl_memory = move(old_mem);
     acl_restrictions = move(old_acl_restrictions);
@@ -2284,6 +2373,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     delete old_acl_dbs;
     delete old_acl_proxy_users;
     delete old_dyn_priv_map;
+    delete old_acl_user_abacs;
     // Delete the old role caches
     delete_old_role_cache();
     old_mem.Clear();
@@ -3254,6 +3344,7 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
       acl_user, sctx->get_active_roles(), &m_global_acl, &m_db_acls,
       &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls, &granted_roles,
       &m_with_admin_acls, &m_dynamic_privileges, m_restrictions);
+  
 }
 
 Acl_map::~Acl_map() {

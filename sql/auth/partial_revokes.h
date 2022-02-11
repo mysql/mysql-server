@@ -45,6 +45,7 @@ class Restrictions_aggregator;
 // Alias declarations
 using db_revocations = std::unordered_map<std::string, ulong>;
 using Db_access_map = std::map<std::string, unsigned long>;
+using user_attribute_map = std::map<std::string, std::string>;
 
 /**
   Abstract class for ACL restrictions.

@@ -94,16 +94,17 @@
 #include "violite.h"
 
 /* Acl table names. Keep in sync with ACL_TABLES */
-static const int MAX_ACL_TABLE_NAMES = 10;
+static const int MAX_ACL_TABLE_NAMES = 12;
 static_assert(MAX_ACL_TABLE_NAMES == ACL_TABLES::LAST_ENTRY,
               "Keep number of table names in sync with ACL table enum");
 
 static const char *ACL_TABLE_NAMES[MAX_ACL_TABLE_NAMES] = {
-    "user",          "db",
-    "tables_priv",   "columns_priv",
-    "procs_priv",    "proxies_priv",
-    "role_edges",    "default_roles",
-    "global_grants", "password_history"};
+    "user",            "db",
+    "tables_priv",     "columns_priv",
+    "procs_priv",      "proxies_priv",
+    "role_edges",      "default_roles",
+    "global_grants",   "password_history",
+    "user_attrib_val", "pol"};
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
     {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
@@ -477,6 +478,32 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("enum('N','Y')")},
          {nullptr, 0}}};
 
+static const TABLE_FIELD_TYPE
+    mysql_user_attrib_val_table_fields[MYSQL_USER_ATTRIB_VAL_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("User")},
+        {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {nullptr, 0}},
+        {{STRING_WITH_LEN("Host")}, 
+         {STRING_WITH_LEN("char(255)")}, 
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Attrib_name")},
+         {STRING_WITH_LEN("varchar(20)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Attrib_val")},
+         {STRING_WITH_LEN("varchar(10)")},
+         {nullptr, 0}},
+    };
+
+static const TABLE_FIELD_TYPE
+    mysql_pol_table_fields[MYSQL_POL_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("User_attrib_name")},
+         {STRING_WITH_LEN("varchar(20)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("User_attrib_val")},
+         {STRING_WITH_LEN("varchar(10)")},
+         {nullptr, 0}}
+    };
+
 /** keep in sync with @ref ACL_TABLES */
 const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields},
@@ -488,7 +515,9 @@ const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_ROLE_EDGES_FIELD_COUNT, mysql_role_edges_table_fields},
     {MYSQL_DEFAULT_ROLES_FIELD_COUNT, mysql_default_roles_table_fields},
     {MYSQL_DYNAMIC_PRIV_FIELD_COUNT, mysql_dynamic_priv_table_fields},
-    {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields}};
+    {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields},
+    {MYSQL_USER_ATTRIB_VAL_FIELD_COUNT, mysql_user_attrib_val_table_fields},
+    {MYSQL_POL_FIELD_COUNT, mysql_pol_table_fields}};
 
 static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
                                                        TABLE_LIST *tables);
