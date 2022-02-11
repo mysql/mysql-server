@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4052,7 +4052,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
         query_logger.general_log_print(
             thd, COM_CONNECT, "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-        LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
+        LogErr(INFORMATION_LEVEL, ER_ACCOUNT_WITH_EXPIRED_PASSWORD,
+               mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
 
         errors.m_authentication = 1;
         inc_host_errors(mpvio.ip, &errors);
