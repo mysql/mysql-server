@@ -2840,7 +2840,7 @@ ER_ACCESS_DENIED_ERROR_WITH_PASSWORD
 ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED
   eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
 
-ER_MUST_CHANGE_EXPIRED_PASSWORD
+OBSOLETE_ER_MUST_CHANGE_EXPIRED_PASSWORD
   eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
 
 ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE
@@ -11628,6 +11628,9 @@ ER_MY_MALLOC_LOADLIBRARY_FAILED
 
 ER_MY_MALLOC_GETPROCADDRESS_FAILED
   eng "%s."
+
+ER_ACCOUNT_WITH_EXPIRED_PASSWORD
+  eng "Password for the account '%-.48s'@'%-.64s' has expired. To log in, either change it using a client that supports expired passwords or send the change request to an administrator."
 
 ER_IB_DBLWR_BYTES_INFO
   eng "%s"
