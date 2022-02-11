@@ -1342,6 +1342,12 @@ MY_ADD_CUSTOM_TARGET(
   DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
 )
 
+ADD_DEPENDENCIES(clang_tidy_prerequisites
+  GenServerSource
+  GenDigestServerSource
+  GenKeywordList
+  )
+
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
   MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example"
   )
