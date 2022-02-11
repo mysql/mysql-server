@@ -183,11 +183,18 @@ TABLE *GetBasicTable(const AccessPath *path) {
       return path->follow_tail().table;
     case AccessPath::INDEX_RANGE_SCAN:
       return path->index_range_scan().used_key_part[0].field->table;
-    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
-      return path->dynamic_index_range_scan().table;
-
     case AccessPath::INDEX_MERGE:
       return path->index_merge().table;
+    case AccessPath::ROWID_INTERSECTION:
+      return path->rowid_intersection().table;
+    case AccessPath::ROWID_UNION:
+      return path->rowid_union().table;
+    case AccessPath::INDEX_SKIP_SCAN:
+      return path->index_skip_scan().table;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().table;
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      return path->dynamic_index_range_scan().table;
 
     // Basic access paths that don't correspond to a specific table.
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
