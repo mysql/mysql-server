@@ -22479,7 +22479,7 @@ static void test_bug32372038() {
   MYSQL *mysql_local;
   DBUG_SET("+d,bug32372038");
 
-  if (!(mysql_local = mysql_client_init(NULL))) {
+  if (!(mysql_local = mysql_client_init(nullptr))) {
     fprintf(stderr, "\n mysql_client_init() failed");
     exit(1);
   }

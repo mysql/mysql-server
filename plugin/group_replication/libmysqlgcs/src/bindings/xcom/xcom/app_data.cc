@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
         free(str);
         assert(("No such xcom type" && FALSE));
     }
-    assert(p->next == 0);
+    assert(p->next == nullptr);
   }
   return p;
 }
@@ -352,7 +352,7 @@ void follow(app_data_list l, app_data_ptr p) {
       IFDBG(D_NONE, FN; STRLIT("unexpected next ");
             COPY_AND_FREE_GOUT(dbg_app_data(p)));
     }
-    assert(p->next == 0);
+    assert(p->next == nullptr);
     p->next = *l;
   }
   *l = p;

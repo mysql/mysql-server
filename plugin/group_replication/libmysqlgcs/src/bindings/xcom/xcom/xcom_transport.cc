@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,7 +623,7 @@ static server *mksrv(char *srv, xcom_port port) {
 
 static server *addsrv(char *srv, xcom_port port) {
   server *s = mksrv(srv, port);
-  assert(all_servers[maxservers] == 0);
+  assert(all_servers[maxservers] == nullptr);
   assert(maxservers < SERVER_MAX);
   all_servers[maxservers] = s;
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -510,7 +510,7 @@ synode_no get_max_synode() { return max_synode; }
 
 static bool_t is_latest_config(site_def const *const config) {
   site_def const *const latest_config = get_site_def();
-  assert(latest_config != NULL);
+  assert(latest_config != nullptr);
   return config == latest_config;
 }
 
@@ -608,7 +608,7 @@ static synode_no add_event_horizon(synode_no s) {
 #else
     /* We should always have an active config */
     /* purecov: begin deadcode */
-    assert(active_config != NULL);
+    assert(active_config != nullptr);
     return null_synode;
 /* purecov: end */
 #endif
@@ -1172,7 +1172,7 @@ end:
 bool_t xcom_input_new_signal_connection(char const *address, xcom_port port) {
   bool_t const SUCCESSFUL = TRUE;
   bool_t const UNSUCCESSFUL = FALSE;
-  assert(input_signal_connection == NULL);
+  assert(input_signal_connection == nullptr);
 
   if (input_signal_connection_pipe != nullptr) {
     input_signal_connection =
@@ -1325,7 +1325,7 @@ int local_server(task_arg arg) {
   END_ENV_INIT
   END_ENV;
   TASK_BEGIN
-  assert(xcom_try_pop_from_input_cb != NULL);
+  assert(xcom_try_pop_from_input_cb != nullptr);
   {
     connection_descriptor *arg_rfd = (connection_descriptor *)get_void_arg(arg);
     ep->rfd = *arg_rfd;
@@ -3905,7 +3905,7 @@ static void log_ignored_forced_config(app_data_ptr a,
 bool_t handle_config(app_data_ptr a, bool const forced) {
   assert(a->body.c_t == unified_boot_type || a->body.c_t == set_max_leaders ||
          a->body.c_t == set_leaders_type ||
-         a->next == NULL); /* Reconfiguration commands are not batched. */
+         a->next == nullptr); /* Reconfiguration commands are not batched. */
   {
     bool_t success = FALSE;
     if (forced &&

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -244,7 +244,7 @@ node_address *init_single_node_address(node_address *na, char const *name,
   na->address = strdup(name);
   init_proto_range(&(na->proto));
   na->services = services;
-  assert(na->uuid.data.data_len == 0 && na->uuid.data.data_val == 0);
+  assert(na->uuid.data.data_len == 0 && na->uuid.data.data_val == nullptr);
   return na;
 }
 

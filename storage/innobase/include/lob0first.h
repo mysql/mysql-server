@@ -444,7 +444,7 @@ struct first_page_t : public basic_page_t {
   /** Obtain the location where the data begins.
   @return pointer to location within page where data begins. */
   byte *data_begin() const {
-    ut_ad(buf_block_get_page_zip(m_block) == NULL);
+    ut_ad(buf_block_get_page_zip(m_block) == nullptr);
 
     constexpr ulint index_array_size = node_count() * index_entry_t::SIZE;
 
