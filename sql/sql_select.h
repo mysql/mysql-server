@@ -862,7 +862,7 @@ class store_key_hash_item final : public store_key {
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(THD *thd, Query_block *select);
+void free_underlaid_joins(Query_block *select);
 
 void calc_used_field_length(TABLE *table, bool needs_rowid,
                             uint *p_used_fieldlength);

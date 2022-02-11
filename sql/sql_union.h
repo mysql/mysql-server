@@ -63,15 +63,18 @@ class Query_result_union : public Query_result_interceptor {
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   virtual bool flush();
-  void cleanup(THD *) override { (void)reset(); }
+  void cleanup() override { (void)reset(); }
   bool reset() override;
   bool create_result_table(THD *thd, const mem_root_deque<Item *> &column_types,
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
-                           bool create_table);
+                           bool create_table, Query_term_set_op *op = nullptr);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
   friend bool TABLE_LIST::optimize_derived(THD *thd);
-  uint get_hidden_field_count() { return tmp_table_param.hidden_field_count; }
+  uint get_hidden_field_count() const {
+    return tmp_table_param.hidden_field_count;
+  }
+  bool skip_create_table() const { return tmp_table_param.skip_create_table; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

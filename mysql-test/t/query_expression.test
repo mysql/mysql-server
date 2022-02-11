@@ -1,0 +1,16 @@
+--source include/have_nodebug.inc
+
+--source include/query_expression.inc
+
+--echo #
+--echo # Verify that INTERSECT is not a reserved word in production builds
+--echo #
+CREATE TABLE intersect(i int);
+DROP TABLE intersect;
+
+
+--error ER_PARSE_ERROR
+SELECT 1 INTERSECT SELECT 2;
+--error ER_NOT_SUPPORTED_YET
+SELECT 1 EXCEPT SELECT 2;
+

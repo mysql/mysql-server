@@ -95,7 +95,7 @@ explain select * from t1 union select * from t2 order by 1 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	NULL
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	x	NULL	Using temporary; Using filesort
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	x	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by `id` limit 1
 select * from t1 union select * from t2 order by 1 limit 1;

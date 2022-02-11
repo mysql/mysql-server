@@ -2375,7 +2375,7 @@ bool Query_result_update::start_execution(THD *thd) {
   return false;
 }
 
-void Query_result_update::cleanup(THD *thd) {
+void Query_result_update::cleanup() {
   assert(CountHiddenFields(*values) == 0);
   for (TABLE_LIST *tr = update_tables; tr != nullptr; tr = tr->next_local) {
     tr->table = nullptr;
@@ -2396,7 +2396,8 @@ void Query_result_update::cleanup(THD *thd) {
     }
   }
   tmp_table_param = nullptr;
-  thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;  // Restore this setting
+  current_thd->check_for_truncated_fields =
+      CHECK_FIELD_IGNORE;  // Restore this setting
   main_table = nullptr;
   // Reset state and statistics members:
   unupdated_check_opt_tables.clear();

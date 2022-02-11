@@ -2258,7 +2258,12 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   TABLE_SHARE *s = table->s;
   Opt_trace_object trace_tmp(trace, "tmp_table_info");
   if (strlen(table->alias) != 0)
-    trace_tmp.add_utf8_table(table->pos_in_table_list);
+    if (table->pos_in_table_list != nullptr &&
+        strlen(table->pos_in_table_list->table_name) > 0) {
+      trace_tmp.add_utf8_table(table->pos_in_table_list);
+    } else {
+      trace_tmp.add_alnum("table", table->alias);
+    }
   else
     trace_tmp.add_alnum("table", "intermediate_tmp_table");
   QEP_TAB *tab = table->reginfo.qep_tab;

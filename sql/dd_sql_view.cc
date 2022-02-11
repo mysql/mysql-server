@@ -106,7 +106,7 @@ class View_metadata_updater_context {
     m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
-    m_thd->lex->cleanup(m_thd, true);
+    m_thd->lex->cleanup(true);
     m_thd->lex->destroy();
     lex_end(m_thd->lex);
     delete static_cast<st_lex_local *>(m_thd->lex);

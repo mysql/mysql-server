@@ -147,7 +147,7 @@ EXPLAIN SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
 SHOW SESSION STATUS LIKE 'Last_query_cost';
@@ -435,7 +435,7 @@ SELECT * FROM t1 WHERE y > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` > 0) union /* select#2 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`y` > 0)
 SHOW STATUS LIKE 'Last_query_cost';
@@ -458,7 +458,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` > 0) union all /* select#2 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`y` > 0)
 SHOW STATUS LIKE 'Last_query_cost';
@@ -472,7 +472,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	insert into `test`.`t1` /* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` > 0) union /* select#2 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`y` > 0)
 SHOW STATUS LIKE 'Last_query_cost';

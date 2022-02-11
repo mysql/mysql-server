@@ -65,6 +65,7 @@
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/query_term.h"
 #include "sql/sp.h"  // sp_add_used_routine
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"  // sp_instr_set
@@ -711,10 +712,13 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
     return nullptr;
   }
 
+  if (pc.finalize_query_expression()) return nullptr;
+
   if (m_into != nullptr && m_has_trailing_locking_clauses) {
     // Example: ... INTO ... FOR UPDATE;
     push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
-  } else if (has_into_clause_inside_query_block && thd->lex->unit->is_union()) {
+  } else if (has_into_clause_inside_query_block &&
+             thd->lex->unit->is_set_operation()) {
     // Example: ... UNION ... INTO ...;
     if (!m_qe->has_trailing_into_clause()) {
       // Example: ... UNION SELECT * INTO OUTFILE 'foo' FROM ...;
@@ -724,6 +728,11 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
       push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
     }
   }
+
+  DBUG_EXECUTE_IF("ast", Query_term *qn =
+                             pc.select->master_query_expression()->query_term();
+                  std::ostringstream buf; qn->debugPrint(0, buf);
+                  DBUG_PRINT("ast", ("\n%s", buf.str().c_str())););
 
   if (thd->lex->sql_command == SQLCOM_SELECT)
     return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
@@ -1038,6 +1047,8 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
 
     if (insert_query_expression->contextualize(&pc)) return nullptr;
 
+    if (pc.finalize_query_expression()) return nullptr;
+
     /*
       The following work only with the local list, the global list
       is created correctly in this case
@@ -1145,7 +1156,7 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
 
 bool PT_query_specification::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-
+  pc->m_stack.push_back(QueryLevel(pc->mem_root, SC_QUERY_SPECIFICATION));
   pc->select->parsing_place = CTX_SELECT_LIST;
 
   if (options.query_spec_options & SELECT_HIGH_PRIORITY) {
@@ -1200,10 +1211,15 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   if (contextualize_safe(pc, opt_window_clause)) return true;
   pc->select->parsing_place = CTX_NONE;
 
+  QueryLevel ql = pc->m_stack.back();
+  pc->m_stack.pop_back();
+  pc->m_stack.back().m_elts.push_back(pc->select);
   return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
 }
 
 bool PT_table_value_constructor::contextualize(Parse_context *pc) {
+  pc->m_stack.push_back(QueryLevel(pc->mem_root, SC_TABLE_VALUE_CONSTRUCTOR));
+
   if (row_value_list->contextualize(pc)) return true;
 
   pc->select->is_table_value_constructor = true;
@@ -1214,6 +1230,10 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
   for (Item *item : *pc->select->row_value_list->front()) {
     pc->select->fields.push_back(item);
   }
+
+  QueryLevel ql = pc->m_stack.back();
+  pc->m_stack.pop_back();
+  pc->m_stack.back().m_elts.push_back(pc->select);
 
   return false;
 }
@@ -1229,47 +1249,9 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
                                          m_limit != nullptr)) {
     if (contextualize_safe(pc, m_order, m_limit)) return true;
   } else {
-    auto lex = pc->thd->lex;
-    auto unit = pc->select->master_query_expression();
-    if (unit->fake_query_block == nullptr) {
-      if (unit->add_fake_query_block(lex->thd)) {
-        return true;  // OOM
-      }
-    } else if (unit->fake_query_block->has_limit() ||
-               unit->fake_query_block->is_ordered()) {
-      /*
-        Make sure that we don't silently overwrite intermediate ORDER BY
-        and/or LIMIT clauses, but reject unsupported levels of nesting
-        instead.
-
-        We are here since we support syntax like this:
-
-          (SELECT ... ORDER BY ... LIMIT) ORDER BY ... LIMIT ...
-
-        where the second pair of ORDER BY and LIMIT goes to "global parameters"
-        A.K.A. fake_query_block. I.e. this syntax works like a degenerate case
-        of unions: a union of one query block with no trailing clauses.
-
-        Such an implementation is unable to process more than one external
-        level of ORDER BY/LIMIT like this:
-
-          ( (SELECT ...
-              ORDER BY ... LIMIT)
-            ORDER BY ... LIMIT ...)
-          ORDER BY ... LIMIT ...
-
-        TODO: Don't use fake_query_block code (that is designed for unions)
-              for parenthesized query blocks. Reimplement this syntax with
-              e.g. equivalent derived tables to support any level of nesting.
-      */
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "parenthesized query expression with more than one external "
-               "level of ORDER/LIMIT operations");
-      return true;
-    }
-
-    auto orig_query_block = pc->select;
-    pc->select = unit->fake_query_block;
+    LEX *lex = pc->thd->lex;
+    Query_block *orig_query_block = pc->select;
+    pc->select = nullptr;
     lex->push_context(&pc->select->context);
     assert(pc->select->parsing_place == CTX_NONE);
 
@@ -1363,7 +1345,7 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
 
   Query_expression *unit = pc->select->first_inner_query_expression();
   pc->select = outer_query_block;
-  Table_ident *ti = new (pc->thd->mem_root) Table_ident(unit);
+  Table_ident *ti = new (pc->mem_root) Table_ident(unit);
   if (ti == nullptr) return true;
 
   value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0, TL_READ,
@@ -1393,23 +1375,262 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_union::contextualize(Parse_context *pc) {
-  if (PT_query_expression_body::contextualize(pc)) return true;
+static Surrounding_context qt2sc(Query_term_type qtt) {
+  switch (qtt) {
+    case QT_UNION:
+      return SC_UNION_ALL;
+    case QT_EXCEPT:
+      return SC_EXCEPT_ALL;
+    case QT_INTERSECT:
+      return SC_INTERSECT_ALL;
+    default:
+      assert(false);
+  }
+  return SC_TOP;
+}
+
+/**
+  Possibly merge lower syntactic levels of set operations (UNION, INTERSECT and
+  EXCEPT) into setop, and set new last DISTINCT index for setop. We only ever
+  merge set operations of the same kind, but even that, not always: we prefer
+  streaming of UNIONs when possible, and merging UNIONs with a mix of DISTINCT
+  and ALL at the top level may lead to inefficient evaluation. Streaming only
+  makes sense when the result set is sent from the server, i.e. not further
+  materialized, e.g. for ORDER BY or windowing.
+
+  For example, the query:
+
+           EXPLAIN FORMAT=tree
+           SELECT * FROM t1 UNION DISTINCT
+           SELECT * FROM t2 UNION ALL
+           SELECT * FROM t3;
+
+    will yield the plan:
+
+        -> Append
+           -> Stream results
+               -> Table scan on <union temporary>
+                   -> Union materialize with deduplication
+                       -> Table scan on t1
+                       -> Table scan on t2
+           -> Stream results
+               -> Table scan on t3
+
+    but
+           EXPLAIN FORMAT=tree
+           SELECT * FROM t1 UNION DISTINCT
+           SELECT * FROM t2 UNION DISTINCT
+           SELECT * FROM t3;
+
+    will yield the following plan, i.e. we merge the two syntactic levels. The
+    former case could also be merged, but the we'd need to write the rows of t3
+    to the temporary table, which gives a performance penalty, so we don't
+    merge.
+
+        -> Table scan on <union temporary>
+            -> Union materialize with deduplication
+                -> Table scan on t1
+                -> Table scan on t2
+                -> Table scan on t3
+
+    If have an outer ORDER BY, we will see how this would look (with merge):
+
+           EXPLAIN FORMAT=tree
+           SELECT * FROM t1 UNION DISTINCT
+           SELECT * FROM t2 UNION ALL
+           SELECT * FROM t3
+           ORDER BY a;
+
+   will yield
+
+       -> Sort: a
+           -> Table scan on <union temporary>
+               -> Union materialize with deduplication
+                   -> Table scan on t1
+                   -> Table scan on t2
+                   -> Disable deduplication
+                       -> Table scan on t3
+
+    since in this case, merging is advantageous, in that we need only one
+    temporary file. Another interesting case is when the upper level is
+    DISTINCT:
+
+           EXPLAIN FORMAT=tree
+           SELECT * FROM t1 UNION DISTINCT
+           ( SELECT * FROM t2 UNION ALL
+             SELECT * FROM t3 );
+
+    will merge and remove the lower ALL level:
+
+        -> Table scan on <union temporary>
+            -> Union materialize with deduplication
+                -> Table scan on t1
+                -> Table scan on t2
+                -> Table scan on t3
+
+  @param      pc   the parse context
+  @param      setop the set operation query term to be filled in with children
+  @param      ql   parsing query level
+*/
+void PT_set_operation::merge_descendants(Parse_context *pc,
+                                         Query_term_set_op *setop,
+                                         QueryLevel &ql) {
+  // If a child is a Query_block, include it in this union list as is.  If a
+  // child is itself a set operation, include its members in this set
+  // operation's descendant list if allowed.  If we have setop ALL, further
+  // care must be exercised: since we process set operations from left to right
+  // in each level, any DISTINCT inside the right operand means we cannot
+  // merge.
+  int count = 0;  /// computes number for members if we collapse
+  int last_distinct = 0;
+  Query_term_type op = setop->term_type();
+  Surrounding_context sc = qt2sc(op);
+
+  if (m_is_distinct) {
+    for (Query_term *elt : ql.m_elts) {
+      // We only merge same kind, and only if no LIMIT on it
+      if (elt->term_type() == QT_QUERY_BLOCK || elt->term_type() != op) {
+        // Nothing nested in this operand position, or it's another kind of
+        // set operation; hence no merge
+        count++;
+        last_distinct = count - 1;
+        setop->m_children.push_back(elt);
+      } else if (Query_term_set_op *lower = down_cast<Query_term_set_op *>(elt);
+                 elt->query_block()->select_limit == nullptr) {
+        // upper DISTINCT trumps lower ALL, so we can merge
+        last_distinct = count + lower->m_children.size() - 1;
+        count = count + lower->m_children.size();
+        for (auto child : lower->m_children) setop->m_children.push_back(child);
+      } else {
+        // similar kind of set operation, but contains limit, so do not merge
+        count++;
+        last_distinct = count - 1;
+        setop->m_children.push_back(elt);
+      }
+    }
+  } else {
+    for (Query_term *elt : ql.m_elts) {
+      // We only collapse same kind, and only if no LIMIT on it
+      if (elt->term_type() == QT_QUERY_BLOCK || elt->term_type() != op ||
+          elt->query_block()->select_limit != nullptr) {
+        // Nothing nested in this operand position, or it's another kind of
+        // set operation; hence no merge
+        count++;
+        setop->m_children.push_back(elt);
+      } else if (Query_term_set_op *lower = down_cast<Query_term_set_op *>(elt);
+                 (count == 0 ||  // first operand can always be merged
+                  lower->m_last_distinct ==
+                      0)) {  // upper, lower are ALL, so ok
+        if (lower->m_last_distinct > 0) {
+          if (pc->is_top_level_union_all(sc)) {
+            // If we merge we lose the chance to stream the right table,
+            // so don't.
+            setop->m_children.push_back(elt);
+            count++;
+          } else {
+            last_distinct = count + lower->m_last_distinct;
+            count = count + lower->m_children.size();
+            for (auto child : lower->m_children)
+              setop->m_children.push_back(child);
+          }
+        } else {
+          // upper and lower level are both ALL, so ok to merge
+          count = count + lower->m_children.size();
+          for (auto child : lower->m_children)
+            setop->m_children.push_back(child);
+        }
+      } else if (!pc->is_top_level_union_all(sc) &&
+                 lower->m_last_distinct == 0) {
+        // We have a both higher and lower level setop ALL, so ok to merge
+        // unless we have a top level UNION ALL in which case we prefer
+        // streaming.
+        count = count + lower->m_children.size();
+        for (auto child : lower->m_children) setop->m_children.push_back(child);
+      } else {
+        // do not merge
+        count++;
+        setop->m_children.push_back(elt);
+      }
+    }
+  }
+  setop->m_last_distinct = last_distinct;
+}
+
+bool PT_set_operation::contextualize_setop(Parse_context *pc,
+                                           Query_term_type setop_type,
+                                           Surrounding_context context) {
+  pc->m_stack.push_back(QueryLevel(pc->mem_root, context));
+  if (super::contextualize(pc)) return true;
 
   if (m_lhs->contextualize(pc)) return true;
 
-  pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct);
+  pc->select = pc->thd->lex->new_set_operation_query(pc->select);
 
   if (pc->select == nullptr || m_rhs->contextualize(pc)) return true;
 
-  if (m_rhs->is_union()) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-             "nesting of unions at the right-hand side");
+  pc->thd->lex->pop_context();
+
+  QueryLevel ql = pc->m_stack.back();
+  pc->m_stack.pop_back();
+
+  Query_term_set_op *setop = nullptr;
+  switch (setop_type) {
+    case QT_UNION:
+      setop = new (pc->mem_root) Query_term_union(pc->mem_root);
+      break;
+    case QT_EXCEPT:
+      setop = new (pc->mem_root) Query_term_except(pc->mem_root);
+      break;
+    case QT_INTERSECT:
+      setop = new (pc->mem_root) Query_term_intersect(pc->mem_root);
+      break;
+    default:
+      assert(false);
+  }
+  if (setop == nullptr) return true;
+
+  merge_descendants(pc, setop, ql);
+
+  Query_expression *qe = pc->select->master_query_expression();
+  if (setop->set_block(qe->create_post_processing_block())) return true;
+  pc->m_stack.back().m_elts.push_back(setop);
+  return false;
+}
+
+bool PT_union::contextualize(Parse_context *pc) {
+  return contextualize_setop(pc, QT_UNION,
+                             m_is_distinct ? SC_UNION_DISTINCT : SC_UNION_ALL);
+}
+
+bool PT_except::contextualize(Parse_context *pc [[maybe_unused]]) {
+#ifdef NDEBUG
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXCEPT");
+  return true;
+#else
+  if (pc->thd->variables.debug_enable_extended_set_ops) {
+    return contextualize_setop(
+        pc, QT_EXCEPT, m_is_distinct ? SC_EXCEPT_DISTINCT : SC_EXCEPT_ALL);
+  } else {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXCEPT");
     return true;
   }
+#endif
+}
 
-  pc->thd->lex->pop_context();
-  return false;
+bool PT_intersect::contextualize(Parse_context *pc [[maybe_unused]]) {
+#ifdef NDEBUG
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "INTERSECT");
+  return true;
+#else
+  if (pc->thd->variables.debug_enable_extended_set_ops) {
+    return contextualize_setop(
+        pc, QT_INTERSECT,
+        m_is_distinct ? SC_INTERSECT_DISTINCT : SC_INTERSECT_ALL);
+  } else {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "INTERSECT");
+    return true;
+  }
+#endif
 }
 
 static bool setup_index(keytype key_type, const LEX_STRING name,
@@ -1990,6 +2211,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
       save_query_block->table_list.save_and_clear(&save_list);
 
       if (opt_query_expression->contextualize(&pc)) return nullptr;
+      if (pc.finalize_query_expression()) return nullptr;
 
       /*
         The following work only with the local list, the global list
@@ -3616,7 +3838,7 @@ bool PT_into_destination_outfile::contextualize(Parse_context *pc) {
 
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  lex->result = new (pc->thd->mem_root) Query_result_export(&m_exchange);
+  lex->result = new (pc->mem_root) Query_result_export(&m_exchange);
   return lex->result == nullptr;
 }
 
@@ -3625,7 +3847,7 @@ bool PT_into_destination_dumpfile::contextualize(Parse_context *pc) {
 
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  lex->result = new (pc->thd->mem_root) Query_result_dump(&m_exchange);
+  lex->result = new (pc->mem_root) Query_result_dump(&m_exchange);
   return lex->result == nullptr;
 }
 
@@ -3650,14 +3872,110 @@ bool PT_select_var_list::contextualize(Parse_context *pc) {
 }
 
 bool PT_query_expression::contextualize(Parse_context *pc) {
+  pc->m_stack.push_back(
+      QueryLevel(pc->mem_root, SC_QUERY_EXPRESSION, m_order != nullptr));
   if (contextualize_safe(pc, m_with_clause))
     return true; /* purecov: inspected */
 
   if (Parse_tree_node::contextualize(pc) || m_body->contextualize(pc))
     return true;
 
-  if (contextualize_order_and_limit(pc)) return true;
+  QueryLevel ql = pc->m_stack.back();
+  Query_term *expr = ql.m_elts.back();
+  pc->m_stack.pop_back();
 
+  switch (expr->term_type()) {
+    case QT_UNARY: {
+      Query_term_unary *ex = down_cast<Query_term_unary *>(expr);
+      Query_expression *qe = pc->select->master_query_expression();
+      if (ex->set_block(qe->create_post_processing_block())) return true;
+      if (m_order != nullptr) {
+        ex->query_block()->order_list = m_order->order_list->value;
+      }
+      if (m_limit != nullptr) {
+        ex->query_block()->select_limit = m_limit->limit_options.limit;
+        ex->query_block()->offset_limit = m_limit->limit_options.opt_offset;
+      }
+
+      Query_block *orig_query_block = pc->select;
+      LEX *lex = pc->thd->lex;
+      pc->select = ex->query_block();
+      lex->push_context(&pc->select->context);
+      assert(pc->select->parsing_place == CTX_NONE);
+      if (contextualize_safe(pc, m_order, m_limit)) return true;
+      lex->pop_context();
+      pc->select = orig_query_block;
+
+      if (pc->m_stack.back().m_type == SC_QUERY_EXPRESSION) {  // 3 deep or more
+        expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
+        if (expr == nullptr) return true;
+      }
+      QueryLevel upper = pc->m_stack.back();
+      pc->m_stack.pop_back();
+      ql.m_elts.pop_back();
+      if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
+          upper.m_type == SC_EXCEPT_DISTINCT || upper.m_type == SC_EXCEPT_ALL ||
+          upper.m_type == SC_INTERSECT_DISTINCT ||
+          upper.m_type == SC_INTERSECT_ALL)
+        ql = upper;
+      ql.m_elts.push_back(expr);
+      pc->m_stack.push_back(ql);
+    } break;
+    case QT_QUERY_BLOCK: {
+      if (contextualize_order_and_limit(pc)) return true;
+      if (pc->m_stack.back().m_type == SC_QUERY_EXPRESSION) {  // 2 deep or more
+        expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
+        if (expr == nullptr) return true;
+      }
+      QueryLevel upper = pc->m_stack.back();
+      pc->m_stack.pop_back();
+      ql.m_elts.pop_back();
+      if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
+          upper.m_type == SC_EXCEPT_DISTINCT || upper.m_type == SC_EXCEPT_ALL ||
+          upper.m_type == SC_INTERSECT_DISTINCT ||
+          upper.m_type == SC_INTERSECT_ALL)
+        ql = upper;
+      ql.m_elts.push_back(expr);
+      pc->m_stack.push_back(ql);
+    } break;
+    case QT_UNION:
+    case QT_EXCEPT:
+    case QT_INTERSECT: {
+      auto ex = down_cast<Query_term_set_op *>(expr);
+      const bool already_decorated =
+          ex->query_block()->order_list.elements > 0 ||
+          ex->query_block()->select_limit != nullptr;
+      if (already_decorated) {
+        ex = new (pc->mem_root) Query_term_unary(pc->mem_root, ex);
+        if (ex == nullptr) return true;
+        Query_expression *qe = pc->select->master_query_expression();
+        if (ex->set_block(qe->create_post_processing_block())) return true;
+      }
+      if (m_order != nullptr) {
+        ex->query_block()->order_list = m_order->order_list->value;
+      }
+      if (m_limit != nullptr) {
+        ex->query_block()->select_limit = m_limit->limit_options.limit;
+        ex->query_block()->offset_limit = m_limit->limit_options.opt_offset;
+      }
+
+      Query_block *orig_query_block = pc->select;
+      LEX *lex = pc->thd->lex;
+      pc->select = ex->query_block();
+      lex->push_context(&pc->select->context);
+      assert(pc->select->parsing_place == CTX_NONE);
+      if (contextualize_safe(pc, m_order, m_limit)) return true;
+      lex->pop_context();
+      pc->select = orig_query_block;
+
+      if (pc->m_stack.back().m_type == SC_QUERY_EXPRESSION) {  // 3 deep or more
+        ex = new (pc->mem_root) Query_term_unary(pc->mem_root, ex);
+        if (ex == nullptr) return true;
+      }
+
+      pc->m_stack.back().m_elts.push_back(ex);
+    } break;
+  }
   return false;
 }
 
@@ -3676,6 +3994,7 @@ bool PT_subquery::contextualize(Parse_context *pc) {
   if (child == nullptr) return true;
 
   Parse_context inner_pc(pc->thd, child);
+  inner_pc.m_stack.push_back(QueryLevel(pc->mem_root, SC_SUBQUERY));
 
   if (m_is_derived_table) child->linkage = DERIVED_TABLE_TYPE;
 
@@ -3687,6 +4006,9 @@ bool PT_subquery::contextualize(Parse_context *pc) {
   }
 
   query_block = inner_pc.select->master_query_expression()->first_query_block();
+  if (inner_pc.finalize_query_expression()) return true;
+  inner_pc.m_stack.pop_back();
+  assert(inner_pc.m_stack.size() == 0);
 
   lex->pop_context();
   pc->select->n_child_sum_items += child->n_sum_items;

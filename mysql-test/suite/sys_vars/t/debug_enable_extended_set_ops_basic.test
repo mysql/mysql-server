@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+#
+# exists as global
+#
+
+# just to show that global.debug_enable_extended_set_ops exists
+select @@global.debug_enable_extended_set_ops;
+
+select @@global.debug_enable_extended_set_ops into @save;
+
+--replace_column 2 #
+show global variables like 'debug_enable_extended_set_ops';
+
+--replace_column 2 #
+--disable_warnings
+select * from performance_schema.global_variables where variable_name="debug_enable_extended_set_ops";
+--enable_warnings
+
+
+set @@global.debug_enable_extended_set_ops=true;
+set @@global.debug_enable_extended_set_ops=@save;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.debug_enable_extended_set_ops='1';
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_enable_extended_set_ops=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_enable_extended_set_ops=1e1;

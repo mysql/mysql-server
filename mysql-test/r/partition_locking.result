@@ -2479,7 +2479,7 @@ EXPLAIN SELECT * FROM t1 UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	index	NULL	b	515	NULL	#	100.00	Using index
 2	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2490,7 +2490,7 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 2	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26)) union /* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2502,7 +2502,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 3	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+4	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2515,7 +2515,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+5	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26)) union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t3`) `t4`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2528,7 +2528,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+5	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `t4`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2541,7 +2541,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-NULL	UNION RESULT	<union1,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+5	UNION RESULT	<union1,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3`) `t4` union /* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2554,7 +2554,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
+5	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,1,13,4,26))) `t3` union /* select#4 */ select '1' AS `a`,'First row, p1' AS `b` from `test`.`t2` where true) `t4`
 Warnings:
 VARIABLE_NAME	VARIABLE_VALUE

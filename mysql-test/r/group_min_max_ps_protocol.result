@@ -60,7 +60,7 @@ EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	range	a	a	5	NULL	X	100.00	Using index for group-by
 2	UNION	t1	NULL	range	a	a	5	NULL	X	100.00	Using index for group-by
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	X	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	X	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` union /* select#2 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 # In queries below "index for group-by" should be used for subqueries

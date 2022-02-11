@@ -1357,7 +1357,7 @@ TRACE
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `teeone`",
+                "table": "teeone",
                 "in_plan_at_position": 0,
                 "columns": 1,
                 "row_length": 16,
@@ -1380,6 +1380,7 @@ TRACE
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
+                            "table": "<temporary>",
                             "in_plan_at_position": 1,
                             "columns": 2,
                             "row_length": 22,
@@ -3737,7 +3738,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `tmp`",
+                "table": "tmp",
                 "in_plan_at_position": 0,
                 "columns": 2,
                 "row_length": 10,
@@ -5015,6 +5016,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 2,
                       "columns": 3,
                       "row_length": 18,

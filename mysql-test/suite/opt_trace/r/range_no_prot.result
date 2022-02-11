@@ -4495,7 +4495,7 @@ EXPLAIN SELECT 1 FROM
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `d2`",
+                "table": "d2",
                 "columns": 1,
                 "row_length": 5,
                 "key_length": 0,
@@ -4847,7 +4847,7 @@ EXPLAIN SELECT 1 FROM
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `d2`",
+                "table": "d2",
                 "columns": 1,
                 "row_length": 5,
                 "key_length": 0,

@@ -11990,6 +11990,7 @@ EXPLAIN
         "query_block": {
           "union_result": {
             "using_temporary_table": true,
+            "select_id": 4,
             "table_name": "<union2,3>",
             "access_type": "ALL",
             "query_specifications": [
@@ -16652,6 +16653,7 @@ join_optimization": {
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<temporary>",
                 "in_plan_at_position": 3,
                 "columns": 7,
                 "row_length": 45,
@@ -16670,6 +16672,7 @@ join_optimization": {
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 2,
                       "columns": 6,
                       "row_length": 29,
@@ -16688,6 +16691,7 @@ join_optimization": {
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
+                            "table": "<temporary>",
                             "in_plan_at_position": 1,
                             "columns": 5,
                             "row_length": 22,

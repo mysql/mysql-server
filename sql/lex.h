@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,6 +337,9 @@ static const SYMBOL symbols[] = {
     {SYM("INT4", INT_SYM)},
     {SYM("INT8", BIGINT_SYM)},
     {SYM("INTEGER", INT_SYM)},
+#ifndef NDEBUG
+    {SYM("INTERSECT", INTERSECT_SYM)},
+#endif
     {SYM("INTERVAL", INTERVAL_SYM)},
     {SYM("INTO", INTO)},
     {SYM("IO", IO_SYM)},

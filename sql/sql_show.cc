@@ -1238,7 +1238,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
 
 exit:
   if (table_list->is_view()) {
-    table_list->view_query()->cleanup(thd, true);
+    table_list->view_query()->cleanup(true);
     table_list->view_query()->destroy();
   }
   close_thread_tables(thd);
@@ -3799,7 +3799,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
 end:
-  lex->cleanup(thd, true);
+  lex->cleanup(true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);

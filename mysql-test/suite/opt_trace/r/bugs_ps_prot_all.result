@@ -1900,6 +1900,7 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<subquery3>",
                 "columns": 2,
                 "row_length": 13,
                 "key_length": 14,

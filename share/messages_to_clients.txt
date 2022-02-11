@@ -7241,7 +7241,7 @@ OBSOLETE_ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
 ER_AGGREGATE_ORDER_FOR_UNION
-  eng "Expression #%u of ORDER BY contains aggregate function and applies to a UNION"
+  eng "Expression #%u of ORDER BY contains aggregate function and applies to a UNION, EXCEPT or INTERSECT"
 
 ER_AGGREGATE_ORDER_NON_AGG_QUERY
   eng "Expression #%u of ORDER BY contains aggregate function and applies to the result of a non-aggregated query"
@@ -9790,6 +9790,9 @@ ER_DROP_PK_COLUMN_TO_DROP_GIPK
 
 ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR
   eng "Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement."
+
+ER_CTE_RECURSIVE_NOT_UNION
+  eng "Recursive table reference in EXCEPT or INTERSECT operand is not allowed."
 
 #
 #  End of 8.0 error messages (server-to-client).

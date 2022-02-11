@@ -2670,20 +2670,20 @@ TRACE
           },
           {
             "join_preparation": {
-              "select#": 4,
+              "select#": 5,
               "steps": [
                 {
-                  "expanded_query": "/* select#4 */ select 1 AS `1`"
+                  "expanded_query": "/* select#5 */ select 1 AS `1`"
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
             "join_preparation": {
-              "select#": 5,
+              "select#": 6,
               "steps": [
                 {
-                  "expanded_query": "/* select#5 */ select 2 AS `2`"
+                  "expanded_query": "/* select#6 */ select 2 AS `2`"
                 }
               ] /* steps */
             } /* join_preparation */
@@ -2691,7 +2691,7 @@ TRACE
           {
             "derived": {
               "table": "`q` `q1`",
-              "select#": 4,
+              "select#": 5,
               "materialized": true,
               "reusing_tmp_table": true
             } /* derived */
@@ -2722,14 +2722,14 @@ TRACE
           },
           {
             "join_optimization": {
-              "select#": 4,
+              "select#": 5,
               "steps": [
               ] /* steps */
             } /* join_optimization */
           },
           {
             "join_optimization": {
-              "select#": 5,
+              "select#": 6,
               "steps": [
               ] /* steps */
             } /* join_optimization */

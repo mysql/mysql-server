@@ -755,7 +755,7 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
+1
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
@@ -1191,7 +1191,10 @@ SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL SELECT a FROM t1' at line 1
 (SELECT 1) UNION (SELECT 2 UNION SELECT 3);
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+1
+1
+2
+3
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
 a
 1
@@ -1248,7 +1251,8 @@ ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER c
 ORDER BY t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+1
+1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 1
 1
@@ -1256,7 +1260,8 @@ ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the
 1
 1
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+1
+1
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
@@ -2526,14 +2531,14 @@ EXPLAIN (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 1) union /* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`
 EXPLAIN SELECT a FROM t1 UNION (SELECT a FROM t2 LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 1)
 CREATE VIEW v1 as (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
@@ -2546,13 +2551,19 @@ View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1` union (select `t2`.`a` AS `a` from `t2` order by `t2`.`a` limit 1)	utf8mb4	utf8mb4_0900_ai_ci
 EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+2	RESULT	<ordered/limited1>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
 Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` order by `test`.`t3`.`a` limit 3) order by `b` desc limit 2
 EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
 ORDER BY b DESC LIMIT 2)
 ORDER BY c LIMIT 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+2	RESULT	<ordered/limited1>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	RESULT	<ordered/limited2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	((/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` order by `test`.`t3`.`a` limit 3) order by `b` desc limit 2) order by `c` limit 1
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;

@@ -375,7 +375,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
     if (thd->is_error())  // @todo - dictionary code should be fixed
       goto err;
     if (error_handler_active) thd->pop_internal_handler();
-    lex->cleanup(thd, false);
+    lex->cleanup(false);
     return true;
   }
   DEBUG_SYNC(thd, "after_open_tables");
@@ -394,7 +394,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
     if (prepare_inner(thd)) goto err;
     if (needs_explicit_preparation() && result != nullptr) {
-      result->cleanup(thd);
+      result->cleanup();
     }
     if (!is_regular()) {
       if (save_cmd_properties(thd)) goto err;
@@ -419,9 +419,9 @@ err:
 
   if (error_handler_active) thd->pop_internal_handler();
 
-  if (result != nullptr) result->cleanup(thd);
+  if (result != nullptr) result->cleanup();
 
-  lex->cleanup(thd, false);
+  lex->cleanup(false);
 
   return true;
 }
@@ -467,6 +467,7 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   if (!parameters->has_limit()) {
     parameters->m_use_select_limit = true;
   }
+
   if (unit->is_simple()) {
     Query_block *const select = unit->first_query_block();
     select->context.resolve_in_select_list = true;
@@ -597,12 +598,12 @@ bool Sql_cmd_dml::execute(THD *thd) {
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  lex->cleanup(thd, false);
+  lex->cleanup(false);
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
   // Perform statement-specific cleanup for Query_result
-  if (result != nullptr) result->cleanup(thd);
+  if (result != nullptr) result->cleanup();
 
   thd->save_current_query_costs();
 
@@ -627,14 +628,14 @@ err:
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
   THD_STAGE_INFO(thd, stage_end);
 
-  lex->cleanup(thd, false);
+  lex->cleanup(false);
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
   // Abort and cleanup the result set (if it has been prepared).
   if (result != nullptr) {
     result->abort_result_set(thd);
-    result->cleanup(thd);
+    result->cleanup();
   }
   if (error_handler_active) thd->pop_internal_handler();
 
@@ -810,14 +811,7 @@ Query_result *Sql_cmd_dml::query_result() const {
 void Sql_cmd_dml::set_query_result(Query_result *result_arg) {
   result = result_arg;
   Query_expression *unit = lex->unit;
-  if (unit->fake_query_block != nullptr)
-    unit->fake_query_block->set_query_result(result);
-  else {
-    for (Query_block *sl = unit->first_query_block(); sl;
-         sl = sl->next_query_block()) {
-      sl->set_query_result(result);
-    }
-  }
+  unit->query_term()->query_block()->set_query_result(result);
   unit->set_query_result(result);
 }
 
@@ -929,13 +923,10 @@ bool Sql_cmd_select::check_privileges(THD *thd) {
     return true;
 
   Query_expression *const unit = lex->unit;
-  for (Query_block *sl = unit->first_query_block(); sl;
-       sl = sl->next_query_block()) {
-    if (sl->check_column_privileges(thd)) return true;
-  }
-  if (unit->fake_query_block != nullptr) {
-    if (unit->fake_query_block->check_column_privileges(thd)) return true;
-  }
+
+  for (auto qt : unit->query_terms<>())
+    if (qt->query_block()->check_column_privileges(thd)) return true;
+
   return false;
 }
 
@@ -1797,6 +1788,8 @@ void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
   Optimize a query block and all inner query expressions
 
   @param thd    thread handler
+  @param finalize_access_paths
+                if true, finalize access paths, cf. FinalizePlanForQueryBlock
   @returns false if success, true if error
 */
 
@@ -3465,9 +3458,7 @@ void JOIN::join_free() {
   if (can_unlock && lock && thd->lock && !thd->locked_tables_mode &&
       !(query_block->active_options() & SELECT_NO_UNLOCK) &&
       !query_block->subquery_in_having &&
-      (query_block == (thd->lex->unit->fake_query_block
-                           ? thd->lex->unit->fake_query_block
-                           : thd->lex->query_block))) {
+      (query_block == thd->lex->unit->query_term()->query_block())) {
     /*
       TODO: unlock tables even if the join isn't top level select in the
       tree.
@@ -3927,19 +3918,18 @@ bool JOIN::make_sum_func_list(const mem_root_deque<Item *> &fields,
 /**
   Free joins of subselect of this select.
 
-  @param thd      thread handle
   @param select   pointer to Query_block which subselects joins we will free
 
   @todo when the final use of this function (from SET statements) is removed,
   this function can be deleted.
 */
 
-void free_underlaid_joins(THD *thd, Query_block *select) {
+void free_underlaid_joins(Query_block *select) {
   for (Query_expression *query_expression =
            select->first_inner_query_expression();
        query_expression;
        query_expression = query_expression->next_query_expression())
-    query_expression->cleanup(thd, false);
+    query_expression->cleanup(false);
 }
 
 /**

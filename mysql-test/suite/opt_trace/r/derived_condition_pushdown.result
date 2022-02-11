@@ -435,7 +435,7 @@ trace
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `dt`",
+                "table": "dt",
                 "in_plan_at_position": 0,
                 "columns": 3,
                 "row_length": 24,
@@ -454,6 +454,7 @@ trace
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 1,
                       "columns": 3,
                       "row_length": 15,
@@ -1229,7 +1230,7 @@ trace
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `dt3`",
+                "table": "dt3",
                 "in_plan_at_position": 0,
                 "columns": 2,
                 "row_length": 13,
@@ -1248,7 +1249,7 @@ trace
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": " `dt1`",
+                      "table": "dt1",
                       "in_plan_at_position": 0,
                       "columns": 2,
                       "row_length": 17,
@@ -1267,7 +1268,7 @@ trace
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
-                            "table": " `dt0`",
+                            "table": "dt0",
                             "in_plan_at_position": 0,
                             "columns": 2,
                             "row_length": 17,
@@ -1333,7 +1334,7 @@ trace
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": "intermediate_tmp_table",
+                "table": "<union temporary>",
                 "columns": 2,
                 "row_length": 20,
                 "key_length": 21,
@@ -1346,10 +1347,10 @@ trace
           },
           {
             "join_preparation": {
-              "select#": "fake",
+              "select#": 4,
               "steps": [
                 {
-                  "expanded_query": "/* select#fake */ select `f1` AS `f1`,`f2` AS `f2` from dual"
+                  "expanded_query": "/* select#4 */ select `f1` AS `f1`,`f2` AS `f2` from dual"
                 }
               ]
             }
@@ -1810,7 +1811,7 @@ trace
           },
           {
             "join_optimization": {
-              "select#": "fake",
+              "select#": 4,
               "steps": [
                 {
                   "table_dependencies": [
@@ -1994,7 +1995,7 @@ trace
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `dt1`",
+                "table": "dt1",
                 "in_plan_at_position": 0,
                 "columns": 2,
                 "row_length": 20,
@@ -2013,6 +2014,7 @@ trace
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 1,
                       "columns": 2,
                       "row_length": 11,

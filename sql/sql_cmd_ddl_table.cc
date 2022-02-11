@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -407,14 +407,14 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       ++thd->status_var.secondary_engine_execution_count;
 
     if (lex->is_ignore() || thd->is_strict_mode()) thd->pop_internal_handler();
-    lex->cleanup(thd, false);
+    lex->cleanup(false);
     thd->clear_current_query_costs();
     lex->clear_values_map();
 
     // Abort the result set if execution ended in error
     if (res) result->abort_result_set(thd);
 
-    result->cleanup(thd);
+    result->cleanup();
 
     lex->link_first_table_back(create_table, link_to_local);
     THD_STAGE_INFO(thd, stage_end);

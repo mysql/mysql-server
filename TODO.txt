@@ -1,0 +1,48 @@
+Copyright (c) 2022, Oracle and/or its affiliates.
+
+- run sysbench performance tests (Norvald, Jeb). Roy has
+  scripts if I need to run myself
+
+- check with RAPID what to do about queries now failing:
+  MySQL is smarter than before with mixed DISTINCT ALL:
+  Query:
+        explain format=tree
+        SELECT * FROM t1 UNION DISTINCT
+        SELECT * FROM t2 UNION ALL
+        SELECT * FROM t3;
+  old plan:
+  -> Table scan on <union_level_1>  (cost=0.43..2.58 rows=6)
+    -> Union materialize with deduplication  (cost=2.38..4.53 rows=6)
+        -> Table scan on t1  (cost=0.45 rows=2)
+        -> Table scan on t2  (cost=0.45 rows=2)
+        -> Disable deduplication
+            -> Table scan on t3  (cost=0.45 rows=2)
+
+  new plan:
+  -> Append
+    -> Stream results  (cost=0.64..2.55 rows=4)
+        -> Table scan on <union_level_2>  (cost=0.64..2.55 rows=4)
+            -> Union materialize with deduplication  (cost=1.94..3.85 rows=4)
+                -> Table scan on t1  (cost=0.45 rows=2)
+                -> Table scan on t2  (cost=0.45 rows=2)
+    -> Stream results  (cost=0.45 rows=2)
+        -> Table scan on t3  (cost=0.45 rows=2)
+
+   that is, the rows from t3 are not written to the materialized table
+   now.
+   Look for the string "dhw" in RAPID test files for occurences, where I had
+   to accept non-offloads for the tests to complete. RAPID
+   needs to understand such plans.
+
+Before final commit:
+
+- remove this TODO
+- remove Emacs comments from files
+
+
+
+Next steps:
+
+- make executing support for EXCEPT
+- make executing support for INTERSECT
+

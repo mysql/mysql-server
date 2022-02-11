@@ -868,12 +868,9 @@ SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 
 --echo # ORDER and LIMIT clause combinations
 
-# Limited support for (SELECT ...) ORDER/LIMIT:
-
 (SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 
---error ER_NOT_SUPPORTED_YET
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 
@@ -1286,11 +1283,11 @@ SELECT 1 UNION (SELECT 2);
 
 --error ER_PARSE_ERROR
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
---error ER_NOT_SUPPORTED_YET
+
 (SELECT 1) UNION (SELECT 2 UNION SELECT 3);
-#--error ER_WRONG_USAGE
+
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
-#--error ER_WRONG_USAGE
+
 (SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
 
 --error ER_BAD_FIELD_ERROR
@@ -1332,16 +1329,16 @@ SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a LIMIT 2)
   ORDER BY t1.b;
 
-# Generally speaking, we don't support nested unions:
---error ER_NOT_SUPPORTED_YET
+# [ before WL11350: Generally speaking, we don't support nested unions]
+# We do now.
+
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 # OTOH union expressions are left-associative by their nature,
 # so "s1 UNION s2 UNION ..." and "(s1 UNION s2) UNION ..." are same,
 # thus the parser accepts nested query expressions at the left hand side:
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
-# But:
---error ER_NOT_SUPPORTED_YET
+# [ But: ] now ok
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
 
 # Missing ")":
@@ -2460,7 +2457,7 @@ CREATE VIEW v2 as SELECT a FROM t1 UNION (SELECT a FROM t2 ORDER BY a LIMIT 1);
 SHOW CREATE VIEW v2;
 
 EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
---error ER_NOT_SUPPORTED_YET
+
 EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
             ORDER BY b DESC LIMIT 2)
                 ORDER BY c LIMIT 1;

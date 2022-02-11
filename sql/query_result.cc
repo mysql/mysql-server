@@ -155,7 +155,7 @@ bool Query_result_to_file::send_eof(THD *thd) {
   return error;
 }
 
-void Query_result_to_file::cleanup(THD *) {
+void Query_result_to_file::cleanup() {
   DBUG_TRACE;
   DBUG_PRINT("print_select_into_flush_stats",
              ("[select_to_file][flush_count] %03lu\n", cache.disk_writes));
@@ -631,9 +631,9 @@ err:
   return true;
 }
 
-void Query_result_export::cleanup(THD *thd) {
-  thd->set_sent_row_count(row_count);
-  Query_result_to_file::cleanup(thd);
+void Query_result_export::cleanup() {
+  current_thd->set_sent_row_count(row_count);
+  Query_result_to_file::cleanup();
 }
 
 /***************************************************************************

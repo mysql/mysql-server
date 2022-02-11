@@ -1468,8 +1468,10 @@ EXPLAIN
   "query_block": {
     "union_result": {
       "using_temporary_table": true,
+      "select_id": 3,
       "table_name": "<union1,2>",
       "access_type": "ALL",
+      "using_filesort": true,
       "query_specifications": [
         {
           "dependent": false,
@@ -3358,8 +3360,10 @@ EXPLAIN
   "query_block": {
     "union_result": {
       "using_temporary_table": true,
+      "select_id": 3,
       "table_name": "<union1,2>",
       "access_type": "ALL",
+      "using_filesort": true,
       "query_specifications": [
         {
           "dependent": false,

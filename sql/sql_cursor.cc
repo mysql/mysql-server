@@ -128,7 +128,7 @@ class Query_result_materialize final : public Query_result_union {
   bool start_execution(THD *thd) override;
   bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
-  void cleanup(THD *) override {}
+  void cleanup() override {}
 };
 
 /**************************************************************************/

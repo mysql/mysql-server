@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -352,16 +352,15 @@ class Explain_no_table : public Explain {
   Explain_union_result class outputs EXPLAIN row for UNION
 */
 
-class Explain_union_result : public Explain {
+class Explain_setop_result : public Explain {
  public:
-  Explain_union_result(THD *explain_thd_arg, const THD *query_thd_arg,
-                       Query_block *query_block_arg)
-      : Explain(CTX_UNION_RESULT, explain_thd_arg, query_thd_arg,
-                query_block_arg) {
-    /* it's a UNION: */
-    assert(query_block_arg ==
-           query_block_arg->master_query_expression()->fake_query_block);
-    // Use optimized values from fake_query_block's join
+  Explain_setop_result(THD *explain_thd_arg, const THD *query_thd_arg,
+                       Query_block *query_block_arg, Query_term *qt,
+                       enum_parsing_context ctx)
+      : Explain(ctx, explain_thd_arg, query_thd_arg, query_block_arg),
+        m_query_term(down_cast<Query_term_set_op *>(qt)) {
+    assert(m_query_term->term_type() != QT_QUERY_BLOCK);
+    // Use optimized values from block's join
     order_list = !query_block_arg->join->order.empty();
     // A plan exists so the reads above are safe:
     assert(query_block_arg->join->get_plan_state() != JOIN::NO_PLAN);
@@ -378,6 +377,7 @@ class Explain_union_result : public Explain {
     return true;  // Because we know that we have a plan
   }
   /* purecov: end */
+  Query_term_set_op *m_query_term;
 };
 
 /**
@@ -450,8 +450,6 @@ class Explain_join : public Explain_table_base {
         distinct(distinct_arg),
         join(query_block_arg->join) {
     assert(join->get_plan_state() == JOIN::PLAN_READY);
-    /* it is not UNION: */
-    assert(join->query_block != join->query_expression()->fake_query_block);
     order_list = !join->order.empty();
   }
 
@@ -729,8 +727,7 @@ bool Explain::send() {
 }
 
 bool Explain::explain_id() {
-  if (query_block->select_number < INT_MAX)
-    fmt->entry()->col_id.set(query_block->select_number);
+  fmt->entry()->col_id.set(query_block->select_number);
   return false;
 }
 
@@ -796,32 +793,58 @@ bool Explain_no_table::explain_modify_flags() {
 /* Explain_union_result class functions
  * ****************************************/
 
-bool Explain_union_result::explain_id() { return false; }
+bool Explain_setop_result::explain_id() { return Explain::explain_id(); }
 
-bool Explain_union_result::explain_table_name() {
+bool Explain_setop_result::explain_table_name() {
   // Get the last of UNION's selects
-  Query_block *last_query_block = query_block->master_query_expression()
-                                      ->first_query_block()
-                                      ->last_query_block();
+  Query_block *last_query_block =
+      m_query_term->m_children.back()->query_block();
+  ;
   // # characters needed to print select_number of last select
   int last_length = (int)log10((double)last_query_block->select_number) + 1;
 
-  Query_block *sl = query_block->master_query_expression()->first_query_block();
-  size_t len = 6, lastop = 0;
   char table_name_buffer[NAME_LEN];
-  memcpy(table_name_buffer, STRING_WITH_LEN("<union"));
+  const char *op_type;
+  if (context_type == CTX_UNION_RESULT) {
+    op_type = "<union";
+  } else if (context_type == CTX_INTERSECT_RESULT) {
+    op_type = "<intersect";
+  } else if (context_type == CTX_EXCEPT_RESULT) {
+    op_type = "<except";
+  } else {
+    if (order_list) {
+      if (query_block->select_limit != nullptr) {
+        op_type = "<ordered/limited";
+      } else {
+        op_type = "<ordered";
+      }
+    } else if (query_block->select_limit != nullptr) {
+      op_type = "<limited";
+    } else {
+      op_type = "<ordered";
+    }
+  }
+  const size_t op_type_len = strlen(op_type);
+  size_t lastop = 0;
+  size_t len = op_type_len;
+  memcpy(table_name_buffer, op_type, op_type_len);
   /*
     - len + lastop: current position in table_name_buffer
     - 6 + last_length: the number of characters needed to print
       '...,'<last_query_block->select_number>'>\0'
   */
-  for (; sl && len + lastop + 6 + last_length < NAME_CHAR_LEN;
-       sl = sl->next_query_block()) {
+  bool overflow = false;
+  for (auto qt : m_query_term->m_children) {
+    if (len + lastop + op_type_len + last_length >= NAME_CHAR_LEN) {
+      overflow = true;
+      break;
+    }
     len += lastop;
     lastop = snprintf(table_name_buffer + len, NAME_CHAR_LEN - len, "%u,",
-                      sl->select_number);
+                      qt->query_block()->select_number);
   }
-  if (sl || len + lastop >= NAME_CHAR_LEN) {
+
+  if (overflow || len + lastop >= NAME_CHAR_LEN) {
     memcpy(table_name_buffer + len, STRING_WITH_LEN("...,"));
     len += 4;
     lastop = snprintf(table_name_buffer + len, NAME_CHAR_LEN - len, "%u,",
@@ -833,27 +856,27 @@ bool Explain_union_result::explain_table_name() {
   return fmt->entry()->col_table_name.set(table_name_buffer, len);
 }
 
-bool Explain_union_result::explain_join_type() {
+bool Explain_setop_result::explain_join_type() {
   fmt->entry()->col_join_type.set_const(join_type_str[JT_ALL]);
   return false;
 }
 
-bool Explain_union_result::explain_extra() {
+bool Explain_setop_result::explain_extra() {
   if (!fmt->is_hierarchical()) {
     /*
      Currently we always use temporary table for UNION result
     */
     if (push_extra(ET_USING_TEMPORARY)) return true;
-    /*
-      here we assume that the query will return at least two rows, so we
-      show "filesort" in EXPLAIN. Of course, sometimes we'll be wrong
-      and no filesort will be actually done, but executing all selects in
-      the UNION to provide precise EXPLAIN information will hardly be
-      appreciated :)
-    */
-    if (order_list) {
-      return push_extra(ET_USING_FILESORT);
-    }
+  }
+  /*
+    here we assume that the query will return at least two rows, so we
+    show "filesort" in EXPLAIN. Of course, sometimes we'll be wrong
+    and no filesort will be actually done, but executing all selects in
+    the UNION to provide precise EXPLAIN information will hardly be
+    appreciated :)
+  */
+  if (order_list) {
+    return push_extra(ET_USING_FILESORT);
   }
   return Explain::explain_extra();
 }
@@ -1931,13 +1954,14 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
 
   @param explain_thd thread handle for the connection doing explain
   @param query_thd   thread handle for the connection being explained
-  @param query_block  explain join attached to given query_block
+  @param query_term  explain join attached to given term's query_block
   @param ctx         current explain context
 */
 
 bool explain_query_specification(THD *explain_thd, const THD *query_thd,
-                                 Query_block *query_block,
+                                 Query_term *query_term,
                                  enum_parsing_context ctx) {
+  Query_block *query_block = query_term->query_block();
   Opt_trace_context *const trace = &explain_thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "join_explain");
@@ -2002,13 +2026,15 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
       const bool need_order = flags->any(ESP_USING_FILESORT);
       const bool distinct = flags->get(ESC_DISTINCT, ESP_EXISTS);
 
-      if (query_block ==
-          query_block->master_query_expression()->fake_query_block)
-        ret = Explain_union_result(explain_thd, query_thd, query_block).send();
-      else
+      if (query_term->term_type() == QT_QUERY_BLOCK)
         ret = Explain_join(explain_thd, query_thd, query_block, need_tmp_table,
                            need_order, distinct)
                   .send();
+      else {
+        ret = Explain_setop_result(explain_thd, query_thd, query_block,
+                                   query_term, ctx)
+                  .send();
+      }
       break;
     }
     default:
@@ -2063,10 +2089,10 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain +=
-          PrintQueryPlan(base_level, unit->root_access_path(),
-                         unit->is_union() ? nullptr : join,
-                         /*is_root_of_join=*/!unit->is_union(), token_ptr);
+      explain += PrintQueryPlan(base_level, unit->root_access_path(),
+                                unit->is_set_operation() ? nullptr : join,
+                                /*is_root_of_join=*/!unit->is_set_operation(),
+                                token_ptr);
     } else {
       explain += PrintQueryPlan(0, /*path=*/nullptr, /*join=*/nullptr,
                                 /*is_root_of_join=*/false, token_ptr);
@@ -2294,11 +2320,11 @@ bool mysql_explain_query_expression(THD *explain_thd, const THD *query_thd,
                                     Query_expression *unit) {
   DBUG_TRACE;
   bool res = false;
-  if (unit->is_union())
-    res = unit->explain(explain_thd, query_thd);
-  else
+  if (unit->is_simple())
     res = explain_query_specification(explain_thd, query_thd,
-                                      unit->first_query_block(), CTX_JOIN);
+                                      unit->query_term(), CTX_JOIN);
+  else
+    res = unit->explain(explain_thd, query_thd);
   assert(res || !explain_thd->is_error());
   res |= explain_thd->is_error();
   return res;

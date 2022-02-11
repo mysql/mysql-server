@@ -321,7 +321,7 @@ Query_block *Select_lex_builder::prepare_query_block() {
   if (m_thd->is_error()) return nullptr;
 
   if (query_expression->contextualize(&pc)) return nullptr;
-
+  if (pc.finalize_query_expression()) return nullptr;
   return current_query_block;
 }
 

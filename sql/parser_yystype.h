@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -337,6 +337,8 @@ struct Bipartite_name {
   LEX_CSTRING name;
 };
 
+enum class Set_operator { UNION, EXCEPT, INTERSECT };
+
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
@@ -474,6 +476,10 @@ union YYSTYPE {
   PT_query_expression *query_expression;
   PT_derived_table *derived_table;
   PT_query_expression_body *query_expression_body;
+  struct {
+    PT_query_expression_body *body;
+    bool is_parenthesized;
+  } query_expression_body_opt_parens;
   PT_query_primary *query_primary;
   PT_subquery *subquery;
   PT_key_part_specification *key_part;
@@ -494,7 +500,7 @@ union YYSTYPE {
   } column_row_value_list_pair;
   struct {
     PT_item_list *column_list;
-    PT_query_primary *insert_query_expression;
+    PT_query_expression_body *insert_query_expression;
   } insert_query_expression;
   struct {
     Item *offset;
@@ -586,7 +592,7 @@ union YYSTYPE {
     Mem_root_array<PT_create_table_option *> *opt_create_table_options;
     PT_partition *opt_partitioning;
     On_duplicate on_duplicate;
-    PT_query_primary *opt_query_expression;
+    PT_query_expression_body *opt_query_expression;
   } create_table_tail;
   Lock_strength lock_strength;
   Locked_row_action locked_row_action;
@@ -701,6 +707,7 @@ union YYSTYPE {
   } insert_update_values_reference;
   my_thread_id query_id;
   Bipartite_name bipartite_name;
+  Set_operator query_operator;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

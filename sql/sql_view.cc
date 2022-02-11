@@ -766,7 +766,7 @@ err_with_rollback:
 err:
   THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
-  unit->cleanup(thd, true);
+  unit->cleanup(true);
 
   return res || thd->is_error();
 }
@@ -832,7 +832,7 @@ bool is_updatable_view(THD *thd, TABLE_LIST *view) {
     UNION
   */
   if (updatable_view &&
-      !lex->query_block->master_query_expression()->is_union() &&
+      !lex->query_block->master_query_expression()->is_set_operation() &&
       !(lex->query_block->table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
                                 lex->query_tables->db,

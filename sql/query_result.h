@@ -43,6 +43,7 @@ class THD;
 struct CHARSET_INFO;
 template <class Element_type>
 class mem_root_deque;
+class Query_term_set_op;
 
 /*
   This is used to get result from a query
@@ -144,7 +145,7 @@ class Query_result {
     Cleanup after this execution. Completes the execution and resets object
     before next execution of a prepared statement/stored procedure.
   */
-  virtual void cleanup(THD *) { /* do nothing */
+  virtual void cleanup() { /* do nothing */
   }
 
   /**
@@ -188,7 +189,7 @@ class Query_result_send : public Query_result {
   bool send_eof(THD *thd) override;
   bool check_simple_query_block() const override { return false; }
   void abort_result_set(THD *thd) override;
-  void cleanup(THD *) override { is_result_set_started = false; }
+  void cleanup() override { is_result_set_started = false; }
 };
 
 class sql_exchange;
@@ -211,7 +212,7 @@ class Query_result_to_file : public Query_result_interceptor {
   bool needs_file_privilege() const override { return true; }
 
   bool send_eof(THD *thd) override;
-  void cleanup(THD *thd) override;
+  void cleanup() override;
 };
 
 #define ESCAPE_CHARS "ntrb0ZN"  // keep synchronous with READ_INFO::unescape
@@ -251,7 +252,7 @@ class Query_result_export final : public Query_result_to_file {
                Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
-  void cleanup(THD *thd) override;
+  void cleanup() override;
 };
 
 class Query_result_dump : public Query_result_to_file {
@@ -276,7 +277,7 @@ class Query_dumpvar final : public Query_result_interceptor {
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   bool check_simple_query_block() const override;
-  void cleanup(THD *) override { row_count = 0; }
+  void cleanup() override { row_count = 0; }
 };
 
 /**

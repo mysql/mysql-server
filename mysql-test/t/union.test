@@ -1,6 +1,7 @@
 #
 # Test of unions
 #
+--source include/elide_costs.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
@@ -2340,3 +2341,475 @@ DROP TABLE t1;
 
 EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
 SELECT 1 UNION SELECT 1 LIMIT 0;
+
+--echo #
+--echo # WL#11350 extensions:
+--echo #    a) multi-level set operations
+--echo #    b) right side DISTINCT restriction lifted
+--echo #    c) arbitrary combination with unary, cf. also
+--echo #       unary.test
+--echo # This is a mix of coverage for refactoring parts of the WL and
+--echo # for new capabilities, marked [NEW].
+
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+
+--echo # UNION ALL
+let $query = SELECT * FROM r UNION ALL
+             SELECT * FROM s UNION ALL
+             SELECT * FROM t;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # UNION ALL w/ ORDER BY
+let $query = SELECT * FROM r UNION ALL
+             SELECT * FROM s UNION ALL
+             SELECT * FROM t ORDER BY a;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # UNION mixed with ORDER BY
+let $query = SELECT * FROM r UNION DISTINCT
+             SELECT * FROM s UNION ALL
+             SELECT * FROM t ORDER BY a;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # UNION mixed with ORDER BY and LIMIT
+let $query = SELECT * FROM r UNION DISTINCT
+             SELECT * FROM s UNION ALL
+             SELECT * FROM t ORDER BY a LIMIT 11;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # UNION ALL with ORDER BY and LIMIT
+let $query = SELECT * FROM r UNION ALL
+             SELECT * FROM s UNION ALL
+             SELECT * FROM t ORDER BY a LIMIT 11;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW] UNION ALL with wrapped in unary query: ORDER BY
+let $query = ( SELECT * FROM r UNION
+               SELECT * FROM s ORDER BY a LIMIT 11)
+             ORDER BY -a;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW] UNION ALL with wrapped in unary query: ORDER BY + offset
+let $query = ( SELECT * FROM r UNION
+               SELECT * FROM s ORDER BY a LIMIT 11)
+             ORDER BY -a LIMIT 4 OFFSET 1;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # from derived table which is a union
+let $query = SELECT * FROM ( (SELECT * FROM r LIMIT 1) UNION
+                             (SELECT * FROM s LIMIT 1) ) a;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # SQL_CALC_FOUND_ROWS with unary terms. Semantics gets
+--echo # a little weird here: it collects number of rows if we strip
+--echo # off the outermost LIMIT... but SQL_CALC_FOUND_ROWS is
+--echo # deprecated anyways.
+--echo #
+((SELECT SQL_CALC_FOUND_ROWS * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4) ORDER BY a LIMIT 3;
+SELECT FOUND_ROWS();
+
+--echo # [NEW] Multi-level set ops
+let $query =
+(((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION ALL
+(((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW] One union materialized tmp table with dedup over unary sorted tmp tables
+let $query =
+(((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION DISTINCT
+(((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW] Streams a limited and sorted union materialized tmp
+--echo # table *without* dedup over unary sorted tmp tables
+let $query =
+((((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION ALL
+(((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2)) ORDER BY a LIMIT 3;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # Don't collapse levels if LIMIT is present: streams two limited and sorted
+--echo # materialized tmp tables for dedup
+
+let $query =
+   (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY a LIMIT 3) UNION ALL
+   (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY -a LIMIT 5);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # Ok to collapse here: one materialized tmp table with last two tables
+--echo # added with dedup disabled
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # but *not* ok to collapse here
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # nor here: two materialized tmp tables for dedup (of 2 and 3
+--echo # tables respectively), streamed
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM r UNION DISTINCT SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix: two materialized tmp tables for dedup, rest is streaming
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix: One materialized tmp table w/disable de-dup for final ALL
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW}
+--echo # mix: One materialized tmp table for dedup
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
+    (SELECT * FROM t);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix: One materialized tmp table for dedup
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix, same result as above, since the last inner ALL
+--echo # can be elided
+--echo #
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION
+    (SELECT * FROM r UNION ALL SELECT * FROM s);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix, now final DISTINCT can not be elided. Top level streaming of
+--echo # three lower materialized tmp tables for dedup.
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # mix: one materialized tmp table for de-dup, four last tables
+--echo # added with dedup disabled
+let $query =
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM s);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # ALL ALL: every table is streamed
+let $query =
+    (SELECT * FROM r UNION ALL SELECT * FROM s) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM s);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # show off
+let $query =
+   ((((SELECT a FROM r UNION DISTINCT
+       SELECT 1) ORDER BY a LIMIT 4) UNION ALL
+     (SELECT a FROM s UNION DISTINCT
+      (SELECT * FROM t UNION DISTINCT
+       (SELECT a FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10))) UNION DISTINCT
+     (VALUES ROW(1), ROW(2) UNION DISTINCT
+      SELECT * FROM s ORDER BY a LIMIT 3)) ORDER BY a LIMIT 3) UNION DISTINCT
+   (SELECT * FROM r UNION DISTINCT SELECT * FROM t) ORDER BY a LIMIT 5;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+
+--echo #
+--echo # Test that LIMIT in nests prohibit merging
+--echo #
+let $query =
+  (SELECT * FROM r UNION SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
+  (SELECT * FROM r UNION SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
+  (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
+  (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION DISTINCT  SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
+  (SELECT * FROM r UNION ALL       SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1) UNION DISTINCT
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+--echo # No limit, but ordering does not prohibit merging:
+let $query =
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1) UNION DISTINCT
+  (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+--echo #
+--echo # [NEW] Check maximum depth 63
+--echo #
+let $query =
+     (SELECT * FROM r
+      UNION SELECT * FROM s ORDER BY a LIMIT 5);
+let $1=62;
+while ($1)
+{
+ let $query =
+     ($query
+      UNION SELECT * FROM s ORDER BY a LIMIT 5);
+ dec $1;
+}
+
+--echo # This query has max nesting and should work
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+--echo # This query one exceeds max and should fail
+let $query = ($query ORDER BY a LIMIT 1);
+--error ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
+eval $query;
+
+--echo #
+--echo # WL#11350 bug: lower level ALL not quenched when merging, giving
+--echo # rise to duplicates: upper DISTINCT must be heeded
+--echo #
+let $query =
+  (SELECT 1 AS col1 UNION SELECT 2) UNION
+  (SELECT 1 UNION SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 3);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN format = tree $query;
+
+--echo #
+--echo # WL#11350 bug: upper level ALL in nesting context, e.g. ORDER
+--echo # BY: non-first lower level operand with DISTINCT incorrectly
+--echo # merged.
+--echo #
+let $query =
+  (SELECT 1 UNION SELECT 2) UNION ALL (SELECT 1 UNION SELECT 1) ORDER BY 1;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN format = tree $query;
+
+--echo #
+--echo # WL#11350 bug: upper level ALL in nesting context, e.g ORDER
+--echo # BY: first operand lower level with DISTINCT can be merged,
+--echo # but last_distinct was clobbered if right hand side contains a
+--echo # nest that could not be merged.
+--echo #
+let $query =
+  (SELECT 1 UNION SELECT 1) UNION ALL (SELECT 1 UNION SELECT 1) ORDER BY 1;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN format = tree $query;
+
+DROP TABLE r, s, t;

@@ -5228,9 +5228,9 @@ ERROR HY000: You cannot use the window function 'first_value' in this context.'
 DROP TABLE tb;
 Windows should only be allowed in order by of a simple table query
 (select a from t) union (select a from t) order by (row_number() over ());
-ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION, EXCEPT or INTERSECT
 (select a from t) union (select a from t) order by (1+row_number() over ());
-ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION, EXCEPT or INTERSECT
 This is legal, though:
 (select a from t) union (select a from t order by (row_number() over ()));
 a

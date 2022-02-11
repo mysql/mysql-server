@@ -778,7 +778,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
     {
       "creating_tmp_table": {
         "tmp_table_info": {
-          "table": "intermediate_tmp_table",
+          "table": "<union temporary>",
           "columns": 1,
           "row_length": 9,
           "key_length": 8,
@@ -791,7 +791,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
     },
     {
       "join_optimization": {
-        "select#": "fake",
+        "select#": 4,
         "steps": [
           {
             "table_dependencies": [
@@ -1035,7 +1035,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": "intermediate_tmp_table",
+                      "table": "<union temporary>",
                       "columns": 1,
                       "row_length": 9,
                       "key_length": 8,
@@ -1048,7 +1048,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 },
                 {
                   "join_optimization": {
-                    "select#": "fake",
+                    "select#": 4,
                     "steps": [
                       {
                         "table_dependencies": [
@@ -1170,7 +1170,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-10820
+10810
 set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1190,7 +1190,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-10820	1	1
+10810	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -3804,7 +3804,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
     {
       "creating_tmp_table": {
         "tmp_table_info": {
-          "table": "intermediate_tmp_table",
+          "table": "<union temporary>",
           "columns": 1,
           "row_length": 5,
           "key_length": 5,
@@ -3817,7 +3817,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
     },
     {
       "join_optimization": {
-        "select#": "fake",
+        "select#": 3,
         "steps": [
           {
             "table_dependencies": [
@@ -5377,6 +5377,7 @@ trace
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 2,
                       "columns": 2,
                       "row_length": 30,
@@ -5849,6 +5850,7 @@ insert into t6 select * from t6 where d>7	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<temporary>",
                 "in_plan_at_position": 1,
                 "columns": 1,
                 "row_length": 5,
@@ -10988,7 +10990,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
     {
       "creating_tmp_table": {
         "tmp_table_info": {
-          "table": "intermediate_tmp_table",
+          "table": "<union temporary>",
           "columns": 1,
           "row_length": 9,
           "key_length": 8,
@@ -11001,7 +11003,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
     },
     {
       "join_optimization": {
-        "select#": "fake",
+        "select#": 3,
         "steps": [
           {
             "table_dependencies": [
@@ -11238,7 +11240,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": " `derived_2_4`",
+                      "table": "derived_2_4",
                       "columns": 1,
                       "row_length": 16,
                       "key_length": 0,
@@ -11344,7 +11346,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": " `derived_2_5`",
+                      "table": "derived_2_5",
                       "columns": 1,
                       "row_length": 9,
                       "key_length": 0,
@@ -11438,7 +11440,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `derived_1_2`",
+                "table": "derived_1_2",
                 "columns": 1,
                 "row_length": 16,
                 "key_length": 0,

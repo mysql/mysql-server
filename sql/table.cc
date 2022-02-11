@@ -4272,28 +4272,6 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
 }
 
 /**
-  Reset an existing list of Item_field items to point to the
-  Fields of this table.
-
-  SYNPOSIS
-    TABLE::reset_item_list()
-      item_list          a non-empty list with Item_fields
-
-    This is a counterpart of fill_item_list used to redirect
-    Item_fields to the fields of a newly created table.
-*/
-
-void TABLE::reset_item_list(const mem_root_deque<Item *> &item_list) const {
-  auto it = item_list.begin();
-  uint i = 0;
-  for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
-    Item_field *item_field = down_cast<Item_field *>(*it++);
-    assert(item_field != nullptr);
-    item_field->reset_field(*ptr);
-  }
-}
-
-/**
   Create a TABLE_LIST object representing a nested join
 
   @param allocator  Mem root allocator that object is created from.

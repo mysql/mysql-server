@@ -2135,7 +2135,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       mysqld_list_fields(thd, &table_list, fields);
 
-      thd->lex->cleanup(thd, true);
+      thd->lex->cleanup(true);
       /* No need to rollback statement transaction, it's not started. */
       assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
@@ -4816,7 +4816,7 @@ finish:
     }
   }
 
-  lex->cleanup(thd, true);
+  lex->cleanup(true);
 
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
@@ -6214,62 +6214,6 @@ void Query_block::set_lock_for_tables(thr_lock_type lock_type) {
                        lock_type >= TL_READ_NO_INSERT));
   for (TABLE_LIST *table = table_list.first; table; table = table->next_local)
     set_lock_for_table({lock_type, THR_WAIT}, table);
-}
-
-/**
-  Create a fake Query_block for a unit.
-
-    The method create a fake Query_block object for a unit.
-    This object is created for any union construct containing a union
-    operation and also for any single select union construct of the form
-    @verbatim
-    (SELECT ... ORDER BY order_list [LIMIT n]) ORDER BY ...
-    @endverbatim
-    or of the form
-    @verbatim
-    (SELECT ... ORDER BY LIMIT n) ORDER BY ...
-    @endverbatim
-
-  @param thd       thread handle
-
-  @note
-    The object is used to retrieve rows from the temporary table
-    where the result on the union is obtained.
-
-  @retval
-    1     on failure to create the object
-  @retval
-    0     on success
-*/
-
-bool Query_expression::add_fake_query_block(THD *thd) {
-  Query_block *first_qb = first_query_block();
-  DBUG_TRACE;
-  assert(!fake_query_block);
-
-  if (!(fake_query_block = thd->lex->new_empty_query_block()))
-    return true; /* purecov: inspected */
-  fake_query_block->include_standalone(this, &fake_query_block);
-  fake_query_block->select_number = INT_MAX;
-  fake_query_block->linkage = GLOBAL_OPTIONS_TYPE;
-  fake_query_block->select_limit = nullptr;
-
-  fake_query_block->set_context(first_qb->context.outer_context);
-
-  /* allow item list resolving in fake select for ORDER BY */
-  fake_query_block->context.resolve_in_select_list = true;
-
-  if (!is_union()) {
-    /*
-      This works only for
-      (SELECT ... ORDER BY list [LIMIT n]) ORDER BY order_list [LIMIT m],
-      (SELECT ... LIMIT n) ORDER BY order_list [LIMIT m]
-      just before the parser starts processing order_list
-    */
-    fake_query_block->no_table_names_allowed = true;
-  }
-  thd->lex->pop_context();
-  return false;
 }
 
 /**

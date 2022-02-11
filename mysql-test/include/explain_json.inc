@@ -227,9 +227,11 @@ INSERT INTO t3 VALUES (1);
 
 let $query=UPDATE t1 SET i=(SELECT i FROM t2);
 --eval EXPLAIN $query
+--skip_if_hypergraph
 --eval EXPLAIN FORMAT=JSON $query
 let $query=UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
 --eval EXPLAIN $query
+--skip_if_hypergraph
 --eval EXPLAIN FORMAT=JSON $query
 
 --echo # INSERT ... ON DUPLICATE KEY UPDATE x=(SELECT ...) value list
@@ -370,3 +372,54 @@ INSERT INTO t1 VALUES (1,10), (2,20), (3,30),  (4,40);
 INSERT INTO t2 VALUES (2), (3), (4), (5);
 EXPLAIN FORMAT=JSON SELECT * FROM t2 WHERE t2.a IN (SELECT a FROM t1 WHERE t1.b <> 30);
 DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#11350 extensions
+--echo #
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+ANALYZE TABLE r,s,t;
+
+--echo # Test nesting structures
+let $query =
+         ( ( SELECT * FROM r UNION
+             (SELECT * FROM s ORDER BY a LIMIT 1)) UNION
+           ( SELECT * FROM s UNION SELECT 2 LIMIT 3)
+            ORDER BY 1 LIMIT 3)
+         ORDER BY 1;
+
+eval EXPLAIN FORMAT=json $query;
+--echo # For comparison
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+
+--echo # Test no result if no materializaton
+EXPLAIN FORMAT=json SELECT 1 UNION ALL SELECT 2;
+
+--echo # Used to not show sorting before WL#11350
+EXPLAIN FORMAT=json (SELECT a FROM r LIMIT 2) ORDER BY 1;
+
+EXPLAIN FORMAT=json ((SELECT a FROM t ORDER BY 1 limit 3) ORDER BY -a limit 2) order by a;
+
+--echo # Test big one
+let $query =
+     (SELECT * FROM r
+      UNION SELECT * FROM s);
+let $1=200;
+while ($1)
+{
+ let $query =
+     ($query
+      UNION SELECT * FROM s);
+ dec $1;
+}
+
+--echo # This query has max nesting and should work
+eval EXPLAIN FORMAT=json $query;
+
+DROP TABLE r, s, t;

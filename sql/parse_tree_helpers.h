@@ -41,9 +41,12 @@
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
+class PT_query_expression_body;
+class PT_query_primary;
 class String;
 class THD;
 class my_decimal;
+enum class Set_operator;
 struct Column_parse_context;
 struct MEM_ROOT;
 struct handlerton;

@@ -553,6 +553,56 @@ SELECT * FROM t1 WHERE (a=1 OR a<>a);
 EXPLAIN SELECT * FROM t1 WHERE (a=1 AND a<>a);
 SELECT * FROM t1 WHERE (a=1 AND a<>a);
 
-
 DROP TABLE t1;
 
+--echo #
+--echo # WL#11350
+--echo #
+
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+ANALYZE TABLE r,s,t;
+
+--echo # Test nesting structures
+let $query =
+         ( ( SELECT * FROM r UNION
+             (SELECT * FROM s ORDER BY a LIMIT 1)) UNION
+           ( SELECT * FROM s UNION SELECT 2 LIMIT 3)
+            ORDER BY 1 LIMIT 3)
+         ORDER BY 1;
+
+eval EXPLAIN $query;
+--echo # For comparison
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN format=tree $query;
+
+--echo # Test no result if no materializaton
+EXPLAIN SELECT 1 UNION ALL SELECT 2;
+
+--echo # Used to not show sorting before WL#11350
+EXPLAIN (SELECT a FROM r LIMIT 2) ORDER BY 1;
+
+EXPLAIN ((SELECT a FROM t ORDER BY 1 LIMIT 3) ORDER BY -a LIMIT 2) ORDER BY a;
+
+--echo # Test big one
+let $query =
+     (SELECT * FROM r
+      UNION SELECT * FROM s);
+let $1=200;
+while ($1)
+{
+ let $query =
+     ($query
+      UNION SELECT * FROM s);
+ dec $1;
+}
+
+--echo # This query has max nesting and should work
+eval EXPLAIN $query;
+
+DROP TABLE r, s, t;

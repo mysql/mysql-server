@@ -1793,7 +1793,6 @@ struct TABLE {
                       CHARSET_INFO *charset, const char *alias, Field **fld,
                       uint *blob_fld, bool is_virtual);
   bool fill_item_list(mem_root_deque<Item *> *item_list) const;
-  void reset_item_list(const mem_root_deque<Item *> &item_list) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
 
@@ -3179,7 +3178,7 @@ struct TABLE_LIST {
   uint get_hidden_field_count_for_derived() const;
 
   /// Clean up the query expression for a materialized derived table
-  void cleanup_derived(THD *thd);
+  void cleanup_derived();
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);

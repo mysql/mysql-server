@@ -1,0 +1,1116 @@
+# WL#11350:
+# Query expressions with nested ORDER BY/LIMIT/OFFSET clauses,
+# but with no set operations inbetween.
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+ANALYZE TABLE r, s, t;
+Table	Op	Msg_type	Msg_text
+test.r	analyze	status	OK
+test.s	analyze	status	OK
+test.t	analyze	status	OK
+# Bug#32980249 MULTIPLE LIMIT CLAUSES MAYBE GET WRONG RESULT
+# is fixed: we should get two, not four rows
+# and no tmp table (collapsing outer unary level).
+(SELECT * FROM r ORDER BY a LIMIT 2) LIMIT 4;
+a
+-2
+-1
+EXPLAIN FORMAT = tree (SELECT * FROM r ORDER BY a LIMIT 2) LIMIT 4;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=2)
+    -> Sort: r.a, limit input to 2 row(s) per chunk  (rows=4)
+        -> Table scan on r  (rows=4)
+
+PREPARE q FROM "(SELECT * FROM r ORDER BY a LIMIT 2) LIMIT 4";
+EXECUTE q;
+a
+-2
+-1
+EXECUTE q;
+a
+-2
+-1
+DROP PREPARE q;
+# Same behavior as before: effective limit is 1
+((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1;
+1
+1
+EXPLAIN FORMAT = tree ((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+# New behavior, std compliant, effective limit is 1
+((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3;
+1
+1
+EXPLAIN FORMAT = tree ((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+# From here on, we have mostly [NEW] tricks, stuff that was not
+# allowed prior to this WL, but also some WL coverage of old
+# behavior, not marked [NEW].
+( (((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3) UNION ALL
+(((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1)
+ORDER BY 1 LIMIT 5 )
+LIMIT 3;
+1
+1
+1
+EXPLAIN FORMAT = tree ( (((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3) UNION ALL
+(((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1)
+ORDER BY 1 LIMIT 5 )
+LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (rows=2)
+    -> Sort: `1`, limit input to 3 row(s) per chunk  (rows=0)
+        -> Table scan on <union temporary>  (rows=0)
+            -> Union materialize  (rows=2)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Rows fetched before execution  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Rows fetched before execution  (rows=1)
+
+PREPARE p FROM '(SELECT * FROM t LIMIT 3) LIMIT ?';
+SET @a = '2';
+EXECUTE p USING @a;
+ERROR HY000: Incorrect arguments to EXECUTE
+SET @a = 2;
+EXECUTE p USING @a;
+a
+10
+100
+PREPARE p FROM '(SELECT * FROM t LIMIT ?) LIMIT 3';
+EXECUTE p USING @a;
+a
+10
+100
+DROP PREPARE p;
+#
+# check push-down of ORDER BY + LIMIT
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+((SELECT a AS c FROM t1 LIMIT 10) LIMIT 6) ORDER BY c+1 LIMIT 5;
+c
+1
+2
+3
+4
+5
+EXPLAIN FORMAT = tree ((SELECT a AS c FROM t1 LIMIT 10) LIMIT 6) ORDER BY c+1 LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=6)
+    -> Sort: (c + 1), limit input to 5 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=6)
+                -> Limit: 6 row(s)  (rows=6)
+                    -> Table scan on t1  (rows=11)
+
+DROP TABLE t1;
+#
+# The outer block is not collapsed, so binding of 'a' fails
+#
+((SELECT a AS c FROM r LIMIT 10) LIMIT 6) ORDER BY a+1 LIMIT 20;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+LIMIT 4)
+LIMIT 3)
+ORDER BY column_0, column_1;
+column_0	column_1
+1	1
+2	2
+3	3
+EXPLAIN FORMAT = tree ( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+LIMIT 4)
+LIMIT 3)
+ORDER BY column_0, column_1;
+EXPLAIN
+-> Sort: column_0, column_1  (rows=3)
+    -> Table scan on <result temporary>  (rows=0)
+        -> Temporary table  (rows=3)
+            -> Limit: 3 row(s)  (rows=3)
+                -> Rows fetched before execution  (rows=5)
+
+( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+ORDER BY column_0 LIMIT 4)
+LIMIT 3)
+ORDER BY (SELECT column_0), (SELECT column_1) LIMIT 2;
+column_0	column_1
+1	1
+2	2
+EXPLAIN FORMAT = tree ( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+ORDER BY column_0 LIMIT 4)
+LIMIT 3)
+ORDER BY (SELECT column_0), (SELECT column_1) LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=3)
+    -> Sort: column_0, column_1, limit input to 2 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=3)
+                -> Limit: 3 row(s)  (rows=3)
+                    -> Rows fetched before execution  (rows=5)
+
+Warnings:
+Note	1276	Field or reference 'column_0' of SELECT #6 was resolved in SELECT #1
+Note	1249	Select 6 was reduced during optimization
+Note	1276	Field or reference 'column_1' of SELECT #5 was resolved in SELECT #1
+Note	1249	Select 5 was reduced during optimization
+( ( (VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(-1,-1))
+ORDER BY column_0 LIMIT 4)
+LIMIT 3)
+ORDER BY 1;
+column_0	column_1
+1	1
+2	2
+3	3
+EXPLAIN FORMAT = tree ( ( (VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(-1,-1))
+ORDER BY column_0 LIMIT 4)
+LIMIT 3)
+ORDER BY 1;
+EXPLAIN
+-> Sort: column_0  (rows=3)
+    -> Table scan on <result temporary>  (rows=0)
+        -> Temporary table  (rows=3)
+            -> Limit: 3 row(s)  (rows=3)
+                -> Rows fetched before execution  (rows=5)
+
+(SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+a
+2
+1
+-1
+-2
+EXPLAIN FORMAT = tree (SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+EXPLAIN
+-> Limit: 4 row(s)  (rows=4)
+    -> Sort: -(a), limit input to 4 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=4)
+                -> Limit: 5 row(s)  (rows=4)
+                    -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
+                        -> Table scan on r  (rows=4)
+
+EXPLAIN (SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+2	RESULT	<ordered/limited1>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` order by `test`.`r`.`a` limit 5) order by -(`a`) limit 4
+PREPARE q FROM "(SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4";
+EXECUTE q;
+a
+2
+1
+-1
+-2
+EXECUTE q;
+a
+2
+1
+-1
+-2
+DROP PREPARE q;
+# [NEW]
+((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3;
+a
+-2
+-1
+1
+EXPLAIN FORMAT = tree ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (rows=4)
+    -> Sort: a, limit input to 3 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=4)
+                -> Limit: 4 row(s)  (rows=4)
+                    -> Sort: -(a), limit input to 4 row(s) per chunk  (rows=0)
+                        -> Table scan on <result temporary>  (rows=0)
+                            -> Temporary table  (rows=4)
+                                -> Limit: 5 row(s)  (rows=4)
+                                    -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
+                                        -> Table scan on r  (rows=4)
+
+PREPARE q FROM "((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3";
+EXECUTE q;
+a
+-2
+-1
+1
+EXECUTE q;
+a
+-2
+-1
+1
+DROP PREPARE q;
+# [NEW]
+# Unknown column 'u' in 'order clause'
+((SELECT * FROM r ORDER BY u LIMIT 5) ORDER BY -a LIMIT 4) ORDER BY a LIMIT 3;
+ERROR 42S22: Unknown column 'u' in 'order clause'
+# [NEW] Three unary temporary tables. Since we have sort under, these could
+# probably be elided.
+( ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3)
+ORDER BY -a LIMIT 2;
+a
+1
+-1
+EXPLAIN FORMAT = tree ( ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3)
+ORDER BY -a LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=4)
+    -> Sort: -(a), limit input to 2 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=4)
+                -> Limit: 3 row(s)  (rows=4)
+                    -> Sort: a, limit input to 3 row(s) per chunk  (rows=0)
+                        -> Table scan on <result temporary>  (rows=0)
+                            -> Temporary table  (rows=4)
+                                -> Limit: 4 row(s)  (rows=4)
+                                    -> Sort: -(a), limit input to 4 row(s) per chunk  (rows=0)
+                                        -> Table scan on <result temporary>  (rows=0)
+                                            -> Temporary table  (rows=4)
+                                                -> Limit: 5 row(s)  (rows=4)
+                                                    -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
+                                                        -> Table scan on r  (rows=4)
+
+PREPARE q FROM "( ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY a LIMIT 3)
+ORDER BY -a LIMIT 2";
+EXECUTE q;
+a
+1
+-1
+EXECUTE q;
+a
+1
+-1
+DROP PREPARE q;
+# [NEW]
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+ORDER BY c LIMIT 3)
+ORDER BY -c LIMIT 2;
+c
+1
+-1
+EXPLAIN FORMAT = tree ( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+ORDER BY c LIMIT 3)
+ORDER BY -c LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=4)
+    -> Sort: -(c), limit input to 2 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=4)
+                -> Limit: 3 row(s)  (rows=4)
+                    -> Sort: c, limit input to 3 row(s) per chunk  (rows=0)
+                        -> Table scan on <result temporary>  (rows=0)
+                            -> Temporary table  (rows=4)
+                                -> Limit: 4 row(s)  (rows=4)
+                                    -> Sort: -(c), limit input to 4 row(s) per chunk  (rows=0)
+                                        -> Table scan on <result temporary>  (rows=0)
+                                            -> Temporary table  (rows=4)
+                                                -> Limit: 5 row(s)  (rows=4)
+                                                    -> Sort: r.a, limit input to 5 row(s) per chunk  (rows=4)
+                                                        -> Table scan on r  (rows=4)
+
+PREPARE q FROM "( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+ORDER BY c LIMIT 3)
+ORDER BY -c LIMIT 2";
+EXECUTE q;
+c
+1
+-1
+EXECUTE q;
+c
+1
+-1
+DROP PREPARE q;
+# [NEW]
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+ORDER BY c LIMIT 3)
+ORDER BY -c LIMIT 2;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+# [NEW]
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+ORDER BY a LIMIT 3)
+ORDER BY -c LIMIT 2;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+# [NEW]
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+ORDER BY c LIMIT 3)
+ORDER BY -a LIMIT 2;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+#
+# Check explicit table and table value constructor
+#
+(TABLE r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+a
+2
+1
+-1
+-2
+VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1;
+column_0	column_1
+1	2
+3	4
+-1	2
+(VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1) ORDER BY 1 LIMIT 2;
+column_0	column_1
+-1	2
+1	2
+# [NEW]
+# Streaming with nested set operations.
+# Two union materialized tmp tables, non-dedup, sorted, limited and
+# streamed for UNION ALL.
+#
+(SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+UNION ALL
+(SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 5) LIMIT 7;
+a
+-20
+-10
+-2
+-1
+1
+1
+2
+EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+UNION ALL
+(SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 5) LIMIT 7;
+EXPLAIN
+-> Limit: 7 row(s)
+    -> Append
+        -> Stream results  (rows=9)
+            -> Limit: 10 row(s)  (rows=9)
+                -> Sort: a, limit input to 10 row(s) per chunk  (rows=0)
+                    -> Table scan on <union temporary>  (rows=0)
+                        -> Union materialize  (rows=9)
+                            -> Table scan on r  (rows=4)
+                            -> Table scan on s  (rows=5)
+        -> Stream results  (rows=9)
+            -> Limit: 5 row(s)  (rows=9)
+                -> Sort: a, limit input to 5 row(s) per chunk  (rows=0)
+                    -> Table scan on <union temporary>  (rows=0)
+                        -> Union materialize  (rows=9)
+                            -> Table scan on r  (rows=4)
+                            -> Table scan on s  (rows=5)
+
+# [NEW]
+# Two union materialized tmp tables, 2nd w/dedup, 1st is
+# sorted, limited and both streamed for UNION ALL
+#
+(SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+UNION ALL
+(SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7;
+a
+-20
+-10
+-2
+-1
+1
+1
+2
+EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+UNION ALL
+(SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7;
+EXPLAIN
+-> Limit: 7 row(s)
+    -> Append
+        -> Stream results  (rows=9)
+            -> Limit: 10 row(s)  (rows=9)
+                -> Sort: a, limit input to 10 row(s) per chunk  (rows=0)
+                    -> Table scan on <union temporary>  (rows=0)
+                        -> Union materialize  (rows=9)
+                            -> Table scan on r  (rows=4)
+                            -> Table scan on s  (rows=5)
+        -> Stream results  (rows=9)
+            -> Table scan on <union temporary>  (rows=9)
+                -> Union materialize with deduplication  (rows=9)
+                    -> Table scan on r  (rows=4)
+                    -> Table scan on s  (rows=5)
+
+#
+# Bug in contexualize: missing add of unary node
+#
+(((SELECT * from r UNION SELECT * FROM s UNION ALL SELECT * from t) LIMIT 3) LIMIT 5);
+a
+1
+2
+-1
+EXPLAIN FORMAT = tree (((SELECT * from r UNION SELECT * FROM s UNION ALL SELECT * from t) LIMIT 3) LIMIT 5);
+EXPLAIN
+-> Limit: 3 row(s)
+    -> Append
+        -> Stream results  (rows=9)
+            -> Table scan on <union temporary>  (rows=9)
+                -> Union materialize with deduplication  (rows=9)
+                    -> Table scan on r  (rows=4)
+                    -> Table scan on s  (rows=5)
+        -> Stream results  (rows=5)
+            -> Table scan on t  (rows=5)
+
+#
+# Check maximum depth 63
+#
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1);
+a
+-2
+EXPLAIN FORMAT = tree ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1);
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+        -> Table scan on <result temporary>  (rows=0)
+            -> Temporary table  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                        -> Table scan on <result temporary>  (rows=0)
+                            -> Temporary table  (rows=1)
+                                -> Limit: 1 row(s)  (rows=1)
+                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                        -> Table scan on <result temporary>  (rows=0)
+                                            -> Temporary table  (rows=1)
+                                                -> Limit: 1 row(s)  (rows=1)
+                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                        -> Table scan on <result temporary>  (rows=0)
+                                                            -> Temporary table  (rows=1)
+                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                            -> Temporary table  (rows=1)
+                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                            -> Temporary table  (rows=1)
+                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: a, limit input to 1 row(s) per chunk  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on <result temporary>  (rows=0)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            -> Temporary table  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -> Limit: 1 row(s)  (rows=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    -> Sort: r.a, limit input to 1 row(s) per chunk  (rows=4)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        -> Table scan on r  (rows=4)
+
+(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1)
+ORDER BY a LIMIT 1);
+ERROR HY000: Too high level of nesting for select
+DROP TABLE r, s, t;
+#
+# Bug#33761181  Recursive CTE with UNION + LIMIT seed table gives wrong
+#               result
+# Now gives correct result.
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2);
+WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 1)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 )
+SELECT * FROM cte;
+n
+1
+2
+3
+4
+5
+EXPLAIN FORMAT = tree WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 1)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 )
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (rows=5)
+    -> Materialize recursive CTE cte  (rows=5)
+        -> Limit: 1 row(s)  (rows=4)
+            -> Table scan on <union temporary>  (rows=0)
+                -> Union materialize with deduplication  (rows=4)
+                    -> Limit table size: 1 unique row(s)
+                        -> Table scan on t  (rows=2)
+                    -> Limit table size: 1 unique row(s)
+                        -> Table scan on t  (rows=2)
+        -> Repeat until convergence
+            -> Filter: (cte.n < 5)  (rows=1)
+                -> Scan new records on cte  (rows=4)
+
+WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 2)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 )
+SELECT * FROM cte;
+n
+1
+2
+2
+3
+3
+4
+4
+5
+5
+EXPLAIN FORMAT = tree WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 2)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 )
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (rows=5)
+    -> Materialize recursive CTE cte  (rows=5)
+        -> Limit: 2 row(s)  (rows=4)
+            -> Table scan on <union temporary>  (rows=0)
+                -> Union materialize with deduplication  (rows=4)
+                    -> Limit table size: 2 unique row(s)
+                        -> Table scan on t  (rows=2)
+                    -> Limit table size: 2 unique row(s)
+                        -> Table scan on t  (rows=2)
+        -> Repeat until convergence
+            -> Filter: (cte.n < 5)  (rows=1)
+                -> Scan new records on cte  (rows=4)
+
+WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION SELECT a FROM t LIMIT 2)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 LIMIT 7)
+SELECT * FROM cte;
+n
+1
+2
+2
+3
+3
+4
+4
+EXPLAIN FORMAT = tree WITH RECURSIVE cte (n) AS
+(  (SELECT a FROM t UNION SELECT a FROM t LIMIT 2)
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5 LIMIT 7)
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (rows=5)
+    -> Materialize recursive CTE cte  (rows=5)
+        -> Limit table size: 7 row(s)
+            -> Limit: 2 row(s)  (rows=4)
+                -> Table scan on <union temporary>  (rows=0)
+                    -> Union materialize with deduplication  (rows=4)
+                        -> Limit table size: 2 unique row(s)
+                            -> Table scan on t  (rows=2)
+                        -> Limit table size: 2 unique row(s)
+                            -> Table scan on t  (rows=2)
+        -> Limit table size: 7 row(s), repeat until convergence
+            -> Filter: (cte.n < 5)  (rows=1)
+                -> Scan new records on cte  (rows=4)
+
+DROP TABLE t;
+WL bug in contexualize: pop stack on PT_subquery
+added for coverage
+CREATE TABLE t1 (a INT NOT NULL, b CHAR (10) NOT NULL);
+INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3,'c'), (3,'c');
+CREATE TABLE t2 (a INT NOT NULL, b CHAR (10) NOT NULL);
+INSERT INTO t2 VALUES (3,'c'), (4,'d'), (5,'f'), (6,'e');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT * FROM t1 WHERE a IN
+( SELECT a FROM t1 UNION DISTINCT
+SELECT a FROM t1 ORDER BY (SELECT a) ) UNION DISTINCT
+SELECT * FROM t1
+ORDER BY (SELECT a);
+a	b
+1	a
+2	b
+3	c
+EXPLAIN SELECT * FROM t1 WHERE a IN
+( SELECT a FROM t1 UNION DISTINCT
+SELECT a FROM t1 ORDER BY (SELECT a) ) UNION DISTINCT
+SELECT * FROM t1
+ORDER BY (SELECT a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+3	DEPENDENT UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+5	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+7	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+9	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #2
+Note	1249	Select 6 was reduced during optimization
+Note	1276	Field or reference 'a' of SELECT #10 was resolved in SELECT #1
+Note	1249	Select 10 was reduced during optimization
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#7 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `a`
+#
+# Add support for INSERT INTO set-op
+#
+CREATE TABLE t4 AS SELECT * from t1;
+DELETE FROM t4;
+INSERT INTO t4 SELECT a,b FROM t1 UNION DISTINCT SELECT a,b FROM t2;
+SELECT * FROM t4;
+a	b
+1	a
+2	b
+3	c
+4	d
+5	f
+6	e
+#
+# Bug fix: SQL_CALC_FOUND_ROWS
+#
+(SELECT SQL_CALC_FOUND_ROWS a,b FROM t1 LIMIT 2) UNION ALL
+(SELECT a,b FROM t2 ORDER BY a) LIMIT 2;
+a	b
+1	a
+2	b
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+DROP TABLE t1, t2, t4;
+#
+# CREATE AS SELECT
+#
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT, f2 INT ,f3 DATE);
+CREATE TABLE t3 (f1 INT, f2 CHAR(10));
+CREATE TABLE t4
+( SELECT t2.f3 AS sdate
+FROM t1
+LEFT OUTER JOIN t2 ON (t1.f1 = t2.f1)
+INNER JOIN t3 ON (t2.f2 = t3.f1)
+ORDER BY t1.f1, t3.f1, t2.f3 )
+UNION DISTINCT
+( SELECT CAST('2004-12-31' AS DATE) AS sdate
+FROM t1
+LEFT OUTER JOIN t2 ON (t1.f1 = t2.f1)
+INNER JOIN t3 ON (t2.f2 = t3.f1)
+GROUP BY t1.f1
+ORDER BY t1.f1, t3.f1, t2.f3 )
+ORDER BY sdate;
+SHOW COLUMNS FROM t4;
+Field	Type	Null	Key	Default	Extra
+sdate	date	YES		NULL	
+DROP TABLE t1, t2, t3, t4;

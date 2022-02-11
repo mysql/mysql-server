@@ -20,26 +20,24 @@ INSERT INTO t1 (i) VALUES (10), (2), (30), (4), (50);
 --echo # push down -- standard compliant
 (SELECT * FROM t1) ORDER BY i LIMIT 4;
 
---echo # push down -- non-standard
+--echo # push down -- standard compliant
 (SELECT * FROM t1 LIMIT 3) LIMIT 4;
 --echo # don't push down -- standard compliant
 (SELECT * FROM t1 LIMIT 3) ORDER BY i DESC;
 --echo # don't push down -- standard compliant
 (SELECT * FROM t1 LIMIT 3) ORDER BY i DESC LIMIT 4;
 
---echo # push down -- non-standard
+--echo # push down -- standard compliant
 (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 4;
 --echo # don't push down -- standard compliant
 (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) ORDER BY i;
 --echo # don't push down -- standard compliant
 (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) ORDER BY i LIMIT 4;
 
---echo # rejected syntax -- non-standard
---error ER_PARSE_ERROR,1235
 ((SELECT * FROM t1 ORDER BY i) ORDER BY i) ORDER BY i;
 
 --disable_result_log
---echo # 8.0: push down -- non-standard
+--echo # 8.0: push down -- standard compliant
 --echo #  or
 --echo # 5.7: rejected syntax -- non-standard
 --error 0,ER_PARSE_ERROR

@@ -6997,6 +6997,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 1,
                       "columns": 2,
                       "row_length": 18,
@@ -8509,7 +8510,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               {
                 "creating_tmp_table": {
                   "tmp_table_info": {
-                    "table": " `d1`",
+                    "table": "d1",
                     "in_plan_at_position": 1,
                     "columns": 3,
                     "row_length": 210,

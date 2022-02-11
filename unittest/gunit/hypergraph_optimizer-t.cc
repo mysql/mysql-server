@@ -2209,7 +2209,7 @@ TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
       EXPECT_GE(root->num_output_rows, 500.0);  // Due to the 10% fudge factor.
     }
 
-    query_block->cleanup(m_thd, /*full=*/true);
+    query_block->cleanup(/*full=*/true);
     ClearFakeTables();
   }
 }
@@ -3342,7 +3342,7 @@ TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
 
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
@@ -3395,7 +3395,7 @@ TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
 
   EXPECT_EQ(AccessPath::TABLE_SCAN, child->sort().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
@@ -3420,7 +3420,7 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
   // No separate sort for ORDER BY.
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
@@ -3460,7 +3460,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
   EXPECT_STREQ("t1", inner->table_scan().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, CannotSortAheadBeforeBothTablesAreAvailable) {
@@ -3492,7 +3492,7 @@ TEST_F(HypergraphOptimizerTest, CannotSortAheadBeforeBothTablesAreAvailable) {
                     return false;
                   });
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
@@ -3542,7 +3542,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
   EXPECT_STREQ("t3", inner->table_scan().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, NoSortAheadOnNondeterministicFunction) {
@@ -3566,7 +3566,7 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNondeterministicFunction) {
   // We don't care about the rest of the plan.
   ASSERT_EQ(AccessPath::SORT, root->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
@@ -3617,7 +3617,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_STREQ("t2", t2->table_scan().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
@@ -3671,7 +3671,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
   ASSERT_EQ(AccessPath::EQ_REF, inner->type);
   EXPECT_STREQ("t2", inner->eq_ref().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
@@ -3714,7 +3714,7 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   EXPECT_EQ("t2.y", ItemToString(sort->sortorder[1].item));
   EXPECT_FALSE(sort->m_remove_duplicates);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
@@ -3738,7 +3738,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
   // and the constant lookup.
   ASSERT_EQ(AccessPath::EQ_REF, root->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
@@ -3772,7 +3772,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
                     return false;
                   });
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
@@ -3804,7 +3804,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
   EXPECT_TRUE(root->index_scan().use_order);
   EXPECT_TRUE(root->index_scan().reverse);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideConstSort) {
@@ -3822,7 +3822,7 @@ TEST_F(HypergraphOptimizerTest, ElideConstSort) {
   // The sort should be elided entirely.
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 // This case is tricky; the order given by the index is (x, y), but the
@@ -3858,7 +3858,7 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
   EXPECT_EQ(true, root->ref().use_order);
   EXPECT_EQ(false, root->ref().reverse);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
@@ -3898,7 +3898,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
 
   // We don't test the inner side.
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
@@ -3930,7 +3930,7 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   // The grouping should be taking care of by the ordered index.
   EXPECT_EQ(AccessPath::INDEX_SCAN, inner->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
@@ -3967,7 +3967,7 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
   AccessPath *inner = root->remove_duplicates().child;
   EXPECT_EQ(AccessPath::INDEX_SCAN, inner->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
@@ -4025,7 +4025,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_STREQ("t2", t2->table_scan().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
@@ -4066,7 +4066,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
   // (It is needed to get the zero row flags set on t2 and t3.)
   EXPECT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->zero_rows().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
@@ -4104,7 +4104,7 @@ TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
   EXPECT_EQ("\x03\x00\x00\x00"sv, max_key);
   EXPECT_FALSE(root->index_range_scan().reverse);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ComplexMultipartRangeScan) {
@@ -4177,7 +4177,7 @@ TEST_F(HypergraphOptimizerTest, ComplexMultipartRangeScan) {
   EXPECT_GT(range_scan->num_output_rows, 0.0);
   EXPECT_GE(root->num_output_rows, range_scan->num_output_rows);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, RangeScanWithReverseOrdering) {
@@ -4212,7 +4212,7 @@ TEST_F(HypergraphOptimizerTest, RangeScanWithReverseOrdering) {
             root->index_range_scan().mrr_flags);
   EXPECT_TRUE(root->index_range_scan().reverse);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
@@ -4237,7 +4237,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->zero_rows().child->type);
   EXPECT_STREQ("t1", root->zero_rows().child->table_scan().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ImpossibleRangeWithOverflowBitset) {
@@ -4317,7 +4317,7 @@ TEST_F(HypergraphOptimizerTest, IndexMerge) {
   AccessPath *child1 = (*root->index_merge().children)[1];
   EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, IndexMergeSubsumesOnlyOnePredicate) {
@@ -4349,7 +4349,7 @@ TEST_F(HypergraphOptimizerTest, IndexMergeSubsumesOnlyOnePredicate) {
             ItemToString(root->filter().condition));
   EXPECT_EQ(AccessPath::INDEX_MERGE, root->filter().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
@@ -4395,7 +4395,7 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
       EXPECT_TRUE(root->index_merge().allow_clustered_primary_key_scan);
     }
 
-    query_block->cleanup(m_thd, /*full=*/true);
+    query_block->cleanup(/*full=*/true);
     ClearFakeTables();
   }
 }
@@ -4483,7 +4483,7 @@ TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithOrderByLimit) {
   EXPECT_EQ(AccessPath::TABLE_SCAN,
             root->delete_rows().child->sort().child->filter().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithLimit) {
@@ -4506,7 +4506,7 @@ TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithLimit) {
       AccessPath::TABLE_SCAN,
       root->delete_rows().child->limit_offset().child->filter().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 // Delete from a single table using the multi-table delete syntax.
@@ -4526,7 +4526,7 @@ TEST_F(HypergraphOptimizerTest, DeleteSingleAsMultiTable) {
   EXPECT_EQ(AccessPath::TABLE_SCAN,
             root->delete_rows().child->filter().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DeleteFromTwoTables) {
@@ -4555,7 +4555,7 @@ TEST_F(HypergraphOptimizerTest, DeleteFromTwoTables) {
   EXPECT_EQ(m_fake_tables["t1"],
             root->delete_rows().child->hash_join().outer->table_scan().table);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DeletePreferImmediate) {
@@ -4598,7 +4598,7 @@ TEST_F(HypergraphOptimizerTest, DeletePreferImmediate) {
   ASSERT_EQ(AccessPath::EQ_REF, nested_loop_join.inner->type);
   EXPECT_STREQ("t2", nested_loop_join.inner->eq_ref().table->alias);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromRangeScan) {
@@ -4626,7 +4626,7 @@ TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromRangeScan) {
   EXPECT_EQ(t1->pos_in_table_list->map(), root->delete_rows().immediate_tables);
   EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, root->delete_rows().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromIndexMerge) {
@@ -4655,7 +4655,7 @@ TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromIndexMerge) {
   EXPECT_EQ(AccessPath::INDEX_MERGE, root->delete_rows().child->type);
   EXPECT_EQ(t1->pos_in_table_list->map(), root->delete_rows().immediate_tables);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, UpdatePreferImmediate) {
@@ -4857,7 +4857,7 @@ TEST_F(HypergraphSecondaryEngineTest,
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregationDoesNotCover) {
@@ -4896,7 +4896,7 @@ TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregationDoesNotCover) {
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, distinct->sort().child->type);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphSecondaryEngineTest, RejectAllPlans) {
@@ -5048,7 +5048,7 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   EXPECT_EQ(param.expect_error, root == nullptr);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
@@ -5076,7 +5076,7 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   EXPECT_EQ(param.expect_error, root == nullptr);
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -5139,7 +5139,7 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
   ASSERT_EQ(Item::SUM_FUNC_ITEM, order_item->type());
   EXPECT_EQ(Item_sum::AVG_FUNC, down_cast<Item_sum *>(order_item)->sum_func());
 
-  query_block->cleanup(m_thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
 }
 
 /*
@@ -5580,7 +5580,7 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
           FinalizePlanForQueryBlock(thd, query_block);
       assert(!error);
 
-      query_block->cleanup(thd, /*full=*/false);
+      query_block->cleanup(/*full=*/false);
       query_block->join->set_root_access_path(nullptr);
       optimize_mem_root.ClearForReuse();
     }
@@ -5593,7 +5593,7 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
   // iteration.
   EXPECT_EQ(mem_root_size_after_resolving, thd->mem_root->allocated_size());
 
-  query_block->cleanup(thd, /*full=*/true);
+  query_block->cleanup(/*full=*/true);
   DestroyFakeTables(fake_tables);
 }
 BENCHMARK(BM_FindBestQueryPlanPointSelect)

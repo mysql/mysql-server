@@ -468,6 +468,9 @@ struct System_variables {
     @sa Sys_debug_sensitive_session_string
   */
   char *debug_sensitive_session_str;
+
+  /// For testing EXCEPT, INTERSECT syntax
+  bool debug_enable_extended_set_ops;
 };
 
 /**

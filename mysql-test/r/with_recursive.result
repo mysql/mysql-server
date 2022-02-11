@@ -616,13 +616,13 @@ explain with recursive q (b) as
 (select 1 union all select 1+b from q where b<10)
 select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
-6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-7	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
-2	DEPENDENT SUBQUERY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+1	PRIMARY	<derived7>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+8	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
+2	DEPENDENT SUBQUERY	<derived7>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'q1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	with recursive `q` (`b`) as (/* select#6 */ select 1 AS `1` union all /* select#7 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
+Note	1003	with recursive `q` (`b`) as (/* select#7 */ select 1 AS `1` union all /* select#8 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<10)
 select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
@@ -1343,7 +1343,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
 drop table t1;
@@ -1968,13 +1968,13 @@ explain with recursive q (b) as
 (select 1 union all select 1+b from q where b<10)
 select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
-6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-7	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
-2	DEPENDENT SUBQUERY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+1	PRIMARY	<derived7>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+8	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
+2	DEPENDENT SUBQUERY	<derived7>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'q1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	with recursive `q` (`b`) as (/* select#6 */ select 1 AS `1` union all /* select#7 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
+Note	1003	with recursive `q` (`b`) as (/* select#7 */ select 1 AS `1` union all /* select#8 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<10)
 select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
@@ -2695,7 +2695,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
 drop table t1;

@@ -20,7 +20,7 @@ explain SELECT (SELECT 1) UNION SELECT (SELECT 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1249	Select 4 was reduced during optimization
@@ -33,7 +33,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select (/* select#3 */ select 0 union /* select#4 */ select 0) AS `(SELECT (SELECT 0 UNION SELECT 0))`
@@ -193,7 +193,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 3	UNION	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 4	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+5	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = (/* select#2 */ select `test`.`t3`.`a` from `test`.`t3` order by `test`.`t3`.`a` desc limit 1)) union /* select#3 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t4` where (`test`.`t4`.`b` = (/* select#4 */ select (max(`test`.`t2`.`a`) * 4) from `test`.`t2`))
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
@@ -321,7 +321,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 3	DEPENDENT UNION	t5	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
@@ -444,7 +444,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	topic	3	NULL	2	100.00	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 drop table t1;
@@ -770,7 +770,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	index	NULL	id	5	NULL	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(1)) union /* select#3 */ select 3 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(3))))
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
@@ -1659,7 +1659,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1` from `test`.`t1` where true
 drop table t1;
@@ -3650,7 +3650,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	UNION	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t11`.`i` from `test`.`t1` `t11` union /* select#3 */ select `test`.`t12`.`i` from `test`.`t1` `t12`) AS `((select t11.i from t1 t11) union (select t12.i from t1 t12))` from `test`.`t1`
 explain select * from t1 where not exists
@@ -3659,7 +3659,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	UNION	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where true
 DROP TABLE t1;
@@ -4363,7 +4363,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -6247,12 +6247,14 @@ SELECT ( SELECT a FROM t1 WHERE a = 1 UNION SELECT 1 ), a FROM t1;
 SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
 a	b
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+1
+1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 1
 1
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) )
+1
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
@@ -6272,13 +6274,17 @@ SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 1
 1
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+a
+1
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+a
+1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+a
+1
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
+a
+1
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
 a
 1

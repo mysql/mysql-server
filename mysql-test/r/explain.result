@@ -697,7 +697,7 @@ EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 2,2
@@ -1000,3 +1000,491 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where fa
 SELECT * FROM t1 WHERE (a=1 AND a<>a);
 a
 DROP TABLE t1;
+#
+# WL#11350
+#
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+ANALYZE TABLE r,s,t;
+Table	Op	Msg_type	Msg_text
+test.r	analyze	status	OK
+test.s	analyze	status	OK
+test.t	analyze	status	OK
+# Test nesting structures
+EXPLAIN ( ( SELECT * FROM r UNION
+(SELECT * FROM s ORDER BY a LIMIT 1)) UNION
+( SELECT * FROM s UNION SELECT 2 LIMIT 3)
+ORDER BY 1 LIMIT 3)
+ORDER BY 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
+3	PRIMARY	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+5	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+6	UNION RESULT	<union1,2,5>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+7	RESULT	<ordered6>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `test`.`s`.`a` limit 1) union (/* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#4 */ select 2 AS `2` limit 3) order by `a` limit 3) order by `a`
+# For comparison
+EXPLAIN format=tree ( ( SELECT * FROM r UNION
+(SELECT * FROM s ORDER BY a LIMIT 1)) UNION
+( SELECT * FROM s UNION SELECT 2 LIMIT 3)
+ORDER BY 1 LIMIT 3)
+ORDER BY 1;
+EXPLAIN
+-> Sort: a  (cost=10.93..13.21 rows=11)
+    -> Table scan on <result temporary>  (cost=2.50 rows=0)
+        -> Temporary table  (cost=10.93..13.21 rows=11)
+            -> Limit: 3 row(s)  (cost=7.33..9.61 rows=11)
+                -> Sort: a, limit input to 3 row(s) per chunk  (cost=2.50 rows=0)
+                    -> Table scan on <union temporary>  (cost=2.50 rows=0)
+                        -> Union materialize with deduplication  (cost=7.33..9.61 rows=11)
+                            -> Table scan on r  (cost=0.90 rows=4)
+                            -> Limit: 1 row(s)  (cost=1.00 rows=1)
+                                -> Sort: s.a, limit input to 1 row(s) per chunk  (cost=1.00 rows=5)
+                                    -> Table scan on s  (cost=1.00 rows=5)
+                            -> Limit: 3 row(s)  (cost=2.02..4.10 rows=6)
+                                -> Table scan on <union temporary>  (cost=2.50 rows=0)
+                                    -> Union materialize with deduplication  (cost=2.02..4.10 rows=6)
+                                        -> Limit table size: 3 unique row(s)
+                                            -> Table scan on s  (cost=1.00 rows=5)
+                                        -> Limit table size: 3 unique row(s)
+                                            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+# Test no result if no materializaton
+EXPLAIN SELECT 1 UNION ALL SELECT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` union all /* select#2 */ select 2 AS `2`
+# Used to not show sorting before WL#11350
+EXPLAIN (SELECT a FROM r LIMIT 2) ORDER BY 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	RESULT	<ordered1>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` limit 2) order by `a`
+EXPLAIN ((SELECT a FROM t ORDER BY 1 LIMIT 3) ORDER BY -a LIMIT 2) ORDER BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
+2	RESULT	<ordered/limited1>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	RESULT	<ordered2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+Warnings:
+Note	1003	((/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a` limit 3) order by -(`a`) limit 2) order by `a`
+# Test big one
+# This query has max nesting and should work
+EXPLAIN (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((SELECT * FROM r
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s)
+UNION SELECT * FROM s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+3	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+4	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+5	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+6	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+7	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+8	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+9	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+10	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+11	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+12	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+13	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+14	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+15	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+16	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+17	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+18	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+19	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+20	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+21	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+22	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+23	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+24	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+25	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+26	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+27	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+28	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+29	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+30	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+31	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+32	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+33	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+34	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+35	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+36	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+37	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+38	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+39	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+40	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+41	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+42	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+43	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+44	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+45	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+46	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+47	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+48	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+49	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+50	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+51	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+52	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+53	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+54	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+55	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+56	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+57	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+58	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+59	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+60	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+61	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+62	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+63	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+64	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+65	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+66	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+67	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+68	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+69	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+70	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+71	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+72	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+73	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+74	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+75	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+76	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+77	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+78	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+79	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+80	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+81	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+82	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+83	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+84	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+85	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+86	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+87	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+88	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+89	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+90	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+91	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+92	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+93	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+94	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+95	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+96	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+97	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+98	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+99	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+100	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+101	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+102	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+103	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+104	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+105	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+106	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+107	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+108	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+109	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+110	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+111	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+112	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+113	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+114	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+115	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+116	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+117	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+118	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+119	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+120	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+121	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+122	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+123	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+124	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+125	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+126	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+127	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+128	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+129	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+130	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+131	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+132	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+133	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+134	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+135	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+136	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+137	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+138	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+139	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+140	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+141	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+142	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+143	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+144	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+145	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+146	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+147	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+148	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+149	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+150	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+151	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+152	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+153	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+154	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+155	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+156	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+157	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+158	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+159	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+160	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+161	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+162	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+163	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+164	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+165	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+166	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+167	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+168	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+169	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+170	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+171	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+172	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+173	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+174	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+175	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+176	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+177	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+178	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+179	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+180	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+181	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+182	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+183	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+184	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+185	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+186	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+187	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+188	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+189	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+190	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+191	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+192	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+193	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+194	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+195	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+196	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+197	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+198	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+199	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+200	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+201	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+202	UNION	s	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+203	UNION RESULT	<union1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,...,202>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#4 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#5 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#6 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#7 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#8 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#9 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#10 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#11 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#12 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#13 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#14 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#15 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#16 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#17 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#18 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#19 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#20 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#21 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#22 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#23 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#24 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#25 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#26 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#27 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#28 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#29 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#30 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#31 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#32 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#33 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#34 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#35 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#36 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#37 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#38 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#39 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#40 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#41 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#42 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#43 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#44 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#45 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#46 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#47 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#48 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#49 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#50 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#51 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#52 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#53 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#54 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#55 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#56 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#57 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#58 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#59 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#60 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#61 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#62 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#63 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#64 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#65 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#66 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#67 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#68 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#69 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#70 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#71 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#72 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#73 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#74 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#75 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#76 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#77 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#78 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#79 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#80 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#81 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#82 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#83 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#84 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#85 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#86 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#87 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#88 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#89 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#90 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#91 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#92 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#93 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#94 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#95 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#96 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#97 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#98 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#99 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#100 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#101 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#102 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#103 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#104 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#105 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#106 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#107 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#108 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#109 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#110 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#111 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#112 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#113 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#114 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#115 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#116 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#117 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#118 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#119 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#120 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#121 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#122 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#123 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#124 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#125 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#126 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#127 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#128 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#129 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#130 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#131 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#132 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#133 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#134 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#135 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#136 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#137 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#138 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#139 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#140 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#141 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#142 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#143 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#144 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#145 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#146 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#147 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#148 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#149 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#150 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#151 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#152 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#153 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#154 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#155 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#156 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#157 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#158 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#159 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#160 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#161 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#162 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#163 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#164 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#165 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#166 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#167 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#168 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#169 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#170 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#171 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#172 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#173 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#174 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#175 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#176 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#177 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#178 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#179 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#180 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#181 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#182 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#183 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#184 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#185 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#186 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#187 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#188 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#189 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#190 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#191 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#192 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#193 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#194 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#195 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#196 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#197 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#198 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#199 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#200 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#201 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#202 */ select `test`.`s`.`a` AS `a` from `test`.`s`
+DROP TABLE r, s, t;

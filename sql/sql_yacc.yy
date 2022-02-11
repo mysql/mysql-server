@@ -233,6 +233,16 @@ int yylex(void *yylval, void *yythd);
       MYSQL_YYABORT;                                                    \
   } while(0)
 
+#define CONTEXTUALIZE_VIEW(x)                           \
+  do                                                    \
+  {                                                     \
+    std::remove_reference<decltype(*x)>::type::context_t pc(YYTHD, Select); \
+    if (YYTHD->is_error() ||                                            \
+        (YYTHD->lex->will_contextualize && (x)->contextualize(&pc)))    \
+      MYSQL_YYABORT;                                                    \
+    if (pc.finalize_query_expression())                                 \
+      MYSQL_YYABORT;                                                    \
+  } while(0)
 
 /**
   Item::itemize() function call wrapper
@@ -1369,6 +1379,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
 
+%token                INTERSECT_SYM                        1200 /* SQL-1992-R */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1396,6 +1408,8 @@ void warn_about_deprecated_binary(THD *thd)
 */
 %right UNIQUE_SYM KEY_SYM
 
+%left UNION_SYM EXCEPT_SYM
+%left INTERSECT_SYM
 %left CONDITIONLESS_JOIN
 %left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON_SYM USING
 %left   SET_VAR
@@ -1780,8 +1794,6 @@ void warn_about_deprecated_binary(THD *thd)
 %type <table_reference> table_reference esc_table_reference
         table_factor single_table single_table_parens table_function
 
-%type <query_expression_body> query_expression_body
-
 %type <bipartite_name> lvalue_variable rvalue_system_variable
 
 %type <option_value_following_option_type> option_value_following_option_type
@@ -1814,10 +1826,14 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <select_var_list> select_var_list
 
-%type <query_primary>
+%type <query_expression_body_opt_parens> query_expression_body
+
+%type <query_expression_body>
         as_create_query_expression
-        query_expression_or_parens
         query_expression_parens
+        query_expression_with_opt_locking_clauses
+
+%type <query_primary>
         query_primary
         query_specification
 
@@ -6182,8 +6198,8 @@ size_number:
   | as_create_query_expression
 
   as_create_query_expression ::=
-    AS query_expression_or_parens
-  | query_expression_or_parens
+    AS query_expression_with_opt_locking_clauses
+  | query_expression_with_opt_locking_clauses
 
 */
 
@@ -6232,8 +6248,8 @@ opt_duplicate_as_qe:
         ;
 
 as_create_query_expression:
-          AS query_expression_or_parens { $$ = $2; }
-        | query_expression_or_parens    { $$ = $1; }
+          AS query_expression_with_opt_locking_clauses { $$ = $2; }
+        | query_expression_with_opt_locking_clauses    { $$ = $1; }
         ;
 
 /*
@@ -9771,10 +9787,6 @@ select_stmt:
             $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2),
                                         nullptr, true);
           }
-        | query_expression_parens
-          {
-            $$ = NEW_PTN PT_select_stmt($1);
-          }
         | select_stmt_with_into
         ;
 
@@ -9827,10 +9839,6 @@ select_stmt_with_into:
           {
             $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2), $3);
           }
-        | query_expression_parens into_clause
-          {
-            $$ = NEW_PTN PT_select_stmt($1, $2);
-          }
         ;
 
 /**
@@ -9870,77 +9878,46 @@ query_expression:
           opt_order_clause
           opt_limit_clause
           {
-            $$ = NEW_PTN PT_query_expression($1, $2, $3);
+            $$ = NEW_PTN PT_query_expression($1.body, $2, $3);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
           {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
-          }
-        | query_expression_parens
-          order_clause
-          opt_limit_clause
-          {
-            $$= NEW_PTN PT_query_expression($1, $2, $3);
-          }
-        | with_clause
-          query_expression_parens
-          order_clause
-          opt_limit_clause
-          {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
-          }
-        | query_expression_parens
-          limit_clause
-          {
-            $$ = NEW_PTN PT_query_expression($1, nullptr, $2);
-          }
-        | with_clause
-          query_expression_parens
-          limit_clause
-          {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, $3);
-          }
-        | with_clause
-          query_expression_parens
-          {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, nullptr);
+            $$= NEW_PTN PT_query_expression($1, $2.body, $3, $4);
           }
         ;
 
 query_expression_body:
           query_primary
           {
-            $$ = $1;
+            $$ = {$1, false};
           }
-        | query_expression_body UNION_SYM union_option query_primary
+        | query_expression_parens %prec SUBQUERY_AS_EXPR
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = {$1, true};
           }
-        | query_expression_parens UNION_SYM union_option query_primary
+        | query_expression_body UNION_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = {NEW_PTN PT_union($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
-        | query_expression_body UNION_SYM union_option query_expression_parens
+        | query_expression_body EXCEPT_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
+            $$ = {NEW_PTN PT_except($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
-        | query_expression_parens UNION_SYM union_option query_expression_parens
+        | query_expression_body INTERSECT_SYM union_option query_expression_body
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
+            $$ = {NEW_PTN PT_intersect($1.body, $3, $4.body, $4.is_parenthesized),
+                  false};
           }
         ;
 
-
 query_expression_parens:
-          '(' query_expression_parens ')' { $$= $2; }
-        | '(' query_expression')' { $$= $2; }
-        | '(' query_expression locking_clause_list')'
-          {
-            $$ = NEW_PTN PT_locking($2, $3);
-          }
+          '(' query_expression_parens ')'                       { $$ = $2; }
+        | '(' query_expression_with_opt_locking_clauses')'      { $$ = $2; }
         ;
 
 query_primary:
@@ -13230,17 +13207,17 @@ insert_from_constructor:
         ;
 
 insert_query_expression:
-          query_expression_or_parens
+          query_expression_with_opt_locking_clauses
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $1;
           }
-        | '(' ')' query_expression_or_parens
+        | '(' ')' query_expression_with_opt_locking_clauses
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $3;
           }
-        | '(' fields ')' query_expression_or_parens
+        | '(' fields ')' query_expression_with_opt_locking_clauses
           {
             $$.column_list= $2;
             $$.insert_query_expression= $4;
@@ -13269,13 +13246,12 @@ insert_values:
           }
         ;
 
-query_expression_or_parens:
+query_expression_with_opt_locking_clauses:
           query_expression                      { $$ = $1; }
         | query_expression locking_clause_list
           {
             $$ = NEW_PTN PT_locking($1, $2);
           }
-        | query_expression_parens               { $$ = $1; }
         ;
 
 value_or_values:
@@ -17409,7 +17385,7 @@ view_tail:
         ;
 
 view_query_block:
-          query_expression_or_parens view_check_option
+          query_expression_with_opt_locking_clauses view_check_option
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
@@ -17433,7 +17409,7 @@ view_query_block:
             Query_block * const save_query_block= Select;
             save_query_block->table_list.save_and_clear(&save_list);
 
-            CONTEXTUALIZE($1);
+            CONTEXTUALIZE_VIEW($1);
 
             /*
               The following work only with the local list, the global list

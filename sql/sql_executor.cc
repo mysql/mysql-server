@@ -1501,12 +1501,13 @@ AccessPath *GetAccessPathForDerivedTable(
     subjoin = query_expression->first_query_block()->join;
     select_number = query_expression->first_query_block()->select_number;
     tmp_table_param = &subjoin->tmp_table_param;
-  } else if (query_expression->fake_query_block != nullptr) {
+  } else if (query_expression->set_operation()->m_is_materialized) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
-    // for ROLLUP, and fake_query_block can't have ROLLUP.
-    subjoin = query_expression->fake_query_block->join;
+    // for ROLLUP, and simple table can't have ROLLUP.
+    Query_block *const qb = query_expression->set_operation()->query_block();
+    subjoin = qb->join;
     tmp_table_param = &subjoin->tmp_table_param;
-    select_number = query_expression->fake_query_block->select_number;
+    select_number = qb->select_number;
   } else {
     tmp_table_param = new (thd->mem_root) Temp_table_param;
     select_number = query_expression->first_query_block()->select_number;
@@ -1562,7 +1563,7 @@ AccessPath *GetAccessPathForDerivedTable(
     CopyBasicProperties(*query_expression->root_access_path(), path);
     path->ordering_state = 0;  // Different query block, so ordering is reset.
   } else {
-    JOIN *join = query_expression->is_union()
+    JOIN *join = query_expression->is_set_operation()
                      ? nullptr
                      : query_expression->first_query_block()->join;
     path = NewMaterializeAccessPath(

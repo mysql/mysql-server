@@ -1470,7 +1470,7 @@ err:
   for (set_var_base &v : *var_list) {
     v.cleanup();
   }
-  free_underlaid_joins(thd, thd->lex->query_block);
+  free_underlaid_joins(thd->lex->query_block);
   return error;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -375,7 +375,7 @@ class Pushed_lex_guard {
   }
   ~Pushed_lex_guard() {
     // Clean up this statement context and restore the old one:
-    m_thd->lex->cleanup(m_thd, true);
+    m_thd->lex->cleanup(true);
     lex_end(m_thd->lex);
 
     m_thd->lex = m_old_lex;

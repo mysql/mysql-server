@@ -95,7 +95,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `a`.`a` AS `a`,`a`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) `a`
 explain select * from (select * from t1 union all select * from t1) a;
@@ -268,15 +268,15 @@ a	a
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
-4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-5	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union4,5>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+6	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+7	UNION RESULT	<union5,6>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `a` join (/* select#4 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#5 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `b`
+Note	1003	/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `a` join (/* select#5 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#6 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `b`
 drop table t1;
 CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',
@@ -2301,7 +2301,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` union /* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `dt` where (`dt`.`a` = `test`.`t1`.`a`)
 SELECT *

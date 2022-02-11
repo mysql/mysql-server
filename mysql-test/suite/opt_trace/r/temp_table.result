@@ -144,6 +144,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<temporary>",
                 "in_plan_at_position": 1,
                 "columns": 4,
                 "row_length": 4190,
@@ -304,6 +305,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<temporary>",
                 "in_plan_at_position": 1,
                 "columns": 3,
                 "row_length": 4182,
@@ -479,6 +481,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
+                "table": "<temporary>",
                 "in_plan_at_position": 1,
                 "columns": 3,
                 "row_length": 4182,
@@ -499,6 +502,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                   "converting_tmp_table_to_ondisk": {
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
+                      "table": "<temporary>",
                       "in_plan_at_position": 1,
                       "columns": 3,
                       "row_length": 4182,
@@ -531,6 +535,7 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
     {
       "creating_tmp_table": {
         "tmp_table_info": {
+          "table": "INNODB_BUFFER_PAGE",
           "columns": 21,
           "row_length": 6863,
           "key_length": 0,
@@ -778,7 +783,7 @@ ORDER BY cc	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": "intermediate_tmp_table",
+                "table": "<union temporary>",
                 "columns": 2,
                 "row_length": 757,
                 "key_length": 757,
@@ -792,10 +797,10 @@ ORDER BY cc	{
           },
           {
             "join_preparation": {
-              "select#": "fake",
+              "select#": 4,
               "steps": [
                 {
-                  "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
+                  "expanded_query": "/* select#4 */ select `c1` AS `c1`,`c2` AS `c2` from dual"
                 }
               ] /* steps */
             } /* join_preparation */
@@ -973,7 +978,7 @@ ORDER BY cc	{
           },
           {
             "join_optimization": {
-              "select#": "fake",
+              "select#": 4,
               "steps": [
                 {
                   "table_dependencies": [
@@ -1185,7 +1190,7 @@ ORDER BY cc	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `tt`",
+                "table": "tt",
                 "in_plan_at_position": 0,
                 "columns": 2,
                 "row_length": 757,
@@ -1206,7 +1211,7 @@ ORDER BY cc	{
                   "converting_tmp_table_to_ondisk": {
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
-                      "table": " `tt`",
+                      "table": "tt",
                       "in_plan_at_position": 0,
                       "columns": 2,
                       "row_length": 757,

@@ -67,7 +67,7 @@ EXPLAIN SELECT * FROM t17059925 UNION SELECT t17059925_func1(1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t17059925	NULL	index	NULL	a	5	ROWS	1	100.00	Using index
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	ROWS	NULL	NULL	No tables used
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	ROWS	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	ROWS	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t17059925`.`a` AS `a` from `test`.`t17059925` union /* select#2 */ select `t17059925_func1`(1) AS `t17059925_func1(1)`
 SELECT * FROM t17059925 WHERE a= 10 AND a= 20 UNION SELECT sleep(0.5);
@@ -106,7 +106,7 @@ EXPLAIN SELECT * FROM t17059925 UNION SELECT * FROM t17059925 WHERE a= 10 AND a=
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t17059925	NULL	index	NULL	a	5	ROWS	1	100.00	Using index
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	ROWS	NULL	NULL	Impossible WHERE
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	ROWS	NULL	NULL	Using temporary
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	ROWS	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t17059925`.`a` AS `a` from `test`.`t17059925` union /* select#2 */ select `test`.`t17059925`.`a` AS `a` from `test`.`t17059925` where false
 SELECT sql_text, rows_examined FROM mysql.slow_log WHERE (sql_text LIKE '%SELECT%t17059925%'

@@ -283,10 +283,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
   DBUG_TRACE;
 
   uint no_jbuf_after = UINT_MAX;
+  Query_block *const set_operand_block =
+      query_expression()->non_simple_result_query_block();
 
   assert(query_block->leaf_table_count == 0 ||
          thd->lex->is_query_tables_locked() ||
-         query_block == query_expression()->fake_query_block);
+         query_block == set_operand_block);
   assert(tables == 0 && primary_tables == 0 && tables_list == (TABLE_LIST *)1);
 
   // to prevent double initialization on EXPLAIN
@@ -396,12 +398,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
       Calculate found rows (ie., keep counting rows even after we hit LIMIT) if
       - LIMIT is set, and
       - This is the outermost query block (for a UNION query, this is the
-        fake query block that contains the limit applied on the final UNION
-        evaluation).
+        block that contains the limit applied on the final UNION
+        evaluation, cf query_term.h for explanation).
      */
     calc_found_rows = m_select_limit != HA_POS_ERROR &&
-                      (!query_expression()->is_union() ||
-                       query_block == query_expression()->fake_query_block);
+                      (!query_expression()->is_set_operation() ||
+                       query_block == set_operand_block);
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 
@@ -1338,7 +1340,8 @@ int JOIN::replace_index_subquery() {
   if (!group_list.empty() ||
       !(query_expression()->item &&
         query_expression()->item->substype() == Item_subselect::IN_SUBS) ||
-      primary_tables != 1 || !where_cond || query_expression()->is_union())
+      primary_tables != 1 || !where_cond ||
+      query_expression()->is_set_operation())
     return 0;
 
   // Guaranteed by remove_redundant_subquery_clauses():
@@ -7257,7 +7260,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
     if (join->group_list.empty() && join->order.empty() &&
         join->query_expression()->item &&
         join->query_expression()->item->substype() == Item_subselect::IN_SUBS &&
-        !join->query_expression()->is_union()) {
+        !join->query_expression()->is_set_operation()) {
       Key_field *save = *key_fields;
       if (add_key_fields(thd, join, key_fields, and_level, cond_arg,
                          usable_tables, sargables))

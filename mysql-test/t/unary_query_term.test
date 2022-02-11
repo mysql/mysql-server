@@ -1,0 +1,362 @@
+--echo # WL#11350:
+--echo # Query expressions with nested ORDER BY/LIMIT/OFFSET clauses,
+--echo # but with no set operations inbetween.
+
+--source include/elide_costs.inc
+
+CREATE TABLE r(a INT);
+INSERT INTO r VALUES (1), (2), (-1), (-2);
+CREATE TABLE s(a INT);
+INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+
+ANALYZE TABLE r, s, t;
+
+# Uncomment this to get trace of query term tree as built for each query:
+# SET SESSION debug = 'd,ast:O,/tmp/mysqld.trace';
+
+--echo # Bug#32980249 MULTIPLE LIMIT CLAUSES MAYBE GET WRONG RESULT
+--echo # is fixed: we should get two, not four rows
+--echo # and no tmp table (collapsing outer unary level).
+let $query = (SELECT * FROM r ORDER BY a LIMIT 2) LIMIT 4;
+eval $query;
+--skip_if_hypergraph  # Hypergraph elides Limit iterator
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # Same behavior as before: effective limit is 1
+let $query = ((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+--echo # New behavior, std compliant, effective limit is 1
+let $query = ((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+--echo # From here on, we have mostly [NEW] tricks, stuff that was not
+--echo # allowed prior to this WL, but also some WL coverage of old
+--echo # behavior, not marked [NEW].
+let $query = ( (((SELECT 1 LIMIT 1) LIMIT 2) LIMIT 3) UNION ALL
+              (((SELECT 1 LIMIT 3) LIMIT 2) LIMIT 1)
+              ORDER BY 1 LIMIT 5 )
+            LIMIT 3;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+PREPARE p FROM '(SELECT * FROM t LIMIT 3) LIMIT ?';
+SET @a = '2';
+--error ER_WRONG_ARGUMENTS
+EXECUTE p USING @a;
+SET @a = 2;
+EXECUTE p USING @a;
+PREPARE p FROM '(SELECT * FROM t LIMIT ?) LIMIT 3';
+EXECUTE p USING @a;
+DROP PREPARE p;
+
+--echo #
+--echo # check push-down of ORDER BY + LIMIT
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+let $query = ((SELECT a AS c FROM t1 LIMIT 10) LIMIT 6) ORDER BY c+1 LIMIT 5;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+DROP TABLE t1;
+
+--echo #
+--echo # The outer block is not collapsed, so binding of 'a' fails
+--echo #
+let $query = ((SELECT a AS c FROM r LIMIT 10) LIMIT 6) ORDER BY a+1 LIMIT 20;
+--error ER_BAD_FIELD_ERROR
+eval $query;
+
+let $query = ( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+                 LIMIT 4)
+               LIMIT 3)
+             ORDER BY column_0, column_1;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+let $query = ( ( VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(5,5)
+                 ORDER BY column_0 LIMIT 4)
+               LIMIT 3)
+             ORDER BY (SELECT column_0), (SELECT column_1) LIMIT 2;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query = ( ( (VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(-1,-1))
+                 ORDER BY column_0 LIMIT 4)
+               LIMIT 3)
+             ORDER BY 1;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+let $query = (SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval EXPLAIN $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+let $query =
+    ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+    ORDER BY a LIMIT 3;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--echo # Unknown column 'u' in 'order clause'
+--error ER_BAD_FIELD_ERROR
+((SELECT * FROM r ORDER BY u LIMIT 5) ORDER BY -a LIMIT 4) ORDER BY a LIMIT 3;
+
+--echo # [NEW] Three unary temporary tables. Since we have sort under, these could
+--echo # probably be elided.
+let $query =
+    ( ((SELECT * FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+      ORDER BY a LIMIT 3)
+    ORDER BY -a LIMIT 2;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+let $query =
+    ( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+      ORDER BY c LIMIT 3)
+    ORDER BY -c LIMIT 2;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+eval PREPARE q FROM "$query";
+EXECUTE q;
+EXECUTE q;
+DROP PREPARE q;
+
+--echo # [NEW]
+--error ER_BAD_FIELD_ERROR
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4)
+  ORDER BY c LIMIT 3)
+ORDER BY -c LIMIT 2;
+
+--echo # [NEW]
+--error ER_BAD_FIELD_ERROR
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+  ORDER BY a LIMIT 3)
+ORDER BY -c LIMIT 2;
+
+--echo # [NEW]
+--error ER_BAD_FIELD_ERROR
+( ( (SELECT a AS c FROM r ORDER BY a LIMIT 5) ORDER BY -c LIMIT 4)
+  ORDER BY c LIMIT 3)
+ORDER BY -a LIMIT 2;
+
+--echo #
+--echo # Check explicit table and table value constructor
+--echo #
+(TABLE r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1;
+(VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1) ORDER BY 1 LIMIT 2;
+
+--echo # [NEW]
+--echo # Streaming with nested set operations.
+--echo # Two union materialized tmp tables, non-dedup, sorted, limited and
+--echo # streamed for UNION ALL.
+--echo #
+let $query =
+    (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+    UNION ALL
+    (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 5) LIMIT 7;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+--echo # [NEW]
+--echo # Two union materialized tmp tables, 2nd w/dedup, 1st is
+--echo # sorted, limited and both streamed for UNION ALL
+--echo #
+let $query =
+    (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
+    UNION ALL
+    (SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+--echo #
+--echo # Bug in contexualize: missing add of unary node
+--echo #
+let $query =
+    (((SELECT * from r UNION SELECT * FROM s UNION ALL SELECT * from t) LIMIT 3) LIMIT 5);
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = tree $query;
+
+
+--echo #
+--echo # Check maximum depth 63
+--echo #
+let $query =
+     (SELECT * FROM r ORDER BY a LIMIT 1);
+let $1=63;
+while ($1)
+{
+ let $query =
+     ($query
+      ORDER BY a LIMIT 1);
+ dec $1;
+}
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query =
+    ($query
+     ORDER BY a LIMIT 1);
+--error ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
+eval $query;
+
+DROP TABLE r, s, t;
+
+--echo #
+--echo # Bug#33761181  Recursive CTE with UNION + LIMIT seed table gives wrong
+--echo #               result
+--echo # Now gives correct result.
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2);
+
+let $query =
+    WITH RECURSIVE cte (n) AS
+    (  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 1)
+       UNION ALL
+       SELECT n + 1 FROM cte WHERE n < 5 )
+    SELECT * FROM cte;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query=
+    WITH RECURSIVE cte (n) AS
+    (  (SELECT a FROM t UNION DISTINCT SELECT a FROM t LIMIT 2)
+       UNION ALL
+       SELECT n + 1 FROM cte WHERE n < 5 )
+    SELECT * FROM cte;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+let $query=
+    WITH RECURSIVE cte (n) AS
+    (  (SELECT a FROM t UNION SELECT a FROM t LIMIT 2)
+       UNION ALL
+       SELECT n + 1 FROM cte WHERE n < 5 LIMIT 7)
+    SELECT * FROM cte;
+
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN FORMAT = tree $query;
+
+DROP TABLE t;
+
+--echo WL bug in contexualize: pop stack on PT_subquery
+--echo added for coverage
+CREATE TABLE t1 (a INT NOT NULL, b CHAR (10) NOT NULL);
+INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3,'c'), (3,'c');
+CREATE TABLE t2 (a INT NOT NULL, b CHAR (10) NOT NULL);
+INSERT INTO t2 VALUES (3,'c'), (4,'d'), (5,'f'), (6,'e');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+let $query =
+    SELECT * FROM t1 WHERE a IN
+        ( SELECT a FROM t1 UNION DISTINCT
+          SELECT a FROM t1 ORDER BY (SELECT a) ) UNION DISTINCT
+    SELECT * FROM t1
+    ORDER BY (SELECT a);
+
+eval $query;
+eval EXPLAIN $query;
+
+--echo #
+--echo # Add support for INSERT INTO set-op
+--echo #
+CREATE TABLE t4 AS SELECT * from t1;
+DELETE FROM t4;
+INSERT INTO t4 SELECT a,b FROM t1 UNION DISTINCT SELECT a,b FROM t2;
+SELECT * FROM t4;
+
+
+--echo #
+--echo # Bug fix: SQL_CALC_FOUND_ROWS
+--echo #
+(SELECT SQL_CALC_FOUND_ROWS a,b FROM t1 LIMIT 2) UNION ALL
+(SELECT a,b FROM t2 ORDER BY a) LIMIT 2;
+SELECT FOUND_ROWS();
+
+DROP TABLE t1, t2, t4;
+
+--echo #
+--echo # CREATE AS SELECT
+--echo #
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT, f2 INT ,f3 DATE);
+CREATE TABLE t3 (f1 INT, f2 CHAR(10));
+CREATE TABLE t4
+( SELECT t2.f3 AS sdate
+  FROM t1
+  LEFT OUTER JOIN t2 ON (t1.f1 = t2.f1)
+  INNER JOIN t3 ON (t2.f2 = t3.f1)
+  ORDER BY t1.f1, t3.f1, t2.f3 )
+UNION DISTINCT
+( SELECT CAST('2004-12-31' AS DATE) AS sdate
+  FROM t1
+  LEFT OUTER JOIN t2 ON (t1.f1 = t2.f1)
+  INNER JOIN t3 ON (t2.f2 = t3.f1)
+  GROUP BY t1.f1
+  ORDER BY t1.f1, t3.f1, t2.f3 )
+ORDER BY sdate;
+
+SHOW COLUMNS FROM t4;
+DROP TABLE t1, t2, t3, t4;

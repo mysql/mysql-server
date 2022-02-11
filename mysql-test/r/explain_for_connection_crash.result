@@ -17,11 +17,11 @@ QUERY: SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY (SELECT a FROM t2 WHERE 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -79,2 +79,3 @@
+@@ -81,2 +81,3 @@
                "filtered": "50.00",
 +              "using_where": true,
                "cost_info": {
-@@ -87,4 +88,3 @@
+@@ -89,4 +90,3 @@
                  "b"
 -              ],
 -              "attached_condition": "(`test`.`t2`.`b` = 12)"

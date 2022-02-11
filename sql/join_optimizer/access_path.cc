@@ -895,6 +895,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // (ALTERNATIVE counts as a single iterator in this regard.)
         assert(
             path->materialize().table_path->type == AccessPath::TABLE_SCAN ||
+            path->materialize().table_path->type == AccessPath::LIMIT_OFFSET ||
             path->materialize().table_path->type == AccessPath::REF ||
             path->materialize().table_path->type == AccessPath::REF_OR_NULL ||
             path->materialize().table_path->type == AccessPath::EQ_REF ||

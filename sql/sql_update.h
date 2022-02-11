@@ -116,7 +116,7 @@ class Query_result_update final : public Query_result_interceptor {
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool do_updates(THD *thd);
   bool send_eof(THD *thd) override;
-  void cleanup(THD *thd) override;
+  void cleanup() override;
   unique_ptr_destroy_only<RowIterator> create_iterator(
       THD *thd, MEM_ROOT *mem_root,
       unique_ptr_destroy_only<RowIterator> source);

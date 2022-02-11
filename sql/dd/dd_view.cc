@@ -348,7 +348,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       }
       if (!name) return true; /* purecov: inspected */
       cr_field->field_name = name;
-    } else if (thd->lex->unit->is_union()) {
+    } else if (thd->lex->unit->is_set_operation()) {
       /*
         If view query has any duplicate column names then generated unique name
         is stored only with the first Query_block. So when Create_field instance

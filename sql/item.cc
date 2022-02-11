@@ -4905,12 +4905,13 @@ static void mark_as_dependent(THD *thd, Query_block *last, Query_block *current,
   current->mark_as_dependent(last, false);
   if (thd->lex->is_explain()) {
     /*
-      UNION's result has select_number == INT_MAX which is printed as -1 and
-      this is confusing. Instead, the number of the first SELECT in the UNION
+      For set operations, the number of the first SELECT in the UNION
       is printed as names in ORDER BY are resolved against select list of the
       first SELECT.
     */
-    uint sel_nr = (last->select_number < INT_MAX)
+    uint sel_nr = (last->master_query_expression()
+                       ->find_blocks_query_term(last)
+                       ->term_type() == QT_QUERY_BLOCK)
                       ? last->select_number
                       : last->master_query_expression()
                             ->first_query_block()

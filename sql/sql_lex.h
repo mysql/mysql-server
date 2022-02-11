@@ -75,6 +75,7 @@
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
+#include "sql/query_term.h"
 #include "sql/set_var.h"
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
@@ -133,6 +134,7 @@ union Lexer_yystype;
 struct Lifted_fields_map;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+constexpr const int MAX_SELECT_NESTING{sizeof(nesting_map) * 8 - 1};
 
 /*
   There are 8 different type of table access so there is no more than
@@ -457,12 +459,8 @@ struct LEX_RESET_SLAVE {
 
 enum sub_select_type {
   UNSPECIFIED_TYPE,
-  UNION_TYPE,
-  INTERSECT_TYPE,
-  EXCEPT_TYPE,
   GLOBAL_OPTIONS_TYPE,
-  DERIVED_TABLE_TYPE,
-  OLAP_TYPE
+  DERIVED_TABLE_TYPE
 };
 
 /*
@@ -507,15 +505,19 @@ class Index_hint {
 /*
   Class Query_expression represents a query expression.
   Class Query_block represents a query block.
-  A query expression contains one or more query blocks (more than one means
-  that we have a UNION query).
-  These classes are connected as follows:
-   Both classes have a master, a slave, a next and a prev field.
-   For class Query_block, master and slave connect to objects of type
-   Query_expression, whereas for class Query_expression, they connect
-   to Query_block.
-   master is pointer to outer node.
-   slave is pointer to the first inner node
+
+  In addition to what is explained below, the query block(s) of a query
+  expression is contained in a tree expressing the nesting of set operations,
+  cf.  query_term.h
+
+   A query expression contains one or more query blocks (more than one means
+   that the query expression contains one or more set operations - UNION,
+   INTERSECT or EXCEPT - unless the query blocks are used to describe
+   subqueries).  These classes are connected as follows: both classes have a
+   master, a slave, a next and a prev field.  For class Query_block, master and
+   slave connect to objects of type Query_expression, whereas for class
+   Query_expression, they connect to Query_block.  master is pointer to outer
+   node.  slave is pointer to the first inner node.
 
    neighbors are two Query_block or Query_expression objects on
    the same level.
@@ -542,14 +544,8 @@ class Index_hint {
      This is to be used for things like derived tables creation, where we
      go through this list and create the derived tables.
 
-   If query expression contain several query blocks (UNION now,
-   INTERSECT etc later) then it has a special query_block called
-   fake_query_block. It used for storing global parameters (like ORDER BY,
-   LIMIT) and executing union.
-   Subqueries used in global ORDER BY clause will be attached to this
-   fake_query_block, which will allow them to correctly resolve fields of
-   the containing UNION and outer selects.
-
+   In addition to the above mentioned link, the query's tree structure is
+   represented by the member m_query_term, see query_term.h
    For example for following query:
 
    select *
@@ -575,7 +571,6 @@ class Index_hint {
    ...
 
      main unit
-     fake0
      select1 select2 select3
      |^^     |^
     s|||     ||master
@@ -585,7 +580,6 @@ class Index_hint {
     e||+-------------------------+             ||
      V|            neighbor      |             V|
      unit1.1<+==================>unit1.2       unit2.1
-     fake1.1
      select1.1.1 select 1.1.2    select1.2.1   select2.1.1
                                                |^
                                                ||
@@ -597,19 +591,18 @@ class Index_hint {
    relation in main unit will be following:
    (bigger picture for:
       main unit
-      fake0
       select1 select2 select3
    in the above picture)
 
          main unit
-         |^^^^|fake_query_block
-         |||||+--------------------------------------------+
-         ||||+--------------------------------------------+|
-         |||+------------------------------+              ||
-         ||+--------------+                |              ||
-    slave||master         |                |              ||
-         V|      neighbor |       neighbor |        master|V
-         select1<========>select2<========>select3        fake0
+         |^^^
+         ||||
+         ||||
+         |||+------------------------------+
+         ||+--------------+                |
+    slave||master         |                |
+         V|      neighbor |       neighbor |
+         select1<========>select2<========>select3
 
     list of all query_block will be following (as it will be constructed by
     parser):
@@ -642,6 +635,83 @@ class Query_expression {
   /// The first query block in this query expression.
   Query_block *slave;
 
+  // The query set operation structure, see doc for Query_term.
+  Query_term *m_query_term{nullptr};
+
+ public:
+  /// Getter for m_query_term, q.v.
+  Query_term *query_term() const { return m_query_term; }
+  /// Setter for m_query_term, q.v.
+  void set_query_term(Query_term *qt) { m_query_term = qt; }
+  /// Convenience method to avoid down casting, i.e. interpret m_query_term
+  /// as a Query_term_set_op.
+  /// @retval a non-null node iff !is_simple
+  /// @retval nullptr if is_simple() holds.
+  Query_term_set_op *set_operation() const {
+    return is_simple() ? nullptr : down_cast<Query_term_set_op *>(m_query_term);
+  }
+  /// Return the query block iff !is_simple() holds
+  Query_block *non_simple_result_query_block() const {
+    if (is_simple())
+      return nullptr;
+    else
+      return m_query_term->query_block();
+  }
+  bool is_leaf_block(Query_block *qb);
+  Query_term *find_blocks_query_term(Query_block *qb) {
+    for (auto qt : query_terms<>()) {
+      if (qt->query_block() == qb) return qt;
+    }
+    return nullptr;
+  }
+
+  /**
+    Return iterator object over query terms rooted in m_query_term,
+    using either post order visiting (default) or pre order,
+    optionally skipping leaf nodes (query blocks corresponding to SELECTs or
+    table constructors). By default, we visit all nodes.
+    Usage:  for (auto qt : query_terms<..>() { ... }
+    E.g.
+          for (auto qt : query_terms<>()) { } Visit all nodes, post order
+          for (auto qt : query_terms<QTC_PRE_ORDER, false>()) { }
+                                              Skip leaves, pre order
+    @tparam order == QTC_POST_ORDER if post order traversal is desired;default
+                  == QTC_PRE_ORDER  pre-order traversal
+    @tparam visit_leaves == VL_VISIT_LEAVES: if we want the traversal to include
+                            leaf nodes i.e. the SELECTs or table constructors
+                         == VL_SKIP_LEAVES: leaves will be skipped
+    @returns iterator object
+  */
+  template <Visit_order order = QTC_POST_ORDER,
+            Visit_leaves visit_leaves = VL_VISIT_LEAVES>
+  Query_terms<order, visit_leaves> query_terms() const {
+    return Query_terms<order, visit_leaves>(m_query_term);
+  }
+
+  /**
+    Return the Query_block of the last query term in a n-ary set
+    operation that is the right side of the last DISTINCT set operation in that
+    n_ary set operation:
+    E.e. for
+        A UNION B UNION ALL C,
+    B's block will be returned. If no DISTINCT is present or not a set
+    operation, return nullptr.
+
+    @returns query block of last distinct right operand
+  */
+  Query_block *last_distinct() const {
+    auto const setop = down_cast<Query_term_set_op *>(m_query_term);
+    if (setop->m_last_distinct > 0)
+      return setop->m_children[setop->m_last_distinct]->query_block();
+    else
+      return nullptr;
+  }
+
+  bool has_top_level_distinct() const {
+    if (is_simple()) return false;
+    return down_cast<Query_term_set_op *>(m_query_term)->m_last_distinct > 0;
+  }
+
  private:
   /**
     Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
@@ -656,12 +726,6 @@ class Query_expression {
   bool optimized;  ///< All query blocks in query expression are optimized
   bool executed;   ///< Query expression has been executed
 
-  TABLE_LIST result_table_list{};
-  Query_result_union *union_result;
-  /// Temporary table using for appending UNION results.
-  /// Not used if we materialize directly into a parent query expression's
-  /// result table (see optimize()).
-  TABLE *table;
   /// Object to which the result for this query expression is sent.
   /// Not used if we materialize directly into a parent query expression's
   /// result table (see optimize()).
@@ -683,18 +747,7 @@ class Query_expression {
   Mem_root_array<MaterializePathParameters::QueryBlock>
       m_query_blocks_to_materialize;
 
-  /**
-    Sets up each query block in this query expression for materialization
-    into the given table.
-
-    @param thd thread handle
-    @param dst_table the table to materialize into
-    @param union_distinct_only if true, keep only UNION DISTINCT query blocks
-      (any UNION ALL blocks are presumed handled higher up, by AppendIterator)
-   */
-  Mem_root_array<MaterializePathParameters::QueryBlock> setup_materialization(
-      THD *thd, TABLE *dst_table, bool union_distinct_only);
-
+ private:
   /**
     Convert the executor structures to a set of access paths, storing the result
     in m_root_access_path.
@@ -712,8 +765,9 @@ class Query_expression {
 
   explicit Query_expression(enum_parsing_context parsing_context);
 
-  /// @return true for a query expression without UNION or multi-level ORDER
-  bool is_simple() const { return !(is_union() || fake_query_block); }
+  /// @return true for a query expression without UNION/INTERSECT/EXCEPT or
+  /// multi-level ORDER, i.e. we have a "simple table".
+  bool is_simple() const { return m_query_term->term_type() == QT_QUERY_BLOCK; }
 
   /// Values for Query_expression::cleaned
   enum enum_clean_state {
@@ -724,9 +778,6 @@ class Query_expression {
                     ///< freed
   };
   enum_clean_state cleaned;  ///< cleanliness state
-
-  // list of (visible) fields which points to temporary table for union
-  mem_root_deque<Item *> item_list;
 
  private:
   /*
@@ -742,48 +793,23 @@ class Query_expression {
 
  public:
   /**
-    Pointer to query block containing global parameters for query.
-    Global parameters may include ORDER BY, LIMIT and OFFSET.
+    Return the query block holding the top level  ORDER BY, LIMIT and OFFSET.
 
-    If this is a union of multiple query blocks, the global parameters are
-    stored in fake_query_block. If the union doesn't use a temporary table,
-    Query_expression::prepare() nulls out fake_query_block, but saves a copy
-    in saved_fake_query_block in order to preserve the global parameters.
-
-    If this is not a union, and the query expression has no multi-level
-    ORDER BY/LIMIT, global parameters are in the single query block.
+    If the query is not a set operation (UNION, INTERSECT or EXCEPT, and the
+    query expression has no multi-level ORDER BY/LIMIT, this represents the
+    single query block of the query itself, cf. documentation for class
+    Query_term.
 
     @return query block containing the global parameters
   */
   inline Query_block *global_parameters() const {
-    if (fake_query_block != nullptr)
-      return fake_query_block;
-    else if (saved_fake_query_block != nullptr)
-      return saved_fake_query_block;
-    return first_query_block();
+    return query_term()->query_block();
   }
+
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
-  /**
-    Helper query block for query expression with UNION or multi-level
-    ORDER BY/LIMIT
-  */
-  Query_block *fake_query_block;
-  /**
-    Query_block that stores LIMIT and OFFSET for UNION ALL when no
-    fake_query_block is used.
-  */
-  Query_block *saved_fake_query_block;
-  /**
-     Points to last query block which has UNION DISTINCT on its left.
-     In a list of UNIONed blocks, UNION is left-associative; so UNION DISTINCT
-     eliminates duplicates in all blocks up to the first one on its right
-     included. Which is why we only need to remember that query block.
-  */
-  Query_block *union_distinct;
-
   /**
     The WITH clause which is the first part of this query expression. NULL if
     none.
@@ -816,8 +842,6 @@ class Query_expression {
     the loop are done (i.e. before the CTE's result is complete).
   */
   bool got_all_recursive_rows;
-
-  bool m_union_needs_tmp_table;
 
   /**
     This query expression represents a scalar subquery and we need a run-time
@@ -933,8 +957,8 @@ class Query_expression {
       FinalizePlanForQueryBlock()), and create_iterators must also be false.
       This is relevant only if you are potentially optimizing multiple times
       (see change_to_access_path_without_in2exists()), since you are only
-      allowed to finalize a query block once. The fake_query_block, if any,
-      is always finalized.
+      allowed to finalize a query block once. "Fake" query blocks (see
+      query_term.h) are always finalized.
    */
   bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
                 bool finalize_access_paths);
@@ -951,12 +975,14 @@ class Query_expression {
     iterator. In particular, clear out data from previous execution iterations,
     if needed.
    */
-  bool ClearForExecution(THD *thd);
+  bool ClearForExecution();
 
   bool ExecuteIteratorQuery(THD *thd);
   bool execute(THD *thd);
   bool explain(THD *explain_thd, const THD *query_thd);
-  void cleanup(THD *thd, bool full);
+  bool explain_query_term(THD *explain_thd, const THD *query_thd,
+                          Query_term *qt);
+  void cleanup(bool full);
   /**
     Destroy contained objects, in particular temporary tables which may
     have their own mem_roots.
@@ -966,8 +992,19 @@ class Query_expression {
   void print(const THD *thd, String *str, enum_query_type query_type);
   bool accept(Select_lex_visitor *visitor);
 
-  bool add_fake_query_block(THD *thd);
-  bool prepare_fake_query_block(THD *thd);
+  /**
+    Create a block to be used for ORDERING and LIMIT/OFFSET processing of a
+    query term, which isn't itself a query specification or table value
+    constructor. Such blocks are not included in the list starting in
+    Query_Expression::first_query_block, and Query_block::next_query_block().
+    They blocks are accessed via Query_term::query_block().
+    @returns a query block
+   */
+  Query_block *create_post_processing_block();
+
+  bool prepare_query_term(THD *thd, Query_term *qts,
+                          Query_result *common_result, ulonglong added_options,
+                          ulonglong create_options, int level);
   void set_prepared() {
     assert(!is_prepared());
     prepared = true;
@@ -1010,9 +1047,7 @@ class Query_expression {
   bool has_any_limit() const;
 
   inline bool is_union() const;
-  bool union_needs_tmp_table(LEX *lex);
-  /// @returns true if mixes UNION DISTINCT and UNION ALL
-  bool mixed_union_operators() const;
+  inline bool is_set_operation() const;
 
   /// Include a query expression below a query block.
   void include_down(LEX *lex, Query_block *outer);
@@ -1021,7 +1056,7 @@ class Query_expression {
   void exclude_level();
 
   /// Exclude subtree of current unit from tree of SELECTs
-  void exclude_tree(THD *thd);
+  void exclude_tree();
 
   /// Renumber query blocks of a query expression according to supplied LEX
   void renumber_selects(LEX *lex);
@@ -1035,17 +1070,11 @@ class Query_expression {
   mem_root_deque<Item *> *get_field_list();
   size_t num_visible_fields() const;
 
-  // If we are doing a query with global LIMIT but without fake_query_block,
-  // we need somewhere to store the record count for FOUND_ROWS().
-  // It can't be in any of the JOINs, since they may have their own
-  // LimitOffsetIterators, which will write to join->send_records
-  // whenever there is an OFFSET. (It also can't be in saved_fake_query_block,
-  // which has no join.) Thus, we'll keep it here instead.
-  //
-  // If we have a fake_query_block, we use its send_records instead
-  // (since its LimitOffsetIterator will write there), and if we don't
-  // have a UNION, FOUND_ROWS() refers to the (single) JOIN, and thus,
-  // we use its send_records.
+  // If we are doing a query with global LIMIT, we need somewhere to store the
+  // record count for FOUND_ROWS().  It can't be in any of the JOINs, since
+  // they may have their own LimitOffsetIterators, which will write to
+  // join->send_records whenever there is an OFFSET. Thus, we'll keep it here
+  // instead.
   ha_rows send_records;
 
   enum_parsing_context get_explain_marker(const THD *thd) const;
@@ -1108,7 +1137,12 @@ enum class enum_explain_type {
   EXPLAIN_DERIVED,
   EXPLAIN_SUBQUERY,
   EXPLAIN_UNION,
+  EXPLAIN_INTERSECT,
+  EXPLAIN_EXCEPT,
   EXPLAIN_UNION_RESULT,
+  EXPLAIN_INTERSECT_RESULT,
+  EXPLAIN_EXCEPT_RESULT,
+  EXPLAIN_UNARY_RESULT,
   EXPLAIN_MATERIALIZED,
   // Total:
   EXPLAIN_total  ///< fake type, total number of all valid types
@@ -1121,7 +1155,7 @@ enum class enum_explain_type {
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class Query_block {
+class Query_block : public Query_term {
  public:
   /**
     @note the group_by and order_by lists below will probably be added to the
@@ -1130,6 +1164,21 @@ class Query_block {
           //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
   */
   Query_block(MEM_ROOT *mem_root, Item *where, Item *having);
+
+  /// Query_term methods overridden
+  void debugPrint(int level, std::ostringstream &buf) const override;
+  /// Minion of debugPrint
+  void qbPrint(int level, std::ostringstream &buf) const;
+  Query_term_type term_type() const override { return QT_QUERY_BLOCK; }
+  const char *operator_string() const override { return "query_block"; }
+  Query_block *query_block() const override {
+    return const_cast<Query_block *>(this);
+  }
+  void destroy_tree() override { m_parent = nullptr; }
+
+  bool open_result_tables(THD *, int) override;
+  /// end of overriden methods from Query_term
+  bool absorb_limit_of(Query_block *block);
 
   Item *where_cond() const { return m_where_cond; }
   Item **where_cond_ref() { return &m_where_cond; }
@@ -1684,11 +1733,11 @@ class Query_block {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_order_by(const THD *thd, String *str, enum_query_type query_type);
+  void print_order_by(const THD *thd, String *str,
+                      enum_query_type query_type) const;
 
-  static void print_order(const THD *thd, String *str, ORDER *order,
-                          enum_query_type query_type);
-  void print_limit(const THD *thd, String *str, enum_query_type query_type);
+  void print_limit(const THD *thd, String *str,
+                   enum_query_type query_type) const;
   bool save_properties(THD *thd);
 
   /**
@@ -1701,12 +1750,11 @@ class Query_block {
   /**
     Cleanup this subtree (this Query_block and all nested Query_blockes and
     Query_expressions).
-    @param thd   thread handle
     @param full  if false only partial cleanup is done, JOINs and JOIN_TABs are
     kept to provide info for EXPLAIN CONNECTION; if true, complete cleanup is
     done, all JOINs are freed.
   */
-  void cleanup(THD *thd, bool full);
+  void cleanup(bool full) override;
   /*
     Recursively cleanup the join of this select lex and of all nested
     select lexes. This is not a full cleanup.
@@ -1717,10 +1765,9 @@ class Query_block {
     have their own mem_roots.
   */
   void destroy();
-
-  /// Return true if this query block is part of a UNION
-  bool is_part_of_union() const {
-    return master_query_expression()->is_union();
+  /// Return true if this query block is part of a set operation
+  bool is_part_of_set_operation() const {
+    return master_query_expression()->is_set_operation();
   }
 
   /**
@@ -1776,7 +1823,7 @@ class Query_block {
   void include_neighbour(LEX *lex, Query_block *before);
 
   /// Include query block inside a query expression, but do not link.
-  void include_standalone(Query_expression *sel, Query_block **ref);
+  void include_standalone(Query_expression *sel);
 
   /// Include query block into global list.
   void include_in_global(Query_block **plink);
@@ -1837,6 +1884,9 @@ class Query_block {
   /// using the field's index in a derived table.
   Item *get_derived_expr(uint expr_index);
 
+  MaterializePathParameters::QueryBlock setup_materialize_query_block(
+      AccessPath *childPath, TABLE *dst_table);
+
   // ************************************************
   // * Members (most of these should not be public) *
   // ************************************************
@@ -1872,8 +1922,7 @@ class Query_block {
   List<Window> m_windows;
 
   /**
-    Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
-    fake query_block that consolidates result fields of UNION
+    A pointer to ftfunc_list_alloc, list of full text search functions.
   */
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc{};
@@ -2285,11 +2334,10 @@ class Query_block {
   int hidden_order_field_count{0};
 
   /**
-    Intrusive double-linked list of all query blocks within the same
+    Intrusive linked list of all query blocks within the same
     query expression.
   */
   Query_block *next{nullptr};
-  Query_block **prev{nullptr};
 
   /// The query expression containing this query block.
   Query_expression *master{nullptr};
@@ -2360,8 +2408,18 @@ class Query_block {
 };
 
 inline bool Query_expression::is_union() const {
-  return first_query_block()->next_query_block() &&
-         first_query_block()->next_query_block()->linkage == UNION_TYPE;
+  Query_term *qt = query_term();
+  while (qt->term_type() == QT_UNARY)
+    qt = down_cast<Query_term_unary *>(qt)->m_children[0];
+  return qt->term_type() == QT_UNION;
+}
+
+inline bool Query_expression::is_set_operation() const {
+  Query_term *qt = query_term();
+  while (qt->term_type() == QT_UNARY)
+    qt = down_cast<Query_term_unary *>(qt)->m_children[0];
+  const Query_term_type type = qt->term_type();
+  return type == QT_UNION || type == QT_INTERSECT || type == QT_EXCEPT;
 }
 
 /// Utility RAII class to save/modify/restore the condition_context information
@@ -4043,8 +4101,8 @@ struct LEX : public Query_tables_list {
 
   bool check_preparation_invalid(THD *thd);
 
-  void cleanup(THD *thd, bool full) {
-    unit->cleanup(thd, full);
+  void cleanup(bool full) {
+    unit->cleanup(full);
     if (full) {
       m_IS_table_stats.invalidate_cache();
       m_IS_tablespace_stats.invalidate_cache();
@@ -4158,7 +4216,7 @@ struct LEX : public Query_tables_list {
   Query_block *new_query(Query_block *curr_query_block);
 
   /// Create query block and attach it to the current query expression.
-  Query_block *new_union_query(Query_block *curr_query_block, bool distinct);
+  Query_block *new_set_operation_query(Query_block *curr_query_block);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();

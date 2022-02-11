@@ -469,6 +469,7 @@ SET(SQL_SHARED_SOURCES
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  query_term.cc
   parse_tree_partitions.cc
   parse_tree_window.cc
   select_lex_visitor.cc

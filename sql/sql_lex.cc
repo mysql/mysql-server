@@ -82,8 +82,6 @@ extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
 
 static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 
-static constexpr const int MAX_SELECT_NESTING{sizeof(nesting_map) * 8 - 1};
-
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
 */
@@ -140,12 +138,16 @@ Prepare_error_tracker::~Prepare_error_tracker() {
 
 /**
   @note The order of the elements of this array must correspond to
-  the order of elements in type_enum
+  the order of elements in enum_explain_type.
 */
 const char *Query_block::type_str[static_cast<int>(
-    enum_explain_type::EXPLAIN_total)] = {
-    "NONE",     "PRIMARY", "SIMPLE",       "DERIVED",
-    "SUBQUERY", "UNION",   "UNION RESULT", "MATERIALIZED"};
+    enum_explain_type::EXPLAIN_total)] = {"NONE",          "PRIMARY",
+                                          "SIMPLE",        "DERIVED",
+                                          "SUBQUERY",      "UNION",
+                                          "INTERSECT",     "EXCEPT",
+                                          "UNION RESULT",  "INTERSECT RESULT",
+                                          "EXCEPT RESULT", "RESULT" /*unary*/,
+                                          "MATERIALIZED"};
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
                          const LEX_CSTRING &table_arg, bool force)
@@ -615,14 +617,22 @@ Query_expression *LEX::create_query_expr_and_block(
 
   new_query_block->parent_lex = this;
   new_query_block->include_in_global(&this->all_query_blocks_list);
-
+  // Set root query_term a priori. It is usually set later by
+  // Parse_context::finalize_query_expression. This is necessary since it
+  // doesn't always happen during server bootstrap of the dictionary, e.g. in
+  // View_metadata_updater_context which creates a top level query whose
+  // Query_expression/Query_block is not parsed/contextualized, so we never
+  // call finalize_query_expression in the usual way, after contextualization
+  // of PT_query_expression.
+  new_expression->set_query_term(new_query_block);
   return new_expression;
 }
 
 /**
   Create new query_block_query_expression and query_block objects for a query
   block, which can be either a top-level query or a subquery. For the second and
-  subsequent query block of a UNION query, use LEX::new_union_query() instead.
+  subsequent query block of a UNION query, use LEX::new_set_operation_query()
+  instead.
   Set the new query_block as the current query_block of the LEX object.
 
   @param curr_query_block    current query specification
@@ -658,7 +668,8 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
   {
   } else if ((parsing_place == CTX_INSERT_VALUES) ||
              (parsing_place == CTX_INSERT_UPDATE &&
-              curr_query_block->master_query_expression()->is_union())) {
+              curr_query_block->master_query_expression()
+                  ->is_set_operation())) {
     /*
       Outer references are not allowed for
       - subqueries in INSERT ... VALUES clauses
@@ -681,20 +692,16 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
 }
 
 /**
-  Create new query_block object for all branches of a UNION except the left-most
-  one.
+  Create new query_block object for all branches of a UNION, EXCEPT or INTERSECT
+  except the left-most one.
   Set the new query_block as the current query_block of the LEX object.
 
   @param curr_query_block current query specification
-  @param distinct True if part of UNION DISTINCT query
-
   @return new query specification if successful, NULL if an error occurred.
 */
 
-Query_block *LEX::new_union_query(Query_block *curr_query_block,
-                                  bool distinct) {
+Query_block *LEX::new_set_operation_query(Query_block *curr_query_block) {
   DBUG_TRACE;
-
   assert(unit != nullptr && query_block != nullptr);
 
   // Is this the outer-most query expression?
@@ -717,20 +724,11 @@ Query_block *LEX::new_union_query(Query_block *curr_query_block,
   Query_expression *const sel_query_expression =
       select->master_query_expression();
 
-  if (!sel_query_expression->fake_query_block &&
-      sel_query_expression->add_fake_query_block(thd))
-    return nullptr; /* purecov: inspected */
-
   if (select->set_context(
           sel_query_expression->first_query_block()->context.outer_context))
     return nullptr; /* purecov: inspected */
 
   select->include_in_global(&all_query_blocks_list);
-
-  select->linkage = UNION_TYPE;
-
-  if (distinct) /* UNION DISTINCT - remember position */
-    sel_query_expression->union_distinct = select;
 
   /*
     By default we assume that this is a regular subquery, in which resolution
@@ -739,6 +737,34 @@ Query_block *LEX::new_union_query(Query_block *curr_query_block,
   select->context.resolve_in_select_list = true;
 
   return select;
+}
+
+Query_block *Query_expression::create_post_processing_block() {
+  Query_block *first_qb = first_query_block();
+  DBUG_TRACE;
+
+  Query_block *const qb = first_qb->parent_lex->new_empty_query_block();
+  if (qb == nullptr) return nullptr; /* purecov: inspected */
+  qb->include_standalone(this);
+  qb->select_number = INT_MAX;
+  qb->linkage = GLOBAL_OPTIONS_TYPE;
+  qb->select_limit = nullptr;
+
+  qb->set_context(first_qb->context.outer_context);
+
+  /* allow item list resolving in fake select for ORDER BY */
+  qb->context.resolve_in_select_list = true;
+  qb->no_table_names_allowed = true;
+  first_qb->parent_lex->pop_context();
+  return qb;
+}
+
+bool Query_expression::is_leaf_block(Query_block *qb) {
+  for (Query_block *q = first_query_block(); q != nullptr;
+       q = q->next_query_block()) {
+    if (q == qb) return true;
+  }
+  return false;
 }
 
 /**
@@ -2054,7 +2080,6 @@ void print_derived_column_names(const THD *thd, String *str,
 /**
   Construct and initialize Query_expression object.
 */
-
 Query_expression::Query_expression(enum_parsing_context parsing_context)
     : next(nullptr),
       prev(nullptr),
@@ -2064,20 +2089,13 @@ Query_expression::Query_expression(enum_parsing_context parsing_context)
       prepared(false),
       optimized(false),
       executed(false),
-      result_table_list(),
-      union_result(nullptr),
-      table(nullptr),
       m_query_result(nullptr),
       uncacheable(0),
       cleaned(UC_DIRTY),
-      item_list(current_thd->mem_root),
       types(current_thd->mem_root),
       select_limit_cnt(HA_POS_ERROR),
       offset_limit_cnt(0),
       item(nullptr),
-      fake_query_block(nullptr),
-      saved_fake_query_block(nullptr),
-      union_distinct(nullptr),
       m_with_clause(nullptr),
       derived_table(nullptr),
       first_recursive(nullptr),
@@ -2171,121 +2189,115 @@ bool Query_block::add_tables(THD *thd,
 }
 
 /**
-  Exclude this unit and its immediately contained query_block objects
-  from query expression / query block chain.
+  Exclude this query expression and its immediately contained query terms
+  and query blocks from AST.
 
   @note
-    Units that belong to the query_block objects of the current unit will be
-    brought up one level and will replace the current unit in the list of units.
+    Query expressions that belong to the query_block objects of the current
+    query expression will be brought up one level and will replace
+    the current query expression in the list inside the outer query block.
 */
 void Query_expression::exclude_level() {
   /*
-    This change to the unit tree is done only during statement resolution
+    This change to the AST is done only during statement resolution
     so doesn't need LOCK_query_plan
   */
-  Query_expression *units = nullptr;
-  Query_expression **units_last = &units;
-  Query_block *sl = first_query_block();
-  while (sl) {
-    // Exclusion can only be done prior to optimization or if the subquery is
-    // already executed because it might not be using any tables (const item).
-    assert(sl->join == nullptr || is_executed());
-    if (sl->join != nullptr) sl->join->destroy();
+  Query_expression *qe_chain = nullptr;
+  Query_expression **last_qe_ref = &qe_chain;
+  for (Query_block *sl = first_query_block(); sl != nullptr;
+       sl = sl->next_query_block()) {
+    assert(sl->join == nullptr);
 
-    Query_block *next_query_block = sl->next_query_block();
-
-    // unlink current level from global SELECTs list
+    // Unlink this query block from global list
     if (sl->link_prev && (*sl->link_prev = sl->link_next))
       sl->link_next->link_prev = sl->link_prev;
 
-    // bring up underlay levels
+    // Bring up underlying query expressions
     Query_expression **last = nullptr;
     for (Query_expression *u = sl->first_inner_query_expression(); u;
          u = u->next_query_expression()) {
       /*
-        We are excluding a Query_block from the hierarchy of
-        Query_expressions and Query_blockes. Since this level is
-        removed, we must also exclude the Name_resolution_context
-        belonging to this level. Do this by looping through inner
-        subqueries and changing their contexts' outer context pointers
-        to point to the outer select's context.
+        We are excluding a query block from the AST. Since this level is
+        removed, we must also exclude the Name_resolution_context belonging to
+        this level. Do this by looping through inner subqueries and changing
+        their contexts' outer context pointers to point to the outer query
+        block's context.
       */
-      for (Query_block *s = u->first_query_block(); s;
-           s = s->next_query_block()) {
-        if (s->context.outer_context == &sl->context)
-          s->context.outer_context = &sl->outer_query_block()->context;
+      for (auto qt : u->query_terms<>()) {
+        if (qt->query_block()->context.outer_context == &sl->context) {
+          qt->query_block()->context.outer_context =
+              &sl->outer_query_block()->context;
+        }
       }
-      if (u->fake_query_block &&
-          u->fake_query_block->context.outer_context == &sl->context)
-        u->fake_query_block->context.outer_context =
-            &sl->outer_query_block()->context;
       u->master = master;
       last = &(u->next);
     }
-    if (last) {
-      (*units_last) = sl->first_inner_query_expression();
-      units_last = last;
+    if (last != nullptr) {
+      (*last_qe_ref) = sl->first_inner_query_expression();
+      last_qe_ref = last;
+      // Unlink the query expressions that have been moved to the outer level:
+      sl->slave = nullptr;
     }
-
-    sl->invalidate();
-    sl = next_query_block;
   }
-  if (units) {
-    // include brought up levels in place of current
-    (*prev) = units;
-    (*units_last) = next;
-    if (next) next->prev = units_last;
-    units->prev = prev;
+  if (qe_chain != nullptr) {
+    // Include underlying query expressions in place of the current one.
+    (*prev) = qe_chain;
+    (*last_qe_ref) = next;
+    if (next != nullptr) next->prev = last_qe_ref;
+    qe_chain->prev = prev;
   } else {
-    // exclude current unit from list of nodes
-    if (prev) (*prev) = next;
-    if (next) next->prev = prev;
+    // Exclude current query expression from list inside query block.
+    (*prev) = next;
+    if (next != nullptr) next->prev = prev;
   }
-
-  invalidate();
+  // Cleanup and destroy this query expression, including any temporary tables:
+  cleanup(true);
+  destroy();
 }
 
 /**
-  Exclude subtree of current unit from tree of SELECTs
+  Exclude current query expression with all underlying query terms,
+  query blocks and query expressions from AST.
 */
-void Query_expression::exclude_tree(THD *thd) {
-  Query_block *sl = first_query_block();
-  while (sl) {
-    Query_block *next_query_block = sl->next_query_block();
+void Query_expression::exclude_tree() {
+  for (Query_block *sl = first_query_block(); sl != nullptr;
+       sl = sl->next_query_block()) {
+    /*
+      Exclusion is only done during preparation, however some table-less
+      subqueries may have been evaluated during preparation.
+    */
+    assert(sl->join == nullptr || is_executed());
+    if (sl->join != nullptr) {
+      sl->join->destroy();
+      sl->join = nullptr;
+    }
 
-    // unlink current level from global SELECTs list
+    // Unlink from global query block list
     if (sl->link_prev && (*sl->link_prev = sl->link_next))
       sl->link_next->link_prev = sl->link_prev;
 
     // Exclude subtrees of all the inner query expressions of this query block
-    for (Query_expression *u = sl->first_inner_query_expression(); u;
-         u = u->next_query_expression()) {
-      u->exclude_tree(thd);
+    for (Query_expression *u = sl->first_inner_query_expression();
+         u != nullptr;) {
+      Query_expression *next = u->next_query_expression();
+      u->exclude_tree();
+      u = next;
     }
-
-    /*
-      Reference to this query block is lost after it's excluded.
-      Destroy internal objects to free memory.
-    */
-    sl->cleanup(thd, true);
-    sl->destroy();
-    sl->invalidate();
-    sl = next_query_block;
-    slave = sl;
+    // All underlying query expressions are now deleted:
+    assert(sl->slave == nullptr);
   }
-  // Remove the internal objects for this query expression.
-  cleanup(thd, true);
-  destroy();
-  // exclude current unit from list of nodes
-  if (prev) (*prev) = next;
-  if (next) next->prev = prev;
+  // Exclude current query expression from list inside query block.
+  (*prev) = next;
+  if (next != nullptr) next->prev = prev;
 
-  invalidate();
+  // Cleanup and destroy the internal objects for this query expression.
+  cleanup(true);
+  destroy();
 }
 
 /**
-  Invalidate by nulling out pointers to other Query_expressions and
-  Query_blockes.
+  Invalidate by nulling out pointers to other Query expressions and
+  Query blocks.
 */
 void Query_expression::invalidate() {
   next = nullptr;
@@ -2445,7 +2457,6 @@ bool Query_block::add_ftfunc_to_list(Item_func_match *func) {
 */
 void Query_block::invalidate() {
   next = nullptr;
-  prev = nullptr;
   master = nullptr;
   slave = nullptr;
   link_next = nullptr;
@@ -2541,50 +2552,64 @@ bool Query_block::setup_base_ref_items(THD *thd) {
   return false;
 }
 
+void print_set_operation(const THD *thd, Query_term *op, String *str, int level,
+                         enum_query_type query_type) {
+  if (op->term_type() == QT_QUERY_BLOCK) {
+    Query_block *const block = op->query_block();
+    const bool needs_parens =
+        block->has_limit() || block->order_list.elements > 0;
+    if (needs_parens) str->append('(');
+    op->query_block()->print(thd, str, query_type);
+    if (needs_parens) str->append(')');
+  } else {
+    Query_term_set_op *qts = down_cast<Query_term_set_op *>(op);
+    const bool needs_parens = level > 0;
+    if (needs_parens) str->append('(');
+    for (uint i = 0; i < qts->m_children.size(); ++i) {
+      print_set_operation(thd, qts->m_children[i], str, level + 1, query_type);
+      if (i < qts->m_children.size() - 1) {
+        switch (op->term_type()) {
+          case QT_UNION:
+            str->append(STRING_WITH_LEN(" union "));
+            break;
+          case QT_INTERSECT:
+            str->append(STRING_WITH_LEN(" intersect "));
+            break;
+          case QT_EXCEPT:
+            str->append(STRING_WITH_LEN(" except "));
+            break;
+          default:
+            assert(false);
+        }
+        if (static_cast<signed int>(i) + 1 > qts->m_last_distinct) {
+          str->append(STRING_WITH_LEN("all "));
+        }
+      }
+    }
+    if (op->query_block()->order_list.elements > 0) {
+      str->append(STRING_WITH_LEN(" order by "));
+      op->query_block()->print_order(
+          thd, str, op->query_block()->order_list.first, query_type);
+    }
+    op->query_block()->print_limit(thd, str, query_type);
+    if (needs_parens) str->append(')');
+  }
+}
+
 void Query_expression::print(const THD *thd, String *str,
                              enum_query_type query_type) {
   if (m_with_clause) m_with_clause->print(thd, str, query_type);
-  bool union_all = !union_distinct;
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
-    if (sl != first_query_block()) {
-      str->append(STRING_WITH_LEN(" union "));
-      if (union_all)
-        str->append(STRING_WITH_LEN("all "));
-      else if (union_distinct == sl)
-        union_all = true;
-    }
-    bool parentheses_are_needed =
-        (sl->has_limit() || sl->is_ordered()) &&
-        (is_union() ||
-         (fake_query_block != nullptr &&
-          (fake_query_block->has_limit() || fake_query_block->is_ordered())));
-    if (parentheses_are_needed) str->append('(');
+  if (is_simple()) {
+    Query_block *sl = query_term()->query_block();
+    assert(sl->next_query_block() == nullptr);
     sl->print(thd, str, query_type);
-    if (parentheses_are_needed) str->append(')');
-  }
-  if (fake_query_block) {
-    if (fake_query_block->order_list.elements) {
-      str->append(STRING_WITH_LEN(" order by "));
-      fake_query_block->print_order(
-          thd, str, fake_query_block->order_list.first, query_type);
-    }
-    fake_query_block->print_limit(thd, str, query_type);
-  } else if (saved_fake_query_block)
-    saved_fake_query_block->print_limit(thd, str, query_type);
-}
-
-void Query_block::print_order(const THD *thd, String *str, ORDER *order,
-                              enum_query_type query_type) {
-  for (; order; order = order->next) {
-    unwrap_rollup_group(*order->item)
-        ->print_for_order(thd, str, query_type, order->used_alias);
-    if (order->direction == ORDER_DESC) str->append(STRING_WITH_LEN(" desc"));
-    if (order->next) str->append(',');
+  } else {
+    print_set_operation(thd, query_term(), str, 0, query_type);
   }
 }
 
 void Query_block::print_limit(const THD *thd, String *str,
-                              enum_query_type query_type) {
+                              enum_query_type query_type) const {
   Query_expression *unit = master_query_expression();
   Item_subselect *item = unit->item;
 
@@ -2911,10 +2936,7 @@ void Query_block::print_query_block(const THD *thd, String *str,
   if (query_type & QT_SHOW_SELECT_NUMBER) {
     /* it makes EXPLAIN's "id" column understandable */
     str->append("/* select#");
-    if (unlikely(select_number >= INT_MAX))
-      str->append("fake");
-    else
-      str->append_ulonglong(select_number);
+    str->append_ulonglong(select_number);
     str->append(" */ select ");
   } else
     str->append(STRING_WITH_LEN("select "));
@@ -3356,7 +3378,7 @@ void Query_block::print_windows(const THD *thd, String *str,
 }
 
 void Query_block::print_order_by(const THD *thd, String *str,
-                                 enum_query_type query_type) {
+                                 enum_query_type query_type) const {
   if (order_list.elements) {
     str->append(STRING_WITH_LEN(" order by "));
     print_order(thd, str, order_list.first, query_type);
@@ -3385,14 +3407,15 @@ bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor) {
 }
 
 bool Query_expression::accept(Select_lex_visitor *visitor) {
-  Query_block *end = nullptr;
-  for (Query_block *sl = first_query_block(); sl != end;
-       sl = sl->next_query_block())
-    if (sl->accept(visitor)) return true;
-
-  if (fake_query_block &&
-      accept_for_order(fake_query_block->order_list, visitor))
-    return true;
+  for (auto qt : query_terms<>()) {
+    if (qt->term_type() == QT_QUERY_BLOCK)
+      qt->query_block()->accept(visitor);
+    else
+      // FIXME: why doesn't this also visit limit? done for Query_block's limit
+      // FIXME: Worse, Query_block::accept doesn't visit windows' ordering
+      // expressions
+      accept_for_order(qt->query_block()->order_list, visitor);
+  }
 
   return visitor->visit(this);
 }
@@ -3724,29 +3747,10 @@ bool Query_expression::set_limit(THD *thd, Query_block *provider) {
   false otherwise.
 */
 bool Query_expression::has_any_limit() const {
-  if (global_parameters()->has_limit()) return true;
-  if (is_union()) {
-    for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
-      if (qb->has_limit()) return true;
-  }
+  for (auto qt : query_terms<>())
+    if (qt->query_block()->has_limit()) return true;
+
   return false;
-}
-
-/**
-  Decide if a temporary table is needed for the UNION.
-
-  @retval true  A temporary table is needed.
-  @retval false A temporary table is not needed.
-
-  @todo figure out if the test for "top-level unit" is necessary - see
-  bug#23022426.
-*/
-bool Query_expression::union_needs_tmp_table(LEX *lex) {
-  return union_distinct != nullptr ||
-         global_parameters()->order_list.elements != 0 ||
-         ((lex->sql_command == SQLCOM_INSERT_SELECT ||
-           lex->sql_command == SQLCOM_REPLACE_SELECT) &&
-          lex->unit == this);
 }
 
 /**
@@ -3770,7 +3774,7 @@ void Query_expression::include_down(LEX *lex, Query_block *outer) {
   Being mergeable also means that derived table/view is updatable.
 
   A view/derived table is not mergeable if it is one of the following:
-   - A union (implementation restriction).
+   - A set operation (implementation restriction).
    - An aggregated query, or has HAVING, or has DISTINCT
      (A general aggregated query cannot be merged with a non-aggregated one).
    - A table-less query (unimportant special case).
@@ -3780,7 +3784,7 @@ void Query_expression::include_down(LEX *lex, Query_block *outer) {
 */
 
 bool Query_expression::is_mergeable() const {
-  if (is_union()) return false;
+  if (is_set_operation()) return false;
 
   Query_block *const select = first_query_block();
   return !select->is_grouped() && !select->having_cond() &&
@@ -3825,10 +3829,7 @@ bool Query_expression::merge_heuristic(const LEX *lex) const {
 */
 
 void Query_expression::renumber_selects(LEX *lex) {
-  for (Query_block *select = first_query_block(); select;
-       select = select->next_query_block())
-    select->renumber(lex);
-  if (fake_query_block) fake_query_block->renumber(lex);
+  for (auto qt : query_terms<>()) qt->query_block()->renumber(lex);
 }
 
 /**
@@ -3841,10 +3842,8 @@ void Query_expression::renumber_selects(LEX *lex) {
 */
 bool Query_expression::save_cmd_properties(THD *thd) {
   assert(is_prepared());
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block())
-    if (sl->save_cmd_properties(thd)) return true;
 
-  if (fake_query_block) return fake_query_block->save_cmd_properties(thd);
+  for (auto qt : query_terms<>()) qt->query_block()->save_cmd_properties(thd);
   return false;
 }
 
@@ -3853,10 +3852,7 @@ bool Query_expression::save_cmd_properties(THD *thd) {
   including binding data for all associated tables.
 */
 void Query_expression::restore_cmd_properties() {
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block())
-    sl->restore_cmd_properties();
-
-  if (fake_query_block) fake_query_block->restore_cmd_properties();
+  for (auto qt : query_terms<>()) qt->query_block()->restore_cmd_properties();
 }
 
 /**
@@ -4141,7 +4137,7 @@ void LEX::cleanup_after_one_table_open() {
     /* cleunup underlying units (units of VIEW) */
     for (Query_expression *un = query_block->first_inner_query_expression(); un;
          un = un->next_query_expression()) {
-      un->cleanup(thd, true);
+      un->cleanup(true);
       un->destroy();
     }
     /* reduce all selects list to default state */
@@ -4266,6 +4262,22 @@ bool Query_block::save_properties(THD *thd) {
   return false;
 }
 
+static enum_explain_type setop2result(Query_term *qt) {
+  switch (qt->term_type()) {
+    case QT_UNION:
+      return enum_explain_type::EXPLAIN_UNION_RESULT;
+    case QT_INTERSECT:
+      return enum_explain_type::EXPLAIN_INTERSECT_RESULT;
+    case QT_EXCEPT:
+      return enum_explain_type::EXPLAIN_EXCEPT_RESULT;
+    case QT_UNARY:
+      return enum_explain_type::EXPLAIN_UNARY_RESULT;
+    default:
+      assert(false);
+  }
+  return enum_explain_type::EXPLAIN_UNION_RESULT;
+}
+
 /*
   There are Query_block::add_table_to_list &
   Query_block::set_lock_for_tables are in sql_parse.cc
@@ -4278,11 +4290,13 @@ bool Query_block::save_properties(THD *thd) {
 */
 
 enum_explain_type Query_block::type() {
-  if (master_query_expression()->fake_query_block == this)
-    return enum_explain_type::EXPLAIN_UNION_RESULT;
-  else if (!master_query_expression()->outer_query_block() &&
-           master_query_expression()->first_query_block() == this) {
-    if (first_inner_query_expression() || next_query_block())
+  Query_term *qt = master_query_expression()->find_blocks_query_term(this);
+  if (qt->term_type() != QT_QUERY_BLOCK) {
+    return setop2result(qt);
+  } else if (!master_query_expression()->outer_query_block() &&
+             master_query_expression()->first_query_block() == this) {
+    if (first_inner_query_expression() || next_query_block() ||
+        m_parent != nullptr)
       return enum_explain_type::EXPLAIN_PRIMARY;
     else
       return enum_explain_type::EXPLAIN_SIMPLE;
@@ -4291,8 +4305,32 @@ enum_explain_type Query_block::type() {
       return enum_explain_type::EXPLAIN_DERIVED;
     else
       return enum_explain_type::EXPLAIN_SUBQUERY;
-  } else
+  } else {
+    assert(m_parent != nullptr);
+    // if left child, call block PRIMARY, else UNION/INTERSECT/EXCEPT
+    switch (m_parent->term_type()) {
+      case QT_EXCEPT:
+        if (m_parent->m_children[0] == this)
+          return enum_explain_type::EXPLAIN_PRIMARY;
+        else
+          return enum_explain_type::EXPLAIN_EXCEPT;
+      case QT_UNION:
+        if (m_parent->m_children[0] == this)
+          return enum_explain_type::EXPLAIN_PRIMARY;
+        else
+          return enum_explain_type::EXPLAIN_UNION;
+      case QT_INTERSECT:
+        if (m_parent->m_children[0] == this)
+          return enum_explain_type::EXPLAIN_PRIMARY;
+        else
+          return enum_explain_type::EXPLAIN_INTERSECT;
+      case QT_UNARY:
+        return enum_explain_type::EXPLAIN_PRIMARY;
+      default:
+        assert(false);
+    }
     return enum_explain_type::EXPLAIN_UNION;
+  }
 }
 
 /**
@@ -4307,9 +4345,7 @@ enum_explain_type Query_block::type() {
 */
 void Query_block::include_down(LEX *lex, Query_expression *outer) {
   assert(slave == nullptr);
-
-  if ((next = outer->slave)) next->prev = &next;
-  prev = &outer->slave;
+  next = outer->slave;
   outer->slave = this;
   master = outer;
 
@@ -4326,8 +4362,7 @@ void Query_block::include_down(LEX *lex, Query_expression *outer) {
   @param before Query block that this object is added after.
 */
 void Query_block::include_neighbour(LEX *lex, Query_block *before) {
-  if ((next = before->next)) next->prev = &next;
-  prev = &before->next;
+  next = before->next;
   before->next = this;
   master = before->master;
 
@@ -4344,12 +4379,9 @@ void Query_block::include_neighbour(LEX *lex, Query_block *before) {
   use it with caution.
 
   @param  outer Query expression this node is included below.
-  @param  ref Handle to the caller's pointer to this node.
 */
-void Query_block::include_standalone(Query_expression *outer,
-                                     Query_block **ref) {
+void Query_block::include_standalone(Query_expression *outer) {
   next = nullptr;
-  prev = ref;
   master = outer;
   nest_level = master->first_query_block()->nest_level;
 }

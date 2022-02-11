@@ -7629,6 +7629,12 @@ static Sys_var_charptr Sys_debug_sensitive_session_string(
     "Debug variable to test sensitive session string variable.",
     SENSITIVE SESSION_VAR(debug_sensitive_session_str), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(""));
+
+static Sys_var_bool Sys_debug_enable_extended_set_ops(
+    "debug_enable_extended_set_ops",
+    "Allow testing of INTERSECT and EXCEPT. Does only unioning for now.",
+    SESSION_VAR(debug_enable_extended_set_ops), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr));
 #endif /* NDEBUG */
 
 static Sys_var_bool Sys_persist_sensitive_variables_in_plaintext(

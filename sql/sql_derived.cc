@@ -236,7 +236,7 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
-  tl->derived_query_expression()->exclude_tree(thd);
+  tl->derived_query_expression()->exclude_tree();
   tl->set_derived_query_expression(nullptr);
   tl->set_privileges(SELECT_ACL);
   return false;
@@ -355,6 +355,10 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     for (Query_block *sl = derived->first_query_block(); sl;
          sl = sl->next_query_block()) {
       if (sl->is_recursive()) {
+        if (sl->parent()->term_type() != QT_UNION) {
+          my_error(ER_CTE_RECURSIVE_NOT_UNION, MYF(0));
+          return true;
+        }
         if (sl->is_ordered() || sl->has_limit() || sl->is_distinct()) {
           /*
             On top of posing implementation problems, it looks meaningless to
@@ -369,7 +373,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
                    " in recursive query block of Common Table Expression");
           return true;
         }
-        if (sl == derived->union_distinct && sl->next_query_block()) {
+        if (sl == derived->last_distinct() && sl->next_query_block()) {
           /*
             Consider
               anchor UNION ALL rec1 UNION DISTINCT rec2 UNION ALL rec3:
@@ -804,7 +808,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
     // will figure out whether it wants to create it as the primary key or just
     // a regular index.
     bool is_distinct = derived->can_materialize_directly_into_result() &&
-                       derived->union_distinct != nullptr;
+                       derived->has_top_level_distinct();
 
     bool rc = derived_result->create_result_table(
         thd, *derived->get_unit_column_types(), is_distinct, create_options,
@@ -1008,7 +1012,7 @@ bool Condition_pushdown::make_cond_for_derived() {
   for (Query_block *qb = derived_query_expression->first_query_block();
        qb != nullptr; qb = qb->next_query_block()) {
     // Make a copy that can be pushed to this query block
-    if (derived_query_expression->is_union()) {
+    if (derived_query_expression->is_set_operation()) {
       m_cond_to_push =
           derived_query_expression->outer_query_block()->clone_expression(
               thd, orig_cond_to_push,
@@ -1682,7 +1686,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
    Clean up the query expression for a materialized derived table
 */
 
-void TABLE_LIST::cleanup_derived(THD *thd) {
+void TABLE_LIST::cleanup_derived() {
   assert(is_view_or_derived() && uses_materialization());
-  derived_query_expression()->cleanup(thd, false);
+  derived_query_expression()->cleanup(false);
 }

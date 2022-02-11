@@ -1068,7 +1068,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt, TABLE_LIST *tables,
 
   thd->lex->unit->set_prepared();
   thd->lex->save_cmd_properties(thd);
-  thd->lex->cleanup(thd, false);
+  thd->lex->cleanup(false);
 
   return false;
 }
@@ -2599,7 +2599,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   */
   assert(lex->sphead == nullptr || error != 0);
   /* The order is important */
-  lex->cleanup(thd, true);
+  lex->cleanup(true);
 
   lex->clear_values_map();
 
@@ -3502,7 +3502,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
           result = nullptr;
         }
       } else {
-        lex->cleanup(thd, true);
+        lex->cleanup(true);
       }
     } else {
       /*

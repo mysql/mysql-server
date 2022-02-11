@@ -40,7 +40,7 @@ EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 UNION ALL SELECT * FROM t
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
+3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT f1 FROM t1'
 EXPLAIN
 {
@@ -150,8 +150,10 @@ EXPLAIN
   "query_block": {
     "union_result": {
       "using_temporary_table": true,
+      "select_id": 3,
       "table_name": "<union1,2>",
       "access_type": "ALL",
+      "using_filesort": true,
       "query_specifications": [
         {
           "dependent": false,
@@ -494,8 +496,8 @@ EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 UNION ALL SELECT * FROM t
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	NULL
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
-NULL	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+4	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt'
 EXPLAIN
 {
@@ -589,7 +591,7 @@ EXPLAIN
           "dependent": false,
           "cacheable": true,
           "query_block": {
-            "select_id": 3,
+            "select_id": 5,
             "message": "Plan isn't ready yet"
           }
         }

@@ -215,16 +215,16 @@ void Item_subselect::accumulate_properties() {
        select = select->next_query_block())
     accumulate_properties(select);
 
-  if (unit->fake_query_block != nullptr) {
+  for (auto qt : unit->query_terms<QTC_POST_ORDER, VL_SKIP_LEAVES>()) {
     /*
-      This query block may only contain components with special table
+      qt->query_block() may only contain components with special table
       dependencies in the ORDER BY clause, so inspect these expressions only.
       (The SELECT list may contain table references that are valid only in
        a local scope - references to the UNION temporary table - and should
        not be propagated to the subquery level.)
     */
-    for (ORDER *order = unit->fake_query_block->order_list.first;
-         order != nullptr; order = order->next)
+    for (ORDER *order = qt->query_block()->order_list.first; order != nullptr;
+         order = order->next)
       accumulate_condition(*order->item);
   }
 }
@@ -325,11 +325,11 @@ join_type Item_subselect::get_join_type() const {
 void Item_subselect::cleanup() {
   Item_result_field::cleanup();
   if (indexsubquery_engine) {
-    indexsubquery_engine->cleanup(current_thd);
+    indexsubquery_engine->cleanup();
     destroy(indexsubquery_engine);
     indexsubquery_engine = nullptr;
   }
-  if (subquery) subquery->cleanup(current_thd);
+  if (subquery) subquery->cleanup();
   reset();
   value_assigned = false;
   traced_before = false;
@@ -483,7 +483,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
       For some reason we cannot use materialization for this IN predicate.
       Delete all materialization-related objects, and return error.
     */
-    new_engine->cleanup(thd);
+    new_engine->cleanup();
     destroy(new_engine);
     return true;
   }
@@ -831,11 +831,7 @@ void Item_subselect::print(const THD *thd, String *str,
     if (query_type & QT_SUBSELECT_AS_ONLY_SELECT_NUMBER) {
       str->append("select #");
       uint select_number = unit->first_query_block()->select_number;
-      if (select_number >= INT_MAX) {
-        str->append("fake");
-      } else {
-        str->append_ulonglong(select_number);
-      }
+      str->append_ulonglong(select_number);
     } else if (indexsubquery_engine != nullptr) {
       indexsubquery_engine->print(thd, str, query_type);
     } else {
@@ -917,7 +913,7 @@ class Query_result_max_min_subquery final : public Query_result_subquery {
         cache(nullptr),
         fmax(mx),
         ignore_nulls(ignore_nulls) {}
-  void cleanup(THD *thd) override;
+  void cleanup() override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
 
  private:
@@ -927,7 +923,7 @@ class Query_result_max_min_subquery final : public Query_result_subquery {
   bool cmp_str();
 };
 
-void Query_result_max_min_subquery::cleanup(THD *) {
+void Query_result_max_min_subquery::cleanup() {
   DBUG_TRACE;
   cache = nullptr;
 }
@@ -1135,7 +1131,7 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
     my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
     return RES_ERROR;
   }
-  if (!unit->is_union() && !select->table_list.elements &&
+  if (!unit->is_set_operation() && !select->table_list.elements &&
       single_field != nullptr && !single_field->has_aggregation() &&
       !single_field->has_wf() && !select->where_cond() &&
       !select->having_cond()) {
@@ -1416,7 +1412,7 @@ Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
   // support value transforms; we still want to allow this replacement, so
   // let's not store the value transform in that case, and keep an explicit
   // truth test Item at the outside.
-  if (!unit->is_union() &&
+  if (!unit->is_set_operation() &&
       unit->first_query_block()->table_list.elements == 0 &&
       unit->first_query_block()->where_cond() == nullptr &&
       substype() == IN_SUBS &&
@@ -1429,13 +1425,8 @@ Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
 }
 
 bool Item_in_subselect::test_limit() {
-  if (unit->fake_query_block && unit->fake_query_block->test_limit())
-    return true;
-
-  for (Query_block *sl = unit->first_query_block(); sl;
-       sl = sl->next_query_block()) {
-    if (sl->test_limit()) return true;
-  }
+  for (auto qt : unit->query_terms<QTC_PRE_ORDER>())
+    if (qt->query_block()->test_limit()) return true;
   return false;
 }
 
@@ -2068,7 +2059,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
       if (select->where_cond()->fix_fields(thd, nullptr)) return RES_ERROR;
     } else {
       bool tmp;
-      if (unit->is_union()) {
+      if (unit->is_set_operation()) {
         /*
           comparison functions can't be changed during fix_fields()
           we can assign query_block->having_cond() here, and pass NULL as last
@@ -2680,9 +2671,7 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   */
   while (sl != root && sl != nullptr) sl = sl->outer_query_block();
   if (sl == root) {
-    unit->exclude_tree(current_thd);
-    unit->cleanup(current_thd, true);
-    unit->destroy();
+    unit->exclude_tree();
   }
   return false;
 }
@@ -2761,7 +2750,7 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
       ((i->has_aggregation() &&
         unit->first_query_block()->is_implicitly_grouped()) ||    // [1]
        (unit->first_query_block()->m_was_implicitly_grouped)) &&  // [1.1]
-          !unit->is_union(),                                      // [2]
+          !unit->is_set_operation(),                              // [2]
       false});
   return false;
 }
@@ -2899,9 +2888,9 @@ Item *Item_subselect::replace_item_view_ref(uchar *arg) {
   return replace_item(&Item::replace_item_view_ref, arg);
 }
 
-void SubqueryWithResult::cleanup(THD *thd) {
+void SubqueryWithResult::cleanup() {
   DBUG_TRACE;
-  result->cleanup(thd);
+  result->cleanup();
 }
 
 SubqueryWithResult::SubqueryWithResult(Query_expression *u,
@@ -2990,24 +2979,29 @@ static bool guaranteed_one_row(const Query_block *query_block) {
          !query_block->having_cond() && !query_block->select_limit;
 }
 
+static bool wrapped_in_intersect_except(Query_term *qb) {
+  for (qb = qb->parent(); qb != nullptr; qb = qb->parent()) {
+    if (qb->term_type() == QT_EXCEPT || qb->term_type() == QT_INTERSECT)
+      return true;
+  }
+  return false;
+}
+
 void SubqueryWithResult::fix_length_and_dec(Item_cache **row) {
   assert(row || unit->first_query_block()->single_visible_field() != nullptr);
 
   // A UNION is possibly empty only if all of its SELECTs are possibly empty.
+  // Other set operations may always be empty
   bool possibly_empty = true;
   for (Query_block *sl = unit->first_query_block(); sl;
        sl = sl->next_query_block()) {
-    if (guaranteed_one_row(sl)) {
+    if (guaranteed_one_row(sl) && !wrapped_in_intersect_except(sl)) {
       possibly_empty = false;
       break;
     }
   }
 
-  if (unit->is_simple()) {
-    set_row(unit->first_query_block()->fields, row, possibly_empty);
-  } else {
-    set_row(unit->item_list, row, possibly_empty);
-  }
+  set_row(unit->query_term()->query_block()->fields, row, possibly_empty);
 
   if (unit->first_query_block()->single_visible_field() != nullptr)
     item->collation.set(row[0]->collation);
@@ -3043,7 +3037,7 @@ bool ExecuteExistsQuery(THD *thd, Query_expression *unit, RowIterator *iterator,
   }
   Opt_trace_array trace_steps(trace, "steps");
 
-  if (unit->ClearForExecution(thd)) {
+  if (unit->ClearForExecution()) {
     return true;
   }
 
@@ -3416,7 +3410,8 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
   }
 
   m_root_access_path = path;
-  JOIN *join = unit->is_union() ? nullptr : unit->first_query_block()->join;
+  JOIN *join =
+      unit->is_set_operation() ? nullptr : unit->first_query_block()->join;
   unit->finalize(thd);
   m_iterator = CreateIteratorFromAccessPath(thd, path, join,
                                             /*eligible_for_batch_mode=*/true);
@@ -3436,12 +3431,11 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine() {
   Cleanup performed after each execution.
 */
 
-void subselect_hash_sj_engine::cleanup(THD *thd) {
+void subselect_hash_sj_engine::cleanup() {
   DBUG_TRACE;
   is_materialized = false;
-  if (result != nullptr)
-    result->cleanup(thd); /* Resets the temp table as well. */
-  DEBUG_SYNC(thd, "before_index_end_in_subselect");
+  if (result != nullptr) result->cleanup();  // Resets the temp table as well
+  DEBUG_SYNC(current_thd, "before_index_end_in_subselect");
   m_root_access_path = nullptr;
   m_iterator.reset();
   if (table != nullptr) {

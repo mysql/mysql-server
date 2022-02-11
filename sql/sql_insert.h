@@ -152,7 +152,7 @@ are found inside the COPY_INFO.
   virtual void store_values(THD *thd, const mem_root_deque<Item *> &values);
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
-  void cleanup(THD *thd) override;
+  void cleanup() override;
 
  private:
   /**
