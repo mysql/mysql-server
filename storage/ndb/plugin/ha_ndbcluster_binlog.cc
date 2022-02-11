@@ -6698,10 +6698,8 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
     gci_to_store = (gciHi << 32) + gciLo;
   }
   if (DBUG_EVALUATE_IF("ndb_binlog_injector_repeat_gcis", true, false)) {
-    ulonglong gciHi = ((gci_to_store >> 32) & 0xffffffff);
-    ulonglong gciLo = (gci_to_store & 0xffffffff);
-    gciHi = 0xffffff00;
-    gciLo = 0;
+    const ulonglong gciHi = 0xffffff00;
+    const ulonglong gciLo = 0;
     log_warning("repeating gcis (%llu -> %llu)", gci_to_store,
                 (gciHi << 32) + gciLo);
     gci_to_store = (gciHi << 32) + gciLo;
