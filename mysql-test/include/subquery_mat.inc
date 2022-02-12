@@ -3,6 +3,17 @@
 # (WL#1110: Subquery optimization: materialization)
 #
 
+-- disable_query_log
+-- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+-- enable_result_log
+-- enable_query_log
+
 # Force the feature, to test it as much as possible:
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
@@ -1699,3 +1710,10 @@ DROP TABLE s, u;
 
 set @@optimizer_switch=@old_opt_switch;
 SET sql_mode = default;
+
+-- disable_query_log
+-- disable_result_log
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
+-- enable_result_log
+-- enable_query_log

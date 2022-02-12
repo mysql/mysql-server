@@ -544,7 +544,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` 
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=30)
-    -> Intersect rows sorted by row ID  (rows=31)
+    -> Intersect rows sorted by row ID  (rows=30)
         -> Index range scan on t1 using cola over (cola = 'foo')  (rows=512)
         -> Index range scan on t1 using colb over (colb = 'bar')  (rows=512)
 
@@ -1744,7 +1744,7 @@ pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	b
 # Verify that CPK fields are considered to be covered by index scans
 explain select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	4,4	NULL	1	97.03	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	4,4	NULL	1	100.00	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2` from `test`.`t1` where ((`test`.`t1`.`key2` = 10) and (`test`.`t1`.`key1` = 10) and (((2 * `test`.`t1`.`pk1`) + 1) < <cache>(((2 * 96) + 1))))
 select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
@@ -1770,18 +1770,18 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS 
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,key1	key1,PRIMARY	8,4	NULL	ROWS	98.01	Using intersect(key1,PRIMARY); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,key1	key1,PRIMARY	8,4	NULL	ROWS	100.00	Using intersect(key1,PRIMARY); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pk1` < 7500))
 # Verify that keys with 'tails' of PK members are ok.
 explain select * from t1 where pktail1ok=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,pktail1ok	key1,pktail1ok	4,4	NULL	1	97.03	Using intersect(key1,pktail1ok); Using where
+1	SIMPLE	t1	NULL	index_merge	key1,pktail1ok	key1,pktail1ok	4,4	NULL	1	100.00	Using intersect(key1,pktail1ok); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail1ok` = 1))
 explain select * from t1 where pktail2ok=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,pktail2ok	key1,pktail2ok	4,4	NULL	1	97.03	Using intersect(key1,pktail2ok); Using where
+1	SIMPLE	t1	NULL	index_merge	key1,pktail2ok	key1,pktail2ok	4,4	NULL	1	100.00	Using intersect(key1,pktail2ok); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail2ok` = 1))
 # Note: The following is actually a deficiency, it uses sort_union currently.
@@ -1793,23 +1793,23 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`pktail2ok` = 1) and (`test`.`t1`.`pk1` < 50000)) or (`test`.`t1`.`key1` = 10))
 explain select * from t1 where pktail3bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail3bad	EITHER_KEY	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail3bad	EITHER_KEY	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail3bad` = 1))
 explain select * from t1 where pktail4bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail4bad	key1	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail4bad	key1	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail4bad` = 1))
 explain select * from t1 where pktail5bad=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1,pktail5bad	key1	4	const	ROWS	1.03	Using where
+1	SIMPLE	t1	NULL	ref	key1,pktail5bad	key1	4	const	ROWS	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`pktail5bad` = 1))
 # Test for problem with innodb key values prefetch buffer:
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	4,4	NULL	1	97.03	Using intersect(key1,key2); Using where; Using index
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	4,4	NULL	1	100.00	Using intersect(key1,key2); Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key2` = 10) and (`test`.`t1`.`key1` = 10)) limit 10
 select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
