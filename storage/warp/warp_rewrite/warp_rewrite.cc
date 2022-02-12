@@ -1164,7 +1164,7 @@ static int warp_rewrite_query_notify(
       to_table = "'" + to_table + "'";
       sqlstr = "CALL leapdb.rename(leapdb.get_id(" + from_db + "," + from_table + "), " + to_db + "," + to_table + ");";
       
-    } else if( tokens.size() == 7 && (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
+    } else if( tokens.size() == 6 && (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
        strtolower(tokens[1]) == "materialized" && 
        strtolower(tokens[2]) == "view" && 
        strtolower(tokens[3]) == "log" && 
