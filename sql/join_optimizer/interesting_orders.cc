@@ -1446,6 +1446,33 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
   }
 }
 
+// Clang vectorizes the inner loop below with -O2, but GCC does not. Enable
+// vectorization with GCC too, since this loop is a bottleneck when there are
+// many NFSM states.
+#if defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__)
+#pragma GCC push_options
+#pragma GCC optimize("tree-loop-vectorize")
+#endif
+
+// Calculates the transitive closure of the reachability graph.
+static void FindAllReachable(Bounds_checked_array<bool *> reachable) {
+  const int N = reachable.size();
+  for (int k = 0; k < N; ++k) {
+    for (int i = 0; i < N; ++i) {
+      if (reachable[i][k]) {
+        for (int j = 0; j < N; ++j) {
+          // If there are edges i -> k -> j, add an edge i -> j.
+          reachable[i][j] |= reachable[k][j];
+        }
+      }
+    }
+  }
+}
+
+#if defined(NDEBUG) && defined(__GNUC__) && !defined(__clang__)
+#pragma GCC pop_options
+#endif
+
 /**
   Try to prune away irrelevant nodes from the NFSM; it is worth spending some
   time on this, since the number of NFSM states can explode the size of the
@@ -1498,16 +1525,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       }
     }
 
-    for (int k = 0; k < N; ++k) {
-      for (int i = 0; i < N; ++i) {
-        if (reachable[i][k]) {
-          for (int j = 0; j < N; ++j) {
-            // If there are edges i -> k -> j, add an edge i -> j.
-            reachable[i][j] |= reachable[k][j];
-          }
-        }
-      }
-    }
+    FindAllReachable(reachable);
 
     // Now prune away artificial m_states that cannot reach any
     // interesting orders, and m_states that are not reachable from
