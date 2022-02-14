@@ -5212,26 +5212,28 @@ longlong Item_master_gtid_set_wait::val_int() {
   }
   gtid_state->begin_gtid_wait();
 
-  if (mi) mi->inc_reference();
+  if (mi != nullptr) mi->inc_reference();
 
   channel_map.unlock();
 
-  if (mi && mi->rli) {
+  bool null_result = false;
+
+  if (mi != nullptr && mi->rli != nullptr) {
     event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
     if (event_count == -2) {
-      return error_int();
+      null_result = true;
     }
   } else {
     /*
       Replication has not been set up, we should return NULL;
      */
-    return error_int();
+    null_result = true;
   }
   if (mi != nullptr) mi->dec_reference();
 
   gtid_state->end_gtid_wait();
 
-  return event_count;
+  return null_result ? error_int() : event_count;
 }
 
 /**
