@@ -3195,6 +3195,18 @@ String *Item_func_weight_string::val_str(String *str) {
   return &tmp_value;
 }
 
+bool Item_func_hex::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
+  // See Item_func_hex::val_str_ascii()
+  // A numeric argument is converted to an 8-byte integer,
+  // and then the bytes of the integer are converted to hex characters.
+  if (args[0]->result_type() != STRING_RESULT)
+    set_data_type_string(sizeof(ulonglong) * 2U, default_charset());
+  else
+    set_data_type_string(args[0]->max_length * 2U, default_charset());
+  return false;
+}
+
 String *Item_func_hex::val_str_ascii(String *str) {
   String *res;
   assert(fixed == 1);
