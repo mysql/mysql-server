@@ -2498,7 +2498,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
 }
 
 String *Item_func_xml_update::val_str(String *str) {
-  String *res, *rep;
+  String *res = nullptr, *rep = nullptr;
 
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {

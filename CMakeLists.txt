@@ -1241,6 +1241,48 @@ IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
   ENDIF()
 ENDIF()
 
+# Enable "-Og -fno-inline" for ordinary Debug builds.
+# Note that this may optimize away local stack variables.
+# Do not enable it for WITH_NDBCLUSTER, several build breaks at
+# this optimization level.
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG AND NOT WITH_NDBCLUSTER
+    AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND)
+  # ON by default in pushbuild, to save time running Debug test suites.
+  # man clang:
+  # -Og Like -O1. In future versions, this option might disable different
+  # optimizations in order to improve debuggability.
+  # man gcc:
+  # -Og Optimize debugging experience. -Og should be the
+  #  optimization level of choice for the standard edit-compile-
+  #  debug cycle, offering a reasonable level of optimization while
+  #  maintaining fast compilation and a good debugging experience.
+  #  It is a better choice than -O0 for producing debuggable code
+  #  because some compiler passes that collect debug information are
+  #  disabled at -O0.
+  #
+  # OFF by default if CFLAGS or CXXFLAGS are defined in the environment.
+  # CFLAGS/CXXFLAGS will be set e.g. for LINUX_DEB_PLATFORM,
+  # and may contain other optimization flags, interfering with ours.
+  IF((NOT DEFINED ENV{CFLAGS} AND NOT DEFINED ENV{CXXFLAGS}
+        AND DEFINED ENV{PB2WORKDIR})
+      OR
+      (DEFINED ENV{OPTIMIZE_DEBUG_BUILDS} AND "$ENV{OPTIMIZE_DEBUG_BUILDS}"
+        AND NOT DEFINED(OPTIMIZE_DEBUG_BUILDS)))
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT ON)
+  ELSE()
+    SET(OPTIMIZE_DEBUG_BUILDS_DEFAULT OFF)
+  ENDIF()
+  OPTION(OPTIMIZE_DEBUG_BUILDS
+    "Add -Og -fno-inline to CMAKE_<lang>_FLAGS_DEBUG"
+    ${OPTIMIZE_DEBUG_BUILDS_DEFAULT}
+    )
+  # Use STRING_PREPEND here, so command-line input can override our defaults.
+  IF(OPTIMIZE_DEBUG_BUILDS)
+    STRING_PREPEND(CMAKE_C_FLAGS_DEBUG   " -Og -fno-inline ")
+    STRING_PREPEND(CMAKE_CXX_FLAGS_DEBUG " -Og -fno-inline ")
+  ENDIF()
+ENDIF()
+
 # For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
 # compiling for the common denominator (-march=armv8-a) means LSE is not used.
 # The -moutline-atomics switch enables run-time detection of LSE support.
