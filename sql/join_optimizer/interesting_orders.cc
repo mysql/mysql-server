@@ -26,12 +26,14 @@
 #include <functional>
 #include <type_traits>
 
+#include "my_pointer_arithmetic.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/sql_array.h"
 #include "sql/sql_class.h"
 
 using std::all_of;
@@ -1463,7 +1465,17 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   // in reachability to interesting orders, and our graph is quite sparse),
   // but Floyd-Warshall is simple and has a low constant factor.
   const int N = m_states.size();
-  bool *reachable = thd->mem_root->ArrayAlloc<bool>(N * N);
+  // Create a two-dimensional array with N elements in each dimension. Each line
+  // starts at an eight byte word boundary, as that seems to improve the
+  // performance of the inner loop in Floyd-Warshall. reachable[i][j] == true
+  // means that state j is reachable from state i.
+  const size_t N_aligned = ALIGN_SIZE(m_states.size());
+  auto reachable = Bounds_checked_array<bool *>::Alloc(thd->mem_root, N);
+  auto reachable_buffer =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, N * N_aligned);
+  for (int i = 0; i < N; ++i) {
+    reachable[i] = reachable_buffer.data() + i * N_aligned;
+  }
 
   // We have multiple pruning techniques, all heuristic in nature.
   // If one removes something, it may help to run the others again,
@@ -1471,7 +1483,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   bool pruned_anything;
   do {
     pruned_anything = false;
-    memset(reachable, 0, sizeof(*reachable) * N * N);
+    fill(reachable_buffer.begin(), reachable_buffer.end(), false);
 
     for (int i = 0; i < N; ++i) {
       if (m_states[i].type == NFSMState::DELETED) {
@@ -1479,19 +1491,19 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       }
 
       // There's always an implicit self-edge.
-      reachable[i * N + i] = true;
+      reachable[i][i] = true;
 
       for (size_t edge_idx : m_states[i].outgoing_edges) {
-        reachable[i * N + m_edges[edge_idx].state_idx] = true;
+        reachable[i][m_edges[edge_idx].state_idx] = true;
       }
     }
 
     for (int k = 0; k < N; ++k) {
       for (int i = 0; i < N; ++i) {
-        if (reachable[i * N + k]) {
+        if (reachable[i][k]) {
           for (int j = 0; j < N; ++j) {
             // If there are edges i -> k -> j, add an edge i -> j.
-            reachable[i * N + j] |= reachable[k * N + j];
+            reachable[i][j] |= reachable[k][j];
           }
         }
       }
@@ -1506,7 +1518,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
         continue;
       }
 
-      if (!reachable[0 * N + i]) {
+      if (!reachable[0][i]) {
         m_states[i].type = NFSMState::DELETED;
         pruned_anything = true;
         continue;
@@ -1514,8 +1526,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
 
       bool can_reach_interesting = false;
       for (int j = 1; j < static_cast<int>(m_orderings.size()); ++j) {
-        if (reachable[i * N + j] &&
-            m_states[j].type == NFSMState::INTERESTING) {
+        if (reachable[i][j] && m_states[j].type == NFSMState::INTERESTING) {
           can_reach_interesting = true;
           break;
         }
@@ -1537,7 +1548,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
         bool can_reach_other_interesting = false;
         for (size_t k = 1; k < m_orderings.size(); ++k) {
           if (k != i && m_states[k].type == NFSMState::INTERESTING &&
-              reachable[next_state_idx * N + k]) {
+              reachable[next_state_idx][k]) {
             can_reach_other_interesting = true;
             break;
           }
@@ -1579,7 +1590,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       if (m_states[i].type == NFSMState::DELETED) {
         continue;
       }
-      if (reachable[i * N + order_idx]) {
+      if (reachable[i][order_idx]) {
         m_states[i].can_reach_interesting_order.set(order_idx);
       }
     }
