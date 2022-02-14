@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1317,7 +1317,7 @@ Dblqh::sttor_startphase1(Signal *signal)
       m_num_restore_threads = 1;
     }
   }
-    
+
 #ifdef NDBD_TRACENR
 #ifdef VM_TRACE
   out = globalSignalLoggers.getOutputStream();
@@ -6233,7 +6233,7 @@ int Dblqh::findTransaction(UintR Transid1,
   TcConnectionrecPtr locTcConnectptr;
 
   ndbassert(partial_fit_ok == false || is_key_operation == true);
-  Uint32 ThashIndex = (Transid1 ^ TcOprec) & (TRANSID_HASH_SIZE - 1);
+  const Uint32 ThashIndex = getHashIndex(Transid1, Transid2, TcOprec);
   locTcConnectptr.i = ctransidHash[ThashIndex];
   while (locTcConnectptr.i != RNIL) {
     ndbrequire(tcConnect_pool.getUncheckedPtrRW(locTcConnectptr));
@@ -6269,6 +6269,31 @@ int Dblqh::findTransaction(UintR Transid1,
 /* WE DID NOT FIND THE TRANSACTION, REPORT NOT FOUND */
   return (int)ZNOT_FOUND;
 }//Dblqh::findTransaction()
+
+inline
+Uint32 Dblqh::getHashKey(UintR Transid1,
+                         UintR Transid2[[maybe_unused]],
+                         UintR TcOprec)
+{
+  return (Transid1 ^ TcOprec);
+}
+
+inline
+Uint32 Dblqh::getHashIndex(UintR Transid1,
+                           UintR Transid2[[maybe_unused]],
+                           UintR TcOprec)
+{
+  return getHashKey(Transid1, Transid2, TcOprec) % ctransidHashSize;
+}
+
+inline
+Uint32 Dblqh::getHashIndex(TcConnectionrec *regTcPtr)
+{
+  return getHashIndex(regTcPtr->transid[0],
+                      regTcPtr->transid[1],
+                      regTcPtr->tcOprec);
+}
+
 
 inline
 static void
@@ -8771,10 +8796,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
                                true,
                                false,
                                tcConnectptr) == ZNOT_FOUND);
-
     TcConnectionrecPtr localNextTcConnectptr;
-    Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) &
-                       (TRANSID_HASH_SIZE - 1);
+    const Uint32 hashIndex = getHashIndex(regTcPtr);
     localNextTcConnectptr.i = ctransidHash[hashIndex];
     ctransidHash[hashIndex] = tcConnectptr.i;
     regTcPtr->prevHashRec = RNIL;
@@ -9089,7 +9112,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   default:
     ndbabort();
   }//switch
-}//Dblqh::endgettupkeyLab()
+}//Dblqh::execLQHKEYREQ()
 
 void Dblqh::prepareContinueAfterBlockedLab(
                 Signal* signal,
@@ -11919,9 +11942,8 @@ void Dblqh::deleteTransidHash(Signal* signal, TcConnectionrecPtr& tcConnectptr)
 /* THE OPERATION WAS PLACED FIRST IN THE LIST OF THE HASH TABLE. NEED TO SET */
 /* A NEW LEADER OF THE LIST.                                                 */
 /* ------------------------------------------------------------------------- */
-    Uint32 hashIndex = regTcPtr->hashIndex;
-    ndbassert(hashIndex == ((regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 
-                             (TRANSID_HASH_SIZE - 1)));
+    const Uint32 hashIndex = regTcPtr->hashIndex;
+    ndbassert(hashIndex == getHashIndex(regTcPtr));
     ndbassert(ctransidHash[hashIndex] == tcConnectptr.i);
     ctransidHash[hashIndex] = nextHashptr.i;
   }//if
@@ -16340,8 +16362,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
   ScanFragReq * const scanFragReq = (ScanFragReq *)&signal->theData[0];
   Uint32 errorCode= 0;
-  Uint32 hashIndex;
-  TcConnectionrecPtr nextHashptr;
   TcConnectionrec * regTcPtr;
   // bug#13834481 hashHi!=0 caused timeout (tx not found)
 
@@ -16585,8 +16605,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
                                false,
                                false,
                                tcConnectptr) == ZNOT_FOUND);
-    hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) &
-                 (TRANSID_HASH_SIZE - 1);
+    TcConnectionrecPtr nextHashptr;
+    const Uint32 hashIndex = getHashIndex(regTcPtr);
     nextHashptr.i = ctransidHash[hashIndex];
     ctransidHash[hashIndex] = tcConnectptr.i;
     regTcPtr->prevHashRec = RNIL;
@@ -35108,29 +35128,25 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
   if(arg == DumpStateOrd::LqhDumpAllTcRec)
   {
-    Uint32 bucketLen[TRANSID_HASH_SIZE];
-    for(Uint32 i = 0; i<TRANSID_HASH_SIZE; i++)
+    g_eventLogger->info("LQH transid hash bucket lengths : ");
+    for(Uint32 i = 0; i<ctransidHashSize; i++)
     {
       TcConnectionrecPtr tcRec;
       tcRec.i = ctransidHash[i];
-      bucketLen[i] = 0;
+      Uint32 bucketLen = 0;
       while(tcRec.i != RNIL)
       {
         ndbrequire(tcConnect_pool.getValidPtr(tcRec));
         g_eventLogger->info("TcConnectionrec %u", tcRec.i);
         signal->theData[0] = DumpStateOrd::LqhDumpOneTcRec;
-	signal->theData[1] = tcRec.i;
-	execDUMP_STATE_ORD(signal);
-	tcRec.i = tcRec.p->nextHashRec;
-        bucketLen[i]++;
+        signal->theData[1] = tcRec.i;
+        execDUMP_STATE_ORD(signal);
+        tcRec.i = tcRec.p->nextHashRec;
+        bucketLen++;
       }
-    }
-    g_eventLogger->info("LQH transid hash bucket lengths : ");
-    for (Uint32 i = 0; i < TRANSID_HASH_SIZE; i++)
-    {
-      if (bucketLen[i] > 0)
+      if (bucketLen > 0)
       {
-        g_eventLogger->info("bucket %u len %u", i, bucketLen[i]);
+        g_eventLogger->info("bucket %u len %u", i, bucketLen);
       }
     }
     g_eventLogger->info("Done.");
@@ -35344,7 +35360,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     Uint32 record = signal->theData[2];
     Uint32 len = signal->getLength();
     TcConnectionrecPtr tcRec;
-    ndbrequire(bucket < NDB_ARRAY_SIZE(ctransidHash));
+    ndbrequire(bucket < ctransidHashSize);
 
     if (record != RNIL)
     {
@@ -35360,8 +35376,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        Uint32 hashIndex = (tcRec.p->transid[0] ^ tcRec.p->tcOprec) &
-                            (TRANSID_HASH_SIZE - 1);
+        const Uint32 hashIndex = getHashIndex(tcRec.p);
         if (hashIndex != bucket)
         {
 	  jam();
@@ -35393,7 +35408,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     {
       jam();
       bucket++;
-      if (bucket < TRANSID_HASH_SIZE)
+      if (bucket < ctransidHashSize)
       {
 	jam();
 	signal->theData[1] = bucket;
@@ -35438,7 +35453,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     {
       jam();
       bucket++;
-      if (bucket < TRANSID_HASH_SIZE)
+      if (bucket < ctransidHashSize)
       {
 	jam();
 	signal->theData[1] = bucket;
@@ -35573,7 +35588,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   if (arg == 4002)
   {
     bool ops = false;
-    for (Uint32 i = 0; i<TRANSID_HASH_SIZE; i++)
+    for (Uint32 i = 0; i<ctransidHashSize; i++)
     {
       if (ctransidHash[i] != RNIL)
       {
@@ -36113,6 +36128,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
     break;
   }
   case Ndbinfo::OPERATIONS_TABLEID:{
+    static constexpr Uint32 max_buckets_to_check = 4096;
+    Uint32 buckets_checked = 0;
     Uint32 bucket = cursor->data[0];
 
     while (true)
@@ -36124,13 +36141,21 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
 
-      for (; bucket < NDB_ARRAY_SIZE(ctransidHash); bucket++)
+      for (; bucket < ctransidHashSize; bucket++)
       {
+        buckets_checked++;
+        if (buckets_checked > max_buckets_to_check)
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, bucket);
+          return;
+        }
+
         if (ctransidHash[bucket] != RNIL)
           break;
       }
 
-      if (bucket == NDB_ARRAY_SIZE(ctransidHash))
+      if (bucket == ctransidHashSize)
       {
         break;
       }
