@@ -94,9 +94,18 @@ SELECT @@SERVER_ID;
 --let $_rpl_errors =
 --let $_log_errors =
 
+# Handle the case that replication has not been configured.
+--let $change_connection = 1
+if ($rpl_server_count == '') {
+  --let $rpl_server_count = 1
+  --let $change_connection = 0
+}
+
 --let $_rpl_server = 1
 while ($_rpl_server <= $rpl_server_count) {
-  --connection server_$_rpl_server
+  if ($change_connection) {
+    --connection server_$_rpl_server
+  }
 
   --echo
   --echo ############################## $CURRENT_CONNECTION ##############################
