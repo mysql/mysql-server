@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,9 +165,9 @@ void Dblqh::initData()
   m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
-  for (Uint32 i = 0; i < 4096; i++) {
-    ctransidHash[i] = RNIL;
-  }//for
+
+  ctransidHash = NULL;
+  ctransidHashSize = 0;
 
   c_last_force_lcp_time = 0;
   c_free_mb_force_lcp_limit = 16;
@@ -485,6 +485,18 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
       bat[i].bits.q = ZTWOLOG_PAGE_SIZE;
       bat[i].bits.v = 5;
     }
+  }
+
+  ctransidHashSize = tcConnect_pool.getSize();
+  if (ctransidHashSize < 4096) {
+    ctransidHashSize = 4096;
+  }
+  ctransidHash = (Uint32*)allocRecord("TransIdHash",
+                                       sizeof(Uint32),
+                                       ctransidHashSize);
+
+  for (Uint32 i = 0; i < ctransidHashSize; i++) {
+    ctransidHash[i] = RNIL;
   }
 }//Dblqh::initRecords()
 
@@ -880,6 +892,11 @@ Dblqh::~Dblqh()
                 "TcNodeFailRecord",
                 sizeof(TcNodeFailRecord),
                 ctcNodeFailrecFileSize);
+
+  deallocRecord((void**)&ctransidHash,
+                "TransIdHash",
+                sizeof(Uint32),
+                ctransidHashSize);
 }//Dblqh::~Dblqh()
 
 BLOCK_FUNCTIONS(Dblqh)
