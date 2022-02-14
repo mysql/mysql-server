@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1488,9 +1488,11 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
 
     for (int k = 0; k < N; ++k) {
       for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-          // If there are edges i -> k -> j, add an edge i -> j.
-          reachable[i * N + j] |= reachable[i * N + k] & reachable[k * N + j];
+        if (reachable[i * N + k]) {
+          for (int j = 0; j < N; ++j) {
+            // If there are edges i -> k -> j, add an edge i -> j.
+            reachable[i * N + j] |= reachable[k * N + j];
+          }
         }
       }
     }
