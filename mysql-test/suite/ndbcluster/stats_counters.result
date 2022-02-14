@@ -1,0 +1,22 @@
+result_format: 2
+
+
+##
+## Bug#33840016 Fix ndb_api_wait_nanos_count* statistics gathering
+## - check that the 'nanos_count' session value changes during query
+##
+CREATE TABLE t1 (
+  pk int PRIMARY KEY,
+  b VARCHAR(100)
+) engine = NDB;
+
+INSERT INTO t1 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc"), (4, "ddd");
+
+
+## This query should make the 'nanos_count' move
+SELECT * FROM t1 WHERE pk=1 FOR UPDATE;
+pk	b
+1	aaa
+
+
+DROP TABLE t1;

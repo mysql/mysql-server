@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1797,13 +1797,14 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     }
 #endif
     poll_guard->wait_for_input(maxsleep);
+    const NdbDuration elapsed =
+        NdbTick_Elapsed(start, NdbTick_getCurrentTicks());
+    theImpl->recordWaitTimeNanos(elapsed.nanoSec());
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
-    const NDB_TICKS now = NdbTick_getCurrentTicks();
-    waitTime = aMilliSecondsToWait - 
-      (int)NdbTick_Elapsed(start,now).milliSec();
+    waitTime = aMilliSecondsToWait - (int)elapsed.milliSec();
 #ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
