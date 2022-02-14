@@ -256,8 +256,8 @@ SET @@GLOBAL.group_replication_exit_state_action= default;
 --source include/assert.inc
 
 # group_replication_transaction_size_limit
---let $assert_text= Default group_replication_transaction_size_limit is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_transaction_size_limit]" = 0
+--let $assert_text= Default group_replication_transaction_size_limit is 150000000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_transaction_size_limit]" = 150000000
 --source include/assert.inc
 
 # group_replication_unreachable_majority_timeout

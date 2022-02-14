@@ -12,7 +12,7 @@
 SET @group_replication_transaction_size_limit_save= @@GLOBAL.group_replication_transaction_size_limit;
 --let $group_replication_transaction_size_limit_max = 2147483647
 --let $group_replication_transaction_size_limit_min = 0
---let $group_replication_transaction_size_limit_default = 0
+--let $group_replication_transaction_size_limit_default = 150000000
 ################################################################################
 --echo
 --echo ## 1. Test group_replication_transaction_size_limit option.
