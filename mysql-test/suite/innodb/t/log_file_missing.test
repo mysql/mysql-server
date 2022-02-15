@@ -1,4 +1,11 @@
+--source include/not_solaris.inc
+--source include/not_parallel.inc
+
 # This test checks scenario of recovery executed on data directory which is missing one of redo files.
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl has been compiled with support for 64bit integers.
+# The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
+--source include/have_perl_64bit_int.inc
 
 let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MIN = 3;
 
@@ -37,7 +44,7 @@ EOF
 let SEARCH_FILE = $MYSQLD_DATADIR/my_restart.err;
 
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y > $SEARCH_FILE 2>&1 ;
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
 let SEARCH_PATTERN = Missing redo log file .* \(with start_lsn = $REDO_FILE_START_LSN\);
 --replace_result $REDO_FILE_START_LSN REDO_FILE_START_LSN 
 --source include/search_pattern.inc

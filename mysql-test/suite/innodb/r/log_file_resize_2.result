@@ -3,7 +3,7 @@
 SET GLOBAL innodb_log_checkpoint_now = ON;
 SET GLOBAL DEBUG="+d,log_force_consumption";
 # Waiting until we have exactly 1 redo log file.
-There are 1 / 1 non-temporary redo log files.
+There are <= 1 non-temporary redo log files.
 # Disable checkpointing
 SET GLOBAL innodb_checkpoint_disabled = ON;
 CREATE TABLE t (a INT) ENGINE=InnoDB;

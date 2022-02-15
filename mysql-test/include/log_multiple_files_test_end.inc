@@ -1,4 +1,4 @@
---remove_file $MYSQLD_ERROR_LOG
+--move_file $MYSQLD_ERROR_LOG $MYSQLTEST_VARDIR/log/saved_my_restart.err
 --force-rmdir $MYSQLD_DATADIR
 
 let MYSQLD_ARGS=;

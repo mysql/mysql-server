@@ -123,6 +123,7 @@ SELECT prio,error_code,subsystem,data
 # MY-013711: Manifest file RO check. Depends on how MTR creates manifest
 #            file and thus indeterministic.
 # MY-013880: The latest found checkpoint is at lsn...
+# MY-013881: Redo log capacity sysvar has been changed.
 # MY-013882: Redo log has been requested to resize. Depends on existing files.
 # MY-013883: Redo log resize has been cancelled. Depends on existing files.
 # MY-013884: Redo log has been resized. Depends on existing files.
@@ -137,7 +138,8 @@ SELECT prio,error_code,subsystem
                          "MY-012937", "MY-012366", "MY-000067", "MY-010159",
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
                          "MY-012363", "MY-011953", "MY-013623", "MY-013711",
-                         "MY-013880", "MY-013882", "MY-013883", "MY-013884")
+                         "MY-013880", "MY-013881", "MY-013882", "MY-013883",
+                         "MY-013884")
  ORDER BY logged, error_code;
 
 --echo

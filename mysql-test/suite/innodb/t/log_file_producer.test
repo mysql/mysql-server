@@ -45,8 +45,11 @@ while ($i > 0) {
     dec $i;
 }
 
-let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MAX = 10000;
---source include/ib_redo_log_files_count_wait.inc
+perl;
+require 'include/ib_redo_log_files.inc';
+my $n_files = scalar(log_get_non_tmp_files());
+print "Redo files: $n_files\n";
+EOF
 
 SET GLOBAL DEBUG = '-d,syncpoint_log_before_file_produced';
 SET GLOBAL DEBUG = '-d,syncpoint_log_after_file_produced';

@@ -168,7 +168,7 @@ perl;
     my $old_file_no = $file->{id};
     my $old_file_name = $file->{name};
     my $new_file_no = $file->{id} + 1;
-    my $new_file_name = $file->{name} =~ s/^(.*#ib_redo)(\d+)$/$1$new_file_no/r;
+    (my $new_file_name = $file->{name}) =~ s/^(.*#ib_redo)(\d+)$/$1$new_file_no/;
     move $old_file_name, $new_file_name;
   }
 EOF

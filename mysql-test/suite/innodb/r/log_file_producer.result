@@ -10,7 +10,7 @@ SET GLOBAL DEBUG = '+d,syncpoint_log_before_file_produced';
 # Get notified when a new log file is produced (since now).
 SET GLOBAL DEBUG = '+d,syncpoint_log_after_file_produced';
 # Waiting until we have exactly 1 redo log file.
-There are 1 / 1 non-temporary redo log files.
+There are <= 1 non-temporary redo log files.
 # Create connection which generates spam to the redo log.
 CALL log_spammer();
 # Redo log data is being generated.
@@ -25,7 +25,7 @@ SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_produced WAIT_FOR reached_
 SET DEBUG_SYNC = 'now SIGNAL continue_log_after_file_produced WAIT_FOR reached_log_after_file_produced';
 SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_produced WAIT_FOR reached_log_before_file_produced';
 SET DEBUG_SYNC = 'now SIGNAL continue_log_after_file_produced WAIT_FOR reached_log_after_file_produced';
-There are 6 / 10000 non-temporary redo log files.
+Redo files: 6
 SET GLOBAL DEBUG = '-d,syncpoint_log_before_file_produced';
 SET GLOBAL DEBUG = '-d,syncpoint_log_after_file_produced';
 SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_produced,continue_log_after_file_produced';

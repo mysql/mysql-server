@@ -6,7 +6,7 @@
 
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/redo_log_test;
-let MYSQLD_ERROR_LOG = $tmp_dir/mysqld-init.err;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
 let MYSQLD_EXTRA_ARGS = --innodb-redo-log-capacity=8388608;
 
 --echo # Initialize new data directory...

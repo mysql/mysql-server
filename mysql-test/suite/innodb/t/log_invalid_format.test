@@ -45,7 +45,7 @@ let $i = 1;
 while ($i <= 2) {
     --echo # Start MySQL... (attempt $i)
     --error 1,42
-    --exec $MYSQLD $MYSQLD_ARGS --$UNKNOWN_PARAM
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --$UNKNOWN_PARAM
 
     --echo # Verify...
 
@@ -60,11 +60,11 @@ while ($i <= 2) {
     inc $i;
 }
 
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-1.err
+
 --echo ############################################################################################
 --echo # Case 2. Attempt to start with redo files in new location, filled with 0x00.
 --echo ############################################################################################
-
---remove_file $SEARCH_FILE
 
 --echo # Prepare...
 --mkdir $MYSQLD_DATADIR/#innodb_redo
@@ -76,7 +76,7 @@ let $i = 1;
 while ($i <= 2) {
     --echo # Start MySQL... (attempt $i)
     --error 1,42
-    --exec $MYSQLD $MYSQLD_ARGS --$UNKNOWN_PARAM
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --$UNKNOWN_PARAM
 
     --echo # Verify...
 
@@ -94,13 +94,13 @@ while ($i <= 2) {
 --move_file $MYSQLD_DATADIR/#innodb_redo/#ib_redo1 $IB_LOGFILE0_PATH
 --move_file $MYSQLD_DATADIR/#innodb_redo/#ib_redo2 $IB_LOGFILE1_PATH
 
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-2.err
+
 --force-rmdir $MYSQLD_DATADIR/#innodb_redo
 
 --echo ############################################################################################
 --echo # Case 3. Attempt to start with redo files in old location, with future format (4294967295).
 --echo ############################################################################################
-
---remove_file $SEARCH_FILE
 
 --echo # Prepare...
 perl;
@@ -119,7 +119,7 @@ let $i = 1;
 while ($i <= 2) {
     --echo # Start MySQL... (attempt $i)
     --error 1,42
-    --exec $MYSQLD $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
 
     --echo # Verify...
 
@@ -134,11 +134,11 @@ while ($i <= 2) {
     inc $i;
 }
 
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-3.err
+
 --echo ############################################################################################
 --echo # Case 4. Attempt to start with redo files in new location, with future format (4294967295).
 --echo ############################################################################################
-
---remove_file $SEARCH_FILE
 
 --echo # Prepare...
 --mkdir $MYSQLD_DATADIR/#innodb_redo
@@ -150,7 +150,7 @@ let $i = 1;
 while ($i <= 2) {
     --echo # Start MySQL... (attempt $i)
     --error 1,42
-    --exec $MYSQLD $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
+    --exec $MYSQLD --no-defaults $MYSQLD_ARGS --debug="d,log_header_checksum_disabled" --$UNKNOWN_PARAM
 
     --echo # Verify...
 
@@ -165,11 +165,12 @@ while ($i <= 2) {
     inc $i;
 }
 
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_invalid_format-4.err
+
 --echo ############################################################################################
 
 --echo # Cleanup...
 
---remove_file $SEARCH_FILE
 --force-rmdir $MYSQLD_DATADIR
 
 let MYSQLD_ARGS=;

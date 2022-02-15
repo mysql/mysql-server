@@ -1,3 +1,5 @@
+--source include/have_debug_sync.inc
+
 # This test checks scenario of recovery executed on data directory in which the last redo file is marked as complete (full).
 
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
@@ -24,11 +26,11 @@ EOF
 let MYSQLD_EXTRA_ARGS = --debug='d,log_header_checksum_disabled';
 
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS > $SEARCH_FILE 2>&1 ;
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS
 let SEARCH_PATTERN = Found existing redo log files, but at least one is missing;
 --source include/search_pattern.inc
 
---remove_file $SEARCH_FILE
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_marked_as_full.err
 
 --force-rmdir $MYSQLD_DATADIR
 

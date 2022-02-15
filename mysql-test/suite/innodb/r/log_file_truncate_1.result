@@ -17,7 +17,7 @@ variable_name	variable_value
 Innodb_redo_log_capacity_resized	104857600
 SET GLOBAL DEBUG = '+d,log_force_consumption';
 # Waiting until we have exactly 1 redo log file.
-There are 1 / 1 non-temporary redo log files.
+There are <= 1 non-temporary redo log files.
 SET GLOBAL DEBUG = '-d,log_force_consumption';
 # Resize redo log to 8M:
 SET GLOBAL innodb_redo_log_capacity = 8*1024*1024;

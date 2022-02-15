@@ -1,8 +1,15 @@
 # This test checks scenario of recovery executed on data directory with redo file that has broken checkpoint_lsn (pointing outside the file)
 
+--source include/not_solaris.inc
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl has been compiled with support for 64bit integers.
+# The log_file_get_checkpoint_lsn(), which is used in this test, uses unpack('Q>').
+--source include/have_perl_64bit_int.inc
+
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let MYSQLD_EXTRA_ARGS = ;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
 --echo # Initialize new data directory...
@@ -28,14 +35,14 @@ EOF
 --source $MYSQLD_DATADIR/found.inc
 
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y > $SEARCH_FILE 2>&1 ;
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
 let SEARCH_PATTERN = The latest found checkpoint is at lsn = $REDO_CHECKPOINT_LSN in redo log file;
 --replace_result $REDO_CHECKPOINT_LSN REDO_CHECKPOINT_LSN
 --source include/search_pattern.inc
 let SEARCH_PATTERN = innodb-unknown-param;
 --source include/search_pattern.inc
 
---remove_file $SEARCH_FILE
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_checkpoint.err
 
 --force-rmdir $MYSQLD_DATADIR
 
