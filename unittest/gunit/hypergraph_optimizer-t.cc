@@ -68,6 +68,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
+#include "temptable/mock_field_varstring.h"
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"
@@ -245,19 +246,23 @@ void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
       Item_field *item_field = down_cast<Item_field *>(item);
       Fake_TABLE *table = m_fake_tables[item_field->table_name];
       item_field->table_ref = table->pos_in_table_list;
+      Field *field = nullptr;
       if (strcmp(item_field->field_name, "x") == 0) {
-        item_field->field = table->field[0];
+        field = table->field[0];
       } else if (strcmp(item_field->field_name, "y") == 0) {
-        item_field->field = table->field[1];
+        field = table->field[1];
       } else if (strcmp(item_field->field_name, "z") == 0) {
-        item_field->field = table->field[2];
+        field = table->field[2];
       } else if (strcmp(item_field->field_name, "w") == 0) {
-        item_field->field = table->field[3];
+        field = table->field[3];
       } else {
         assert(false);
       }
-      item_field->set_nullable(item_field->field->is_nullable());
-      item_field->set_data_type(MYSQL_TYPE_LONG);
+      item_field->field = field;
+      item_field->set_nullable(field->is_nullable());
+      item_field->set_data_type(field->type());
+      item_field->collation.set(field->charset(), field->derivation(),
+                                field->repertoire());
     }
     return false;
   });
@@ -4056,6 +4061,52 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
 
     query_block->cleanup(m_thd, /*full=*/true);
   }
+}
+
+TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
+  // CREATE TABLE t1(x VARCHAR(100), y INT, z INT, KEY(x), KEY(y)).
+  Mock_field_varstring x(/*share=*/nullptr, /*name=*/"x",
+                         /*char_len=*/100, /*is_nullable=*/true);
+  Mock_field_long y("y");
+  Mock_field_long z("z");
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&x, &y, &z);
+  t1->file->stats.records = 10000;
+  t1->file->stats.data_file_length = 1e6;
+  t1->create_index(&x, nullptr, /*unique=*/false);
+  t1->create_index(&y, nullptr, /*unique=*/false);
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  m_fake_tables["t1"] = t1;
+
+  // We want to test a query that does an inexact range scan (achieved by having
+  // a LIKE predicate on one of the indexed columns) and has enough predicates
+  // that they don't fit in an inlined OverflowBitset in the range scan access
+  // path. We need at least 64 predicates to make OverflowBitset overflow.
+  constexpr int number_of_predicates = 70;
+  string predicates = "(((t1.x like 'abc%xyz') or (t1.y > 3))";
+  for (int i = 1; i < number_of_predicates; ++i) {
+    predicates += " and (t1.z <> " + to_string(i) + ')';
+  }
+  predicates += ')';
+
+  string query = "SELECT 1 FROM t1 WHERE " + predicates;
+  Query_block *query_block = ParseAndResolve(query.c_str(),
+                                             /*nullable=*/false);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(AccessPath::INDEX_MERGE, root->filter().child->type);
+
+  // Since an inexact range predicate is used, all predicates should be kept in
+  // the filter node on top.
+  EXPECT_EQ(predicates, ItemToString(root->filter().condition));
 }
 
 TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {

@@ -1625,7 +1625,9 @@ void CostingReceiver::ProposeIndexMerge(
   this_predicate.SetBit(pred_idx);
   OverflowBitset applied_predicates(std::move(this_predicate));
   OverflowBitset subsumed_predicates =
-      inexact ? OverflowBitset() : applied_predicates;
+      inexact ? OverflowBitset(MutableOverflowBitset(param->temp_mem_root,
+                                                     num_where_predicates))
+              : applied_predicates;
   const bool contains_subqueries = Overlaps(imerge_path.filter_predicates,
                                             m_graph->materializable_predicates);
   for (bool materialize_subqueries : {false, true}) {
