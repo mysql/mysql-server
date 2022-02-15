@@ -139,8 +139,6 @@ end:
 
   @param [out] challenge_res     buffer to signed challenge
   @param [out] challenge_res_len length of signed challenge
-
-  @retval void
 */
 void fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
                                                size_t &challenge_res_len) {
@@ -162,8 +160,6 @@ void fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
 
   @param [in] scramble   buffer holding random salt
   @param [in] len        length of salt
-
-  @retval void
 */
 void fido_prepare_assert::set_scramble(unsigned char *scramble, size_t len) {
   fido_assert_set_clientdata_hash(m_assert, scramble, len);
@@ -174,8 +170,6 @@ void fido_prepare_assert::set_scramble(unsigned char *scramble, size_t len) {
 
   @param [in] cred   buffer holding credential ID
   @param [in] len    length of credential ID
-
-  @retval void
 */
 void fido_prepare_assert::set_cred_id(unsigned char *cred, size_t len) {
   fido_assert_allow_cred(m_assert, cred, len);
@@ -185,8 +179,6 @@ void fido_prepare_assert::set_cred_id(unsigned char *cred, size_t len) {
   Method to set the relying party name or id.
 
   @param [in] rp_id   buffer holding relying party name
-
-  @retval void
 */
 void fido_prepare_assert::set_rp_id(const char *rp_id) {
   fido_assert_set_rp(m_assert, rp_id);

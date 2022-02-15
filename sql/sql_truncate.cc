@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -462,9 +462,6 @@ void Sql_cmd_truncate_table::cleanup_temporary(THD *thd, handlerton *hton,
 
   @param  thd         Thread context.
   @param  table_ref   Table list element for the table to be truncated.
-
-  @retval  false  Success.
-  @retval  true   Error.
 */
 
 void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
@@ -615,9 +612,6 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 
   @param  thd         Thread context.
   @param  table_ref   Table list element for the table to be truncated.
-
-  @retval  false  Success.
-  @retval  true   Error.
 */
 
 void Sql_cmd_truncate_table::truncate_temporary(THD *thd,

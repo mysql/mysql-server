@@ -2417,9 +2417,6 @@ static xa_status_code binlog_xa_rollback(handlerton *, XID *xid) {
 
   @param err_string          Error string which specifies the exact error
                              message from the caller.
-
-  @retval
-    none
 */
 static void exec_binlog_error_action_abort(const char *err_string) {
   THD *thd = current_thd;

@@ -1237,7 +1237,7 @@
         </li>
       </ul>
 
-      Ignore this guidline if your intent is to test lettercase
+      Ignore this guideline if your intent is to test lettercase
       processing for SQL statements, of course.
 
       Use lowercase for @ref PAGE_MYSQLTEST "mysqltest" commands
@@ -1254,8 +1254,8 @@
     <li>
       Break a long SQL statement into multiple lines to make it more
       readable. This means that you will need to write it using a
-      “<b>;</b>” delimiter at the end of the statement rather than
-      using “<b>`--`</b>” at the beginning because the latter style
+      <b>";"</b> delimiter at the end of the statement rather than
+      using <b>"--"</b> at the beginning because the latter style
       works only for single-line statements.
     </li>
 

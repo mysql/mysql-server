@@ -1788,8 +1788,6 @@ static bool register_builtin(st_mysql_plugin *plugin, st_plugin_int *tmp,
   @arg tmp_root  memory root to use for plugin_add()
   @arg argc      number of command line arguments to process
   @arg argv      array of command line argument to read values from
-  @retval true   failure
-  @retval false  success
 */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   THD thd;

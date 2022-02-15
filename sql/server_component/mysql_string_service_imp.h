@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -73,9 +73,6 @@ class mysql_string_imp {
     Destroys specified string object and data contained by it.
 
     @param string String object handle to release.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
   */
   static DEFINE_METHOD(void, destroy, (my_h_string string));
 
@@ -241,9 +238,6 @@ class mysql_string_imp {
     Releases the string iterator object specified.
 
     @param iter String iterator object handle to release.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
   */
   static DEFINE_METHOD(void, iterator_destroy, (my_h_string_iterator iter));
 

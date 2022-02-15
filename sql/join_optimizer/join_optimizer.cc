@@ -555,9 +555,9 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
 /// of MATCH with a constant. For example, predicates on this form could be
 /// pushed down to a full-text index:
 ///
-///   WHERE MATCH (x) AGAINST ('search string') AND <more predicates>
+///   WHERE MATCH (x) AGAINST ('search string') AND @<more predicates@>
 ///
-///   WHERE MATCH (x) AGAINST ('search string') > 0.5 AND <more predicates>
+///   WHERE MATCH (x) AGAINST ('search string') > 0.5 AND @<more predicates@>
 ///
 /// Since full-text index scans return documents with positive scores only, an
 /// index scan can only be used if the predicate excludes negative or zero

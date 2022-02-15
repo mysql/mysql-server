@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,6 @@ enum_compression_algorithm get_compression_algorithm(std::string name) {
 
   @param       name    comma separated list of compression algorithm names
   @param[out]  list    list containing algorithm names
-
-  @retval void
 */
 void parse_compression_algorithms_list(std::string name,
                                        std::vector<std::string> &list) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -511,14 +511,6 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_create,
   return true;
 }
 
-/**
-  Releases Component iterator. Releases read lock on dynamic loader.
-
-  @param iterator Component iterator handle.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_METHOD(void, mysql_dynamic_loader_imp::iterator_release,
               (my_h_component_iterator iterator)) {
   try {
