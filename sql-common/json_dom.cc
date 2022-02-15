@@ -82,10 +82,6 @@
 #endif
 
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
-static bool populate_object_or_array(Json_dom *dom,
-                                     const json_binary::Value &v);
-static bool populate_object(Json_object *jo, const json_binary::Value &v);
-static bool populate_array(Json_array *ja, const json_binary::Value &v);
 
 #ifdef MYSQL_SERVER
 /**
@@ -632,16 +628,47 @@ static enum_json_type bjson2json(const json_binary::Value::enum_type bintype) {
   return res;
 }
 
-Json_dom_ptr Json_dom::parse(const json_binary::Value &v) {
-  Json_dom_ptr dom(json_binary_to_dom_template(v));
-  if (dom == nullptr || populate_object_or_array(dom.get(), v))
-    return nullptr; /* purecov: inspected */
-  return dom;
-}
-
 /// Get string data as std::string from a json_binary::Value.
 static std::string get_string_data(const json_binary::Value &v) {
   return std::string(v.get_data(), v.get_data_length());
+}
+
+Json_dom_ptr Json_dom::parse(const json_binary::Value &v) {
+  Json_dom_ptr root_dom(json_binary_to_dom_template(v));
+  if (root_dom == nullptr) return nullptr;
+
+  // if v is scalar
+  if (!v.is_array() && !v.is_object()) return root_dom;
+
+  Prealloced_array<std::pair<Json_dom *, const json_binary::Value>, 16> stack{
+      key_memory_JSON};
+  if (stack.emplace_back(root_dom.get(), v)) return nullptr;
+
+  while (!stack.empty()) {
+    auto pair = stack.back();
+    stack.pop_back();
+    const json_binary::Value &binary_val = pair.second;
+    bool is_object = binary_val.is_object();
+    Json_dom *const parent_dom = pair.first;
+    // Append each element
+    for (uint32 i = 0; i < binary_val.element_count(); ++i) {
+      json_binary::Value val = binary_val.element(i);
+      Json_dom *new_dom = json_binary_to_dom_template(val);
+      if (is_object) {
+        if (down_cast<Json_object *>(parent_dom)
+                ->add_alias(get_string_data(binary_val.key(i)), new_dom))
+          return nullptr;
+      } else {
+        if (down_cast<Json_array *>(parent_dom)->append_alias(new_dom))
+          return nullptr;
+      }
+      // if this value is also an object or array, we need to traverse it too
+      if (val.is_object() || val.is_array())
+        if (stack.emplace_back(new_dom, val)) return nullptr;
+    }
+  }
+
+  return root_dom;
 }
 
 /**
@@ -707,81 +734,6 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
   my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
   return nullptr;
   /* purecov: end */
-}
-
-/**
-  Populate the DOM representation of a JSON object or array with the
-  elements found in a binary JSON object or array. If the supplied
-  value does not represent an object or an array, do nothing.
-
-  @param[in,out] dom    the Json_dom object to populate
-  @param[in]     v      the binary JSON value to read from
-
-  @retval true on error
-  @retval false on success
-*/
-static bool populate_object_or_array(Json_dom *dom,
-                                     const json_binary::Value &v) {
-  switch (v.type()) {
-    case json_binary::Value::OBJECT:
-      // Check that we haven't run out of stack before we dive into the object.
-      return
-#ifdef MYSQL_SERVER
-          check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr) ||
-#endif
-          populate_object(down_cast<Json_object *>(dom), v);
-    case json_binary::Value::ARRAY:
-      // Check that we haven't run out of stack before we dive into the array.
-      return
-#ifdef MYSQL_SERVER
-          check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr) ||
-#endif
-          populate_array(down_cast<Json_array *>(dom), v);
-    default:
-      return false;
-  }
-}
-
-/**
-  Populate the DOM representation of a JSON object with the key/value
-  pairs found in a binary JSON object.
-
-  @param[in,out] jo     the JSON object to populate
-  @param[in]     v      the binary JSON object to read from
-
-  @retval true on error
-  @retval false on success
-*/
-static bool populate_object(Json_object *jo, const json_binary::Value &v) {
-  for (uint32 i = 0; i < v.element_count(); i++) {
-    auto key = get_string_data(v.key(i));
-    auto val = v.element(i);
-    auto dom = json_binary_to_dom_template(val);
-    if (jo->add_alias(key, dom) || populate_object_or_array(dom, val))
-      return true; /* purecov: inspected */
-  }
-  return false;
-}
-
-/**
-  Populate the DOM representation of a JSON array with the elements
-  found in a binary JSON array.
-
-  @param[in,out] ja     the JSON array to populate
-  @param[in]     v      the binary JSON array to read from
-
-  @retval true on error
-  @retval false on success
-*/
-static bool populate_array(Json_array *ja, const json_binary::Value &v) {
-  for (uint32 i = 0; i < v.element_count(); i++) {
-    auto elt = v.element(i);
-    auto dom = json_binary_to_dom_template(elt);
-    if (ja->append_alias(dom)) return true; /* purecov: inspected */
-    if (populate_object_or_array(dom, elt))
-      return true; /* purecov: inspected */
-  }
-  return false;
 }
 
 namespace {
