@@ -252,6 +252,7 @@ class Persisted_variables_cache final {
   /* Helper functions for file IO */
   void clear_sensitive_blob_and_iv();
   bool open_persist_file(int flag);
+  bool open_persist_backup_file(int flag);
   void close_persist_file();
 
  private:
@@ -343,6 +344,7 @@ class Persisted_variables_cache final {
   /* File handler members */
   MYSQL_FILE *m_fd;
   std::string m_persist_filename;
+  std::string m_persist_backup_filename;
   mysql_mutex_t m_LOCK_persist_file;
   /* Memory for parse early read only persisted options */
   MEM_ROOT parse_early_persisted_argv_alloc{

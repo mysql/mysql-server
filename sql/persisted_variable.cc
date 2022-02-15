@@ -308,6 +308,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
                 MY_UNPACK_FILENAME | MY_SAFE_PATH) == nullptr)
     return 1;
   m_persist_filename = string(dir);
+  m_persist_backup_filename = m_persist_filename + ".backup";
 
   mysql_mutex_init(key_persist_variables, &m_LOCK_persist_variables,
                    MY_MUTEX_INIT_FAST);
@@ -802,23 +803,26 @@ bool Persisted_variables_cache::flush_to_file() {
     unlock();
     return ret;
   }
-
   /*
-    If file does not exists create one. When persisted_globals_load is 0
-    we dont read contents of mysqld-auto.cnf file, thus append any new
-    variables which are persisted to this file.
+    Always write to backup file. Once write is successfull, rename backup
+    file to original file.
   */
-
-  if (open_persist_file(O_CREAT | O_WRONLY)) {
+  if (open_persist_backup_file(O_CREAT | O_WRONLY)) {
     ret = true;
   } else {
+    DBUG_EXECUTE_IF("crash_after_open_persist_file", DBUG_SUICIDE(););
     /* write to file */
     if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0) {
       ret = true;
     }
   }
-
+  DBUG_EXECUTE_IF("crash_after_write_persist_file", DBUG_SUICIDE(););
   close_persist_file();
+  if (!ret) {
+    DBUG_EXECUTE_IF("crash_after_close_persist_file", DBUG_SUICIDE(););
+    my_rename(m_persist_backup_filename.c_str(), m_persist_filename.c_str(),
+              MYF(MY_WME));
+  }
   if (ret == false && do_cleanup == true) clear_sensitive_blob_and_iv();
   mysql_mutex_unlock(&m_LOCK_persist_file);
   unlock();
@@ -834,8 +838,30 @@ bool Persisted_variables_cache::flush_to_file() {
     @retval false Success
 */
 bool Persisted_variables_cache::open_persist_file(int flag) {
+  /*
+    If file does not exists create one. When persisted_globals_load is 0
+    we dont read contents of mysqld-auto.cnf file, thus append any new
+    variables which are persisted to this file.
+  */
+  if (m_fd) return 1;
   m_fd = mysql_file_fopen(key_persist_file_cnf, m_persist_filename.c_str(),
                           flag, MYF(0));
+
+  return (m_fd ? 0 : 1);
+}
+
+/**
+  Open persisted backup config file
+
+  @param [in] flag file open mode
+  @return Error state
+    @retval true An error occurred
+    @retval false Success
+*/
+bool Persisted_variables_cache::open_persist_backup_file(int flag) {
+  if (m_fd) return 1;
+  m_fd = mysql_file_fopen(key_persist_file_cnf,
+                          m_persist_backup_filename.c_str(), flag, MYF(0));
   return (m_fd ? 0 : 1);
 }
 
@@ -1796,29 +1822,41 @@ void Persisted_variables_cache::load_aliases() {
     @retval 0 Success
 */
 int Persisted_variables_cache::read_persist_file() {
-  char buff[4096] = {0};
-  string parsed_value;
-  const char *error = nullptr;
-  size_t offset = 0;
-
+  Json_dom_ptr json;
   if ((check_file_permissions(m_persist_filename.c_str(), false)) < 2)
     return -1;
 
-  if (open_persist_file(O_RDONLY)) return -1;
-  do {
-    /* Read the persisted config file into a string buffer */
-    parsed_value.append(buff);
-    buff[0] = '\0';
-  } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
-  close_persist_file();
+  auto read_file = [&]() -> bool {
+    string parsed_value;
+    char buff[4096] = {0};
+    size_t offset = 0;
+    const char *error = nullptr;
+    do {
+      /* Read the persisted config file into a string buffer */
+      parsed_value.append(buff);
+      buff[0] = '\0';
+    } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
+    close_persist_file();
+    /* parse the file contents to check if it is in json format or not */
+    json = Json_dom::parse(parsed_value.c_str(), parsed_value.length(), &error,
+                           &offset);
+    if (!json.get()) return true;
+    return false;
+  };
 
-  /* parse the file contents to check if it is in json format or not */
-  std::unique_ptr<Json_dom> json(Json_dom::parse(
-      parsed_value.c_str(), parsed_value.length(), &error, &offset));
-  if (!json.get()) {
-    LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
-    return 1;
+  if (!(open_persist_backup_file(O_RDONLY) == false && read_file() == false)) {
+    /*
+      if opening or reading of backup file failed, delete backup file
+      and read original file
+    */
+    my_delete(m_persist_backup_filename.c_str(), MYF(0));
+    if (open_persist_file(O_RDONLY)) return -1;
+    if (read_file()) {
+      LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+      return 1;
+    }
   }
+
   Json_object *json_obj = down_cast<Json_object *>(json.get());
   /* Check file version */
   Json_dom *version_dom = json_obj->get("Version");
