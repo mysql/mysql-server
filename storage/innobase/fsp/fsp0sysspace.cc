@@ -390,8 +390,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 
   bool success = os_file_set_size(
       file.m_filepath, file.m_handle, 0,
-      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT,
-      m_ignore_read_only ? false : srv_read_only_mode, true);
+      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT, true);
 
   if (success) {
     ib::info(ER_IB_MSG_441)

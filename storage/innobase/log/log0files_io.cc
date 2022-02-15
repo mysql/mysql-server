@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2022, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1035,8 +1035,7 @@ dberr_t log_create_unused_file(const Log_files_context &ctx,
     return DB_ERROR;
   }
 
-  ret = os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes, false,
-                              true);
+  ret = os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes, true);
 
   if (!ret) {
     ib::error(ER_IB_MSG_LOG_FILE_RESIZE_FAILED, file_path.c_str(),
@@ -1087,8 +1086,8 @@ static dberr_t log_resize_file_low(const std::string &file_path,
   }
 
   if (size_in_bytes > stat_info.size) {
-    ret = os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes,
-                                false, true);
+    ret =
+        os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes, true);
 
   } else if (size_in_bytes < stat_info.size) {
     ret = os_file_truncate(file_path.c_str(), file, size_in_bytes);

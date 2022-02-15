@@ -409,8 +409,7 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
   if (!exists && file_offset != 0 && !read_only) {
     /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
     not an issue but we need to lseek to keep the current position at offset. */
-    success =
-        os_file_set_size(m_name_buf, m_file, 0, file_offset, false, false);
+    success = os_file_set_size(m_name_buf, m_file, 0, file_offset, false);
 
     exists = success;
   }

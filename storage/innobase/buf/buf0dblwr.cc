@@ -1732,7 +1732,7 @@ void Double_write::reset_file(dblwr::File &file, bool truncate) noexcept {
   } else if (new_size > cur_size) {
     auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(),
                                    univ_page_size.physical(), cur_size,
-                                   new_size - cur_size, srv_read_only_mode);
+                                   new_size - cur_size);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1752,9 +1752,8 @@ void Double_write::reduced_reset_file(dblwr::File &file,
   auto pfs_file = file.m_pfs;
 
   if (new_size > cur_size) {
-    auto err =
-        os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size, cur_size,
-                            new_size - cur_size, srv_read_only_mode);
+    auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size,
+                                   cur_size, new_size - cur_size);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1775,7 +1774,7 @@ dberr_t Double_write::init_file(dblwr::File &file, uint32_t n_pages,
 
   if (size == 0) {
     auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size, 0,
-                                   n_pages * phy_size, srv_read_only_mode);
+                                   n_pages * phy_size);
 
     if (err != DB_SUCCESS) {
       return err;

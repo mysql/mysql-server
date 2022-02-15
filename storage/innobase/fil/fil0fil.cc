@@ -2875,7 +2875,7 @@ bool Fil_shard::open_file(fil_node_t *file) {
         }
 
         /* Flush tablespaces so that we can close modified files in the LRU
-         * list. */
+        list. */
         fil_system->flush_file_spaces();
 
         if (!fil_system->close_file_in_all_LRU()) {
@@ -4646,8 +4646,7 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
   if (success) {
     os_offset_t size = size_in_pages * UNIV_PAGE_SIZE;
 
-    success = os_file_set_size(file.name, file.handle, 0, size,
-                               srv_read_only_mode, true);
+    success = os_file_set_size(file.name, file.handle, 0, size, true);
 
     if (success) {
       space->stop_new_ops = false;
@@ -5415,10 +5414,10 @@ dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
 }
 
 dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
-                                fil_type_t type, page_no_t size,
-                                const byte *encrypt_info, space_id_t space_id,
-                                uint32_t &space_flags, bool &atomic_write,
-                                bool &punch_hole) {
+                                fil_type_t type [[maybe_unused]],
+                                page_no_t size, const byte *encrypt_info,
+                                space_id_t space_id, uint32_t &space_flags,
+                                bool &atomic_write, bool &punch_hole) {
   bool success = false;
   atomic_write = false;
   punch_hole = false;
@@ -5452,15 +5451,13 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
   if (!success || (tbsp_extend_and_initialize && !atomic_write)) {
-    success = os_file_set_size(path, file, 0, sz, srv_read_only_mode, true);
+    success = os_file_set_size(path, file, 0, sz, true);
 
     if (success) {
       /* explicit initialization is needed as same as fil_space_extend(),
       instead of punch_hole. */
-      bool read_only_mode =
-          (type != FIL_TYPE_TEMPORARY ? false : srv_read_only_mode);
-      dberr_t err = os_file_write_zeros(file, path, page_size.physical(), 0, sz,
-                                        read_only_mode);
+      dberr_t err =
+          os_file_write_zeros(file, path, page_size.physical(), 0, sz);
       if (err != DB_SUCCESS) {
         ib::warn(ER_IB_MSG_320) << "Error while writing " << sz << " zeroes to "
                                 << path << " starting at offset " << 0;
@@ -6404,12 +6401,9 @@ space_id_t fil_space_get_id_by_name(const char *name) {
 @param[in] page_size    physical page size
 @param[in] start        Offset from the start of the file in bytes
 @param[in] len          Length in bytes
-@param[in] read_only_mode
-                        if true, then read only mode checks are enforced.
 @return DB_SUCCESS or error code */
 static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
-                               os_offset_t start, os_offset_t len,
-                               bool read_only_mode) {
+                               os_offset_t start, os_offset_t len) {
   ut_a(len > 0);
 
   /* Extend at most 1M at a time */
@@ -6423,13 +6417,8 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
   IORequest request(IORequest::WRITE);
 
   while (offset < end) {
-#ifdef UNIV_HOTBACKUP
     err =
         os_file_write(request, file->name, file->handle, buf, offset, n_bytes);
-#else  /* UNIV_HOTBACKUP */
-    err = os_aio_func(request, AIO_mode::SYNC, file->name, file->handle, buf,
-                      offset, n_bytes, read_only_mode, nullptr, nullptr);
-#endif /* UNIV_HOTBACKUP */
 
     if (err != DB_SUCCESS) {
       break;
@@ -6667,13 +6656,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     if ((tbsp_extend_and_initialize && !file->atomic_write) ||
         err == DB_IO_ERROR) {
-      bool read_only_mode;
-
-      read_only_mode =
-          (space->purpose != FIL_TYPE_TEMPORARY ? false : srv_read_only_mode);
-
-      err =
-          fil_write_zeros(file, phy_page_size, node_start, len, read_only_mode);
+      err = fil_write_zeros(file, phy_page_size, node_start, len);
 
       if (err != DB_SUCCESS) {
         ib::warn(ER_IB_MSG_320)
@@ -10434,7 +10417,7 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
 
   /* Initialize the region starting from current end of file with zeros. */
   dberr_t err =
-      fil_write_zeros(file, phy_page_size, initial_fsize, new_ext_size, false);
+      fil_write_zeros(file, phy_page_size, initial_fsize, new_ext_size);
 
   if (err != DB_SUCCESS) {
     /* Error writing zeros to the file. */
