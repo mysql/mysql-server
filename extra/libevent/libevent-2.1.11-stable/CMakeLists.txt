@@ -972,7 +972,7 @@ ENDIF()
 
 if (CMAKE_USE_PTHREADS_INIT)
   set(SRC_PTHREADS evthread_pthread.c)
-  add_library(event_pthreads ${SRC_PTHREADS})
+  add_library(event_pthreads STATIC ${SRC_PTHREADS})
   SET_TARGET_PROPERTIES(event_pthreads
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()

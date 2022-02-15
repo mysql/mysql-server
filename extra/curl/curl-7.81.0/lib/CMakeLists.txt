@@ -84,6 +84,10 @@ add_library(
   ${HHEADERS} ${CSOURCES}
   )
 
+IF(WITH_ZLIB STREQUAL "bundled")
+  ADD_DEPENDENCIES(${LIB_NAME} zlib)
+ENDIF()
+
 add_library(
   ${PROJECT_NAME}::${LIB_NAME}
   ALIAS ${LIB_NAME}

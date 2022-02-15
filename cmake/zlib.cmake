@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,15 @@ MACRO (MYSQL_USE_BUNDLED_ZLIB)
     ${CMAKE_BINARY_DIR}/extra/zlib
     )
   ADD_SUBDIRECTORY(extra/zlib)
+
+  # Add support for bundled curl.
+  IF(NOT CMAKE_VERSION VERSION_LESS 3.4)
+    ADD_LIBRARY(ZLIB::ZLIB UNKNOWN IMPORTED)
+    SET_TARGET_PROPERTIES(ZLIB::ZLIB PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}")
+    SET_PROPERTY(TARGET ZLIB::ZLIB APPEND PROPERTY
+      IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/archive_output_directory/libz.a")
+  ENDIF()
 ENDMACRO()
 
 
