@@ -1,0 +1,5 @@
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+# This is used to make EXPLAIN SELECT results deterministic.
+--innodb_stats_transient_sample_pages=5000000000
+--innodb_stats_persistent_sample_pages=5000000000

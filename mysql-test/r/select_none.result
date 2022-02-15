@@ -640,20 +640,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`t2nr` AS `t2nr`,`test`.`t2`.`fld3` AS `fld3` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`)) order by `test`.`t3`.`t2nr`,`test`.`t2`.`fld3`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41736	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t3`.`period`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4173	100.00	NULL
+1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4181	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t1`.`period` = `test`.`t3`.`period`) order by `test`.`t3`.`period` limit 10
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	NULL
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t1`.`period` limit 10
 select period from t1;
@@ -1270,7 +1270,7 @@ test.t3	analyze	status	OK
 EXPLAIN  select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	10.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,period	PRIMARY	4	test.t2.fld1	1	20.04	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,period	PRIMARY	4	test.t2.fld1	1	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 37) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`) and (`test`.`t3`.`period` >= 1001) and (`test`.`t3`.`period` <= 1002)) order by `test`.`t2`.`fld3`,`test`.`t3`.`period`,`test`.`t3`.`price`
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
@@ -4984,7 +4984,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24404	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT a FROM t1 ORDER BY a;
@@ -5009,7 +5009,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 5
 SELECT a FROM t1 ORDER BY a LIMIT 5;
@@ -5021,7 +5021,7 @@ a
 
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
@@ -5033,7 +5033,7 @@ a	b	c
 		2
 EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c` limit 5
 SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
@@ -5045,7 +5045,7 @@ a	b	c
 		0
 EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`c`,`test`.`t1`.`a` limit 5
 SELECT * FROM t1 ORDER BY c, a LIMIT 5;
