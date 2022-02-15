@@ -3,9 +3,11 @@
 
 # Tests for Column list which requires utf8 output
 set names utf8;
+--source include/turn_off_strict_mode.inc
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)
 ( partition p0 values in (0x81));
+--source include/restore_strict_mode.inc
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
