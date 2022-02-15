@@ -1460,12 +1460,11 @@ zeros otherwise.
 @param[in]      file            handle to the file
 @param[in]      offset          file offset
 @param[in]      size            file size
-@param[in]      read_only       enable read-only checks if true
 @param[in]      flush           flush file content to disk
 @return true if success */
 [[nodiscard]] bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
                                          os_offset_t offset, os_offset_t size,
-                                         bool read_only, bool flush);
+                                         bool flush);
 
 /** Write the specified number of zeros to a file from specific offset.
 @param[in]      name            name of the file or path as a null-terminated
@@ -1473,12 +1472,11 @@ zeros otherwise.
 @param[in]      file            handle to a file
 @param[in]      offset          file offset
 @param[in]      size            file size
-@param[in]      read_only       enable read-only checks if true
 @param[in]      flush           flush file content to disk
 @return true if success */
 [[nodiscard]] bool os_file_set_size(const char *name, pfs_os_file_t file,
                                     os_offset_t offset, os_offset_t size,
-                                    bool read_only, bool flush);
+                                    bool flush);
 
 /** Truncates a file at its current position.
 @param[in,out]  file    file to be truncated
@@ -1640,12 +1638,11 @@ void os_create_block_cache();
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
-segment in these arrays. This function also creates the sync array.
+segment in these arrays.
 No i/o handler thread needs to be created for that
 @param[in]      n_readers       number of reader threads
-@param[in]      n_writers       number of writer threads
-@param[in]      n_slots_sync    number of dblwr slots in the sync aio array */
-bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync);
+@param[in]      n_writers       number of writer threads */
+bool os_aio_init(ulint n_readers, ulint n_writers);
 
 /**
 Frees the asynchronous io system. */
@@ -1837,15 +1834,13 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 @param[in] page_size    physical page size
 @param[in] start        Offset from the start of the file in bytes
 @param[in] len          Length in bytes
-@param[in] read_only_mode
-                        if true, then read only mode checks are enforced.
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
                                           ulint page_size, os_offset_t start,
-                                          ulint len, bool read_only_mode);
+                                          ulint len);
 
 #ifndef UNIV_NONINL
-/** Class to scan the directory heirarchy using a depth first scan. */
+/** Class to scan the directory hierarchy using a depth first scan. */
 class Dir_Walker {
  public:
   using Path = std::string;

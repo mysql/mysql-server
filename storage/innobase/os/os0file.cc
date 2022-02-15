@@ -244,14 +244,9 @@ Windows native AIO:
 If srv_use_native_aio is not set then Windows follow the same
 code as simulated AIO. If the flag is set then native AIO interface
 is used. On windows, one of the limitation is that if a file is opened
-for AIO no synchronous IO can be done on it. Therefore we have an
-extra fifth array to queue up synchronous IO requests.
-There are innodb_file_io_threads helper threads. These threads work
-on the four arrays mentioned above in Simulated AIO. No thread is
-required for the sync array.
-If a synchronous IO request is made, it is first queued in the sync
-array. Then the calling thread itself waits on the request, thus
-making the call synchronous.
+for AIO no synchronous IO can be done on it. The os_file_write/os_file_read take
+this into account. There are innodb_file_io_threads helper threads. These
+threads work on the four arrays mentioned above in Simulated AIO.
 If an AIO request is made the calling thread not only queues it in the
 array but also submits the requests. The helper thread then collects
 the completed IO request and calls completion routine on it.
@@ -577,10 +572,6 @@ class AIO {
   threads are not left sleeping! */
   static void simulated_put_read_threads_to_sleep();
 
-  /** The non asynchronous IO array.
-  @return the synchronous AIO array instance. */
-  [[nodiscard]] static AIO *sync_array() { return s_sync; }
-
   /**
   Get the pointer to array of AIO handles of Events for a given segment.
   @param[in]    segment         The local segment.
@@ -612,16 +603,15 @@ class AIO {
   for ibuf and log I/O. Also creates one array each for read and write
   where each array is divided logically into n_readers and n_writers
   respectively. The caller must create an i/o handler thread for each
-  segment in these arrays. This function also creates the sync array.
+  segment in these arrays.
   No I/O handler thread needs to be created for that
   @param[in]    n_per_seg       maximum number of pending aio
                                   operations allowed per segment
   @param[in]    n_readers       number of reader threads
   @param[in]    n_writers       number of writer threads
-  @param[in]    n_slots_sync    number of slots in the sync aio array
   @return true if AIO sub-system was started successfully */
   [[nodiscard]] static bool start(ulint n_per_seg, ulint n_readers,
-                                  ulint n_writers, ulint n_slots_sync);
+                                  ulint n_writers);
 
   /** Free the AIO arrays */
   static void shutdown();
@@ -757,9 +747,8 @@ class AIO {
   IOEvents m_events;
 #endif /* LINUX_NATIV_AIO */
 
-  /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as
-  sync AIO. These are NULL when the module has not yet been
-  initialized. */
+  /** The aio arrays for non-ibuf i/o and ibuf i/o. These are NULL when the
+  module has not yet been initialized. */
 
   /** Insert buffer */
   static AIO *s_ibuf;
@@ -772,9 +761,6 @@ class AIO {
 
   /** Writes */
   static AIO *s_writes;
-
-  /** Synchronous I/O */
-  static AIO *s_sync;
 };
 
 /** Static declarations */
@@ -782,7 +768,6 @@ AIO *AIO::s_reads;
 AIO *AIO::s_writes;
 AIO *AIO::s_ibuf;
 AIO *AIO::s_log;
-AIO *AIO::s_sync;
 
 #if defined(LINUX_NATIVE_AIO)
 /** timeout for each io_getevents() call = 500ms. */
@@ -895,11 +880,7 @@ therefore no other thread is allowed to do the freeing!
 wait for; segment 0 is the ibuf I/O thread,
 segment 1 the log I/O thread, then follow the
 non-ibuf read threads, and as the last are the
-non-ibuf write threads; if this is
-ULINT_UNDEFINED, then it means that sync AIO
-is used, and this parameter is ignored
-@param[in]      pos             this parameter is used only in sync AIO:
-wait for the aio slot at this position
+non-ibuf write threads
 @param[out]     m1              the messages passed with the AIO request; note
 that also in the case where the AIO operation
 failed, these output parameters are valid and
@@ -908,8 +889,8 @@ for example
 @param[out]     m2              callback message
 @param[out]     type            OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
-static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
-                                      void **m2, IORequest *type);
+static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
+                                      IORequest *type);
 #endif /* WIN_ASYNC_IO */
 
 /** Check the file type and determine if it can be deleted.
@@ -3730,28 +3711,57 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 @param[in]      request The IO context and type
 @return the number of bytes read/written or negative value on error */
 ssize_t SyncFileIO::execute(const IORequest &request) {
-  OVERLAPPED seek;
+  OVERLAPPED overlapped{};
 
-  memset(&seek, 0x0, sizeof(seek));
+  /* We need a fresh, not shared instance of Event for the OVERLAPPED structure.
+  Both are stopped being used at most at the end of this method, as we wait for
+  the result with GetOverlappedResult. Otherwise the kernel would be modifying
+  the structure after we leave this method and if the overlapped struct was
+  allocated on stack, it would corrupt the stack.
+  To not create a fresh Event each time this method is called, we will use a
+  static one, that is initialized once on first usage and is destroyed at latest
+  at program exit.
+  To make it not being used concurrently, we make it thread_local (which implies
+  static) - this way each invocation will have its own Event not used by anyone
+  else. The event will be destroyed at thread exit. */
+  thread_local Scoped_event local_event;
 
-  seek.Offset = (DWORD)m_offset & 0xFFFFFFFF;
-  seek.OffsetHigh = (DWORD)(m_offset >> 32);
+  overlapped.hEvent = local_event.get_handle();
+  overlapped.Offset = (DWORD)m_offset & 0xFFFFFFFF;
+  overlapped.OffsetHigh = (DWORD)(m_offset >> 32);
 
-  BOOL ret;
-  DWORD n_bytes;
+  ut_a(overlapped.hEvent != NULL);
+
+  BOOL result;
+  DWORD n_bytes_transfered = 0;
+  DWORD n_bytes_transfered_sync;
 
   if (request.is_read()) {
-    ret = ReadFile(m_fh, m_buf, static_cast<DWORD>(m_n), &n_bytes, &seek);
+    result = ReadFile(m_fh, m_buf, static_cast<DWORD>(m_n),
+                      &n_bytes_transfered_sync, &overlapped);
 
   } else {
     ut_ad(request.is_write());
-    ret = WriteFile(m_fh, m_buf, static_cast<DWORD>(m_n), &n_bytes, &seek);
+    result = WriteFile(m_fh, m_buf, static_cast<DWORD>(m_n),
+                       &n_bytes_transfered_sync, &overlapped);
   }
 
-  /* Sync IO can't be done on a file opened in AIO mode. */
-  ut_a(ret || GetLastError() != ERROR_IO_PENDING);
-
-  return (ret ? static_cast<ssize_t>(n_bytes) : -1);
+  if (!result) {
+    if (GetLastError() == ERROR_IO_PENDING) {
+      result =
+          GetOverlappedResult(m_fh, &overlapped, &n_bytes_transfered, true);
+    }
+  } else {
+    /* The IO was executed synchronously (this can happen even for files opened
+    for async operations). The value returned in pointer to ReadFile/WriteFile
+    has the correct number of bytes transferred. This fact for the files opened
+    for async operations is not in the documentation, but it is showed in
+    example usage and notes on
+    https://docs.microsoft.com/en-US/troubleshoot/windows/win32/asynchronous-disk-io-synchronous
+    */
+    n_bytes_transfered = n_bytes_transfered_sync;
+  }
+  return (result ? static_cast<ssize_t>(n_bytes_transfered) : -1);
 }
 
 /** Free storage space associated with a section of the file.
@@ -5490,8 +5500,7 @@ void os_file_set_nocache(int fd [[maybe_unused]],
 }
 
 bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
-                           os_offset_t offset, os_offset_t size, bool read_only,
-                           bool flush) {
+                           os_offset_t offset, os_offset_t size, bool flush) {
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX) && \
     defined(HAVE_FALLOC_FL_ZERO_RANGE)
   ut_a(size >= offset);
@@ -5519,11 +5528,11 @@ bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
   }
 #endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
 
-  return os_file_set_size(name, pfs_file, offset, size, read_only, flush);
+  return os_file_set_size(name, pfs_file, offset, size, flush);
 }
 
 bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
-                      os_offset_t size, bool read_only, bool flush) {
+                      os_offset_t size, bool flush) {
   /* Write up to FSP_EXTENT_SIZE bytes at a time. */
   ulint buf_size = 0;
 
@@ -5558,17 +5567,7 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
     dberr_t err;
     IORequest request(IORequest::WRITE);
 
-#ifdef UNIV_HOTBACKUP
-
     err = os_file_write(request, name, file, buf, current_size, n_bytes);
-#else
-    /* Using AIO_mode::SYNC mode on POSIX systems will result in
-    fall back to os_file_write/read. On Windows it will use
-    special mechanism to wait before it returns back. */
-
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, current_size,
-                 n_bytes, read_only, nullptr, nullptr);
-#endif /* UNIV_HOTBACKUP */
 
     if (err != DB_SUCCESS) {
       ut::aligned_free(buf);
@@ -5981,18 +5980,8 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
   return (ret);
 }
 
-/** Fill the pages with NULs
-@param[in] file         File handle
-@param[in] name         File name
-@param[in] page_size    physical page size
-@param[in] start        Offset from the start of the file in bytes
-@param[in] len          Length in bytes
-@param[in] read_only_mode
-                        if true, then read only mode checks are enforced.
-@return DB_SUCCESS or error code */
 dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
-                            ulint page_size, os_offset_t start, ulint len,
-                            bool read_only_mode) {
+                            ulint page_size, os_offset_t start, ulint len) {
   ut_a(len > 0);
 
   /* Extend at most 1M at a time */
@@ -6006,12 +5995,7 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
   IORequest request(IORequest::WRITE);
 
   while (offset < end) {
-#ifdef UNIV_HOTBACKUP
     err = os_file_write(request, name, file, buf, offset, n_bytes);
-#else
-    err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
-                 read_only_mode, nullptr, nullptr);
-#endif /* UNIV_HOTBACKUP */
 
     if (err != DB_SUCCESS) {
       break;
@@ -6058,7 +6042,7 @@ dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
 
 #ifdef WIN_ASYNC_IO
 
-    err = os_aio_windows_handler(segment, 0, m1, m2, request);
+    err = os_aio_windows_handler(segment, m1, m2, request);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -6261,20 +6245,7 @@ AIO::~AIO() {
   m_slots.clear();
 }
 
-/** Initializes the asynchronous io system. Creates one array each
-for ibuf and log I/O. Also creates one array each for read and write
-where each array is divided logically into n_readers and n_writers
-respectively. The caller must create an i/o handler thread for each
-segment in these arrays. This function also creates the sync array.
-No I/O handler thread needs to be created for that
-@param[in]      n_per_seg       maximum number of pending aio
-                                operations allowed per segment
-@param[in]      n_readers       number of reader threads
-@param[in]      n_writers       number of writer threads
-@param[in]      n_slots_sync    number of slots in the sync aio array
-@return true if AIO sub-system was started successfully */
-bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
-                ulint n_slots_sync) {
+bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 #if defined(LINUX_NATIVE_AIO)
   /* Check if native aio is supported on this system and tmpfs */
   if (srv_use_native_aio && !is_linux_native_aio_supported()) {
@@ -6353,12 +6324,6 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
   ut_ad(n_segments >= static_cast<ulint>(srv_read_only_mode ? 2 : 4));
 
-  s_sync = create(LATCH_ID_OS_AIO_SYNC_MUTEX, n_slots_sync, 1);
-
-  if (s_sync == nullptr) {
-    return false;
-  }
-
   os_aio_n_segments = n_segments;
 
   os_aio_validate();
@@ -6390,9 +6355,6 @@ void AIO::shutdown() {
 
   ut::delete_(s_writes);
   s_writes = nullptr;
-
-  ut::delete_(s_sync);
-  s_sync = nullptr;
 
   ut::delete_(s_reads);
   s_reads = nullptr;
@@ -6530,16 +6492,7 @@ void meb_free_block_cache() {
 }
 #endif /* UNIV_HOTBACKUP */
 
-/** Initializes the asynchronous io system. Creates one array each for ibuf
-and log i/o. Also creates one array each for read and write where each
-array is divided logically into n_readers and n_writers
-respectively. The caller must create an i/o handler thread for each
-segment in these arrays. This function also creates the sync array.
-No i/o handler thread needs to be created for that
-@param[in]      n_readers       number of reader threads
-@param[in]      n_writers       number of writer threads
-@param[in]      n_slots_sync    number of dblwr slots in the sync aio array */
-bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
+bool os_aio_init(ulint n_readers, ulint n_writers) {
   /* Maximum number of pending aio operations allowed per segment */
   ulint limit = 8 * OS_AIO_N_PENDING_IOS_PER_THREAD;
 
@@ -6555,7 +6508,7 @@ bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
   os_fusionio_get_sector_size();
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-  return (AIO::start(limit, n_readers, n_writers, n_slots_sync));
+  return (AIO::start(limit, n_readers, n_writers));
 }
 
 /** Frees the asynchronous io system. */
@@ -6995,15 +6948,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
       array = read_only ? AIO::s_reads : AIO::s_log;
       break;
 
-    case AIO_mode::SYNC:
-
-      array = AIO::s_sync;
-#if defined(LINUX_NATIVE_AIO)
-      /* In Linux native AIO we don't use sync IO array. */
-      ut_a(!srv_use_native_aio);
-#endif /* LINUX_NATIVE_AIO */
-      break;
-
     default:
       ut_error;
   }
@@ -7012,41 +6956,13 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 }
 
 #ifdef WIN_ASYNC_IO
-/** This function is only used in Windows asynchronous (overlapped) i/o.
-Waits for an overlapped operation to complete. This function is used to wait the
-for completed requests. The aio array of pending requests is divided
-into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
-therefore no other thread is allowed to do the freeing!
-@param[in]      segment         The number of the segment in the aio arrays to
-                                wait for; segment 0 is the ibuf I/O thread,
-                                segment 1 the log I/O thread, then follow the
-                                non-ibuf read threads, and as the last are the
-                                non-ibuf write threads; if this is
-                                ULINT_UNDEFINED, then it means that sync AIO
-                                is used, and this parameter is ignored
-@param[in]      pos             this parameter is used only in sync AIO:
-                                wait for the aio slot at this position
-@param[out]     m1              the messages passed with the AIO request; note
-                                that also in the case where the AIO operation
-                                failed, these output parameters are valid and
-                                can be used to restart the operation,
-                                for example
-@param[out]     m2              callback message
-@param[out]     type            OS_FILE_WRITE or ..._READ
-@return DB_SUCCESS or error code */
-static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
-                                      void **m2, IORequest *type) {
+
+static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
+                                      IORequest *type) {
   Slot *slot;
   AIO *array{};
-  ulint orig_seg = segment;
 
-  if (segment == ULINT_UNDEFINED) {
-    segment = 0;
-    array = AIO::sync_array();
-  } else {
-    segment = AIO::get_array_and_local_segment(array, segment);
-  }
+  const auto segment_offset = AIO::get_array_and_local_segment(array, segment);
 
   dberr_t err = DB_ERROR_UNSET;
   while (err == DB_ERROR_UNSET) {
@@ -7058,16 +6974,11 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
     ut_ad(os_aio_validate_skip());
 #endif /* !UNIV_HOTBACKUP */
 
-    if (array == AIO::sync_array()) {
-      WaitForSingleObject(array->at(pos)->handle, INFINITE);
-    } else {
-      if (orig_seg != ULINT_UNDEFINED) {
-        srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-      }
+    srv_set_io_thread_op_info(segment, "wait Windows aio");
 
-      pos = WaitForMultipleObjects((DWORD)array->slots_per_segment(),
-                                   array->handles(segment), FALSE, INFINITE);
-    }
+    const auto pos =
+        WaitForMultipleObjects((DWORD)array->slots_per_segment(),
+                               array->handles(segment_offset), FALSE, INFINITE);
 
     array->acquire();
 
@@ -7091,13 +7002,11 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 
     ut_a(pos >= WAIT_OBJECT_0 && pos <= WAIT_OBJECT_0 + n);
 
-    slot = array->at(pos + segment * n);
+    slot = array->at(pos + segment_offset * n);
 
     ut_a(slot->is_reserved);
 
-    if (orig_seg != ULINT_UNDEFINED) {
-      srv_set_io_thread_op_info(orig_seg, "get windows aio return value");
-    }
+    srv_set_io_thread_op_info(segment, "get windows aio return value");
 
     BOOL ret = GetOverlappedResult(slot->file.m_file, &slot->control,
                                    &slot->n_bytes, TRUE);
@@ -7151,8 +7060,7 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
       if ((ret && slot->len == slot->n_bytes) ||
           (!ret && GetLastError() == ERROR_IO_PENDING)) {
         /* The overlapped operation was queued successfully. We will now retry
-        the wait. For sync operation we will just wait again till it's executed,
-        and for async we will get any next AIO completion. */
+        the wait to get any next AIO completion. */
         err = DB_ERROR_UNSET;
       }
     }
@@ -7207,17 +7115,12 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   ut_ad((n & 0xFFFFFFFFUL) == n);
 #endif /* WIN_ASYNC_IO */
 
-  if (aio_mode == AIO_mode::SYNC
-#ifdef WIN_ASYNC_IO
-      && !srv_use_native_aio
-#endif /* WIN_ASYNC_IO */
-  ) {
+  if (aio_mode == AIO_mode::SYNC) {
     /* This is actually an ordinary synchronous read or write:
     no need to use an i/o-handler thread. NOTE that if we use
     Windows "async" overlapped i/o, Windows does not allow us to use
-    ordinary synchronous os_file_read etc. on the same file,
-    therefore we have built a special mechanism for synchronous
-    wait in the Windows case.
+    ordinary synchronous operations etc. on the same file. The os_file_read()
+    and os_file_write() are handling this case correctly.
     Also note that the Performance Schema instrumentation has
     been performed by current os_aio_func()'s wrapper function
     pfs_os_aio_func(). So we would no longer need to call
@@ -7280,28 +7183,10 @@ try_again:
 
 #ifdef WIN_ASYNC_IO
   if (srv_use_native_aio) {
-    if ((ret && slot->len == slot->n_bytes) ||
-        (!ret && GetLastError() == ERROR_IO_PENDING)) {
-      /* overlapped IO was queued successfully! */
-
-      if (aio_mode == AIO_mode::SYNC) {
-        void *dummy_mess2;
-        IORequest dummy_type;
-        fil_node_t *dummy_mess1;
-
-        /* We want a synchronous i/o operation on a
-        file where we also use async i/o: in Windows
-        we must use the same wait mechanism as for
-        async i/o */
-
-        return (os_aio_windows_handler(ULINT_UNDEFINED, slot->pos, &dummy_mess1,
-                                       &dummy_mess2, &dummy_type));
-      }
-
-      return (DB_SUCCESS);
+    if ((!ret && GetLastError() != ERROR_IO_PENDING) ||
+        (ret && slot->len != slot->n_bytes)) {
+      goto err_exit;
     }
-
-    goto err_exit;
   }
 #endif /* WIN_ASYNC_IO */
 
@@ -7313,7 +7198,6 @@ err_exit:
 #endif /* LINUX_NATIVE_AIO || WIN_ASYNC_IO */
 
   array->release_with_mutex(slot);
-
   if (os_file_handle_error(name, type.is_read() ? "aio read" : "aio write")) {
     goto try_again;
   }
@@ -7821,10 +7705,6 @@ ulint AIO::total_pending_io_count() {
     count += s_log->pending_io_count();
   }
 
-  if (s_sync != nullptr) {
-    count += s_sync->pending_io_count();
-  }
-
   return (count);
 }
 
@@ -7912,11 +7792,6 @@ void AIO::print_all(FILE *file) {
   if (s_log != nullptr) {
     fputs(", log i/o's:", file);
     s_log->print(file);
-  }
-
-  if (s_sync != nullptr) {
-    fputs(", sync i/o's:", file);
-    s_sync->print(file);
   }
 }
 
@@ -8051,11 +7926,6 @@ void AIO::print_to_file(FILE *file) {
   if (s_log != nullptr) {
     fprintf(file, "Pending log i/o's:");
     s_log->to_file(file);
-  }
-
-  if (s_sync != nullptr) {
-    fprintf(file, "Pending sync i/o's:");
-    s_sync->to_file(file);
   }
 }
 

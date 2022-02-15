@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -387,8 +387,7 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
   if (!exists && file_offset != 0) {
     /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
     not an issue but we need to lseek to keep the current position at offset. */
-    success =
-        os_file_set_size(m_name_buf, m_file, 0, file_offset, false, false);
+    success = os_file_set_size(m_name_buf, m_file, 0, file_offset, false);
   }
 
   if (success) {

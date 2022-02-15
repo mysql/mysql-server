@@ -311,7 +311,7 @@ static void io_handler_thread(ulint segment) {
 #endif /* UNIV_DEBUG_DEDICATED */
 
   ret = os_file_set_size_fast(name, *file, 0, (os_offset_t)srv_log_file_size,
-                              srv_read_only_mode, true);
+                              true);
 
   if (!ret) {
     ib::error(ER_IB_MSG_1063, name, size);
@@ -605,8 +605,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
 
     ib::info(ER_IB_MSG_1073);
 
-    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE,
-                           srv_read_only_mode, true);
+    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE, true);
 
     DBUG_EXECUTE_IF("ib_undo_tablespace_create_fail", ret = false;);
 
@@ -2113,8 +2112,7 @@ dberr_t srv_start(bool create_new_db) {
 
   ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads,
-                   SRV_MAX_N_PENDING_SYNC_IOS)) {
+  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     ib::error(ER_IB_MSG_1129);
 
     return (srv_init_abort(DB_ERROR));

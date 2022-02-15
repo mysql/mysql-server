@@ -160,10 +160,7 @@ static bool log_test_general_init() {
   os_create_block_cache();
   clone_init();
 
-  const size_t max_n_pending_sync_ios = 100;
-
-  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads,
-                   max_n_pending_sync_ios)) {
+  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     std::cerr << "Cannot initialize aio system" << std::endl;
     return (false);
   }
@@ -221,9 +218,8 @@ static bool log_test_init() {
       return (false);
     }
 
-    ret =
-        os_file_set_size(filename, files[i], 0, (os_offset_t)srv_log_file_size,
-                         srv_read_only_mode, false);
+    ret = os_file_set_size(filename, files[i], 0,
+                           (os_offset_t)srv_log_file_size, false);
     if (!ret) {
       std::cerr << "Cannot set log file " << filename << " to size "
                 << (srv_log_file_size >> 20) << " MB" << std::endl;

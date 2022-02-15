@@ -1732,10 +1732,10 @@ int Clone_Snapshot::extend_and_flush_files(bool flush_redo) {
 
     if (file_size < file_meta->m_file_size) {
       success = os_file_set_size(file_name.c_str(), file, file_size,
-                                 file_meta->m_file_size, false, true);
+                                 file_meta->m_file_size, true);
     } else if (file_size < aligned_size) {
       success = os_file_set_size(file_name.c_str(), file, file_size,
-                                 aligned_size, false, true);
+                                 aligned_size, true);
     } else {
       success = os_file_flush(file);
     }
