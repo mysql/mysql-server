@@ -1333,12 +1333,11 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     }
 
     if (m_states.size() >= kMaxNFSMStates) {
-      // Stop expanding new functional dependencies, causing us to end fairly
-      // soon. We won't necessarily find the optimal query, but we'll keep all
-      // essential information, and not throw away any of the information we
-      // have already gathered (unless the DFSM gets too large, too;
-      // see ConvertNFSMToDFSM()).
-      continue;
+      // Stop adding more states. We won't necessarily find the optimal query,
+      // but we'll keep all essential information, and not throw away any of the
+      // information we have already gathered (unless the DFSM gets too large,
+      // too; see ConvertNFSMToDFSM()).
+      break;
     }
 
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
@@ -1762,10 +1761,9 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
     }
 
     if (m_dfsm_states.size() >= kMaxDFSMStates) {
-      // Stop creating new states, causing us to end fairly soon (same as the
-      // cutoff in BuildNFSM()). Note that since the paths representing explicit
-      // sorts are put first, they will never be lost unless kMaxDFSMStates is
-      // set extremely low.
+      // Stop creating new states, causing us to end fairly soon. Note that
+      // since the paths representing explicit sorts are put first, they will
+      // never be lost unless kMaxDFSMStates is set extremely low.
       continue;
     }
 
