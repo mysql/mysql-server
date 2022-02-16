@@ -3017,7 +3017,7 @@ static dict_index_t *dict_index_build_internal_clust(
   while (n_fields_processed < new_index->n_def) {
     dict_field_t *field = new_index->get_field(n_fields_processed);
     dict_col_t *col = field->col;
-    if (table->current_row_version == 0) {
+    if (!table->has_row_versions()) {
       if (field->prefix_len != 0) {
         /* This column prefix is used in PK */
         col->set_prefix_phy_pos(n_fields_processed);
@@ -3035,7 +3035,7 @@ static dict_index_t *dict_index_build_internal_clust(
         const_cast<dict_col_t *>(new_index->get_col(n_fields_processed));
     ut_a(col == cmp_col);
 
-    if (table->current_row_version == 0) {
+    if (!table->has_row_versions()) {
       if (col->get_phy_pos() != UINT32_UNDEFINED && col->has_prefix_phy_pos()) {
         /* This column prefix is used in PK */
         ut_ad(new_index->get_col(col->get_prefix_phy_pos()) == col);

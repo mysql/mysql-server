@@ -18,11 +18,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+id	1	MYSQL_TYPE_LONG	1	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 VALUES (1, "r1c1", "r1c2");
 SELECT * FROM t1;
 id	c1	c2
@@ -145,11 +145,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+id	1	MYSQL_TYPE_LONG	1	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 VALUES (1, "r1c1", "r1c2");
 SELECT * FROM t1;
 id	c1	c2
@@ -272,11 +272,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-id	1	MYSQL_TYPE_LONG	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+id	1	MYSQL_TYPE_LONG	1	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 VALUES (1, "r1c1", "r1c2");
 SELECT * FROM t1;
 id	c1	c2

@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2020, 2021 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2022 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -224,9 +224,6 @@ void Instant_ddl_impl<Table>::commit_instant_ddl() {
     case Instant_Type::INSTANT_ADD_DROP_COLUMN:
       dd_copy_private(*m_new_dd_tab, *m_old_dd_tab);
 
-      /* Update the current row version in dictionary cache */
-      m_dict_table->current_row_version++;
-
       /* Fetch the columns which are to be added or dropped */
       populate_to_be_instant_columns();
 
@@ -241,6 +238,9 @@ void Instant_ddl_impl<Table>::commit_instant_ddl() {
         /* INSTANT ADD */
         commit_instant_add_col();
       }
+
+      /* Update the current row version in dictionary cache */
+      m_dict_table->current_row_version++;
 
       ut_ad(dd_table_has_instant_cols(m_new_dd_tab->table()));
 

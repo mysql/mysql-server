@@ -404,29 +404,6 @@ in dd::Table
 bool dd_instant_columns_consistent(const dd::Table &dd_table);
 #endif /* UNIV_DEBUG */
 
-/** Determine if given table is upgraded from a MySQL version which
-doesn't support row versions.
-@param[in]      table   table definition
-@return true if it is upgraded from non-instant, false otherwise */
-inline bool dd_table_is_upgraded_no_row_version(const dd::Table &table) {
-  bool res = false;
-  bool found = false;
-  for (const auto column : table.columns()) {
-    if (column->is_virtual()) {
-      continue;
-    }
-
-    found = true;
-    if (!column->se_private_data().exists(
-            dd_column_key_strings[DD_INSTANT_PHYSICAL_POS])) {
-      res = true;
-    }
-    break;
-  }
-
-  return (found && res);
-}
-
 /** Determine if a dd::Table has any INSTANT ADD column(s) in V1
 @param[in]      table   dd::Table
 @return true if table has instant column(s) in V1, false otherwise */

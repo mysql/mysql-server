@@ -1669,6 +1669,11 @@ bool is_dropped(const Alter_inplace_info *ha_alter_info,
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
                            dd::Table &new_table, const dd::Table &old_table,
                            dict_table_t *dict_table) {
+  bool first_row_version = false;
+  if (dict_table && !dict_table->has_row_versions()) {
+    first_row_version = true;
+  }
+
   /* Columns in new table maybe more than old tables, when this is
   called for adding instant columns. Also adding and dropping
   virtual columns instantly is another case. */
@@ -1683,17 +1688,15 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
     dd::Column *new_col = nullptr;
     std::string new_name;
+    IF_DEBUG(bool renamed = false;)
 
     /* Skip the dropped column */
     if (is_dropped(ha_alter_info, old_col->name().c_str())) {
       /* Either this is a virtual column in old table or this column is being
       dropped instantly. Skip it. */
       if (!old_col->is_virtual()) {
-        /* For upgraded tables, dd::Column might not have column's phy_pos
-        which is needed while this column is being dropped. Set it now. */
-        const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-        if (!old_col->se_private_data().exists(s)) {
-          ut_ad(dd_table_is_upgraded_no_row_version(old_table));
+        if (first_row_version) {
+          const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
           dict_col_t *col =
               dict_table->get_col_by_name(old_col->name().c_str());
           (const_cast<dd::Column *>(old_col))
@@ -1703,6 +1706,7 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
       }
       continue;
     } else if (is_renamed(ha_alter_info, old_col->name().c_str(), new_name)) {
+      IF_DEBUG(renamed = true;)
       new_col = const_cast<dd::Column *>(
           dd_find_column(&new_table, new_name.c_str()));
     } else {
@@ -1712,19 +1716,23 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
     ut_a(new_col);
 
+    const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
     if (!old_col->se_private_data().empty()) {
       if (!new_col->se_private_data().empty())
         new_col->se_private_data().clear();
       new_col->set_se_private_data(old_col->se_private_data());
+    }
 
-      /* For upgraded table, add dd::Column metadata for INSTANT_V2 now */
-      const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-      if (dict_table && !new_col->is_virtual() &&
-          !new_col->se_private_data().exists(s)) {
-        ut_ad(dd_table_is_upgraded_no_row_version(old_table));
-        dict_col_t *col = dict_table->get_col_by_name(new_col->name().c_str());
-        new_col->se_private_data().set(s, col->get_phy_pos());
+    /* If this is first time table is getting row version, add physical pos */
+    if (dict_table && !new_col->is_virtual() && first_row_version) {
+      dict_col_t *col = dict_table->get_col_by_name(new_col->name().c_str());
+      if (col == nullptr) {
+        ut_ad(renamed);
+        col = dict_table->get_col_by_name(old_col->name().c_str());
       }
+
+      ut_ad(col != nullptr);
+      new_col->se_private_data().set(s, col->get_phy_pos());
     }
   }
 }
@@ -1758,6 +1766,7 @@ void dd_clear_instant_table(dd::Table &dd_table) {
     fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
     fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
     fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
+    fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
   }
 }
 
@@ -1990,7 +1999,7 @@ void dd_drop_instant_columns(
 
     std::string dropped_col_name(col_to_drop->name().c_str());
     set_dropped_column_name(dropped_col_name,
-                            new_dict_table->current_row_version);
+                            new_dict_table->current_row_version + 1);
 
     /* Add this column as an SE_HIDDEN column in new table def. NOTE: This call
     will update the DD_INSTANT_VERSION_DROPPED for the column as well. */
@@ -2008,7 +2017,7 @@ void dd_drop_instant_columns(
                          v_added);
       }
       private_data.set(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED],
-                       new_dict_table->current_row_version);
+                       new_dict_table->current_row_version + 1);
       private_data.set(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS], phy_pos);
 
       dropped_col->set_nullable(col_to_drop->is_nullable());
@@ -2150,7 +2159,7 @@ void dd_add_instant_columns(const dd::Table *old_dd_table,
 
     /* Set Version Added */
     se_private.set(dd_column_key_strings[DD_INSTANT_VERSION_ADDED],
-                   new_dict_table->current_row_version);
+                   new_dict_table->current_row_version + 1);
 
     /* Set physical position on row */
     se_private.set(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS],
@@ -2359,24 +2368,47 @@ void dd_import_instant_add_columns(const dict_table_t *table,
       }
     }
 
-    /* Set phy_pos */
-    uint32_t value = col->get_phy_pos();
-    const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-    private_data.set(s, value);
-
-    if (col->is_instant_added()) {
-      /* Set version_added */
-      value = col->get_version_added();
-      s = dd_column_key_strings[DD_INSTANT_VERSION_ADDED];
+    if (table->has_row_versions()) {
+      /* Set phy_pos */
+      uint32_t value = col->get_phy_pos();
+      const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
       private_data.set(s, value);
-    }
 
-    if (col->is_instant_dropped()) {
-      /* Set version_dropped */
-      value = col->get_version_dropped();
-      s = dd_column_key_strings[DD_INSTANT_VERSION_DROPPED];
-      private_data.set(s, value);
+      if (col->is_instant_added()) {
+        /* Set version_added */
+        value = col->get_version_added();
+        s = dd_column_key_strings[DD_INSTANT_VERSION_ADDED];
+        private_data.set(s, value);
+      }
+
+      if (col->is_instant_dropped()) {
+        /* Set version_dropped */
+        value = col->get_version_dropped();
+        s = dd_column_key_strings[DD_INSTANT_VERSION_DROPPED];
+        private_data.set(s, value);
+      }
     }
+  }
+
+  /* Add phy_pos for SYSTEM COLUMNS */
+  if (table->has_row_versions()) {
+    auto fn = [&](uint32_t sys_col, const char *name) {
+      dd::Column *dd_col =
+          const_cast<dd::Column *>(dd_find_column(dd_table, name));
+      ut_ad(dd_col != nullptr || sys_col == DATA_ROW_ID);
+      if (!dd_col) return;
+      dd::Properties &private_data = dd_col->se_private_data();
+
+      dict_col_t *dict_col = table->get_sys_col(sys_col);
+      ut_ad(dict_col->get_phy_pos() != UINT32_UNDEFINED);
+
+      const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
+      private_data.set(s, dict_col->get_phy_pos());
+    };
+
+    fn(DATA_ROW_ID, "DB_ROW_ID");
+    fn(DATA_TRX_ID, "DB_TRX_ID");
+    fn(DATA_ROLL_PTR, "DB_ROLL_PTR");
   }
 
   ut_d(validate_dropped_col_metadata(dd_table, table));
@@ -2434,16 +2466,19 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
     dd_write_index(dd_space_id, dd_index, index);
   }
 
-  if (!table->is_fts_aux() &&
-      (!dd_table_is_partitioned(dd_table->table()) ||
-       dd_part_is_first(reinterpret_cast<dd::Partition *>(dd_table)))) {
+  bool has_row_versions = table->has_row_versions();
+  ut_ad(!has_row_versions || !table->is_fts_aux());
+
+  if (!dd_table_is_partitioned(dd_table->table()) ||
+      dd_part_is_first(reinterpret_cast<dd::Partition *>(dd_table))) {
     std::vector<dd::Column *> cols_to_remove;
     const char *s = nullptr;
     for (auto dd_column : *dd_table->table().columns()) {
       dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
                                        table->id);
 
-      if (dd_column->is_virtual()) {
+      /* Write physical post only for tables having row versions */
+      if (!has_row_versions || dd_column->is_virtual()) {
         continue;
       }
 
@@ -3390,8 +3425,8 @@ static inline void fill_dict_existing_column(
 
     /* Get physical pos */
     uint32_t phy_pos = UINT32_UNDEFINED;
-    if (!m_table->is_system_table && !m_table->is_fts_aux() &&
-        !dd_table_is_upgraded_no_row_version(dd_tab->table())) {
+    if (dd_table_has_row_versions(dd_tab->table())) {
+      ut_ad(!m_table->is_system_table && !m_table->is_fts_aux());
       const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
 
       ut_ad(column->se_private_data().exists(s));
@@ -3462,7 +3497,7 @@ static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
   /* Add system columns to make adding index work */
   dict_table_add_system_columns(dict_table, heap);
 
-  {
+  if (dict_table->has_row_versions()) {
     /* Read physical pos for system columns. */
 
     auto fn = [&](uint32_t sys_col, const char *name) {

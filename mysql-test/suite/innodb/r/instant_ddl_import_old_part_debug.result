@@ -32,14 +32,14 @@ PARTITION p2 VALUES LESS THAN (384),
 PARTITION p3 VALUES LESS THAN MAXVALUE);
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c5	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	NULL
@@ -97,14 +97,14 @@ c1	c2	c3	c4	c5
 300	400	500	xxxxxx	r4c5
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;physical_pos=7;table_id=TABLE_ID;
-DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f6465662020202020202020202020202020;table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;instant_col=4;
@@ -164,14 +164,14 @@ PARTITION p2 VALUES LESS THAN (384),
 PARTITION p3 VALUES LESS THAN MAXVALUE);
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_LONG	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c4	4	MYSQL_TYPE_BLOB	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c5	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_BLOB	0	Visible	table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	NULL
@@ -461,12 +461,12 @@ PARTITION p1_2 VALUES LESS THAN (200),
 PARTITION p2 VALUES LESS THAN MAXVALUE);
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-id	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=0;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+id	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	100	autoinc=0;version=0;
@@ -518,12 +518,12 @@ id	c1	c2	c3
 2	r2c1	r2c2	r2c3
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-id	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=0;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	4	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+id	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	4	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	100	autoinc=0;discard=0;instant_col=3;version=0;

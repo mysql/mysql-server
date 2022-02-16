@@ -18,12 +18,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -150,15 +150,15 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=8;table_id=TABLE_ID;
-DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -426,12 +426,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -477,11 +477,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -605,14 +605,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -875,11 +875,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -925,11 +925,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -1053,14 +1053,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -1323,11 +1323,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -1376,12 +1376,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -1508,15 +1508,15 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=8;table_id=TABLE_ID;
-DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -1784,12 +1784,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -1835,11 +1835,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -1963,14 +1963,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -2233,11 +2233,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -2283,11 +2283,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -2411,14 +2411,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -2681,11 +2681,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -2734,12 +2734,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -2866,15 +2866,15 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=8;table_id=TABLE_ID;
-DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	8	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -3142,12 +3142,12 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -3193,11 +3193,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -3321,14 +3321,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -3591,11 +3591,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -3641,11 +3641,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 INSERT INTO t1 values ("r1c1", "r1c2", "r1c3");
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
@@ -3769,14 +3769,14 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c6	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c1	2	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c5	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
-c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
-c4	6	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
-DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c6	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c1	2	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	4	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	5	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	6	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3	c4
 NULL	r1c1	NULL	r1c2	r1c3	c4_def
@@ -4039,11 +4039,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	1	Visible	physical_pos=0;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c7	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	1	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c7	3	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2

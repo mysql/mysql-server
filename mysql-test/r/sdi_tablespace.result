@@ -101,7 +101,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
@@ -139,7 +139,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -177,7 +177,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -330,7 +330,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
@@ -368,7 +368,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -406,7 +406,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -647,7 +647,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=3;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -685,7 +685,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -723,7 +723,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -761,7 +761,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1202,7 +1202,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
@@ -1240,7 +1240,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1278,7 +1278,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1431,7 +1431,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 2,
@@ -1469,7 +1469,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1507,7 +1507,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1747,7 +1747,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "physical_pos=3;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1785,7 +1785,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=0;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1823,7 +1823,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=1;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
@@ -1861,7 +1861,7 @@ c1
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "physical_pos=2;table_ID
+                "se_private_data": "table_ID
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
