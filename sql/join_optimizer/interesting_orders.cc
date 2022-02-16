@@ -23,15 +23,19 @@
 #include "sql/join_optimizer/interesting_orders.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <type_traits>
 
+#include "map_helpers.h"
+#include "my_hash_combine.h"
 #include "my_pointer_arithmetic.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
+#include "sql/mem_root_array.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
@@ -93,11 +97,38 @@ bool OrderingsAreEqual(Ordering a, Ordering b) {
   return equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
-}  // namespace
-
 bool IsGrouping(Ordering ordering) {
   return !ordering.empty() && ordering[0].direction == ORDER_NOT_RELEVANT;
 }
+
+// Calculates the hash for a DFSM state given by an index into
+// LogicalOrderings::m_dfsm_states. The hash is based on the set of NFSM states
+// the DFSM state corresponds to.
+template <typename DFSMState>
+struct DFSMStateHash {
+  const Mem_root_array<DFSMState> *dfsm_states;
+  size_t operator()(int idx) const {
+    size_t hash = 0;
+    for (int nfsm_state : (*dfsm_states)[idx].nfsm_states) {
+      my_hash_combine<size_t>(hash, nfsm_state);
+    }
+    return hash;
+  }
+};
+
+// Checks if two DFSM states represent the same set of NFSM states.
+template <typename DFSMState>
+struct DFSMStateEqual {
+  const Mem_root_array<DFSMState> *dfsm_states;
+  bool operator()(int idx1, int idx2) const {
+    return equal((*dfsm_states)[idx1].nfsm_states.begin(),
+                 (*dfsm_states)[idx1].nfsm_states.end(),
+                 (*dfsm_states)[idx2].nfsm_states.begin(),
+                 (*dfsm_states)[idx2].nfsm_states.end());
+  }
+};
+
+}  // namespace
 
 LogicalOrderings::LogicalOrderings(THD *thd)
     : m_items(thd->mem_root),
@@ -1686,6 +1717,14 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   // See NFSMState::seen.
   int generation = 0;
 
+  // Keep track of which sets of NFSM states we've already seen, and which DFSM
+  // state we created for that set.
+  mem_root_unordered_set<int, DFSMStateHash<DFSMState>,
+                         DFSMStateEqual<DFSMState>>
+      constructed_states(thd->mem_root,
+                         DFSMStateHash<DFSMState>{&m_dfsm_states},
+                         DFSMStateEqual<DFSMState>{&m_dfsm_states});
+
   // Create the initial DFSM state. It consists of everything in the initial
   // NFSM state, and everything reachable from it with only always-active FDs.
   DFSMState initial;
@@ -1694,6 +1733,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   ExpandThroughAlwaysActiveFDs(&initial.nfsm_states, &generation,
                                /*extra_allowed_fd_idx=*/0);
   m_dfsm_states.push_back(move(initial));
+  constructed_states.insert(0);
   FinalizeDFSMState(thd, /*state_idx=*/0);
 
   // Reachability information set by FinalizeDFSMState() will include those
@@ -1777,25 +1817,26 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
       auto new_end = unique(nfsm_states.begin(), nfsm_states.end());
       nfsm_states.resize(distance(nfsm_states.begin(), new_end));
 
+      // Add a new DFSM state for the NFSM states we've collected.
+      int target_dfsm_state_idx = m_dfsm_states.size();
+      m_dfsm_states.push_back(DFSMState{});
+      m_dfsm_states.back().nfsm_states = move(nfsm_states);
+
       // See if there is an existing DFSM state that matches the set of
-      // NFSM m_states we've collected.
-      int target_dfsm_state_idx = -1;
-      for (size_t i = 0; i < m_dfsm_states.size(); ++i) {
-        if (equal(nfsm_states.begin(), nfsm_states.end(),
-                  m_dfsm_states[i].nfsm_states.begin(),
-                  m_dfsm_states[i].nfsm_states.end())) {
-          target_dfsm_state_idx = i;
-          break;
-        }
-      }
-      if (target_dfsm_state_idx == -1) {
+      // NFSM states we've collected.
+      if (auto [place, inserted] =
+              constructed_states.insert(target_dfsm_state_idx);
+          inserted) {
         // There's none, so create a new one. The type doesn't really matter,
         // except for printing out the graph.
-        DFSMState state;
-        state.nfsm_states = move(nfsm_states);
-        m_dfsm_states.push_back(move(state));
-        FinalizeDFSMState(thd, m_dfsm_states.size() - 1);
-        target_dfsm_state_idx = m_dfsm_states.size() - 1;
+        FinalizeDFSMState(thd, target_dfsm_state_idx);
+      } else {
+        // Already had a DFSM state for this set of NFSM states. Remove the
+        // newly added duplicate and use the original one.
+        target_dfsm_state_idx = *place;
+        // Allow reuse of the memory in the next iteration.
+        nfsm_states = move(m_dfsm_states.back().nfsm_states);
+        m_dfsm_states.pop_back();
       }
 
       // Finally, add an edge in the DFSM. Ignore self-edges; they are implicit.
