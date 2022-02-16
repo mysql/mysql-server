@@ -14,6 +14,7 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 #
 The IO thread has fetched all binlog!
 START REPLICA SQL_THREAD;
+Detected first replica commit;
 #
 # Wait for SQL thread to apply binlog
 #
