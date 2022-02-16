@@ -21,11 +21,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # ------------------------------------------------------------
 # ADD AN INSTANT COLUMN At the end [c1, c2, +c3]
 # ------------------------------------------------------------
@@ -378,11 +378,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c4	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c4
 r1_c1	row1_c4
@@ -518,11 +518,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # ------------------------------------------------------------
 # ADD AN INSTANT COLUMN At the end [c1, c2, +c3]
 # ------------------------------------------------------------
@@ -875,11 +875,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c4	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c4
 r1_c1	row1_c4
@@ -1015,11 +1015,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 # ------------------------------------------------------------
 # ADD AN INSTANT COLUMN At the end [c1, c2, +c3]
 # ------------------------------------------------------------
@@ -1372,11 +1372,11 @@ NAME	SE_PRIVATE_DATA
 t1	NULL
 # DD Metadata of columns in table
 NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
-c1	1	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
-c4	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
-DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
-DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
-DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c1	1	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c4	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
 SELECT * FROM t1 ORDER BY c1;
 c1	c4
 r1_c1	row1_c4

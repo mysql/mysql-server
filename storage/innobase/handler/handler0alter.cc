@@ -486,9 +486,7 @@ This is done during inplce alter table when table is not rebuilt.
 static void dd_inplace_alter_copy_instant_metadata(
     const Alter_inplace_info *ha_alter_info, const dd::Table *old_dd_tab,
     dd::Table *new_dd_tab) {
-  /* If old table is upgraded table and hasn't been altered yet, it won't have
-  V2 instant metadata. Skip. This metadata will be added when it's altered. */
-  if (dd_table_is_upgraded_no_row_version(*old_dd_tab)) {
+  if (!dd_table_has_row_versions(*old_dd_tab)) {
     return;
   }
 
