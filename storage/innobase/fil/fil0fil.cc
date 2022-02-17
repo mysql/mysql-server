@@ -1871,6 +1871,36 @@ static ulint srv_data_read;
 static ulint srv_data_written;
 #endif /* UNIV_HOTBACKUP */
 
+static bool is_fast_shutdown() {
+#ifndef UNIV_HOTBACKUP
+  return srv_shutdown_state >= SRV_SHUTDOWN_LAST_PHASE &&
+         srv_fast_shutdown >= 2;
+#else
+  return false;
+#endif
+};
+
+bool fil_node_t::can_be_closed() const {
+  ut_ad(is_open);
+  /* We need to wait for the pending extension and I/Os to finish. */
+  if (n_pending_ios != 0) {
+    return false;
+  }
+  if (n_pending_flushes != 0) {
+    return false;
+  }
+  if (is_being_extended) {
+    return false;
+  }
+#ifndef UNIV_HOTBACKUP
+  /* The file must be flushed, unless we are in very fast shutdown process. */
+  if (is_fast_shutdown()) {
+    return true;
+  }
+#endif
+  return is_flushed();
+}
+
 /** Replay a file rename operation if possible.
 @param[in]      page_id         Space ID and first page number in the file
 @param[in]      old_name        old file name
@@ -3866,60 +3896,76 @@ void Fil_shard::validate_space_reference_count(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
-/** Close all open files. */
 void Fil_shard::close_all_files() {
   ut_ad(mutex_owned());
 
-  for (auto &e : m_spaces) {
-    auto space = e.second;
-
-    ut_a(space->id == TRX_SYS_SPACE || space->purpose == FIL_TYPE_TEMPORARY ||
-         space->id == dict_sys_t::s_log_space_first_id ||
-         space->files.size() == 1);
-
-    if (space->id == dict_sys_t::s_log_space_first_id) {
-      fil_space_t::s_redo_space = nullptr;
-    }
-
-    for (auto &file : space->files) {
-      if (file.is_open) {
-        close_file(&file);
+  /* Iterates over a specified container of pair */
+  auto iterate_all_spaces_files = [this](auto &spaces, auto preprocess_space,
+                                         auto postprocess_space) {
+    for (auto &e : spaces) {
+      auto &space = e.second;
+      if (space == nullptr) {
+        continue;
       }
+
+      preprocess_space(space);
+
+      for (auto &file : space->files) {
+        if (file.is_open && !file.can_be_closed()) {
+          mutex_release();
+          std::this_thread::sleep_for(std::chrono::milliseconds{1});
+          mutex_acquire();
+          /* Files or spaces could have changed when we did not hold the
+          mutex, restart the loop. */
+          return false;
+        }
+        if (file.is_open) {
+          close_file(&file);
+        }
+      }
+
+      postprocess_space(space);
+
+      space_free_low(space);
+
+      ut_a(space == nullptr);
+    }
+    return true;
+  };
+
+  for (;;) {
+    if (!iterate_all_spaces_files(
+            m_spaces,
+            [](auto space) {
+              ut_a(space->id == TRX_SYS_SPACE ||
+                   space->purpose == FIL_TYPE_TEMPORARY ||
+                   space->id == dict_sys_t::s_log_space_first_id ||
+                   space->files.size() == 1);
+            },
+            [this](auto space) { space_detach(space); })) {
+      continue;
     }
 
-    space_detach(space);
-
-    space_free_low(space);
-
-    ut_a(space == nullptr);
-  }
-
-  m_spaces.clear();
+    m_spaces.clear();
 
 #ifndef UNIV_HOTBACKUP
-  for (auto e : m_deleted_spaces) {
-    auto space = e.second;
+    if (!iterate_all_spaces_files(
+            m_deleted_spaces,
+            [](auto space) {
+              ut_a(space->id != TRX_SYS_SPACE &&
+                   space->id != dict_sys_t::s_log_space_first_id &&
+                   space->id != dict_sys_t::s_dict_space_id);
 
-    /* These cannot be lazily deleted. */
-    ut_a(space->id != TRX_SYS_SPACE &&
-         space->id != dict_sys_t::s_log_space_first_id &&
-         space->id != dict_sys_t::s_dict_space_id);
-
-    ut_a(space->files.size() <= 1);
-
-    for (auto &file : space->files) {
-      if (file.is_open) {
-        close_file(&file);
-      }
+              ut_a(space->files.size() <= 1);
+            },
+            [](auto) {})) {
+      continue;
     }
 
-    space_free_low(space);
-
-    ut_a(space == nullptr);
-  }
-
-  m_deleted_spaces.clear();
+    m_deleted_spaces.clear();
 #endif /* !UNIV_HOTBACKUP */
+    break;
+  }
 }
 
 /** Close all open files. */
@@ -4727,7 +4773,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     auto &file = space->files.front();
 
     /* Wait for any pending writes. */
-    while (file.n_pending_ios > 0 || file.is_being_extended) {
+    while (file.n_pending_ios > 0 || file.n_pending_flushes > 0 ||
+           file.is_being_extended) {
       /* Release and reacquire the mutex because we want the IO to complete. */
       mutex_release();
 
@@ -8446,10 +8493,10 @@ void Fil_shard::space_flush(space_id_t space_id) {
         ut_error;
     }
 
-    bool skip_flush = false;
+    bool skip_flush = is_fast_shutdown();
 #ifdef _WIN32
     if (file.is_raw_disk) {
-      skip_flush = true;
+      skip_flush |= true;
     }
 #endif /* _WIN32 */
 
@@ -8468,13 +8515,13 @@ void Fil_shard::space_flush(space_id_t space_id) {
       mutex_acquire();
 
       if (file.flush_counter >= old_mod_counter) {
-        skip_flush = true;
+        skip_flush |= true;
       }
+      skip_flush |= is_fast_shutdown();
     }
 
     if (!skip_flush) {
       ut_a(file.is_open);
-
       ++file.n_pending_flushes;
 
       mutex_release();
