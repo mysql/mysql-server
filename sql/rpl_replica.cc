@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4420,7 +4420,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
           rli->last_assigned_worker = nullptr;
         }
         /*
-           Stroring GAQ index of the group that the event belongs to
+           Storing GAQ index of the group that the event belongs to
            in the event. Deferred events are handled similarly below.
         */
         ev->mts_group_idx = rli->gaq->assigned_group_index;
@@ -4428,7 +4428,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
         bool append_item_to_jobs_error = false;
         if (rli->curr_group_da.size() > 0) {
           /*
-            the current event sorted out which partion the current group
+            the current event sorted out which partition the current group
             belongs to. It's time now to processed deferred array events.
           */
           for (uint i = 0; i < rli->curr_group_da.size(); i++) {
@@ -4449,7 +4449,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
         DBUG_PRINT("mts", ("Assigning job %llu to worker %lu\n",
                            job_item->data->common_header->log_pos, w->id));
 
-        /* Notice `ev' instance can be destoyed after `append()' */
+        /* Notice `ev' instance can be destroyed after `append()' */
         if (append_item_to_jobs(job_item, w, rli))
           return SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR;
         if (need_sync) {
@@ -5904,14 +5904,14 @@ static void *handle_slave_worker(void *arg) {
 
   mysql_mutex_lock(&w->jobs_lock);
 
-  while (de_queue(&w->jobs, job_item)) {
+  while (w->jobs.de_queue(job_item)) {
     purge_cnt++;
     purge_size += job_item->data->common_header->data_written;
     assert(job_item->data);
     delete job_item->data;
   }
 
-  assert(w->jobs.len == 0);
+  assert(w->jobs.get_length() == 0);
 
   mysql_mutex_unlock(&w->jobs_lock);
 
