@@ -103,16 +103,16 @@ int table_processlist::set_access(void) {
     return 0;
   }
 
+  if (thd->security_context()->check_access(PROCESS_ACL)) {
+    /* PROCESS_ACL granted. */
+    m_row_priv.m_auth = PROCESSLIST_ALL;
+    return 0;
+  }
+
   LEX_CSTRING client_priv_user = thd->security_context()->priv_user();
   if (client_priv_user.length == 0) {
     /* Anonymous user. */
     m_row_priv.m_auth = PROCESSLIST_DENIED;
-    return 0;
-  }
-
-  if (thd->security_context()->check_access(PROCESS_ACL)) {
-    /* PROCESS_ACL granted. */
-    m_row_priv.m_auth = PROCESSLIST_ALL;
     return 0;
   }
 
