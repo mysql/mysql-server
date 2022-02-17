@@ -1,0 +1,116 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+Assert bounds of ndb_replica_batch_size
+
+set @@GLOBAL.ndb_replica_batch_size = -1;
+Warnings:
+Warning	1292	Truncated incorrect ndb_replica_batch_size value: '-1'
+show variables like 'ndb_replica_batch_size';
+Variable_name	Value
+ndb_replica_batch_size	0
+set @@GLOBAL.ndb_replica_batch_size = 2147483649;
+Warnings:
+Warning	1292	Truncated incorrect ndb_replica_batch_size value: '2147483649'
+show variables like 'ndb_replica_batch_size';
+Variable_name	Value
+ndb_replica_batch_size	2147483648
+set @@SESSION.ndb_replica_batch_size = 32768;
+ERROR HY000: Variable 'ndb_replica_batch_size' is a GLOBAL variable and should be set with SET GLOBAL
+set @@GLOBAL.ndb_replica_batch_size = DEFAULT;
+show variables like 'ndb_replica_batch_size';
+Variable_name	Value
+ndb_replica_batch_size	2097152
+
+set @@GLOBAL.ndb_replica_batch_size = 32768;
+set global replica_allow_batching=ON;
+create table t1 (a int primary key, b varchar(7000))
+engine=ndb;
+create table t2 (a int primary key, b varchar(7000))
+engine=ndb;
+create table t3 (a int primary key, b varchar(7000))
+engine=ndb;
+create table t4 (a int primary key, b varchar(7000))
+engine=ndb;
+
+Record the replica's NDB API current wait count.
+Insert some wide data into the tables, synchronize
+and record how many more times NDB API waited for
+and primary key operations.
+
+begin;
+insert into t1 values (1, repeat("B", 7000));
+insert into t2 values (2, repeat("A", 7000));
+insert into t2 values (3, repeat("T", 7000));
+insert into t3 values (4, repeat("C", 7000));
+insert into t4 values (5, repeat("H", 7000));
+insert into t1 values (6, repeat("B", 7000));
+insert into t2 values (7, repeat("A", 7000));
+insert into t2 values (8, repeat("T", 7000));
+insert into t3 values (9, repeat("C", 7000));
+insert into t4 values (0, repeat("H", 7000));
+update t1 set b = repeat('S', 7000);
+update t2 set b = repeat('I', 7000);
+update t3 set b = repeat('Z', 7000);
+update t4 set b = repeat('E', 7000);
+delete from t1 where a = 1;
+delete from t4 where a in (5,0);
+commit;
+
+Record replica's API execute() calls and PK ops, and cleanup
+
+delete from t1;
+delete from t2;
+delete from t3;
+delete from t4;
+
+Increase replica's batch size for the binlog injector by 4-fold
+and perform the same operations.
+
+set @@GLOBAL.ndb_replica_batch_size = DEFAULT;
+begin;
+insert into t1 values (1, repeat("B", 7000));
+insert into t2 values (2, repeat("A", 7000));
+insert into t2 values (3, repeat("T", 7000));
+insert into t3 values (4, repeat("C", 7000));
+insert into t4 values (5, repeat("H", 7000));
+insert into t1 values (6, repeat("B", 7000));
+insert into t2 values (7, repeat("A", 7000));
+insert into t2 values (8, repeat("T", 7000));
+insert into t3 values (9, repeat("C", 7000));
+insert into t4 values (0, repeat("H", 7000));
+update t1 set b = repeat('S', 7000);
+update t2 set b = repeat('I', 7000);
+update t3 set b = repeat('Z', 7000);
+update t4 set b = repeat('E', 7000);
+delete from t1 where a = 1;
+delete from t4 where a in (5,0);
+commit;
+Observe that the number of execute() decrease significantly as well as the PK ops.
+Execute() calls should have decreased by, at least, a factor of 4.
+PK ops should have decreased by, at least, a factor of 2.
+SELECT @large_batch_exec_count < @low_batch_exec_count AS 'Large batch size execute calls are less';
+Large batch size execute calls are less
+1
+SELECT @large_batch_pk_op_count < @low_batch_pk_op_count AS 'Large batch size PK ops are less';
+Large batch size PK ops are less
+1
+SELECT @low_batch_exec_count / @large_batch_exec_count >= 4 AS 'Factor of >=4 for large batch execute calls';
+Factor of >=4 for large batch execute calls
+1
+SELECT @low_batch_pk_op_count / @large_batch_pk_op_count > 1 AS 'Factor of > 1 for large batch PK op';
+Factor of > 1 for large batch PK op
+1
+Cleanup
+set global ndb_replica_batch_size = DEFAULT;
+set global replica_allow_batching = DEFAULT;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+set global ndb_replica_batch_size = DEFAULT;
+set global replica_allow_batching = DEFAULT;
+include/rpl_end.inc

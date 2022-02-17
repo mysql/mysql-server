@@ -119,6 +119,7 @@ static const int DEFAULT_PARALLELISM = 0;
 static const ha_rows DEFAULT_AUTO_PREFETCH = 32;
 static const ulong ONE_YEAR_IN_SECONDS = (ulong)3600L * 24L * 365L;
 
+static constexpr unsigned DEFAULT_REPLICA_BATCH_SIZE = 2UL * 1024 * 1024;
 static constexpr unsigned MAX_BLOB_ROW_SIZE = 14000;
 static constexpr unsigned DEFAULT_MAX_BLOB_PART_SIZE =
     MAX_BLOB_ROW_SIZE - 4 * 13;
@@ -126,6 +127,7 @@ static constexpr unsigned DEFAULT_MAX_BLOB_PART_SIZE =
 ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
 static ulong opt_ndb_wait_setup;
+static ulong opt_ndb_replica_batch_size;
 static uint opt_ndb_cluster_connection_pool;
 static char *opt_connection_pool_nodeids_str;
 static uint opt_ndb_recv_thread_activation_threshold;
@@ -7489,7 +7491,13 @@ void Thd_ndb::transaction_checks() {
   if (!m_slave_thread)
     m_batch_size = THDVAR(thd, batch_size);
   else {
-    m_batch_size = THDVAR(NULL, batch_size); /* using global value */
+    // Replicas benefit from higher batch size, thus use the maximum
+    // between the default and the global batch_size if
+    // replica_batch_size is unset
+    m_batch_size =
+        opt_ndb_replica_batch_size == DEFAULT_REPLICA_BATCH_SIZE
+            ? MAX(opt_ndb_replica_batch_size, THDVAR(NULL, batch_size))
+            : opt_ndb_replica_batch_size;
     /* Do not use hinted TC selection in slave thread */
     THDVAR(thd, optimized_node_selection) =
         THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
@@ -17671,6 +17679,18 @@ static MYSQL_SYSVAR_ULONG(wait_setup,         /* name */
                           0                    /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(replica_batch_size,         /* name */
+                          opt_ndb_replica_batch_size, /* var */
+                          PLUGIN_VAR_OPCMDARG,
+                          "Batch size in bytes for the replica applier.",
+                          NULL,                       /* check func */
+                          NULL,                       /* update func */
+                          DEFAULT_REPLICA_BATCH_SIZE, /* default */
+                          0,                          /* min */
+                          2UL * 1024 * 1024 * 1024,   /* max */
+                          0                           /* block */
+);
+
 static const int MAX_CLUSTER_CONNECTIONS = 63;
 
 static MYSQL_SYSVAR_UINT(
@@ -18438,6 +18458,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(allow_copying_alter_table),
     MYSQL_SYSVAR(optimized_node_selection),
     MYSQL_SYSVAR(batch_size),
+    MYSQL_SYSVAR(replica_batch_size),
     MYSQL_SYSVAR(optimization_delay),
     MYSQL_SYSVAR(index_stat_enable),
     MYSQL_SYSVAR(index_stat_option),
