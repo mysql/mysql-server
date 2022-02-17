@@ -5533,7 +5533,12 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     - or HAVING, but columns of HAVING are always also present in SELECT list
     so are Item_ref to SELECT list and get nullability from that,
     - or ORDER BY but actually no as it's optimized away in such single-row
-    query.
+    query. This is not true for hypergraph optimizer. So we mark item as
+    nullable if the query is ordered. For Ex: If there are window functions in
+    ORDER BY, the order by list is cleared but not removed (See
+    setup_order_final()). This makes hypergraph optimizer think it needs to
+    execute the window function. Old optimizer does short circuiting in this
+    case treating it as a constant plan.
     Note: we test with_sum_func (== references a set function);
     agg_func_used() (== is aggregation query) would be better but is not
     reliable yet at this stage.
@@ -5546,7 +5551,8 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
            (sl->with_sum_func || qsl->with_sum_func) &&
            qsl->group_list.elements == 0;
   else
-    return sl->resolve_place == Query_block::RESOLVE_SELECT_LIST &&
+    return (sl->resolve_place == Query_block::RESOLVE_SELECT_LIST ||
+            (thd->lex->using_hypergraph_optimizer && sl->is_ordered())) &&
            sl->with_sum_func && sl->group_list.elements == 0 &&
            thd->lex->in_sum_func == nullptr;
 }
