@@ -27,13 +27,13 @@ show grants for user1@localhost;
 Grants for user1@localhost
 GRANT USAGE ON *.* TO `user1`@`localhost`
 
-# Connect (con_user0, localhost, user0, , )
+# Connect (con_user0, 127.0.0.1, user0, , , MASTER_MYPORT, )
 
 select connection_id() into @con_user0_id;
-# Connect (con_user1, localhost, user1, , )
-# Connect (con_user2, localhost, user2, , )
-# Connect (con_user3, localhost, user3, , )
-# Connect (con_user4, localhost, user4, , )
+# Connect (con_user1, 127.0.0.1, user1, , , MASTER_MYPORT, )
+# Connect (con_user2, 127.0.0.1, user2, , , MASTER_MYPORT, )
+# Connect (con_user3, 127.0.0.1, user3, , , MASTER_MYPORT, )
+# Connect (con_user4, 127.0.0.1, user4, , , MASTER_MYPORT, )
 # Connection user0
 
 ### Compare the SHOW PROCESSLIST Host column between the new and old implementations
