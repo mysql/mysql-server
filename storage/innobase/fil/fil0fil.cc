@@ -1878,7 +1878,7 @@ static bool is_fast_shutdown() {
 #else
   return false;
 #endif
-};
+}
 
 bool fil_node_t::can_be_closed() const {
   ut_ad(is_open);
@@ -3941,6 +3941,10 @@ void Fil_shard::close_all_files() {
                    space->purpose == FIL_TYPE_TEMPORARY ||
                    space->id == dict_sys_t::s_log_space_first_id ||
                    space->files.size() == 1);
+
+              if (space->id == dict_sys_t::s_log_space_first_id) {
+                fil_space_t::s_redo_space = nullptr;
+              }
             },
             [this](auto space) { space_detach(space); })) {
       continue;
