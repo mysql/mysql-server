@@ -148,18 +148,7 @@ struct fil_space_t;
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
   /** Returns true if the file can be closed. */
-  bool can_be_closed() const {
-    ut_ad(is_open);
-    /* We need to wait for the pending extension and I/Os to finish. */
-    if (n_pending_ios != 0) {
-      return false;
-    }
-    if (is_being_extended) {
-      return false;
-    }
-    /* The file must be flushed, unless we are in very fast shutdown process. */
-    return srv_fast_shutdown == 2 || is_flushed();
-  }
+  bool can_be_closed() const;
   /** Returns true if the file is flushed. */
   bool is_flushed() const {
     ut_ad(modification_counter >= flush_counter);
