@@ -1535,24 +1535,17 @@ bool set_and_validate_user_attributes(
       }
     }
 
-    if (!(auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE)) {
-      if (command == SQLCOM_SET_PASSWORD) {
-        /*
-          A plugin that does not use internal storage and
-          hence does not support SET PASSWORD
-        */
-        char warning_buffer[MYSQL_ERRMSG_SIZE];
-        snprintf(warning_buffer, sizeof(warning_buffer),
-                 "SET PASSWORD has no significance for user '%s'@'%s' as "
-                 "authentication plugin does not support it.",
-                 Str->user.str, Str->host.str);
-        warning_buffer[MYSQL_ERRMSG_SIZE - 1] = '\0';
-        push_warning(thd, Sql_condition::SL_NOTE, ER_SET_PASSWORD_AUTH_PLUGIN,
-                     warning_buffer);
-        plugin_unlock(nullptr, plugin);
-        what_to_set.m_what = NONE_ATTR;
-        return (false);
-      }
+    if (!(auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
+        command == SQLCOM_SET_PASSWORD) {
+      /*
+        A plugin that does not use internal storage and
+        hence does not support SET PASSWORD
+      */
+      my_error(ER_SET_PASSWORD_AUTH_PLUGIN_ERROR, MYF(0), Str->user.str,
+               Str->host.str);
+      plugin_unlock(nullptr, plugin);
+      what_to_set.m_what = NONE_ATTR;
+      return (true);
     }
   }
 
