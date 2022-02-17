@@ -305,6 +305,9 @@ Note	1003	/* select#1 */ select `ndbinfo`.`e`.`event_id` AS `event_id`,`ndbinfo`
 
 SELECT * from events where event_id = -1;
 event_id	name	table_id	reporting	columns	table_event
+SELECT table_event from events where event_id = 1;
+table_event
+ALL
 SELECT table_name from dictionary_tables where table_id = -1;
 table_name
 SELECT table_name from dictionary_tables where table_id = 9990;
