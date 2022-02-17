@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -425,8 +425,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   enum_alter_inplace_result supported_inplace_field_change(Alter_inplace_info *,
                                                            Field *, Field *,
                                                            bool, bool) const;
-  bool table_storage_changed(HA_CREATE_INFO *) const;
-  bool column_has_index(TABLE *, uint, uint, uint) const;
   enum_alter_inplace_result supported_inplace_ndb_column_change(
       uint, TABLE *, Alter_inplace_info *, bool, bool) const;
   enum_alter_inplace_result supported_inplace_column_change(

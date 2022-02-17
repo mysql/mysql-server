@@ -15160,7 +15160,7 @@ static inline enum_alter_inplace_result inplace_unsupported(
   Warn the user if the ALTER TABLE isn't defined to be INPLACE
   and the column which will change isn't about to be dropped.
 */
-static void check_implicit_column_format_change(
+static void inplace_check_implicit_column_format_change(
     const TABLE *const table, const TABLE *const altered_table,
     const Alter_inplace_info *const ha_alter_info) {
   DBUG_TRACE;
@@ -15221,19 +15221,22 @@ static void check_implicit_column_format_change(
   }
 }
 
-bool ha_ndbcluster::table_storage_changed(HA_CREATE_INFO *create_info) const {
-  enum ha_storage_media new_table_storage = create_info->storage_media;
-  if (new_table_storage == HA_SM_DEFAULT) new_table_storage = HA_SM_MEMORY;
-  enum ha_storage_media old_table_storage = table->s->default_storage_media;
-  if (old_table_storage == HA_SM_DEFAULT) old_table_storage = HA_SM_MEMORY;
+static bool inplace_check_table_storage_changed(
+    ha_storage_media new_table_storage, ha_storage_media old_table_storage) {
+  if (new_table_storage == HA_SM_DEFAULT) {
+    new_table_storage = HA_SM_MEMORY;
+  }
+  if (old_table_storage == HA_SM_DEFAULT) {
+    old_table_storage = HA_SM_MEMORY;
+  }
   if (new_table_storage != old_table_storage) {
     return true;
   }
   return false;
 }
 
-bool ha_ndbcluster::column_has_index(TABLE *tab, uint field_idx,
-                                     uint start_field, uint end_field) const {
+static bool inplace_check_column_has_index(TABLE *tab, uint field_idx,
+                                           uint start_field, uint end_field) {
   /**
    * Check all indexes to determine if column has index instead of checking
    *   field->flags (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG
@@ -15483,20 +15486,20 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   return HA_ALTER_INPLACE_SHARED_LOCK;
 }
 
+/*
+  Alter_inplace_info flags indicate a column has been modified
+  check if supported field type change is found, if BLOB type is found
+  or if default value has really changed.
+*/
 enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
     NdbDictionary::Dictionary *dict, TABLE *altered_table, uint field_position,
     Field *old_field, Alter_inplace_info *ha_alter_info) const {
-  /*
-    Alter_inplace_info flags indicate a column has been modified
-    we need to check if usupported field type change is found,
-    if BLOB type is found
-    or if default value has really changed.
-  */
   DBUG_TRACE;
 
   HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
-  const bool is_table_storage_changed = table_storage_changed(create_info);
+  const bool is_table_storage_changed = inplace_check_table_storage_changed(
+      create_info->storage_media, table_share->default_storage_media);
 
   DBUG_PRINT("info", ("Checking if supported column change for field %s",
                       old_field->field_name));
@@ -15525,7 +15528,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
   }
 
   const bool is_index_on_column =
-      column_has_index(table, field_position, 0, table->s->keys);
+      inplace_check_column_has_index(table, field_position, 0, table->s->keys);
 
   // Check if storage type or format are changed from Ndb's point of view
   const enum_alter_inplace_result ndb_column_change_result =
@@ -15986,7 +15989,8 @@ enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
         (table->s->mysql_version < NDB_VERSION_DYNAMIC_IS_DEFAULT) &&
         (ha_alter_info->alter_info->requested_algorithm !=
          Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)) {
-      check_implicit_column_format_change(table, altered_table, ha_alter_info);
+      inplace_check_implicit_column_format_change(table, altered_table,
+                                                  ha_alter_info);
     }
   }
   return result;
