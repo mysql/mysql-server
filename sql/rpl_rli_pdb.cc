@@ -1336,7 +1336,7 @@ bool Slave_committed_queue::count_done(Relay_log_info *rli) {
 
   DBUG_PRINT("mts",
              ("Checking if it can simulate a crash:"
-              " mta_checkpoint_group %u counter %lu parallel slaves %lu\n",
+              " mta_checkpoint_group %u counter %zu parallel slaves %lu\n",
               opt_mta_checkpoint_group, cnt, rli->replica_parallel_workers));
 
   return (cnt == (rli->replica_parallel_workers * opt_mta_checkpoint_group));
