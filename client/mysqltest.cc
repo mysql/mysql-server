@@ -6831,6 +6831,10 @@ static void do_connect(struct st_command *command) {
   if (ds_database.length && !std::strcmp(ds_database.str, "*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
+  if (getenv("EXTERN")) {
+    dynstr_set(&ds_host, opt_host);
+  }
+
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
                               ds_user.str, ds_password1.str, ds_database.str,
                               con_port, ds_sock.str)) {

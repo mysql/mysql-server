@@ -1312,6 +1312,7 @@ sub run_worker ($) {
   check_running_as_root();
 
   if (using_extern()) {
+    $ENV{'EXTERN'} = 1;
     create_config_file_for_extern(%opts_extern);
   }
 
