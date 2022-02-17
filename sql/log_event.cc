@@ -2698,9 +2698,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       // the last occupied GAQ's array index
       gaq->assigned_group_index = gaq->en_queue(&group);
       DBUG_PRINT("info", ("gaq_idx= %ld  gaq->size=%ld",
-                          gaq->assigned_group_index, gaq->size));
+                          gaq->assigned_group_index, gaq->capacity));
       assert(gaq->assigned_group_index != MTS_WORKER_UNDEF);
-      assert(gaq->assigned_group_index < gaq->size);
+      assert(gaq->assigned_group_index < gaq->capacity);
       assert(gaq->get_job_group(rli->gaq->assigned_group_index)
                  ->group_relay_log_name == nullptr);
       assert(rli->last_assigned_worker == nullptr ||
@@ -3088,7 +3088,7 @@ int Log_event::apply_gtid_event(Relay_log_info *rli) {
     Removes the job from the (G)lobal (A)ssigned (Q)ueue after
     applying it.
   */
-  assert(rli->gaq->len > 0);
+  assert(rli->gaq->get_length() > 0);
   Slave_job_group g = Slave_job_group();
   rli->gaq->de_tail(&g);
   /*
@@ -3240,7 +3240,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
         /* all Workers are idle as done through wait_for_workers_to_finish */
         for (uint k = 0; k < rli->curr_group_da.size(); k++) {
           assert(!(rli->workers[k]->usage_partition));
-          assert(!(rli->workers[k]->jobs.len));
+          assert(!(rli->workers[k]->jobs.get_length()));
         }
 #endif
       } else {

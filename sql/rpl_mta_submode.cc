@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,7 +500,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
   last_lwm_index = rli->gaq->find_lwm(
       &ptr_g,
       /*
-        The underfined "stable" forces the scan's restart
+        The undefined "stable" forces the scan's restart
         as the stale value does.
       */
       lwm_estim == SEQ_UNINIT ||
@@ -510,7 +510,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
   /*
     if the returned index is sane update the timestamp.
   */
-  if (last_lwm_index != rli->gaq->size) {
+  if (last_lwm_index != rli->gaq->capacity) {
     // non-decreasing lwm invariant
     assert(clock_leq(last_lwm_timestamp, ptr_g->sequence_number));
 
@@ -583,7 +583,7 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
     struct timespec ts[2];
     set_timespec_nsec(&ts[0], 0);
 
-    assert(rli->gaq->len >= 2);  // there's someone to wait
+    assert(rli->gaq->get_length() >= 2);  // there's someone to wait
 
     thd->ENTER_COND(&rli->logical_clock_cond, &rli->mts_gaq_LOCK,
                     &stage_worker_waiting_for_commit_parent, &old_stage);
@@ -766,7 +766,8 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
     assert(!force_new_group);
   } else {
     assert(delegated_jobs >= jobs_done);
-    assert(is_error || (rli->gaq->len + jobs_done == 1 + delegated_jobs));
+    assert(is_error ||
+           (rli->gaq->get_length() + jobs_done == 1 + delegated_jobs));
     assert(rli->mts_group_status == Relay_log_info::MTS_IN_GROUP);
 
     /*
@@ -801,7 +802,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
 
 #ifndef NDEBUG
   mysql_mutex_lock(&rli->mts_gaq_LOCK);
-  assert(is_error || (rli->gaq->len + jobs_done == delegated_jobs));
+  assert(is_error || (rli->gaq->get_length() + jobs_done == delegated_jobs));
   mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 #endif
   return 0;
@@ -1001,7 +1002,7 @@ Slave_worker *Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli) {
   for (Slave_worker **it = rli->workers.begin(); it != rli->workers.end();
        ++it) {
     Slave_worker *w_i = *it;
-    if (w_i->jobs.len == 0) return w_i;
+    if (w_i->jobs.get_length() == 0) return w_i;
   }
   return nullptr;
 }
