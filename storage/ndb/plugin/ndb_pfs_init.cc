@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,19 @@ extern PFS_engine_table_share_proxy *ndb_sync_excluded_objects_share;
 static PFS_engine_table_share_proxy *pfs_proxy_shares[2] = {
     ndb_sync_pending_objects_share, ndb_sync_excluded_objects_share};
 
+PSI_memory_key key_memory_thd_ndb_batch_mem_root;
+
 bool ndb_pfs_init() {
+  {
+    // List of memory keys to register
+    PSI_memory_info mem_keys[] = {{&key_memory_thd_ndb_batch_mem_root,
+                                   "Thd_ndb::batch_mem_root",
+                                   (PSI_FLAG_THREAD | PSI_FLAG_MEM_COLLECT), 0,
+                                   "Memory used for transaction batching"}};
+    mysql_memory_register("ndbcluster", mem_keys,
+                          sizeof(mem_keys) / sizeof(mem_keys[0]));
+  }
+
   Ndb_mysql_services services;
 
   // Get table service
