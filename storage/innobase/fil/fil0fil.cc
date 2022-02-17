@@ -1820,7 +1820,7 @@ static bool is_fast_shutdown() {
 #else
   return false;
 #endif
-};
+}
 
 bool fil_node_t::can_be_closed() const {
   ut_ad(is_open);
