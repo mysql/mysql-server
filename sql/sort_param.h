@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,11 +142,17 @@ class Addon_fields {
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
     if (using_packed_addons()) {
-      assert(sz + Addon_fields::size_of_length_field > sz);
       sz += Addon_fields::size_of_length_field;
+    } else {
+      // For fixed-size "addons" the size should not change.
+      assert(m_addon_buf == nullptr || m_addon_buf_length == sz);
     }
-    if (m_addon_buf != nullptr) {
-      assert(m_addon_buf_length == sz);
+    /*
+      For subqueries we try to re-use the buffer.
+      With packed addons, the longest_addons may change, so we may have
+      to allocate a larger buffer below.
+    */
+    if (m_addon_buf != nullptr && m_addon_buf_length >= sz) {
       return m_addon_buf;
     }
     m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
