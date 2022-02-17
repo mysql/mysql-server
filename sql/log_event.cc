@@ -2697,7 +2697,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       group.reset(common_header->log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq->assigned_group_index = gaq->en_queue(&group);
-      DBUG_PRINT("info", ("gaq_idx= %ld  gaq->size=%ld",
+      DBUG_PRINT("info", ("gaq_idx= %ld  gaq->size=%zu",
                           gaq->assigned_group_index, gaq->capacity));
       assert(gaq->assigned_group_index != MTS_WORKER_UNDEF);
       assert(gaq->assigned_group_index < gaq->capacity);
