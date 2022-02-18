@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6117,15 +6117,18 @@ void Dbtc::execSEND_PACKED(Signal* signal)
     Thostptr.i = cpackedList[i];
     ptrAss(Thostptr, localHostRecord);
     arrGuard(Thostptr.i - 1, MAX_NODES - 1);
-    for (Uint32 j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
+
+    for (Uint32 j = Thostptr.p->lqh_pack_mask.find_first();
+         j != BitmaskImpl::NotFound;
+         j = Thostptr.p->lqh_pack_mask.find_next(j+1))
     {
-      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
       jamDebug();
-      if (container->noOfPackedWords > 0) {
-        jamDebug();
-        sendPackedSignal(signal, container);
-      }
+      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
+      ndbassert(container->noOfPackedWords > 0);
+      sendPackedSignal(signal, container);
     }
+    Thostptr.p->lqh_pack_mask.clear();
+
     struct PackedWordsContainer * container = &Thostptr.p->packTCKEYCONF;
     if (container->noOfPackedWords > 0) {
       jamDebug();
@@ -6144,6 +6147,7 @@ Dbtc::updatePackedList(Signal* signal, HostRecord* ahostptr, Uint16 ahostIndex)
     UintR TpackedListIndex = cpackedListIndex;
     jamDebug();
     ahostptr->inPackedList = true;
+    ahostptr->lqh_pack_mask.clear();
     cpackedList[TpackedListIndex] = ahostIndex;
     cpackedListIndex = TpackedListIndex + 1;
   }//if
@@ -6715,6 +6719,7 @@ Dbtc::sendCommitLqh(Signal* signal,
   Tdata[0] |= (ZCOMMIT << 28);
   UintR Tindex = container->noOfPackedWords;
   container->noOfPackedWords = Tindex + len;
+  Thostptr.p->lqh_pack_mask.set(instanceNo);
   UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
   return ret;
@@ -7186,6 +7191,7 @@ Dbtc::sendCompleteLqh(Signal* signal,
   Tdata[0] |= (ZCOMPLETE << 28);
   UintR Tindex = container->noOfPackedWords;
   container->noOfPackedWords = Tindex + len;
+  Thostptr.p->lqh_pack_mask.set(instanceNo);
   UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
   return ret;
@@ -7409,6 +7415,7 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   Tdata[0] |= (ZFIRE_TRIG_REQ << 28);
   UintR Tindex = container->noOfPackedWords;
   container->noOfPackedWords = Tindex + len;
+  Thostptr.p->lqh_pack_mask.set(instanceNo);
   UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, Tdata, len << 2);
   return ret;
@@ -7680,6 +7687,7 @@ Dbtc::sendRemoveMarker(Signal* signal,
   UintR* dataPtr = &container->packedWords[numWord];
 
   container->noOfPackedWords = numWord + len;
+  hostPtr.p->lqh_pack_mask.set(instanceNo);
   Tdata[0] |= (ZREMOVE_MARKER << 28);
   memcpy(dataPtr, &Tdata[0], len << 2);
 }
@@ -16207,6 +16215,7 @@ void Dbtc::inithost(Signal* signal)
       container->noOfPackedWords = 0;
       container->hostBlockRef = numberToRef(DBLQH, i, hostptr.i);
     }
+    hostptr.p->lqh_pack_mask.clear();
     hostptr.p->m_nf_bits = 0;
   }//for
   c_alive_nodes.clear();
