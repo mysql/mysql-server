@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,17 +333,11 @@ class context : public Explain_context {
 
   /**
     Set nested ORDER BY/GROUP BY/DISTINCT node to @c ctx
-
-    @retval false               Ok
-    @retval true                Error
   */
   virtual void set_sort(sort_ctx *ctx [[maybe_unused]]) { assert(0); }
 
   /**
     Set nested WINDOW node to @c ctx
-
-    @retval false               Ok
-    @retval true                Error
   */
   virtual void set_window(window_ctx *ctx [[maybe_unused]]) { assert(0); }
 

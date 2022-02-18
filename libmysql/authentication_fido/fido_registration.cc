@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -228,8 +228,6 @@ bool fido_make_cred::make_challenge_response(
 
   @param [in] scramble   buffer holding random salt
   @param [in] len        length of salt
-
-  @retval void
 */
 void fido_make_cred::set_scramble(unsigned char *scramble, size_t len) {
   fido_cred_set_clientdata_hash(m_cred, scramble, len);
@@ -239,8 +237,6 @@ void fido_make_cred::set_scramble(unsigned char *scramble, size_t len) {
   Set method to set user name.
 
   @param [in] user   buffer holding user name
-
-  @retval void
 */
 void fido_make_cred::set_user(string user) {
   fido_cred_set_user(m_cred,
@@ -252,8 +248,6 @@ void fido_make_cred::set_user(string user) {
   Method to set the algorithm type
 
   @param [in] type   algorithm type
-
-  @retval void
 */
 void fido_make_cred::set_type(int type) { fido_cred_set_type(m_cred, type); }
 
@@ -261,8 +255,6 @@ void fido_make_cred::set_type(int type) { fido_cred_set_type(m_cred, type); }
   Method to set the relying party name or id
 
   @param [in] rp_id   buffer holding relying party name
-
-  @retval void
 */
 void fido_make_cred::set_rp_id(string rp_id) {
   fido_cred_set_rp(m_cred, rp_id.c_str(), nullptr);

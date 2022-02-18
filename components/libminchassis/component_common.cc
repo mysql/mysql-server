@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   that states exception type and message. On any other thrown value it just
   reports general error.
 
-  @param funcname Name of the function where the error occures.
-
-  @retval returns nothing.
+  @param funcname Name of the function where the error occurs.
 */
 void mysql_components_handle_std_exception(const char *funcname) {
   try {

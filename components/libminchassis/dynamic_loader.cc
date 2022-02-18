@@ -511,14 +511,6 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_create,
   return true;
 }
 
-/**
-  Releases Component iterator. Releases read lock on dynamic loader.
-
-  @param iterator Component iterator handle.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_METHOD(void, mysql_dynamic_loader_imp::iterator_release,
               (my_h_component_iterator iterator)) {
   try {

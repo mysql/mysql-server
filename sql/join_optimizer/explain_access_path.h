@@ -50,11 +50,11 @@ std::string PrintQueryPlan(
   force_subplan_0x<token>, subplans with the given token are unconditionally
   preferred over all others.
 
-  The token returned is “0x<digest>”, where <digest> is the first 64 bits
+  The token returned is “0x@<digest@>”, where @<digest@> is the first 64 bits
   of the SHA-256 sum of this string:
 
-    desc1,desc2,...,[child1_desc:]0xchild1,[child2_desc:]0xchild2,<more
-  children>
+    desc1,desc2,...,[child1_desc:]0xchild1,[child2_desc:]0xchild2,@<more
+  children@>
 
   where desc1, desc2, etc. are the description lines given by EXPLAIN,
   and 0xchild1 is the token for children. The normal way to generate such
