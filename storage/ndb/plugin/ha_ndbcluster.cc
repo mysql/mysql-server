@@ -12045,6 +12045,13 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       DBUG_PRINT("info", ("No such table, error: %u", err.code));
       return 1;
     }
+    if (err.code == 4009) {
+      // Cluster failure occured and it's not really possible to tell if table
+      // exists or not. Let caller proceed without any warnings as subsequent
+      // attempt to create table in NDB should also fail.
+      DBUG_PRINT("info", ("Cluster failure detected"));
+      return 1;
+    }
 
     thd_ndb->push_ndb_error_warning(err);
     thd_ndb->push_warning("Failed to discover table '%s' from NDB", name);
@@ -12225,7 +12232,15 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
   NDBDICT *dict = ndb->getDictionary();
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
-    ndb_to_mysql_error(&dict->getNdbError());
+    const NdbError &ndb_err = dict->getNdbError();
+    if (ndb_err.code == 4009) {
+      // Cluster failure occured and it's not really possible to tell if table
+      // exists or not. Let caller proceed without any warnings as subsequent
+      // attempt to create table in NDB should also fail.
+      DBUG_PRINT("info", ("Cluster failure detected"));
+      return HA_ERR_NO_SUCH_TABLE;
+    }
+    thd_ndb->push_ndb_error_warning(ndb_err);
     return HA_ERR_NO_SUCH_TABLE;
   }
 
