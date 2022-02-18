@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,6 +158,7 @@ extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc, char **argv,
                                                  int init_flags);
+extern bool update_persisted_plugin_sysvars(const char *name);
 
 namespace dd {
 namespace upgrade {

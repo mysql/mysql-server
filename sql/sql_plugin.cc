@@ -1504,6 +1504,28 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
 }
 
 /**
+  Update read-write persisted plugin system variables.
+
+  @param name plugin name
+  @return Operation outcome, false means no errors
+ */
+bool update_persisted_plugin_sysvars(const char *name) {
+  if (mysqld_server_started) {
+    Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
+
+    mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+    const bool error = (pv && pv->set_persisted_options(true));
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+
+    if (error) {
+      LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS, name);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
   Register the builtin plugins. Some of the plugins (MyISAM, CSV and InnoDB)
   are also initialized.
 
@@ -1592,6 +1614,12 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
       if (plugin_ptr->state != PLUGIN_IS_UNINITIALIZED ||
           plugin_initialize(plugin_ptr))
         goto err_unlock;
+
+      /*
+        Once server is started and plugin initialized and if there are persisted
+        read-write plugin variables which need to be handled, we do it here.
+      */
+      if (update_persisted_plugin_sysvars(plugin->name)) goto err_unlock;
 
       /*
         Initialize the global default storage engine so that it may
@@ -2370,6 +2398,13 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
                        "error storing metadata");
         }
       }
+
+      /*
+        Once server is started and plugin initialized and if there are persisted
+        read-write plugin variables which need to be handled, we do it here.
+      */
+      if (!error && update_persisted_plugin_sysvars(name.str)) error = true;
+
       mysql_mutex_unlock(&LOCK_plugin);
 
       if (!error && store_infoschema_metadata) {
@@ -3564,17 +3599,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     tmp->system_vars = chain.first;
   }
 
-  /*
-    Once server is started and if there are few persisted plugin variables
-    which needs to be handled, we do it here.
-  */
-  if (mysqld_server_started) {
-    Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persisted_options(true)) {
-      LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS, tmp->name.str);
-      goto err;
-    }
-  }
   return 0;
 
 err:
