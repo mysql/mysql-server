@@ -91,6 +91,7 @@
 #include "storage/ndb/plugin/ndb_modifiers.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
+#include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_pfs_init.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
@@ -12045,7 +12046,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       DBUG_PRINT("info", ("No such table, error: %u", err.code));
       return 1;
     }
-    if (err.code == 4009) {
+    if (err.code == NDB_ERR_CLUSTER_FAILURE) {
       // Cluster failure occured and it's not really possible to tell if table
       // exists or not. Let caller proceed without any warnings as subsequent
       // attempt to create table in NDB should also fail.
@@ -12233,7 +12234,7 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     const NdbError &ndb_err = dict->getNdbError();
-    if (ndb_err.code == 4009) {
+    if (ndb_err.code == NDB_ERR_CLUSTER_FAILURE) {
       // Cluster failure occured and it's not really possible to tell if table
       // exists or not. Let caller proceed without any warnings as subsequent
       // attempt to create table in NDB should also fail.
@@ -12917,7 +12918,7 @@ void ha_ndbcluster::print_error(int error, myf errflag) {
       // Error has been printed already
       return;
     }
-    handler::print_error(4009, errflag);
+    handler::print_error(NDB_ERR_CLUSTER_FAILURE, errflag);
     return;
   }
 

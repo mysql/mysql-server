@@ -40,12 +40,15 @@
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_blobs_buffer.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
+#include "storage/ndb/plugin/ndb_ndbapi_util.h"
+#include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
+#include "storage/ndb/plugin/ndb_thd_ndb.h"
 
-class Ndb;             // Forward declaration
-class NdbOperation;    // Forward declaration
-class NdbTransaction;  // Forward declaration
-class NdbRecAttr;      // Forward declaration
+class Ndb;
+class NdbOperation;
+class NdbTransaction;
+class NdbRecAttr;
 class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbBlob;
@@ -118,10 +121,6 @@ struct NDB_INDEX_DATA {
   NdbRecord *ndb_unique_record_key{nullptr};
   NdbRecord *ndb_unique_record_row{nullptr};
 };
-
-#include "storage/ndb/plugin/ndb_ndbapi_util.h"
-#include "storage/ndb/plugin/ndb_share.h"
-#include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
@@ -606,9 +605,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   NdbTransaction *start_transaction_key(uint index_num, const uchar *key_data,
                                         int &error);
 
-  friend int check_completed_operations_pre_commit(Thd_ndb *, NdbTransaction *,
-                                                   const NdbOperation *,
-                                                   uint *ignore_count);
   friend int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
@@ -742,8 +738,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int update_stats(THD *thd, bool do_read_stat);
 };
-
-static constexpr int NDB_INVALID_SCHEMA_OBJECT = 241;
 
 int ndb_to_mysql_error(const NdbError *ndberr);
 

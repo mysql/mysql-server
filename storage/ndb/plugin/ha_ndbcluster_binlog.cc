@@ -47,7 +47,6 @@
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
-#include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
@@ -56,6 +55,7 @@
 #include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_blobs_buffer.h"
+#include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"
@@ -69,6 +69,7 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
+#include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_repl_tab.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -77,11 +78,14 @@
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 #include "storage/ndb/plugin/ndb_schema_object.h"
 #include "storage/ndb/plugin/ndb_schema_result_table.h"
+#include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_stored_grants.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
+#include "storage/ndb/plugin/ndb_table_map.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
+#include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 typedef NdbDictionary::Event NDBEVENT;
@@ -1846,7 +1850,8 @@ class Ndb_schema_event_handler {
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return 1;
     }
     const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
@@ -1997,7 +2002,8 @@ class Ndb_schema_event_handler {
     if (!schema_dist_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return 1;
     }
     const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
@@ -2088,7 +2094,8 @@ class Ndb_schema_event_handler {
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return false;
     }
 
@@ -2159,7 +2166,8 @@ class Ndb_schema_event_handler {
     if (!schema_result_table.open()) {
       // NOTE! Legacy crash unless this was cluster connection failure, there
       // are simply no other of way sending error back to coordinator
-      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code ==
+                             NDB_ERR_CLUSTER_FAILURE);
       return;
     }
 

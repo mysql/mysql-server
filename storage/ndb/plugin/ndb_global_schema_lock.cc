@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h"  // thd_query_unsafe
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
 
@@ -396,11 +397,10 @@ static int ndbcluster_global_schema_lock(THD *thd,
   // Else, didn't get GSL: Deadlock or failure from NDB
 
   /**
-   * If GSL request failed due to no cluster connection (4009),
+   * If GSL request failed due to cluster failue,
    * we consider the lock granted, else GSL request failed.
    */
-  if (ndb_error.code != 4009)  // No cluster connection
-  {
+  if (ndb_error.code != NDB_ERR_CLUSTER_FAILURE) {
     assert(thd_ndb->global_schema_lock_count == 1);
     // This reset triggers the special case in ndbcluster_global_schema_unlock()
     thd_ndb->global_schema_lock_count = 0;
@@ -411,7 +411,8 @@ static int ndbcluster_global_schema_lock(THD *thd,
     ndb_log_info(
         "Failed to acquire global schema lock due to deadlock resolution");
     *victimized = true;
-  } else if (ndb_error.code != 4009 || report_cluster_disconnected) {
+  } else if (ndb_error.code != NDB_ERR_CLUSTER_FAILURE ||
+             report_cluster_disconnected) {
     if (ndb_thd_is_background_thread(thd)) {
       // Don't push any warning when background thread fail to acquire GSL
     } else {
@@ -434,12 +435,12 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
     return 0;
   }
 
-  if (thd_ndb->global_schema_lock_error != 4009 &&
+  if (thd_ndb->global_schema_lock_error != NDB_ERR_CLUSTER_FAILURE &&
       thd_ndb->global_schema_lock_count == 0) {
     // Special case to handle unlock after failure to acquire GSL due to
-    // any error other than 4009.
-    // - when error 4009 occurs the lock is granted anyway and the lock count is
-    // not reset, thus unlock() should be called.
+    // any error other than cluster failure.
+    // - when cluster failure occurs the lock is granted anyway and the lock
+    //   count is not reset, thus unlock() should be called.
     // - for other errors the lock is not granted, lock count is reset and
     // the exact same error code is returned. Thus it's impossible to know
     // that there is actually no need to call unlock. Fix by allowing unlock
