@@ -1195,3 +1195,15 @@ FROM information_schema.key_column_usage a
 WHERE b.constraint_type = 'FOREIGN KEY';
 
 #End of test for Bug#33791802
+
+--echo #
+--echo # Bug#33838439: ExtractValue not working properly with COUNT
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+
+SET @a = 0;
+EXPLAIN SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
+SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
+
+DROP TABLE t1;

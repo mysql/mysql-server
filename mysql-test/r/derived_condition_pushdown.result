@@ -1922,3 +1922,18 @@ JOIN information_schema.table_constraints b
 USING (table_schema)
 WHERE b.constraint_type = 'FOREIGN KEY';
 TABLE_NAME
+#
+# Bug#33838439: ExtractValue not working properly with COUNT
+#
+CREATE TABLE t1 (f1 INTEGER);
+SET @a = 0;
+EXPLAIN SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from (/* select#2 */ select sum(`test`.`t1`.`f1`) AS `SUM(f1)` from `test`.`t1` having false) `dt`
+SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
+COUNT(*)
+0
+DROP TABLE t1;

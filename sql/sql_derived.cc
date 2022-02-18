@@ -1209,11 +1209,21 @@ bool Condition_pushdown::push_past_window_functions() {
 }
 
 /**
-  Try to push the condition past GROUP BY into the WHERE clause of the
-  derived table. Check that all columns in the condition are present as
-  grouping columns of the current query block. If not, the condition
-  cannot be pushed to the WHERE clause. It will have to stay in HAVING
-  clause.
+  Try to push the condition or parts of the condition past GROUP BY into
+  the WHERE clause of the derived table.
+  1. For a non-grouped query, the condition is moved to the WHERE clause.
+  2. For an implicitly grouped query, condition remains in the HAVING
+     clause in order to preserve semantics.
+  3. For a query with ROLLUP, the condition will remain in the HAVING
+     clause because ROLLUP might add NULL values to the grouping columns.
+  4. For other grouped queries, predicates involving grouping columns
+     can be moved to the WHERE clause. Predicates that reference aggregate
+     functions remain in HAVING clause.
+  We perform the same checks for a non-standard compliant GROUP BY too.
+  If a window function's PARTITION BY clause is on non-grouping columns
+  (possible if GROUP BY is non-standard compliant or when these columns
+   are functionally dependednt on the grouping columns) then the condition
+  will stay in HAVING clause.
 */
 bool Condition_pushdown::push_past_group_by() {
   if (!m_query_block->is_grouped()) {
@@ -1221,7 +1231,9 @@ bool Condition_pushdown::push_past_group_by() {
     m_having_cond = nullptr;
     return false;
   }
-  if (m_query_block->olap == ROLLUP_TYPE) return false;
+  if (m_query_block->is_implicitly_grouped() ||
+      m_query_block->olap == ROLLUP_TYPE)
+    return false;
   m_checking_purpose = CHECK_FOR_WHERE;
   Opt_trace_object step_wrapper(trace, "pushing_past_group_by");
 
