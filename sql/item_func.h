@@ -3844,49 +3844,12 @@ class Item_func_sp final : public Item_func {
 
   Item_result result_type() const override;
 
-  longlong val_int() override {
-    if (execute() || null_value) return (longlong)0;
-    return sp_result_field->val_int();
-  }
-
-  double val_real() override {
-    if (execute() || null_value) return 0.0;
-    return sp_result_field->val_real();
-  }
-
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    if (execute() || null_value) return true;
-    return sp_result_field->get_date(ltime, fuzzydate);
-  }
-
-  bool get_time(MYSQL_TIME *ltime) override {
-    if (execute() || null_value) return true;
-
-    return sp_result_field->get_time(ltime);
-  }
-
-  my_decimal *val_decimal(my_decimal *dec_buf) override {
-    if (execute() || null_value) return nullptr;
-    return sp_result_field->val_decimal(dec_buf);
-  }
-
-  String *val_str(String *str) override {
-    String buf;
-    char buff[20];
-    buf.set(buff, 20, str->charset());
-    buf.length(0);
-    if (execute() || null_value) return nullptr;
-    /*
-      result_field will set buf pointing to internal buffer
-      of the resul_field. Due to this it will change any time
-      when SP is executed. In order to prevent occasional
-      corruption of returned value, we make here a copy.
-    */
-    sp_result_field->val_str(&buf);
-    str->copy(buf);
-    return str;
-  }
-
+  longlong val_int() override;
+  double val_real() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  my_decimal *val_decimal(my_decimal *dec_buf) override;
+  String *val_str(String *str) override;
   bool val_json(Json_wrapper *result) override;
 
   bool change_context_processor(uchar *arg) override {
