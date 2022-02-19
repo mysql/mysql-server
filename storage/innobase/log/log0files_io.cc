@@ -776,7 +776,7 @@ static bool log_extract_id_from_file_name(const Log_files_context &ctx,
       return false;
     }
     auto id = std::stoll(file_name + file_base_name.size(), &n_processed);
-    if (file_base_name.size() + n_processed + strlen(expected_suffix) <
+    if (file_base_name.size() + n_processed + strlen(expected_suffix) !=
         strlen(file_name)) {
       return false;
     }
