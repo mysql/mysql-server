@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,7 @@ WantedBy=multi-user.target
 User=mysql
 Group=mysql
 Type=notify
-PermissionsStartOnly=true
-ExecStartPre=/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre @%I
+ExecStartPre=+/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre @%I
 ExecStart=/usr/sbin/mysqld --defaults-group-suffix=@%I
 TimeoutSec=0
 LimitNOFILE = 10000

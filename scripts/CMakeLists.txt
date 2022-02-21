@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -462,6 +462,15 @@ ELSE()
 
   # Systemd files
   IF(WITH_SYSTEMD)
+
+    IF(SYSTEMD_HAS_PLUS)
+      SET(SYSTEMD_EXE_PREFIX "+")
+      SET(SYSTEMD_START_ONLY "# hence, + prefix is used")
+    ELSE()
+      SET(SYSTEMD_EXE_PREFIX "")
+      SET(SYSTEMD_START_ONLY "PermissionsStartOnly=true")
+    ENDIF()
+
     CONFIGURE_FILE(systemd/mysqld_pre_systemd.in
       ${CMAKE_CURRENT_BINARY_DIR}/mysqld_pre_systemd ESCAPE_QUOTES @ONLY)
 
