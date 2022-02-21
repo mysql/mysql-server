@@ -3,5 +3,5 @@ write_file $bootstrap_sql_file;
 CREATE DATABASE test;
 EOF
 let $MYSQLD_ARGS = --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --socket=$MYSQLD_DATADIR/test.sock --skip-log-bin --skip-networking --console --log-error-verbosity=3 --datadir=$MYSQLD_DATADIR $MYSQLD_EXTRA_ARGS > $MYSQLD_ERROR_LOG 2>&1 ;
---exec $MYSQLD $MYSQLD_ARGS --initialize-insecure --init-file=$bootstrap_sql_file
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS --initialize-insecure --init-file=$bootstrap_sql_file
 --remove_file $bootstrap_sql_file

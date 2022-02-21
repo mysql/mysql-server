@@ -41,10 +41,10 @@ EOF
 
 --remove_file $REDO_FILE
 
-let SEARCH_FILE = $MYSQLD_DATADIR/my_restart.err;
-
 --error 1,42
 --exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
+
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 let SEARCH_PATTERN = Missing redo log file .* \(with start_lsn = $REDO_FILE_START_LSN\);
 --replace_result $REDO_FILE_START_LSN REDO_FILE_START_LSN 
 --source include/search_pattern.inc

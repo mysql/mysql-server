@@ -764,7 +764,10 @@ static bool log_extract_id_from_file_name(const Log_files_context &ctx,
       ut_error;
   }
 
-  if (strlen(file_name) <= file_base_name.size() + strlen(expected_suffix)) {
+  const size_t file_name_len = strlen(file_name);
+  const size_t expected_suffix_len = strlen(expected_suffix);
+
+  if (file_name_len <= file_base_name.size() + expected_suffix_len) {
     return false;
   }
   if (memcmp(file_base_name.c_str(), file_name, file_base_name.size()) != 0) {
@@ -776,8 +779,12 @@ static bool log_extract_id_from_file_name(const Log_files_context &ctx,
       return false;
     }
     auto id = std::stoll(file_name + file_base_name.size(), &n_processed);
-    if (file_base_name.size() + n_processed + strlen(expected_suffix) !=
-        strlen(file_name)) {
+    if (file_base_name.size() + n_processed + expected_suffix_len !=
+        file_name_len) {
+      return false;
+    }
+    if (memcmp(file_name + file_base_name.size() + n_processed, expected_suffix,
+               expected_suffix_len) != 0) {
       return false;
     }
     extracted_id = id;
