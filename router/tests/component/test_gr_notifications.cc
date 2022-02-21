@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+#include <fstream>
 #include <limits>
+#include <stdexcept>
+#include <thread>
+
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
 #endif
 
 #include <gmock/gmock.h>
+#include <protobuf_lite/mysqlx_notice.pb.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>
@@ -44,13 +50,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "tcp_port_pool.h"
-
-#include <protobuf_lite/mysqlx_notice.pb.h>
-
-#include <chrono>
-#include <fstream>
-#include <stdexcept>
-#include <thread>
 
 using mysqlrouter::MySQLSession;
 using namespace std::chrono_literals;
@@ -766,8 +765,11 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
 
   // there should be no WARNINGs nor ERRORs in the log file
   const std::string log_content = router.get_full_logfile();
-  EXPECT_EQ(log_content.find(" ERROR "), log_content.npos) << log_content;
-  EXPECT_EQ(log_content.find(" WARNING "), log_content.npos) << log_content;
+
+  EXPECT_THAT(log_content,
+              ::testing::Not(::testing::AnyOf(
+                  ::testing::HasSubstr(" metadata_cache ERROR "),
+                  ::testing::HasSubstr(" metadata_cache WARNING "))));
 }
 
 INSTANTIATE_TEST_SUITE_P(GrNotificationMysqlxWaitTimeoutUnsupported,
