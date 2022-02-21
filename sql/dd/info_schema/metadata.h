@@ -221,9 +221,11 @@ namespace info_schema {
   80030: Next IS version number after the previous is public.
   ------------------------------------
   Changes from version 80029:
+  - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
+
 */
 
-static const uint IS_DD_VERSION = 80029;
+static const uint IS_DD_VERSION = 80030;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

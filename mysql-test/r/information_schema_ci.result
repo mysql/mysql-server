@@ -2294,9 +2294,9 @@ AND t.table_name = 't1' limit 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_tolower_ci DEFAULT NULL,
-  `TABLE_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_tolower_ci DEFAULT NULL,
-  `COLUMN_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_tolower_ci DEFAULT NULL
+  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci DEFAULT NULL,
+  `TABLE_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci DEFAULT NULL,
+  `COLUMN_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 DROP VIEW v1;
@@ -2981,8 +2981,6 @@ WHERE COLLATION_NAME LIKE "utf8\_%"
 ORDER BY collation_name;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
 utf8_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
-utf8_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
-utf8_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
 SELECT * FROM information_schema.COLLATIONS
 WHERE COLLATION_NAME LIKE "utf8mb3\_%"
 ORDER BY collation_name;
@@ -2993,6 +2991,7 @@ utf8mb3_czech_ci	utf8mb3	202		Yes	8	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		Yes	8	PAD SPACE
 utf8mb3_esperanto_ci	utf8mb3	209		Yes	8	PAD SPACE
 utf8mb3_estonian_ci	utf8mb3	198		Yes	8	PAD SPACE
+utf8mb3_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
 utf8mb3_german2_ci	utf8mb3	212		Yes	8	PAD SPACE
 utf8mb3_hungarian_ci	utf8mb3	210		Yes	8	PAD SPACE
 utf8mb3_icelandic_ci	utf8mb3	193		Yes	8	PAD SPACE
@@ -3008,6 +3007,7 @@ utf8mb3_slovenian_ci	utf8mb3	196		Yes	8	PAD SPACE
 utf8mb3_spanish2_ci	utf8mb3	206		Yes	8	PAD SPACE
 utf8mb3_spanish_ci	utf8mb3	199		Yes	8	PAD SPACE
 utf8mb3_swedish_ci	utf8mb3	200		Yes	8	PAD SPACE
+utf8mb3_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
 utf8mb3_turkish_ci	utf8mb3	201		Yes	8	PAD SPACE
 utf8mb3_unicode_520_ci	utf8mb3	214		Yes	8	PAD SPACE
 utf8mb3_unicode_ci	utf8mb3	192		Yes	8	PAD SPACE
@@ -3015,8 +3015,6 @@ utf8mb3_vietnamese_ci	utf8mb3	215		Yes	8	PAD SPACE
 SHOW COLLATION LIKE 'utf8\_%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf8_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
-utf8_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
-utf8_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
 SHOW COLLATION LIKE 'utf8mb3\_%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf8mb3_bin	utf8mb3	83		Yes	1	PAD SPACE
@@ -3025,6 +3023,7 @@ utf8mb3_czech_ci	utf8mb3	202		Yes	8	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		Yes	8	PAD SPACE
 utf8mb3_esperanto_ci	utf8mb3	209		Yes	8	PAD SPACE
 utf8mb3_estonian_ci	utf8mb3	198		Yes	8	PAD SPACE
+utf8mb3_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
 utf8mb3_german2_ci	utf8mb3	212		Yes	8	PAD SPACE
 utf8mb3_hungarian_ci	utf8mb3	210		Yes	8	PAD SPACE
 utf8mb3_icelandic_ci	utf8mb3	193		Yes	8	PAD SPACE
@@ -3040,6 +3039,7 @@ utf8mb3_slovenian_ci	utf8mb3	196		Yes	8	PAD SPACE
 utf8mb3_spanish2_ci	utf8mb3	206		Yes	8	PAD SPACE
 utf8mb3_spanish_ci	utf8mb3	199		Yes	8	PAD SPACE
 utf8mb3_swedish_ci	utf8mb3	200		Yes	8	PAD SPACE
+utf8mb3_tolower_ci	utf8mb3	76		Yes	1	PAD SPACE
 utf8mb3_turkish_ci	utf8mb3	201		Yes	8	PAD SPACE
 utf8mb3_unicode_520_ci	utf8mb3	214		Yes	8	PAD SPACE
 utf8mb3_unicode_ci	utf8mb3	192		Yes	8	PAD SPACE

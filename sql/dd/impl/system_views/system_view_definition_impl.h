@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,10 +52,10 @@ class System_view_definition_impl : public System_view_definition {
     Get collation clause to append to view definition for some
     view columns based on lower_case_table_names.
 
-    @return Empty string if lctn=0, other wise " COLLATE utf8_tolower_ci".
+    @return Empty string if lctn=0, other wise " COLLATE utf8mb3_tolower_ci".
   */
   static const String_type fs_name_collation() {
-    if (lower_case_table_names != 0) return " COLLATE utf8_tolower_ci";
+    if (lower_case_table_names != 0) return " COLLATE utf8mb3_tolower_ci";
     return "";
   }
 

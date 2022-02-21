@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ Table_constraints::Table_constraints() {
       "          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)"
       " UNION ALL"
       "  SELECT"
-      "    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,"
+      "    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,"
       "    'FOREIGN KEY' as CONSTRAINT_TYPE,"
       "    'YES' as ENFORCED"
       "  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id"

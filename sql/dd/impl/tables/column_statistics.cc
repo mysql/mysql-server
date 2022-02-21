@@ -67,7 +67,7 @@ Column_statistics::Column_statistics() {
               Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_COLUMN_NAME, "FIELD_COLUMN_NAME",
                          "column_name VARCHAR(64) NOT NULL COLLATE \
-                          utf8_tolower_ci");
+                          utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_HISTOGRAM, "FIELD_HISTOGRAM",
                          "histogram JSON NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");

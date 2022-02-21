@@ -184,7 +184,7 @@ check_constraints=
       elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_tolower_ci
             lbl=FIELD_NAME
             pos=3
       elem5=def=schema_id BIGINT UNSIGNED NOT NULL
@@ -351,7 +351,7 @@ check_constraints=
       elem0=def=catalog_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_CATALOG_ID
             pos=1
-      elem1=def=column_name VARCHAR(64) NOT NULL COLLATE                           utf8_tolower_ci
+      elem1=def=column_name VARCHAR(64) NOT NULL COLLATE                           utf8mb3_tolower_ci
             lbl=FIELD_COLUMN_NAME
             pos=5
       elem2=def=histogram JSON NOT NULL
@@ -557,7 +557,7 @@ check_constraints=
       elem20=def=is_zerofill BOOL
             lbl=FIELD_IS_ZEROFILL
             pos=6
-      elem21=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem21=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_tolower_ci
             lbl=FIELD_NAME
             pos=2
       elem22=def=numeric_precision INT UNSIGNED
@@ -907,7 +907,7 @@ foreign_key_column_usage=
       elem2=def=ordinal_position INT UNSIGNED NOT NULL
             lbl=FIELD_ORDINAL_POSITION
             pos=1
-      elem3=def=referenced_column_name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem3=def=referenced_column_name VARCHAR(64) NOT NULL COLLATE utf8mb3_tolower_ci
             lbl=FIELD_REFERENCED_COLUMN_NAME
             pos=3
     foreign_keys=
@@ -993,7 +993,7 @@ foreign_key_column_usage=
       elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem10=def=unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci
+      elem10=def=unique_constraint_name VARCHAR(64) COLLATE utf8mb3_tolower_ci
             lbl=FIELD_UNIQUE_CONSTRAINT_NAME
             pos=4
       elem11=def=update_rule ENUM(
@@ -1399,7 +1399,7 @@ index_stats=
       elem8=def=is_visible BOOL NOT NULL
             lbl=FIELD_IS_VISIBLE
             pos=6
-      elem9=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem9=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_tolower_ci
             lbl=FIELD_NAME
             pos=2
     foreign_keys=
@@ -2524,7 +2524,7 @@ table_partitions=
       elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_tolower_ci
             lbl=FIELD_NAME
             pos=4
       elem5=def=number SMALLINT UNSIGNED NOT NULL

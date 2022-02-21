@@ -5819,32 +5819,32 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     0,
     0, /* number       */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE | MY_CS_LOWER_SORT,
-    "utf8mb3",           /* cs name      */
-    "utf8_tolower_ci",   /* m_coll_name  */
-    "UTF-8 Unicode",     /* comment      */
-    nullptr,             /* tailoring    */
-    nullptr,             /* coll_param   */
-    ctype_utf8,          /* ctype        */
-    to_lower_utf8,       /* to_lower     */
-    to_upper_utf8,       /* to_upper     */
-    to_upper_utf8,       /* sort_order   */
-    nullptr,             /* uca          */
-    nullptr,             /* tab_to_uni   */
-    nullptr,             /* tab_from_uni */
-    &my_unicase_default, /* caseinfo     */
-    nullptr,             /* state_map    */
-    nullptr,             /* ident_map    */
-    1,                   /* strxfrm_multiply */
-    1,                   /* caseup_multiply  */
-    1,                   /* casedn_multiply  */
-    1,                   /* mbminlen     */
-    3,                   /* mbmaxlen     */
-    1,                   /* mbmaxlenlen  */
-    0,                   /* min_sort_char */
-    0xFFFF,              /* max_sort_char */
-    ' ',                 /* pad char      */
-    false,               /* escape_with_backslash_is_dangerous */
-    1,                   /* levels_for_compare */
+    "utf8mb3",            /* cs name      */
+    "utf8mb3_tolower_ci", /* m_coll_name  */
+    "UTF-8 Unicode",      /* comment      */
+    nullptr,              /* tailoring    */
+    nullptr,              /* coll_param   */
+    ctype_utf8,           /* ctype        */
+    to_lower_utf8,        /* to_lower     */
+    to_upper_utf8,        /* to_upper     */
+    to_upper_utf8,        /* sort_order   */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
+    &my_unicase_default,  /* caseinfo     */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
+    1,                    /* strxfrm_multiply */
+    1,                    /* caseup_multiply  */
+    1,                    /* casedn_multiply  */
+    1,                    /* mbminlen     */
+    3,                    /* mbmaxlen     */
+    1,                    /* mbmaxlenlen  */
+    0,                    /* min_sort_char */
+    0xFFFF,               /* max_sort_char */
+    ' ',                  /* pad char      */
+    false,                /* escape_with_backslash_is_dangerous */
+    1,                    /* levels_for_compare */
     &my_charset_utf8_handler,
     &my_collation_utf8_general_ci_handler,
     PAD_SPACE};
@@ -5855,7 +5855,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     0,                                               /* number           */
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state            */
     "utf8mb3",                                       /* cs name          */
-    "utf8_general_mysql500_ci",                      /* m_coll_name      */
+    "utf8mb3_general_mysql500_ci",                   /* m_coll_name      */
     "UTF-8 Unicode",                                 /* comment          */
     nullptr,                                         /* tailoring        */
     nullptr,                                         /* coll_param       */

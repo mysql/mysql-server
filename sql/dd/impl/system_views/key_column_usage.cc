@@ -50,7 +50,7 @@ Key_column_usage::Key_column_usage() {
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
                          "tbl.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
-                         "col.name COLLATE utf8_tolower_ci");
+                         "col.name COLLATE utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
                          "constraints.ordinal_position");
   m_target_def.add_field(FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
@@ -82,7 +82,7 @@ Key_column_usage::Key_column_usage() {
       "    WHERE idx.table_id = tbl.id"
       "      AND idx.type IN ('PRIMARY', 'UNIQUE')"
       "  UNION ALL SELECT"
-      "    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,"
+      "    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,"
       "    fkcu.ordinal_position AS ORDINAL_POSITION,"
       "    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,"
       "    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,"

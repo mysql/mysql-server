@@ -176,6 +176,7 @@ utf8mb3_czech_ci	utf8mb3	202		#	#	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		#	#	PAD SPACE
 utf8mb3_esperanto_ci	utf8mb3	209		#	#	PAD SPACE
 utf8mb3_estonian_ci	utf8mb3	198		#	#	PAD SPACE
+utf8mb3_general_mysql500_ci	utf8mb3	223		#	#	PAD SPACE
 utf8mb3_german2_ci	utf8mb3	212		#	#	PAD SPACE
 utf8mb3_hungarian_ci	utf8mb3	210		#	#	PAD SPACE
 utf8mb3_icelandic_ci	utf8mb3	193		#	#	PAD SPACE
@@ -191,6 +192,7 @@ utf8mb3_slovenian_ci	utf8mb3	196		#	#	PAD SPACE
 utf8mb3_spanish2_ci	utf8mb3	206		#	#	PAD SPACE
 utf8mb3_spanish_ci	utf8mb3	199		#	#	PAD SPACE
 utf8mb3_swedish_ci	utf8mb3	200		#	#	PAD SPACE
+utf8mb3_tolower_ci	utf8mb3	76		#	#	PAD SPACE
 utf8mb3_turkish_ci	utf8mb3	201		#	#	PAD SPACE
 utf8mb3_unicode_520_ci	utf8mb3	214		#	#	PAD SPACE
 utf8mb3_unicode_ci	utf8mb3	192		#	#	PAD SPACE
@@ -285,8 +287,6 @@ utf8mb4_vi_0900_ai_ci	utf8mb4	277		#	#	NO PAD
 utf8mb4_vi_0900_as_cs	utf8mb4	300		#	#	NO PAD
 utf8mb4_zh_0900_as_cs	utf8mb4	308		#	#	NO PAD
 utf8_general_ci	utf8mb3	33	Yes	#	#	PAD SPACE
-utf8_general_mysql500_ci	utf8mb3	223		#	#	PAD SPACE
-utf8_tolower_ci	utf8mb3	76		#	#	PAD SPACE
 CREATE DATABASE d10 DEFAULT CHARACTER SET utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

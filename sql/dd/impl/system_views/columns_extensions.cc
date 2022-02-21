@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ Columns_extensions::Columns_extensions(const dd::String_type &n) {
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
                          "tbl.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME",
-                         "col.name COLLATE utf8_tolower_ci");
+                         "col.name COLLATE utf8mb3_tolower_ci");
 
   // SELECT extension fields
   m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "ENGINE_ATTRIBUTE",

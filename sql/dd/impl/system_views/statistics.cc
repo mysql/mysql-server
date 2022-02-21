@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,12 +52,12 @@ Statistics_base::Statistics_base() {
   m_target_def.add_field(FIELD_INDEX_SCHEMA, "INDEX_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_INDEX_NAME, "INDEX_NAME",
-                         "idx.name COLLATE utf8_tolower_ci");
+                         "idx.name COLLATE utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_SEQ_IN_INDEX, "SEQ_IN_INDEX",
                          "icu.ordinal_position");
   m_target_def.add_field(
       FIELD_COLUMN_NAME, "COLUMN_NAME",
-      "IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8_tolower_ci)");
+      "IF (col.hidden = 'SQL', NULL, col.name COLLATE utf8mb3_tolower_ci)");
   m_target_def.add_field(FIELD_COLLATION, "COLLATION",
                          "CASE WHEN icu.order = 'DESC' THEN 'D' "
                          "WHEN icu.order = 'ASC'  THEN 'A' "

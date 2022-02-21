@@ -63,7 +63,7 @@ Foreign_keys::Foreign_keys() {
                              String_type(name_collation()->m_coll_name));
   m_target_def.add_field(
       FIELD_UNIQUE_CONSTRAINT_NAME, "FIELD_UNIQUE_CONSTRAINT_NAME",
-      "unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci");
+      "unique_constraint_name VARCHAR(64) COLLATE utf8mb3_tolower_ci");
   m_target_def.add_field(FIELD_MATCH_OPTION, "FIELD_MATCH_OPTION",
                          "match_option ENUM('NONE', 'PARTIAL', 'FULL') "
                          "NOT NULL");
