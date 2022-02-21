@@ -10378,9 +10378,9 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
     return ptr;
   }
 
-  bool success = fil_tablespace_open_for_recovery(page_id.space());
+  dberr_t err = fil_tablespace_open_for_recovery(page_id.space());
 
-  if (!success) {
+  if (err != DB_SUCCESS) {
     /* fil_tablespace_open_for_recovery may fail if the tablespace being
     opened is an undo tablespace which is also marked for truncation.
     In such a case, skip processing this redo log further and goto the
@@ -10393,7 +10393,7 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
   }
 
   /* Open the space */
-  success = fil_space_open(page_id.space());
+  bool success = fil_space_open(page_id.space());
 
   if (!success) {
     return nullptr;
@@ -10467,8 +10467,7 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
   os_offset_t new_ext_size = size - (initial_fsize - offset);
 
   /* Initialize the region starting from current end of file with zeros. */
-  dberr_t err =
-      fil_write_zeros(file, phy_page_size, initial_fsize, new_ext_size);
+  err = fil_write_zeros(file, phy_page_size, initial_fsize, new_ext_size);
 
   if (err != DB_SUCCESS) {
     /* Error writing zeros to the file. */
