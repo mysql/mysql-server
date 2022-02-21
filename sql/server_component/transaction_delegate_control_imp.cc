@@ -39,26 +39,36 @@ class Close_connection_all_transactions_that_begin : public Do_THD_Impl {
  public:
   void operator()(THD *thd_to_close) override {
     MUTEX_LOCK(lock, &thd_to_close->LOCK_thd_data);
+    THD *thd = thd_to_close;  // TX_TRACKER_GET has a embedded thd
+    TX_TRACKER_GET(is_transaction_explicit);
     /**
       Super user connection is also disconnected.
       1. If THD killed flag is already set, do not over-ride it because query
-      was supposed to be rollbacked, we will end up overiding the decision
+         was supposed to be rollbacked, we will end up overiding the decision
          resulting in closing the connection.
-      2. REPLICA thread should not be running but yet check it. Do not kill
+      2. If THD life cycle has finished do not kill the transaction.
+      3. If THD has error, do not kill the transaction, it will be rolledback.
+      4. REPLICA thread should not be running but yet check it. Do not kill
          REPLICA transactions.
-      3. Transaction should not be binloggable, so check we are >
+      5. Transaction should not be binloggable, so check we are >
          TX_RPL_STAGE_CACHE_CREATED
-      4. Do not close connection of committing transaction, so check <
+      6. Do not close connection of committing transaction, so check <
          TX_RPL_STAGE_BEFORE_COMMIT
-      5. TX_RPL_STAGE_BEFORE_ROLLBACK is not required, transaction is being
+      7. TX_RPL_STAGE_BEFORE_ROLLBACK is not required, transaction is being
          rolledback, no need to close connection
+      8. Kill all explicit transactions which are not committing because change
+         primary UDF blocks on explicit transactions
     */
     if (thd_to_close->killed == THD::NOT_KILLED &&
-        !thd_to_close->slave_thread &&
-        (thd_to_close->rpl_thd_ctx.get_tx_rpl_delegate_stage_status() >=
-             Rpl_thd_context::TX_RPL_STAGE_CACHE_CREATED &&
-         thd_to_close->rpl_thd_ctx.get_tx_rpl_delegate_stage_status() <
-             Rpl_thd_context::TX_RPL_STAGE_BEFORE_COMMIT)) {
+        !thd_to_close->slave_thread && !thd->is_being_disposed() &&
+        !thd->is_error() &&
+        ((thd_to_close->rpl_thd_ctx.get_tx_rpl_delegate_stage_status() >=
+              Rpl_thd_context::TX_RPL_STAGE_CACHE_CREATED &&
+          thd_to_close->rpl_thd_ctx.get_tx_rpl_delegate_stage_status() <
+              Rpl_thd_context::TX_RPL_STAGE_BEFORE_COMMIT) ||
+         (((is_transaction_explicit->get_trx_state() & TX_EXPLICIT) > 0) &&
+          thd_to_close->rpl_thd_ctx.get_tx_rpl_delegate_stage_status() <
+              Rpl_thd_context::TX_RPL_STAGE_BEFORE_COMMIT))) {
       thd_to_close->awake(THD::KILL_CONNECTION);
     }
   }
