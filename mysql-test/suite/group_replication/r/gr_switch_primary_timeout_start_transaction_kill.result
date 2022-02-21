@@ -1,0 +1,102 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group in single primary mode.
+#    Server1 will be primary and server2 secondary.
+[connection server1]
+CREATE TABLE test.t1(c1 int primary key);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Execute "START TRANSACTION" on server1.
+[connection server1]
+START TRANSACTION;
+
+# 3. Begin change of primary from server2(secondary).
+[connection server2]
+SELECT group_replication_set_as_primary("MEMBER2_UUID",3);
+group_replication_set_as_primary("MEMBER2_UUID",3)
+Primary server switched to: MEMBER2_UUID
+
+# 4. Assert primary changed.
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server_1]
+include/gr_assert_secondary_member.inc
+
+# 5. Transaction on server1 should fail, since it blocks the UDF.
+#    Client connection is dropped.
+[connection server1]
+
+# 6. Execute "START TRANSACTION" on server2.
+[connection server2]
+START TRANSACTION;
+SELECT * FROM test.t1;
+c1
+
+# 7. Begin change of primary from server2(primary).
+[connection server_2]
+SELECT group_replication_set_as_primary("MEMBER2_UUID",1);
+group_replication_set_as_primary("MEMBER2_UUID",1)
+Primary server switched to: MEMBER2_UUID
+
+# 8. Assert primary changed.
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server_2]
+include/gr_assert_secondary_member.inc
+
+# 9. Transaction on server2 should fail, since it blocks the UDF.
+#    Client connection is dropped.
+[connection server2]
+
+# 10. Execute "BEGIN WORK" on server1.
+[connection server1]
+BEGIN WORK;
+
+# 11. Begin change of primary from server2(secondary).
+[connection server2]
+SELECT group_replication_set_as_primary("MEMBER2_UUID",3);
+group_replication_set_as_primary("MEMBER2_UUID",3)
+Primary server switched to: MEMBER2_UUID
+
+# 12. Assert primary changed.
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server_1]
+include/gr_assert_secondary_member.inc
+
+# 13. Transaction on server1 should fail, since it blocks the UDF.
+#    Client connection is dropped.
+[connection server1]
+
+# 14. Execute "BEGIN WORK" on server2.
+[connection server2]
+BEGIN WORK;
+SELECT * FROM test.t1;
+c1
+
+# 15. Begin change of primary from server2(primary).
+[connection server_2]
+SELECT group_replication_set_as_primary("MEMBER2_UUID",1);
+group_replication_set_as_primary("MEMBER2_UUID",1)
+Primary server switched to: MEMBER2_UUID
+
+# 16. Assert primary changed.
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server_2]
+include/gr_assert_secondary_member.inc
+
+# 17. Transaction on server2 should fail, since it blocks the UDF.
+#    Client connection is dropped.
+[connection server2]
+
+# 18. Cleanup.
+[connection server1]
+DROP TABLE test.t1;
+include/group_replication_end.inc
