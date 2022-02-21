@@ -19506,20 +19506,22 @@ void ha_innobase::get_auto_increment(
 
   if (increment > 1 && m_prebuilt->table->skip_alter_undo == false &&
       autoinc < col_max_value) {
-    ulonglong prev_auto_inc = autoinc;
+    ulonglong diff = ULLONG_MAX - autoinc;
+    /* Check for overflow */
+    if (increment <= diff) {
+      ulonglong prev_auto_inc = autoinc;
+      autoinc = ((autoinc - 1) + increment - offset) / increment;
+      autoinc = autoinc * increment + offset;
 
-    autoinc = ((autoinc - 1) + increment - offset) / increment;
+      /* If autoinc exceeds the col_max_value then reset
+      to old autoinc value. Because in case of non-strict
+      sql mode, boundary value is not considered as error. */
+      if (autoinc >= col_max_value) {
+        autoinc = prev_auto_inc;
+      }
 
-    autoinc = autoinc * increment + offset;
-
-    /* If autoinc exceeds the col_max_value then reset
-    to old autoinc value. Because in case of non-strict
-    sql mode, boundary value is not considered as error. */
-    if (autoinc >= col_max_value) {
-      autoinc = prev_auto_inc;
+      ut_ad(autoinc > 0);
     }
-
-    ut_ad(autoinc > 0);
   }
 
   /* Called for the first time ? */
