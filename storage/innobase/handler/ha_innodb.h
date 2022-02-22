@@ -893,8 +893,7 @@ class create_table_info_t {
   DATA DIRECTORY option.
   @param[in]  msg     The reason that data directory is wrong.
   @param[in]  ignore  If true, append a message about ignoring
-                      the data directory location.
-  @return true if valid, false if not. */
+                      the data directory location. */
   void log_error_invalid_location(std::string &msg, bool ignore);
 
  public:

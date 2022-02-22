@@ -5407,9 +5407,7 @@ class buf_page_t::Latching_rules_helpers {
   triggers assertion failure.
   @param[in]  page  the page which has the io_fix field we care about
   @param[in]  A     first set of buf_io_fix values
-  @param[in]  B     second set of buf_io_fix values
-  @return true iff current thread holds latches which ensure that if io_fix is
-  in A then it will stay in A, and if it is in B, then it will stay in B */
+  @param[in]  B     second set of buf_io_fix values */
   static void assert_latches_let_distinguish(
       const buf_page_t &page, const Buf_io_fix_latching_rules::nodes_set_t &A,
       const Buf_io_fix_latching_rules::nodes_set_t &B) {

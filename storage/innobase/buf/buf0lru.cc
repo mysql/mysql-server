@@ -2552,8 +2552,7 @@ void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 }
 
-/** Validates the LRU list.
- @return true */
+/** Validates the LRU list. */
 void buf_LRU_validate(void) {
   for (size_t i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
