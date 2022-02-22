@@ -653,6 +653,10 @@ struct mtr_t {
 #ifdef UNIV_DEBUG
   /** For checking invalid mode update requests. */
   static bool s_mode_update_valid[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];
+
+  /** Count the number of times the same mtr object has been committed and
+  restarted. */
+  size_t m_restart_count{};
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP

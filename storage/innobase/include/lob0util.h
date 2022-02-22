@@ -110,6 +110,10 @@ struct basic_page_t {
   static ulint payload();
   ulint max_space_available();
 
+  /** Get the underlying buffer block.
+  @return the buffer block. */
+  [[nodiscard]] buf_block_t *get_block() const noexcept;
+
   void set_block(buf_block_t *block) {
     ut_ad(mtr_memo_contains(m_mtr, block, MTR_MEMO_PAGE_X_FIX) ||
           mtr_memo_contains(m_mtr, block, MTR_MEMO_PAGE_S_FIX));
@@ -124,6 +128,10 @@ struct basic_page_t {
   mtr_t *m_mtr;
   dict_index_t *m_index;
 };
+
+[[nodiscard]] inline buf_block_t *basic_page_t::get_block() const noexcept {
+  return m_block;
+}
 
 /** Allocate one LOB page.
 @param[in]  index   Index in which LOB exists.

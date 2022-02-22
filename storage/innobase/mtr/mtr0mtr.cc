@@ -605,6 +605,8 @@ void mtr_t::start(bool sync) {
   /* Assert there are no collisions in thread local context - it would mean
   reusing MTR without committing or destructing it. */
   ut_a(res.second);
+
+  m_restart_count++;
 #endif /* UNIV_DEBUG */
 }
 
