@@ -841,8 +841,7 @@ typedef std::vector<const rw_lock_debug_t *> Infos;
 
 /** Get the thread debug info
 @param[in]      infos           The rw-lock mode owned by the threads
-@param[in]      lock            rw-lock to check
-@return the thread debug info or NULL if not found */
+@param[in]      lock            rw-lock to check */
 static void rw_lock_get_debug_info(const rw_lock_t *lock, Infos *infos) {
   ut_ad(rw_lock_validate(lock));
 

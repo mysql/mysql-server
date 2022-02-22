@@ -174,8 +174,7 @@ dtuple_t *rtr_index_build_node_ptr(const dict_index_t *index,
   return (tuple);
 }
 
-/** In-place update the mbr field of a spatial index row.
- @return true if update is successful */
+/** In-place update the mbr field of a spatial index row. */
 static void rtr_update_mbr_field_in_place(
     dict_index_t *index, /*!< in: spatial index. */
     rec_t *rec,          /*!< in/out: rec to be modified.*/

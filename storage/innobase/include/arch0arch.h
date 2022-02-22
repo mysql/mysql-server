@@ -693,9 +693,7 @@ class Arch_File_Ctx {
   /** Update the reset information in the in-memory structure that we maintain
   for faster access.
   @param[in]    lsn     lsn at the time of reset
-  @param[in]    pos     pos at the time of reset
-  @retval true if the reset point was saved
-  @retval false if the reset point wasn't saved because it was already saved */
+  @param[in]    pos     pos at the time of reset */
   void save_reset_point_in_mem(lsn_t lsn, Arch_Page_Pos pos);
 
   /** Find the appropriate reset LSN that is less than or equal to the
@@ -1084,9 +1082,7 @@ class Arch_Group {
   /** Update the reset information in the in-memory structure that we maintain
   for faster access.
   @param[in]    lsn     lsn at the time of reset
-  @param[in]    pos     pos at the time of reset
-  @retval true if the reset point was saved
-  @retval false if the reset point wasn't saved because it was already saved */
+  @param[in]    pos     pos at the time of reset */
   void save_reset_point_in_mem(lsn_t lsn, Arch_Page_Pos pos) {
     m_file_ctx.save_reset_point_in_mem(lsn, pos);
   }
