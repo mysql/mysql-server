@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
 #include <GlobalSignalNumbers.h>
+#include <signaldata/FsOpenReq.hpp>
 #include <signaldata/TestOrd.hpp>
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/StartOrd.hpp>
@@ -4701,7 +4702,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   /*
    * Single-threaded backup.  Set instance key 1.  In the kernel
    * this maps to main instance 0 or worker instance 1 (if MT LQH).
@@ -4729,12 +4730,36 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
     if (ndbd_support_backup_file_encryption(
         getNodeInfo(nodeId).m_info.m_version))
     {
-      epd.password_length = password_length;
-      strncpy(epd.encryption_password, encryption_password,
-              MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH);
+      epd.length = password_length;
+      Uint32 section_size;
+      if (ndbd_support_encryption_key_material(
+              getNodeInfo(nodeId).m_info.m_version))
+      {
+        if (password_length > epd.MAX_LENGTH)
+          return BackupRef::EncryptionPasswordTooLong;
+        memcpy(epd.data, encryption_password, password_length);
+        section_size = epd.get_needed_words();
+      }
+      else
+      {
+        /*
+         * For sending to old data nodes, version 8.0.28 and older, password
+         * need to be null-terminated, and also need to have a nul in position
+         * MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH.
+         * And the section size must be exact
+         * MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 8 bytes.
+         */
+        if (password_length > MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH)
+          return BackupRef::EncryptionPasswordTooLong;
+        memcpy(epd.data, encryption_password, password_length + 1);
+        epd.data[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] = 0;
+
+        section_size =
+            ndb_ceil_div(4 + MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4, 4);
+      }
 
       ssig.ptr[0].p = (Uint32*)&epd;
-      ssig.ptr[0].sz = (sizeof(EncryptionPasswordData) + 3) / 4;
+      ssig.ptr[0].sz = section_size;
       ssig.header.m_noOfSections = 1;
       req->flags |= BackupReq::ENCRYPTED_BACKUP;
     }

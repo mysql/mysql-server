@@ -181,6 +181,11 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
                             &disk_data_format);
   g_use_old_format = (disk_data_format == 0);
 #endif
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   m_file_pool.init(RT_TSMAN_FILE, pc);
   m_tablespace_pool.init(RT_TSMAN_FILEGROUP, pc);
 
@@ -1010,6 +1015,11 @@ Tsman::open_file(Signal* signal,
   default:
     ndbabort();
   }
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  }
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
   req->file_size_hi = hi;
@@ -1067,6 +1077,15 @@ Tsman::open_file(Signal* signal,
       extent_pages);
 #endif
 
+  if ((req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) != 0)
+  {
+    ndbrequire(handle->m_cnt == 1);
+    ndbrequire(import(handle->m_ptr[FsOpenReq::ENCRYPT_KEY_MATERIAL],
+                      (const Uint32*)&FsOpenReq::DUMMY_KEY,
+                      FsOpenReq::DUMMY_KEY.get_needed_words()));
+    handle->m_cnt++;
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+  }
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
 

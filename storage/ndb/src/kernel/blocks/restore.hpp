@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,7 +289,10 @@ private:
   Uint32 m_table_buf[MAX_WORDS_META_FILE];
   Uint32
     m_lcp_ctl_file_data[2][BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
-public:
+
+  bool c_encrypted_filesystem;
+
+ public:
   Uint32 getDBLQH()
   {
     return m_lqh_block;

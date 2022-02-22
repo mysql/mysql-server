@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
-#include "kernel/signaldata/BackupSignalData.hpp"
+#include "kernel/signaldata/FsOpenReq.hpp"
 #include "portlib/ndb_file.h"
 #include "util/ndbxfrm_file.h"
 
@@ -69,7 +69,7 @@ public:
   bool isOpen() const;
 
   Filename theFileName;
-  EncryptionPasswordData m_password;
+  EncryptionKeyMaterial m_key_material;
 
   void set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt);
   bool has_buffer() const;

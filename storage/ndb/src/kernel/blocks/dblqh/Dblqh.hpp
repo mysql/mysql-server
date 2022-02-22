@@ -4502,6 +4502,8 @@ public:
   void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
   void execCUT_REDO_LOG_TAIL_REQ(Signal*);
 
+  bool c_encrypted_filesystem;
+
   /**
    * Variable keeping track of which GCI to keep in REDO log
    * after completing a LCP.

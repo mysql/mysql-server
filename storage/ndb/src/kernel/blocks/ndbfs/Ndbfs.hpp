@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,16 +33,6 @@
 #include <signaldata/FsOpenReq.hpp>
 
 #define JAM_FILE_ID 385
-
-/*
- * To be able to test encryption of filesystem Ndbfs reads the
- * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
- * and a dummy OM_PASSWORD.
- *
- * All code protected by NDBFS_TDE should be removed as soon as each
- * FSOPENREQ sets OM_ENCRYPT and OM_PASSWORD as it should.
- */
-#define NDBFS_TDE
 
 class AsyncIoThread;
 class FsReadWriteReq;
@@ -155,17 +145,6 @@ private:
    */
   Uint32 m_active_bound_threads_cnt;
 
-#ifdef NDBFS_TDE
-  /*
-   * To be able to test encryption of filesystem Ndbfs reads the
-   * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
-   * and a dummy OM_PASSWORD.
-   *
-   * All code protected by NDBFS_TDE should be removed as soon as each
-   * FSOPENREQ sets OM_ENCRYPT and OM_PASSWORD as it should.
-   */
-  Uint32 m_encrypt_fs;
-#endif
 public:
   const BaseString& get_base_path(Uint32 no) const;
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,14 +29,19 @@
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
 #include <string>
+#include <string_view>
 #include <algorithm>
 #include <utility>
 #include "util/cstrbuf.h"
 
 static
-char * f_strdup(const char * s){
-  if(!s) return 0;
-  return strdup(s);
+char * f_strdup(std::string_view s)
+{
+  if(s.data() == nullptr) return 0;
+  char* p = (char*) malloc(s.size() + 1);
+  memcpy(p, s.data(), s.size());
+  p[s.size()] = 0;
+  return p;
 }
 
 /**
@@ -56,14 +61,14 @@ struct PropertyImpl{
   PropertyImpl();
   PropertyImpl(const char * name, Uint32 value);
   PropertyImpl(const char * name, Uint64 value);
-  PropertyImpl(const char * name, const char * value);
+  PropertyImpl(const char * name, std::string_view value);
   PropertyImpl(const char * name, const Properties * value);
   PropertyImpl(const PropertyImpl &prop);
   PropertyImpl(PropertyImpl &&prop);
   PropertyImpl& operator=(const PropertyImpl &obj);
   PropertyImpl& operator=(PropertyImpl &&obj);
 
-  bool append(const char * value);
+  bool append(std::string_view value);
 
 };
 
@@ -125,6 +130,10 @@ Property::Property(const char * name, Uint32 value){
 }
 
 Property::Property(const char * name, const char * value){
+  impl = new PropertyImpl(name, std::string_view{value});
+}
+
+Property::Property(const char * name, std::string_view value){
   impl = new PropertyImpl(name, value);
 }
 
@@ -225,11 +234,22 @@ Properties::put64(const char * name, Uint64 value, bool replace){
 
 bool 
 Properties::put(const char * name, const char * value, bool replace){
+  return ::put(impl, name, std::string_view{value}, replace);
+}
+
+bool 
+Properties::put(const char * name, std::string_view value, bool replace){
   return ::put(impl, name, value, replace);
 }
 
 bool
 Properties::append(const char * name, const char * value)
+{
+  return append(name, std::string_view{value});
+}
+
+bool
+Properties::append(const char * name, std::string_view value)
 {
   PropertyImpl * nvp = impl->get(name);
   if (nvp == NULL)
@@ -955,7 +975,7 @@ PropertyImpl::PropertyImpl(const char * _name, Uint64 _value) :
     name(f_strdup(_name)),
     value(new Uint64(_value)) {}
 
-PropertyImpl::PropertyImpl(const char * _name, const char * _value) :
+PropertyImpl::PropertyImpl(const char * _name, std::string_view _value) :
     valueType(PropertiesType_char),
     name(f_strdup(_name)),
     value(f_strdup(_value)) {}
@@ -1079,21 +1099,21 @@ PropertyImpl::operator=(PropertyImpl &&obj)
 }
 
 bool
-PropertyImpl::append(const char * value)
+PropertyImpl::append(std::string_view value)
 {
   assert(this->valueType == PropertiesType_char);
   assert(this->value != NULL);
-  assert(value != NULL);
+  assert(value.data() != NULL);
 
   const size_t old_len = strlen(reinterpret_cast<char*>(this->value));
-  const size_t new_len = old_len + strlen(value);
+  const size_t new_len = old_len + value.size();
   char * new_value = reinterpret_cast<char*>(realloc(this->value, new_len + 1));
   if (new_value == NULL)
   {
     return false;
   }
-  const size_t append_len = new_len + 1 - old_len;
-  memcpy(new_value + old_len, value, append_len);
+  memcpy(new_value + old_len, value.data(), value.size());
+  new_value[new_len] = 0;
   this->value = new_value;
   return true;
 }
@@ -1158,7 +1178,14 @@ Properties::put64(const char * name, Uint32 no, Uint64 val, bool replace){
 
 
 bool 
-Properties::put(const char * name, Uint32 no, const char * val, bool replace){
+Properties::put(const char * name, Uint32 no, const char * val, bool replace)
+{
+  return put(name, no, std::string_view{val}, replace);
+}
+
+bool 
+Properties::put(const char * name, Uint32 no, std::string_view val, bool replace)
+{
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
   BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
@@ -1277,5 +1304,5 @@ Properties::getCaseInsensitiveNames() const {
 
 template bool put(PropertiesImpl *, const char *, Uint32, bool);
 template bool put(PropertiesImpl *, const char *, Uint64, bool);
-template bool put(PropertiesImpl *, const char *, const char *, bool);
+template bool put(PropertiesImpl *, const char *, std::string_view, bool);
 template bool put(PropertiesImpl *, const char *, const Properties*, bool);

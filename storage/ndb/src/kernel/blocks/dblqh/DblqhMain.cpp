@@ -2230,6 +2230,11 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
 
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   m_use_om_init = 0;
   {
     const char * conf = 0;
@@ -25779,29 +25784,32 @@ void Dblqh::openFileRw(Signal* signal,
                        bool writeBuffer)
 {
   FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
-  signal->theData[0] = cownref;
-  signal->theData[1] = olfLogFilePtr.i;
-  signal->theData[2] = olfLogFilePtr.p->fileName[0];
-  signal->theData[3] = olfLogFilePtr.p->fileName[1];
-  signal->theData[4] = olfLogFilePtr.p->fileName[2];
-  signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE |
-                       FsOpenReq::OM_AUTOSYNC |
-                       FsOpenReq::OM_CHECK_SIZE |
-                       FsOpenReq::OM_ZEROS_ARE_SPARSE;
+  req->userReference = cownref;
+  req->userPointer = olfLogFilePtr.i;
+  req->fileNumber[0] = olfLogFilePtr.p->fileName[0];
+  req->fileNumber[1] = olfLogFilePtr.p->fileName[1];
+  req->fileNumber[2] = olfLogFilePtr.p->fileName[2];
+  req->fileNumber[3] = olfLogFilePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC |
+                   FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_ZEROS_ARE_SPARSE;
   if (c_o_direct)
   {
     jam();
-    signal->theData[6] |= FsOpenReq::OM_DIRECT;
+    req->fileFlags |= FsOpenReq::OM_DIRECT;
     if (c_o_direct_sync_flag)
     {
       jam();
-      signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+      req->fileFlags |= FsOpenReq::OM_DIRECT_SYNC;
     }
   }
   if (writeBuffer)
   {
-    signal->theData[6] |= FsOpenReq::OM_WRITE_BUFFER;
+    req->fileFlags |= FsOpenReq::OM_WRITE_BUFFER;
+  }
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
   }
 
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
@@ -25810,7 +25818,27 @@ void Dblqh::openFileRw(Signal* signal,
   req->file_size_hi = (Uint32)(sz >> 32);
   req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
   req->page_size = File_formats::NDB_PAGE_SIZE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    LinearSectionPtr lsptr[3];
+
+    // Use a dummy file name
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    lsptr[FsOpenReq::FILENAME].p = nullptr;
+    lsptr[FsOpenReq::FILENAME].sz = 0;
+
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32*)&FsOpenReq::DUMMY_KEY;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        FsOpenReq::DUMMY_KEY.get_needed_words();
+
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+               lsptr, 2);
+  }
+  else
+  {
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  }
 }//Dblqh::openFileRw()
 
 /* ------------------------------------------------------------------------- */
@@ -25822,26 +25850,23 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
 {
   logFilePtr.p->logFileStatus = LogFileRecord::OPENING_INIT;
   FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
-  signal->theData[0] = cownref;
-  signal->theData[1] = logFilePtr.i;
-  signal->theData[2] = logFilePtr.p->fileName[0];
-  signal->theData[3] = logFilePtr.p->fileName[1];
-  signal->theData[4] = logFilePtr.p->fileName[2];
-  signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE |
-                       FsOpenReq::OM_TRUNCATE |
-                       FsOpenReq::OM_CREATE |
-                       FsOpenReq::OM_AUTOSYNC |
-                       FsOpenReq::OM_WRITE_BUFFER |
-                       FsOpenReq::OM_ZEROS_ARE_SPARSE;
+  req->userReference = cownref;
+  req->userPointer = logFilePtr.i;
+  req->fileNumber[0] = logFilePtr.p->fileName[0];
+  req->fileNumber[1] = logFilePtr.p->fileName[1];
+  req->fileNumber[2] = logFilePtr.p->fileName[2];
+  req->fileNumber[3] = logFilePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE |
+                   FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC |
+                   FsOpenReq::OM_WRITE_BUFFER | FsOpenReq::OM_ZEROS_ARE_SPARSE;
   if (c_o_direct)
   {
     jam();
-    signal->theData[6] |= FsOpenReq::OM_DIRECT;
+    req->fileFlags |= FsOpenReq::OM_DIRECT;
     if (c_o_direct_sync_flag)
     {
       jam();
-      signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+      req->fileFlags |= FsOpenReq::OM_DIRECT_SYNC;
     }
   }
   Uint64 sz = Uint64(clogFileSize) * 1024 * 1024;
@@ -25851,16 +25876,41 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
   if (m_use_om_init)
   {
     jam();
-    signal->theData[6] |= FsOpenReq::OM_INIT;
+    req->fileFlags |= FsOpenReq::OM_INIT;
   }
   else
   {
     jam();
-    signal->theData[6] |= FsOpenReq::OM_SPARSE_INIT;
+    req->fileFlags |= FsOpenReq::OM_SPARSE_INIT;
+  }
+  if (c_encrypted_filesystem)
+  {
+    jam();
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
   }
 
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    LinearSectionPtr lsptr[3];
+
+    // Use a dummy file name
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    lsptr[FsOpenReq::FILENAME].p = nullptr;
+    lsptr[FsOpenReq::FILENAME].sz = 0;
+
+    req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32*)&FsOpenReq::DUMMY_KEY;
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+        FsOpenReq::DUMMY_KEY.get_needed_words();
+
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+               lsptr, 2);
+  }
+  else
+  {
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+  }
 }//Dblqh::openLogfileInit()
 
 void
@@ -25972,26 +26022,29 @@ void Dblqh::openNextLogfile(Signal *signal,
     }//if
     onlLogFilePtr.p->logFileStatus = LogFileRecord::OPENING_WRITE_LOG;
     FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
-    signal->theData[0] = logPartPtrP->myRef;
-    signal->theData[1] = onlLogFilePtr.i;
-    signal->theData[2] = onlLogFilePtr.p->fileName[0];
-    signal->theData[3] = onlLogFilePtr.p->fileName[1];
-    signal->theData[4] = onlLogFilePtr.p->fileName[2];
-    signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = FsOpenReq::OM_READWRITE |
-                         FsOpenReq::OM_AUTOSYNC |
-                         FsOpenReq::OM_CHECK_SIZE |
-                         FsOpenReq::OM_WRITE_BUFFER |
-                         FsOpenReq::OM_ZEROS_ARE_SPARSE;
+    req->userReference = logPartPtrP->myRef;
+    req->userPointer = onlLogFilePtr.i;
+    req->fileNumber[0] = onlLogFilePtr.p->fileName[0];
+    req->fileNumber[1] = onlLogFilePtr.p->fileName[1];
+    req->fileNumber[2] = onlLogFilePtr.p->fileName[2];
+    req->fileNumber[3] = onlLogFilePtr.p->fileName[3];
+    req->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC |
+                     FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_WRITE_BUFFER |
+                     FsOpenReq::OM_ZEROS_ARE_SPARSE;
     if (c_o_direct)
     {
       jam();
-      signal->theData[6] |= FsOpenReq::OM_DIRECT;
+      req->fileFlags |= FsOpenReq::OM_DIRECT;
       if (c_o_direct_sync_flag)
       {
         jam();
-        signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+        req->fileFlags |= FsOpenReq::OM_DIRECT_SYNC;
       }
+    }
+    if (c_encrypted_filesystem)
+    {
+      jam();
+      req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
     }
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
     Uint64 sz = logPartPtrP->my_block->clogFileSize;
@@ -25999,7 +26052,28 @@ void Dblqh::openNextLogfile(Signal *signal,
     req->file_size_hi = (Uint32)(sz >> 32);
     req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
     req->page_size = File_formats::NDB_PAGE_SIZE;
-    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+    if (req->fileFlags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+    {
+      LinearSectionPtr lsptr[3];
+
+      // Use a dummy file name
+      ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+      lsptr[FsOpenReq::FILENAME].p = nullptr;
+      lsptr[FsOpenReq::FILENAME].sz = 0;
+
+      req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
+      lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32*)&FsOpenReq::DUMMY_KEY;
+      lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+          FsOpenReq::DUMMY_KEY.get_needed_words();
+
+      sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+                 lsptr, 2);
+    }
+    else
+    {
+      sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength,
+                 JBA);
+    }
   }//if
 }//Dblqh::openNextLogfile()
 

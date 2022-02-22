@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -280,16 +280,37 @@ int ndb_openssl_evp::derive_and_add_key_iv_pair(const byte pwd[],
     }
   }
 
-  // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
-  const char* pass = reinterpret_cast<const char*>(pwd);
-  int r = PKCS5_PBKDF2_HMAC(pass ? pass : "",
-                            pwd_len,
-                            salt,
-                            SALT_LEN,
-                            iter_count,
-                            EVP_sha256(),
-                            KEY_LEN + IV_LEN,
-                            key_iv);
+  int r;
+  if (iter_count > 0)
+  {
+    // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
+    const char* pass = reinterpret_cast<const char*>(pwd);
+    r = PKCS5_PBKDF2_HMAC(pass ? pass : "",
+                          pwd_len,
+                          salt,
+                          SALT_LEN,
+                          iter_count,
+                          EVP_sha256(),
+                          KEY_LEN + IV_LEN,
+                          key_iv);
+  }
+  else
+  {
+    /*
+     * iter_count == 0 indicates pwd is a key.
+     * Using one iteratation of PBKDF2 to generate a 256 bit key and a 256 bit
+     * iv from the 256 bit salt and 256 bit given key (pwd).
+     */
+    const char* pass = reinterpret_cast<const char*>(pwd);
+    r = PKCS5_PBKDF2_HMAC(pass ? pass : "",
+                          pwd_len,
+                          salt,
+                          SALT_LEN,
+                          1,  // one iteration
+                          EVP_sha256(),
+                          KEY_LEN + IV_LEN,
+                          key_iv);
+  }
   if (r != 1)
   {
     RETURN(-1);

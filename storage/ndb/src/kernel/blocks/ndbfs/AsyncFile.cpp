@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,9 +121,27 @@ AsyncFile::openReq(Request * request)
       (flags & FsOpenReq::OM_INIT) || (flags & FsOpenReq::OM_SPARSE_INIT);
   require(!file_init || !(flags & FsOpenReq::OM_GZ));
 
-  // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
+  // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT_CBC/XTS)
   const bool use_gz = (flags & FsOpenReq::OM_GZ);
-  const bool use_enc = (flags & FsOpenReq::OM_ENCRYPT);
+  const bool use_enc = (flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK);
+  Uint32 enc_cipher;
+  switch (flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK)
+  {
+    case 0:
+      require(!use_enc);
+      enc_cipher = 0;
+      break;
+    case FsOpenReq::OM_ENCRYPT_CBC:
+      require(use_enc);
+      enc_cipher = ndb_ndbxfrm1::cipher_cbc;
+      break;
+    case FsOpenReq::OM_ENCRYPT_XTS:
+      require(use_enc);
+      enc_cipher = ndb_ndbxfrm1::cipher_xts;
+      break;
+    default:
+      std::terminate();
+  }
 
   // OM_DIRECT_SYNC is not valid without OM_DIRECT
   require(!(flags & FsOpenReq::OM_DIRECT_SYNC) ||
@@ -232,25 +250,21 @@ AsyncFile::openReq(Request * request)
 
   //
   {
-    int pwd_len = use_enc ? m_password.password_length : 0;
-    ndb_openssl_evp::byte* pwd = use_enc
-                                     ? reinterpret_cast<ndb_openssl_evp::byte*>(
-                                           m_password.encryption_password)
-                                     : nullptr;
+    const int pwd_len = use_enc ? m_key_material.length : 0;
+    ndb_openssl_evp::byte* pwd =
+        use_enc ? reinterpret_cast<ndb_openssl_evp::byte*>(m_key_material.data)
+                : nullptr;
     int rc;
     if (created)
     {
-      bool backup = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
-      int key_cipher = (backup ? ndb_ndbxfrm1::cipher_cbc :
-                                 ndb_ndbxfrm1::cipher_xts);
       int key_count;
       int key_data_unit_size;
       int file_block_size;
       if (page_size == 0 || use_gz)
       {
         size_t xts_data_unit_size = GLOBAL_PAGE_SIZE;
-        const bool use_cbc = (key_cipher == ndb_ndbxfrm1::cipher_cbc);
-        const bool use_xts = (key_cipher == ndb_ndbxfrm1::cipher_xts);
+        const bool use_cbc = (enc_cipher == ndb_ndbxfrm1::cipher_cbc);
+        const bool use_xts = (enc_cipher == ndb_ndbxfrm1::cipher_xts);
         key_data_unit_size = ((use_enc && use_xts) ? xts_data_unit_size : 0);
         /*
          * For XTS we currently use maximal set of keys since we do not know
@@ -283,19 +297,25 @@ AsyncFile::openReq(Request * request)
       }
       if (m_open_flags & FsOpenReq::OM_APPEND)
         require(!ndbxfrm_file::is_definite_size(data_size));
-      rc = m_xfile.create(m_file,
-                          use_gz,
-                          pwd,
-                          pwd_len,
-                          (backup ? ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT : 1),
-                          key_cipher,
-                          ((key_count == 1)
-                          ? ndb_ndbxfrm1::key_selection_mode_same
-                          : ndb_ndbxfrm1::key_selection_mode_mix_pair),
-                          key_count,
-                          key_data_unit_size,
-                          file_block_size,
-                          data_size);
+      int kdf_iter_count = 0;
+      if ((m_open_flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
+          FsOpenReq::OM_ENCRYPT_PASSWORD)
+      {
+        kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
+      }
+      rc = m_xfile.create(
+          m_file,
+          use_gz,
+          pwd,
+          pwd_len,
+          kdf_iter_count,
+          enc_cipher,
+          ((key_count == 1) ? ndb_ndbxfrm1::key_selection_mode_same
+                            : ndb_ndbxfrm1::key_selection_mode_mix_pair),
+          key_count,
+          key_data_unit_size,
+          file_block_size,
+          data_size);
       if (rc < 0) NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     }
     else

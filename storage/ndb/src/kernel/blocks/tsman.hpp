@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -228,7 +228,8 @@ private:
   friend class Tablespace_client;
   Datafile_pool m_file_pool;
   Tablespace_pool m_tablespace_pool;
-  
+
+  bool c_encrypted_filesystem;
   bool m_lcp_ongoing;
   BlockReference m_end_lcp_ref;
   Datafile_hash m_file_hash;
