@@ -38,6 +38,7 @@
 #include "ft_global.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -5784,14 +5785,15 @@ bool TABLE::alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
     s->key_names = static_cast<Key_name *>(
         s->mem_root.Alloc(sizeof(Key_name) * new_key_count));
     if (s->key_names == nullptr) return true; /* purecov: inspected */
-    memset(s->key_names, 0, sizeof(Key_name) * new_key_count);
+    TRASH(s->key_names, sizeof(Key_name) * new_key_count);
     /*
       A derived table may have a unique index with name stored in
       s->key_info->name. Check for this special case, and copy the name into
       the first location of key_names array.
     */
-    if (old_key_count > 0 && old_key_names == nullptr)
-      memcpy(&s->key_names->name, s->key_info->name, strlen(s->key_info->name));
+    if (old_key_count > 0 && old_key_names == nullptr) {
+      strcpy(pointer_cast<char *>(&s->key_names->name), s->key_info->name);
+    }
 
     s->key_info = s->mem_root.ArrayAlloc<KEY>(new_key_count);
     if (s->key_info == nullptr) return true; /* purecov: inspected */
@@ -6004,19 +6006,53 @@ uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k) {
 }
 
 /**
-  For a materialized derived table: copies a KEY definition from a position to
+  For a materialized derived table: moves a KEY definition from a position to
   the first not-yet-used position (which is lower).
+
+  @note memset operations are used to invalidate old entries, in order to
+        trap invalid accesses after the move. memset is considered cheap
+        in this context.
+
+  The function needs to move the following entries:
+  - The KEY (both for TABLE and TABLE_SHARE)
+  - The KEY_PART_INFO objects (TABLE only, TABLE_SHARE shares with first TABLE)
+  - The key names (TABLE_SHARE only)
+  - rec per key information (TABLE_SHARE only)
 
   @param old_idx        source position
   @param modify_share   Do modifications to TABLE_SHARE. @see alloc_tmp_keys
 */
-void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
-  if (modify_share)
-    s->key_info[s->first_unused_tmp_key++] = s->key_info[old_idx];
+void TABLE::move_tmp_key(int old_idx, bool modify_share) {
+  if (modify_share) {
+    const int new_idx = s->first_unused_tmp_key++;
+    s->key_info[new_idx] = s->key_info[old_idx];
+    TRASH(pointer_cast<void *>(s->key_info + old_idx), sizeof(KEY));
+    s->key_names[new_idx] = s->key_names[old_idx];
+    TRASH(pointer_cast<void *>(s->key_names + old_idx), sizeof(Key_name));
+    s->key_info[new_idx].name = s->key_names[new_idx].name;
+  }
   const int new_idx = s->first_unused_tmp_key - 1;
   assert(!created && new_idx < old_idx && old_idx < (int)s->keys);
+  uint key_partno = 0;
+  for (int i = 0; i < new_idx; i++) {
+    key_partno += s->key_info[i].user_defined_key_parts;
+  }
   key_info[new_idx] = key_info[old_idx];
+  KEY_PART_INFO *old_key_part = key_info[old_idx].key_part;
+  TRASH(pointer_cast<void *>(key_info + old_idx), sizeof(KEY));
+  key_info[new_idx].key_part = base_key_parts + key_partno;
+  key_info[new_idx].name = s->key_names[new_idx].name;
 
+  for (uint i = 0; i < s->key_info[new_idx].user_defined_key_parts; i++) {
+    base_key_parts[key_partno + i] = old_key_part[i];
+    TRASH(pointer_cast<void *>(old_key_part + i), sizeof(KEY_PART_INFO));
+  }
+  if (modify_share) {
+    s->key_info[new_idx].key_part = base_key_parts + key_partno;
+    s->key_info[new_idx].move_rec_per_key(
+        s->base_rec_per_key + key_partno,
+        s->base_rec_per_key_float + key_partno);
+  }
   for (auto reg_field = field; *reg_field; reg_field++) {
     auto f = *reg_field;
     f->key_start.clear_bit(new_idx);
@@ -6037,7 +6073,7 @@ void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
 }
 
 /**
-  For a materialized derived table: after copy_tmp_key() has copied all
+  For a materialized derived table: after move_tmp_key() has moved all
   definitions of used KEYs, in TABLE::key_info we have a head of used keys
   followed by a tail of unused keys; this function chops the tail.
 
