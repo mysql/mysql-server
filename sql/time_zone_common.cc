@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,9 +90,13 @@ using std::min;
 */
 
 bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
-  my_time_t cur_t = MYTIME_MIN_VALUE;
+  // We must allow values smaller than MYTIME_MIN_VALUE here (negative values)
+  // and values larger than MYTIME_MAX_VALUE
+  constexpr my_time_t MYTIME_MIN = std::numeric_limits<my_time_t>::min();
+  constexpr my_time_t MYTIME_MAX = std::numeric_limits<my_time_t>::max();
+  my_time_t cur_t = MYTIME_MIN;
   my_time_t cur_l, end_t, end_l = 0;
-  my_time_t cur_max_seen_l = MYTIME_MIN_VALUE;
+  my_time_t cur_max_seen_l = MYTIME_MIN;
   long cur_offset, cur_corr, cur_off_and_corr;
   uint next_trans_idx, next_leap_idx;
   uint i;
@@ -154,8 +158,8 @@ bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       We assuming that cur_t could be only overflowed downwards,
       we also assume that end_t won't be overflowed in this case.
     */
-    if (cur_off_and_corr < 0 && cur_t < MYTIME_MIN_VALUE - cur_off_and_corr)
-      cur_t = MYTIME_MIN_VALUE - cur_off_and_corr;
+    if (cur_off_and_corr < 0 && cur_t < MYTIME_MIN - cur_off_and_corr)
+      cur_t = MYTIME_MIN - cur_off_and_corr;
 
     cur_l = cur_t + cur_off_and_corr;
 
@@ -165,21 +169,21 @@ bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
     */
     end_t =
         min((next_trans_idx < sp->timecnt) ? sp->ats[next_trans_idx] - 1
-                                           : MYTIME_MAX_VALUE,
+                                           : MYTIME_MAX,
             (next_leap_idx < sp->leapcnt) ? sp->lsis[next_leap_idx].ls_trans - 1
-                                          : MYTIME_MAX_VALUE);
+                                          : MYTIME_MAX);
     /*
       again assuming that end_t can be overlowed only in positive side
       we also assume that end_t won't be overflowed in this case.
     */
-    if (cur_off_and_corr > 0 && end_t > MYTIME_MAX_VALUE - cur_off_and_corr)
-      end_t = MYTIME_MAX_VALUE - cur_off_and_corr;
+    if (cur_off_and_corr > 0 && end_t > MYTIME_MAX - cur_off_and_corr)
+      end_t = MYTIME_MAX - cur_off_and_corr;
 
     end_l = end_t + cur_off_and_corr;
 
     if (end_l > cur_max_seen_l) {
       /* We want special handling in the case of first range */
-      if (cur_max_seen_l == MYTIME_MIN_VALUE) {
+      if (cur_max_seen_l == MYTIME_MIN) {
         revts[sp->revcnt] = cur_l;
         revtis[sp->revcnt].rt_offset = cur_off_and_corr;
         revtis[sp->revcnt].rt_type = 0;
@@ -207,9 +211,8 @@ bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       }
     }
 
-    if (end_t == MYTIME_MAX_VALUE ||
-        ((cur_off_and_corr > 0) &&
-         (end_t >= MYTIME_MAX_VALUE - cur_off_and_corr)))
+    if (end_t == MYTIME_MAX ||
+        ((cur_off_and_corr > 0) && (end_t >= MYTIME_MAX - cur_off_and_corr)))
       /* end of t space */
       break;
 
