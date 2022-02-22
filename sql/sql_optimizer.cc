@@ -9094,7 +9094,7 @@ void JOIN::finalize_derived_keys() {
             blocks must be considered here, as they need a key_info array
             consistent with the to-be-changed table->s->keys.
           */
-          t->copy_tmp_key(old_idx, it.is_first());
+          t->move_tmp_key(old_idx, it.is_first());
         }
       } else
         new_idx = old_idx;  // Index stays at same slot
