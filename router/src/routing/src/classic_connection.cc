@@ -1629,6 +1629,10 @@ void MysqlRoutingClassicConnection::connect() {
 
     log_fatal_error_code("connecting to backend failed", ec);
 
+    // don't increment the max-connect-error
+    // counter is it is the server that failed to connect().
+    client_greeting_sent_ = true;
+
     auto *socket_splicer = this->socket_splicer();
     auto dst_channel = socket_splicer->client_channel();
     auto dst_protocol = client_protocol();
@@ -1664,6 +1668,10 @@ void MysqlRoutingClassicConnection::connect() {
 
     this->socket_splicer()->server_channel()->recv_buffer().reserve(
         context().get_net_buffer_length());
+
+    // the server side is already authenticated. Avoid sending the fake
+    // handshake.
+    client_greeting_sent_ = true;
 
     return server_send_change_user();
   } else {
