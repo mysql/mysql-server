@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ struct SectionHandle
   Uint32 m_cnt;
   SegmentedSectionPtr m_ptr[3];
 
-  bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
+  [[nodiscard]] bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
   void clear() { m_cnt = 0;}
 
   SimulatedBlock* m_block;

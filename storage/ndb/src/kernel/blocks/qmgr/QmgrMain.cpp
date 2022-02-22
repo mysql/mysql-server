@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -669,7 +669,7 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
   c_start.m_no_nodegroup_nodes.clear();
   copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
@@ -689,7 +689,7 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
   c_start.m_no_nodegroup_nodes.clear();
   copy(c_start.m_no_nodegroup_nodes.rep.data, ptr);
@@ -942,7 +942,7 @@ Qmgr::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -1665,7 +1665,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(cmRegConf->presidentVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(allNdbNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2019,7 +2019,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
     ndbrequire(signal->getLength() >= CmRegRef::SignalLength);
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
 
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(skip_nodes.rep.data, ptr);
@@ -4977,7 +4977,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 	  ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
 	  SectionHandle handle(this, signal);
 	  SegmentedSectionPtr ptr;
-	  handle.getSection(ptr, 0);
+          ndbrequire(handle.getSection(ptr, 0));
 
 	  ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
           copy(part.rep.data, ptr);
@@ -5136,7 +5136,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
     releaseSections(handle);
@@ -5544,7 +5544,7 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(cprepFailedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -7740,7 +7740,7 @@ Qmgr::execNODE_FAILREP(Signal * signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -8199,7 +8199,7 @@ Qmgr::execSTOP_REQ(Signal* signal)
     jam();
     SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(c_stopReq.nodes.rep.data, ptr);
     releaseSections(handle);
@@ -9026,7 +9026,7 @@ Qmgr::execISOLATE_ORD(Signal* signal)
     jam();
     ndbrequire(num_sections == 1);
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     copy(sig->nodesToIsolate, ptr);
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     sz = ptr.sz;

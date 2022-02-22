@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -267,7 +267,7 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     NdbNodeBitmask nodes;
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     copy(nodes.rep.data, ptr);
@@ -370,7 +370,7 @@ Trpman::execENABLE_COMREQ(Signal* signal)
     memset (nodes, 0, sizeof(nodes));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NodeBitmask::Size);
     copy(nodes, ptr);
     releaseSections(handle);
@@ -936,7 +936,7 @@ Trpman::execUPD_QUERY_DIST_ORD(Signal *signal)
   ndbrequire(signal->getNoOfSections() == 1);
   SegmentedSectionPtr ptr;
   SectionHandle handle(this, signal);
-  handle.getSection(ptr, 0);
+  ndbrequire(handle.getSection(ptr, 0));
   ndbrequire(ptr.sz <= NDB_ARRAY_SIZE(dist_handle->m_weights));
 
   memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));

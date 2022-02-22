@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -563,7 +563,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
   jam();
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr;
-  handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+  ndbrequire(handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM));
 
   SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
   r.reset();
@@ -2206,7 +2206,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
-	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
+        ndbrequire(c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i));
         list.addFirst(ext_ptr);
 	alloc_info.m_curr_extent_info_ptr_i= RNIL;
       }
@@ -2262,7 +2262,7 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
 {
   jam();
   Ptr<GlobalPage> page;
-  m_global_page_pool.getPtr(page, page_id);
+  ndbrequire(m_global_page_pool.getPtr(page, page_id));
   
   Local_key key;
   key.m_page_no = ((Page*)page.p)->m_page_no;

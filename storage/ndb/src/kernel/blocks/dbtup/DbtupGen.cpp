@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -493,7 +493,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     SectionHandle handle(this, signal);
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
-    handle.getSection(ssptr, 0);
+    ndbrequire(handle.getSection(ssptr, 0));
     ndbrequire(ssptr.sz <= NDB_ARRAY_SIZE(f_undo.m_data));
     ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);
@@ -1240,7 +1240,7 @@ void Dbtup::execNODE_FAILREP(Signal* signal)
         getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(rep->theNodes, 0, sizeof(rep->theNodes));
     copy(rep->theNodes, ptr);
     releaseSections(handle);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -326,7 +326,7 @@ public:
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i) const;
+  [[nodiscard]] bool getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
 
   /**
@@ -440,11 +440,17 @@ RecordPool<P, T>::getPtr(ConstPtr<T> & ptr) const
 
 template <typename P, typename T>
 inline
-void
+bool
 RecordPool<P, T>::getPtr(Ptr<T> & ptr, Uint32 i) const
 {
+  if (unlikely(i >= RNIL))
+  {
+    assert(i == RNIL);
+    return false;
+  }
   ptr.i = i;
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
+  return true;
 }
 
 template <typename P, typename T>

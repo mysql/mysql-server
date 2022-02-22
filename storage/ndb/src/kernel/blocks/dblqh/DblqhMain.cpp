@@ -1980,7 +1980,7 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
     copy((Uint32*)&readNodes->definedNodes.rep.data, ptr);
     releaseSections(handle);
@@ -2717,7 +2717,8 @@ void Dblqh::execLQHADDATTREQ(Signal* signal)
   {
     SectionHandle handle(this, signal);
     SegmentedSectionPtr defValSection;
-    handle.getSection(defValSection, LqhAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+    ndbrequire(handle.getSection(defValSection,
+                                 LqhAddAttrReq::DEFAULT_VALUE_SECTION_NUM));
     addfragptr.p->defValSectionI = defValSection.i;
     addfragptr.p->defValNextPos = 0;
     //Don't free Section here. Section is freed after default values are trasfered to TUP
@@ -5472,8 +5473,7 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   jamEntry();
   
   CommitAckMarkerPtr removedPtr;
-  m_commitAckMarkerHash.remove(removedPtr, key);
-  if (removedPtr.i != RNIL)
+  if (m_commitAckMarkerHash.remove(removedPtr, key))
   {
     jam();
     ndbrequire(removedPtr.p->in_hash);
@@ -8678,8 +8678,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      */
     SegmentedSectionPtr keyInfoSection, attrInfoSection;
     
-    handle.getSection(keyInfoSection,
-                      LqhKeyReq::KeyInfoSectionNum);
+    ndbrequire(handle.getSection(keyInfoSection,
+                                 LqhKeyReq::KeyInfoSectionNum));
 
     ndbassert(keyInfoSection.i != RNIL);
 
@@ -9883,7 +9883,7 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
   
   ndbrequire(tcConnect_pool.getValidPtr(tcPtr));
   Ptr<Fragrecord> fragPtr;
-  c_fragment_pool.getPtr(fragPtr, tcPtr.p->fragmentptr);  
+  ndbrequire(c_fragment_pool.getPtr(fragPtr, tcPtr.p->fragmentptr));
 
   ndbassert(!m_is_in_query_thread);
   op->m_gci_hi = tcPtr.p->gci_hi;
@@ -9943,7 +9943,7 @@ Dblqh::nr_delete_complete(Signal* signal, Nr_op_info* op)
   {
     jam();
     const TcConnectionrecPtr tcConnectptr = tcPtr;
-    c_fragment_pool.getPtr(fragptr, tcPtr.p->fragmentptr);
+    ndbrequire(c_fragment_pool.getPtr(fragptr, tcPtr.p->fragmentptr));
     
     if (tcPtr.p->abortState != TcConnectionrec::ABORT_IDLE) 
     {
@@ -10319,7 +10319,7 @@ Uint32 Dblqh::decrDeallocRefCount(Signal* signal,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
     /* Verify that fragment used is a primary table fragment */
     FragrecordPtr fragPtr;
-    c_fragment_pool.getPtr(fragPtr, countOpPtr.p->fragmentptr);
+    ndbrequire(c_fragment_pool.getPtr(fragPtr, countOpPtr.p->fragmentptr));
     ndbrequire(fragPtr.p->tableFragptr == fragPtr.i);
 #endif
     /**
@@ -13450,8 +13450,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
     key.transid1 = regTcPtr->transid[0];
     key.transid2 = regTcPtr->transid[1];
     CommitAckMarkerPtr removedPtr;
-    m_commitAckMarkerHash.remove(removedPtr, key);
-    ndbrequire(removedPtr.i != RNIL);
+    ndbrequire(m_commitAckMarkerHash.remove(removedPtr, key));
     ndbrequire(removedPtr.i == tmp.i);
     removedPtr.p->in_hash = false;
     m_commitAckMarkerPool.release(removedPtr);
@@ -14284,7 +14283,7 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
     ndbrequire(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version);
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
     copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
@@ -15074,7 +15073,7 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex, bool acquire_lock)
   ndbrequire(tcConnect_pool.getUncheckedPtrRW(tcConnectptr));
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec,
                             tcConnectptr.p->tupConnectPtrP);
-  c_fragment_pool.getPtr(fragPtr, tcConnectptr.p->fragmentptr);
+  ndbrequire(c_fragment_pool.getPtr(fragPtr, tcConnectptr.p->fragmentptr));
   fragptr = fragPtr;
   c_tup->prepare_tab_pointers(fragPtr.p->tupFragptr);
   m_tc_connect_ptr = tcConnectptr;
@@ -16409,12 +16408,12 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   ndbassert(numSections != 0);
   {
     /* Long request, get Attr + Key len from section sizes */
-    handle.getSection(attrInfoPtr, ScanFragReq::AttrInfoSectionNum);
+    ndbrequire(handle.getSection(attrInfoPtr, ScanFragReq::AttrInfoSectionNum));
     aiLen= attrInfoPtr.sz;
     
     if (numSections == 2)
     {
-      handle.getSection(keyInfoPtr, ScanFragReq::KeyInfoSectionNum);
+      ndbrequire(handle.getSection(keyInfoPtr, ScanFragReq::KeyInfoSectionNum));
       keyLen= keyInfoPtr.sz;
     }
   }
@@ -18461,7 +18460,7 @@ bool Dblqh::finishScanrec(Signal* signal,
     g_eventLogger->info("removing (%d %d)", scanPtr->scanNumber,
                         scanPtr->fragPtrI);
 #endif
-    c_scanTakeOverHash.remove(tmp, * scanPtr);
+    ndbrequire(c_scanTakeOverHash.remove(tmp, * scanPtr));
     ndbrequire(tmp.p == scanPtr);
   }
 
@@ -19324,7 +19323,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
      * distribution key again when restarted.
      */
     CopyFragRecordPtr copy_fragptr;
-    c_copy_fragment_pool.seize(copy_fragptr);
+    ndbrequire(c_copy_fragment_pool.seize(copy_fragptr));
     copy_fragptr.p->m_copy_fragreq = *copyFragReq;
     Uint32 nodeCount = copyFragReq->nodeCount;
     copy_fragptr.p->m_copy_fragreq.nodeCount = 0;
@@ -20459,7 +20458,7 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   {
     jam();
     CopyActiveRecordPtr copy_activeptr;
-    c_copy_active_pool.seize(copy_activeptr);
+    ndbrequire(c_copy_active_pool.seize(copy_activeptr));
     copy_activeptr.p->m_copy_activereq = *req;
     copy_activeptr.p->m_copy_activereq.flags =
       flags | CopyActiveReq::CAR_LOCAL_SEND;
@@ -25880,7 +25879,8 @@ Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   Ptr<GlobalPage> page_ptr;
   ndbrequire(req->getFormatFlag(req->operationFlag) ==
                req->fsFormatSharedPage);
-  m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber);
+  ndbrequire(m_shared_page_pool.getPtr(page_ptr,
+                                       req->data.sharedPage.pageNumber));
 
   LogFileRecordPtr currLogFilePtr;
   currLogFilePtr.i = req->userPointer;
@@ -27394,7 +27394,7 @@ Dblqh::execCOPY_FRAGCONF(Signal* signal)
   {
     const CopyFragConf* conf = CAST_CONSTPTR(CopyFragConf,
                                              signal->getDataPtr());
-    c_fragment_pool.getPtr(fragptr, conf->senderData);
+    ndbrequire(c_fragment_pool.getPtr(fragptr, conf->senderData));
     fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
 
     Uint32 rows_lo = conf->rows_lo;
@@ -27927,7 +27927,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     ndbrequire(ndbd_send_node_bitmask_in_section(senderVersion));
     SegmentedSectionPtr ptr;
     SectionHandle handle(this,signal);
-    handle.getSection(ptr, 0);
+    ndbrequire(handle.getSection(ptr, 0));
     ndbrequire(ptr.sz <= NdbNodeBitmask::Size);
     memset(req->sr_nodes, 0 , sizeof(req->sr_nodes));
     copy(req->sr_nodes, ptr);

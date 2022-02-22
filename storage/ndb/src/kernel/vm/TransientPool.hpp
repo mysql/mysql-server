@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,9 @@ public:
 #endif
   bool startup();
 
-  bool seize(Ptr<T> &p);
+  [[nodiscard]] bool seize(Ptr<T> &p);
   void release(Ptr<T> p);
-  T *getPtr(Uint32 i) const;
+  [[nodiscard]] T *getPtr(Uint32 i) const;
   void getPtr(Ptr<T> &p) const;
   /**
    * getValidPtr is often called on an operation record from a thread that
@@ -100,10 +100,10 @@ public:
    * by a special map index that maps from a 32-bit value to a pointer to
    * an operation record.
    */
-  bool getValidPtr(Ptr<T> &p) const;
-  bool getUncheckedPtrRO(Ptr<T> &p) const;
-  bool getUncheckedPtrRW(Ptr<T> &p) const;
-  Uint32 getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const;
+  [[nodiscard]] bool getValidPtr(Ptr<T> &p) const;
+  [[nodiscard]] bool getUncheckedPtrRO(Ptr<T> &p) const;
+  [[nodiscard]] bool getUncheckedPtrRW(Ptr<T> &p) const;
+  [[nodiscard]] Uint32 getUncheckedPtrs(Uint32* from, Ptr<T> ptrs[], Uint32 cnt) const;
 
   Uint32 getEntrySize() const { return sizeof(Type); }
   Uint32 getNoOfFree() const { return SlotPool::getNoOfFree(); }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,21 +265,21 @@ Restore::execCONTINUEB(Signal* signal){
   case RestoreContinueB::RESTORE_NEXT:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     restore_next(signal, file_ptr);
     return;
   }
   case RestoreContinueB::READ_FILE:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     read_data_file(signal, file_ptr);
     return;
   }
   case RestoreContinueB::CHECK_EXPAND_SHRINK:
   {
     FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
+    ndbrequire(m_file_pool.getPtr(file_ptr, signal->theData[1]));
     restore_lcp_conf(signal, file_ptr);
     return;
   }
@@ -762,7 +762,7 @@ Restore::execFSREMOVECONF(Signal *signal)
   jamEntry();
   FsConf * conf = (FsConf*)signal->getDataPtr();
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_remove_old_file_done(signal, file_ptr);
 }
 
@@ -772,7 +772,7 @@ Restore::execFSWRITECONF(Signal *signal)
   jamEntry();
   FsConf *conf = (FsConf*)signal->getDataPtr();
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   lcp_create_ctl_done_write(signal, file_ptr);
 }
 
@@ -2279,7 +2279,7 @@ Restore::execFSOPENREF(Signal* signal)
   FsRef* ref= (FsRef*)signal->getDataPtr();
   FilePtr file_ptr;
   jamEntry();
-  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
 
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
@@ -2312,7 +2312,7 @@ Restore::execFSOPENCONF(Signal* signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
   
   file_ptr.p->m_fd = conf->filePointer;
 
@@ -2366,7 +2366,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       break;
     }
     Ptr<GlobalPage> page_ptr(0,0), next_page_ptr(0,0);
-    m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i);
+    ndbrequire(m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i));
     List::Iterator it;
     
     Uint32 pos= file_ptr.p->m_current_page_pos;
@@ -2400,7 +2400,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
-	m_global_page_pool.getPtr(next_page_ptr, * it.data);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
 	len= ntohl(* next_page_ptr.p->data);
       }
       else
@@ -2447,7 +2447,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 	Uint32 next_page = file_ptr.p->m_current_page_index + 1;
 	pages.position(it, next_page % page_count);
-	m_global_page_pool.getPtr(next_page_ptr, * it.data);
+        ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
       }
       file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
       file_ptr.p->m_current_page_pos = (pos + len) - GLOBAL_PAGE_SIZE_WORDS;
@@ -2500,7 +2500,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
             LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
             Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
             pages.position(it, next_page % page_count);
-            m_global_page_pool.getPtr(next_page_ptr, * it.data);
+            ndbrequire(m_global_page_pool.getPtr(next_page_ptr, * it.data));
 
             file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
             file_ptr.p->m_current_page_index = next_page;
@@ -2660,7 +2660,7 @@ Restore::execFSREADREF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsRef* ref= (FsRef*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, ref->userPointer));
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
     jam();
@@ -2677,7 +2677,7 @@ Restore::execFSREADCONF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
   if (file_ptr.p->m_status == File::READ_CTL_FILES)
   {
@@ -2737,7 +2737,7 @@ Restore::execFSCLOSECONF(Signal * signal)
   jamEntry();
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  ndbrequire(m_file_pool.getPtr(file_ptr, conf->userPointer));
 
   file_ptr.p->m_fd = RNIL;
 
@@ -3493,7 +3493,7 @@ Restore::execLQHKEYREF(Signal* signal)
   LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
   BackupFormat::RecordType header_type =
     (BackupFormat::RecordType)(ref->connectPtr >> 28);
-  m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF)));
   
   ndbrequire(file_ptr.p->m_outstanding_operations > 0);
   file_ptr.p->m_outstanding_operations--;
@@ -3558,7 +3558,7 @@ void
 Restore::delete_by_rowid_fail(Uint32 op_ptr)
 {
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
   DEB_RES_DEL(("(%u)DELETE fail:tab(%u,%u), m_rows_restored = %llu",
                instance(),
                file_ptr.p->m_table_id,
@@ -3570,7 +3570,7 @@ void
 Restore::delete_by_rowid_succ(Uint32 op_ptr)
 {
   FilePtr file_ptr;
-  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF)));
   ndbrequire(file_ptr.p->m_rows_restored > 0);
   file_ptr.p->m_rows_restored--;
   DEB_RES_DEL(("(%u)DELETE success:tab(%u,%u), m_rows_restored = %llu",
@@ -3586,7 +3586,7 @@ Restore::execLQHKEYCONF(Signal* signal)
   FilePtr file_ptr;
   LqhKeyConf * conf = (LqhKeyConf *)signal->getDataPtr();
   BackupFormat::RecordType header_type = (BackupFormat::RecordType)(conf->opPtr >> 28);
-  m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF));
+  ndbrequire(m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF)));
   
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;

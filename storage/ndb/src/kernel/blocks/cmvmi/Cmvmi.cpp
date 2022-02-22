@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ Cmvmi::execSYNC_CONF(Signal* signal)
   SyncConf conf = * CAST_CONSTPTR(SyncConf, signal->getDataPtr());
 
   Ptr<SyncRecord> ptr;
-  c_syncReqPool.getPtr(ptr, conf.senderData);
+  ndbrequire(c_syncReqPool.getPtr(ptr, conf.senderData));
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
   if (ptr.p->m_cnt == 0)
@@ -326,7 +326,7 @@ Cmvmi::execSYNC_REF(Signal* signal)
   SyncRef ref = * CAST_CONSTPTR(SyncRef, signal->getDataPtr());
 
   Ptr<SyncRecord> ptr;
-  c_syncReqPool.getPtr(ptr, ref.senderData);
+  ndbrequire(c_syncReqPool.getPtr(ptr, ref.senderData));
   ndbrequire(ptr.p->m_cnt > 0);
   ptr.p->m_cnt--;
 
@@ -610,7 +610,7 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   if (num_sections > 0)
   {
     ndbrequire(num_sections == 1);
-    handle.getSection(segptr, 0);
+    ndbrequire(handle.getSection(segptr, 0));
   }
   /**
    * If entry is not found
@@ -922,7 +922,7 @@ Cmvmi::init_global_page_pool()
     for (Uint32 i = 0; i<cnt; i++)
     {
       Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, ptrI + i);
+      ndbrequire(m_shared_page_pool.getPtr(pagePtr, ptrI + i));
       m_global_page_pool.release(pagePtr);
     }
     rl.m_max -= cnt;
@@ -1619,7 +1619,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
           SegmentedSectionPtr ptr[3];
           for (Uint32 i = 0; i < num_secs; i++)
           {
-              handle.getSection(ptr[i], i);
+              ndbrequire(handle.getSection(ptr[i], i));
           }
           char msg[24*4];
           snprintf(msg,
@@ -3154,7 +3154,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     for(i = 0; i<handle.m_cnt; i++){
       SegmentedSectionPtr ptr(0,0,0);
       ndbout_c("-- Section %d --", i);
-      handle.getSection(ptr, i);
+      ndbrequire(handle.getSection(ptr, i));
       ndbrequire(ptr.p != 0);
       print(ptr, stdout);
       ndbrequire(ptr.sz == secSizes[i]);
@@ -3166,7 +3166,7 @@ Cmvmi::execTESTSIG(Signal* signal){
    */
   for(i = 0; i<handle.m_cnt; i++){
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, i);
+    ndbrequire(handle.getSection(ptr, i));
     ndbrequire(ptr.p != 0);
     ndbrequire(ptr.sz == secSizes[i]);
   }
@@ -3256,7 +3256,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     const Uint32 secs = handle.m_cnt;
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      handle.getSection(sptr, i);
+      ndbrequire(handle.getSection(sptr, i));
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
       copy(ptr[i].p, sptr);
@@ -3315,7 +3315,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     const Uint32 secs = handle.m_cnt;
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      handle.getSection(sptr, i);
+      ndbrequire(handle.getSection(sptr, i));
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
       copy(ptr[i].p, sptr);
@@ -3390,7 +3390,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     std::memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      handle.getSection(sptr, i);
+      ndbrequire(handle.getSection(sptr, i));
       g_test[i].sz = sptr.sz;
       g_test[i].p = new Uint32[sptr.sz];
       copy(g_test[i].p, sptr);
