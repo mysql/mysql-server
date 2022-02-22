@@ -1786,6 +1786,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
    */
   int waitTime = aMilliSecondsToWait;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
+  NDB_TICKS wait_end;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
@@ -1797,14 +1798,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     }
 #endif
     poll_guard->wait_for_input(maxsleep);
-    const NdbDuration elapsed =
-        NdbTick_Elapsed(start, NdbTick_getCurrentTicks());
-    theImpl->recordWaitTimeNanos(elapsed.nanoSec());
+    wait_end = NdbTick_getCurrentTicks();
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
-    waitTime = aMilliSecondsToWait - (int)elapsed.milliSec();
+    waitTime = aMilliSecondsToWait -
+      (int)NdbTick_Elapsed(start, wait_end).milliSec();
 #ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
@@ -1813,6 +1813,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     }
 #endif
   } while (waitTime > 0);
+  theImpl->recordWaitTimeNanos(NdbTick_Elapsed(start, wait_end).nanoSec());
 }//Ndb::waitCompletedTransactions()
 
 /*****************************************************************************
