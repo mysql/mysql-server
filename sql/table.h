@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1843,7 +1843,7 @@ struct TABLE {
   bool alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
                       bool modify_share);
   bool add_tmp_key(Field_map *key_parts, bool invisible, bool modify_share);
-  void copy_tmp_key(int old_idx, bool modify_share);
+  void move_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
   void set_keyread(bool flag);
