@@ -119,6 +119,36 @@ SET GLOBAL DEBUG = default;
 SET GLOBAL global_connection_memory_limit = default;
 SET GLOBAL connection_memory_limit = default;
 SET GLOBAL global_connection_memory_tracking = default;
+
+--echo #
+--echo #  Bug#33869004 Range optimizer is not aware of the session memory limit.
+--echo #
+
+CREATE TABLE t (
+i VARBINARY(255), j VARBINARY(255), k VARBINARY(255),
+l VARBINARY(255), m VARBINARY(255), n VARBINARY(255),
+PRIMARY KEY(i, j, k, l)
+);
+
+SET GLOBAL connection_memory_limit = 10485760;
+--echo # Connection con1
+connect (con1, localhost, user1);
+
+--replace_regex /Consumed [0-9]+/Consumed SOME/
+--error ER_DA_CONN_LIMIT
+EXPLAIN SELECT * FROM t FORCE INDEX (PRIMARY) WHERE
+i IN ("1", "2", "3", "4", "5", "6", "7", "8", "9", "10") AND
+j IN ("1", "2", "3", "4", "5", "6", "7", "8", "9", "10") AND
+k IN ("1", "2", "3", "4", "5", "6", "7", "8", "9", "10") AND
+l IN ("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+
+connection default;
+disconnect con1;
+
+SET GLOBAL connection_memory_limit = default;
+DROP TABLE t;
+
+
 DROP USER 'user1'@localhost;
 
 # Wait till all disconnects are completed

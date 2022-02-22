@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts);
 static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
                                     uint limit);
 static bool get_ranges_from_tree_given_base(
-    MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
+    THD *thd, MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
     SEL_ROOT *key_tree, uchar *const base_min_key, uchar *min_key,
     uint min_key_flag, uchar *const base_max_key, uchar *max_key,
     uint max_key_flag, bool first_keypart_is_asc, uint num_key_parts,
@@ -781,9 +781,9 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
   uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
   *num_exact_key_parts = num_key_parts;
   if (get_ranges_from_tree_given_base(
-          return_mem_root, &table->key_info[keyno], key, key_tree, min_key,
-          min_key, 0, max_key, max_key, 0, first_keypart_is_asc, num_key_parts,
-          used_key_parts, num_exact_key_parts, ranges)) {
+          current_thd, return_mem_root, &table->key_info[keyno], key, key_tree,
+          min_key, min_key, 0, max_key, max_key, 0, first_keypart_is_asc,
+          num_key_parts, used_key_parts, num_exact_key_parts, ranges)) {
     return true;
   }
   *num_exact_key_parts = std::min(*num_exact_key_parts, *used_key_parts);
@@ -1024,6 +1024,7 @@ static inline std::basic_string_view<uchar> make_string_view(const uchar *start,
   SYNOPSIS
     get_ranges_from_tree_given_base()
 
+  @param thd            THD object
   @param return_mem_root MEM_ROOT to use for allocating the data
   @param key            Generate key values for this key
   @param key_tree       SEL_ARG tree
@@ -1052,7 +1053,7 @@ static inline std::basic_string_view<uchar> make_string_view(const uchar *start,
 */
 
 static bool get_ranges_from_tree_given_base(
-    MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
+    THD *thd, MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
     SEL_ROOT *key_tree, uchar *const base_min_key, uchar *min_key,
     uint min_key_flag, uchar *const base_max_key, uchar *max_key,
     uint max_key_flag, bool first_keypart_is_asc, uint num_key_parts,
@@ -1088,7 +1089,7 @@ static bool get_ranges_from_tree_given_base(
         // (a=3) in itself (which is what the rest of the function is doing),
         // so skip to the next range after processing this one.
         if (get_ranges_from_tree_given_base(
-                return_mem_root, table_key, key, node->next_key_part,
+                thd, return_mem_root, table_key, key, node->next_key_part,
                 base_min_key, tmp_min_key, min_key_flag | node->get_min_flag(),
                 base_max_key, tmp_max_key, max_key_flag | node->get_max_flag(),
                 first_keypart_is_asc, num_key_parts - 1, used_key_parts,
@@ -1181,6 +1182,7 @@ static bool get_ranges_from_tree_given_base(
       flag |= DESC_FLAG;
     }
 
+    assert(!thd->mem_cnt->is_error());
     /* Get range for retrieving rows in RowIterator::Read() */
     QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
         return_mem_root, base_min_key, (uint)(tmp_min_key - base_min_key),
@@ -1188,7 +1190,7 @@ static bool get_ranges_from_tree_given_base(
         (uint)(tmp_max_key - base_max_key),
         max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
         node->rkey_func_flag);
-    if (range == nullptr) {
+    if (range == nullptr || thd->killed) {
       return true;  // out of memory
     }
 
