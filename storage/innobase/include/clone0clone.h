@@ -976,17 +976,24 @@ class Clone_Handle {
   int receive_data(Clone_Task *task, uint64_t offset, uint64_t file_size,
                    uint32_t size, Ha_clone_cbk *callback);
 
-  /** Punch holes for multiple pages during apply.
-  @param[in]    file            file descriptor
-  @param[in]    buffer          data buffer
-  @param[in]    len             buffer length
-  @param[in]    start_off       starting offset in file
-  @param[in]    page_len        page length
-  @param[in]    block_size      file system block size
-  @return innodb error code */
-  dberr_t punch_holes(os_file_t file, const byte *buffer, uint32_t len,
-                      uint64_t start_off, uint32_t page_len,
-                      uint32_t block_size);
+  /** Read compressed length from the page
+    @param[in]	 buffer		 data buffer
+    @param[in]   length          buffer length
+    @param[in]   block_size      block size
+    @param[out]  compressed_len  compressed length
+    @return true for compressed page false otherwise. */
+  bool read_compressed_len(unsigned char *buffer, uint32_t len,
+                           uint32_t block_size, uint32_t &compressed_len);
+
+  /** Write pages to file and punch holes
+  @param[in[ file_meta       clone file metadata
+  @param[in] buffer          data buffer
+  @param[in] len             buffer length
+  @param[in] file            file descriptor
+  @param[in] start_off       starting offset in file
+  @return error code */
+  int sparse_file_write(Clone_File_Meta *file_meta, unsigned char *buffer,
+                        uint32_t len, pfs_os_file_t file, uint64_t start_off);
 
   /** Modify page encryption attribute and/or punch hole.
   @param[in]            task    task that is applying data

@@ -1241,44 +1241,92 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
   return (err);
 }
 
-dberr_t Clone_Handle::punch_holes(os_file_t file, const byte *buffer,
-                                  uint32_t len, uint64_t start_off,
-                                  uint32_t page_len, uint32_t block_size) {
+bool Clone_Handle::read_compressed_len(unsigned char *buffer, uint32_t len,
+                                       uint32_t block_size,
+                                       uint32_t &compressed_len) {
+  ut_a(len >= 2);
+
+  /* Validate compressed page type */
+  auto page_type = mach_read_from_2(buffer + FIL_PAGE_TYPE);
+
+  if (page_type == FIL_PAGE_COMPRESSED ||
+      page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
+    compressed_len = mach_read_from_2(buffer + FIL_PAGE_COMPRESS_SIZE_V1);
+    compressed_len += FIL_PAGE_DATA;
+
+    /* Align compressed length */
+    compressed_len = ut_calc_align(compressed_len, block_size);
+    return true;
+  }
+
+  return false;
+}
+
+int Clone_Handle::sparse_file_write(Clone_File_Meta *file_meta,
+                                    unsigned char *buffer, uint32_t len,
+                                    pfs_os_file_t file, uint64_t start_off) {
   dberr_t err = DB_SUCCESS;
+  page_size_t page_size(file_meta->m_fsp_flags);
+  auto page_len = page_size.physical();
 
-  /* Loop through all pages in current data block and punch hole. */
+  IORequest request(IORequest::WRITE);
+  request.disable_compression();
+  request.clear_encrypted();
+
+  /* Loop through all pages in current data block */
   while (len >= page_len) {
-    /* Validate compressed page type */
-    auto page_type = mach_read_from_2(buffer + FIL_PAGE_TYPE);
-    if (page_type == FIL_PAGE_COMPRESSED ||
-        page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-      uint32_t comp_len = mach_read_from_2(buffer + FIL_PAGE_COMPRESS_SIZE_V1);
-      comp_len += FIL_PAGE_DATA;
+    uint32_t comp_len;
+    bool is_compressed = read_compressed_len(
+        buffer, len, static_cast<uint32_t>(file_meta->m_fsblk_size), comp_len);
 
-      /* Align compressed length */
-      comp_len = ut_calc_align(comp_len, block_size);
+    auto write_len = is_compressed ? comp_len : page_len;
 
-      /* In rare case during file copy the page could be a torn page
-      and the size may not be correct. In such case the page is going to
-      be replaced later during page copy. We avoid setting punch hole
-      beyond the page in such case. */
-      if (comp_len < page_len) {
-        os_offset_t offset = start_off + comp_len;
-        os_offset_t hole_size = page_len - comp_len;
+    /* Punch hole if needed */
+    bool first_page = (start_off == 0);
 
-        err = os_file_punch_hole(file, offset, hole_size);
-        if (err != DB_SUCCESS) {
-          break; /* purecov: inspected */
-        }
+    /* In rare case during file copy the page could be a torn page
+    and the size may not be correct. In such case the page is going to
+    be replaced later during page copy.*/
+    if (first_page || write_len > page_len) {
+      write_len = page_len;
+    }
+
+    /* Write Data Page */
+    errno = 0;
+    err = os_file_write(request, "Clone data file", file,
+                        reinterpret_cast<char *>(buffer), start_off,
+                        (start_off == 0) ? page_len : write_len);
+    if (err != DB_SUCCESS) {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(0), file_meta->m_file_name, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
+
+      return (ER_ERROR_ON_WRITE);
+    }
+
+    os_offset_t offset = start_off + write_len;
+    os_offset_t hole_size = page_len - write_len;
+
+    if (file_meta->m_punch_hole && hole_size > 0) {
+      err = os_file_punch_hole(file.m_file, offset, hole_size);
+      if (err != DB_SUCCESS) {
+        /* Disable for whole file */
+        file_meta->m_punch_hole = false;
+        ut_ad(err == DB_IO_NO_PUNCH_HOLE);
+        ib::info(ER_IB_CLONE_PUNCH_HOLE)
+            << "Innodb Clone Apply failed to punch hole: "
+            << file_meta->m_file_name;
       }
     }
+
     start_off += page_len;
     buffer += page_len;
     len -= page_len;
   }
+
   /* Must have consumed all data. */
   ut_ad(err != DB_SUCCESS || len == 0);
-  return (err);
+  return 0;
 }
 
 int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
@@ -1314,12 +1362,18 @@ int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
     }
   }
 
+  if (file_meta->m_punch_hole) {
+    auto err = sparse_file_write(file_meta, buffer, buf_len,
+                                 task->m_current_file_des, offset);
+    return err;
+  }
+
   /* No more compression/encryption is needed. */
   IORequest request(IORequest::WRITE);
   request.disable_compression();
   request.clear_encrypted();
 
-  /* Write buffer to file. */
+  /* For redo/undo log files and uncompressed tables ,directly write to file */
   errno = 0;
   auto db_err =
       os_file_write(request, "Clone data file", task->m_current_file_des,
@@ -1331,48 +1385,7 @@ int Clone_Handle::modify_and_write(const Clone_Task *task, uint64_t offset,
 
     return (ER_ERROR_ON_WRITE);
   }
-
-  /* Attempt to punch holes if page compression is enabled. */
-  if (file_meta->m_punch_hole) {
-    page_size_t page_size(file_meta->m_fsp_flags);
-
-    ut_ad(file_meta->m_compress_type != Compression::NONE ||
-          file_meta->m_file_size > file_meta->m_alloc_size);
-    ut_ad(IORequest::is_punch_hole_supported());
-    ut_ad(!page_size.is_compressed());
-
-    auto page_length = page_size.physical();
-    auto start_offset = offset;
-
-    ut_ad(buf_len >= page_length);
-    if (buf_len < page_length) {
-      ib::warn(ER_IB_CLONE_PUNCH_HOLE)
-          << "Innodb Clone Apply failed to punch hole: "
-          << file_meta->m_file_name
-          << " because it tried to modify or write: " << buf_len
-          << " bytes, whereas the page size was: " << page_length << " bytes.";
-      file_meta->m_punch_hole = false;
-      return 0;
-    }
-
-    /* Skip first page */
-    if (start_offset == 0) {
-      start_offset += page_length;
-      buffer += page_length;
-      buf_len -= page_length;
-    }
-    db_err = punch_holes(task->m_current_file_des.m_file, buffer, buf_len,
-                         start_offset, page_length,
-                         static_cast<uint32_t>(file_meta->m_fsblk_size));
-    if (db_err != DB_SUCCESS) {
-      ut_ad(db_err == DB_IO_NO_PUNCH_HOLE);
-      ib::info(ER_IB_CLONE_PUNCH_HOLE)
-          << "Innodb Clone Apply failed to punch hole: "
-          << file_meta->m_file_name;
-      file_meta->m_punch_hole = false;
-    }
-  }
-  return (0);
+  return 0;
 }
 
 int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
@@ -1420,7 +1433,8 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   auto file_type = OS_CLONE_DATA_FILE;
 
   if (is_log_file || is_page_copy ||
-      file_meta->m_space_id == dict_sys_t::s_invalid_space_id) {
+      file_meta->m_space_id == dict_sys_t::s_invalid_space_id ||
+      file_meta->m_punch_hole) {
     file_type = OS_CLONE_LOG_FILE;
   }
 
