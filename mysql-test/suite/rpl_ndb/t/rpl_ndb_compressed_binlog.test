@@ -1,0 +1,57 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
+
+# Minimal test checking that relay log position on the slave
+# is advanced when NDB binlog injector writes compressed binlog.
+#
+# Without fix for BUG#33889030 the applier wouldn't update
+# the relay log positions when using parallel workers and
+# thus waiting for replication sync stopped. Test is written to
+# work regardless of number of workers used on the replica
+# although problem only occured when using at least one worker.
+
+# Turn on compression
+--source include/rpl_connection_master.inc
+--let $save_binlog_compression=`SELECT @@global.ndb_log_transaction_compression`
+SET GLOBAL ndb_log_transaction_compression=ON;
+
+# Reset compression stats
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+# Create table and insert data
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 ( a int primary key, b varchar(32)) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "Row 1"), (2, "Row 2"), (3, "Row 3");
+
+# Wait for NDB binlog injector epoch
+--save_master_pos
+
+# Check binlog compression stats for compressed bytes
+let $cbytes =
+  `SELECT compressed_bytes_counter
+     FROM performance_schema.binary_log_transaction_compression_stats
+       WHERE log_type = 'BINARY'`;
+#echo Compressed bytes: $cbytes;
+if ($cbytes == 0) {
+    die The binary log contained no compressed bytes;
+}
+
+# Wait for replication sync
+--source include/sync_slave_sql_with_master.inc
+
+# Check that tables are identical
+let $diff_tables = master:t1,slave:t1;
+--source include/diff_tables.inc
+
+# drop table
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+eval SET GLOBAL ndb_log_transaction_compression=$save_binlog_compression;
+
+--source include/rpl_end.inc
+

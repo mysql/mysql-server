@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+SET GLOBAL ndb_log_transaction_compression=ON;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+[connection master]
+CREATE TABLE t1 ( a int primary key, b varchar(32)) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "Row 1"), (2, "Row 2"), (3, "Row 3");
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1,slave:t1]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET GLOBAL ndb_log_transaction_compression=0;
+include/rpl_end.inc
