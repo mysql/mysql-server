@@ -1,0 +1,436 @@
+result_format: 2
+## CREATE and INSERT definitions of extended Blob feature BLOB_INLINE_SIZE
+CREATE TABLE test.defs(
+                       a int primary key,
+                       b blob,
+                       bm mediumblob,
+                       bl longblob,
+                       t text,
+                       tm mediumtext,
+                       tl longtext,
+                       j json) engine=ndb;
+
+## Verify inline and partition sizes of test.defs
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'defs';
+inline_size	part_size
+256	2000
+256	4000
+256	13948
+256	2000
+256	4000
+256	13948
+4000	8100
+
+DROP TABLE test.defs;
+
+## Create table with less than default inline values
+CREATE TABLE test.shortinline(
+                       a int primary key,
+                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                       j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=10") engine=ndb;
+
+## Verify inline and partition sizes of test.shortinline
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'shortinline';
+inline_size	part_size
+10	2000
+10	4000
+10	13948
+10	2000
+10	4000
+10	13948
+10	8100
+
+## Insert and validate test.shortinline
+INSERT INTO test.shortinline VALUES (
+                       1,
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat(_utf32 0x1F47E,15000),
+                       repeat(_utf32 0x1F47E,60000),
+                       repeat(_utf32 0x1F47E,60000),
+                       "{\"f\": \"12\"}");
+
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.shortinline;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+DROP TABLE test.shortinline;
+
+## Create table with large inline values
+CREATE TABLE test.longinline(
+                       a int primary key,
+                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=6000") engine=ndb;
+
+## Verify inline and partition sizes of test.longinline
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'longinline';
+inline_size	part_size
+3000	2000
+3000	4000
+3000	13948
+3000	2000
+3000	4000
+3000	13948
+6000	8100
+
+## Insert and validate
+INSERT INTO test.longinline values (
+                       1,
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat(_utf32 0x1F47E,15000),
+                       repeat(_utf32 0x1F47E,60000),
+                       repeat(_utf32 0x1F47E,60000),
+                       "{\"f\": \"12\"}");
+
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.longinline;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+DROP TABLE test.longinline;
+
+## Create table with some inline values below their default
+CREATE TABLE test.mixedinline(
+                       a int primary key,
+                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=20000",
+                       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=25",
+                       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=288",
+                       t text,
+                       tm mediumtext comment "Random other comment",
+                       tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=233",
+                       j json) engine=ndb;
+
+## Verify inline and partition sizes of test.mixedinline
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'mixedinline';
+inline_size	part_size
+20000	2000
+25	4000
+288	13948
+256	2000
+256	4000
+233	13948
+4000	8100
+
+## Insert and validate test.mixedinline
+INSERT INTO test.mixedinline VALUES (
+                       1,
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat(_utf32 0x1F47E,15000),
+                       repeat(_utf32 0x1F47E,60000),
+                       repeat(_utf32 0x1F47E,60000),
+                       "{\"f\": \"12\"}");
+
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.mixedinline;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+
+DROP TABLE test.mixedinline;
+
+## Create table with larger inline values and maximum partition size (= 13948)
+CREATE TABLE test.withmaxparts(
+                       a int primary key,
+                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=20000,MAX_BLOB_PART_SIZE=1",
+                       bm mediumblob comment "NDB_COLUMN=MAX_BLOB_PART_SIZE=1,BLOB_INLINE_SIZE=320",
+                       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=320",
+                       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=320,MAX_BLOB_PART_SIZE",
+                       tm mediumtext comment "NDB_COLUMN=MAX_BLOB_PART_SIZE=0",
+                       tl longtext comment "NDB_COLUMN=MAX_BLOB_PART_SIZE=1",
+                       j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=8192") engine=ndb;
+
+## Verify inline and partition sizes of test.withmaxparts
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'withmaxparts';
+inline_size	part_size
+20000	13948
+320	13948
+320	13948
+320	13948
+256	13948
+256	13948
+8192	8100
+
+## Insert and validate test.withmaxparts
+INSERT INTO test.withmaxparts VALUES (
+                       1,
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat(_utf32 0x1F47E,15000),
+                       repeat(_utf32 0x1F47E,60000),
+                       repeat(_utf32 0x1F47E,60000),
+                       "{\"f\": \"12\"}");
+
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+
+DROP TABLE test.withmaxparts;
+
+## Create tables with bad values
+CREATE TABLE test.zerolen(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0") engine=ndb;
+Warnings:
+Warning	1296	Failed to parse BLOB_INLINE_SIZE=0, using default value 256
+CREATE TABLE test.neglen(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=-20") engine=ndb;
+Warnings:
+Warning	1296	Failed to parse BLOB_INLINE_SIZE=-20, using default value 256
+CREATE TABLE test.badchar(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=ten") engine=ndb;
+Warnings:
+Warning	1296	Failed to parse BLOB_INLINE_SIZE=ten, using default value 256
+
+## Verify inline of test.zerolen and test.neglen
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'zerolen';
+inline_size
+256
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'neglen';
+inline_size
+256
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'badchar';
+inline_size
+256
+
+DROP TABLE test.zerolen;
+DROP TABLE test.neglen;
+DROP TABLE test.badchar;
+
+CREATE TABLE test.badlen(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=40000") engine=ndb;
+ERROR HY000: Can't create table 'badlen' (use SHOW WARNINGS for more info).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1005	Can't create table 'badlen' (use SHOW WARNINGS for more info).
+
+CREATE TABLE test.maxlen(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=29981") engine=ndb;
+ERROR HY000: Can't create table 'maxlen' (use SHOW WARNINGS for more info).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1005	Can't create table 'maxlen' (use SHOW WARNINGS for more info).
+
+## Max len for inline Blob is 30000 - (4 + 16[header])
+CREATE TABLE test.maxlen(
+                      a int primary key,
+                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=29980") engine=ndb;
+## Verify inline of test.maxlen
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'maxlen';
+inline_size
+29980
+
+DROP TABLE test.maxlen;
+
+## ALTER definitions of extended Blob feature BLOB_INLINE_SIZE
+CREATE TABLE test.inline(
+                        a int primary key,
+                        b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                        t longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                        j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=10") engine=ndb;
+
+## Verify inline and partition sizes of test.inline
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+inline_size	part_size
+10	13948
+10	13948
+10	8100
+
+## ALTER with new blob inline size
+ALTER TABLE test.inline
+                        drop column b,
+                        drop column t,
+                        drop column j,
+                        add column bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=512",
+                        add column tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=512",
+                        add column js json comment "NDB_COLUMN=BLOB_INLINE_SIZE=8192";
+
+## Verify updated test.inline with new BLOB_INLINE_SIZE
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+inline_size
+512
+512
+8192
+
+## SHOW CREATE TABLE for new BLOB_INLINE_SIZE
+SHOW CREATE TABLE test.inline;
+Table	Create Table
+inline	CREATE TABLE `inline` (
+  `a` int NOT NULL,
+  `bl` longblob COMMENT 'NDB_COLUMN=BLOB_INLINE_SIZE=512',
+  `tl` longtext COMMENT 'NDB_COLUMN=BLOB_INLINE_SIZE=512',
+  `js` json DEFAULT NULL COMMENT 'NDB_COLUMN=BLOB_INLINE_SIZE=8192',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+## In-place ALTER TABLE rename column (same comment)
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        change column bl b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=512",
+                        change column tl t longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=512",
+                        change column js j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=8192";
+
+## In-place ALTER TABLE add column (non blob due to prevention of online partitioning)
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        add column c char(32);
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+
+## In-place ALTER TABLE change column BLOB_INLINE_SIZE will err
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=1000";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+
+## In-place ALTER TABLE remove configured BLOB_INLINE_SIZE will err
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        change column b b longblob;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+
+## In-place ALTER TABLE change column comment variations for NDB_COLUMN will err
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        change column b b longblob comment "randomNDB_COLUMN=BLOB_INLINE_SIZE=1000";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+ALTER TABLE test.inline ALGORITHM=inplace,
+                        change column b b longblob comment "NDB_COLUMNrandom= BLOB_INLINE_SIZE=1000";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: NDB_COLUMN= comment changed. Try ALGORITHM=COPY.
+
+## Copy ALTER TABLE change column BLOB_INLINE_SIZE changes inline_blob_size
+ALTER TABLE test.inline algorithm=copy,
+                        change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=1000",
+                        change column t t longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=1000",
+                        change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=10000";
+
+## Verify updated test.inline
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+inline_size
+1000
+1000
+10000
+
+## Copy ALTER TABLE change back BLOB_INLINE_SIZE to less
+ALTER TABLE test.inline algorithm=copy,
+                        change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                        change column t t longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=10",
+                        change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=25";
+
+## Verify updated test.inline with reduced BLOB_INLINE_SIZE
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+inline_size
+10
+10
+25
+
+## Copy ALTER TABLE too big BLOB_INLINE_SIZE
+ALTER TABLE test.inline algorithm=copy,
+                        change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949",
+                        change column t t longtext comment "NDB_COLUMM_BLOB_INLINE_SIZE=1000",
+                        change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=27949";
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1005	Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
+
+## ALTER TABLE random characters on COMMENT before NDB_COLUMN
+ALTER TABLE test.inline change column b b longblob comment "randomNDB_COLUMN=BLOB_INLINE_SIZE=15";
+
+## Verify altered test.inline
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+inline_size
+15
+10
+25
+
+## ALTER TABLE random characters on COMMENT after NDB_COLUMN
+ALTER TABLE test.inline change column b b longblob comment "NDB_COLUMN=randomBLOB_INLINE_SIZE=25";
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
+SHOW WARNINGS LIMIT 2;
+Level	Code	Message
+Warning	1478	NDB_COLUMN= : unknown modifier: randomBLOB_INLINE_SIZE=25
+Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
+
+DROP TABLE test.inline;
+
+## Show Backup and Restore across BLOB inline sizes
+CREATE TABLE test.withmaxparts(
+                       a int primary key,
+                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=20000,MAX_BLOB_PART_SIZE=1",
+                       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=320",
+                       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=320",
+                       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=320",
+                       tm mediumtext comment "irrelevant",
+                       tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=320",
+                       j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=8192") engine=ndb;
+
+INSERT INTO test.withmaxparts VALUES (
+                       1,
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat('J',60000),
+                       repeat(_utf32 0x1F47E,15000),
+                       repeat(_utf32 0x1F47E,60000),
+                       repeat(_utf32 0x1F47E,60000),
+                       "{\"f\": \"12\"}");
+
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+
+
+DROP TABLE test.withmaxparts;
+
+CREATE TABLE test.withmaxparts(
+                       a int primary key,
+                       b blob,
+                       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=6000,MAX_BLOB_PART_SIZE=1",
+                       bl longblob,
+                       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=10000,MAX_BLOB_PART_SIZE",
+                       tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=3000",
+                       tl longtext,
+                       j json comment "irrelevant") engine=ndb;
+
+# restore data from backup
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+
+## Verify that inline of test.withmaxparts are the new sizes
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'withmaxparts';
+inline_size
+256
+6000
+256
+10000
+3000
+256
+4000
+
+DROP TABLE test.withmaxparts;
+

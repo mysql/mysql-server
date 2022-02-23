@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1179,6 +1179,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
 
     /*
       Diff in 'column_comment' detected, '' != 'NDB_COLUMN=MAX_BLOB_PART_SIZE'
+                                         '' != 'NDB_COLUMN=BLOB_INLINE_SIZE'
 
       Column comments aren't stored in NDB Dictionary
     */

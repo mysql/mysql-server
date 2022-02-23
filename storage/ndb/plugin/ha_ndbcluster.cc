@@ -357,6 +357,10 @@ bool ndb_show_foreign_key_mock_tables(THD *thd) {
 
 int ndbcluster_push_to_engine(THD *, AccessPath *, JOIN *);
 
+static bool inplace_ndb_column_comment_changed(std::string_view old_comment,
+                                               std::string_view new_comment,
+                                               const char **reason);
+
 static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD *, stat_print_fn *,
                                    enum ha_stat_type);
@@ -8116,6 +8120,7 @@ static const char *ndb_column_modifier_prefix = "NDB_COLUMN=";
 
 static const struct NDB_Modifier ndb_column_modifiers[] = {
     {NDB_Modifier::M_BOOL, STRING_WITH_LEN("MAX_BLOB_PART_SIZE"), 0, {0}},
+    {NDB_Modifier::M_STRING, STRING_WITH_LEN("BLOB_INLINE_SIZE"), 0, {0}},
     {NDB_Modifier::M_BOOL, 0, 0, 0, {0}}};
 
 static bool ndb_column_is_dynamic(THD *thd, Field *field,
@@ -8248,6 +8253,30 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
   }
 
   const NDB_Modifier *mod_maxblob = column_modifiers.get("MAX_BLOB_PART_SIZE");
+
+  const auto set_blob_inline_size =
+      [&column_modifiers](THD *thd, NdbDictionary::Column &col, int size) {
+        const NDB_Modifier *mod = column_modifiers.get("BLOB_INLINE_SIZE");
+
+        if (mod->m_found) {
+          int mod_size = atoi(mod->m_val_str.str);
+
+          if (mod_size > INT_MAX) mod_size = INT_MAX;
+
+          if (mod_size <= 0) {
+            if (thd) {
+              get_thd_ndb(thd)->push_warning(
+                  "Failed to parse BLOB_INLINE_SIZE=%s, "
+                  "using default value %d",
+                  mod->m_val_str.str, size);
+            }
+            mod_size = size;
+          }
+          col.setInlineSize(mod_size);
+        } else {
+          col.setInlineSize(size);
+        }
+      };
 
   {
     /* Clear default value (col obj is reused for whole table def) */
@@ -8464,7 +8493,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         if (field_blob->max_data_length() < (1 << 8))
           goto mysql_type_tiny_blob;
         else if (field_blob->max_data_length() < (1 << 16)) {
-          col.setInlineSize(256);
+          set_blob_inline_size(thd, col, 256);
           col.setPartSize(2000);
           col.setStripeSize(0);
           if (mod_maxblob->m_found) {
@@ -8484,7 +8513,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      col.setInlineSize(256);
+      set_blob_inline_size(thd, col, 256);
       col.setPartSize(4000);
       col.setStripeSize(0);
       if (mod_maxblob->m_found) {
@@ -8499,7 +8528,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      col.setInlineSize(256);
+      set_blob_inline_size(thd, col, 256);
       col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
       col.setStripeSize(0);
       // The mod_maxblob modified has no effect here, already at max
@@ -8521,7 +8550,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       const int NDB_JSON_PART_SIZE = 8100;
 
       col.setType(NDBCOL::Blob);
-      col.setInlineSize(NDB_JSON_INLINE_SIZE);
+      set_blob_inline_size(thd, col, NDB_JSON_INLINE_SIZE);
       col.setPartSize(NDB_JSON_PART_SIZE);
       col.setStripeSize(0);
       break;
@@ -15234,6 +15263,17 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_ndb_column_change(
   const NDBCOL *old_col = m_table_map->getColumn(field_idx);
   Field *new_field = altered_table->field[field_idx];
   NDBCOL new_col;
+
+  // Don't allow INPLACE COMMENT NDB_COLUMN= changes
+  const char *reason = nullptr;
+  std::string_view old_comment{old_field->comment.str,
+                               old_field->comment.length};
+  std::string_view new_comment{new_field->comment.str,
+                               new_field->comment.length};
+  if (inplace_ndb_column_comment_changed(old_comment, new_comment, &reason)) {
+    return inplace_unsupported(ha_alter_info, reason);
+  }
+
   /*
     Create the new NdbDictionary::Column to be able to analyse if
     the storage type or format has changed. Note that the default
@@ -16046,6 +16086,53 @@ bool ha_ndbcluster::inplace_parse_comment(NdbDictionary::Table *new_tab,
     }
     max_rows_changed = false;
   }
+  return false;
+}
+
+static bool inplace_ndb_column_comment_changed(std::string_view old_comment,
+                                               std::string_view new_comment,
+                                               const char **reason) {
+  if (old_comment == new_comment) return false;
+
+  NDB_Modifiers old_modifiers(ndb_column_modifier_prefix, ndb_column_modifiers);
+  NDB_Modifiers new_modifiers(ndb_column_modifier_prefix, ndb_column_modifiers);
+
+  if (old_modifiers.loadComment(old_comment.data(), old_comment.length()) ==
+      -1) {
+    *reason = "Syntax error in old COMMENT modifier";
+    return true;
+  }
+  if (new_modifiers.loadComment(new_comment.data(), new_comment.length()) ==
+      -1) {
+    *reason = "Syntax error in new COMMENT modifier";
+    return true;
+  }
+
+  *reason = "NDB_COLUMN= comment changed";
+
+  const NDB_Modifier *old_max_blob_part =
+      old_modifiers.get("MAX_BLOB_PART_SIZE");
+  const NDB_Modifier *new_max_blob_part =
+      new_modifiers.get("MAX_BLOB_PART_SIZE");
+  if (new_max_blob_part->m_found != old_max_blob_part->m_found) return true;
+  if (old_max_blob_part->m_found && new_max_blob_part->m_found) {
+    return old_max_blob_part->m_val_bool != new_max_blob_part->m_val_bool;
+  }
+
+  const NDB_Modifier *old_blob_inline_size =
+      old_modifiers.get("BLOB_INLINE_SIZE");
+  const NDB_Modifier *new_blob_inline_size =
+      new_modifiers.get("BLOB_INLINE_SIZE");
+  if (new_blob_inline_size->m_found != old_blob_inline_size->m_found)
+    return true;
+  if (old_blob_inline_size->m_found && new_blob_inline_size->m_found) {
+    std::string_view old_val{old_blob_inline_size->m_val_str.str};
+    std::string_view new_val{new_blob_inline_size->m_val_str.str};
+    return old_val != new_val;
+  }
+
+  // did not change
+  reason = nullptr;
   return false;
 }
 
