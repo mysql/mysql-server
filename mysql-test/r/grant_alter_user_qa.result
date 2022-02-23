@@ -1629,8 +1629,7 @@ GRANT ALL PRIVILEGES ON db1.* TO bug20364862_dest@localhost WITH GRANT OPTION;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000) at line 1: Access denied for user 'bug20364862_dest'@'localhost' (using password: YES)
 mysql: [Warning] Using a password on the command line interface can be insecure.
-Level	Code	Message
-Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+ERROR 4102 (HY000) at line 1: SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
 USER	AUTHENTICATION_STRING
 bug20364862_user	bug20364862_dest
@@ -1638,8 +1637,7 @@ GRANT UPDATE ON mysql.* TO bug20364862_dest@localhost;
 FLUSH PRIVILEGES;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 mysql: [Warning] Using a password on the command line interface can be insecure.
-Level	Code	Message
-Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+ERROR 4102 (HY000) at line 1: SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
 USER	AUTHENTICATION_STRING
 bug20364862_user	bug20364862_dest
@@ -1648,8 +1646,7 @@ GRANT CREATE USER ON *.* TO bug20364862_dest@localhost;
 FLUSH PRIVILEGES;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 mysql: [Warning] Using a password on the command line interface can be insecure.
-Level	Code	Message
-Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+ERROR 4102 (HY000) at line 1: SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
 USER	AUTHENTICATION_STRING
 bug20364862_user	bug20364862_dest

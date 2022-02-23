@@ -6511,7 +6511,7 @@ ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000
         swe "Användare '%-.48s'@'%-.64s' är ej berättigad att logga in"
         ukr "Доступ заборонено для користувача: '%-.48s'@'%-.64s'"
 
-ER_SET_PASSWORD_AUTH_PLUGIN
+OBSOLETE_ER_SET_PASSWORD_AUTH_PLUGIN
         eng "SET PASSWORD has no significance for users authenticating via plugins"
 
 OBSOLETE_ER_GRANT_PLUGIN_USER_EXISTS
@@ -9732,6 +9732,9 @@ ER_IF_NOT_EXISTS_UNSUPPORTED_TRG_EXISTS_ON_DIFFERENT_TABLE
 
 ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION
   eng "This function '%-.192s' has the same name as a native function. The 'IF NOT EXISTS' clause is not supported while creating a loadable function with the same name as a native function."
+
+ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
+  eng "SET PASSWORD has no significance for user '%s'@'%s' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters."
 
 ER_REDUCED_DBLWR_FILE_CORRUPTED
   eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."

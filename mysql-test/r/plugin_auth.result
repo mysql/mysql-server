@@ -38,10 +38,8 @@ select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test SET PASSWORD
-Setting password is allowed but it won't affect the authentication mechanism.
 SET PASSWORD = 'plug_dest';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'plug'@'%' as authentication plugin does not support it.
+ERROR HY000: SET PASSWORD has no significance for user 'plug'@'%' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 ## test bad credentials
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 ## test bad default plugin : As long as the server returns a compatible
@@ -395,28 +393,7 @@ SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
 SET PASSWORD = 'bruhaha';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
-SELECT USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-bug12818542@localhost	bug12818542_dest@localhost
-DROP USER bug12818542@localhost;
-DROP USER bug12818542_dest@localhost;
-#
-# Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM
-#   AUTHENTICATION SETTINGS
-#
-CREATE USER bug12818542@localhost
-IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost
-IDENTIFIED BY 'bug12818542_dest_passwd';
-GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
-SELECT USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-bug12818542@localhost	bug12818542_dest@localhost
-SET PASSWORD = 'bruhaha';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
+ERROR HY000: SET PASSWORD has no significance for user 'bug12818542'@'localhost' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters.
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
