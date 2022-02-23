@@ -8234,6 +8234,49 @@ bool Item_func_sp::resolve_type(THD *) {
   return false;
 }
 
+longlong Item_func_sp::val_int() {
+  if (execute()) return error_int();
+  if (null_value) return 0;
+  return sp_result_field->val_int();
+}
+
+double Item_func_sp::val_real() {
+  if (execute()) return error_real();
+  if (null_value) return 0.0;
+  return sp_result_field->val_real();
+}
+
+bool Item_func_sp::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
+  if (execute() || null_value) return true;
+  return sp_result_field->get_date(ltime, fuzzydate);
+}
+
+bool Item_func_sp::get_time(MYSQL_TIME *ltime) {
+  if (execute() || null_value) return true;
+  return sp_result_field->get_time(ltime);
+}
+
+my_decimal *Item_func_sp::val_decimal(my_decimal *dec_buf) {
+  if (execute()) return error_decimal(dec_buf);
+  if (null_value) return nullptr;
+  return sp_result_field->val_decimal(dec_buf);
+}
+
+String *Item_func_sp::val_str(String *str) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf(str->charset());
+  if (execute()) return error_str();
+  if (null_value) return nullptr;
+  /*
+    result_field will set buf pointing to internal buffer
+    of the resul_field. Due to this it will change any time
+    when SP is executed. In order to prevent occasional
+    corruption of returned value, we make here a copy.
+  */
+  sp_result_field->val_str(&buf);
+  str->copy(buf);
+  return str;
+}
+
 bool Item_func_sp::val_json(Json_wrapper *result) {
   if (sp_result_field->type() == MYSQL_TYPE_JSON) {
     if (execute()) return true;
@@ -8253,7 +8296,7 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 
 /**
   @brief Execute function & store value in field.
-
+         Will set null_value properly only for a successfull execution.
   @return Function returns error status.
   @retval false on success.
   @retval true if an error occurred.
@@ -8292,6 +8335,7 @@ bool Item_func_sp::execute() {
 
 /**
    @brief Execute function and store the return value in the field.
+          Will set null_value properly only for a successfull execution.
 
    @note This function was intended to be the concrete implementation of
     the interface function execute. This was never realized.
