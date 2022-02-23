@@ -2028,6 +2028,8 @@ public:
                    Uint32 data_mem2 = 0,
                    Uint32 trans_mem2 = 0);
   ~Test_mem_manager();
+private:
+  Uint32 m_leaked_mem;
 };
 
 enum Resource_groups {
@@ -2036,7 +2038,7 @@ enum Resource_groups {
   RG_QM = 3,
   RG_DM2 = 4,
   RG_TM2 = 5,
-  RG_QM2 = 6
+  RG_QM2 = 6,
 };
 
 Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
@@ -2045,7 +2047,8 @@ Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
                                    Uint32 data_mem2,
                                    Uint32 trans_mem2)
 {
-  assert(tot_mem >= data_mem + trans_mem + data_mem2 + trans_mem2);
+  const Uint32 reserved_mem = data_mem + trans_mem + data_mem2 + trans_mem2;
+  assert(tot_mem >= reserved_mem);
 
   Resource_limit rl;
   // Data memory
@@ -2091,15 +2094,47 @@ Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
    * empty page.
    */
   require(tot_mem > 0);
-  tot_mem += 2 * ((tot_mem - 1) / ALLOC_PAGES_PER_REGION) + 1;
-  init(NULL, tot_mem);
+  const Uint32 extra_mem = 2 * ((tot_mem - 1) / ALLOC_PAGES_PER_REGION) + 1;
+  init(NULL, tot_mem + extra_mem);
   Uint32 dummy_watchdog_counter_marking_page_mem = 0;
   map(&dummy_watchdog_counter_marking_page_mem);
+
+  /*
+   * Depending on system page size, or if build have
+   * NDB_TEST_128TB_VIRTUAL_MEMORY on, the actual pages available can be more
+   * than estimated. For test program to only see the expected number of pages
+   * one need to allocate some pages to hide them.
+   */
+
+  const Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
+
+  Uint32 shared_mem = tot_mem - reserved_mem;
+  Uint32 page_count = 0;
+  Uint32* free_pages = new Uint32[trans_mem + shared_mem];
+  while (page_count < trans_mem + shared_mem &&
+         alloc_page(RG_TM, &free_pages[page_count], zone))
+  {
+    page_count++;
+  }
+
+  /* hide and leak all other pages */
+  Uint32 leak_page;
+  Uint32 leak_count = 0;
+  while (alloc_page(RG_TM, &leak_page, zone)) leak_count++;
+  m_leaked_mem = leak_count;
+
+  /* free pages again */
+  while (page_count > 0)
+  {
+    page_count--;
+    release_page(RG_TM, free_pages[page_count]);
+  }
+  delete[] free_pages;
 }
 
 Test_mem_manager::~Test_mem_manager()
 {
-  require(m_resource_limits.get_in_use() == 0);
+  require(m_resource_limits.get_in_use() == m_leaked_mem);
 }
 
 #define NDBD_MALLOC_PERF_TEST 0
