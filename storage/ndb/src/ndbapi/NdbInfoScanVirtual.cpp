@@ -24,6 +24,8 @@
 // Implements
 #include "NdbInfoScanVirtual.hpp"
 
+#include <memory>
+
 #include "ndbapi/NdbApi.hpp"
 #include "NdbInfo.hpp"
 #include "util/OutputStream.hpp"
@@ -1594,12 +1596,13 @@ class EventsTable : public VirtualTable {
       const override {
 
     const DictionaryList::Element * elem;
-    const NdbDictionary::Event * event;
+    std::unique_ptr<const NdbDictionary::Event> event;
 
     do {
       elem = ctx->nextInList(row);
       if (elem == nullptr) return 0;   // end of list
-      event = ctx->getDictionary()->getEvent(elem->name);
+      // Open Event by name from NDB
+      event.reset(ctx->getDictionary()->getEvent(elem->name));
       if( ctx->usingIndex() && (event == nullptr)) return 0;
     } while(event == nullptr);
 
@@ -1651,7 +1654,6 @@ class EventsTable : public VirtualTable {
       w.write_string(event_columns);                        // columns
       w.write_number(table_event);                          // table_event
     }
-//    delete event;
     return 1;
   }
 };
