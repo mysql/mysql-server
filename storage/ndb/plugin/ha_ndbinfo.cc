@@ -636,9 +636,7 @@ int ha_ndbinfo::rnd_next(uchar *buf) {
 
   if (err != 1) return err2mysql(err);
 
-  unpack_record(buf);
-
-  return 0;
+  return unpack_record(buf);
 }
 
 int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
@@ -673,74 +671,94 @@ int ha_ndbinfo::info(uint flag) {
   return 0;
 }
 
-void ha_ndbinfo::unpack_record(uchar *dst_row) {
+static int unpack_unexpected_field(Field *f) {
+  ndb_log_error(
+      "unexpected field '%s', type: %u, real_type: %u, pack_length: %u",
+      f->field_name, f->type(), f->real_type(), f->pack_length());
+  assert(false); /* stop here on debug build */
+  return HA_ERR_INTERNAL_ERROR;
+}
+
+static int unpack_unexpected_value(Field *f, const Uint32 value) {
+  ndb_log_error(
+      "unexpected value %u for field '%s', real_type: %u, pack_length: %u",
+      value, f->field_name, f->real_type(), f->pack_length());
+  assert(false); /* stop here on debug build */
+  return HA_ERR_INTERNAL_ERROR;
+}
+
+int ha_ndbinfo::unpack_record(uchar *dst_row) {
   DBUG_TRACE;
   ptrdiff_t dst_offset = dst_row - table->record[0];
 
   for (uint i = 0; i < table->s->fields; i++) {
     Field *field = table->field[i];
     const NdbInfoRecAttr *record = m_impl.m_columns[i];
-    if (record && !record->isNULL()) {
-      field->set_notnull();
-      field->move_field_offset(dst_offset);
-      switch (field->type()) {
-        case (MYSQL_TYPE_VARCHAR): {
-          DBUG_PRINT("info", ("str: %s", record->c_str()));
-          Field_varstring *vfield = (Field_varstring *)field;
-          /* Field_bit in DBUG requires the bit set in write_set for store(). */
-          my_bitmap_map *old_map =
-              dbug_tmp_use_all_columns(table, table->write_set);
-          (void)vfield->store(
-              record->c_str(),
-              std::min(record->length(), field->field_length) - 1,
-              field->charset());
-          dbug_tmp_restore_column_map(table->write_set, old_map);
-          break;
-        }
-
-        case (MYSQL_TYPE_LONG): {
-          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
-          break;
-        }
-
-        case (MYSQL_TYPE_LONGLONG): {
-          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
-          break;
-        }
-
-        case (MYSQL_TYPE_STRING): {
-          assert(field->real_type() == MYSQL_TYPE_SET ||
-                 field->real_type() == MYSQL_TYPE_ENUM);
-          Uint16 value = record->u_32_value();
-
-          switch (field->pack_length()) {
-            case 1:
-              assert(value < 256);
-              *(field->field_ptr()) = static_cast<char>(value);
-              break;
-            case 2:
-              assert(record->u_32_value() < 65536);
-              memcpy(field->field_ptr(), &value, sizeof(Uint16));
-              break;
-            case 3:
-              int3store(field->field_ptr(), record->u_32_value());
-              break;
-            default:
-              assert(false);
-          }
-          break;
-        }
-
-        default:
-          ndb_log_error("Found unexpected field type %u", field->type());
-          break;
+    if (!record || record->isNULL()) {
+      field->set_null();
+      continue;
+    }
+    field->set_notnull();
+    field->move_field_offset(dst_offset);
+    switch (field->type()) {
+      case (MYSQL_TYPE_VARCHAR): {
+        DBUG_PRINT("info", ("str: %s", record->c_str()));
+        Field_varstring *vfield = (Field_varstring *)field;
+        /* Field_bit in DBUG requires the bit set in write_set for store(). */
+        my_bitmap_map *old_map =
+            dbug_tmp_use_all_columns(table, table->write_set);
+        (void)vfield->store(record->c_str(),
+                            std::min(record->length(), field->field_length) - 1,
+                            field->charset());
+        dbug_tmp_restore_column_map(table->write_set, old_map);
+        break;
       }
 
-      field->move_field_offset(-dst_offset);
-    } else {
-      field->set_null();
+      case (MYSQL_TYPE_LONG): {
+        memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
+        break;
+      }
+
+      case (MYSQL_TYPE_LONGLONG): {
+        memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
+        break;
+      }
+
+      case (MYSQL_TYPE_STRING): {
+        const Uint32 value = record->u_32_value();
+        unsigned char val8;
+        uint16 val16;
+
+        if (!(field->real_type() == MYSQL_TYPE_SET ||
+              field->real_type() == MYSQL_TYPE_ENUM))
+          return unpack_unexpected_field(field);
+
+        switch (field->pack_length()) {
+          case 1:
+            if (unlikely(value > 255))
+              return unpack_unexpected_value(field, value);
+            val8 = value;
+            *(field->field_ptr()) = val8;
+            break;
+          case 2:
+            if (unlikely(value > 65535))
+              return unpack_unexpected_value(field, value);
+            val16 = value;
+            memcpy(field->field_ptr(), &val16, sizeof(Uint16));
+            break;
+          default:
+            return unpack_unexpected_field(field);
+        }
+        break;
+      }
+
+      default:
+        return unpack_unexpected_field(field);
     }
+
+    field->move_field_offset(-dst_offset);
   }
+  return 0;
 }
 
 ulonglong ha_ndbinfo::table_flags() const {

@@ -162,6 +162,7 @@ EXPLAIN SELECT event_id, e.name, table_name FROM events e
   JOIN dictionary_tables t using(table_id) WHERE event_id < 6 ORDER BY event_id;
 
 SELECT * from events where event_id = -1;
+SELECT table_event from events where event_id = 1;
 SELECT table_name from dictionary_tables where table_id = -1;
 SELECT table_name from dictionary_tables where table_id = 9990;
 SELECT table_name from dictionary_tables where table_id = 5;

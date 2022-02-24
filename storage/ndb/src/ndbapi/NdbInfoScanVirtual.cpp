@@ -240,7 +240,8 @@ void VirtualTable::Row::write_string(const char* str)
 
   // copy string to buffer
   memcpy(m_curr, str, clen);
-  m_curr+=clen;
+  m_curr += clen;
+  if(clen % 4) m_curr += (4 - (clen % 4)); // pad for alignment
 
   DBUG_VOID_RETURN;
 }
@@ -588,7 +589,7 @@ int NdbInfoScanVirtual::execute()
         buffer_size += sizeof(Uint64);
         break;
       case NdbInfo::Column::String:
-        buffer_size += 512+1; // Varchar(512) including null terminator
+        buffer_size += 516; // Varchar(512) plus terminator plus padding
         break;
       }
     }
