@@ -906,6 +906,22 @@ SET GLOBAL innodb_limit_optimistic_insert_debug=0;
 
 DROP table t1;
 
+--echo # Scenario 65
+--echo # Truncate all partition shall reset INSTANT Metadata
+eval CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=$row_format PARTITION BY RANGE(c1) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200), PARTITION p2 VALUES LESS THAN (300), PARTITION p3 VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES (90, 1, 1, "1"), (190, 1, 1, "2"), (290, 1, 1, "3"), (390, 1, 1, "3");
+
+Alter table t1 add column c5 int, algorithm=INSTANT;
+Alter table t1 drop column c3, algorithm=INSTANT;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+ALTER TABLE t1 TRUNCATE partition p0, p1, p2, p3;
+--source suite/innodb/include/print_instant_part_metadata.inc
+
+DROP TABLE t1;
+
 --echo ###########
 --echo # CLEANUP #
 --echo ###########
