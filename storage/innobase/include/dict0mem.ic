@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,5 +89,5 @@ static inline void dict_mem_fill_index_struct(
 /** Returns the number of fields before first instant ADD COLUMN */
 inline uint32_t dict_index_t::get_instant_fields() const {
   ut_ad(has_instant_cols());
-  return (n_fields - (table->get_total_cols() - table->n_instant_cols));
+  return (n_fields - (table->n_cols - table->n_instant_cols));
 }

@@ -15243,7 +15243,7 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     }
 
     if (is_instant) {
-      dd_clear_instant_table(*table_def);
+      dd_clear_instant_table(*table_def, true);
     }
   }
 

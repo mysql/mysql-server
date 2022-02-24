@@ -772,8 +772,9 @@ void dd_add_instant_columns(const dd::Table *old_dd_table,
                             const Columns &cols_to_add);
 
 /** Clear the instant ADD COLUMN information of a table
-@param[in,out]  dd_table        dd::Table */
-void dd_clear_instant_table(dd::Table &dd_table);
+@param[in,out]  dd_table        dd::Table
+@param[in]      clear_version   true if version metadata is to be cleared */
+void dd_clear_instant_table(dd::Table &dd_table, bool clear_version);
 
 /** Clear the instant ADD COLUMN information of a partition, to make it
 as a normal partition

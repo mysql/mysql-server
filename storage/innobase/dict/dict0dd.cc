@@ -1750,8 +1750,9 @@ void dd_part_adjust_table_id(dd::Table *new_table) {
 }
 
 /** Clear the instant ADD COLUMN information of a table
-@param[in,out]  dd_table        dd::Table */
-void dd_clear_instant_table(dd::Table &dd_table) {
+@param[in,out]  dd_table        dd::Table
+@param[in]      clear_version   true if version metadata is to be cleared */
+void dd_clear_instant_table(dd::Table &dd_table, bool clear_version) {
   dd_table.se_private_data().remove(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
 
@@ -1762,11 +1763,23 @@ void dd_clear_instant_table(dd::Table &dd_table) {
       }
     };
 
-    fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
-    fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
-    fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
-    fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
-    fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
+    if (!clear_version) {
+      bool is_versioned = dd_column_is_dropped(col) || dd_column_is_added(col);
+      if (is_versioned) {
+        continue;
+      }
+
+      /* Possibly an INSTANT ADD column */
+      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
+      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
+    } else {
+      /* Possibly an INSTANT ADD/DROP column with a version */
+      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]);
+      fn(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT]);
+      fn(dd_column_key_strings[DD_INSTANT_VERSION_ADDED]);
+      fn(dd_column_key_strings[DD_INSTANT_VERSION_DROPPED]);
+      fn(dd_column_key_strings[DD_INSTANT_PHYSICAL_POS]);
+    }
   }
 }
 

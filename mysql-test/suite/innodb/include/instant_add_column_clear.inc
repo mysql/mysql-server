@@ -89,7 +89,6 @@ TRUNCATE TABLE t1;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 
-
 CHECK TABLE t1;
 
 SHOW CREATE TABLE t1;
@@ -157,12 +156,12 @@ SELECT c FROM t1 GROUP BY c;
 ALTER TABLE t1 ADD COLUMN d INT DEFAULT 100;
 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 10` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 ALTER TABLE t1 TRUNCATE PARTITION p1;
 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 10` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
 
 
@@ -171,12 +170,12 @@ SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%'
 ALTER TABLE t1 DROP PARTITION p2, p4;
 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 6` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 ALTER TABLE t1 DROP PARTITION p31, p32;
 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 
 CHECK TABLE t1;

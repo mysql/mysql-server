@@ -3039,7 +3039,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
       }
     }
 
-    dd_clear_instant_table(*table_def);
+    dd_clear_instant_table(*table_def, true);
   }
 
   return error;
@@ -3069,7 +3069,8 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
   innobase_register_trx(ht, thd, trx);
 
-  const bool is_instant = dd_table_has_instant_cols(*dd_table);
+  const bool is_versioned = dd_table_has_row_versions(*dd_table);
+  const bool is_instant = dd_table_is_upgraded_instant(*dd_table);
 
   for (const auto dd_part : *dd_table->leaf_partitions()) {
     char norm_name[FN_REFLEN];
@@ -3134,11 +3135,16 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
                    (truncate_all ? 0 : autoinc + 1));
   }
 
-  if (is_instant && !dd_table_part_has_instant_cols(*dd_table) &&
-      !dd_table_has_row_versions(*dd_table)) {
-    /* If in INSTANT V1 and none of the partitions has INSTANT metadata, clear
-    INSTANT METADATA for table as well. */
-    dd_clear_instant_table(*dd_table);
+  if (is_instant || is_versioned) {
+    if (truncate_all) {
+      ut_ad(!dd_table_part_has_instant_cols(*dd_table));
+      dd_clear_instant_table(*dd_table, is_versioned);
+    } else {
+      if (is_instant && !dd_table_part_has_instant_cols(*dd_table)) {
+        /* Not all partition truncate. Don't clear the versioned metadata. */
+        dd_clear_instant_table(*dd_table, false);
+      }
+    }
   }
 
   return error;
