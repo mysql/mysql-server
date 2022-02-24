@@ -11635,6 +11635,9 @@ ER_ACCOUNT_WITH_EXPIRED_PASSWORD
 ER_THREAD_POOL_PLUGIN_STARTED
   eng "Thread pool plugin started successfully with parameters: %s"
 
+ER_THREAD_POOL_DEDICATED_LISTENERS_INVALID
+  eng "thread_pool_dedicated_listeners cannot be set unless thread_pool_max_transactions_limit > 0"
+
 ER_IB_DBLWR_BYTES_INFO
   eng "%s"
 
