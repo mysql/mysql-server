@@ -679,6 +679,12 @@ constexpr ulint REC_2BYTE_OFFS_LIMIT = 0x7FFFUL;
 two upmost bits in a two byte offset for special purposes */
 constexpr ulint REC_MAX_DATA_SIZE = 16384;
 
+/** For a given clustered index, version is to be stored on physical record.
+@param[in]  index           clustered index
+@param[in]  n_tuple_fields  number of fields in tuple
+@return true, if version is to be stored */
+bool is_store_version(const dict_index_t *index, size_t n_tuple_fields);
+
 #include "rem0rec.ic"
 
 #endif

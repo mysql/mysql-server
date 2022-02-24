@@ -2508,7 +2508,7 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
       }
 
       s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-      if (table->current_row_version > 0) {
+      if (table->has_row_versions()) {
         /* In case of partitioned table, when a new partition is created,
         column metadata may not be set and needs to be set now. */
         if (dd_table_is_partitioned(dd_table->table())) {
