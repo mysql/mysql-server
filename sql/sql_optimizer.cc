@@ -2709,19 +2709,28 @@ bool JOIN::prune_table_partitions() {
   assert(query_block->partitioned_table_count);
 
   for (TABLE_LIST *tbl = query_block->leaf_tables; tbl; tbl = tbl->next_leaf) {
-    /*
-      If tbl->embedding!=NULL that means that this table is in the inner
-      part of the nested outer join, and we can't do partition pruning
-      (TODO: check if this limitation can be lifted.
-             This also excludes semi-joins.  Is that intentional?)
-      This will try to prune non-static conditions, which can
-      be used after the tables are locked.
-    */
-    if (!tbl->embedding) {
-      Item *prune_cond =
-          tbl->join_cond_optim() ? tbl->join_cond_optim() : where_cond;
-      if (prune_partitions(thd, tbl->table, query_block, prune_cond))
-        return true;
+    // This will try to prune non-static conditions, which can be probed after
+    // the tables are locked.
+
+    // Predicates for pruning of this table must be placed in the outer-most
+    // join nest (Predicates in other join nests, or in the WHERE clause,
+    // would have caused an outer join to be converted to an inner join,
+    // and thus there would be no join nest graph to traverse)
+    // Look up the join nest hierarchy for the outermost condition:
+    Item *cond = where_cond;
+    const table_map tbl_map = tbl->map();
+    for (TABLE_LIST *nest = tbl; nest != nullptr; nest = nest->embedding) {
+      if (nest->join_cond_optim() != nullptr &&
+          Overlaps(tbl_map, nest->join_cond_optim()->used_tables())) {
+        cond = nest->join_cond_optim();
+        // For an anti-join operation, a synthetic left join nest is added above
+        // the anti-join nest. Make sure that we skip this when searching for
+        // the predicate to prune.
+        if (nest->is_aj_nest()) break;
+      }
+    }
+    if (prune_partitions(thd, tbl->table, query_block, cond)) {
+      return true;
     }
   }
 

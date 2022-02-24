@@ -2356,3 +2356,144 @@ SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00
 
 SET time_zone = DEFAULT;
 DROP TABLE tp;
+
+--echo #
+--echo # Bug#33060953 - UPGRADE FROM 5.7 TO 8.0 CHANGE EXECTION PLAN
+--echo # IN PARTITIONED TABLE, EVEN AFTER REVERTING NEW OPTIMIZER FLAG
+--echo #
+
+CREATE TABLE t1 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+    PARTITION p0 VALUES LESS THAN (1),
+    PARTITION p1 VALUES LESS THAN (2),
+    PARTITION p2 VALUES LESS THAN (3),
+    PARTITION p3 VALUES LESS THAN (4),
+    PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t2 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t3 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+    PARTITION p0 VALUES LESS THAN (1),
+    PARTITION p1 VALUES LESS THAN (2),
+    PARTITION p2 VALUES LESS THAN (3),
+    PARTITION p3 VALUES LESS THAN (4),
+    PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t4 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t5 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+ALTER TABLE t3 REMOVE PARTITIONING;
+}
+INSERT INTO t1(c) VALUES (1),  (2),  (3),  (4),  (5),  (6),  (7),  (8),  (9),  (10);
+INSERT INTO t1(c) VALUES (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+INSERT INTO t2(c) VALUES (21), (22), (23), (24), (25), (26), (27), (28), (29), (30);
+INSERT INTO t3(c) VALUES (31), (32), (33), (34), (35), (36), (37), (38), (39), (40);
+INSERT INTO t4(c) VALUES (41), (42), (43), (44), (45), (46), (47), (48), (49), (50);
+INSERT INTO t5(c) VALUES (51), (52), (53), (54), (55), (56), (57), (58), (59), (60);
+
+ANALYZE TABLE t1, t2, t3, t4, t5;
+
+--let $SELECT_WITH_JOIN=$MYSQL_TMP_DIR/select_with_join.inc
+--write_file $SELECT_WITH_JOIN
+--let $q=SELECT * FROM $left JOIN $right $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $left LEFT JOIN $right $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $right LEFT JOIN $left $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $right JOIN $left $cond
+--eval EXPLAIN $q
+--eval $q
+EOF
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk AND t1.pk > 2
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $right = ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20)
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk)
+--let $right = (t3 LEFT JOIN t4 on t3.pk = t4.pk)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2)
+--let $right = ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3)
+--let $right = (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20)
+--let $cond = on t1.pk = t3.pk AND t1.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk)
+--let $right = (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2)
+--let $right = ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15)
+--let $cond = on t1.pk = t13.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3)
+--let $right = (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20)
+--let $cond = on t1.pk = t13.pk AND t1.pk > 3
+--source $SELECT_WITH_JOIN
+
+--remove_file $SELECT_WITH_JOIN
+DROP TABLE t1, t2, t3, t4, t5;
