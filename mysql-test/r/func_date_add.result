@@ -54,9 +54,9 @@ End of 5.0 tests
 #
 SELECT ADDDATE('8112-06-20', REPEAT('1', 32));
 ADDDATE('8112-06-20', REPEAT('1', 32))
-NULL
+8112-06-19
 Warnings:
-Warning	1441	Datetime function: datetime field overflow
+Warning	1292	Truncated incorrect INTEGER value: '11111111111111111111111111111111'
 # Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
 SELECT ADDDATE(DATE'2021-01-01', INTERVAL 1 DAY);
 ADDDATE(DATE'2021-01-01', INTERVAL 1 DAY)

@@ -17719,7 +17719,7 @@ DROP TABLE t1;
 #
 do date_add(utc_time(), interval(oct(-11779)) microsecond);
 Warnings:
-Warning	1441	Datetime function: time field overflow
+Warning	1292	Truncated incorrect INTEGER value: '1777777777777777750775'
 #
 # Bug #31054071 UBSAN: SIGNED INTEGER OVERFLOW IN
 #               ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
