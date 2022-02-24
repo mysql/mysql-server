@@ -656,12 +656,20 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   /* Table was successfully opened above. */
   assert(table_def != nullptr);
 
+  Table_ddl_hton_notification_guard notification_guard{
+      thd, &first_table->mdl_request.key, ha_ddl_type::HA_TRUNCATE_DDL};
+
+  if (notification_guard.notify()) return true;
+
   if (table_def->options().exists("secondary_engine")) {
-    /* Truncate operation is not allowed for tables with secondary engine
-     * since it's not currently supported by change propagation
-     */
-    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
-    return true;
+    LEX_CSTRING secondary_engine;
+    table_def->options().get("secondary_engine", &secondary_engine,
+                             thd->mem_root);
+
+    if (!ha_secondary_engine_supports_ddl(thd, secondary_engine)) {
+      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+      return true;
+    }
   }
 
   if (hton->partition_flags() & HA_TRUNCATE_PARTITION_PRECLOSE) {

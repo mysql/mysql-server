@@ -434,6 +434,22 @@ plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
   return nullptr;
 }
 
+bool ha_secondary_engine_supports_ddl(
+    THD *thd, const LEX_CSTRING &secondary_engine) noexcept {
+  bool ret = false;
+  auto *plugin = ha_resolve_by_name_raw(thd, secondary_engine);
+
+  if (plugin != nullptr) {
+    const auto *se_hton = plugin_data<const handlerton *>(plugin);
+    if (se_hton != nullptr) {
+      ret = secondary_engine_supports_ddl(se_hton);
+    }
+
+    plugin_unlock(thd, plugin);
+  }
+  return ret;
+}
+
 /**
   Read a comma-separated list of storage engine names. Look up each in the
   known list of canonical and legacy names. In case of a match; add both the
@@ -8390,16 +8406,32 @@ Temp_table_handle::~Temp_table_handle() {
 */
 
 struct HTON_NOTIFY_PARAMS {
-  HTON_NOTIFY_PARAMS(const MDL_key *mdl_key, ha_notification_type mdl_type)
+  HTON_NOTIFY_PARAMS(const MDL_key *mdl_key, ha_notification_type mdl_type,
+                     ha_ddl_type ddl_type = HA_INVALID_DDL,
+                     const char *old_db_name = nullptr,
+                     const char *old_table_name = nullptr,
+                     const char *new_db_name = nullptr,
+                     const char *new_table_name = nullptr)
       : key(mdl_key),
         notification_type(mdl_type),
+        ddl_type{ddl_type},
         some_htons_were_notified(false),
-        victimized(false) {}
+        victimized(false),
+        m_old_db_name(old_db_name),
+        m_old_table_name(old_table_name),
+        m_new_db_name(new_db_name),
+        m_new_table_name(new_table_name) {}
 
   const MDL_key *key;
   const ha_notification_type notification_type;
+  const ha_ddl_type ddl_type;
   bool some_htons_were_notified;
   bool victimized;
+  /* Only used in RENAME TABLE */
+  const char *m_old_db_name;
+  const char *m_old_table_name;
+  const char *m_new_db_name;
+  const char *m_new_table_name;
 };
 
 static bool notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin,
@@ -8463,12 +8495,51 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
   return false;
 }
 
-static bool notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg) {
+static bool notify_table_ddl_helper(THD *thd, plugin_ref plugin, void *arg) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (hton->state == SHOW_OPTION_YES && hton->notify_alter_table) {
+  if (hton->state == SHOW_OPTION_YES &&
+      (hton->notify_alter_table || hton->notify_rename_table ||
+       hton->notify_truncate_table)) {
     HTON_NOTIFY_PARAMS *params = reinterpret_cast<HTON_NOTIFY_PARAMS *>(arg);
 
-    if (hton->notify_alter_table(thd, params->key, params->notification_type)) {
+    bool notify_ret{false};
+
+    /* If the DDL is ALTER or TRUNCATE, it shouldn't have the names set. */
+    assert(((params->ddl_type == HA_ALTER_DDL ||
+             params->ddl_type == HA_TRUNCATE_DDL) &&
+            (params->m_old_db_name == nullptr &&
+             params->m_old_table_name == nullptr &&
+             params->m_new_db_name == nullptr &&
+             params->m_new_table_name == nullptr)) ||
+           (params->ddl_type == HA_RENAME_DDL));
+
+    switch (params->ddl_type) {
+      case HA_ALTER_DDL:
+        if (hton->notify_alter_table) {
+          notify_ret = hton->notify_alter_table(thd, params->key,
+                                                params->notification_type);
+        }
+        break;
+      case HA_TRUNCATE_DDL:
+        if (hton->notify_truncate_table) {
+          notify_ret = hton->notify_truncate_table(thd, params->key,
+                                                   params->notification_type);
+        }
+        break;
+      case HA_RENAME_DDL:
+        if (hton->notify_rename_table) {
+          notify_ret = hton->notify_rename_table(
+              thd, params->key, params->notification_type,
+              params->m_old_db_name, params->m_old_table_name,
+              params->m_new_db_name, params->m_new_table_name);
+        }
+        break;
+      default:
+        assert(0);
+        return true;
+    }
+
+    if (notify_ret) {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT) return true;
     } else
@@ -8478,38 +8549,41 @@ static bool notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 /**
-  Notify/get permission from all interested storage engines before
-  or after executed ALTER TABLE on the table identified by key.
+  Notify/get permission from all interested storage engines before or after
+  executed DDL (ALTER TABLE, RENAME TABLE, TRUNCATE TABLE) on the table
+  identified by key.
 
   @param thd                Thread context.
   @param mdl_key            MDL key identifying table.
-  @param notification_type  Indicates whether this is pre-ALTER or
-                            post-ALTER notification.
+  @param notification_type  Indicates whether this is pre-DDL or post-DDL
+  notification.
+  @param old_db_name        Old db name, used in RENAME DDL
+  @param old_table_name     Old table name, used in RENAME DDL
+  @param new_db_name        New db name, used in RENAME DDL
+  @param new_table_name     New table name, used in RENAME DDL
 
-  See @sa handlerton::notify_alter_table for rationale,
-  details about calling convention and error reporting.
+  See @sa handlerton::notify_alter_table for rationale, details about calling
+  convention and error reporting.
 
-  @return False - if notification was successful/ALTER TABLE can
-                  proceed.
-          True -  if it has failed/ALTER TABLE should fail.
+  @return False - if notification was successful/DDL can proceed.
+          True -  if it has failed/DDL should fail.
 */
+bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
+                         ha_notification_type notification_type,
+                         ha_ddl_type ddl_type, const char *old_db_name,
+                         const char *old_table_name, const char *new_db_name,
+                         const char *new_table_name) {
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type, ddl_type, old_db_name,
+                            old_table_name, new_db_name, new_table_name);
 
-bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
-                           ha_notification_type notification_type) {
-  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
-
-  if (plugin_foreach(thd, notify_alter_table_helper,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, &params)) {
-    /*
-      If some SE hasn't given its permission to do ALTER TABLE and some SEs
-      has given their permissions, we need to notify the latter group about
-      failed attemopt. We do this by calling post-ALTER TABLE notification
-      for all interested SEs unconditionally.
-    */
+  if (plugin_foreach(thd, notify_table_ddl_helper, MYSQL_STORAGE_ENGINE_PLUGIN,
+                     &params)) {
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified) {
-      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
-      (void)plugin_foreach(thd, notify_alter_table_helper,
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT,
+                                         ddl_type, old_db_name, old_table_name,
+                                         new_db_name, new_table_name);
+      (void)plugin_foreach(thd, notify_table_ddl_helper,
                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
     return true;

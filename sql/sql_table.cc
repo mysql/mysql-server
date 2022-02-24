@@ -2595,7 +2595,8 @@ static bool adjust_fk_children_for_parent_drop(
  *
  * @return True if invalid, false otherwise.
  */
-static bool validate_secondary_engine_option(const Alter_info &alter_info,
+static bool validate_secondary_engine_option(THD *thd,
+                                             const Alter_info &alter_info,
                                              const HA_CREATE_INFO &create_info,
                                              const TABLE &table) {
   // Validation necessary only for tables with a secondary engine defined.
@@ -2607,8 +2608,12 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
   // The only table option that may be changed is SECONDARY_ENGINE.
   constexpr uint64_t supported_table_options = HA_CREATE_USED_SECONDARY_ENGINE;
 
-  if (alter_info.flags & ~supported_alter_operations ||
-      create_info.used_fields & ~supported_table_options) {
+  // Do not report an error if:
+  //  (a) Current DDL is setting the secondary engine, OR
+  //  (b) Secondary engine supports DDLs
+  if ((alter_info.flags & ~supported_alter_operations ||
+       create_info.used_fields & ~supported_table_options) &&
+      !ha_secondary_engine_supports_ddl(thd, table.s->secondary_engine)) {
     my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
     return true;
   }
@@ -2617,6 +2622,16 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
   if (create_info.secondary_engine.str != nullptr) {
     my_error(ER_SECONDARY_ENGINE, MYF(0),
              "Table already has a secondary engine defined");
+    return true;
+  }
+
+  // Check if this statement sets the primary engine. In this case we have to
+  // reject the DDL.
+  if ((alter_info.flags & Alter_info::ALTER_OPTIONS) &&
+      (create_info.used_fields & HA_CREATE_USED_ENGINE)) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Cannot change the primary engine of a table with a defined "
+             "secondary engine");
     return true;
   }
 
@@ -10583,13 +10598,31 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                                                  &to_table_def))
     return true;
 
-  // Tables with a defined secondary engine cannot be renamed, except if the
-  // renaming is only temporary, which may happen if e.g. ALGORITHM=COPY is
-  // used.
+  Table_ddl_hton_notification_guard notification_guard{
+      thd,
+      &(thd->lex->query_block->get_table_list()->mdl_request.key),
+      ha_ddl_type::HA_RENAME_DDL,
+      old_db,
+      old_name,
+      new_db,
+      new_name};
+
+  if (notification_guard.notify()) return true;
+
+  // Tables with a defined secondary engine cannot be renamed, except if:
+  //   (a) The renaming is only temporary, which may happen if e.g.,
+  //   ALGORITHM=COPY is used, OR
+  //   (b) The secondary storage engine supports DDL.
   if (from_table_def->options().exists("secondary_engine") &&
       !(flags & FN_IS_TMP)) {
-    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
-    return true;
+    LEX_CSTRING secondary_engine;
+    from_table_def->options().get("secondary_engine", &secondary_engine,
+                                  thd->mem_root);
+
+    if (!ha_secondary_engine_supports_ddl(thd, secondary_engine)) {
+      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+      return true;
+    }
   }
 
   // Set schema id, table name and hidden attribute.
@@ -15911,38 +15944,6 @@ static bool simple_rename_or_index_change(
 }
 
 /**
-  Auxiliary class implementing RAII principle for getting permission for/
-  notification about finished ALTER TABLE from interested storage engines.
-
-  @see handlerton::notify_alter_table for details.
-*/
-
-class Alter_table_hton_notification_guard {
- public:
-  Alter_table_hton_notification_guard(THD *thd, const MDL_key *key)
-      : m_hton_notified(false), m_thd(thd), m_key(*key) {}
-
-  bool notify() {
-    if (!ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_PRE_EVENT)) {
-      m_hton_notified = true;
-      return false;
-    }
-    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
-    return true;
-  }
-
-  ~Alter_table_hton_notification_guard() {
-    if (m_hton_notified)
-      (void)ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_POST_EVENT);
-  }
-
- private:
-  bool m_hton_notified;
-  THD *m_thd;
-  const MDL_key m_key;
-};
-
-/**
   Check if we are changing the SRID specification on a geometry column that
   has a spatial index. If that is the case, reject the change since allowing
   geometries with different SRIDs in a spatial index will make the index
@@ -16321,8 +16322,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     If we are about to ALTER non-temporary table we need to get permission
     from/notify interested storage engines.
   */
-  Alter_table_hton_notification_guard notification_guard(
-      thd, &table_list->mdl_request.key);
+  Table_ddl_hton_notification_guard notification_guard{
+      thd, &table_list->mdl_request.key, HA_ALTER_DDL};
 
   if (!is_temporary_table(table_list) && notification_guard.notify())
     return true;
@@ -16386,7 +16387,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       return true;
   }
 
-  if (validate_secondary_engine_option(*alter_info, *create_info,
+  if (validate_secondary_engine_option(thd, *alter_info, *create_info,
                                        *table_list->table))
     return true;
 

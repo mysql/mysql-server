@@ -929,6 +929,12 @@ enum enum_schema_tables : int {
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+enum ha_ddl_type : int {
+  HA_INVALID_DDL,
+  HA_ALTER_DDL,
+  HA_TRUNCATE_DDL,
+  HA_RENAME_DDL
+};
 
 /** Clone start operation mode */
 enum Ha_clone_mode {
@@ -2029,6 +2035,40 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
                                      ha_notification_type notification_type);
 
 /**
+  Notify/get permission from storage engine before or after execution of
+  RENAME TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was RENAMEd.
+  @param notification_type  Indicates whether this is pre-RENAME TABLE or
+                            post-RENAME TABLE notification.
+  @param old_db_name
+  @param old_table_name
+  @param new_db_name
+  @param new_table_name
+*/
+typedef bool (*notify_rename_table_t)(THD *thd, const MDL_key *mdl_key,
+                                      ha_notification_type notification_type,
+                                      const char *old_db_name,
+                                      const char *old_table_name,
+                                      const char *new_db_name,
+                                      const char *new_table_name);
+
+/**
+  Notify/get permission from storage engine before or after execution of
+  TRUNCATE TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was TRUNCATEd.
+  @param notification_type  Indicates whether this is pre-TRUNCATE TABLE or
+                            post-TRUNCATE TABLE notification.
+*/
+typedef bool (*notify_truncate_table_t)(THD *thd, const MDL_key *mdl_key,
+                                        ha_notification_type notification_type);
+
+/**
   @brief
   Initiate master key rotation
 
@@ -2685,6 +2725,8 @@ struct handlerton {
   replace_native_transaction_in_thd_t replace_native_transaction_in_thd;
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
+  notify_rename_table_t notify_rename_table;
+  notify_truncate_table_t notify_truncate_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   redo_log_set_state_t redo_log_set_state;
 
@@ -2843,6 +2885,16 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
 /** Engine supports Generated invisible primary key. */
 constexpr const decltype(
     handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
+
+/** Whether the secondary engine supports DDLs. No meaning if the engine is not
+ * secondary. */
+#define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 19)
+
+inline bool secondary_engine_supports_ddl(const handlerton *hton) {
+  assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
+
+  return (hton->flags & HTON_SECONDARY_ENGINE_SUPPORTS_DDL) != 0;
+}
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
@@ -7029,6 +7081,9 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned, MEM_ROOT *alloc,
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error);
 
+bool ha_secondary_engine_supports_ddl(
+    THD *thd, const LEX_CSTRING &secondary_engine) noexcept;
+
 /**
   Get default handlerton, if handler supplied is null.
 
@@ -7268,8 +7323,11 @@ bool ha_is_storage_engine_disabled(handlerton *se_engine);
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                              ha_notification_type notification_type,
                              bool *victimized);
-bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
-                           ha_notification_type notification_type);
+bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
+                         ha_notification_type notification_type,
+                         ha_ddl_type ddl_type, const char *old_db_name,
+                         const char *old_table_name, const char *new_db_name,
+                         const char *new_table_name);
 
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
