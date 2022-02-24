@@ -14920,18 +14920,6 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   return 0;
 }
 
-int ha_innobase::check_for_upgrade(HA_CHECK_OPT *) {
-  const bool file_size_is_set = innodb_log_file_size_is_set();
-  const bool n_files_is_set = innodb_log_n_files_is_set();
-  if (file_size_is_set) {
-    return HA_ADMIN_INVALID;
-  }
-  if (n_files_is_set) {
-    return HA_ADMIN_INVALID;
-  }
-  return HA_ADMIN_OK;
-}
-
 /** Set Engine specific data to dd::Table object for upgrade.
 @param[in,out]  thd             thread handle
 @param[in]      db_name         database name

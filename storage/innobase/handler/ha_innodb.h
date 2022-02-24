@@ -279,10 +279,6 @@ class ha_innobase : public handler {
                                  const List<Create_field> *, const KEY *, uint,
                                  dd::Table *dd_table) override;
 
-  /** Checks if upgrade could be performed (in general and for given table).
-  @retval 0 on success (if upgrade is allowed) */
-  int check_for_upgrade(HA_CHECK_OPT *) override;
-
   /** Set Engine specific data to dd::Table object for upgrade.
   @param[in,out]  thd           thread handle
   @param[in]    db_name         database name
