@@ -212,7 +212,6 @@ bool Strict_error_handler::handle_condition(
     case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
     case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
     case ER_INVALID_JSON_VALUE_FOR_CAST:
-    case ER_INVALID_CHARACTER_STRING:
     case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
       if ((*level == Sql_condition::SL_WARNING) &&
           (!thd->get_transaction()->cannot_safely_rollback(
