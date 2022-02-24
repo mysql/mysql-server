@@ -51,7 +51,7 @@ EOF
 
 --source $MYSQLD_DATADIR/found.inc
 
-let MYSQLD_EXTRA_ARGS = --debug='d,log_header_checksum_disabled';
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
 --error 1,42

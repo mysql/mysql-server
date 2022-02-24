@@ -23,7 +23,7 @@ perl;
     log_file_set_flags($fpath, $flags);
 EOF
 
-let MYSQLD_EXTRA_ARGS = --debug='d,log_header_checksum_disabled';
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
 
 --error 1,42
 --exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS

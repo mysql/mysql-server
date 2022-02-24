@@ -31,7 +31,7 @@ EOF
 let SEARCH_PATTERN = Invalid redo log header checksum;
 --source include/search_pattern.inc
 
-let MYSQLD_EXTRA_ARGS = --debug='d,log_header_checksum_disabled';
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
 
 # Now, let's assume that the invalid start_lsn was written by broken InnoDB instance (so header has valid checksum)
 --error 1,42

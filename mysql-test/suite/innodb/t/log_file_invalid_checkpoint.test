@@ -53,7 +53,7 @@ let SEARCH_PATTERN = No valid checkpoint found \(corrupted redo log\). You can t
 
 --move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_file_invalid_checkpoint-1.err
 
-let MYSQLD_EXTRA_ARGS = --debug='d,log_header_checksum_disabled';
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
 
 # Now, let's assume that the invalid checkpoint_lsn was written by broken InnoDB instance (so header has valid checksum)
 --error 1,42
