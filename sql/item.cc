@@ -488,9 +488,8 @@ longlong Item::val_int_from_string() {
   StringBuffer<MY_INT64_NUM_DECIMAL_DIGITS + 1> tmp;
   const String *res = val_str(&tmp);
   if (res == nullptr) return 0;
-  int err_not_used;
-  return my_strntoll(res->charset(), res->ptr(), res->length(), 10, nullptr,
-                     &err_not_used);
+  return longlong_from_string_with_check(
+      res->charset(), res->ptr(), res->ptr() + res->length(), unsigned_flag);
 }
 
 type_conversion_status Item::save_time_in_field(Field *field) {
@@ -3498,7 +3497,7 @@ longlong longlong_from_string_with_check(const CHARSET_INFO *cs,
 }
 
 longlong Item_string::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   return longlong_from_string_with_check(str_value.charset(), str_value.ptr(),
                                          str_value.ptr() + str_value.length(),
                                          -1);  // ignore sign issues

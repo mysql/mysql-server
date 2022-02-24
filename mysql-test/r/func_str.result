@@ -5661,3 +5661,16 @@ NULL
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT HEX(-1) AS f;
 DROP TABLE t1;
+#
+# Bug #33881339 Default collation causes inconsistent results
+#
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES(NULL);
+UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('');
+ERROR 22007: Truncated incorrect INTEGER value: ''
+DROP TABLE t0;
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES(NULL);
+UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('' COLLATE 'utf8mb4_0900_ai_ci');
+ERROR 22007: Truncated incorrect INTEGER value: ''
+DROP TABLE t0;
