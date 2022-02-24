@@ -2276,38 +2276,3 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	3020	Invalid argument for logarithm
 set @a:= @b;
 do convert(@a using latin1);
-#
-# Bug #33830765 Explicit CAST allows to insert invalid
-#               character strings in strict mode
-#
-CREATE TABLE utf8(v VARCHAR(10) CHARACTER SET utf8mb4);
-INSERT INTO utf8 VALUES(x'd800');
-ERROR HY000: Incorrect string value: '\xD8\x00' for column 'v' at row 1
-INSERT INTO utf8 VALUES(CAST(x'd800' AS CHAR(10) CHARACTER SET utf8mb4));
-ERROR HY000: Invalid utf8mb4 character string: 'D800'
-SELECT CAST(x'd800' AS CHAR(10) CHARACTER SET utf8mb4);
-CAST(x'd800' AS CHAR(10) CHARACTER SET utf8mb4)
-NULL
-Warnings:
-Warning	1300	Invalid utf8mb4 character string: 'D800'
-CREATE TABLE utf16(v VARCHAR(10) CHARACTER SET utf16);
-INSERT INTO utf16 VALUES(x'd800');
-ERROR HY000: Incorrect string value: '\xD8\x00' for column 'v' at row 1
-INSERT INTO utf16 VALUES(CAST(x'd800' AS CHAR(10) CHARACTER SET utf16));
-ERROR HY000: Invalid utf16 character string: 'D800'
-SELECT CAST(x'd800' AS CHAR(10) CHARACTER SET utf16);
-CAST(x'd800' AS CHAR(10) CHARACTER SET utf16)
-NULL
-Warnings:
-Warning	1300	Invalid utf16 character string: 'D800'
-CREATE TABLE utf32(v VARCHAR(10) CHARACTER SET utf32);
-INSERT INTO utf32 VALUES(x'd8000000');
-ERROR HY000: Incorrect string value: '\xD8\x00\x00\x00' for column 'v' at row 1
-INSERT INTO utf32 VALUES(CAST(x'd8000000' AS CHAR(10) CHARACTER SET utf32));
-ERROR HY000: Invalid utf32 character string: 'D80000'
-SELECT CAST(x'd8000000' AS CHAR(10) CHARACTER SET utf32);
-CAST(x'd8000000' AS CHAR(10) CHARACTER SET utf32)
-NULL
-Warnings:
-Warning	1300	Invalid utf32 character string: 'D80000'
-DROP TABLE utf8, utf16, utf32;
