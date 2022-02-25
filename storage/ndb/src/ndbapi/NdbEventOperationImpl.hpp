@@ -618,7 +618,6 @@ public:
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
 		   * else same as in EventImpl
 		   */
-  Uint32 m_eventId;
   Uint32 m_oid;
 
   /*

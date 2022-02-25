@@ -137,7 +137,6 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   m_next = 0;
   m_prev = 0;
 
-  m_eventId = 0;
   theFirstPkAttrs[0] = NULL;
   theCurrentPkAttrs[0] = NULL;
   theFirstPkAttrs[1] = NULL;
@@ -162,8 +161,6 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   // also make sure we only have one listener on each event
 
   m_eventImpl = &evnt;
-
-  m_eventId = m_eventImpl->m_eventId;
 
   m_oid= m_ndb->theImpl->mapRecipient(this);
 
@@ -1188,7 +1185,7 @@ void
 NdbEventOperationImpl::print()
 {
   int i;
-  ndbout << "EventId " << m_eventId << "\n";
+  ndbout << "EventId " << m_eventImpl->m_eventId << "\n";
 
   for (i = 0; i < 2; i++) {
     NdbRecAttr *p = theFirstPkAttrs[i];
@@ -3282,7 +3279,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     Gci_container* bucket= find_bucket(gci);
     
     DBUG_PRINT_EVENT("info", ("data insertion in eventId %d 0x%x %s",
-                              op->m_eventId, m_ndb->getReference(),
+                              op->m_eventImpl->m_eventId, m_ndb->getReference(),
                               m_ndb->getNdbObjectName()));
     DBUG_PRINT_EVENT("info", ("gci=%d tab=%d op=%d node=%d",
                               sdata->gci, sdata->tableId, 
@@ -3405,7 +3402,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   if ((Uint32)op->m_eventImpl->mi_type & (1U << operation))
   {
     DBUG_PRINT_EVENT("info",("Data arrived before ready eventId %d 0x%x %s",
-                             op->m_eventId, m_ndb->getReference(),
+                             op->m_eventImpl->m_eventId, m_ndb->getReference(),
                              m_ndb->getNdbObjectName()));
     DBUG_RETURN_EVENT(0);
   }
