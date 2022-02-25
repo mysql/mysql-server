@@ -131,6 +131,8 @@ Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
 Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs = nullptr;
+Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects = nullptr;
+malloc_unordered_map<string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
 std::vector<Role_id> *g_mandatory_roles = nullptr;
@@ -697,6 +699,22 @@ void ACL_USER_ABAC::set_attribute_value(std::string attrib, std::string value) {
 std::string ACL_USER_ABAC::get_attribute_value(std::string attrib){
   return attrib_map[attrib];
 }
+
+void ABAC_OBJECT::set_db(string db_name_arg) {
+  db_name = db_name_arg;
+}
+
+void ABAC_OBJECT::set_table(string table_name_arg) {
+  table_name = table_name_arg;
+}
+
+void ABAC_OBJECT::set_attribute_value(std::string attrib_arg, std::string value_arg) {
+  attrib_map[attrib_arg] = value_arg;
+}
+
+std::string ABAC_OBJECT::get_attribute_value(std::string attrib_arg) {
+  return attrib_map[attrib_arg];
+}
 /**
   Append the authorization id for the user
 
@@ -1095,6 +1113,22 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
   }
 
   return false;
+}
+
+ABAC_TABLE_GRANT::ABAC_TABLE_GRANT(std::string db_arg, 
+    std::string user_arg, std::string table_arg, const char *host_arg) {
+  db_name = db_arg;
+  table_name = table_arg;
+  privs = 0;
+  user = user_arg;
+  host.update_hostname(host_arg);
+  hash_key = user;
+  hash_key.push_back('\0');
+  hash_key.append(string(host.hostname));
+  hash_key.push_back('\0');
+  hash_key.append(db_name);
+  hash_key.push_back('\0');
+  hash_key.append(table_arg);
 }
 
 /**
@@ -2002,7 +2036,6 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   } 
   std::cout<<"user_attrib_val table processed\n";
 
-  /* Get privileges using abac */
   if (tables[7].table) {
     iterator = init_table_iterator(thd, table = tables[7].table,
                                    /*ignore_not_found_rows=*/false,
@@ -2010,11 +2043,68 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while(!(read_rec_errcode = iterator->Read())) {
-      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_NAME]));
-      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_VAL]));
+      std::string db_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
+      std::string table_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
+      int object_abac_index_in_list = -1;
+      ABAC_OBJECT object_abac;
+      for (int i = 0; i < (int)(abac_objects->size()); i++) {
+        if ((*abac_objects)[i].db_name == db_name && (*abac_objects)[i].table_name == table_name) {
+          object_abac = (*abac_objects)[i];
+          object_abac_index_in_list = i;
+        }
+      }
+      if (object_abac_index_in_list == -1) {
+        object_abac = ABAC_OBJECT();
+        object_abac.set_db(db_name);
+        object_abac.set_table(table_name);
+      }
+      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
+      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
+      object_abac.set_attribute_value(attrib, value);
+      if (object_abac_index_in_list == -1) {
+        abac_objects->push_back(object_abac);
+      } else {
+        abac_objects->assign_at(object_abac_index_in_list, object_abac);
+      }
+    }
+    abac_objects->shrink_to_fit();
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+  /* Get privileges using abac */
+  if (tables[8].table) {
+    iterator = init_table_iterator(thd, table = tables[8].table,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while(!(read_rec_errcode = iterator->Read())) {
+      std::string user_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_NAME]));
+      std::string user_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_VAL]));
+      std::string obj_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_NAME]));
+      std::string obj_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_VAL]));
       for (int i = 0; i < (int)acl_user_abacs->size(); i++) {
-        if (acl_user_abacs->at(i).get_attribute_value(attrib) == value) {
-          (*acl_user_abacs)[i].access |= SELECT_ACL;
+        if (acl_user_abacs->at(i).get_attribute_value(user_attrib) == user_attrib_value) {
+          string hash_prefix = string(acl_user_abacs->at(i).user);
+          hash_prefix.push_back('\0');
+          hash_prefix.append(string(acl_user_abacs->at(i).host.hostname));
+          for (int j = 0; j < (int)abac_objects->size(); j++) {
+            if (abac_objects->at(j).get_attribute_value(obj_attrib) == obj_attrib_value) {
+              string hash = hash_prefix;
+              hash.push_back('\0');
+              hash.append(abac_objects->at(j).db_name);
+              hash.push_back('\0');
+              hash.append(abac_objects->at(j).table_name);
+              hash.push_back('\0');
+              if (!abac_table_priv_hash->count(hash)) {
+                ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(abac_objects->at(j).db_name,
+                    string(acl_user_abacs->at(i).user), abac_objects->at(j).table_name, 
+                        acl_user_abacs->at(i).host.hostname);
+                table_grant->privs |= SELECT_ACL;
+                abac_table_priv_hash->emplace(hash, table_grant);
+              }
+            }
+          }
         }
       }
     }
@@ -2057,6 +2147,10 @@ void acl_free(bool end /*= false*/) {
   acl_check_hosts = nullptr;
   delete acl_user_abacs;
   acl_user_abacs = nullptr;
+  delete abac_objects;
+  abac_objects = nullptr;
+  delete abac_table_priv_hash;
+  abac_table_priv_hash = nullptr;
   if (!end)
     clear_and_init_db_cache();
   else {
@@ -2236,6 +2330,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *old_acl_proxy_users =
       nullptr;
   Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *old_acl_user_abacs = nullptr; 
+  Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *old_abac_objects = nullptr;
+  malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
+
   Granted_roles_graph *old_granted_roles = nullptr;
   Default_roles *old_default_roles = nullptr;
   Role_index_map *old_authid_to_vertex = nullptr;
@@ -2261,7 +2358,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     To avoid deadlocks we should obtain table locks before obtaining
     acl_cache->lock mutex.
   */
-  TABLE_LIST tables[8] = {
+  TABLE_LIST tables[9] = {
       TABLE_LIST("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
       /*
         For a TABLE_LIST element that is inited with a lock type TL_READ
@@ -2280,6 +2377,8 @@ bool acl_reload(THD *thd, bool mdl_locked) {
       TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY),
       
       TABLE_LIST("mysql", "user_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "object_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
       
       TABLE_LIST("mysql", "pol", TL_READ, MDL_SHARED_READ_ONLY)};
   std::cout<<"Table list created\n";
@@ -2290,13 +2389,14 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   tables[4].next_local = tables[4].next_global = tables + 5;
   tables[5].next_local = tables[5].next_global = tables + 6;
   tables[6].next_local = tables[6].next_global = tables + 7;
+  tables[7].next_local = tables[7].next_global = tables + 8;
 
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       tables[3].open_type = tables[4].open_type = tables[5].open_type =
-          tables[6].open_type = tables[7].open_type =
+          tables[6].open_type = tables[7].open_type = tables[8].open_type =
               OT_BASE_ONLY;
   tables[3].open_strategy = tables[4].open_strategy = tables[5].open_strategy =
-      tables[6].open_strategy = tables[7].open_strategy =
+      tables[6].open_strategy = tables[7].open_strategy = tables[8].open_strategy =
           TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, flags)) {
@@ -2321,6 +2421,8 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   old_acl_proxy_users = acl_proxy_users;
   old_acl_restrictions = move(acl_restrictions);
   old_acl_user_abacs = acl_user_abacs;
+  old_abac_objects = abac_objects;
+  old_abac_table_priv_hash = abac_table_priv_hash;
   swap_role_cache();
   roles_init();
 
@@ -2330,7 +2432,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   acl_proxy_users = new Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE>(
       key_memory_acl_mem);
   acl_user_abacs = new Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+  abac_objects = new Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_restrictions = make_unique<Acl_restrictions>();
+  abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
 
   // acl_load() overwrites global_acl_memory, so we need to free it.
   // However, we can't do that immediately, because acl_load() might fail,
@@ -2356,9 +2460,11 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     acl_users = old_acl_users;
     acl_dbs = old_acl_dbs;
     acl_user_abacs = old_acl_user_abacs;
+    abac_objects = old_abac_objects;
     acl_proxy_users = old_acl_proxy_users;
     global_acl_memory = move(old_mem);
     acl_restrictions = move(old_acl_restrictions);
+    abac_table_priv_hash = old_abac_table_priv_hash;
     // Revert to the old role caches
     swap_role_cache();
     // Old caches must be pointing to the global role caches right now
@@ -2374,6 +2480,8 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     delete old_acl_proxy_users;
     delete old_dyn_priv_map;
     delete old_acl_user_abacs;
+    delete old_abac_objects;
+    delete old_abac_table_priv_hash;
     // Delete the old role caches
     delete_old_role_cache();
     old_mem.Clear();

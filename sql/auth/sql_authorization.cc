@@ -1466,6 +1466,30 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       }
     }
   }  // end for
+  // Generate table access maps for abac
+  for (const auto &key_and_value : *abac_table_priv_hash) {
+    ABAC_TABLE_GRANT *abac_grant = key_and_value.second;
+    std::string user = std::string(acl_user->user);
+    std::string host_name = std::string(acl_user->host.get_host());
+    if (user == abac_grant->user && 
+        host_name == std::string(abac_grant->host.get_host())) { // Need to implement case insensitive checking
+      if (abac_grant->privs != 0) {
+        String q_name;
+        const THD *thd = table_map->get_thd();
+        append_identifier(thd, &q_name, (abac_grant->db_name).c_str(),
+                          strlen((abac_grant->db_name).c_str()));
+        q_name.append(".");
+        append_identifier(thd, &q_name, (abac_grant->table_name).c_str(),
+                          strlen((abac_grant->table_name).c_str()));
+        Grant_table_aggregate agg = (*table_map)[std::string(q_name.c_ptr())];
+        // std::string q_name = abac_grant->db_name + "." + abac_grant->table_name;
+        // Grant_table_aggregate agg = (*table_map)[q_name];
+        agg.table_access |= abac_grant->privs;
+        agg.cols |= abac_grant->privs;
+        (*table_map)[std::string(q_name.c_ptr())] = agg;
+      }
+    }
+  }
 }
 
 void get_dynamic_privileges(ACL_USER *acl_user, Dynamic_privileges *acl) {
@@ -1527,18 +1551,18 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
   }  // end for
 }
 
-void evaluate_access_through_abac(ACL_USER *acl_user, ulong *access) {
-  DBUG_TRACE;
-  if (acl_user_abacs == nullptr) {
-    DBUG_PRINT("error", ("acl_map couldnot be constructed for abac"));
-    return;
-  }
-  for (ACL_USER_ABAC acl_user_abac: (*acl_user_abacs)) {
-    if (!strcmp(acl_user_abac.user, acl_user->user) && !strcmp(acl_user_abac.host.hostname, acl_user->host.hostname)) {
-      *access |= acl_user_abac.access;
-    }
-  }
-}
+// void evaluate_access_through_abac(ACL_USER *acl_user, ulong *access) {
+//   DBUG_TRACE;
+//   if (acl_user_abacs == nullptr) {
+//     DBUG_PRINT("error", ("acl_map couldnot be constructed for abac"));
+//     return;
+//   }
+//   for (ACL_USER_ABAC acl_user_abac: (*acl_user_abacs)) {
+//     if (!strcmp(acl_user_abac.user, acl_user->user) && !strcmp(acl_user_abac.host.hostname, acl_user->host.hostname)) {
+//       *access |= acl_user_abac.access;
+//     }
+//   }
+// }
 
 /**
   A graph visitor used for doing breadth-first traversal of the global role
@@ -3825,11 +3849,13 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       want_access = orig_want_access;
       want_access &= ~sctx->master_access(db_name);
       assert(want_access != 0);
-
+      //Add code here
       GRANT_TABLE *grant_table = table_hash_search(
           sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
           t_ref->get_table_name(), false);
 
+      // ABAC_TABLE_GRANT *abac_grant = abac_table_search(std::string(sctx->priv_user().str),
+      //     std::string(sctx->host().str), std::string(db_name), std::string(t_ref->get_table_name()));
       if (!grant_table) {
         DBUG_PRINT("info",
                    ("Table %s didn't exist in the legacy table acl cache",
@@ -4595,8 +4621,6 @@ void get_privilege_access_maps(
 
   DBUG_PRINT("info", ("Global access for acl_user %s@%s is %lu", acl_user->user,
                       acl_user->host.get_host(), acl_user->access));
-  //Get access through abac
-  evaluate_access_through_abac(acl_user, access);
   // Get database access
   get_database_access_map(acl_user, db_map, db_wild_map);
   // Get table- and column privileges
@@ -7520,3 +7544,22 @@ bool check_system_user_privilege(THD *thd, List<LEX_USER> list) {
   }
   return (false);
 }
+
+// Function to search for key in abac_table_priv_hash map
+// ABAC_TABLE_GRANT *abac_table_search(std::string user, std::string host_name, 
+//     std::string db_name, std::string table_name) {
+//   std::string key;
+//   key.append(user);
+//   key.push_back('\0');
+//   key.append(host_name);
+//   key.push_back('\0');
+//   key.append(db_name);
+//   key.push_back('\0');
+//   key.append(table_name);
+//   key.push_back('\0');
+//   ABAC_TABLE_GRANT *found = nullptr;
+//   if (abac_table_priv_hash->count(key)) {
+//     found = (*abac_table_priv_hash)[key];
+//   }
+//   return found;
+// }

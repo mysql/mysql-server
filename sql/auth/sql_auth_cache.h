@@ -359,8 +359,31 @@ class ACL_USER_ABAC : public ACL_ACCESS {
     user_attribute_map attrib_map;
     void set_user(MEM_ROOT *mem, const char *user_arg);
     void set_host(MEM_ROOT *mem, const char *host_arg);
+    void set_attribute_value(std::string attrib_arg, std::string value_arg);
+    std::string get_attribute_value(std::string attrib_arg);
+};
+
+class ABAC_OBJECT {
+  public:
+    std::string db_name;
+    std::string table_name;
+    object_attribute_map attrib_map;
+    void set_db(std::string db_name_arg);
+    void set_table(std::string table_name_arg);
     void set_attribute_value(std::string attrib, std::string value);
     std::string get_attribute_value(std::string attrib);
+};
+
+class ABAC_RULE {
+  public:
+    char *id;
+    user_attribute_map user_attrib_map;
+    object_attribute_map object_attrib_map;
+    void set_id(MEM_ROOT *mem, const char *id_arg);
+    void set_user_attribute(std::string attrib, std::string value);
+    void set_object_attribute(std::string attrib, std::string value);
+    std::string get_user_attribute_value(std::string attrib);
+    std::string get_object_attribute_value(std::string attrib);
 };
 
 class ACL_PROXY_USER : public ACL_ACCESS {
@@ -488,6 +511,16 @@ class GRANT_TABLE : public GRANT_NAME {
   bool ok() override { return privs != 0 || cols != 0; }
 };
 
+class ABAC_TABLE_GRANT {
+  public:
+    std::string db_name;
+    std::string user;
+    std::string table_name;
+    ACL_HOST_AND_IP host;
+    ulong privs;
+    std::string hash_key;
+    ABAC_TABLE_GRANT(std::string db_arg, std::string user_arg, std::string table_arg, const char *host_arg);
+};
 /*
  * A default/no-arg constructor is useful with containers-of-containers
  * situations in which a two-allocator scoped_allocator_adapter is not enough.
@@ -526,6 +559,8 @@ extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
 extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
 extern Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs;
 extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
+extern Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects;
+extern malloc_unordered_map<std::string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
 extern std::unique_ptr<malloc_unordered_multimap<
     std::string, unique_ptr_destroy_only<GRANT_TABLE>>>
     column_priv_hash;

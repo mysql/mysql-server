@@ -205,11 +205,24 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @cmd = "CREATE TABLE IF NOT EXISTS pol 
-(
+SET @cmd = "CREATE TABLE IF NOT EXISTS object_attrib_val (
+  Db_name varchar(64) binary DEFAULT '' NOT NULL,
+  Table_name varchar(64) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+  Attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
+  Attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
+  PRIMARY KEY (Db_name, Table_name, Attrib_name)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Object attribute values' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
+SET @str = CONCAT(@CMD, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS pol (
   User_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
   User_attrib_val varchar(10) CHARACTER SET ASCII  NOT NULL,
-  PRIMARY KEY(User_attrib_name, User_attrib_val)
+  Object_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
+  Object_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
+  PRIMARY KEY (User_attrib_name, User_attrib_val, Object_attrib_name, Object_attrib_val)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='ABAC Policies' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
