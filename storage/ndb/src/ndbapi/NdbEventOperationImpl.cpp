@@ -103,9 +103,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   m_stop_gci(),
   m_allow_empty_update(false)
 {
-  DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
+  DBUG_TRACE;
   init();
-  DBUG_VOID_RETURN;
 }
 
 NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
@@ -119,16 +118,14 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
   m_stop_gci(),
   m_allow_empty_update(false)
 {
-  DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
+  DBUG_TRACE;
   init();
-  DBUG_VOID_RETURN;
 }
 
 void
 NdbEventOperationImpl::init()
 {
-  DBUG_ENTER("NdbEventOperationImpl::init");
-
+  DBUG_TRACE;
   m_magic_number = 0;
   mi_type = 0;
   m_change_mask = 0;
@@ -176,16 +173,15 @@ NdbEventOperationImpl::init()
   m_has_error= 0;
 
   DBUG_PRINT("exit",("this: %p  oid: %u", this, m_oid));
-  DBUG_VOID_RETURN;
 }
 
 NdbEventOperationImpl::~NdbEventOperationImpl()
 {
-  DBUG_ENTER("NdbEventOperationImpl::~NdbEventOperationImpl");
+  DBUG_TRACE;
   m_magic_number= 0;
 
   if (m_oid == ~(Uint32)0)
-    DBUG_VOID_RETURN;
+    return;
 
   stop();
 
@@ -213,8 +209,6 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
     // NOTE! Destroys the Event which is owned by the NdbEventImpl pointer
     delete m_eventImpl->m_facade;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 NdbEventOperation::State
@@ -4263,7 +4257,7 @@ NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
 {
-  DBUG_ENTER("NdbEventBuffer::createEventOperation");
+  DBUG_TRACE;
 
   if (m_ndb->theImpl->m_ev_op == NULL)
   {
@@ -4277,19 +4271,19 @@ NdbEventBuffer::createEventOperation(const char* eventName,
   if (!event)
   {
     theError.code= dict->getNdbError().code;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
 
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, event);
   if (tOp == 0)
   {
     theError.code= 4000;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   if (tOp->getState() != NdbEventOperation::EO_CREATED) {
     theError.code= tOp->getNdbError().code;
     delete tOp;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   // add user reference
   // removed in dropEventOperation
@@ -4298,26 +4292,26 @@ NdbEventBuffer::createEventOperation(const char* eventName,
                       getEventOperationImpl(tOp)->m_ref_count,
                       getEventOperationImpl(tOp), m_ndb->getReference(),
                       m_ndb->getNdbObjectName()));
-  DBUG_RETURN(tOp);
+  return tOp;
 }
 
 NdbEventOperationImpl*
 NdbEventBuffer::createEventOperationImpl(NdbEventImpl* event,
                                          NdbError &theError)
 {
-  DBUG_ENTER("NdbEventBuffer::createEventOperationImpl");
+  DBUG_TRACE;
   NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, event);
   if (tOp == 0)
   {
     theError.code= 4000;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
   if (tOp->getState() != NdbEventOperation::EO_CREATED) {
     theError.code= tOp->getNdbError().code;
     delete tOp;
-    DBUG_RETURN(NULL);
+    return nullptr;
   }
-  DBUG_RETURN(tOp);
+  return tOp;
 }
 
 void
