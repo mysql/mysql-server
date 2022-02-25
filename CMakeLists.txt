@@ -1285,9 +1285,7 @@ ENDIF()
 
 # Enable "-Og -fno-inline" for ordinary Debug builds.
 # Note that this may optimize away local stack variables.
-# Do not enable it for WITH_NDBCLUSTER, several build breaks at
-# this optimization level.
-IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG AND NOT WITH_NDBCLUSTER
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG
     AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND)
   # ON by default in pushbuild, to save time running Debug test suites.
   # man clang:
