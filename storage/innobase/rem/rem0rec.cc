@@ -242,6 +242,22 @@ ulint rec_get_n_extern_new(
   return (n_extern);
 }
 
+bool is_store_version(const dict_index_t *index, size_t n_tuple_fields) {
+  if (!index->has_instant_cols_or_row_versions()) return false;
+
+  ut_ad(index->table->has_row_versions() ||
+        index->table->is_upgraded_instant());
+
+  ut_ad(n_tuple_fields > 0);
+  /* From an UPDATE when not materializing INSTANT defaults */
+  if (n_tuple_fields < index->n_fields) {
+    ut_ad(index->has_instant_cols());
+    return false;
+  }
+
+  return true;
+}
+
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @param[in]      index           record descriptor, dict_table_is_comp() is
                                 assumed to hold, even if it does not
@@ -284,11 +300,16 @@ ulint rec_get_n_extern_new(
     switch (UNIV_EXPECT(*status, REC_STATUS_ORDINARY)) {
       case REC_STATUS_ORDINARY:
         ut_ad(!temp && n_fields > 0);
-        if (index->has_row_versions()) {
-          /* We need only 1 byte now to store the version. */
-          extra_size += 1;
-        } else if (index->has_instant_cols()) {
-          extra_size += rec_get_n_fields_length(n_fields);
+        if (index->has_instant_cols_or_row_versions()) {
+          ut_ad(index->table->has_row_versions() ||
+                index->table->is_upgraded_instant());
+          if (is_store_version(index, n_fields)) {
+            /* We need only 1 byte now to store the version. */
+            extra_size += 1;
+          } else {
+            ut_ad(index->has_instant_cols());
+            extra_size += rec_get_n_fields_length(n_fields);
+          }
         }
         break;
       case REC_STATUS_NODE_PTR:
@@ -521,7 +542,6 @@ static rec_t *rec_convert_dtuple_to_rec_old(byte *buf,
 
   ulint n_fields = dtuple_get_n_fields(dtuple);
   ulint data_size = dtuple_get_data_size(dtuple, 0);
-  bool is_update = (n_fields < index->n_fields);
 
   ut_ad(n_fields > 0);
 
@@ -532,23 +552,16 @@ static rec_t *rec_convert_dtuple_to_rec_old(byte *buf,
   bool store_version = false;
   {
     /* dtuple->info bit contains info about record status. */
-    uint16_t status = (dtuple_get_info_bits(dtuple) & 0x03UL);
-    bool is_leaf_record = false;
-    if (status == REC_STATUS_ORDINARY) {
-      is_leaf_record = true;
-    }
-
-    if (index->has_instant_cols_or_row_versions() && is_leaf_record) {
-      ut_ad(index->table->current_row_version > 0 ||
-            index->table->is_upgraded_instant());
-
-      if (!is_update) {
-        /* We need 1 byte to store the version info in record header */
-        rec++;
-        store_version = true;
-      }
+    bool is_leaf_record =
+        (dtuple_get_info_bits(dtuple) & 0x03UL) == REC_STATUS_ORDINARY;
+    if (is_leaf_record &&
+        is_store_version(index, dtuple_get_n_fields(dtuple))) {
+      /* We need 1 byte to store the version info in record header */
+      rec++;
+      store_version = true;
     }
   }
+
 #ifdef UNIV_DEBUG
   /* Suppress Valgrind warnings of ut_ad()
   in mach_write_to_1(), mach_write_to_2() et al. */
@@ -694,7 +707,6 @@ static inline bool rec_convert_dtuple_to_rec_comp(
       n_null = index->n_nullable;
     }
   }
-  bool is_update = (n_fields < index->n_fields);
 
   byte *nulls = nullptr;
   bool instant = false;
@@ -731,18 +743,10 @@ static inline bool rec_convert_dtuple_to_rec_comp(
         n_node_ptr_field = ULINT_UNDEFINED;
 
         if (index->has_instant_cols_or_row_versions()) {
-          ut_ad(index->table->current_row_version > 0 ||
+          ut_ad(index->table->has_row_versions() ||
                 index->table->is_upgraded_instant());
 
-          if (is_update) {
-            ut_ad(index->has_instant_cols());
-            if (index->is_tuple_instant_format(n_fields)) {
-              /* Not materializing instant default. So need to store in V1 */
-              uint32_t n_fields_len = rec_set_n_fields(rec, n_fields);
-              nulls -= n_fields_len;
-              instant = true;
-            }
-          } else {
+          if (is_store_version(index, n_fields)) {
             /* Store current version info in one byte. */
             rec_set_instant_row_version_new(rec,
                                             index->table->current_row_version);
@@ -750,6 +754,14 @@ static inline bool rec_convert_dtuple_to_rec_comp(
             /* Shift pointer to null byte before the version */
             nulls -= 1;
             instant = true;
+          } else {
+            ut_ad(index->has_instant_cols());
+            if (index->is_tuple_instant_format(n_fields)) {
+              /* Not materializing instant default. So need to store in V1 */
+              uint32_t n_fields_len = rec_set_n_fields(rec, n_fields);
+              nulls -= n_fields_len;
+              instant = true;
+            }
           }
         }
         break;

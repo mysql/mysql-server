@@ -757,13 +757,15 @@ static inline ulint rec_get_converted_size(const dict_index_t *index,
         dtuple->fields, dtuple->n_fields, nullptr));
   }
 
+  /* Record is in REDUNDANT format */
   data_size = dtuple_get_data_size(dtuple, 0);
 
   extra_size = rec_get_converted_extra_size(
       data_size, dtuple_get_n_fields(dtuple), dtuple->has_ext());
 
-  /* If table has row versions, we need 1 byte for version info */
-  if (index->table->has_row_versions()) {
+  bool is_leaf_rec =
+      (dtuple_get_info_bits(dtuple) & 0x03UL) == REC_STATUS_ORDINARY;
+  if (is_leaf_rec && is_store_version(index, dtuple_get_n_fields(dtuple))) {
     extra_size++;
   }
 
