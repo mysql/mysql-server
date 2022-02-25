@@ -245,14 +245,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
 int
 NdbBlob::getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName)
 {
-  NdbEventImpl* e = anNdb->theDictionary->m_impl.getEvent(eventName);
+  std::unique_ptr<NdbEventImpl> e(
+          anNdb->theDictionary->m_impl.getEvent(eventName));
   if (e == NULL)
     return -1;
   NdbColumnImpl* c = e->m_tableImpl->getColumn(columnName);
   if (c == NULL)
     return -1;
-  getBlobEventName(bename, e, c);
-  delete e; // it is from new NdbEventImpl
+  getBlobEventName(bename, e.get(), c);
   return 0;
 }
 

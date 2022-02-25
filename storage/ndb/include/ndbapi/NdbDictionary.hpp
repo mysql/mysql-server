@@ -25,9 +25,13 @@
 #ifndef NdbDictionary_H
 #define NdbDictionary_H
 
+#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#include <memory>
+#endif
+
 #include <ndb_types.h>
 
-class Ndb;
+        class Ndb;
 struct CHARSET_INFO;
 
 /* Forward declaration only. */
@@ -2484,11 +2488,19 @@ public:
     int dropEvent(const char * eventName, int force= 0);
     
     /**
-     * Get event with given name.
+     * Get event instance for given name.
      * @param eventName  Name of event to get.
      * @return an Event if successful, otherwise NULL.
+     *
+     * @note The returned Event need to be released with `releaseEvent`
      */
     const Event * getEvent(const char * eventName);
+
+    /**
+     * Release event previously returned from getEvent()
+     * @param event    The event to release
+     */
+    static void releaseEvent(const Event* event);
 
     /**
      * List defined events
@@ -2973,6 +2985,15 @@ public:
                                     const void* val);
   static
   class NdbOut& printColumnTypeDescription(class NdbOut &, const Column &);
+
+#if __cplusplus >= 201103L  || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+  // RAII support for the Event returned from Dictionary::getEvent()
+  struct Event_deleter {
+    void operator()(const Event *event) { Dictionary::releaseEvent(event); }
+  };
+  using Event_ptr = std::unique_ptr<const Event, Event_deleter>;
+#endif
+
   
 }; // class NdbDictionary
 

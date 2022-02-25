@@ -4267,14 +4267,14 @@ NdbEventBuffer::createEventOperation(const char* eventName,
   }
 
   NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
-  const NdbDictionary::Event *event = dict->getEvent(eventName);
+  NdbDictionary::Event_ptr event(dict->getEvent(eventName));
   if (!event)
   {
     theError.code= dict->getNdbError().code;
     return nullptr;
   }
 
-  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, event);
+  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, event.release());
   if (tOp == 0)
   {
     theError.code= 4000;

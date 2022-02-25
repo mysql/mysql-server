@@ -556,7 +556,7 @@ class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &f,
                         Ndb *ndb,
-                        const NdbDictionary::Event *myEvnt);
+                        const NdbDictionary::Event* event);
   NdbEventOperationImpl(Ndb *theNdb,
                         NdbEventImpl *evnt);
   void init();

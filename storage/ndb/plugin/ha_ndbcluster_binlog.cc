@@ -5151,13 +5151,15 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
     }
 
     /*
-      try retrieving the event, if table version/id matches, we will get
+      Try retrieving the event, if table version/id matches, we will get
       a valid event.  Otherwise we have an old event from before
     */
-    const NDBEVENT *ev;
-    if ((ev = dict->getEvent(event_name.c_str()))) {
-      delete ev;
-      return 0;
+    {
+      NdbDictionary::Event_ptr ev(dict->getEvent(event_name.c_str()));
+      if (ev) {
+        // The event already exists in NDB
+        return 0;
+      }
     }
 
     // Old event from before; an error, but try to correct it

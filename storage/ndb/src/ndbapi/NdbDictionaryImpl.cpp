@@ -6287,17 +6287,15 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_ENTER("NdbDictionaryImpl::getEvent");
   DBUG_PRINT("enter",("eventName= %s", eventName));
 
-  NdbEventImpl *ev =  new NdbEventImpl();
+  std::unique_ptr<NdbEventImpl> ev = std::make_unique<NdbEventImpl>();
   if (ev == NULL) {
     DBUG_RETURN(NULL);
   }
 
   ev->setName(eventName);
 
-  int ret = m_receiver.createEvent(*ev, 1 /* getFlag set */);
-
+  const int ret = m_receiver.createEvent(*ev, 1 /* getFlag set */);
   if (ret) {
-    delete ev;
     DBUG_RETURN(NULL);
   }
 
@@ -6309,7 +6307,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     if (tab == 0)
     {
       DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
-      delete ev;
       DBUG_RETURN(NULL);
     }
     if ((tab->m_status != NdbDictionary::Object::Retrieved) ||
@@ -6323,7 +6320,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
       if (tab == 0)
       {
         DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
-        delete ev;
         DBUG_RETURN(NULL);
       }
     }
@@ -6349,7 +6345,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
       table_version_major(ev->m_table_version))
   {
     m_error.code = 241;
-    delete ev;
     DBUG_RETURN(NULL);
   }
 
@@ -6357,7 +6352,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   {
     m_error.code = 241;
     DBUG_PRINT("error",("Invalid version, too many columns"));
-    delete ev;
     DBUG_RETURN(NULL);
   }
 
@@ -6367,7 +6361,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     {
       m_error.code = 241;
       DBUG_PRINT("error",("Invalid version, column %d out of range", id));
-      delete ev;
       DBUG_RETURN(NULL);
     }
     if (!mask.get(id))
@@ -6419,7 +6412,6 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
         {
           DBUG_PRINT("error", ("Failed to get blob event for column %u",
                                col->getColumnNo()));
-          delete ev;
 
           /**
            * DICT will return error code 723 if the event exists but
@@ -6455,11 +6447,11 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
                          blob_count,
                          blob_event_count));
     m_error.code = 241; /* Invalid schema object version */
-    delete ev;
     DBUG_RETURN(NULL);
   }
 
-  DBUG_RETURN(ev);
+  // Return the successfully created event
+  DBUG_RETURN(ev.release());
 }
 
 // ev is main event and has been retrieved previously
@@ -6478,8 +6470,7 @@ NdbDictionaryImpl::getBlobEvent(const NdbEventImpl& ev, uint col_no)
   char bename[MAX_TAB_NAME_SIZE];
   NdbBlob::getBlobEventName(bename, &ev, col);
 
-  NdbEventImpl* blob_ev = getEvent(bename, blob_tab);
-  DBUG_RETURN(blob_ev);
+  DBUG_RETURN(getEvent(bename, blob_tab));
 }
 
 void
@@ -6649,10 +6640,10 @@ NdbDictionaryImpl::dropEvent(const char * eventName, int force)
   DBUG_ENTER("NdbDictionaryImpl::dropEvent");
   DBUG_PRINT("enter", ("name:%s  force: %d", eventName, force));
 
-  NdbEventImpl *evnt = NULL;
+  std::unique_ptr<NdbEventImpl> evnt;
   if (!force)
   {
-    evnt = getEvent(eventName); // allocated
+    evnt.reset(getEvent(eventName));
     if (evnt == NULL)
     {
       if (m_error.code != 723 && // no such table
@@ -6666,12 +6657,10 @@ NdbDictionaryImpl::dropEvent(const char * eventName, int force)
   }
   if (evnt == NULL)
   {
-    evnt = new NdbEventImpl();
+    evnt = std::make_unique<NdbEventImpl>();
     evnt->setName(eventName);
   }
-  int ret = dropEvent(*evnt);
-  delete evnt;  
-  DBUG_RETURN(ret);
+  DBUG_RETURN(dropEvent(*evnt));
 }
 
 int

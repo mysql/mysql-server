@@ -31,9 +31,12 @@
 
 NdbEventOperation::NdbEventOperation(Ndb *ndb,
                                      const NdbDictionary::Event *event)
-  : m_impl(* new NdbEventOperationImpl(*this, ndb, event))
+  : m_impl(* new NdbEventOperationImpl(*this, ndb, std::move(event)))
 {
 }
+
+NdbEventOperation::NdbEventOperation(NdbEventOperationImpl &impl)
+    : m_impl(impl) {}
 
 NdbEventOperation::~NdbEventOperation()
 {
@@ -267,9 +270,6 @@ int NdbEventOperation::getNdbdNodeId() const
 /*
  * Private members
  */
-
-NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl) 
-  : m_impl(impl) {}
 
 const struct NdbError & 
 NdbEventOperation::getNdbError() const {

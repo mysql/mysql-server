@@ -1596,7 +1596,7 @@ class EventsTable : public VirtualTable {
       const override {
 
     const DictionaryList::Element * elem;
-    std::unique_ptr<const NdbDictionary::Event> event;
+    NdbDictionary::Event_ptr event;
 
     do {
       elem = ctx->nextInList(row);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,11 +294,9 @@ struct Tab {
   const Col* col;
   const NdbDictionary::Table* tab;
   char evtname[20];
-  const NdbDictionary::Event* evt;
-  Tab(uint idx) :
+  explicit Tab(uint idx) :
     col(g_col),
-    tab(0),
-    evt(0)
+    tab(nullptr)
   {
     sprintf(tabname, "tem%d", idx);
     sprintf(evtname, "tem%dev", idx);
@@ -426,7 +424,6 @@ static int
 createevent(Tab& t)
 {
   ll2("createevent: " << t.evtname);
-  t.evt = 0;
   g_dic = g_ndb->getDictionary();
   NdbDictionary::Event evt(t.evtname);
   require(t.tab != 0);
@@ -446,7 +443,8 @@ createevent(Tab& t)
   (void)g_dic->dropEvent(t.evtname);
   chkdb(g_dic->createEvent(evt) == 0);
 #endif
-  chkdb((t.evt = g_dic->getEvent(t.evtname)) != 0);
+  NdbDictionary::Event_ptr ev(g_dic->getEvent(t.evtname));
+  chkdb(ev != nullptr);
   g_dic = 0;
   return 0;
 }
@@ -466,7 +464,6 @@ dropevent(Tab& t, bool force = false)
   ll2("dropevent: " << t.evtname);
   g_dic = g_ndb->getDictionary();
   chkdb(g_dic->dropEvent(t.evtname) == 0 || force);
-  t.evt = 0;
   g_dic = 0;
   return 0;
 }

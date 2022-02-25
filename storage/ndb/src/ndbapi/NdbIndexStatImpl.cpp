@@ -2911,19 +2911,17 @@ int
 NdbIndexStatImpl::check_sysevents(Ndb* ndb)
 {
   Sys sys(this, ndb);
-  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
 
   if (check_systables(sys) == -1)
     return -1;
 
-  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
-  const NdbDictionary::Event* ev = dic->getEvent(evname);
-  if (ev == 0)
+  NdbDictionary::Event_ptr ev(
+    ndb->getDictionary()->getEvent(NDB_INDEX_STAT_HEAD_EVENT));
+  if (ev == nullptr)
   {
-    setError(dic->getNdbError().code, __LINE__);
+    setError(ndb->getDictionary()->getNdbError().code, __LINE__);
     return -1;
   }
-  delete ev; // getEvent() creates new instance
   return 0;
 }
 

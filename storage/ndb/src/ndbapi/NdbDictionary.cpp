@@ -3283,6 +3283,11 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
   return 0;
 }
 
+void NdbDictionary::Dictionary::releaseEvent(
+    const NdbDictionary::Event *event) {
+  delete event;
+}
+
 int
 NdbDictionary::Dictionary::listEvents(List& list)
 {
