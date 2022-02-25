@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ private:
   friend class NdbEventOperationImpl;
   friend class NdbEventBuffer;
 #endif
-  NdbEventOperation(Ndb *theNdb, const char* eventName);
+  NdbEventOperation(Ndb *ndb, const NdbDictionary::Event *event);
   ~NdbEventOperation();
   class NdbEventOperationImpl &m_impl;
   NdbEventOperation(NdbEventOperationImpl& impl);

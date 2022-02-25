@@ -92,30 +92,18 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 // todo free allocated data when closing NdbEventBuffer
 
 NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
-					     Ndb *theNdb, 
-					     const char* eventName) :
+                                             Ndb *ndb,
+                                             const NdbDictionary::Event *event) :
   NdbEventOperation(*this),
   m_facade(&f),
-  m_ndb(theNdb),
+  m_ndb(ndb),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
   m_stop_gci(),
   m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
-
-  assert(m_ndb != NULL);
-  NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-  assert(myDict != NULL);
-
-  const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
-  if (!myEvnt)
-  {
-    m_error.code= myDict->getNdbError().code;
-    DBUG_VOID_RETURN;
-  }
-
-  init(myEvnt->m_impl);
+  init(event->m_impl);
   DBUG_VOID_RETURN;
 }
 
@@ -4288,7 +4276,15 @@ NdbEventBuffer::createEventOperation(const char* eventName,
     assert(m_event_queue.is_empty());
   }
 
-  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
+  NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
+  const NdbDictionary::Event *event = dict->getEvent(eventName);
+  if (!event)
+  {
+    theError.code= dict->getNdbError().code;
+    DBUG_RETURN(NULL);
+  }
+
+  NdbEventOperation* tOp= new NdbEventOperation(m_ndb, event);
   if (tOp == 0)
   {
     theError.code= 4000;

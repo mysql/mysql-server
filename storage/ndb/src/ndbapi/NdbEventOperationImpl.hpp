@@ -555,8 +555,8 @@ public:
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &f,
-			Ndb *theNdb, 
-			const char* eventName);
+                        Ndb *ndb,
+                        const NdbDictionary::Event *myEvnt);
   NdbEventOperationImpl(Ndb *theNdb, 
 			NdbEventImpl& evnt);
   void init(NdbEventImpl& evnt);
@@ -601,7 +601,7 @@ public:
   const NdbError & getNdbError() const;
   NdbError m_error;
 
-  Ndb *m_ndb;
+  Ndb *const m_ndb;
   NdbEventImpl *m_eventImpl;
 
   NdbRecAttr *theFirstPkAttrs[2];
