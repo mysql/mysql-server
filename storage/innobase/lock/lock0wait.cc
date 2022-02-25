@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -194,14 +194,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
 
 void lock_wait_request_check_for_cycles() { lock_set_timeout_event(); }
 
-/** Puts a user OS thread to wait for a lock to be released. If an error
- occurs during the wait trx->error_state associated with thr is
- != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
- are possible errors. DB_DEADLOCK is returned if selective deadlock
- resolution chose this transaction as a victim. */
-void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
-                                              with the user OS thread */
-{
+void lock_wait_suspend_thread(que_thr_t *thr) {
   srv_slot_t *slot;
   trx_t *trx;
   std::chrono::steady_clock::time_point start_time;
@@ -321,8 +314,6 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
   }
 
-  const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;
-
   /* Release the slot for others to use */
 
   lock_wait_table_release_slot(slot);
@@ -335,10 +326,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
         std::chrono::duration_cast<std::chrono::microseconds>(diff_time)
             .count());
 
-    /* Only update the variable if we successfully
-    retrieved the start and finish times. See Bug#36819. */
-    if (diff_time > lock_sys->n_lock_max_wait_time &&
-        start_time != std::chrono::steady_clock::time_point{}) {
+    if (diff_time > lock_sys->n_lock_max_wait_time) {
       lock_sys->n_lock_max_wait_time = diff_time;
     }
 
@@ -355,10 +343,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     return;
   }
 
-  if (lock_wait_timeout < std::chrono::seconds(100000000) &&
-      wait_time > lock_wait_timeout && !trx_is_high_priority(trx)) {
-    trx->error_state = DB_LOCK_WAIT_TIMEOUT;
-
+  if (trx->error_state == DB_LOCK_WAIT_TIMEOUT) {
     MONITOR_INC(MONITOR_TIMEOUT);
   }
 
@@ -482,26 +467,56 @@ static void lock_wait_check_and_cancel(
   trx_t *trx;
 
   const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;
-
+  /* Timeout exceeded or a wrap-around in system time counter */
+  const auto timeout = slot->wait_timeout < std::chrono::seconds{100000000} &&
+                       wait_time > slot->wait_timeout;
   trx = thr_get_trx(slot->thr);
 
-  if (trx_is_interrupted(trx) ||
-      (slot->wait_timeout < std::chrono::seconds{100000000} &&
-       wait_time > slot->wait_timeout)) {
-    /* Timeout exceeded or a wrap-around in system time counter: cancel the lock
-    request queued by the transaction and release possible other transactions
-    waiting behind; it is possible that the lock has already been granted: in
-    that case do nothing.
-    The lock_cancel_waiting_and_release() needs exclusive global latch.
+  if (trx_is_interrupted(trx) || timeout) {
+    /* The lock_cancel_waiting_and_release() needs exclusive global latch.
     Also, we need to latch the shard containing wait_lock to read the field and
     access the lock itself. */
     locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
     trx_mutex_enter(trx);
-
-    if (trx->lock.wait_lock != nullptr && !trx_is_high_priority(trx)) {
+    bool should_cancel{false};
+    /* It is possible that the lock has already been granted: in that case do
+    nothing. */
+    if (trx->lock.wait_lock != nullptr) {
       ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
-
+      if (trx_is_high_priority(trx)) {
+        /* We read blocking_trx under Global exclusive latch so it can't change
+        and we know that wait_lock is non-null so there must be a blocker. */
+        const trx_t *blocker = trx->lock.blocking_trx.load();
+        ut_ad(blocker != nullptr);
+        /* An HP trx should not give up if the blocker is not HP. */
+        if (trx_is_high_priority(blocker)) {
+          should_cancel = true;
+        }
+      } else {
+        should_cancel = true;
+      }
+    }
+    if (should_cancel) {
+      if (timeout) {
+        /* Make sure we are not overwriting the DB_DEADLOCK which would be more
+        important to report as it rolls back whole transaction, not just the
+        current query. We set error_state to DB_DEADLOCK only:
+        1) before the transaction reserves a slot. But, we know it's in a slot.
+        2) when wait_lock is already set to nullptr. But, it's not nullptr. */
+        ut_ad(trx->error_state != DB_DEADLOCK);
+        trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+        /* This flag can't be set, as we always call the
+        lock_cancel_waiting_and_release() immediately after setting it, which
+        either prevents the trx from going to sleep or resets the wait_lock, and
+        we've ruled out both of these possibilities. This means that the
+        subsequent call to lock_cancel_waiting_and_release() shouldn't overwrite
+        the error_state we've just set. This isn't a crucial property, but makes
+        reasoning simpler, I hope, hence this assert. */
+        ut_ad(!trx->lock.was_chosen_as_deadlock_victim);
+      }
+      /* Cancel the lock request queued by the transaction and release possible
+      other transactions waiting behind. */
       lock_cancel_waiting_and_release(trx->lock.wait_lock);
     }
 
