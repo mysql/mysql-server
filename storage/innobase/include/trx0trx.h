@@ -962,11 +962,13 @@ struct trx_t {
   trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
   /*------------------------------*/
-  dberr_t error_state;             /*!< 0 if no error, otherwise error
-                                   number; NOTE That ONLY the thread
-                                   doing the transaction is allowed to
-                                   set this field: this is NOT protected
-                                   by any mutex */
+
+  /** DB_SUCCESS if no error, otherwise error number.
+  Accessed without any mutex only by the thread doing the transaction or, if it
+  is suspended (waiting for a lock), by the thread holding this->mutex which
+  has changed trx->lock.wait_lock to nullptr and will wake up the transaction.*/
+  dberr_t error_state;
+
   const dict_index_t *error_index; /*!< if the error number indicates a
                                    duplicate key error, a pointer to
                                    the problematic index is stored here */

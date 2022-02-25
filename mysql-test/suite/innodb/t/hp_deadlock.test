@@ -1,0 +1,134 @@
+# Scenario:
+# We have just 3 transactions, T1, T2, T3 which should commit in the order: T1, T2, T3.
+# Now suppose that
+# T1 is waiting for a lock held by T3
+# T3 is waiting for a lock held by T2
+# T2 is waiting for T1 to commit
+# InnoDB informs Coordinator about T1->T3 edge, which is bad as 1<3, and
+# coordinator decides to abort T3.
+# But T3 sits in the waiting slot, and is immune to killing.
+# T2 can't proceed, as it waits for T1.
+# T1 can't proceed as it waits for T3.
+# T3 can't proceed as it waits for T2.
+# Deadlock
+
+# It's also important that in case T2 is a regular (not HP) transaction, then T3 should
+# keep waiting for T2. OTOH T1 can timeout while waiting for T3 as both are HP.
+
+# In $scenario = 1 all transactions are HP
+# IN $scenario = 2 transaction T2 is not HP
+
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
+SET @old_innodb_lock_wait_timeout= @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout= 4;
+
+
+--let $scenario = 1
+
+while($scenario <= 2){
+  --echo # SCENARIO $scenario
+
+  CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+  INSERT INTO t1 VALUES (0);
+  CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+  INSERT INTO t2 VALUES (0);
+
+  if($scenario == 2){
+    --connect(con0,localhost,root,,test)
+    CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+    INSERT INTO t3 VALUES (0);
+    BEGIN;
+    SELECT * FROM t3 FOR UPDATE;
+  }
+  --connect(con1,localhost,root,,test)
+  --connect(con2,localhost,root,,test)
+  --connect(con3,localhost,root,,test)
+
+  --connection con2
+    if($scenario == 1) {
+      --source include/start_transaction_high_prio.inc
+    }
+    if($scenario == 2){
+      BEGIN;
+    }
+    DELETE FROM t2;
+    if($scenario == 2){
+      # We want to see how con3 handles timeing out while waiting for a lock held by con2.
+      # In $scenario == 2 con3 might try to "kill" con2 in some way.
+      # To prevent con2 from being rolled back and releasing locks too soon we make it wait for con0,
+      # so that con3 will force a fake deadlock error on con2, and then we pause con2 before rollback.
+      SET DEBUG_SYNC='lock_wait_has_finished_waiting WAIT_FOR con2_can_rollback';
+      SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+      --send SELECT * FROM t3 FOR UPDATE
+    }
+
+  --connection con3
+    if($scenario == 2){
+      SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+    }
+    --source include/start_transaction_high_prio.inc
+    DELETE FROM t1;
+    SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con3_will_wait';
+    --send DELETE FROM t2; COMMIT
+
+  --connection con1
+    SET DEBUG_SYNC='now WAIT_FOR con3_will_wait';
+    --source include/start_transaction_high_prio.inc
+    SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con1_will_wait';
+    --send DELETE FROM t1; COMMIT
+
+  # Now let's try to commit all of them in the order con1, con2, con3
+  # In $scenario = 1, we accept timeouts and deadlock as a valid outcomes.
+  # What we don't accept is undetected deadlocks which make whole test fail.
+  # In $scenario = 2, we additionally care that con3 should succeed.
+  # This implies that con1 (which waits for con3 but commits first) must fail.
+
+  --connection con1
+    if($scenario == 1){
+      --error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+      --reap
+    }
+    if($scenario == 2){
+      --error ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+      --reap
+      SET DEBUG_SYNC='now SIGNAL con2_can_rollback';
+    }
+
+  --connection con2
+    if($scenario == 1){
+      COMMIT;
+    }
+    if($scenario == 2){
+      --error ER_LOCK_DEADLOCK
+      --reap
+    }
+
+  --connection con3
+    if($scenario == 1){
+      --error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+      --reap
+    }
+    if($scenario == 2){
+      --reap
+    }
+
+
+  --connection default
+  --disconnect con1
+  --disconnect con2
+  --disconnect con3
+  if($scenario == 2){
+    --disconnect con0
+    DROP TABLE t3;
+  }
+
+  DROP TABLE t1;
+  DROP TABLE t2;
+
+  --inc $scenario
+}
+
+SET GLOBAL innodb_lock_wait_timeout= @old_innodb_lock_wait_timeout;
+--source include/wait_until_count_sessions.inc

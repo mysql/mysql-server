@@ -893,8 +893,8 @@ void lock_wait_timeout_thread();
 void lock_wait_request_check_for_cycles();
 
 /** Puts a user OS thread to wait for a lock to be released. If an error
- occurs during the wait trx->error_state associated with thr is
- != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+ occurs during the wait trx->error_state associated with thr is != DB_SUCCESS
+ when we return. DB_INTERRUPTED, DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
  are possible errors. DB_DEADLOCK is returned if selective deadlock
  resolution chose this transaction as a victim. */
 void lock_wait_suspend_thread(que_thr_t *thr); /*!< in: query thread associated

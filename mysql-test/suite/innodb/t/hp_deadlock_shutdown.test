@@ -1,0 +1,62 @@
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_deadlock_detect = 'OFF';
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0);
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (0);
+
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--connection con1
+  --source include/start_transaction_high_prio.inc
+  DELETE FROM t1;
+
+
+--connection con2
+  --source include/start_transaction_high_prio.inc
+  DELETE FROM t2;
+
+--connection con3
+  --source include/start_transaction_high_prio.inc
+  DELETE FROM t3;
+
+--connection con3
+    SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con3_will_wait';
+    --send DELETE FROM t2; COMMIT
+
+--connection con2
+    SET DEBUG_SYNC='now WAIT_FOR con3_will_wait';
+    SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+    --send DELETE FROM t1; COMMIT
+
+--connection con1
+    SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+    SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con1_will_wait';
+    --send DELETE FROM t3; COMMIT
+
+--connection default
+    SET DEBUG_SYNC='now WAIT_FOR con1_will_wait';
+
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+SELECT * FROM t1;
+DROP TABLE t1;
+SELECT * FROM t2;
+DROP TABLE t2;
+SELECT * FROM t3;
+DROP TABLE t3;
+
+--source include/wait_until_count_sessions.inc
