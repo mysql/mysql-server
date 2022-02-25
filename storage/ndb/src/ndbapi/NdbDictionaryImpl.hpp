@@ -519,7 +519,7 @@ public:
 
   static NdbEventImpl & getImpl(NdbDictionary::Event & t);
   static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
-  NdbDictionary::Event * m_facade;
+  NdbDictionary::Event * const m_facade;
 private:
   NdbTableImpl *m_tableImpl;
   void setTable(NdbTableImpl *tableImpl);

@@ -97,33 +97,35 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   NdbEventOperation(*this),
   m_facade(&f),
   m_ndb(ndb),
+  m_eventImpl(&event->m_impl),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
   m_stop_gci(),
   m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
-  init(event->m_impl);
+  init();
   DBUG_VOID_RETURN;
 }
 
 NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
-                                             NdbEventImpl& evnt) :
+                                             NdbEventImpl* evnt) :
   NdbEventOperation(*this),
   m_facade(this),
   m_ndb(theNdb),
+  m_eventImpl(evnt),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
   m_stop_gci(),
   m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
-  init(evnt);
+  init();
   DBUG_VOID_RETURN;
 }
 
 void
-NdbEventOperationImpl::init(NdbEventImpl& evnt)
+NdbEventOperationImpl::init()
 {
   DBUG_ENTER("NdbEventOperationImpl::init");
 
@@ -152,15 +154,12 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
   theBlobVersion = 0;
 
   m_data_item= NULL;
-  m_eventImpl = NULL;
 
   m_custom_data= 0;
   m_has_error= 1;
 
   // we should lookup id in Dictionary, TODO
   // also make sure we only have one listener on each event
-
-  m_eventImpl = &evnt;
 
   m_oid= m_ndb->theImpl->mapRecipient(this);
 
@@ -211,8 +210,8 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
 
   if (m_eventImpl)
   {
+    // NOTE! Destroys the Event which is owned by the NdbEventImpl pointer
     delete m_eventImpl->m_facade;
-    m_eventImpl= 0;
   }
 
   DBUG_VOID_RETURN;
@@ -408,7 +407,7 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
 
       // create blob event operation
       tBlobOp =
-        m_ndb->theEventBuffer->createEventOperationImpl(*blobEvnt, m_error);
+        m_ndb->theEventBuffer->createEventOperationImpl(blobEvnt, m_error);
       if (tBlobOp == NULL)
         DBUG_RETURN(NULL);
 
@@ -4303,11 +4302,11 @@ NdbEventBuffer::createEventOperation(const char* eventName,
 }
 
 NdbEventOperationImpl*
-NdbEventBuffer::createEventOperationImpl(NdbEventImpl& evnt,
+NdbEventBuffer::createEventOperationImpl(NdbEventImpl* event,
                                          NdbError &theError)
 {
   DBUG_ENTER("NdbEventBuffer::createEventOperationImpl");
-  NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, evnt);
+  NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, event);
   if (tOp == 0)
   {
     theError.code= 4000;

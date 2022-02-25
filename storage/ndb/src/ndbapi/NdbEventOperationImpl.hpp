@@ -557,9 +557,9 @@ public:
   NdbEventOperationImpl(NdbEventOperation &f,
                         Ndb *ndb,
                         const NdbDictionary::Event *myEvnt);
-  NdbEventOperationImpl(Ndb *theNdb, 
-			NdbEventImpl& evnt);
-  void init(NdbEventImpl& evnt);
+  NdbEventOperationImpl(Ndb *theNdb,
+                        NdbEventImpl *evnt);
+  void init();
   NdbEventOperationImpl(NdbEventOperationImpl&); //unimplemented
   NdbEventOperationImpl& operator=(const NdbEventOperationImpl&); //unimplemented
   ~NdbEventOperationImpl();
@@ -602,7 +602,8 @@ public:
   NdbError m_error;
 
   Ndb *const m_ndb;
-  NdbEventImpl *m_eventImpl;
+  // The Event is owned by pointer to NdbEventImpl->m_facade
+  NdbEventImpl *const m_eventImpl;
 
   NdbRecAttr *theFirstPkAttrs[2];
   NdbRecAttr *theCurrentPkAttrs[2];
@@ -844,7 +845,7 @@ public:
 
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
-  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
+  NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl* evnt,
                                                   NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
