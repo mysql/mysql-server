@@ -584,7 +584,11 @@ std::string escape_for_call(const std::string &str) {
     if(str[i] == '"') {
       retval += '\\';
     }
-    retval += str[i];
+    if(str[i] == '\\') {
+	    retval += "\\\\";
+    } else {
+      retval += str[i];
+    }
   }
   return retval;
 }
@@ -664,29 +668,49 @@ std::vector<std::pair<std::string, uint64_t>>sort_from(std::map<string, uint64_t
 
 bool is_remote_query(std::vector<std::string> tokens) {
   std::unordered_map<std::string, int> table_map;
-  bool in_string = false; 
+  bool in_single = false; 
+  bool in_double = false;
   bool next_is_table_name = false;
   for(size_t i=0; i < tokens.size(); ++i) {
 //	  std::cerr << i << ": " << tokens[i];
     std::string lower = strtolower(tokens[i]);
-    if(!in_string && (lower[0] == '\'' || lower[0] == '"') && (lower[lower.length()-1] != '\'' && lower[lower.length()-1] != '"')) {
-	    in_string = true;
-    } else {
 
-      if(in_string == true && (lower[lower.length()-1] == '\'' || lower[lower.length()-1] == '"')) {
-  	    in_string=false;
+    if(!in_double && !in_single) {
+      if(lower[0] == '\'') {
+        if(lower[0] == '\'' && (lower[lower.length()-1] != '\'' && lower[lower.length()-2]!='\\')) {
+	  in_single = true;
+	}
       }
+    } else if (in_single) {
+        if(lower[lower.length()-1] == '\'' && lower[lower.length()-2]!='\\') {
+	  in_single = false;
+	}
+    }
+    if(!in_single && !in_double) {
+      if(lower[0] == '\'') {
+        if(lower[0] == '"' && (lower[lower.length()-1] != '"' && lower[lower.length()-2]!='\\')) {
+	  in_double= true;
+	}
+      }
+    } else if (in_double) {
+        if((lower[lower.length()-1] == '"' && lower[lower.length()-2]!='\\')) {
+	  in_double= false;
+	}
     }
 
-    if( !in_string && ((lower == "from") || (lower == "join"))) {
+
+    if( (!in_single && !in_double) && (((lower == "from") || (lower == "join")))) {
       next_is_table_name = true;
       continue;
     }
     if(next_is_table_name) {
       next_is_table_name = false;
       const char* remote = strstr(tokens[i].c_str(), "@");
+
       if (remote != NULL) {
         std::string remote_host(remote);
+	std::cerr << "FOUND REMOTE SERVER: " << remote_host << "\n";
+	std::cerr << "TOKEN:" << tokens[i] << "\n";
         auto find_it = table_map.find(remote_host);
         if(find_it == table_map.end()) {
           table_map.emplace(make_pair(remote_host, 1));
@@ -1072,7 +1096,10 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
           }
         }
         insert_sql = "INSERT INTO leapdb." + remote_tmp_name + " VALUES(" + insert_sql + ");";
-        mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
+        if(!mysql_real_query(local, insert_sql.c_str(), insert_sql.length())) {
+		std::cerr << std::string(mysql_error(local)) << "\n";
+		std::cerr << insert_sql << "\n";
+	}
       }
       mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
