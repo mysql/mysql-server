@@ -671,8 +671,9 @@ bool is_remote_query(std::vector<std::string> tokens) {
   bool in_single = false; 
   bool in_double = false;
   bool next_is_table_name = false;
+  //insert into test2 select * from sitetran.t_page@remote;
   if((strtolower(tokens[0]) == "insert" || strtolower(tokens[0]) == "create") &&
-    (strtolower(tokens[3]) != "as" || (strtolower(tokens[3]) != "select" && strtolower(tokens[4]) != "select" ))) {
+    (strtolower(tokens[3]) != "as" && (strtolower(tokens[3]) != "select" && strtolower(tokens[4]) != "select" ))) {
     return false;
   }
   for(size_t i=0; i < tokens.size(); ++i) {
