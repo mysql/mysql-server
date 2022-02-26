@@ -671,8 +671,11 @@ bool is_remote_query(std::vector<std::string> tokens) {
   bool in_single = false; 
   bool in_double = false;
   bool next_is_table_name = false;
+  if((strtolower(tokens[0]) == "insert" || strtolower(tokens[0]) == "create") &&
+    (strtolower(tokens[3]) != "as" || (strtolower(tokens[3]) != "select" && strtolower(tokens[4]) != "select" ))) {
+    return false;
+  }
   for(size_t i=0; i < tokens.size(); ++i) {
-//	  std::cerr << i << ": " << tokens[i];
     std::string lower = strtolower(tokens[i]);
 
     if(!in_double && !in_single) {
@@ -687,7 +690,7 @@ bool is_remote_query(std::vector<std::string> tokens) {
 	}
     }
     if(!in_single && !in_double) {
-      if(lower[0] == '\'') {
+      if(lower[0] == '\"') {
         if(lower[0] == '"' && (lower[lower.length()-1] != '"' && lower[lower.length()-2]!='\\')) {
 	  in_double= true;
 	}
@@ -709,8 +712,6 @@ bool is_remote_query(std::vector<std::string> tokens) {
 
       if (remote != NULL) {
         std::string remote_host(remote);
-	std::cerr << "FOUND REMOTE SERVER: " << remote_host << "\n";
-	std::cerr << "TOKEN:" << tokens[i] << "\n";
         auto find_it = table_map.find(remote_host);
         if(find_it == table_map.end()) {
           table_map.emplace(make_pair(remote_host, 1));
@@ -956,7 +957,6 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
 	  remote_port = 3306;
 	}
 
-        //std::cerr << "remote deets\n host:" << remote_host << " db:" << remote_db << " user:" << remote_user << " pw:" << remote_pw << "\n";
       }
       mysql_free_result(result);
       result = NULL;
@@ -1091,7 +1091,6 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
           if( row[n] == nullptr ) {
             insert_sql += "NULL";
 	  } else {
-	    //std::cerr << "INSERT: " << insert_sql << "\n";
 	    insert_sql += '"' + escape_for_call(std::string(row[n])) + '"';
           }
         }
@@ -1547,7 +1546,6 @@ static int warp_rewrite_query_notify(
             if(is_mv_create) {
               commands += "CALL leapdb.add_expr(@mvid, '" + func_name + "', \"" + escape_for_call(inner_field) + "\", \"" + escape_for_call(orig_alias) + "\")";
             } else { 
-              std::cout << "UNSUPPORTED PARALLEL QUERY SUM_FUNC_TYPE: " << func_name << "\n";
               return 0;
             }  
           }      
