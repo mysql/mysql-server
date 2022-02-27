@@ -4945,7 +4945,7 @@ void Item_func_in::fix_after_pullout(Query_block *parent_query_block,
 
 bool Item_func_in::resolve_type(THD *thd) {
   if (Item_func_opt_neg::resolve_type(thd)) return true;
-  bool datetime_found = false;
+  
   /* true <=> arguments values will be compared as DATETIMEs. */
   bool compare_as_datetime = false;
   Item *date_arg = nullptr;
@@ -5064,6 +5064,8 @@ bool Item_func_in::resolve_type(THD *thd) {
 
       for (uint col = 0; col < cols; col++) {
         bool skip_column = false;
+        bool datetime_found = false;
+        
         /*
           Check that all items to be compared has the STRING result type and at
           least one of them is a DATE/DATETIME item.
