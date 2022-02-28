@@ -137,22 +137,26 @@ class injector {
         }
 
        private:
-        TABLE *m_table;
+        TABLE *const m_table;
         MY_BITMAP *save_read_set;
         MY_BITMAP *save_write_set;
       };
 
-      table(TABLE *table, bool is_transactional)
-          : m_table(table), m_is_transactional(is_transactional) {}
+      table(TABLE *table, bool is_transactional, bool skip_hash = false)
+          : m_table(table),
+            m_is_transactional(is_transactional),
+            m_skip_hash(skip_hash) {}
 
       char const *db_name() const { return m_table->s->db.str; }
       char const *table_name() const { return m_table->s->table_name.str; }
       TABLE *get_table() const { return m_table; }
       bool is_transactional() const { return m_is_transactional; }
+      bool skip_hash() const { return m_skip_hash; }
 
      private:
-      TABLE *m_table;
-      bool m_is_transactional;
+      TABLE *const m_table;
+      const bool m_is_transactional;
+      const bool m_skip_hash;
     };
 
     /*

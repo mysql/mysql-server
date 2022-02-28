@@ -105,6 +105,7 @@ extern uint opt_ndb_log_trx_compression_level_zstd;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_log_fail_terminate;
+extern bool opt_ndb_log_trans_dependency;
 extern int opt_ndb_schema_dist_timeout;
 extern ulong opt_ndb_schema_dist_lock_wait_timeout;
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
@@ -4772,16 +4773,19 @@ void NDB_SHARE::set_binlog_flags(Ndb_binlog_type ndb_binlog_type) {
     case NBT_DEFAULT:
       DBUG_PRINT("info", ("NBT_DEFAULT"));
       if (opt_ndb_log_updated_only) {
+        // Binlog only updated columns
         flags &= ~NDB_SHARE::FLAG_BINLOG_MODE_FULL;
       } else {
         flags |= NDB_SHARE::FLAG_BINLOG_MODE_FULL;
       }
       if (opt_ndb_log_update_as_write) {
+        // Binlog only after image as a write event
         flags &= ~NDB_SHARE::FLAG_BINLOG_MODE_USE_UPDATE;
       } else {
         flags |= NDB_SHARE::FLAG_BINLOG_MODE_USE_UPDATE;
       }
       if (opt_ndb_log_update_minimal) {
+        // Binlog updates in a minimal format
         flags |= NDB_SHARE::FLAG_BINLOG_MODE_MINIMAL_UPDATE;
       }
       break;
@@ -4912,12 +4916,27 @@ int Ndb_binlog_client::apply_replication_info(
     const st_conflict_fn_def *conflict_fn, const st_conflict_fn_arg *args,
     uint num_args, uint32 binlog_flags) {
   DBUG_TRACE;
-  char tmp_buf[FN_REFLEN];
 
   DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
   share->set_binlog_flags((enum Ndb_binlog_type)binlog_flags);
 
+  // Configure the NDB_SHARE to subscribe to changes for constrained
+  // columns when calculating transaction dependencies and table has unique
+  // indexes or fk(s). It's necessary to do this check early using the NDB
+  // table since the shadow_table inside NDB_SHARE aren't updated until the new
+  // NdbEventOperation is created during inplace alter table.
+  bool need_constraints = false;
+  if (opt_ndb_log_trans_dependency &&
+      !ndb_table_have_unique_or_fk(ndb->getDictionary(), ndbtab,
+                                   need_constraints)) {
+    log_ndb_error(ndb->getDictionary()->getNdbError());
+    log_warning(ER_GET_ERRMSG, "Failed to check for table constraints");
+    return -1;
+  }
+  share->set_subscribe_constrained(need_constraints);
+
   if (conflict_fn != nullptr) {
+    char tmp_buf[FN_REFLEN];
     if (setup_conflict_fn(ndb, &share->m_cfn_share, share->db,
                           share->table_name, share->get_binlog_use_update(),
                           ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn, args,
@@ -4978,17 +4997,12 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
   // of tables with temporary names.
   assert(!ndb_name_is_temp(share->table_name));
 
-  if (share->have_event_operation()) {
-    DBUG_PRINT("info", ("binlogging already setup"));
-    return 0;
-  }
-
   Ndb_binlog_client binlog_client(thd, share->db, share->table_name);
 
   Ndb_table_guard ndbtab_g(ndb, share->db, share->table_name);
   const NDBTAB *ndbtab = ndbtab_g.get_table();
   if (ndbtab == nullptr) {
-    const NdbError &ndb_error = ndb->getDictionary()->getNdbError();
+    const NdbError &ndb_error = ndbtab_g.getNdbError();
     ndb_log_verbose(1,
                     "NDB Binlog: Failed to open table '%s' from NDB, "
                     "error: '%d - %s'",
@@ -5008,11 +5022,16 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
   if (binlog_client.table_should_have_event(share, ndbtab)) {
     // Check if the event already exists in NDB, otherwise create it
     if (!binlog_client.event_exists_for_table(ndb, share)) {
-      // The event din't exist, create the event in NDB
+      // The event didn't exist, create the event in NDB
       if (binlog_client.create_event(ndb, ndbtab, share)) {
         // Failed to create event
         return -1;
       }
+    }
+
+    if (share->have_event_operation()) {
+      DBUG_PRINT("info", ("binlogging already setup"));
+      return 0;
     }
 
     if (binlog_client.table_should_have_event_op(share)) {
@@ -5115,8 +5134,10 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
   // Never create event on the blob table(s)
   assert(!ndb_name_is_blob_prefix(ndbtab->getName()));
 
+  const bool use_full_event =
+      share->get_binlog_full() || share->get_subscribe_constrained();
   const std::string event_name =
-      event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
+      event_name_for_table(m_dbname, m_tabname, use_full_event);
 
   // Define the event
   NDBEVENT my_event(event_name.c_str());
@@ -5140,7 +5161,8 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
       my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL);
       DBUG_PRINT("info", ("subscription all"));
     } else {
-      if (share->get_binlog_full()) {
+      if (use_full_event) {
+        // Configure the event for subscribing to all columns
         my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL);
         DBUG_PRINT("info", ("subscription all"));
       } else {
@@ -5399,8 +5421,10 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
       Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name);
 
+  const bool use_full_event =
+      share->get_binlog_full() || share->get_subscribe_constrained();
   const std::string event_name =
-      event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
+      event_name_for_table(m_dbname, m_tabname, use_full_event);
 
   // NOTE! Locking the injector while performing at least two roundtrips to NDB!
   // The locks are primarily for using the exposed pointers, but without keeping
@@ -6077,6 +6101,96 @@ static inline ndb_binlog_index_row *ndb_find_binlog_index_row(
   return row;
 }
 
+#ifndef NDEBUG
+
+/**
+   @brief Check that expected columns for specific key are defined
+   @param defined               Bitmap of defined (received from NDB) columns
+   @param key                   The key to check columns for
+   @return true if all expected key columns have been recieved
+ */
+static bool check_key_defined(MY_BITMAP *defined, const KEY *const key_info) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("key: '%s'", key_info->name));
+
+  for (uint i = 0; i < key_info->user_defined_key_parts; i++) {
+    const KEY_PART_INFO *key_part = key_info->key_part + i;
+    const Field *const field = key_part->field;
+
+    assert(!field->is_array());  // No such fields in NDB
+    if (!field->stored_in_db) continue;
+    if (!bitmap_is_set(defined, field->field_index())) {
+      DBUG_PRINT("info", ("not defined"));
+      assert(false);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+   @brief Check that expected columns of table have been recieved from NDB
+   @param defined               Bitmap of defined (received from NDB) columns
+   @param table                 The table to check columns of
+
+   @return true if all expected columns have been recieved
+ */
+static bool check_defined(MY_BITMAP *defined, const TABLE *const table) {
+  DBUG_TRACE;
+
+  if (table->s->primary_key == MAX_KEY) {
+    // Special case for table without primary key, all columns should be defined
+    for (uint i = 0; i < table->s->fields; i++) {
+      const Field *const field = table->field[i];
+      if (!field->stored_in_db) continue;
+      if (!bitmap_is_set(defined, field->field_index())) {
+        assert(false);
+        return false;
+      }
+    }
+    return true;  // OK, all columns defined for table
+  }
+
+  // Check primary key
+  assert(check_key_defined(defined, &table->key_info[table->s->primary_key]));
+
+  if (!opt_ndb_log_trans_dependency) {
+    return true;
+  }
+
+  // Check all other unique keys
+  for (uint key_number = 0; key_number < table->s->keys; key_number++) {
+    const KEY *const key_info = &table->key_info[key_number];
+    if (key_number == table->s->primary_key) continue;
+    if ((key_info->flags & HA_NOSAME) == 0) continue;
+
+    assert(check_key_defined(defined, key_info));
+  }
+
+  // Check all foreign keys
+  for (uint fk_number = 0; fk_number < table->s->foreign_keys; fk_number++) {
+    const TABLE_SHARE_FOREIGN_KEY_INFO *const fk =
+        &table->s->foreign_key[fk_number];
+    assert(fk->columns > 0);  // Always have columns
+    for (uint c = 0; c < fk->columns; c++) {
+      for (uint i = 0; i < table->s->fields; i++) {
+        const Field *const field = table->field[i];
+
+        if (my_strcasecmp(system_charset_info, field->field_name,
+                          fk->column_name[c].str) == 0) {
+          if (!bitmap_is_set(defined, field->field_index())) {
+            assert(false);
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  return true;  // All keys defined
+}
+#endif
+
 // Subclass to allow forward declaration of the nested class
 class injector_transaction : public injector::transaction {};
 
@@ -6346,6 +6460,8 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         }
         handle_data_unpack_record(table, event_data->ndb_value[0].get(), &b,
                                   table->record[0]);
+        assert(check_defined(&b, table));
+
         const int error =
             trans.write_row(logged_server_id,  //
                             injector::transaction::table(table, true), &b,
@@ -6366,14 +6482,15 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       {
         // NOTE! table->record[0] contains only the primary key in this case
         // since we do not have an after image
-        int n;
-        if (!share->get_binlog_full() && table->s->primary_key != MAX_KEY) {
-          // Use the primary key only, it saves time and space
-          // and is the only thing needed to log the delete
-          n = 0;
-        } else {
-          // Table doesn't have a primary key or full rows should be logged, use
-          // the before values
+
+        int n = 0;  // Use primary key only, save time and space
+        if (table->s->primary_key == MAX_KEY ||  // no pk
+            share->get_binlog_full() ||          // log full rows
+            share->get_subscribe_constrained())  // constraints
+        {
+          // Table doesn't have a primary key, full rows should be logged or
+          // constraints are subscribed -> use the before values
+          DBUG_PRINT("info", ("using before values"));
           n = 1;
         }
 
@@ -6388,6 +6505,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         }
         handle_data_unpack_record(table, event_data->ndb_value[n].get(), &b,
                                   table->record[n]);
+        assert(check_defined(&b, table));
 
         const int error =
             trans.delete_row(logged_server_id,  //
@@ -6418,6 +6536,8 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         }
         handle_data_unpack_record(table, event_data->ndb_value[0].get(), &b,
                                   table->record[0]);
+        assert(check_defined(&b, table));
+
         if (table->s->primary_key != MAX_KEY &&
             !share->get_binlog_use_update()) {
           // Table has primary key, do write using only after values
@@ -6445,7 +6565,9 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
           }
           handle_data_unpack_record(table, event_data->ndb_value[1].get(), &b,
                                     table->record[1]);
+          assert(check_defined(&b, table));
 
+          // Calculate bitmap for "minimal update" if enabled
           MY_BITMAP col_bitmap_before_update;
           Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> bitbuf;
           ndb_bitmap_init(&col_bitmap_before_update, bitbuf, table->s->fields);
@@ -6454,6 +6576,9 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
           } else {
             bitmap_copy(&col_bitmap_before_update, &b);
           }
+          assert(table->s->primary_key == MAX_KEY ||
+                 check_key_defined(&col_bitmap_before_update,
+                                   &table->key_info[table->s->primary_key]));
 
           const int error =
               trans.update_row(logged_server_id,  //
@@ -6526,8 +6651,10 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
   // No effect unless statement-based binary logging
   // thd->variables.binlog_direct_non_trans_update
 
-  // Write set extraction setting will be handled by --ndb-log- variable
-  // thd->variables.transaction_write_set_extraction =
+  // Setup writeset extraction based on --ndb-log-transaction-dependency
+  thd->variables.transaction_write_set_extraction =
+      opt_ndb_log_trans_dependency ? HASH_ALGORITHM_XXHASH64
+                                   : HASH_ALGORITHM_OFF;
 
   // Charset setting
   thd->variables.character_set_client = &my_charset_latin1;
@@ -6813,13 +6940,19 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   const LEX_CSTRING &name = apply_status_table->s->table_name;
   DBUG_PRINT("info", ("use_table: %.*s", (int)name.length, name.str));
 #endif
-  injector::transaction::table tbl(apply_status_table, true);
+
+  // Don't add the ndb_apply_status primary key to the sessions writeset.
+  // Since each epoch transaction writes to the same row in this table it will
+  // always conflict, but since the row primarily serves as a way to transport
+  // additional metadata to the applier the "conflict" is instead handled on the
+  // replica.
+  constexpr bool SKIP_HASH = true;
+  injector::transaction::table tbl(apply_status_table, true, SKIP_HASH);
   int ret = trans.use_table(::server_id, tbl);
   ndbcluster::ndbrequire(ret == 0);
 
-  ret = trans.write_row(
-      ::server_id, injector::transaction::table(apply_status_table, true),
-      &apply_status_table->s->all_set, apply_status_table->record[0]);
+  ret = trans.write_row(::server_id, tbl, &apply_status_table->s->all_set,
+                        apply_status_table->record[0]);
 
   assert(ret == 0);
 
@@ -7598,7 +7731,7 @@ restart_cluster_failure:
     if (schema_dist_data.metadata_changed) {
       Mutex_guard injector_mutex_g(injector_event_mutex);
       if (metadata_cache.reload(s_ndb->getDictionary())) {
-        log_info("reloaded metadata cache");
+        log_info("Reloaded metadata cache");
         schema_dist_data.metadata_changed = false;
       }
     }

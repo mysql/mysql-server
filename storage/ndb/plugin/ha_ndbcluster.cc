@@ -18094,6 +18094,17 @@ static MYSQL_SYSVAR_BOOL(log_fail_terminate,         /* name */
                          0        /* default */
 );
 
+bool opt_ndb_log_trans_dependency;
+static MYSQL_SYSVAR_BOOL(log_transaction_dependency,   /* name */
+                         opt_ndb_log_trans_dependency, /* var */
+                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+                         "Enable transaction dependency extraction for NDB "
+                         "changes written to the binlog.",
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         0        /* default */
+);
+
 static MYSQL_SYSVAR_STR(mgmd_host,             /* name */
                         opt_ndb_connectstring, /* var */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -18404,6 +18415,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_transaction_compression_level_zstd),
     MYSQL_SYSVAR(log_fail_terminate),
+    MYSQL_SYSVAR(log_transaction_dependency),
     MYSQL_SYSVAR(clear_apply_status),
     MYSQL_SYSVAR(schema_dist_upgrade_allowed),
     MYSQL_SYSVAR(schema_dist_timeout),

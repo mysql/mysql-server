@@ -1,0 +1,118 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--echo #
+--echo # Check behaviour of logical clock timestamps in binlog generated
+--echo # by ndb_binlog thread with transaction dependcy calculations turned on.
+--echo # The timestamps should indicate that each epoch transaction depends on
+--echo # the previous transaction that modified same row.
+--echo #
+
+--echo # Test requires that binlog transaction dependency has been turned on
+--source suite/ndb/include/ndb_log_transaction_dependency_enabled.inc
+select @@ndb_log_transaction_dependency;
+
+--echo #
+--echo # Check that the --ndb-log-transaction-dependency=[ON|OFF] is a readonly
+--echo # variable and thus not possible to change at runtime.
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@ndb_log_transaction_dependency=ON;
+
+--echo # Test assumes that WRITESET is used for dependency tracking as otherwise
+--echo # the hash values calculated by ndb_binlog thread will not be used
+select @@binlog_transaction_dependency_tracking;
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b CHAR(10)
+) engine=ndb;
+
+--let $binlog_file= binlog.000001
+
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
+
+INSERT INTO t1 VALUES (1, 'a');
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 1 2
+--source include/assert_logical_timestamps.inc
+
+INSERT INTO t1 VALUES (2, 'b');
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 1 3
+--source include/assert_logical_timestamps.inc
+
+CREATE TABLE t2 (
+  a INT PRIMARY KEY,
+  b CHAR(10)
+) engine=ndb;
+
+BEGIN;
+INSERT INTO t1 VALUES (3, 'c');
+INSERT INTO t2 VALUES (23, 'bc');
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 4 5
+--source include/assert_logical_timestamps.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (4, 'd');
+INSERT INTO t2 VALUES (24, 'bd');
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 4 6
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Do a longer sequence of transactions that does not
+--echo # have dependencies
+
+BEGIN;
+INSERT INTO t1 VALUES (5, 'e');
+INSERT INTO t2 VALUES (25, 'be');
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 4 7
+--source include/assert_logical_timestamps.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (6, 'f');
+INSERT INTO t2 VALUES (26, 'bf');
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 4 8
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Do update values dependent on previous transactions
+
+UPDATE t1 SET b = 'updated' WHERE a in (4,5);
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 7 9
+--source include/assert_logical_timestamps.inc
+
+UPDATE t2 SET b = 'updated' WHERE a in (24, 26);
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 8 10
+--source include/assert_logical_timestamps.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLE t2;

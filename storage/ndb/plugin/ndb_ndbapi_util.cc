@@ -522,6 +522,36 @@ bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
   return true;
 }
 
+bool ndb_table_have_unique_or_fk(const NdbDictionary::Dictionary *dict,
+                                 const NdbDictionary::Table *ndbtab,
+                                 bool &found) {
+  DBUG_TRACE;
+  NdbDictionary::Dictionary::List list;
+  if (dict->listDependentObjects(list, *ndbtab) != 0) {
+    // List dependent failed
+    return false;
+  }
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.type, elmt.name));
+
+    if (elmt.type == NdbDictionary::Object::UniqueHashIndex) {
+      DBUG_PRINT("info", ("Found UniqueHashIndex"));
+      found = true;
+      return true;
+    }
+
+    if (elmt.type == NdbDictionary::Object::ForeignKey) {
+      DBUG_PRINT("info", ("Found ForeignKey"));
+      found = true;
+      return true;
+    }
+  }
+
+  DBUG_PRINT("info", ("No unique or fk found"));
+  return true;
+}
+
 bool ndb_table_scan_and_delete_rows(
     Ndb *ndb, const THD *thd, const NdbDictionary::Table *ndb_table,
     NdbError &ndb_err,

@@ -103,6 +103,7 @@ void Ndb_event_data::init_pk_bitmap() {
  */
 void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
                                              MY_BITMAP *after) const {
+  DBUG_TRACE;
   if (shadow_table->s->primary_key == MAX_KEY) {
     // no usable PK bitmap, set Before Image = After Image
     bitmap_copy(before, after);

@@ -54,6 +54,11 @@ class Ndb_binlog_client {
       MY_ATTRIBUTE((format(printf, 3, 4)));
 
   /**
+   * @brief Log the NDB error using log_warning()
+   */
+  void log_ndb_error(const NdbError &ndberr) const;
+
+  /**
    * @brief event_name_for_table, generate name for the event for this table
    *
    * @param db             database of table

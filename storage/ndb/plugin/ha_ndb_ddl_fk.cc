@@ -548,7 +548,7 @@ class Fk_util {
 
     // Parse child index
     long child_index = strtol(ptr, &end, 10);
-    if (ptr == end || child_id < 0 || *end == 0 || *end != '_') return false;
+    if (ptr == end || child_index < 0 || *end == 0 || *end != '_') return false;
     ptr = end + 1;
 
     // Assign and return OK

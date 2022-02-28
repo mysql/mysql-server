@@ -1654,7 +1654,7 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
 */
 bool Ndb_referenced_tables_invalidator::invalidate() const {
   DBUG_TRACE;
-  for (auto parent_it : m_referenced_tables) {
+  for (auto const &parent_it : m_referenced_tables) {
     // Invalidate the table from DD
     const char *schema_name = parent_it.first.c_str();
     const char *table_name = parent_it.second.c_str();

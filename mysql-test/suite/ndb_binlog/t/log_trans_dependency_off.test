@@ -1,0 +1,84 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--echo #
+--echo # Check default behaviour of logical clock timestamps in binlog generated
+--echo # by ndb_binlog thread. The timestamps will indicate that each epoch
+--echo # transaction depends on the previous.
+--echo #
+
+--echo # Test requires that transaction dependency calculations are turned off
+--echo # for the ndb_binlog thread
+select @@global.ndb_log_transaction_dependency;
+if (`select @@global.ndb_log_transaction_dependency != '0'`) {
+  --skip Test requires ndb_log_transaction_dependency enabled
+}
+
+--echo # Test assumes that COMMIT_ORDER is used for dependency tracking (this
+--echo # is the default setting for MySQL Server)
+select @@binlog_transaction_dependency_tracking;
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY
+) engine=ndb;
+
+--let $binlog_file= binlog.000001
+
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
+
+INSERT INTO t1 VALUES (1);
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 1 2
+--source include/assert_logical_timestamps.inc
+
+INSERT INTO t1 VALUES (2);
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 2 3
+--source include/assert_logical_timestamps.inc
+
+CREATE TABLE t2 (
+  a INT PRIMARY KEY
+) engine=ndb;
+
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (23);
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 4 5
+--source include/assert_logical_timestamps.inc
+
+# Inspect binlog contents
+#--let $datadir= `SELECT @@datadir`
+#--exec $MYSQL_BINLOG --force-if-open $datadir/binlog.000001
+
+--echo # Create new binlog, timestamps will start over
+FLUSH LOGS;
+
+INSERT INTO t1 VALUES (4);
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (5);
+INSERT INTO t2 VALUES (25);
+COMMIT;
+
+--echo # Wait for changes to be injected, then check timestamps
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+--let $logical_timestamps= 1 2
+--source include/assert_logical_timestamps.inc
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLE t2;

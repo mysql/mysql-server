@@ -303,6 +303,17 @@ bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
 bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
                            const NdbDictionary::Table *ndbtab,
                            unsigned int &index_count);
+
+/**
+ * @brief Check if the NDB table have unique indexes or fk
+ * @param dict               NDB Dictionary
+ * @param ndbtab             NDB Table object
+ * @param found [out]        Found unique or fks
+ * @return true if the existence of indexes could be determined, false if not
+ */
+bool ndb_table_have_unique_or_fk(const NdbDictionary::Dictionary *dict,
+                                 const NdbDictionary::Table *ndbtab,
+                                 bool &found);
 /**
  * @brief Scan the given table and delete the rows returned
  * @param ndb                    The Ndb Object
