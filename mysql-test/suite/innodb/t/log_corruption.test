@@ -26,8 +26,10 @@ let CORRUPTION_INFO_FILE = $tmp_dir/corruption.inc;
 let MYSQLD_DATADIR = $tmp_dir/log_corruption;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --echo # Initialize new data directory...
+--let $MYSQLD_EXTRA_ARGS= --innodb_page_size=$INNODB_PAGE_SIZE
 --source include/initialize_datadir.inc
 
 --echo # Restart MySQL using the new data directory...
@@ -148,7 +150,7 @@ if ($RECOVERED_LSN == 0) {
 
 --echo # Start MySQL...
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM --innodb-log-checksums=OFF
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM --innodb-log-checksums=OFF
 
 --echo # Verify...
 
@@ -192,7 +194,7 @@ EOF
 
 --echo # Start MySQL...
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM
 
 --echo # Verify...
 
@@ -241,7 +243,7 @@ EOF
 
 --echo # Start MySQL...
 --error 3,42
---exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM --innodb-log-checksums=ON --innodb_force_recovery_crash=3
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM --innodb-log-checksums=ON --innodb_force_recovery_crash=3
 
 --echo # Verify...
 let SEARCH_PATTERN = Log block $CORRUPTED_LOG_BLOCK at lsn $SCANNED_LSN has valid header, but checksum field contains .*, should be .*;
@@ -282,7 +284,7 @@ EOF
 
 --echo # Start MySQL...
 --error 3,42
---exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM  --innodb-log-checksums=OFF --innodb_force_recovery_crash=3
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM  --innodb-log-checksums=OFF --innodb_force_recovery_crash=3
 
 --echo # Verify...
 

@@ -21,6 +21,8 @@ let MYSQLD_DATADIR = $tmp_dir/log_crash;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+let $MYSQLD_EXTRA_ARGS = --innodb_page_size=$INNODB_PAGE_SIZE;
 --echo # Initialize new data directory...
 --source include/initialize_datadir.inc
 

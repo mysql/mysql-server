@@ -7,13 +7,14 @@
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/redo_log_test;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
-let MYSQLD_EXTRA_ARGS = --innodb-redo-log-capacity=8388608;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+let MYSQLD_EXTRA_ARGS = --innodb-redo-log-capacity=8388608 --innodb_page_size=$INNODB_PAGE_SIZE;
 
 --echo # Initialize new data directory...
 --source include/initialize_datadir.inc
 
 let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG $MYSQLD_EXTRA_ARGS;
---replace_result $MYSQLD_ERROR_LOG ERROR_LOG $MYSQLD_DATADIR DATADIR
+--replace_result $MYSQLD_ERROR_LOG ERROR_LOG $MYSQLD_DATADIR DATADIR $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
 --source include/restart_mysqld.inc
 
 --echo # Prepare schema used in the tests.

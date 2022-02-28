@@ -10,6 +10,7 @@ let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/log_corruption_1;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --echo # Initialize new data directory...
 --source include/initialize_datadir.inc
@@ -86,7 +87,7 @@ CHECK TABLE t;
 
 --echo # Verify that InnoDB cannot recover, because it encounters the corrupted redo record.
 --error 1,42
---exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM
+--exec $MYSQLD_CMD $MYSQLD_ARGS --innodb_page_size=$INNODB_PAGE_SIZE --$UNKNOWN_PARAM
 
 --echo # Matching the server logs for corrupted redo logs...
 let SEARCH_PATTERN = $PATTERN_CORRUPT_LOG_RECORD;

@@ -8,6 +8,7 @@
 # This test checks scenario of recovery executed on data directory with a redo file that has invalid metadata.
 # Scenario-2. Create scenario based on at least two redo files, in which the second redo file has start_lsn different than end_lsn of the first file.
 
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MIN = 2;
 
 --source include/log_multiple_files_test_begin.inc
@@ -51,13 +52,13 @@ EOF
 
 --source $MYSQLD_DATADIR/found.inc
 
-let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled";
+let MYSQLD_EXTRA_ARGS = --debug="d,log_header_checksum_disabled" --innodb_page_size=$INNODB_PAGE_SIZE;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
 --error 1,42
 --exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
 let SEARCH_PATTERN = The redo log file .* has start_lsn $REDO_FILE_NEW_START_LSN but expected $REDO_FILE_OLD_START_LSN \(end_lsn of the previous redo log file\);
---replace_result $REDO_FILE_NEW_START_LSN REDO_FILE_NEW_START_LSN $REDO_FILE_OLD_START_LSN REDO_FILE_OLD_START_LSN
+--replace_result $REDO_FILE_NEW_START_LSN REDO_FILE_NEW_START_LSN $REDO_FILE_OLD_START_LSN REDO_FILE_OLD_START_LSN $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
 --source include/search_pattern.inc
 
 --source include/log_multiple_files_test_end.inc
