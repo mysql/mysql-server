@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "gr_notifications_listener.h"
 
 #include <algorithm>
+#include <list>
 #include <map>
 #include <system_error>
 #include <thread>
@@ -208,6 +209,7 @@ void GRNotificationListener::Impl::listener_thread_func() {
   my_thread_self_setname("GR Notify");
 
   while (!terminate) {
+    std::list<NodeSession> used_sessions;
     // first check if the set of fds did not change and we shouldn't reconfigure
     {
       std::lock_guard<std::mutex> lock(configuration_data_mtx_);
@@ -226,6 +228,15 @@ void GRNotificationListener::Impl::listener_thread_func() {
         }
         sessions_changed_ = false;
       }
+
+      // we use the fds so we need to keep the session objects alive to prevent
+      // the fds being released to the OS and reused while the poll is using
+      // those fds. For that we copy the sessions shared pointers to our list,
+      // it will be cleared at the end of the loop
+      std::for_each(sessions_.begin(), sessions_.end(),
+                    [&used_sessions](const auto &s) {
+                      used_sessions.push_back(s.second);
+                    });
     }
 
     if (sessions_qty == 0) {
@@ -481,7 +492,9 @@ void GRNotificationListener::Impl::reconfigure(
                      [&it](const metadata_cache::ManagedInstance &i) {
                        return it->first.host == i.host &&
                               it->first.port == i.xport;
-                     }) != instances.end()) {
+                     }) == instances.end()) {
+      log_info("Removing unused GR notification session to '%s:%d'",
+               it->first.host.c_str(), it->first.port);
       sessions_.erase(it++);
       sessions_changed_ = true;
     } else {

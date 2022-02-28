@@ -367,16 +367,14 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
   const auto trace_file = get_data_dir().join(test_params.tracefile).str();
-  std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < kClusterNodesCount; ++i) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
-    classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
-    x_ports = {cluster_nodes_xports[0], cluster_nodes_xports[1]};
-    set_mock_metadata(cluster_http_ports[i], kGroupId, classic_ports, x_ports);
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports);
 
     SCOPED_TRACE(
         "// Make our metadata server to send GR notices at requested "
@@ -635,16 +633,14 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
   const auto trace_file = get_data_dir().join(tracefile).str();
-  std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
-    classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
-    x_ports = {reserved_nodes_xports[0], reserved_nodes_xports[1]};
-    set_mock_metadata(cluster_http_ports[i], kGroupId, classic_ports, x_ports);
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      reserved_nodes_xports);
 
     set_mock_notices(
         i, cluster_http_ports[i],
@@ -873,17 +869,14 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
   const auto trace_file = get_data_dir().join(tracefile).str();
-  std::vector<uint16_t> classic_ports, x_ports;
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
-    classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
-    x_ports = {cluster_nodes_xports[0], cluster_nodes_xports[1]};
-    set_mock_metadata(cluster_http_ports[i], kGroupId, classic_ports, x_ports,
-                      true);
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports, true);
   }
 
   SCOPED_TRACE("// Create a router state file");
@@ -1135,6 +1128,210 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
     used_ports.insert(port);
   }
   EXPECT_EQ(1u, used_ports.count(nodes_ports[2]));
+}
+
+/**
+ * @test
+ *      Verify that adding new cluster nodes leads to the new notification
+ * connection been created. Also checks that no notification connections are
+ * removed in that process.
+ */
+TEST_F(GrNotificationsTest, AddNode) {
+  const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
+
+  TempDirectory temp_test_dir;
+  const std::string tracefile{"metadata_dynamic_nodes_v2_gr.js"};
+
+  // We start with a cluster containing 2 nodes
+  const unsigned kInitialClusterNodesCount = 2;
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> cluster_nodes_ports;
+  std::vector<uint16_t> cluster_nodes_xports;
+  std::vector<uint16_t> cluster_http_ports;
+  for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
+    cluster_nodes_ports.push_back(port_pool_.get_next_available());
+    cluster_nodes_xports.push_back(port_pool_.get_next_available());
+    cluster_http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE("// Launch server mocks that will act as our metadata servers");
+  const auto trace_file = get_data_dir().join(tracefile).str();
+  for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i], cluster_nodes_xports[i]));
+
+    SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports, true);
+  }
+
+  SCOPED_TRACE("// Create a router state file");
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, cluster_nodes_ports);
+
+  SCOPED_TRACE(
+      "// Create a configuration file sections with high ttl so that "
+      "metadata updates were triggered by the GR notifications");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(/*use_gr_notifications=*/"1", 200ms);
+  const uint16_t router_port = port_pool_.get_next_available();
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+
+  SCOPED_TRACE("// Launch ther router");
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
+
+  SCOPED_TRACE("// Wait until the metadata has been updated at least once");
+  int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
+
+  EXPECT_GE(md_queries_count, 1);
+
+  SCOPED_TRACE("// Add a new node to the cluster");
+  cluster_nodes_ports.push_back(port_pool_.get_next_available());
+  cluster_nodes_xports.push_back(port_pool_.get_next_available());
+  cluster_http_ports.push_back(port_pool_.get_next_available());
+
+  const unsigned kCurrentClusterNodesCount = 3;
+  cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+      trace_file, cluster_nodes_ports[kCurrentClusterNodesCount - 1],
+      EXIT_SUCCESS, false, cluster_http_ports[kCurrentClusterNodesCount - 1],
+      cluster_nodes_xports[kCurrentClusterNodesCount - 1]));
+
+  // let all nodes know about a new node in the Cluster
+  for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports, true);
+  }
+
+  SCOPED_TRACE(
+      "// Wait until the metadata has been updated at least once and the GR "
+      "notification connection to the new node has been established");
+  EXPECT_TRUE(wait_for_new_md_queries(1, cluster_http_ports[0]));
+  const bool found =
+      wait_log_contains(router,
+                        "Enabling GR notices for cluster 'test' "
+                        "changes on node 127.0.0.1:" +
+                            std::to_string(cluster_nodes_xports[2]),
+                        10s);
+  EXPECT_TRUE(found);
+
+  SCOPED_TRACE(
+      "// Check that GR notices have been enabled exactly once on each node");
+  const std::string log_content = router.get_full_logfile();
+  for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
+    const std::string needle =
+        "Enabling GR notices for cluster 'test' "
+        "changes on node 127.0.0.1:" +
+        std::to_string(cluster_nodes_xports[i]);
+    EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  }
+
+  SCOPED_TRACE(
+      "// Make sure no GR notice connection has been removed in the process");
+  const std::string needle = "Removing unused GR notification session";
+  EXPECT_EQ(0, count_str_occurences(log_content, needle)) << log_content;
+}
+
+/**
+ * @test
+ *      Verify that removing a cluster node leads to GR notification connection
+ * to that node being also removed in the Router.
+ */
+TEST_F(GrNotificationsTest, RemoveNode) {
+  const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
+
+  TempDirectory temp_test_dir;
+  const std::string tracefile{"metadata_dynamic_nodes_v2_gr.js"};
+
+  // We start with a cluster containing 3 nodes
+  const unsigned kInitialClusterNodesCount = 3;
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> cluster_nodes_ports;
+  std::vector<uint16_t> cluster_nodes_xports;
+  std::vector<uint16_t> cluster_http_ports;
+  for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
+    cluster_nodes_ports.push_back(port_pool_.get_next_available());
+    cluster_nodes_xports.push_back(port_pool_.get_next_available());
+    cluster_http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE("// Launch server mocks that will act as our metadata servers");
+  const auto trace_file = get_data_dir().join(tracefile).str();
+  for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i], cluster_nodes_xports[i]));
+
+    SCOPED_TRACE("// Make our metadata server return 3 metadata servers");
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports, true);
+  }
+
+  SCOPED_TRACE("// Create a router state file");
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, cluster_nodes_ports);
+
+  SCOPED_TRACE(
+      "// Create a configuration file sections with high ttl so that "
+      "metadata updates were triggered by the GR notifications");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(/*use_gr_notifications=*/"1", 200ms);
+  const uint16_t router_port = port_pool_.get_next_available();
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+
+  SCOPED_TRACE("// Launch ther router");
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
+
+  SCOPED_TRACE("// Wait until the metadata has been updated at least once");
+  int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
+
+  EXPECT_GE(md_queries_count, 1);
+
+  SCOPED_TRACE("// Remove a single node from cluster");
+  cluster_nodes_ports.pop_back();
+  const auto removed_x_port = cluster_nodes_xports.back();
+  cluster_nodes_xports.pop_back();
+  cluster_http_ports.pop_back();
+
+  const unsigned kCurrentClusterNodesCount = 2;
+
+  // let all nodes know about a removed node
+  for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
+    set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
+                      cluster_nodes_xports, true);
+  }
+
+  SCOPED_TRACE(
+      "// Wait until the metadata has been updated at least once and the GR "
+      "notification connection to the new node has been removed");
+  EXPECT_TRUE(wait_for_new_md_queries(1, cluster_http_ports[0]));
+  const bool found =
+      wait_log_contains(router,
+                        "Removing unused GR notification session "
+                        "to '127.0.0.1:" +
+                            std::to_string(removed_x_port) + "'",
+                        10s);
+  EXPECT_TRUE(found);
+
+  SCOPED_TRACE(
+      "// Check that GR notices have been enabled exactly once on each node");
+  const std::string log_content = router.get_full_logfile();
+  for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
+    const std::string needle =
+        "Enabling GR notices for cluster 'test' "
+        "changes on node 127.0.0.1:" +
+        std::to_string(cluster_nodes_xports[i]);
+    EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  }
+
+  SCOPED_TRACE(
+      "// Make sure GR notice connection has been removed exactly once");
+  const std::string needle = "Removing unused GR notification session";
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 }
 
 int main(int argc, char *argv[]) {
