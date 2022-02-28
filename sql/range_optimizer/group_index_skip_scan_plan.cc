@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -576,13 +576,13 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     if ((join->group_list.empty() && join->select_distinct) ||
         is_agg_distinct) {
       auto agg_distinct_flds_it = agg_distinct_flds.begin();
-      auto select_items_it = join->fields->begin();
-      while (is_agg_distinct ? (agg_distinct_flds_it != agg_distinct_flds.end())
-                             : (select_items_it != join->fields->end())) {
+      auto select_items_it = VisibleFields(*join->fields).begin();
+      while (is_agg_distinct
+                 ? (agg_distinct_flds_it != agg_distinct_flds.end())
+                 : (select_items_it != VisibleFields(*join->fields).end())) {
         Item *item =
             (is_agg_distinct ? static_cast<Item *>(*agg_distinct_flds_it++)
                              : *select_items_it++);
-        if (item->hidden) continue;
 
         /* (SA5) already checked above. */
         item_field = (Item_field *)item->real_item();
