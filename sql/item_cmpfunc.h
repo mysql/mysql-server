@@ -2304,10 +2304,8 @@ class Item_func_like final : public Item_bool_func2 {
   longlong val_int() override;
   enum Functype functype() const override { return LIKE_FUNC; }
   optimize_type select_optimize(const THD *thd) override;
-  /// Result is equal with equal inputs if no ESCAPE character is supplied.
-  cond_result eq_cmp_result() const override {
-    return arg_count > 2 ? COND_OK : COND_TRUE;
-  }
+  /// Result may be not equal with equal inputs if ESCAPE character is present
+  cond_result eq_cmp_result() const override { return COND_OK; }
   const char *func_name() const override { return "like"; }
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
