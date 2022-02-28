@@ -941,7 +941,7 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
     This function is called in 3 places
       1. During server startup, see mysqld_main()
       2. During install plugin after server has started,
-         see test_plugin_options()
+         see update_persisted_plugin_sysvars()
       3. During component installation after server has started,
          see mysql_component_sys_variable_imp::register_variable
 
@@ -1136,18 +1136,18 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
            mysqld_main() ->
              init_server_components() ->
                plugin_register_builtin_and_init_core_se() ->
-                 test_plugin_options()
+                 update_persisted_plugin_sysvars()
 
          plugin_option is true here, but we still don't have to care about
          LOCK_plugin and LOCK_system_variables_hash since this is a
          single-threaded environment: current_thd == nullptr.
 
-      3. Indirectly from plugin_add() with plugin_options=true:
-           plugin_add() ->
-             test_plugin_options()
+      3. Indirectly from mysql_install_plugin() with plugin_options=true:
+           mysql_install_plugin() ->
+             update_persisted_plugin_sysvars()
 
          plugin_option is true here, but sql_plugin.cc always acquire
-         LOCK_plugin and LOCK_system_variables_hash before calling plugin_add(),
+         LOCK_plugin and LOCK_system_variables_hash before calling method,
          so we should not try to re-acquire them recursively in
          Persisted_variables_cache::set_persisted_options().
 
