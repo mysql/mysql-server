@@ -143,7 +143,7 @@ endif()
 
 # For debug libs and exes, add "-d" postfix
 if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-  set(CMAKE_DEBUG_POSTFIX "-d")
+#  set(CMAKE_DEBUG_POSTFIX "-d")
 endif()
 
 # initialize CURL_LIBS
