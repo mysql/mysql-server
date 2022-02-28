@@ -7451,8 +7451,8 @@ bool Item_cond_and::contains_only_equi_join_condition() const {
 
 bool Item_func_comparison::contains_only_equi_join_condition() const {
   assert(arg_count == 2);
-  const Item *left_arg = arguments()[0];
-  const Item *right_arg = arguments()[1];
+  Item *left_arg = args[0];
+  Item *right_arg = args[1];
 
   const table_map left_arg_used_tables =
       left_arg->used_tables() & ~PSEUDO_TABLE_BITS;
@@ -7470,6 +7470,22 @@ bool Item_func_comparison::contains_only_equi_join_condition() const {
       my_count_bits(right_arg_used_tables) > 1) {
     return false;
   }
+
+  // We may have view references which are constants in the underlying
+  // derived tables but used_tables() might not reflect it because the
+  // merged derived table is an inner table of an outer join
+  // (Item_view_ref::used_tables()). Considering conditions having these
+  // constants as equi-join conditions is causing problems for secondary
+  // engine. So for now, we reject these.
+  if (left_arg->type() == Item::REF_ITEM &&
+      down_cast<Item_ref *>(left_arg)->ref_type() == Item_ref::VIEW_REF &&
+      (*(down_cast<Item_ref *>(left_arg)->ref))->used_tables() == 0)
+    return false;
+
+  if (right_arg->type() == Item::REF_ITEM &&
+      down_cast<Item_ref *>(right_arg)->ref_type() == Item_ref::VIEW_REF &&
+      (*(down_cast<Item_ref *>(right_arg)->ref))->used_tables() == 0)
+    return false;
 
   return functype() == EQ_FUNC;
 }
