@@ -1099,10 +1099,7 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
           }
         }
         insert_sql = "INSERT INTO leapdb." + remote_tmp_name + " VALUES(" + insert_sql + ");";
-        if(!mysql_real_query(local, insert_sql.c_str(), insert_sql.length())) {
-		std::cerr << std::string(mysql_error(local)) << "\n";
-		std::cerr << insert_sql << "\n";
-	}
+        mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
       }
       mysql_real_query(local, "commit", 6);
       mysql_free_result(result);   
