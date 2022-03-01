@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1637,18 +1637,23 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/** Check if table is mark for truncate.
+/** Check if tablespace exists and is marked for truncation.
 @param[in]	id	space id
+@return true if tablespace is missing.
 @return true if tablespace is marked for truncate. */
 bool
 fil_space_is_being_truncated(
 	ulint id)
 {
-	bool	mark_for_truncate;
+	bool flag = true;
+	fil_space_t* space;
 	mutex_enter(&fil_system->mutex);
-	mark_for_truncate = fil_space_get_by_id(id)->is_being_truncated;
+	space = fil_space_get_space(id);
+	if (space != NULL) {
+		flag = space->is_being_truncated;
+        }
 	mutex_exit(&fil_system->mutex);
-	return(mark_for_truncate);
+	return(flag);
 }
 
 /** Open each fil_node_t of a named fil_space_t if not already open.

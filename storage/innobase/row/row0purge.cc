@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -895,7 +895,13 @@ try_again:
 		ib::info() << "Record with space id "
 			   << node->table->space
 			   << " belongs to table which is being truncated"
+			   << " or tablespace which is missing"
 			   << " therefore skipping this undo record.";
+		if (dict_table_is_encrypted(node->table)) {
+
+			ib::info() << "Skipped record belongs to encrypted tablespace,"
+				   << " Check if the keyring plugin is loaded.";
+		}
 #endif
 		ut_ad(dict_table_is_file_per_table(node->table));
 		dict_table_close(node->table, FALSE, FALSE);
