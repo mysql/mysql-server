@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,12 @@ IF(GETCONF AND NOT SOLARIS AND NOT APPLE)
   EXECUTE_PROCESS(
     COMMAND ${GETCONF} LEVEL1_DCACHE_LINESIZE
     OUTPUT_VARIABLE CPU_LEVEL1_DCACHE_LINESIZE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
     )
   EXECUTE_PROCESS(
       COMMAND ${GETCONF} PAGE_SIZE
       OUTPUT_VARIABLE CPU_PAGE_SIZE
+      OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 ENDIF()
 IF(CPU_LEVEL1_DCACHE_LINESIZE AND CPU_LEVEL1_DCACHE_LINESIZE GREATER 0)
