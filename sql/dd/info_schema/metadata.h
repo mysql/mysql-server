@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,11 +206,24 @@ namespace info_schema {
   - WL#10905: INFORMATION_SCHEMA.COLUMNS table is modified to list "INVISIBLE"
               value in EXTRA column for INVISIBLE columns.
 
-  80024: Next IS version number after the previous is public.
+  80024..80028: Not published.
+  ----------------------------------------------------------------------------
+  There are no changes from version 80023. Hence server versions 80024..80028
+  uses I_S version 80023.
+
+  80029: Current.
   ------------------------------------
+  Changes from version 80023:
+
+  - Bug#33781534: INFORMATION_SCHEMA.KEY_COLUMN_USAGE table is modified to
+                  list invisible columns with key constraints.
+
+  80030: Next IS version number after the previous is public.
+  ------------------------------------
+  Changes from version 80029:
 */
 
-static const uint IS_DD_VERSION = 80023;
+static const uint IS_DD_VERSION = 80029;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");
