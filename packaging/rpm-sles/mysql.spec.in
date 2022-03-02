@@ -1128,7 +1128,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.5.0
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 
 %if 0%{?compatlib}
