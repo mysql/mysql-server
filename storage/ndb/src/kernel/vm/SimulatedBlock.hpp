@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1216,6 +1216,23 @@ protected:
   void sendNextLinearFragment(Signal* signal, FragmentSendInfo & info);
   
   BlockNumber    number() const;
+
+  /**
+   * Ensure that signal's sender is same node
+   */
+  void LOCAL_SIGNAL(Signal* signal) const
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == theNodeId);
+  }
+
+  /**
+   * Is reference for our node?
+   */
+  bool local_ref(BlockReference ref) const
+  {
+    return (refToNode(ref) == theNodeId ||
+            refToNode(ref) == 0);
+  }
 public:
   /* Must be public so that we can jam() outside of block scope. */
   EmulatedJamBuffer *jamBuffer() const;
@@ -1302,10 +1319,9 @@ protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
-  static const NewVARIABLE* getBat    (BlockNumber blockNo,
-                                       Uint32 instanceNo);
-  static Uint16             getBatSize(BlockNumber blockNo,
-                                       Uint32 instanceNo);
+  static const NewVARIABLE * getBatVar(BlockNumber blockNo,
+                                       Uint32 instanceNo,
+                                       Uint32 varNo);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
