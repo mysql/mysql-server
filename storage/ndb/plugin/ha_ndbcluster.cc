@@ -488,11 +488,11 @@ static int check_slave_config() {
         ndb_get_number_of_channels());
     return HA_ERR_UNSUPPORTED;
   }
-  // NDB does not yet support more than 1 worker
-  if (ndb_mi_get_replica_parallel_workers() > 1) {
+  // NDB does not yet support replica worker
+  if (ndb_mi_get_replica_parallel_workers() > 0) {
     ndb_log_error(
         "NDB Replica: Configuration 'replica_parallel_workers = %lu' is "
-        "not supported when applying to NDB",
+        "not supported when applying to NDB, use 'replica_parallel_workers=0'.",
         ndb_mi_get_replica_parallel_workers());
     return HA_ERR_UNSUPPORTED;
   }
@@ -12620,11 +12620,12 @@ static int ndbcluster_init(void *handlerton_ptr) {
   // NDB should probably not be changing the value of global settings, but
   // the data structures used to maintain replica state are not thread-safe,
   // so this is necessary until that is fixed in wl#14885.
-  if (opt_mts_replica_parallel_workers > 1) {
+  const ulong max_replica_workers = 0;
+  if (opt_mts_replica_parallel_workers > max_replica_workers) {
     ndb_log_info(
-        "Changed global value of --replica-parallel-workers from %lu to 1",
-        opt_mts_replica_parallel_workers);
-    opt_mts_replica_parallel_workers = 1;
+        "Changed global value of --replica-parallel-workers from %lu to %lu",
+        opt_mts_replica_parallel_workers, max_replica_workers);
+    opt_mts_replica_parallel_workers = max_replica_workers;
   }
 
   if (ndb_index_stat_thread.init() ||

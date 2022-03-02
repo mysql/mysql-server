@@ -7,6 +7,7 @@
 --source include/rpl_init.inc
 
 disable_query_log;
+call mtr.add_suppression("handler error HA_ERR_UNSUPPORTED");
 call mtr.add_suppression("NDB Replica: Configuration with number of replication sources = .* is not supported when applying to Ndb");
 call mtr.add_suppression(".*Worker 1 failed executing transaction.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
