@@ -527,8 +527,8 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
-            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "'\\$\\.version', '.*'\\),    '\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', 'mysql_router.*'\\),    '\\$.bootstrapTargetType', '.*'\\) " +
             "WHERE router_id = .*",
         "ok": {}
@@ -773,11 +773,11 @@ function get_response(stmt_key, options) {
       };
     case "router_update_attributes_v1":
       return {
-        "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\.routers" +
-            " SET attributes = JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(" +
-            " IF\(attributes IS NULL, '\{\}', attributes\), '\$\.version', '.*'\)," +
-            " '\$\.RWEndpoint', '.*'\), '\$\.ROEndpoint', '.*'\), '\$\.RWXEndpoint', '.*'\)," +
-            " '\$\.ROXEndpoint', '.*'\), '\$\.MetadataUser', '.*'\) WHERE router_id = " +
+        "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.routers" +
+            " SET attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " IF\\(attributes IS NULL, '\\{\\}', attributes\\), '\\$\\.version', '.*'\\)," +
+            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
+            " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = " +
             options.router_id,
         "ok": {}
       };
@@ -818,11 +818,11 @@ function get_response(stmt_key, options) {
       };
     case "router_update_attributes_v2":
       return {
-        "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\.v2_routers" +
-            " SET version = .*, attributes = JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(" +
-            " IF\(attributes IS NULL, '\{\}', attributes\)," +
-            " '\$\.RWEndpoint', '.*'\), '\$\.ROEndpoint', '.*'\), '\$\.RWXEndpoint', '.*'\)," +
-            " '\$\.ROXEndpoint', '.*'\), '\$\.MetadataUser', '.*'\) WHERE router_id = .*",
+        "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.v2_routers" +
+            " SET version = .*, attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " IF\\(attributes IS NULL, '\\{\\}', attributes\\)," +
+            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
+            " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = .*",
         "ok": {}
       };
     case "router_update_attributes_strict_v2":

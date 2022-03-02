@@ -124,7 +124,7 @@ options.group_replication_primary_member =
 var common_responses = common_stmts.prepare_statement_responses(
     [
       "router_set_session_options", "router_set_gr_consistency_level",
-      "router_commit", "router_select_schema_version",
+      "router_commit", "router_rollback", "router_select_schema_version",
       "router_select_cluster_type_v2", "router_select_view_id_v2_ar",
       "router_update_last_check_in_v2", "select_port"
     ],
