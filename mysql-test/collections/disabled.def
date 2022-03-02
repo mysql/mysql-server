@@ -93,6 +93,7 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
+rpl.rpl_writeset_add_unique_key : Bug#33134835 RPL_WRITESET_ADD_UNIQUE_KEY FAILS SPORADICALLY
 
 # sys_vars tests
 sys_vars.max_execution_time_basic @freebsd : BUG#31041720
