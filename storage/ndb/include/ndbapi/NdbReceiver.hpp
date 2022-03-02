@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,6 +248,7 @@ private:
    * Unpack a packed stream of field values, whose presence and nullness
    * is indicated by a leading bitmap into a list of NdbRecAttr objects
    * Return the number of words read from the input stream.
+   * On failure UINT32_MAX is returned.
    */
   static
   Uint32 unpackRecAttr(NdbRecAttr**, Uint32 bmlen, 
