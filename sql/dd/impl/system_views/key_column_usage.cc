@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ Key_column_usage::Key_column_usage() {
   m_target_def.add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
   m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-      "col.hidden <> 'Visible' OR constraints.HIDDEN)");
+      "col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN)");
 }
 
 }  // namespace system_views

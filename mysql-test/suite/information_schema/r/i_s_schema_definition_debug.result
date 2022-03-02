@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=80023
+Current I_S_VERSION=80029
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -620,7 +620,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
   JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN)
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
@@ -641,7 +641,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
   JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEYWORDS AS SELECT 
   j.word AS WORD,
@@ -1649,8 +1649,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 80023.
+The schema checksum corresponds to I_S version 80029.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 80023 stored on on disk.]
+IS_VERSION 80029 stored on on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]
