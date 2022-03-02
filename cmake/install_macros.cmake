@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -671,6 +671,8 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
     -Dlibrary_version="${library_version}"
     -Dsubdir="${subdir}"
     -DPATCHELF_EXECUTABLE="${PATCHELF_EXECUTABLE}"
+    -DCPU_PAGE_SIZE="${CPU_PAGE_SIZE}"
+    -DCMAKE_SYSTEM_PROCESSOR="${CMAKE_SYSTEM_PROCESSOR}"
     -P ${CMAKE_SOURCE_DIR}/cmake/copy_custom_library.cmake
 
     BYPRODUCTS
