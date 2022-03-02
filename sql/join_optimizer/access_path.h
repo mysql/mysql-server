@@ -1785,7 +1785,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates);
 
-/// Returns the tables that have stored row IDs in the hash join result.
-table_map GetTablesWithRowIDsInHashJoin(AccessPath *path);
+/// Returns the tables that are part of a hash join.
+table_map GetHashJoinTables(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

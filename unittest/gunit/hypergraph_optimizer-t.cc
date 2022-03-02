@@ -4695,6 +4695,44 @@ TEST_F(HypergraphOptimizerTest, UpdatePreferImmediate) {
   EXPECT_STREQ("t2", nested_loop_join.inner->eq_ref().table->alias);
 }
 
+TEST_F(HypergraphOptimizerTest, UpdateHashJoin) {
+  Query_block *query_block =
+      ParseAndResolve("UPDATE t1, t2 SET t1.x = 1, t2.x = 2 WHERE t1.y = t2.y",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  // Size the tables so that a hash join is preferable to a nested loop join.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 1e6;
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->file->stats.records = 10000;
+  t2->file->stats.data_file_length = 1e5;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::UPDATE_ROWS, root->type);
+  // Both tables are updated.
+  EXPECT_EQ(t1->pos_in_table_list->map() | t2->pos_in_table_list->map(),
+            root->update_rows().tables_to_update);
+  // No immediate update with hash join.
+  EXPECT_EQ(0, root->update_rows().immediate_tables);
+
+  // Expect a hash join with the smaller table (t2) on the inner side.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->update_rows().child->type);
+  const auto &hash_join = root->update_rows().child->hash_join();
+  ASSERT_EQ(AccessPath::TABLE_SCAN, hash_join.outer->type);
+  EXPECT_EQ(t1, hash_join.outer->table_scan().table);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, hash_join.inner->type);
+  EXPECT_EQ(t2, hash_join.inner->table_scan().table);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

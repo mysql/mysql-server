@@ -1344,16 +1344,16 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                   });
 }
 
-table_map GetTablesWithRowIDsInHashJoin(AccessPath *path) {
+table_map GetHashJoinTables(AccessPath *path) {
   table_map tables = 0;
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [&tables](AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::HASH_JOIN &&
-                        subpath->hash_join().store_rowids) {
-                      tables |= subpath->hash_join().tables_to_get_rowid_for;
-                    }
-                    return false;
-                  });
+  WalkAccessPaths(
+      path, /*join=*/nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&tables](AccessPath *subpath, const JOIN *) {
+        if (subpath->type == AccessPath::HASH_JOIN) {
+          tables |= GetUsedTableMap(subpath, /*include_pruned_tables=*/true);
+          return true;
+        }
+        return false;
+      });
   return tables;
 }

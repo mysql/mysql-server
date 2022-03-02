@@ -28,6 +28,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_table_map.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/sql_list.h"
 
@@ -50,8 +51,9 @@ class UpdateRowsIterator final : public RowIterator {
                      List<TABLE> unupdated_check_opt_tables,
                      COPY_INFO **update_operations,
                      mem_root_deque<Item *> **fields_for_table,
-                     mem_root_deque<Item *> **values_for_table);
-  ~UpdateRowsIterator() override = default;
+                     mem_root_deque<Item *> **values_for_table,
+                     table_map tables_with_rowid_in_buffer);
+  ~UpdateRowsIterator() override;
   bool Init() override;
   int Read() override;
   void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
@@ -95,6 +97,15 @@ class UpdateRowsIterator final : public RowIterator {
   ha_rows m_found_rows{0};
   /// The number of rows actually updated.
   ha_rows m_updated_rows{0};
+  /// All the tables that are part of a hash join. We use this map to find out
+  /// how to get the row ID from a table when buffering row IDs for delayed
+  /// update. For those tables that are part of a hash join, the row ID will
+  /// already be available in handler::ref, and calling handler::position() will
+  /// overwrite it with an incorrect row ID (most likely the last row read from
+  /// the table). For those that are not part of a hash join,
+  /// handler::position() must be called to get the current row ID from the
+  /// underlying scan.
+  table_map m_hash_join_tables;
 
   /// Perform all the immediate updates for the current row returned by the
   /// join, and buffer row IDs for the non-immediate tables.

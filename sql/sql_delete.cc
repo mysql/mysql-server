@@ -921,10 +921,9 @@ DeleteRowsIterator::DeleteRowsIterator(
       m_tables_to_delete_from(tables_to_delete_from),
       m_immediate_tables(immediate_tables),
       // The old optimizer does not use hash join in DELETE statements.
-      m_tables_with_rowid_in_hash_join_buffer(
-          thd->lex->using_hypergraph_optimizer
-              ? GetTablesWithRowIDsInHashJoin(join->root_access_path())
-              : 0),
+      m_hash_join_tables(thd->lex->using_hypergraph_optimizer
+                             ? GetHashJoinTables(join->root_access_path())
+                             : 0),
       m_tempfiles(thd->mem_root),
       m_delayed_tables(thd->mem_root) {
   for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
@@ -1076,7 +1075,10 @@ bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
     // Check if using outer join and no row found, or row is already deleted
     if (table->has_null_row() || table->has_deleted_row()) continue;
 
-    if (!Overlaps(map, m_tables_with_rowid_in_hash_join_buffer)) {
+    // Hash joins have already copied the row ID from the join buffer into
+    // table->file->ref. Nested loop joins have not, so we call position() to
+    // get the row ID from the handler.
+    if (!Overlaps(map, m_hash_join_tables)) {
       table->file->position(table->record[0]);
     }
 

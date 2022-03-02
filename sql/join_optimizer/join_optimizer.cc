@@ -3028,12 +3028,6 @@ void CostingReceiver::ProposeHashJoin(
   // to update or delete. The same applies to rows from the outer side, if the
   // hash join spills to disk, so we need to store row IDs for both sides.
   if (Overlaps(m_update_delete_target_nodes, left | right)) {
-    if (m_thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
-        m_thd->lex->sql_command == SQLCOM_UPDATE) {
-      // TODO(khatlen): Consider enabling hash join for UPDATE too. Must
-      // probably disable semi-consistent reads in that case.
-      return;
-    }
     FindTablesToGetRowidFor(&join_path);
   }
 
