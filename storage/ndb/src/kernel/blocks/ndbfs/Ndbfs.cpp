@@ -288,6 +288,7 @@ Ndbfs::get_base_path(Uint32 no) const
 void 
 Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
 
   Uint32 ref = req->senderRef;
@@ -492,6 +493,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 void
 Ndbfs::execSTTOR(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   
   if(signal->theData[1] == 0){ // StartPhase 0
@@ -574,6 +576,7 @@ Ndbfs::forward( AsyncFile * file, Request* request)
 void 
 Ndbfs::execFSOPENREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   require(signal->getLength() >= FsOpenReq::SignalLength);
 #if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT)
@@ -582,10 +585,10 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   const FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
 #endif
   const BlockReference userRef = fsOpenReq->userReference;
-
   bool bound = (fsOpenReq->fileFlags & FsOpenReq::OM_THREAD_POOL) == 0;
   AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
+  ndbrequire(local_ref(userRef));
 
   Uint32 userPointer = fsOpenReq->userPointer;
   
@@ -715,12 +718,14 @@ Ndbfs::execFSOPENREQ(Signal* signal)
 void 
 Ndbfs::execFSREMOVEREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsRemoveReq * const req = (FsRemoveReq *)signal->getDataPtr();
   const BlockReference userRef = req->userReference;
   bool bound = true;
   AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
+  ndbrequire(local_ref(userRef));
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr; ptr.setNull();
@@ -768,11 +773,13 @@ ignore:
 void 
 Ndbfs::execFSCLOSEREQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsCloseReq * const fsCloseReq = (FsCloseReq *)&signal->theData[0];
   const BlockReference userRef = fsCloseReq->userReference;
   const Uint16 filePointer = (Uint16)fsCloseReq->filePointer;
   const UintR userPointer = fsCloseReq->userPointer; 
+  ndbrequire(local_ref(userRef));
 
   AsyncFile* openFile = theOpenFiles.find(filePointer);
   if (openFile == NULL) {
@@ -817,6 +824,7 @@ void
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
   Uint32 theData[25 + 1 + NDB_FS_RW_PAGES];
+  ndbrequire(signal->getLength() <= NDB_ARRAY_SIZE(theData));
   memcpy(theData, signal->theData, 4 * signal->getLength());
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)
@@ -835,11 +843,12 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   const BlockReference userRef = fsRWReq->userReference;
   const BlockNumber blockNumber = refToMain(userRef);
   const Uint32 instanceNumber = refToInstance(userRef);
+  ndbrequire(local_ref(userRef));
 
   AsyncFile* openFile = theOpenFiles.find(filePointer);
 
   const NewVARIABLE *myBaseAddrRef =
-    &getBat(blockNumber, instanceNumber)[fsRWReq->varIndex];
+    getBatVar(blockNumber, instanceNumber, fsRWReq->varIndex);
   UintPtr tPageSize;
   UintPtr tClusterSize;
   UintPtr tNRR;
@@ -865,12 +874,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 
   if(format != FsReadWriteReq::fsFormatGlobalPage &&
      format != FsReadWriteReq::fsFormatSharedPage)
-  {     
-    if (fsRWReq->varIndex >= getBatSize(blockNumber, instanceNumber)) {
-      jam();// Ensure that a valid variable is used    
-      errorCode = FsRef::fsErrInvalidParameters;
-      goto error;
-    }
+  {
     if (myBaseAddrRef == NULL) {
       jam(); // Ensure that a valid variable is used
       errorCode = FsRef::fsErrInvalidParameters;
@@ -1037,6 +1041,7 @@ error:
 void 
 Ndbfs::execFSWRITEREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsReadWriteReq * const fsWriteReq = (FsReadWriteReq *)&signal->theData[0];
   
@@ -1061,6 +1066,7 @@ Ndbfs::execFSWRITEREQ(Signal* signal)
 void 
 Ndbfs::execFSREADREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   FsReadWriteReq * req = (FsReadWriteReq *)signal->getDataPtr();
   if (FsReadWriteReq::getPartialReadFlag(req->operationFlag))
@@ -1081,11 +1087,13 @@ Ndbfs::execFSREADREQ(Signal* signal)
 void
 Ndbfs::execFSSYNCREQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Uint16 filePointer =  (Uint16)signal->theData[0];
   BlockReference userRef = signal->theData[1];
   const UintR userPointer = signal->theData[2]; 
   AsyncFile* openFile = theOpenFiles.find(filePointer);
+  ndbrequire(local_ref(userRef));
 
   if (openFile == NULL) {
      jam(); //file not open
@@ -1115,6 +1123,7 @@ Ndbfs::execFSSYNCREQ(Signal * signal)
 void
 Ndbfs::execFSSUSPENDORD(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Uint16 filePointer =  (Uint16)signal->theData[0];
   Uint32 millis = signal->theData[1];
@@ -1141,26 +1150,30 @@ Ndbfs::execFSSUSPENDORD(Signal * signal)
 void 
 Ndbfs::execFSAPPENDREQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
+  jamEntry();
   const FsAppendReq * const fsReq = (FsAppendReq *)&signal->theData[0];
   const Uint16 filePointer =  (Uint16)fsReq->filePointer;
   const UintR userPointer = fsReq->userPointer; 
   const BlockReference userRef = fsReq->userReference;
   const BlockNumber blockNumber = refToMain(userRef);
   const Uint32 instanceNumber = refToInstance(userRef);
+  ndbrequire(local_ref(userRef));
 
   FsRef::NdbfsErrorCodeType errorCode;
 
   Request *request = theRequestPool->get();
   AsyncFile* openFile = theOpenFiles.find(filePointer);
-  if (fsReq->varIndex >= getBatSize(blockNumber, instanceNumber)) {
-    jam();// Ensure that a valid variable is used    
+  const NewVARIABLE *myBaseAddrRef =
+    getBatVar(blockNumber, instanceNumber, fsReq->varIndex);
+
+  if (unlikely(myBaseAddrRef == NULL))
+  {
+    jam(); // Ensure that a valid variable is used
     errorCode = FsRef::fsErrInvalidParameters;
     goto error;
   }
   {
-    const NewVARIABLE *myBaseAddrRef =
-      &getBat(blockNumber, instanceNumber)[fsReq->varIndex];
-
     const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
     const Uint32  tSz   = myBaseAddrRef->nrr;
     const Uint32 offset = fsReq->offset;
@@ -1170,12 +1183,6 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
     if (openFile == NULL) {
       jam();
       errorCode = FsRef::fsErrFileDoesNotExist;
-      goto error;
-    }
-
-    if (myBaseAddrRef == NULL) {
-      jam(); // Ensure that a valid variable is used
-      errorCode = FsRef::fsErrInvalidParameters;
       goto error;
     }
 
@@ -1219,13 +1226,14 @@ error:
 void
 Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
-
   AllocMemReq* req = (AllocMemReq*)signal->getDataPtr();
 
   bool bound = true;
   AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
+  ndbrequire(local_ref(req->senderRef));
 
   Request *request = theRequestPool->get();
 
@@ -1245,12 +1253,14 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 void
 Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   mt_BuildIndxReq * req = (mt_BuildIndxReq*)signal->getDataPtr();
 
   bool bound = true;
   AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
+  ndbrequire(local_ref(req->senderRef));
 
   Request *request = theRequestPool->get();
   NDBFS_SET_REQUEST_ERROR(request, 0);
@@ -1804,6 +1814,7 @@ Uint32 Ndbfs::translateErrno(int aErrno)
 void 
 Ndbfs::execCONTINUEB(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   if (signal->theData[0] == NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY) {
     jam();
@@ -1835,7 +1846,15 @@ Ndbfs::execCONTINUEB(Signal* signal)
 void
 Ndbfs::execSEND_PACKED(Signal* signal)
 {
+  /**
+   * This function is called, but not in response to any incoming signal
+   * Skip locality checking.
+   * In future : Remove possibility for external invocation and/or
+   * initialise the passed Signal object in some way.
+   */
+  //LOCAL_SIGNAL(signal);
   jamEntryDebug();
+
   if (scanIPC(signal))
   {
     if (scanningInProgress == false)
@@ -1857,6 +1876,8 @@ Ndbfs::execSEND_PACKED(Signal* signal)
 void
 Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
+  jamEntry();
   if(signal->theData[0] == 19){
     return;
   }
