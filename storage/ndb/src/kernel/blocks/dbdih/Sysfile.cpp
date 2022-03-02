@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -406,8 +406,13 @@ Sysfile::unpack_sysfile_format_v2(const Uint32 cdata[], Uint32* cdata_size_ptr)
   }
   index += MAGIC_SIZE_v2 / sizeof(Uint32);
 
-  Uint32 max_node_id = cdata[index];
+  const Uint32 max_node_id = cdata[index];
   index++;
+
+  if (max_node_id >= MAX_NDB_NODES)
+  {
+    return -7;
+  }
 
   const Uint32 cdata_size = cdata[index];
   if (cdata_size > *cdata_size_ptr)
