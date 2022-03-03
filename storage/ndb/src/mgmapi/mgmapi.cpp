@@ -1666,7 +1666,7 @@ extern "C"
 int 
 ndb_mgm_enter_single_user(NdbMgmHandle handle,
 			  unsigned int nodeId,
-			  struct ndb_mgm_reply* /*reply*/) 
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_enter_single_user");
   CHECK_HANDLE(handle, -1);
@@ -1700,7 +1700,7 @@ ndb_mgm_enter_single_user(NdbMgmHandle handle,
 
 extern "C"
 int 
-ndb_mgm_exit_single_user(NdbMgmHandle handle, struct ndb_mgm_reply* /*reply*/) 
+ndb_mgm_exit_single_user(NdbMgmHandle handle, struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_exit_single_user");
   CHECK_HANDLE(handle, -1);
@@ -2157,7 +2157,7 @@ int
 ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle, 
 				       enum ndb_mgm_event_severity severity,
 				       int enable,
-				       struct ndb_mgm_reply* /*reply*/) 
+                                       struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_clusterlog_severity_filter");
   CHECK_HANDLE(handle, -1);
@@ -2327,7 +2327,7 @@ int
 ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle, int nodeId,
 				enum ndb_mgm_event_category cat,
 				int level,
-				struct ndb_mgm_reply* /*reply*/) 
+                                struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_clusterlog_loglevel");
   CHECK_HANDLE(handle, -1);
@@ -2368,7 +2368,7 @@ int
 ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 			  enum ndb_mgm_event_category category,
 			  int level,
-			  struct ndb_mgm_reply* /*reply*/) 
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_loglevel_node");
   CHECK_HANDLE(handle, -1);
@@ -2556,7 +2556,7 @@ ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
 extern "C"
 int 
 ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId, 
-			struct ndb_mgm_reply* reply) 
+                        struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_start_signallog");
   CHECK_HANDLE(handle, -1);
@@ -2597,7 +2597,7 @@ ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_stop_signallog(NdbMgmHandle handle, int nodeId,
-		       struct ndb_mgm_reply* reply) 
+                       struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_stop_signallog");
   CHECK_HANDLE(handle, -1);
@@ -2643,7 +2643,7 @@ int
 ndb_mgm_log_signals(NdbMgmHandle handle, int nodeId, 
 		    enum ndb_mgm_signal_log_mode mode, 
 		    const char* blockNames,
-		    struct ndb_mgm_reply* reply) 
+                    struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_log_signals");
   CHECK_HANDLE(handle, -1);
@@ -2701,7 +2701,7 @@ ndb_mgm_log_signals(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_set_trace(NdbMgmHandle handle, int nodeId, int traceNumber,
-		  struct ndb_mgm_reply* reply) 
+                  struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_set_trace");
   CHECK_HANDLE(handle, -1);
@@ -2741,7 +2741,7 @@ int
 ndb_mgm_insert_error_impl(NdbMgmHandle handle, int nodeId,
                           int errorCode,
                           int * extra,
-                          struct ndb_mgm_reply* reply)
+                          struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_insert_error");
 
@@ -2983,7 +2983,7 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 extern "C"
 int
 ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
-		     struct ndb_mgm_reply* /*reply*/) 
+                     struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_abort_backup");
   CHECK_HANDLE(handle, -1);
@@ -3512,8 +3512,8 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     int value,
-				     struct ndb_mgm_reply* mgmreply){
+                                     int value)
+{
   DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
@@ -3555,8 +3555,8 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
 				     int node2,
 				     int param,
-				     int *value,
-				     struct ndb_mgm_reply* mgmreply){
+                                     int *value)
+{
   DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
@@ -3938,7 +3938,7 @@ extern "C"
 int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
                              int *nodes,
                              int *ng,
-                             struct ndb_mgm_reply* mgmreply)
+                             struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_create_nodegroup");
   CHECK_HANDLE(handle, -1);
@@ -3991,7 +3991,7 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
 extern "C"
 int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
                            int ng,
-                           struct ndb_mgm_reply* mgmreply)
+                           struct ndb_mgm_reply*)
 {
   DBUG_ENTER("ndb_mgm_drop_nodegroup");
   CHECK_HANDLE(handle, -1);
@@ -4294,13 +4294,11 @@ ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
   // Report the ports one at a time
   for (unsigned i = 0; i < num_ports; i++)
   {
-    struct ndb_mgm_reply mgm_reply;
     const int err = ndb_mgm_set_connection_int_parameter(handle,
                                                          nodeid,
                                                          ports[i].nodeid,
                                                          CFG_CONNECTION_SERVER_PORT,
-                                                         ports[i].port,
-                                                         &mgm_reply);
+                                                         ports[i].port);
     if (err < 0)
     {
       setError(handle, handle->last_error, __LINE__,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,14 +39,12 @@ extern "C" {
    * @param node2 the node2 id
    * @param param the parameter (e.g. CFG_CONNECTION_SERVER_PORT)
    * @param value what to set it to
-   * @param reply from ndb_mgmd
    */
   int ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 					   int node1,
 					   int node2,
 					   int param,
-					   int value,
-					   struct ndb_mgm_reply* reply);
+                                           int value);
 
   struct ndb_mgm_dynamic_port {
    int nodeid; /* The node which should use below port */
@@ -79,15 +77,13 @@ extern "C" {
    * @param param the parameter (e.g. CFG_CONNECTION_SERVER_PORT)
    * @param value where to store the retreived value. In the case of 
    * error, value is not changed.
-   * @param reply from ndb_mgmd
    * @return 0 on success. < 0 on error.
    */
   int ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 					   int node1,
 					   int node2,
 					   int param,
-					   int *value,
-					   struct ndb_mgm_reply* reply);
+                                           int *value);
 
   /**
    * Convert connection to transporter

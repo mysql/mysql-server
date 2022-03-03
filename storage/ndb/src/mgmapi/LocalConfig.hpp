@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,19 +68,19 @@ private:
   bool readConnectString(const char *, const char *info);
   bool readFile(const char * file, bool &fopenError);
   bool parseLine(char * line, int lineNumber);
-  
-  bool parseNodeId(const char *buf, const char * value);
-  bool parseHostName(const char *buf, const char * value);
-  bool parseBindAddress(const char *buf, const char * value);
-  bool parseFileName(const char *buf, const char * value);
-  bool parseComment(const char *buf, const char * value);
+
+  bool parseNodeId(const char *value);
+  bool parseHostName(const char *value);
+  bool parseBindAddress(const char *value);
+  bool parseFileName(const char *value);
+  bool parseComment(const char *value);
   bool parseString(const char *buf, BaseString &err);
 
   struct param_prefix
   {
     const char* prefix;
     size_t prefix_len;
-    bool (LocalConfig::*param_func)(const char * buf, const char * value);
+    bool (LocalConfig::*param_func)(const char *value);
     template<size_t N> param_prefix(const char (&str)[N],
                                     decltype(param_func) func)
       : prefix(str), prefix_len(N - 1), param_func(func) {}
