@@ -206,16 +206,20 @@ eval CHANGE REPLICATION SOURCE TO
 source include/check_slave_no_error.inc;
 
 # Add a suppression for the warning that will appear in the
-# Slave's .err file
-call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
+# replicas's .err file
+call mtr.add_suppression("Table \'t2\' already exists.*");
 call mtr.add_suppression("Worker 1 failed executing transaction.*");
-
 
 START REPLICA;
 
 --let $slave_sql_errno= 1050
---let $show_slave_sql_error=1
+# Don't show error message, it varies for replica worker
+--let $show_slave_sql_error=0
 --source include/wait_for_slave_sql_error.inc
+# Check expected error message
+SELECT LAST_ERROR_MESSAGE
+  FROM performance_schema.replication_applier_status_by_worker
+    WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
 
 STOP REPLICA;
 

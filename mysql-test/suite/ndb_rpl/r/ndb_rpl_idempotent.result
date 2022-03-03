@@ -94,11 +94,15 @@ include/check_slave_is_running.inc
 Stop slave and reset position to start of the applied epoch
 STOP REPLICA;
 include/check_slave_no_error.inc
-call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
+call mtr.add_suppression("Table \'t2\' already exists.*");
 call mtr.add_suppression("Worker 1 failed executing transaction.*");
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1050]
-Last_SQL_Error = 'Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 1 failed executing transaction 'ANONYMOUS' at master log master-bin.000001, end_log_pos 1035. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.'
+SELECT LAST_ERROR_MESSAGE
+FROM performance_schema.replication_applier_status_by_worker
+WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
+LAST_ERROR_MESSAGE
+Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb'
 STOP REPLICA;
 RESET MASTER;
 RESET REPLICA;
