@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,7 @@ class Thd_ndb {
   uint m_unsent_bytes;
   bool m_unsent_blob_ops;
   uint m_batch_size;
+  uint m_blob_write_batch_size;
   bool add_row_check_if_batch_full(uint size);
 
   uint m_execute_count;

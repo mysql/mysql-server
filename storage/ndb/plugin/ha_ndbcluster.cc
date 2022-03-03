@@ -128,6 +128,7 @@ ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
 static ulong opt_ndb_wait_setup;
 static ulong opt_ndb_replica_batch_size;
+static uint opt_ndb_replica_blob_write_batch_bytes;
 static uint opt_ndb_cluster_connection_pool;
 static char *opt_connection_pool_nodeids_str;
 static uint opt_ndb_recv_thread_activation_threshold;
@@ -1712,7 +1713,8 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
   if (table_share->blob_fields == 0) return 0;
 
   ndb_op->getNdbTransaction()->setMaxPendingBlobWriteBytes(
-      THDVAR(current_thd, blob_write_batch_bytes));
+      m_thd_ndb->m_blob_write_batch_size);
+
   blob_index = table_share->blob_field;
   blob_index_end = blob_index + table_share->blob_fields;
   do {
@@ -7488,16 +7490,24 @@ void Thd_ndb::transaction_checks() {
   }
 
   m_force_send = THDVAR(thd, force_send);
-  if (!m_slave_thread)
+  if (!m_slave_thread) {
     m_batch_size = THDVAR(thd, batch_size);
-  else {
+    m_blob_write_batch_size = THDVAR(thd, blob_write_batch_bytes);
+  } else {
     // Replicas benefit from higher batch size, thus use the maximum
     // between the default and the global batch_size if
     // replica_batch_size is unset
     m_batch_size =
         opt_ndb_replica_batch_size == DEFAULT_REPLICA_BATCH_SIZE
-            ? MAX(opt_ndb_replica_batch_size, THDVAR(NULL, batch_size))
+            ? std::max(opt_ndb_replica_batch_size, THDVAR(NULL, batch_size))
             : opt_ndb_replica_batch_size;
+
+    m_blob_write_batch_size =
+        opt_ndb_replica_blob_write_batch_bytes == DEFAULT_REPLICA_BATCH_SIZE
+            ? std::max(opt_ndb_replica_blob_write_batch_bytes,
+                       THDVAR(NULL, blob_write_batch_bytes))
+            : opt_ndb_replica_blob_write_batch_bytes;
+
     /* Do not use hinted TC selection in slave thread */
     THDVAR(thd, optimized_node_selection) =
         THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
@@ -17691,6 +17701,19 @@ static MYSQL_SYSVAR_ULONG(replica_batch_size,         /* name */
                           0                           /* block */
 );
 
+static MYSQL_SYSVAR_UINT(replica_blob_write_batch_bytes,         /* name */
+                         opt_ndb_replica_blob_write_batch_bytes, /* var */
+                         PLUGIN_VAR_OPCMDARG,
+                         "Specifies the byte size of batched blob writes "
+                         "for the replica applier. 0 == No limit.",
+                         NULL,                       /* check func */
+                         NULL,                       /* update func */
+                         DEFAULT_REPLICA_BATCH_SIZE, /* default */
+                         0,                          /* min */
+                         2UL * 1024 * 1024 * 1024,   /* max */
+                         0                           /* block */
+);
+
 static const int MAX_CLUSTER_CONNECTIONS = 63;
 
 static MYSQL_SYSVAR_UINT(
@@ -18479,6 +18502,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(nodeid),
     MYSQL_SYSVAR(blob_read_batch_bytes),
     MYSQL_SYSVAR(blob_write_batch_bytes),
+    MYSQL_SYSVAR(replica_blob_write_batch_bytes),
     MYSQL_SYSVAR(deferred_constraints),
     MYSQL_SYSVAR(join_pushdown),
     MYSQL_SYSVAR(log_exclusive_reads),

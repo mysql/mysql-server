@@ -12,7 +12,7 @@
 set @@GLOBAL.ndb_replica_batch_size = -1;
 show variables like 'ndb_replica_batch_size';
 
-# Should be truncated to 2147483648 (2^31)
+# Should be truncated to 2147483648 (2^30)
 set @@GLOBAL.ndb_replica_batch_size = 2147483649;
 show variables like 'ndb_replica_batch_size';
 

@@ -3590,6 +3590,8 @@ NdbTransaction::setMaxPendingBlobReadBytes(Uint32 bytes)
 void
 NdbTransaction::setMaxPendingBlobWriteBytes(Uint32 bytes)
 {
+  DBUG_PRINT("info", ("Setting Blob max pending bytes %d",
+                      bytes));
   /* 0 == max */
   maxPendingBlobWriteBytes = (bytes?bytes : (~ Uint32(0)));
 }

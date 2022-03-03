@@ -186,6 +186,8 @@ ndb_optimized_node_selection	#
 ndb_read_backup	#
 ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
+ndb_replica_batch_size	#
+ndb_replica_blob_write_batch_bytes	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_row_checksum	#
