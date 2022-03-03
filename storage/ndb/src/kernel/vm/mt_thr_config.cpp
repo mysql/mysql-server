@@ -71,18 +71,18 @@ static const struct ParseEntries m_parse_entries[] =
  */
 static const struct THRConfig::Entries m_entries[] =
 {
-  //type               min max                        exec thread   permanent
-  { THRConfig::T_MAIN,  0, 1,                         true,         true },
-  { THRConfig::T_LDM,   0, MAX_NDBMT_LQH_THREADS,     true,         true },
-  { THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS, true,         true },
-  { THRConfig::T_REP,   0, 1,                         true,         true },
-  { THRConfig::T_IO,    1, 1,                         false,        true },
-  { THRConfig::T_WD,    1, 1,                         false,        true },
-  { THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS,      true,         true },
-  { THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS,    true,         true },
-  { THRConfig::T_IXBLD, 0, 1,                         false,        false},
-  { THRConfig::T_QUERY, 0, MAX_NDBMT_QUERY_THREADS,   true,          true},
-  { THRConfig::T_RECOVER, 0, MAX_NDBMT_QUERY_THREADS, false,        false}
+  //type               min max                        exec thread   permanent mandatory
+  { THRConfig::T_MAIN,  0, 1,                         true,         true,     true },
+  { THRConfig::T_LDM,   0, MAX_NDBMT_LQH_THREADS,     true,         true,     true },
+  { THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS, true,         true,     true },
+  { THRConfig::T_REP,   0, 1,                         true,         true,     true },
+  { THRConfig::T_IO,    1, 1,                         false,        true,     false },
+  { THRConfig::T_WD,    1, 1,                         false,        true,     false },
+  { THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS,      true,         true,     false },
+  { THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS,    true,         true,     false },
+  { THRConfig::T_IXBLD, 0, 1,                         false,        false,    false },
+  { THRConfig::T_QUERY, 0, MAX_NDBMT_QUERY_THREADS,   true,         true,     false },
+  { THRConfig::T_RECOVER, 0, MAX_NDBMT_QUERY_THREADS, false,        false,    false }
 };
 
 static const struct ParseParams m_params[] =
@@ -1448,11 +1448,20 @@ THRConfig::getConfigString()
   const char * start_sep;
   const char * between_sep;
   bool append_name_flag;
+  if(getThreadCount() == 0){
+    return m_cfg_string.c_str();
+  }
   for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
+    const char * name = getEntryName(i);
+    if(m_threads[i].size() == 0 && m_entries[i].m_mandatory)
+    {
+      sep = m_cfg_string.empty() ? "" : ",";
+      m_cfg_string.appfmt("%s%s={count=0}", sep, name);
+      sep=",";
+    }
     if (m_threads[i].size())
     {
-      const char * name = getEntryName(i);
       for (unsigned j = 0; j < m_threads[i].size(); j++)
       {
         start_sep = "={";
@@ -1600,7 +1609,9 @@ THRConfig::handle_spec(char *str,
       /* Parser is done either successful or not */
       return ret_code;
     }
+
     T_Type type = (T_Type)loc_type;
+    m_setInThreadConfig.set(loc_type);
 
     int cpu_values = 0;
     if (values[IX_CPUBIND].found)
@@ -1745,6 +1756,47 @@ THRConfig::handle_spec(char *str,
 }
 
 int
+THRConfig::do_validate_thread_counts()
+{
+  /**
+   * Check that mandatory threads were configured in ThreadConfig string
+   */
+  for (Uint32 i = 0; i < T_END; i++)
+  {
+    if (m_entries[i].m_mandatory &&
+        !m_setInThreadConfig.get(i))
+    {
+      m_err_msg.assfmt("Missing mandatory thread %s in ThreadCondig.",
+                       getEntryName(i));
+      return -1;
+    }
+
+    /**
+     * Checks that the thread count of each thread set in threadConfig is >= m_min_cnt
+    */
+
+    if (m_setInThreadConfig.get(i) &&
+        m_threads[i].size() < m_entries[i].m_min_cnt)
+    {
+      m_err_msg.assfmt("Thread count of thread type %s can't be < %u.",
+                       getEntryName(i),
+                       m_entries[i].m_min_cnt);
+      return -1;
+    }
+  }
+
+  if(m_threads[T_REP].size() > 0 && m_threads[T_MAIN].size() == 0)
+  {
+    m_err_msg.assfmt("Can't set a %s thread without a %s thread.",
+                     getEntryName(T_REP),
+                     getEntryName(T_MAIN));
+    return -1;
+  }
+
+  return 0;
+}
+
+int
 THRConfig::do_parse(const char * ThreadConfig,
                     unsigned realtime,
                     unsigned spintime,
@@ -1754,17 +1806,22 @@ THRConfig::do_parse(const char * ThreadConfig,
   BaseString str(ThreadConfig);
   char * ptr = (char*)str.c_str();
   int ret = handle_spec(ptr, realtime, spintime);
-
   if (ret != 0)
     return ret;
 
   for (Uint32 i = 0; i < T_END; i++)
   {
+    if (m_entries[i].m_mandatory || m_setInThreadConfig.get(i))
+      continue;
     while (m_threads[i].size() < m_entries[i].m_min_cnt)
     {
       add((T_Type)i, realtime, spintime);
     }
   }
+
+  ret = do_validate_thread_counts();
+  if (ret != 0)
+    return ret;
 
   const bool allow_too_few_cpus =
     m_threads[T_TC].size() == 0 &&
@@ -2347,35 +2404,37 @@ TAPTEST(mt_thr_config)
   {
     const char * ok[] =
       {
-        "ldm,ldm",
-        "ldm={count=3},ldm",
-        "ldm={cpubind=1-2,5,count=3},ldm",
-        "ldm={ cpubind = 1- 2, 5 , count = 3 },ldm",
-        "ldm={count=3,cpubind=1-2,5 },  ldm",
-        "ldm={cpuset=1-3,count=3,realtime=0,spintime=0 },ldm",
-        "ldm={cpuset=1-3,count=3,realtime=1,spintime=0 },ldm",
-        "ldm={cpuset=1-3,count=3,realtime=0,spintime=1 },ldm",
-        "ldm={cpuset=1-3,count=3,realtime=1,spintime=1 },ldm",
-        "io={cpuset=3,4,6}",
-        "ldm={cpuset_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
-        "ldm={cpubind_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
-        "ldm={cpubind=1-3,count=3,thread_prio=10,spintime=1 },ldm",
-        "main,ldm={},ldm",
-        "main,ldm={},ldm,tc",
-        "main,ldm={},ldm,tc,tc",
+        "main,rep,recv,ldm,ldm",
+        "main,rep,recv,ldm={count=3},ldm",
+        "main,rep,recv,ldm={cpubind=1-2,5,count=3},ldm",
+        "main,rep,recv,ldm={ cpubind = 1- 2, 5 , count = 3 },ldm",
+        "main,rep,recv,ldm={count=3,cpubind=1-2,5 },  ldm",
+        "main,rep,recv,ldm={cpuset=1-3,count=3,realtime=0,spintime=0 },ldm",
+        "main,rep,recv,ldm={cpuset=1-3,count=3,realtime=1,spintime=0 },ldm",
+        "main,rep,recv,ldm={cpuset=1-3,count=3,realtime=0,spintime=1 },ldm",
+        "main,rep,recv,ldm={cpuset=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "main,rep,recv,ldm,io={cpuset=3,4,6}",
+        "main,rep,recv,ldm={cpuset_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "main,rep,recv,ldm={cpubind_exclusive=1-3,count=3,realtime=1,spintime=1 },ldm",
+        "main,rep,recv,ldm={cpubind=1-3,count=3,thread_prio=10,spintime=1 },ldm",
+        "main,rep,recv,ldm={},ldm",
+        "main,rep,recv,ldm={},ldm,tc",
+        "main,rep,recv,ldm={},ldm,tc,tc",
         /* Overlap idxbld + others */
-        "main, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
+        "main, rep, recv, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
         "io={cpubind=8}, idxbld={cpuset=1-8}",
         /* Overlap via cpubind */ 
-        "main, ldm={count=1, cpubind=1}, idxbld={count=1, cpubind=1}",
+        "main, rep, recv, ldm={count=1, cpubind=1}, idxbld={count=1, cpubind=1}",
         /* Overlap via same cpuset, with temp defined first */
-        "main, idxbld={cpuset=1-4}, ldm={count=4, cpuset=1-4}",
+        "main, rep, recv, idxbld={cpuset=1-4}, ldm={count=4, cpuset=1-4}",
         /* Io specified, no idxbuild, spreads over all 1-8 */
-        "main, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
+        "main, rep, recv, ldm={count=4, cpuset=1-4}, tc={count=4, cpuset=5,6,7},"
         "io={cpubind=8}",
-        "ldm,ldm,ldm", /* 3 LDM's allowed */
-        "", /* Empty string valid- also default value */
-        " \t",
+        "main,rep,recv,ldm,ldm,ldm", /* 3 LDM's allowed */
+        "main,ldm,recv,rep", /* Mandatory threads only */
+        "main,rep={count=0},recv,ldm", /* 0 rep allowed */
+        "main={count=0},rep={count=0},recv,ldm", /* 0 rep and 0 main allowed */
+        "main={count=0},rep={count=0},recv,ldm={count=0}", /* 0 rep and 0 main and 0 ldm allowed */
         0
       };
 
@@ -2389,12 +2448,12 @@ TAPTEST(mt_thr_config)
         "ldb,ldm", /* ldb non-existent thread type */
         "ldm={cpubind= 1 , cpuset=2 },ldm", /* Cannot cpubind and cpuset */
         "ldm={count=4,cpubind=1-3},ldm", /* 4 LDMs need 4 CPUs */
-        "main,main,ldm,ldm", /* More than 1 main */
-        "main,rep,rep,ldm,ldm", /* More than 1 rep */
+        "rep,recv,main,main,ldm,ldm", /* More than 1 main */
+        "recv,main,rep,rep,ldm,ldm", /* More than 1 rep */
         "main={ keso=88, count=23},ldm,ldm", /* keso not allowed type */
-        "idxbld={cpuset=1-4}, main={ cpuset=1-3 }, ldm={cpuset=3-4}",
+        "recv,rep,idxbld={cpuset=1-4}, main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}", /* Overlapping cpu sets */
-        "main={ cpuset=1;3 }, ldm={cpubind=4}", /* ; not allowed separator */
+        "rep, recv, main={ cpuset=1;3 }, ldm={cpubind=4}", /* ; not allowed separator */
         "main={ cpuset=1,,3 }, ldm={cpubind=2}", /* empty between , */
         "io={ spintime = 0 }", /* Spintime on IO thread is not settable */
         "tc,tc,tc={count=161}", /* More than 160 TCs not allowed */
@@ -2411,6 +2470,8 @@ TAPTEST(mt_thr_config)
         "ldm={cpubind=1-3,count=3,thread_prio=-1,spintime=1 },ldm",
           /* thread_prio out of range */
         "idxbld={ spintime=12 }",
+        "rep,recv,ldm", /* missing mandatory main */
+        "rep={count=1},main={count=0},recv,ldm", /* rep count=1 requires main count=1 */
         0
       };
 
@@ -2421,8 +2482,7 @@ TAPTEST(mt_thr_config)
       int res = tmp.do_parse(ok[i], 0, 0, dummy, false);
       printf("do_parse(%s) => %s - %s\n", ok[i],
              res == 0 ? "OK" : "FAIL",
-             res == 0 ? 
-             tmp.getConfigString() : 
+             res == 0 ? tmp.getConfigString() :
              tmp.getErrorMessage());
       OK(res == 0);
       {
@@ -2519,52 +2579,52 @@ TAPTEST(mt_thr_config)
     {
       /** threads, LockExecuteThreadToCPU, answer */
       "1-8",
-      "ldm={count=4}",
+      "main={count=0},rep={count=0},recv,ldm={count=4}",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={count=0}",
 
       "1-5",
-      "ldm={count=4}",
+      "main={count=0},rep={count=0},recv,ldm={count=4}",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={count=0}",
 
       "1-3",
-      "ldm={count=4}",
+      "main={count=0},rep={count=0},recv,ldm={count=4}",
       "OK",
-      "ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1}",
+      "main={count=0},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1},rep={count=0}",
 
       "1-4",
-      "ldm={count=4}",
+      "main={count=0},rep={count=0},recv,ldm={count=4}",
       "OK",
-      "ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1}",
+      "main={count=0},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1},rep={count=0}",
 
       "1-8",
-      "ldm={count=4},io={cpubind=8}",
+      "main={count=0},rep={count=0},recv,ldm={count=4},io={cpubind=8}",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},io={cpubind=8},idxbld={cpuset=1,2,3,4,5,6,7,8}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={count=0},io={cpubind=8},idxbld={cpuset=1,2,3,4,5,6,7,8}",
 
       "1-8",
-      "ldm={count=4},io={cpubind=8},idxbld={cpuset=5,6,8}",
+      "main={count=0},rep={count=0},recv,ldm={count=4},io={cpubind=8},idxbld={cpuset=5,6,8}",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},io={cpubind=8},idxbld={cpuset=5,6,8}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={count=0},io={cpubind=8},idxbld={cpuset=5,6,8}",
 
       "1-8",
-      "ldm={count=4,cpubind=1,4,5,6}",
+      "main={count=0},rep={count=0},recv,ldm={count=4,cpubind=1,4,5,6}",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},rep={count=0}",
 
       "1-7",
-      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "main={count=0},rep={count=0},recv,ldm={count=4,cpubind=1,4,5,6},tc,tc",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},tc={cpubind=3},tc={cpubind=7}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},rep={count=0},tc={cpubind=3},tc={cpubind=7}",
 
       "1-6",
-      "ldm={count=4,cpubind=1,4,5,6},tc",
+      "main={count=0},rep={count=0},recv,ldm={count=4,cpubind=1,4,5,6},tc",
       "OK",
-      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},tc={cpubind=3}",
+      "main={count=0},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},rep={count=0},tc={cpubind=3}",
 
       "1-6",
-      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "main={count=0},rep={count=0},recv,ldm={count=4,cpubind=1,4,5,6},tc,tc",
       "FAIL",
       "Too few CPU's specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
 

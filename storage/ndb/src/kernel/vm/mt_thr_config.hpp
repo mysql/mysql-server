@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,7 @@ public:
                bool check);
 
   const char * getConfigString();
+
   void append_name(const char *name,
                    const char *sep,
                    bool & append_name_flag);
@@ -118,6 +119,8 @@ protected:
     bool m_core_bind; // Bind to all CPUs in CPU core
   };
   bool m_classic;
+
+  SparseBitmask m_setInThreadConfig;
   SparseBitmask m_LockExecuteThreadToCPU;
   SparseBitmask m_LockIoThreadsToCPU;
   Vector<SparseBitmask> m_cpu_sets;
@@ -136,6 +139,7 @@ protected:
   void lock_io_threads();
   int do_bindings(bool allow_too_few_cpus);
   int do_validate();
+  int do_validate_thread_counts();
 
   unsigned count_unbound(const Vector<T_Thread>& vec) const;
   void bind_unbound(Vector<T_Thread> & vec, unsigned cpu);
@@ -150,7 +154,6 @@ protected:
     Uint32 & rep_threads,
     Uint32 & send_threads,
     Uint32 & recv_threads);
-  void reorganize_ldm_bindings(bool, unsigned&, bool);
 
 public:
   struct Entries
@@ -160,6 +163,7 @@ public:
     unsigned m_max_cnt;
     bool     m_is_exec_thd; /* Is this a non-blocking execution thread type */
     bool     m_is_permanent;/* Is this a fixed thread type */
+    bool     m_mandatory; /* Is this a mandatory thread type in the ThreadConfig string */
   };
 };
 

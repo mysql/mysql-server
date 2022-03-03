@@ -2,7 +2,7 @@
 
 [cluster_config.1]
 PartitionsPerNode=1
-ThreadConfig=ldm={count=1}
+ThreadConfig=main,rep,recv,ldm={count=1}
 DataMemory=5M
 
 [cluster_config.ndbd.1.1]

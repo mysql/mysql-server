@@ -1,6 +1,6 @@
 !include suite/ndb/my.cnf
 [cluster_config]
-ThreadConfig=ldm={count=4}
+ThreadConfig=main,rep,recv,ldm={count=4}
 [mysqld]
 # Turn off auto sync so it doesn't interfere with the test
 ndb_metadata_check = false
