@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -181,8 +181,10 @@ void update_router_info_v1(const uint32_t router_id,
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.routers"
       " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes "
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF("
+      "attributes "
       "IS NULL, '{}', attributes),"
+      "    '$.version', ?),"
       "    '$.RWEndpoint', ?),"
       "    '$.ROEndpoint', ?),"
       "    '$.RWXEndpoint', ?),"
@@ -191,6 +193,7 @@ void update_router_info_v1(const uint32_t router_id,
       "    '$.bootstrapTargetType', ?)"
       " WHERE router_id = ?");
 
+  query << MYSQL_ROUTER_VERSION;
   query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
   query << username << to_string_md(ClusterType::GR_V1);
   query << router_id << sqlstring::end;

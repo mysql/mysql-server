@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,9 @@
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -95,7 +97,7 @@ void MetadataCache::refresh_thread() {
   while (!terminated_) {
     bool refresh_ok{false};
     const bool needs_writable_node =
-        !version_updated_ || last_check_in_updated_ % 10 == 0;
+        update_router_attributes_ || last_check_in_updated_ % 10 == 0;
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
@@ -575,27 +577,54 @@ bool MetadataCache::update_auth_cache() {
 }
 
 void MetadataCache::update_router_attributes() {
-  if (!version_updated_) {
-    if (cluster_data_.writable_server) {
-      const auto &rw_server = cluster_data_.writable_server.value();
-      try {
-        meta_data_->update_router_attributes(rw_server, router_id_,
-                                             router_attributes_);
-        version_updated_ = true;
-      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-      } catch (...) {
-        // we only attempt it once, if it fails we will not try again
-        version_updated_ = true;
-      }
+  if (!update_router_attributes_) {
+    return;
+  }
+
+  if (cluster_data_.writable_server) {
+    const auto &rw_server = cluster_data_.writable_server.value();
+    try {
+      meta_data_->update_router_attributes(rw_server, router_id_,
+                                           router_attributes_);
       log_debug(
-          "Successfully updated the Router version in the metadata using "
+          "Successfully updated the Router attributes in the metadata using "
           "instance %s",
           rw_server.str().c_str());
-    } else {
-      log_debug(
-          "Did not find writable instance to update the Router version in "
-          "the metadata.");
+      update_router_attributes_ = false;
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
+        // if the update fails because of the lack of the access rights that
+        // most likely means that the Router has been upgraded, we need to
+        // keep retrying it untill the metadata gets upgraded too and our db
+        // user gets missing access rights
+
+        // we log it only once
+        const bool first_time = EventStateTracker::instance().state_changed(
+            true, EventStateTracker::EventId::NoRightsToUpdateRouterAttributes);
+        if (first_time) {
+          log_warning(
+              "Updating the router attributes in metadata failed: %s (%u)\n"
+              "Make sure to follow the correct steps to upgrade your "
+              "metadata.\n"
+              "Run the dba.upgradeMetadata() then launch the new Router "
+              "version when prompted",
+              e.message().c_str(), e.code());
+        }
+      } else {
+        log_warning("Updating the router attributes in metadata failed: %s",
+                    e.what());
+        update_router_attributes_ = false;
+      }
+    } catch (const std::exception &e) {
+      log_warning("Updating the router attributes in metadata failed: %s",
+                  e.what());
+      update_router_attributes_ = false;
     }
+  } else {
+    log_debug(
+        "Did not find writable instance to update the Router attributes in "
+        "the metadata.");
   }
 }
 

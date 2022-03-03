@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -680,26 +680,27 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_notify_ready=*/5s);
 
-  SCOPED_TRACE("// let the router run for 3 ttl periods");
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
+  SCOPED_TRACE(
+      "// wait for several Router transactions on the metadata server");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 6));
 
   SCOPED_TRACE(
-      "// we expect the error trying to update the attributes in the log");
+      "// we expect the error trying to update the attributes in the log "
+      "exactly once");
   const std::string log_content = router.get_full_logfile();
-  const std::string pattern =
-      "Updating the router attributes in metadata failed:.*\n"
+  const std::string needle =
       "Make sure to follow the correct steps to upgrade your metadata.\n"
-      "Run the dba.upgradeMetadata\\(\\) then launch the new Router version "
+      "Run the dba.upgradeMetadata() then launch the new Router version "
       "when prompted";
-  ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
-      "// we expect that the router attempted to update the version only once, "
-      "even tho it failed");
+      "// we expect that the router attempted to update the continuously "
+      "because of the missing access rights error");
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int attributes_upd_count = get_update_attributes_count(server_globals);
-  EXPECT_EQ(1, attributes_upd_count);
+  EXPECT_GT(attributes_upd_count, 1);
 
   SCOPED_TRACE(
       "// It should still not be fatal, the router should accept the "

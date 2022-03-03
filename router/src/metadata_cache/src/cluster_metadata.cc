@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -296,21 +296,7 @@ bool ClusterMetadata::update_router_attributes(
         << ra.rw_x_port << ra.ro_x_port << ra.metadata_user_name << router_id
         << sqlstring::end;
 
-  try {
-    connection->execute(query);
-  } catch (const MySQLSession::Error &e) {
-    if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
-      log_warning(
-          "Updating the router attributes in metadata failed: %s (%u)\n"
-          "Make sure to follow the correct steps to upgrade your metadata.\n"
-          "Run the dba.upgradeMetadata() then launch the new Router version "
-          "when prompted",
-          e.message().c_str(), e.code());
-    }
-  } catch (const std::exception &e) {
-    log_warning("Updating the router attributes in metadata failed: %s",
-                e.what());
-  }
+  connection->execute(query);
 
   transaction.commit();
 
