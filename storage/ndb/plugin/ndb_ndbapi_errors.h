@@ -44,7 +44,7 @@
 //
 // So please don't spread "knowledge" around more than necessary!
 //
-static constexpr int NDB_ERR_CLUSTER_FAILURE = 4009;
-static constexpr int NDB_INVALID_SCHEMA_OBJECT = 241;
+constexpr int NDB_ERR_CLUSTER_FAILURE = 4009;
+constexpr int NDB_INVALID_SCHEMA_OBJECT = 241;
 
 #endif
