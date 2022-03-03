@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2976,8 +2976,7 @@ NdbIndexStatImpl::create_listener(Ndb* ndb)
   return 0;
 }
 
-int
-NdbIndexStatImpl::execute_listener(Ndb* ndb)
+int NdbIndexStatImpl::execute_listener(Ndb* /*ndb*/)
 {
   if (m_eventOp == 0)
   {

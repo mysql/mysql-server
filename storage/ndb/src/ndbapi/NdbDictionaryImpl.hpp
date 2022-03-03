@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -709,7 +709,9 @@ public:
     Uint32 nextRequestId() {
       return ++m_requestId;
     }
-    bool checkRequestId(Uint32 requestId, const char *signalName) {
+    bool checkRequestId(Uint32 requestId,
+                        const char *signalName [[maybe_unused]])
+    {
       /* NdbDictInterface protocols are synchronous/serial, so each
        * NdbDictInterface object will have only one outstanding
        * request at a time */

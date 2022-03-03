@@ -3048,8 +3048,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType)
  * Initialise BlobTask structure based on request parameters
  *
  */
-int
-NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType)
+int NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType [[maybe_unused]])
 {
   DBUG_ENTER("NdbBlob::initBlobTask");
 

@@ -932,9 +932,7 @@ public:
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
-  void add_blob_data(Gci_container* bucket,
-                     EventBufDataHead* main_data,
-                     EventBufData* blob_data);
+  void add_blob_data(EventBufDataHead *main_data, EventBufData *blob_data);
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;

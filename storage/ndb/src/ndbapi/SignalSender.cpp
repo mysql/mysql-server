@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -341,9 +341,8 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
   wakeup();
 }
 
-template<class T>
-NodeId
-SignalSender::find_node(const NodeBitmask& mask, T & t)
+NodeId SignalSender::find_node(const NodeBitmask& mask,
+                               bool (*cond)(const trp_node&))
 {
   unsigned n= 0;
   do {
@@ -354,66 +353,31 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 
     assert(n < MAX_NODES);
 
-  } while (!t.found_ok(*this, getNodeInfo(n)));
+  } while (!cond(getNodeInfo(n)));
 
   return n;
 }
 
-
-class FindConfirmedNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.is_confirmed();
-  }
-};
-
-
 NodeId
 SignalSender::find_confirmed_node(const NodeBitmask& mask)
 {
-  FindConfirmedNode f;
-  return find_node(mask, f);
+  return find_node(mask,
+                   [](const trp_node& node) { return node.is_confirmed(); });
 }
-
-
-class FindConnectedNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.is_connected();
-  }
-};
-
 
 NodeId
 SignalSender::find_connected_node(const NodeBitmask& mask)
 {
-  FindConnectedNode f;
-  return find_node(mask, f);
+  return find_node(mask,
+                   [](const trp_node& node) { return node.is_connected(); });
 }
-
-
-class FindAliveNode {
-public:
-  bool found_ok(const SignalSender& ss, const trp_node & node){
-    return node.m_alive;
-  }
-};
-
 
 NodeId
 SignalSender::find_alive_node(const NodeBitmask& mask)
 {
-  FindAliveNode f;
-  return find_node(mask, f);
+  return find_node(mask, [](const trp_node& node) { return node.m_alive; });
 }
 
 
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
-template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
-                                                           FindConfirmedNode&);
-template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
-                                                       FindAliveNode&);
-template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
-                                                           FindConnectedNode&);
 template class Vector<SimpleSignal*>;
-  

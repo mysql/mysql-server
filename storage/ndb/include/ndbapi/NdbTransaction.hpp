@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -856,11 +856,13 @@ public:
    * parameters are specified in the 'paramValue' array. Parameter values
    * Should be supplied in the same order as the related paramValue's
    * was defined.
+   *
+   * Note, query uses LM_CommittedRead. The LockMode parameter is ignored.
    */
   NdbQuery*
   createQuery(const NdbQueryDef* query,
               const NdbQueryParamValue paramValue[]= 0,
-              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
+              NdbOperation::LockMode= NdbOperation::LM_CommittedRead);
 
   /* LockHandle methods */
   /*
@@ -1058,7 +1060,7 @@ private:
   void		setOperationErrorCode(int anErrorCode);	
 
   // Indicate something went wrong in the definition phase
-  void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
+  void          setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
   Uint32        getMagicNumberFromObject() const;

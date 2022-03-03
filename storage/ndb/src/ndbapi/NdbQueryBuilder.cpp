@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2732,10 +2732,8 @@ NdbQueryOperationDefImpl::appendParamConstructor(Uint32Buffer& serializedDef) co
   return DABits::NI_ATTR_LINKED;
 } // NdbQueryOperationDefImpl::appendParamConstructor
 
-
-int
-NdbQueryPKLookupOperationDefImpl
-::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
+int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
+    const Ndb* /*ndb*/, Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
   // This method should only be invoked once.
@@ -2810,10 +2808,8 @@ NdbQueryPKLookupOperationDefImpl
   return 0;
 } // NdbQueryPKLookupOperationDefImpl::serializeOperation
 
-
-int
-NdbQueryIndexOperationDefImpl
-::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
+int NdbQueryIndexOperationDefImpl ::serializeOperation(
+    const Ndb* /*ndb*/, Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
   // This method should only be invoked once.

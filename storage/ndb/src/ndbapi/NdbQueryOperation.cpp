@@ -4496,7 +4496,7 @@ NdbQueryOperationImpl::getNoOfParentOperations() const
 }
 
 NdbQueryOperationImpl&
-NdbQueryOperationImpl::getParentOperation(Uint32 i) const
+NdbQueryOperationImpl::getParentOperation(Uint32 i [[maybe_unused]]) const
 {
   assert(i==0 && m_parent!=NULL);
   return *m_parent;
