@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12395,6 +12395,7 @@ Dbdih::init_next_replica_node(
  */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
@@ -12414,6 +12415,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments =
     MAX_FRAG_PER_LQH * getFragmentsPerNode() * cnoOfNodeGroups;
+  ndbrequire(noOfFragments <= MAX_NDB_PARTITIONS);
 
   if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
   {
