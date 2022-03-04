@@ -18,3 +18,12 @@ source_downloads
 
 # Configuration files for Visual Studio Code
 .vscode/
+
+build/
+datatool/
+datatools/
+__pycache__/
+heatwaveml.*
+automl.egg-info/
+_userconf.sh
+scalability_jobs_*
