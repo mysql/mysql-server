@@ -148,6 +148,11 @@ const NdbDictionary::Column *Ndb_util_table::get_column(
   return get_table()->getColumn(name);
 }
 
+const NdbDictionary::Column *Ndb_util_table::get_column_by_number(
+    Uint32 number) const {
+  return get_table()->getColumn(number);
+}
+
 bool Ndb_util_table::check_column_exist(const char *name) const {
   if (get_column(name) == nullptr) {
     push_warning("Could not find expected column '%s'", name);
@@ -434,6 +439,25 @@ std::string Ndb_util_table::unpack_varbinary(const char *column_name,
                      &unpacked_str_length, packed_str);
 
   return std::string(unpacked_str, unpacked_str_length);
+}
+
+void Ndb_util_table::pack_varchar(const char *column_name, std::string_view src,
+                                  char *dst) const {
+  // The table has to be loaded before this function is called
+  assert(get_table() != nullptr);
+  // The type of column should be VARCHAR
+  assert(check_column_varchar(get_column(column_name)->getName()));
+  ndb_pack_varchar(get_column(column_name), 0, src.data(), src.size(), dst);
+}
+
+void Ndb_util_table::pack_varchar(Uint32 column_number, std::string_view src,
+                                  char *dst) const {
+  // The table has to be loaded before this function is called
+  assert(get_table() != nullptr);
+  // The type of column should be VARCHAR
+  assert(check_column_varchar(get_column_by_number(column_number)->getName()));
+  ndb_pack_varchar(get_column_by_number(column_number), 0, src.data(),
+                   src.size(), dst);
 }
 
 bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,

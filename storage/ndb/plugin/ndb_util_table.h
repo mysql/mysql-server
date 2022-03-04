@@ -52,12 +52,12 @@ class Ndb_util_table {
                          NdbDictionary::Column::Type type,
                          const char *type_name) const;
 
-  void push_ndb_error_warning(const NdbError &ndb_err) const;
-
  protected:
+  const NdbDictionary::Column *get_column_by_number(Uint32 number) const;
   const NdbDictionary::Column *get_column(const char *name) const;
   void push_warning(const char *fmt, ...) const
       MY_ATTRIBUTE((format(printf, 2, 3)));
+  void push_ndb_error_warning(const NdbError &ndb_err) const;
 
   Ndb_util_table(Thd_ndb *, std::string db_name, std::string table_name,
                  bool hidden, bool create_events = true);
@@ -163,6 +163,28 @@ class Ndb_util_table {
   */
   std::string unpack_varbinary(const char *column_name,
                                const char *packed_str) const;
+
+  /**
+     @brief Pack the string to be written to a column of a util table
+     @note Table definition must be loaded with open() before this function is
+           called
+     @param column_name  Column name
+     @param src          String to be packed
+     @param dst [out]    Packed string
+  */
+  void pack_varchar(const char *column_name, std::string_view src,
+                    char *dst) const;
+
+  /**
+     @brief Pack the string to be written to a column of a util table
+     @note Table definition must be loaded with open() before this function is
+           called
+     @param column_number Column number
+     @param src          String to be packed
+     @param dst [out]    Packed string
+  */
+  void pack_varchar(Uint32 column_number, std::string_view src,
+                    char *dst) const;
 
   /**
      @brief Unpack a non nullable blob column

@@ -274,20 +274,18 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Thd_ndb *);
-
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
     // Release the reference to mysql.ndb_schema table
     NDB_SHARE::release_reference(m_share, m_share_reference.c_str());
   }
 
-  if (m_thd_ndb && m_thd_ndb->is_slave_thread()) {
-    // Copy-out slave thread statistics
-    // NOTE! This is just a "convenient place" to call this
-    // function, it could be moved to "end of statement"(if there
-    // was such a place..).
-    update_slave_api_stats(m_thd_ndb);
+  if (m_thd_ndb) {
+    // Inform Applier that one schema distribution has completed
+    Ndb_applier *const applier = m_thd_ndb->get_applier();
+    if (applier) {
+      applier->atSchemaDistCompleted();
+    }
   }
 
   if (m_holding_acl_mutex) {
@@ -745,7 +743,7 @@ const char *Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type) {
 
 uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
   Uint32 anyValue = 0;
-  if (!thd_slave_thread(m_thd)) {
+  if (!m_thd_ndb->get_applier()) {
     /* Schema change originating from this MySQLD, check SQL_LOG_BIN
      * variable and pass 'setting' to all logging MySQLDs via AnyValue
      */

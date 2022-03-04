@@ -75,6 +75,13 @@ size_t ndb_thd_query_length(const THD *thd);
 bool ndb_thd_is_binlog_thread(const THD *thd);
 
 /*
+ @brief Check if THD is a "replica thread"
+
+ @return true if thread matches condition
+*/
+bool ndb_thd_is_replica_thread(const THD *thd);
+
+/*
  @brief Check if THD is a "background thread"
 
  @return true if thread matches condition

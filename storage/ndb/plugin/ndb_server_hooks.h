@@ -29,13 +29,11 @@ class Ndb_server_hooks {
   using hook_t = int(void *);
 
   struct Server_state_observer *m_server_state_observer = nullptr;
-  struct Binlog_relay_IO_observer *m_binlog_relay_io_observer = nullptr;
 
  public:
   ~Ndb_server_hooks();
 
   bool register_server_hooks(hook_t *, hook_t *);
-  bool register_applier_start(hook_t *);
   void unregister_all(void);
 };
 

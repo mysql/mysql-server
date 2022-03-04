@@ -48,8 +48,6 @@ Ndb *check_ndb_in_thd(THD *thd, bool validate_ndb) {
     if (!thd_ndb->recycle_ndb()) return nullptr;
   }
 
-  assert(thd_ndb->is_slave_thread() == thd->slave_thread);
-
   return thd_ndb->ndb;
 }
 
@@ -86,6 +84,11 @@ size_t ndb_thd_query_length(const THD *thd) { return thd->query().length; }
 
 bool ndb_thd_is_binlog_thread(const THD *thd) {
   return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+}
+
+bool ndb_thd_is_replica_thread(const THD *thd) {
+  return thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+         thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
 
 bool ndb_thd_is_background_thread(const THD *thd) {

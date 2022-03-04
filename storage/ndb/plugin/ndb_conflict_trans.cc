@@ -546,6 +546,7 @@ st_transaction *DependencyTracker::get_next_dependency(
   return nullptr;
 }
 
+#ifndef NDEBUG
 void DependencyTracker::dump_dependents(Uint64 trans_id) {
   fprintf(stderr, "Dumping dependents of transid %llu : ", trans_id);
 
@@ -615,6 +616,7 @@ bool DependencyTracker::verify_graph() {
 
   return true;
 }
+#endif
 
 const char *DependencyTracker::get_error_text() const { return error_text; }
 

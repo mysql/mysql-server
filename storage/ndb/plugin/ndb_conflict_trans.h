@@ -265,6 +265,7 @@ class DependencyTracker {
   st_transaction *get_next_dependency(
       const st_transaction *current, bool include_dependents_of_current = true);
 
+#ifndef NDEBUG
   /**
      dump_dependents
 
@@ -278,6 +279,7 @@ class DependencyTracker {
      Internal invariant checking function.
   */
   bool verify_graph();
+#endif
 
   /* MemRoot allocator class instance */
   st_mem_root_allocator mra;

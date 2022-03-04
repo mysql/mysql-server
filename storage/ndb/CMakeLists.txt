@@ -56,7 +56,6 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_thd.cc
     plugin/ndb_thd_ndb.cc
     plugin/ndb_global_schema_lock.cc
-    plugin/ndb_mi.cc
     plugin/ndb_conflict_trans.cc
     plugin/ndb_anyvalue.cc
     plugin/ndb_ndbapi_util.cc
@@ -110,6 +109,8 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_table_stats.cc
     plugin/ndb_index_stat_head_table.cc
     plugin/ndb_index_stat_sample_table.cc
+    plugin/ndb_applier.cc
+    plugin/ndb_replica.cc
   )
 
   # Include directories used when building ha_ndbcluster

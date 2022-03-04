@@ -112,13 +112,9 @@ extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 extern ulonglong opt_ndb_eventbuffer_max_alloc;
 extern uint opt_ndb_eventbuffer_free_percent;
 
-extern st_ndb_slave_state g_ndb_slave_state;
-
 void ndb_index_stat_restart();
 
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
-
-extern mysql_mutex_t ndbcluster_mutex;
 
 /*
   Timeout for syncing schema events between
@@ -643,10 +639,6 @@ static void ndbcluster_reset_slave(THD *thd) {
       // Failed to delete rows from table
     }
   }
-
-  g_ndb_slave_state.atResetSlave();
-
-  // pending fix for bug#59844 will make this function return int
 }
 
 static int ndbcluster_binlog_func(handlerton *, THD *thd, enum_binlog_func fn,
