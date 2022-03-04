@@ -22279,6 +22279,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   {
     Uint32 nodeId = refToNode(ord->senderRef);
     jam();
+    ndbrequire(nodeId <= MAX_DATA_NODE_ID);
     g_eventLogger->info("clearing SumaStartMe dict lock for %u", nodeId);
     c_sub_startstop_lock.clear(nodeId);
 
@@ -30273,6 +30274,8 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 
   Uint32 senderRef = ref->senderRef;
   Uint32 nodeId = refToNode(senderRef);
+
+  ndbrequire(nodeId <= MAX_DATA_NODE_ID);
 
 #ifdef MARTIN
   ndbout_c("Got SCHEMA_TRANS_IMPL_REF from node %u, error %u", nodeId, ref->errorCode);

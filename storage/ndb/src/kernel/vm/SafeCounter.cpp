@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,11 @@ bool
 SafeCounterHandle::clearWaitingFor(SafeCounterManager& mgr, Uint32 nodeId)
 {
   SafeCounterManager::ActiveCounterPtr ptr;
+  if (nodeId > MAX_DATA_NODE_ID)
+  {
+    ErrorReporter::handleAssert("SafeCounterHandle::clearWaitingFor", __FILE__, __LINE__);
+    return false;
+  }
   mgr.getPtr(ptr, m_activeCounterPtrI);
   ptr.p->m_nodes.clear(nodeId);
   
