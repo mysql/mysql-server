@@ -586,6 +586,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
+      IF_DEBUG(upd_field.field_phy_pos =
+                   index->get_field(longest_i)->col->get_col_phy_pos();)
       upd_field.orig_len = 0;
       upd_field.exp = nullptr;
       upd_field.old_v_val = nullptr;

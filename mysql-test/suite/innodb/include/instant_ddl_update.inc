@@ -149,7 +149,7 @@ if ($is_debug)
   --echo # ---------------------------
   --source include/count_sessions.inc
 
-  --eval CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=$row_format;
+  --eval CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=$row_format
   INSERT INTO t1 VALUES ("r1c1", "r1c2");
   SELECT * FROM t1;
 
@@ -201,7 +201,7 @@ if ($is_debug)
   --echo # ---------------------------
   --source include/count_sessions.inc
 
-  --eval CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=$row_format;
+  --eval CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=$row_format
   INSERT INTO t1 VALUES ("r1c1", "r1c2");
   SELECT * FROM t1;
 
@@ -232,6 +232,55 @@ if ($is_debug)
   --echo # Update query
   --echo # (NOT INPLACE update for row1, IN-PLACE update for row2 an row3)
   UPDATE t1 SET c0="c0_upd";
+
+  --echo # Let Alter table continue
+  SET DEBUG_SYNC = 'now SIGNAL s2';
+
+  --echo # connection default
+  connection default;
+  --reap
+
+  SELECT * FROM t1;
+
+  DISCONNECT con1;
+
+  # Wait till all disconnects are completed
+  --source include/wait_until_count_sessions.inc
+  DROP TABLE t1;
+
+  --echo # -----------------------
+  --echo # ONLINE DDL 3 :
+  --echo # -----------------------
+  --eval create table t1 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
+  Insert into t1 values ("r1c1", "r1c2");
+  Select * from t1;
+
+  alter table t1 add column c3 char(10) default "c3_def", algorithm=instant;
+  Select * from t1;
+
+  Insert into t1 values ("r2c1", "r2c2", "r2c3");
+  Select * from t1;
+
+  Alter table t1 add column c4 char(10) default "c4_def" first, algorithm=INSTANT;
+  Select * from t1;
+
+  Insert into t1 values ("r3c4", "r3c1", "r3c2", "r3c3");
+  Select * from t1;
+
+  --echo # Make alter table wait
+  SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+
+  --echo # Rebuild the table
+  --send_eval ALTER TABLE t1 force, algorithm=inplace;
+
+  connect (con1,localhost,root,,);
+  --echo # connection con1
+  connection con1;
+
+  SET DEBUG_SYNC = 'now WAIT_FOR s1';
+
+  --echo # Update query
+  eval UPDATE t1 SET c1="c1_upd";
 
   --echo # Let Alter table continue
   SET DEBUG_SYNC = 'now SIGNAL s2';

@@ -411,7 +411,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 1 : NO PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=REDUNDANT;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -453,7 +453,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 2 : PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=REDUNDANT;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -491,6 +491,51 @@ c0_upd	r1c2
 c0_upd	r2c2
 c0_upd	r3c2
 c0_upd	r4c2
+DROP TABLE t1;
+# -----------------------
+# ONLINE DDL 3 :
+# -----------------------
+create table t1 (c1 char(10), c2 char(10)) ROW_FORMAT=REDUNDANT;
+Insert into t1 values ("r1c1", "r1c2");
+Select * from t1;
+c1	c2
+r1c1	r1c2
+alter table t1 add column c3 char(10) default "c3_def", algorithm=instant;
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+Insert into t1 values ("r2c1", "r2c2", "r2c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+r2c1	r2c2	r2c3
+Alter table t1 add column c4 char(10) default "c4_def" first, algorithm=INSTANT;
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c1", "r3c2", "r3c3");
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+r3c4	r3c1	r3c2	r3c3
+# Make alter table wait
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+# Rebuild the table
+ALTER TABLE t1 force, algorithm=inplace;;
+# connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Update query
+UPDATE t1 SET c1="c1_upd";
+# Let Alter table continue
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# connection default
+SELECT * FROM t1;
+c4	c1	c2	c3
+c4_def	c1_upd	r1c2	c3_def
+c4_def	c1_upd	r2c2	r2c3
+r3c4	c1_upd	r3c2	r3c3
 ###########
 # CLEANUP #
 ###########
@@ -908,7 +953,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 1 : NO PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=DYNAMIC;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -950,7 +995,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 2 : PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=DYNAMIC;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -988,6 +1033,51 @@ c0_upd	r1c2
 c0_upd	r2c2
 c0_upd	r3c2
 c0_upd	r4c2
+DROP TABLE t1;
+# -----------------------
+# ONLINE DDL 3 :
+# -----------------------
+create table t1 (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
+Insert into t1 values ("r1c1", "r1c2");
+Select * from t1;
+c1	c2
+r1c1	r1c2
+alter table t1 add column c3 char(10) default "c3_def", algorithm=instant;
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+Insert into t1 values ("r2c1", "r2c2", "r2c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+r2c1	r2c2	r2c3
+Alter table t1 add column c4 char(10) default "c4_def" first, algorithm=INSTANT;
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c1", "r3c2", "r3c3");
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+r3c4	r3c1	r3c2	r3c3
+# Make alter table wait
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+# Rebuild the table
+ALTER TABLE t1 force, algorithm=inplace;;
+# connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Update query
+UPDATE t1 SET c1="c1_upd";
+# Let Alter table continue
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# connection default
+SELECT * FROM t1;
+c4	c1	c2	c3
+c4_def	c1_upd	r1c2	c3_def
+c4_def	c1_upd	r2c2	r2c3
+r3c4	c1_upd	r3c2	r3c3
 ###########
 # CLEANUP #
 ###########
@@ -1405,7 +1495,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 1 : NO PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=COMPACT;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -1447,7 +1537,7 @@ DROP TABLE t1;
 # ---------------------------
 # ONLINE DDL 2 : PK CHANGE
 # ---------------------------
-CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=COMPACT;;
+CREATE TABLE t1 (c1 CHAR(10), c2 CHAR(10)) ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES ("r1c1", "r1c2");
 SELECT * FROM t1;
 c1	c2
@@ -1485,6 +1575,51 @@ c0_upd	r1c2
 c0_upd	r2c2
 c0_upd	r3c2
 c0_upd	r4c2
+DROP TABLE t1;
+# -----------------------
+# ONLINE DDL 3 :
+# -----------------------
+create table t1 (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
+Insert into t1 values ("r1c1", "r1c2");
+Select * from t1;
+c1	c2
+r1c1	r1c2
+alter table t1 add column c3 char(10) default "c3_def", algorithm=instant;
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+Insert into t1 values ("r2c1", "r2c2", "r2c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	c3_def
+r2c1	r2c2	r2c3
+Alter table t1 add column c4 char(10) default "c4_def" first, algorithm=INSTANT;
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c1", "r3c2", "r3c3");
+Select * from t1;
+c4	c1	c2	c3
+c4_def	r1c1	r1c2	c3_def
+c4_def	r2c1	r2c2	r2c3
+r3c4	r3c1	r3c2	r3c3
+# Make alter table wait
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL s1 WAIT_FOR s2';
+# Rebuild the table
+ALTER TABLE t1 force, algorithm=inplace;;
+# connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Update query
+UPDATE t1 SET c1="c1_upd";
+# Let Alter table continue
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# connection default
+SELECT * FROM t1;
+c4	c1	c2	c3
+c4_def	c1_upd	r1c2	c3_def
+c4_def	c1_upd	r2c2	r2c3
+r3c4	c1_upd	r3c2	r3c3
 ###########
 # CLEANUP #
 ###########
