@@ -13109,6 +13109,7 @@ Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
  */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
@@ -13128,6 +13129,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments =
     MAX_FRAG_PER_LQH * getFragmentsPerNode() * cnoOfNodeGroups;
+  ndbrequire(noOfFragments <= MAX_NDB_PARTITIONS);
 
   if (flags != CreateFragmentationReq::RI_GET_FRAGMENTATION)
   {
@@ -13232,7 +13234,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
        * used so far. However after this instance key we will simply use
        * instanceKey++ to find the instance key of the next fragment.
        */
-
+      ndbrequire(noOfFragments <= NDB_ARRAY_SIZE(tmp_node_group_id));
       memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
                                  [NDBMT_MAX_WORKER_INSTANCES] =
