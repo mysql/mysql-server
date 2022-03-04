@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,6 +183,8 @@ class Transaction_consistency_info {
   const rpl_gno m_gno;
   const enum_group_replication_consistency_level m_consistency_level;
   std::list<Gcs_member_identifier> *m_members_that_must_prepare_the_transaction;
+  std::unique_ptr<Checkable_rwlock>
+      m_members_that_must_prepare_the_transaction_lock;
   bool m_transaction_prepared_locally;
   bool m_transaction_prepared_remotely;
 };

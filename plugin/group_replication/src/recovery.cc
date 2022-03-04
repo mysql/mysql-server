@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -324,6 +324,20 @@ single_member_online:
 #endif  // NDEBUG
 
   error = wait_for_applier_module_recovery();
+
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_after_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_after_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_after_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
 
 cleanup:
 

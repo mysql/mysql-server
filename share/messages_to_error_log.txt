@@ -11638,6 +11638,9 @@ ER_THREAD_POOL_PLUGIN_STARTED
 ER_THREAD_POOL_DEDICATED_LISTENERS_INVALID
   eng "thread_pool_dedicated_listeners cannot be set unless thread_pool_max_transactions_limit > 0"
 
+ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE
+  eng "This member was unable to log the View_change_log_event into the binary log, hence it will leave the group. Please check that there is available disk space and add the member back to the group."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

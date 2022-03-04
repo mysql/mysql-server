@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 using std::string;
 const int GTID_WAIT_TIMEOUT = 10;  // 10 seconds
 const int LOCAL_WAIT_TIMEOUT_ERROR = -1;
+const int DELAYED_VIEW_CHANGE_RESUME_ERROR = -2;
 
 Certification_handler::Certification_handler()
     : cert_module(nullptr),
@@ -748,13 +749,6 @@ int Certification_handler::log_view_change_event_in_order(
   DBUG_TRACE;
 
   int error = 0;
-  /*
-    Certification info needs to be added into the `vchange_event` when this view
-    if first handled (no GITD) or when it is being resumed after waiting from
-    consistent transactions.
-  */
-  const bool first_log_attempt =
-      (-1 == gtid->gno || view_pevent->is_delayed_view_change_resumed());
 
   /*
     If this view was delayed to wait for consistent transactions to finish, we
@@ -784,7 +778,12 @@ int Certification_handler::log_view_change_event_in_order(
   // process
   if (unlikely(view_change_event_id == "-1")) return 0;
 
-  if (first_log_attempt) {
+  /*
+    Certification info needs to be added into the `vchange_event` when this view
+    if first handled (no GITD) or when it is being resumed after waiting from
+    consistent transactions.
+  */
+  if ((-1 == gtid->gno) || view_pevent->is_delayed_view_change_resumed()) {
     std::map<std::string, std::string> cert_info;
     cert_module->get_certification_info(&cert_info);
     size_t event_size = 0;
@@ -807,6 +806,8 @@ int Certification_handler::log_view_change_event_in_order(
   // Assure the last known local transaction was already executed
   error = wait_for_local_transaction_execution(local_gtid_string);
 
+  DBUG_EXECUTE_IF("simulate_delayed_view_change_resume_error", { error = 1; });
+
   if (!error) {
     /**
      Create a transactional block for the View change log event
@@ -816,7 +817,9 @@ int Certification_handler::log_view_change_event_in_order(
      COMMIT
     */
     error = inject_transactional_events(view_pevent, gtid, cont);
-  } else if (LOCAL_WAIT_TIMEOUT_ERROR == error && first_log_attempt) {
+  } else if (view_pevent->is_delayed_view_change_resumed()) {
+    error = DELAYED_VIEW_CHANGE_RESUME_ERROR;
+  } else if ((LOCAL_WAIT_TIMEOUT_ERROR == error) && (-1 == gtid->gno)) {
     // Even if we can't log it, register the position
     *gtid = cert_module->generate_view_change_group_gtid();
   }
