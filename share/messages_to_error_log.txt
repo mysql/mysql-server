@@ -11800,6 +11800,9 @@ ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED
 ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE
   eng "Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity=%llu. Please use innodb_redo_log_capacity instead."
 
+ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE
+  eng "This member was unable to log the View_change_log_event into the binary log, hence it will leave the group. Please check that there is available disk space and add the member back to the group."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

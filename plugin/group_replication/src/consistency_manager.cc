@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,13 @@ Transaction_consistency_info::Transaction_consistency_info(
   } else {
     m_sid.clear();
   }
+
+  m_members_that_must_prepare_the_transaction_lock = std::make_unique<
+      Checkable_rwlock>(
+#ifdef HAVE_PSI_INTERFACE
+      key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction
+#endif
+  );
 }
 
 Transaction_consistency_info::~Transaction_consistency_info() {
@@ -90,10 +97,14 @@ Transaction_consistency_info::get_consistency_level() {
 }
 
 bool Transaction_consistency_info::is_a_single_member_group() {
+  Checkable_rwlock::Guard g(*m_members_that_must_prepare_the_transaction_lock,
+                            Checkable_rwlock::READ_LOCK);
   return 0 == m_members_that_must_prepare_the_transaction->size();
 }
 
 bool Transaction_consistency_info::is_the_transaction_prepared_remotely() {
+  Checkable_rwlock::Guard g(*m_members_that_must_prepare_the_transaction_lock,
+                            Checkable_rwlock::READ_LOCK);
   return m_transaction_prepared_remotely ||
          m_members_that_must_prepare_the_transaction->empty();
 }
@@ -121,8 +132,14 @@ int Transaction_consistency_info::after_applier_prepare(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely, member_status));
 
-  // Only ONLINE members do acknowledge transactions prepare.
-  if (Group_member_info::MEMBER_ONLINE != member_status) {
+  m_members_that_must_prepare_the_transaction_lock->rdlock();
+  const bool needs_to_acknowledge =
+      std::find(m_members_that_must_prepare_the_transaction->begin(),
+                m_members_that_must_prepare_the_transaction->end(),
+                local_member_info->get_gcs_member_id()) !=
+      m_members_that_must_prepare_the_transaction->end();
+  m_members_that_must_prepare_the_transaction_lock->unlock();
+  if (!needs_to_acknowledge) {
     return 0;
   }
 
@@ -173,9 +190,13 @@ int Transaction_consistency_info::handle_remote_prepare(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely));
 
+  m_members_that_must_prepare_the_transaction_lock->wrlock();
   m_members_that_must_prepare_the_transaction->remove(gcs_member_id);
+  const bool members_that_must_prepare_the_transaction_empty =
+      m_members_that_must_prepare_the_transaction->empty();
+  m_members_that_must_prepare_the_transaction_lock->unlock();
 
-  if (m_members_that_must_prepare_the_transaction->empty()) {
+  if (members_that_must_prepare_the_transaction_empty) {
     m_transaction_prepared_remotely = true;
 
     if (m_transaction_prepared_locally) {
@@ -473,7 +494,8 @@ int Transaction_consistency_manager::handle_remote_prepare(
 
   int result = transaction_info->handle_remote_prepare(gcs_member_id);
 
-  if (transaction_info->is_transaction_prepared_locally()) {
+  if (transaction_info->is_transaction_prepared_locally() &&
+      transaction_info->is_the_transaction_prepared_remotely()) {
     auto it = m_delayed_view_change_events.begin();
     while (it != m_delayed_view_change_events.end()) {
       Transaction_consistency_manager_key view_key = it->second;
@@ -492,7 +514,9 @@ int Transaction_consistency_manager::handle_remote_prepare(
         }
         m_delayed_view_change_events.erase(it++);
         if (error) {
-          abort_plugin_process("unable to log the View_change_log_event");
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE);
+          m_map_lock->unlock();
+          return 1;
         }
       } else {
         ++it;

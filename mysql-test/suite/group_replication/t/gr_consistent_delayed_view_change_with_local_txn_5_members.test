@@ -1,0 +1,179 @@
+################################################################################
+# === Purpose ===
+# This test validates that when there is a delay in applying view_change event
+# due to ongoing local transaction, the local transactions from previous view
+# should be executed fine followed by the immediate post view_change transaction
+# on the server and server should remain in online state.
+#
+# === Implementation ===
+# 00. The test requires five servers: server1, 2, 3, 4 and 5
+# 01. Boot start server1
+# 02. Start server2 and set member weight high
+# 03. Start server3, 4 and 5
+# 04. Stop GR on server1
+# 05. Set the necessary debug point required for the simulation
+# 06. Execute a transaction on newly elected primary.
+#     This transaction shall wait before sending transaction
+#     prepare ack message on server3, 4 and 5
+# 07. Start GR on server1
+# 08. Wait for the transaction to reach the debug sync point
+# 09. Continue the transaction on server3, 4 and 5
+# 10. Reap the transaction on server2
+# 11. Verify that MEMBER_STATE is ONLINE on server2
+# 12. Verify that all members have table t1
+# 13. Cleaning up
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_server_count= 5
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Boot start server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 02. Start server2 and set member weight high
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sysvars_to_save = [ "GLOBAL.group_replication_member_weight" ]
+--source include/save_sysvars.inc
+SET GLOBAL group_replication_member_weight= 90;
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 03. Start server3, 4 and 5
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 04. Stop GR on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo ############################################################
+--echo # 05. Set the necessary debug point required for the simulation
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+--echo
+--echo ############################################################
+--echo # 06. Execute a transaction on newly elected primary.
+--echo #     This transaction shall wait before sending transaction
+--echo #     prepare ack message on server3, 4 and 5
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--send CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+
+--echo
+--echo ############################################################
+--echo # 07. Start GR on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 08. Wait for the transaction to reach the debug sync point
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+--echo
+--echo ############################################################
+--echo # 09. Continue the transaction on server3, 4 and 5
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+
+--echo
+--echo ############################################################
+--echo # 10. Reap the transaction server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--reap
+
+--echo
+--echo ############################################################
+--echo # 11. Verify that MEMBER_STATE is ONLINE on server2
+--let $assert_text= Verified that MEMBER_STATE is ONLINE on server2
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_ID= @@server_uuid, MEMBER_STATE, 1]" = "ONLINE"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 12. Verify that all members have table t1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_member_state = ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1, server3:test.t1, server4:test.t1, server5:test.t1
+--source include/diff_tables.inc
+
+--echo ############################################################
+--echo # 13. Cleaning up
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/restore_sysvars.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc
