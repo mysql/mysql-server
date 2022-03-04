@@ -1611,6 +1611,10 @@ bool log_slow_applicable(THD *thd) {
 
   if (unlikely(thd->killed == THD::KILL_CONNECTION)) return false;
 
+  if (unlikely(thd->is_error()) &&
+      (unlikely(thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR)))
+    return false;
+
   /*
     Do not log administrative statements unless the appropriate option is
     set.
