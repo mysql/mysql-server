@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +77,7 @@ SignalCounter::setWaitingFor(NdbNodeBitmask nodes)
 inline
 void 
 SignalCounter::setWaitingFor(Uint32 nodeId) {
-  if(!m_nodes.get(nodeId)){
+  if(nodeId <= MAX_DATA_NODE_ID && !m_nodes.get(nodeId)){
     m_nodes.set(nodeId);
     m_count++;
     return;
@@ -107,12 +106,12 @@ SignalCounter::getCount() const {
 inline
 void
 SignalCounter::clearWaitingFor(Uint32 nodeId) {
-  if(m_nodes.get(nodeId) && m_count > 0){
+  if(nodeId <= MAX_DATA_NODE_ID && m_nodes.get(nodeId) && m_count > 0){
     m_count--;
     m_nodes.clear(nodeId);
     return;
   }
-  ErrorReporter::handleAssert("SignalCounter::clear", __FILE__, __LINE__);
+  ErrorReporter::handleAssert("SignalCounter::clearWaitingFor", __FILE__, __LINE__);
 }
 
 inline
