@@ -882,6 +882,11 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
 
       dfield_copy(&(upd_field->new_val), dfield);
 
+#ifdef UNIV_DEBUG
+      if (index->has_row_versions()) {
+        upd_field->field_phy_pos = index->get_field(i)->col->get_col_phy_pos();
+      }
+#endif
       upd_field_set_field_no(upd_field, i, index);
 
       n_diff++;

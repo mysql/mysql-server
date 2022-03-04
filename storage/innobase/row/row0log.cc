@@ -712,7 +712,8 @@ static void row_log_table_low_redundant(const rec_t *rec,
       dfield_set_data(dfield, field, len);
 
       /* Fields stored as default value is not stored externally. */
-      if (i < rec_get_n_fields_old_raw(rec) &&
+      size_t phy_pos = index->get_field(i)->col->get_col_phy_pos();
+      if (phy_pos < rec_get_n_fields_old_raw(rec) &&
           rec_2_is_field_extern(index, rec, i)) {
         dfield_set_ext(dfield);
       }

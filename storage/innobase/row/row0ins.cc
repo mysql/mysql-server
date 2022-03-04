@@ -1170,6 +1170,7 @@ func_exit:
 
       ufield->field_no = dict_table_get_nth_col_pos(table, col_no);
       dict_col_t *col = table->get_col(col_no);
+      IF_DEBUG(ufield->field_phy_pos = col->get_col_phy_pos();)
       col->copy_type(dfield_get_type(&ufield->new_val));
 
       ufield->orig_len = 0;

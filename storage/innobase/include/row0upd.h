@@ -486,6 +486,7 @@ struct upd_field_t {
                           this is the position in the secondary
                           index, also it could be the position
                           in virtual index for virtual column */
+  IF_DEBUG(uint16_t field_phy_pos{UINT16_MAX};)
   unsigned orig_len : 16; /*!< original length of the locally
                           stored part of an externally stored
                           column, or 0 */

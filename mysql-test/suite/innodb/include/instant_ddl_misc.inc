@@ -923,6 +923,24 @@ ALTER TABLE t1 TRUNCATE partition p0, p1, p2, p3;
 
 DROP TABLE t1;
 
+--echo # Scenario 66
+--echo # Purge crash
+--eval create table t1 (c0 INT KEY, c1 varchar(10), c2 varchar(10)) ROW_FORMAT=$row_format
+
+alter table t1 add column c4 char(10), algorithm=instant;
+alter table t1 add index idx (c4);
+
+insert into t1 values (1, "r1c1", "r1c2", "c4");
+SET GLOBAL innodb_purge_stop_now=ON;
+Update t1 set c2="r122222", c4="c44";
+
+alter table t1 drop column c2, algorithm=instant;
+
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+
+DROP TABLE t1;
+
 --echo ###########
 --echo # CLEANUP #
 --echo ###########

@@ -1353,7 +1353,15 @@ static ulint trx_undo_page_report_modify(
         pos += REC_MAX_N_FIELDS;
       }
 
-      ptr += mach_write_compressed(ptr, pos);
+      if (index->has_row_versions() && !is_virtual) {
+        /* Write physical position of field in UNDO */
+        auto phy_pos = index->get_field(pos)->col->get_col_phy_pos();
+        ut_ad(phy_pos == fld->field_phy_pos);
+        ut_ad(!index->get_field(pos)->col->is_instant_dropped());
+        ptr += mach_write_compressed(ptr, phy_pos);
+      } else {
+        ptr += mach_write_compressed(ptr, pos);
+      }
 
       /* Save the old value of field */
       if (is_virtual) {
@@ -1515,7 +1523,18 @@ static ulint trx_undo_page_report_modify(
         }
 
         pos = index->get_col_pos(col_no);
-        ptr += mach_write_compressed(ptr, pos);
+        if (index->has_row_versions()) {
+          /* Write physical position of field in UNDO */
+          ut_ad(!col->is_virtual());
+          ut_ad(!col->is_instant_dropped());
+
+          auto phy_pos = col->get_col_phy_pos();
+          ut_ad(phy_pos < REC_MAX_N_FIELDS);
+
+          ptr += mach_write_compressed(ptr, phy_pos);
+        } else {
+          ptr += mach_write_compressed(ptr, pos);
+        }
 
         /* Save the old value of field */
         field = rec_get_nth_field_instant(rec, offsets, pos, index, &flen);
@@ -1805,7 +1824,13 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
 
       upd_field_set_v_field_no(upd_field, field_no, index);
     } else {
-      upd_field_set_field_no(upd_field, field_no, index);
+      if (index->has_row_versions()) {
+        auto log_pos = index->fields_array[field_no];
+        upd_field_set_field_no(upd_field, log_pos, index);
+        IF_DEBUG(upd_field->field_phy_pos = field_no;)
+      } else {
+        upd_field_set_field_no(upd_field, field_no, index);
+      }
     }
 
     if (vcol != nullptr && vcol->m_col.is_multi_value()) {
@@ -1971,7 +1996,19 @@ byte *trx_undo_rec_get_partial_row(
     }
 
     if (!is_virtual) {
-      col = index->get_col(field_no);
+      if (index->has_row_versions()) {
+        /* This field_no is physical pos */
+        col = index->get_physical_field(field_no)->col;
+      } else {
+        col = index->get_col(field_no);
+      }
+
+      /* This column shouldn't be dropped unless index on this column is
+       * dropped. */
+      ut_ad(!col->is_instant_dropped() || !col->ord_part);
+      if (col->is_instant_dropped()) {
+        continue;
+      }
       col_no = dict_col_get_no(col);
       dfield = dtuple_get_nth_field(*row, col_no);
       index->table->get_col(col_no)->copy_type(dfield_get_type(dfield));

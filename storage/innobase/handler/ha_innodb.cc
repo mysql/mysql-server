@@ -9550,6 +9550,12 @@ static dberr_t calc_row_difference(
       } else {
         ufield->field_no = dict_col_get_clust_pos(
             &prebuilt->table->cols[i - num_v], clust_index);
+#ifdef UNIV_DEBUG
+        if (clust_index->has_row_versions()) {
+          dict_col_t *col = &prebuilt->table->cols[i - num_v];
+          ufield->field_phy_pos = col->get_col_phy_pos();
+        }
+#endif
         ufield->old_v_val = nullptr;
       }
       n_changed++;
