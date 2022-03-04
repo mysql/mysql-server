@@ -7103,6 +7103,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
   NdbNodeBitmask tmp;
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && req->nodes[i]; i++)
   {
+    ndbrequire(req->nodes[i] <= MAX_NDB_NODES);
     tmp.set(req->nodes[i]);
   }
   Uint32 cnt = tmp.count();
