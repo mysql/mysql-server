@@ -1135,6 +1135,8 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 void
 Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
+
   CreateFragmentationReq* req = (CreateFragmentationReq*)signal->getDataPtr();
 
   if (req->primaryTableId == RNIL) {
