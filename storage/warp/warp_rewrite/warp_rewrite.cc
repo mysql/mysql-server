@@ -581,14 +581,23 @@ std::string escape_for_call(const std::string &str) {
   std::string retval;
   retval.reserve(str.length() * 2);
   for(long unsigned int i =0; i< str.length(); ++i) {
+  
     if(str[i] == '"') {
-      retval += '\\';
+      retval += "\\\"";
+      continue;
     }
+  
     if(str[i] == '\\') {
 	    retval += "\\\\";
-    } else {
-      retval += str[i];
+      continue;
     }
+
+    if(str[i] == 0) {
+      retval += "\\0";
+      continue;
+    } 
+    retval += str[i];
+    
   }
   return retval;
 }
