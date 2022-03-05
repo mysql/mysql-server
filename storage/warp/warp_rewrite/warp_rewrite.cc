@@ -174,7 +174,7 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
   for(size_t char_idx = 0; char_idx < sql.length(); ++char_idx) {
     
     /* this block of statements handles SQL commenting */
-    if( (sql[char_idx] == '\t' || sql[char_idx] == ' ' || sql[char_idx] == '\r' || sql[char_idx] == '\n') && sql.substr(char_idx+2, 2) == "--" ) {
+    if( sql.substr(char_idx, 2) == "--" ) {
       in_line_comment = true;
       continue;
     }
@@ -197,7 +197,7 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
     }
 
     /* do not do anything if this is in a comment */
-    if( in_comment ) { 
+    if( in_comment || in_line_comment ) { 
       continue;
     }
 
@@ -282,8 +282,9 @@ std::vector<std::string> custom_lex(std::string sql, char escape_char = '\\') {
   }
   std::vector<std::string> final_tokens;
   for(size_t i=0;i<tokens.size();++i) {
-    if(tokens[i] == "") continue;
+    if(tokens[i] == "" || tokens[i] == " " || tokens[i] == "\t" || tokens[i] == "\n") { continue; };
     final_tokens.push_back(tokens[i]);
+    //std::cerr << i << ": " << tokens[i] << "\n";
   }
 
   return final_tokens;
