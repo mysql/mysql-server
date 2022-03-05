@@ -2429,3 +2429,16 @@ SELECT LPAD(c, 4, 'x') FROM t1;
 SELECT LPAD(c, 3, 'x') FROM t1;
 
 DROP TABLE t1;
+
+
+--echo # Bug#XXXXXX: REPLACE in UNION - result truncated
+--echo # when short string on either side of union
+
+--echo # 'short string' can be literal
+SELECT 'X' UNION ALL SELECT REPLACE('a','a','ZzZ');
+--echo # 'short string' can be first argument of REPLACE (both truncated)
+SELECT REPLACE('a','a','Zz') AS 'Zz' UNION ALL SELECT REPLACE('X','X','XX');
+--echo # other strfuncs
+SELECT REPLACE('a','a','Zz') AS 'Zz' UNION ALL SELECT CONCAT('a');
+SELECT REPLACE('aaa','a','999') AS '9x9' UNION ALL SELECT CONCAT('a','a');
+--echo # (also affects column data types varchar, char, enum, ?)

@@ -5617,3 +5617,25 @@ LPAD(c, 3, 'x')
 NULL
 pad
 DROP TABLE t1;
+# Bug#XXXXXX: REPLACE in UNION - result truncated
+# when short string on either side of union
+# 'short string' can be literal
+SELECT 'X' UNION ALL SELECT REPLACE('a','a','ZzZ');
+X
+X
+ZzZ
+# 'short string' can be first argument of REPLACE (both truncated)
+SELECT REPLACE('a','a','Zz') AS 'Zz' UNION ALL SELECT REPLACE('X','X','XX');
+Zz
+Zz
+XX
+# other strfuncs
+SELECT REPLACE('a','a','Zz') AS 'Zz' UNION ALL SELECT CONCAT('a');
+Zz
+Zz
+a
+SELECT REPLACE('aaa','a','999') AS '9x9' UNION ALL SELECT CONCAT('a','a');
+9x9
+999999999
+aa
+# (also affects column data types varchar, char, enum, ?)
