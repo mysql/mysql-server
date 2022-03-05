@@ -1072,10 +1072,13 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
 
       std::string create_table_sql = std::string(row[1]);
       
+      std::string set_sql_mode = "set sql_mode=''";
+      mysql_real_query(local, set_sql_mode.c_str(), set_sql_mode.length()); 
       //CREATE TEMPORARY TABLE
       create_table_sql.erase(7, 9);
       mysql_select_db(local, "leapdb");
       mysql_real_query(local, create_table_sql.c_str(), create_table_sql.length());
+      //std::cerr << create_table_sql << "\n";
       if(mysql_errno(local) > 0) {
         mysql_free_result(result);
         mysql_close(local);
