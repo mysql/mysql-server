@@ -1069,7 +1069,7 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
       create_table_sql.erase(7, 9);
       mysql_select_db(local, "leapdb");
       mysql_real_query(local, create_table_sql.c_str(), create_table_sql.length());
-      std::cerr << create_table_sql << "\n";
+      //std::cerr << create_table_sql << "\n";
       if(mysql_errno(local) > 0) {
         mysql_free_result(result);
         mysql_close(local);
