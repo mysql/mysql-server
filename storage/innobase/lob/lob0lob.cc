@@ -1103,14 +1103,11 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
   /* Free possible externally stored fields in the record */
   ut_ad(dict_table_is_comp(m_index->table) == rec_offs_comp(m_offsets));
   ulint n_fields = rec_offs_n_fields(m_offsets);
-
+  DeleteContext ctx(*this, rollback);
   for (ulint i = 0; i < n_fields; i++) {
     if (rec_offs_nth_extern(m_index, m_offsets, i)) {
       byte *field_ref = btr_rec_get_field_ref(m_index, m_rec, m_offsets, i);
-
-      DeleteContext ctx(*this, field_ref, m_index->get_field_off_pos(i),
-                        rollback);
-
+      ctx.set_blob(field_ref, m_index->get_field_off_pos(i));
       upd_field_t *uf = nullptr;
       lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf, node);
       if (need_recalc()) {
@@ -1118,6 +1115,7 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
       }
     }
   }
+  ctx.free_lob_blocks();
 }
 
 /** Load the first page of LOB and read its page type.
