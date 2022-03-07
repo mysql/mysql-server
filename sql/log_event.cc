@@ -5695,7 +5695,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
 
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() && !in_group) {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id) {
+    if (!is_mts_db_partitioned(rli) &&
+        (server_id != ::server_id || rli->replicate_same_server_id)) {
       // force the coordinator to start a new binlog segment.
       static_cast<Mts_submode_logical_clock *>(rli->current_mts_submode)
           ->start_new_group();
