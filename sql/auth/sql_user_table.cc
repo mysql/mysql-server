@@ -94,18 +94,20 @@
 #include "violite.h"
 
 /* Acl table names. Keep in sync with ACL_TABLES */
-static const int MAX_ACL_TABLE_NAMES = 13;
+static const int MAX_ACL_TABLE_NAMES = 17;
 static_assert(MAX_ACL_TABLE_NAMES == ACL_TABLES::LAST_ENTRY,
               "Keep number of table names in sync with ACL table enum");
 
 static const char *ACL_TABLE_NAMES[MAX_ACL_TABLE_NAMES] = {
-    "user",            "db",
-    "tables_priv",     "columns_priv",
-    "procs_priv",      "proxies_priv",
-    "role_edges",      "default_roles",
-    "global_grants",   "password_history",
-    "user_attrib_val", "object_attrib_val",
-    "pol"};
+    "user",               "db",
+    "tables_priv",        "columns_priv",
+    "procs_priv",         "proxies_priv",
+    "role_edges",         "default_roles",
+    "global_grants",      "password_history",
+    "user_attributes",    "user_attrib_val", 
+    "object_attributes",  "object_attrib_val",
+    "policy",             "policy_user_aval",
+    "policy_object_aval"};
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
     {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
@@ -479,6 +481,13 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("enum('N','Y')")},
          {nullptr, 0}}};
 
+static const TABLE_FIELD_TYPE 
+    mysql_user_attributes_table_fields[MYSQL_USER_ATTRIBUTES_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Attrib_name")},
+         {STRING_WITH_LEN("varchar(20)")},
+         {nullptr, 0}}
+    };
+
 static const TABLE_FIELD_TYPE
     mysql_user_attrib_val_table_fields[MYSQL_USER_ATTRIB_VAL_FIELD_COUNT] = {
         {{STRING_WITH_LEN("User")},
@@ -495,6 +504,13 @@ static const TABLE_FIELD_TYPE
          {nullptr, 0}}
     };
 
+static const TABLE_FIELD_TYPE 
+    mysql_object_attributes_table_fields[MYSQL_OBJECT_ATTRIBUTES_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Attrib_name")},
+         {STRING_WITH_LEN("varchar(20)")},
+         {nullptr, 0}}
+    };
+    
 static const TABLE_FIELD_TYPE
     mysql_object_attrib_val_table_fields[MYSQL_OBJECT_ATTRIB_VAL_FIELD_COUNT] = {
       {{STRING_WITH_LEN("Db_name")},
@@ -510,19 +526,48 @@ static const TABLE_FIELD_TYPE
     };
 
 static const TABLE_FIELD_TYPE
-    mysql_pol_table_fields[MYSQL_POL_FIELD_COUNT] = {
+    mysql_policy_table_fields[MYSQL_POLICY_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Rule_id")},
+         {STRING_WITH_LEN("int")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Select_priv")},
+         {STRING_WITH_LEN("enum('N','Y')")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Insert_priv")},
+         {STRING_WITH_LEN("enum('N','Y')")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Update_priv")},
+         {STRING_WITH_LEN("enum('N','Y')")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Delete_priv")},
+         {STRING_WITH_LEN("enum('N','Y')")},
+         {STRING_WITH_LEN("utf8")}}
+    };
+
+static const TABLE_FIELD_TYPE 
+    mysql_policy_user_aval_table_fields[MYSQL_POLICY_USER_AVAL_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Rule_id")},
+          {STRING_WITH_LEN("int")},
+          {nullptr, 0}},
         {{STRING_WITH_LEN("User_attrib_name")},
-         {STRING_WITH_LEN("varchar(20)")},
-         {nullptr, 0}},
+          {STRING_WITH_LEN("varchar(20)")},
+          {nullptr, 0}},
         {{STRING_WITH_LEN("User_attrib_val")},
-         {STRING_WITH_LEN("varchar(10)")},
-         {nullptr, 0}},
+          {STRING_WITH_LEN("varchar(10)")},
+          {nullptr, 0}}
+    };
+
+static const TABLE_FIELD_TYPE 
+    mysql_policy_object_aval_table_fields[MYSQL_POLICY_OBJECT_AVAL_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Rule_id")},
+          {STRING_WITH_LEN("int")},
+          {nullptr, 0}},
         {{STRING_WITH_LEN("Object_attrib_name")},
-         {STRING_WITH_LEN("varchar(20)")},
-         {nullptr, 0}},
+          {STRING_WITH_LEN("varchar(20)")},
+          {nullptr, 0}},
         {{STRING_WITH_LEN("Object_attrib_val")},
-         {STRING_WITH_LEN("varchar(10)")},
-         {nullptr, 0}}
+          {STRING_WITH_LEN("varchar(10)")},
+          {nullptr, 0}}
     };
 
 /** keep in sync with @ref ACL_TABLES */
@@ -537,9 +582,13 @@ const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_DEFAULT_ROLES_FIELD_COUNT, mysql_default_roles_table_fields},
     {MYSQL_DYNAMIC_PRIV_FIELD_COUNT, mysql_dynamic_priv_table_fields},
     {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields},
+    {MYSQL_USER_ATTRIBUTES_FIELD_COUNT, mysql_user_attributes_table_fields},
     {MYSQL_USER_ATTRIB_VAL_FIELD_COUNT, mysql_user_attrib_val_table_fields},
+    {MYSQL_OBJECT_ATTRIBUTES_FIELD_COUNT, mysql_object_attributes_table_fields},
     {MYSQL_OBJECT_ATTRIB_VAL_FIELD_COUNT, mysql_object_attrib_val_table_fields},
-    {MYSQL_POL_FIELD_COUNT, mysql_pol_table_fields}};
+    {MYSQL_POLICY_FIELD_COUNT, mysql_policy_table_fields},
+    {MYSQL_POLICY_USER_AVAL_FIELD_COUNT, mysql_policy_user_aval_table_fields},
+    {MYSQL_POLICY_OBJECT_AVAL_FIELD_COUNT, mysql_policy_object_aval_table_fields}};
 
 static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
                                                        TABLE_LIST *tables);

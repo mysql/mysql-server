@@ -130,8 +130,11 @@ Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
 Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
-Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs = nullptr;
-Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects = nullptr;
+// Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs = nullptr;
+// Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects = nullptr;
+malloc_unordered_map<string, ACL_USER_ABAC*> *acl_user_abac_hash;
+malloc_unordered_map<string, ABAC_OBJECT*> *abac_object_hash;
+malloc_unordered_map<int, ABAC_RULE*> *abac_rule_hash;
 malloc_unordered_map<string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
@@ -714,6 +717,29 @@ void ABAC_OBJECT::set_attribute_value(std::string attrib_arg, std::string value_
 
 std::string ABAC_OBJECT::get_attribute_value(std::string attrib_arg) {
   return attrib_map[attrib_arg];
+}
+
+void ABAC_RULE::set_id(int id_arg) {
+  id = id_arg;
+}
+
+void ABAC_RULE::set_access(int access_arg) {
+  access = access_arg;
+}
+void ABAC_RULE::set_user_attribute(std::string attrib, std::string value) {
+  user_attrib_map[attrib] = value;
+}
+
+void ABAC_RULE::set_object_attribute(std::string attrib, std::string value) {
+  object_attrib_map[attrib] = value;
+}
+
+std::string ABAC_RULE::get_user_attribute_value(std::string attrib) {
+  return user_attrib_map[attrib];
+}
+
+std::string ABAC_RULE::get_object_attribute_value(std::string attrib) {
+  return object_attrib_map[attrib];
 }
 /**
   Append the authorization id for the user
@@ -1997,121 +2023,121 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
-  /* Load user attributes */
-  if (tables[6].table) {
-    iterator = init_table_iterator(thd, table = tables[6].table,
-                                   /*ignore_not_found_rows=*/false,
-                                   /*count_examined_rows=*/false);
-    if (iterator == nullptr) goto end;
-    table->use_all_columns();
-    acl_user_abacs->clear();
-    while (!(read_rec_errcode = iterator->Read())) {
-      char *user = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]);
-      char *host = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]);
-      int user_abac_index_in_list = -1;
-      ACL_USER_ABAC user_abac;
-      for (int i = 0; i < (int)(acl_user_abacs->size()); i++) {
-        if (!strcmp((*acl_user_abacs)[i].user, user) && !strcmp((*acl_user_abacs)[i].host.hostname, host)) {
-          user_abac = (*acl_user_abacs)[i];
-          user_abac_index_in_list = i;
-        }
-      }
-      if (user_abac_index_in_list == -1) {
-        user_abac = ACL_USER_ABAC();
-        user_abac.set_user(&global_acl_memory, user);
-        user_abac.set_host(&global_acl_memory, host);
-      }
-      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
-      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
-      user_abac.set_attribute_value(attrib, value);
-      if (user_abac_index_in_list == -1) {
-        acl_user_abacs->push_back(user_abac);
-      } else {
-        acl_user_abacs->assign_at(user_abac_index_in_list, user_abac);
-      }
-    }
-    acl_user_abacs->shrink_to_fit();
-    iterator.reset();
-    if (read_rec_errcode > 0) goto end;
-  } 
-  std::cout<<"user_attrib_val table processed\n";
+  // /* Load user attributes */
+  // if (tables[6].table) {
+  //   iterator = init_table_iterator(thd, table = tables[6].table,
+  //                                  /*ignore_not_found_rows=*/false,
+  //                                  /*count_examined_rows=*/false);
+  //   if (iterator == nullptr) goto end;
+  //   table->use_all_columns();
+  //   acl_user_abacs->clear();
+  //   while (!(read_rec_errcode = iterator->Read())) {
+  //     char *user = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]);
+  //     char *host = get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]);
+  //     int user_abac_index_in_list = -1;
+  //     ACL_USER_ABAC user_abac;
+  //     for (int i = 0; i < (int)(acl_user_abacs->size()); i++) {
+  //       if (!strcmp((*acl_user_abacs)[i].user, user) && !strcmp((*acl_user_abacs)[i].host.hostname, host)) {
+  //         user_abac = (*acl_user_abacs)[i];
+  //         user_abac_index_in_list = i;
+  //       }
+  //     }
+  //     if (user_abac_index_in_list == -1) {
+  //       user_abac = ACL_USER_ABAC();
+  //       user_abac.set_user(&global_acl_memory, user);
+  //       user_abac.set_host(&global_acl_memory, host);
+  //     }
+  //     std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
+  //     std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
+  //     user_abac.set_attribute_value(attrib, value);
+  //     if (user_abac_index_in_list == -1) {
+  //       acl_user_abacs->push_back(user_abac);
+  //     } else {
+  //       acl_user_abacs->assign_at(user_abac_index_in_list, user_abac);
+  //     }
+  //   }
+  //   acl_user_abacs->shrink_to_fit();
+  //   iterator.reset();
+  //   if (read_rec_errcode > 0) goto end;
+  // } 
+  // std::cout<<"user_attrib_val table processed\n";
 
-  if (tables[7].table) {
-    iterator = init_table_iterator(thd, table = tables[7].table,
-                                   /*ignore_not_found_rows=*/false,
-                                   /*count_examined_rows=*/false);
-    if (iterator == nullptr) goto end;
-    table->use_all_columns();
-    while(!(read_rec_errcode = iterator->Read())) {
-      std::string db_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
-      std::string table_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
-      int object_abac_index_in_list = -1;
-      ABAC_OBJECT object_abac;
-      for (int i = 0; i < (int)(abac_objects->size()); i++) {
-        if ((*abac_objects)[i].db_name == db_name && (*abac_objects)[i].table_name == table_name) {
-          object_abac = (*abac_objects)[i];
-          object_abac_index_in_list = i;
-        }
-      }
-      if (object_abac_index_in_list == -1) {
-        object_abac = ABAC_OBJECT();
-        object_abac.set_db(db_name);
-        object_abac.set_table(table_name);
-      }
-      std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
-      std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
-      object_abac.set_attribute_value(attrib, value);
-      if (object_abac_index_in_list == -1) {
-        abac_objects->push_back(object_abac);
-      } else {
-        abac_objects->assign_at(object_abac_index_in_list, object_abac);
-      }
-    }
-    abac_objects->shrink_to_fit();
-    iterator.reset();
-    if (read_rec_errcode > 0) goto end;
-  }
-  /* Get privileges using abac */
-  if (tables[8].table) {
-    iterator = init_table_iterator(thd, table = tables[8].table,
-                                   /*ignore_not_found_rows=*/false,
-                                   /*count_examined_rows=*/false);
-    if (iterator == nullptr) goto end;
-    table->use_all_columns();
-    while(!(read_rec_errcode = iterator->Read())) {
-      std::string user_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_NAME]));
-      std::string user_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_VAL]));
-      std::string obj_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_NAME]));
-      std::string obj_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_VAL]));
-      for (int i = 0; i < (int)acl_user_abacs->size(); i++) {
-        if (acl_user_abacs->at(i).get_attribute_value(user_attrib) == user_attrib_value) {
-          string hash_prefix = string(acl_user_abacs->at(i).user);
-          hash_prefix.push_back('\0');
-          hash_prefix.append(string(acl_user_abacs->at(i).host.hostname));
-          for (int j = 0; j < (int)abac_objects->size(); j++) {
-            if (abac_objects->at(j).get_attribute_value(obj_attrib) == obj_attrib_value) {
-              string hash = hash_prefix;
-              hash.push_back('\0');
-              hash.append(abac_objects->at(j).db_name);
-              hash.push_back('\0');
-              hash.append(abac_objects->at(j).table_name);
-              hash.push_back('\0');
-              if (!abac_table_priv_hash->count(hash)) {
-                ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(abac_objects->at(j).db_name,
-                    string(acl_user_abacs->at(i).user), abac_objects->at(j).table_name, 
-                        acl_user_abacs->at(i).host.hostname);
-                table_grant->privs |= SELECT_ACL;
-                abac_table_priv_hash->emplace(hash, table_grant);
-              }
-            }
-          }
-        }
-      }
-    }
-    iterator.reset();
-    if (read_rec_errcode > 0) goto end;
-  }
-  std::cout<<"pol table processed\n";
+  // if (tables[7].table) {
+  //   iterator = init_table_iterator(thd, table = tables[7].table,
+  //                                  /*ignore_not_found_rows=*/false,
+  //                                  /*count_examined_rows=*/false);
+  //   if (iterator == nullptr) goto end;
+  //   table->use_all_columns();
+  //   while(!(read_rec_errcode = iterator->Read())) {
+  //     std::string db_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
+  //     std::string table_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
+  //     int object_abac_index_in_list = -1;
+  //     ABAC_OBJECT object_abac;
+  //     for (int i = 0; i < (int)(abac_objects->size()); i++) {
+  //       if ((*abac_objects)[i].db_name == db_name && (*abac_objects)[i].table_name == table_name) {
+  //         object_abac = (*abac_objects)[i];
+  //         object_abac_index_in_list = i;
+  //       }
+  //     }
+  //     if (object_abac_index_in_list == -1) {
+  //       object_abac = ABAC_OBJECT();
+  //       object_abac.set_db(db_name);
+  //       object_abac.set_table(table_name);
+  //     }
+  //     std::string attrib = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
+  //     std::string value = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
+  //     object_abac.set_attribute_value(attrib, value);
+  //     if (object_abac_index_in_list == -1) {
+  //       abac_objects->push_back(object_abac);
+  //     } else {
+  //       abac_objects->assign_at(object_abac_index_in_list, object_abac);
+  //     }
+  //   }
+  //   abac_objects->shrink_to_fit();
+  //   iterator.reset();
+  //   if (read_rec_errcode > 0) goto end;
+  // }
+  // /* Get privileges using abac */
+  // if (tables[8].table) {
+  //   iterator = init_table_iterator(thd, table = tables[8].table,
+  //                                  /*ignore_not_found_rows=*/false,
+  //                                  /*count_examined_rows=*/false);
+  //   if (iterator == nullptr) goto end;
+  //   table->use_all_columns();
+  //   while(!(read_rec_errcode = iterator->Read())) {
+  //     std::string user_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_NAME]));
+  //     std::string user_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_USER_ATTRIB_VAL]));
+  //     std::string obj_attrib = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_NAME]));
+  //     std::string obj_attrib_value = string(get_field(&global_acl_memory, table->field[MYSQL_POL_OBJECT_ATTRIB_VAL]));
+  //     for (int i = 0; i < (int)acl_user_abacs->size(); i++) {
+  //       if (acl_user_abacs->at(i).get_attribute_value(user_attrib) == user_attrib_value) {
+  //         string hash_prefix = string(acl_user_abacs->at(i).user);
+  //         hash_prefix.push_back('\0');
+  //         hash_prefix.append(string(acl_user_abacs->at(i).host.hostname));
+  //         for (int j = 0; j < (int)abac_objects->size(); j++) {
+  //           if (abac_objects->at(j).get_attribute_value(obj_attrib) == obj_attrib_value) {
+  //             string hash = hash_prefix;
+  //             hash.push_back('\0');
+  //             hash.append(abac_objects->at(j).db_name);
+  //             hash.push_back('\0');
+  //             hash.append(abac_objects->at(j).table_name);
+  //             hash.push_back('\0');
+  //             if (!abac_table_priv_hash->count(hash)) {
+  //               ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(abac_objects->at(j).db_name,
+  //                   string(acl_user_abacs->at(i).user), abac_objects->at(j).table_name, 
+  //                       acl_user_abacs->at(i).host.hostname);
+  //               table_grant->privs |= SELECT_ACL;
+  //               abac_table_priv_hash->emplace(hash, table_grant);
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  //   iterator.reset();
+  //   if (read_rec_errcode > 0) goto end;
+  // }
+  // std::cout<<"pol table processed\n";
   initialized = true;
   return_val = false;
 
@@ -2145,12 +2171,12 @@ void acl_free(bool end /*= false*/) {
   acl_proxy_users = nullptr;
   delete acl_check_hosts;
   acl_check_hosts = nullptr;
-  delete acl_user_abacs;
-  acl_user_abacs = nullptr;
-  delete abac_objects;
-  abac_objects = nullptr;
-  delete abac_table_priv_hash;
-  abac_table_priv_hash = nullptr;
+  // delete acl_user_abacs;
+  // acl_user_abacs = nullptr;
+  // delete abac_objects;
+  // abac_objects = nullptr;
+  // delete abac_table_priv_hash;
+  // abac_table_priv_hash = nullptr;
   if (!end)
     clear_and_init_db_cache();
   else {
@@ -2329,9 +2355,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs = nullptr;
   Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *old_acl_proxy_users =
       nullptr;
-  Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *old_acl_user_abacs = nullptr; 
-  Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *old_abac_objects = nullptr;
-  malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
+  // Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *old_acl_user_abacs = nullptr; 
+  // Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *old_abac_objects = nullptr;
+  // malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
 
   Granted_roles_graph *old_granted_roles = nullptr;
   Default_roles *old_default_roles = nullptr;
@@ -2358,7 +2384,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     To avoid deadlocks we should obtain table locks before obtaining
     acl_cache->lock mutex.
   */
-  TABLE_LIST tables[9] = {
+  TABLE_LIST tables[6] = {
       TABLE_LIST("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
       /*
         For a TABLE_LIST element that is inited with a lock type TL_READ
@@ -2374,30 +2400,19 @@ bool acl_reload(THD *thd, bool mdl_locked) {
 
       TABLE_LIST("mysql", "role_edges", TL_READ, MDL_SHARED_READ_ONLY),
 
-      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY),
-      
-      TABLE_LIST("mysql", "user_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
-
-      TABLE_LIST("mysql", "object_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
-      
-      TABLE_LIST("mysql", "pol", TL_READ, MDL_SHARED_READ_ONLY)};
+      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY)};
   std::cout<<"Table list created\n";
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
   tables[2].next_local = tables[2].next_global = tables + 3;
   tables[3].next_local = tables[3].next_global = tables + 4;
   tables[4].next_local = tables[4].next_global = tables + 5;
-  tables[5].next_local = tables[5].next_global = tables + 6;
-  tables[6].next_local = tables[6].next_global = tables + 7;
-  tables[7].next_local = tables[7].next_global = tables + 8;
 
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       tables[3].open_type = tables[4].open_type = tables[5].open_type =
-          tables[6].open_type = tables[7].open_type = tables[8].open_type =
-              OT_BASE_ONLY;
+          OT_BASE_ONLY;
   tables[3].open_strategy = tables[4].open_strategy = tables[5].open_strategy =
-      tables[6].open_strategy = tables[7].open_strategy = tables[8].open_strategy =
-          TABLE_LIST::OPEN_IF_EXISTS;
+      TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, flags)) {
     /*
@@ -2420,9 +2435,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
   old_acl_restrictions = move(acl_restrictions);
-  old_acl_user_abacs = acl_user_abacs;
-  old_abac_objects = abac_objects;
-  old_abac_table_priv_hash = abac_table_priv_hash;
+  // old_acl_user_abacs = acl_user_abacs;
+  // old_abac_objects = abac_objects;
+  // old_abac_table_priv_hash = abac_table_priv_hash;
   swap_role_cache();
   roles_init();
 
@@ -2431,10 +2446,10 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   acl_dbs = new Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_proxy_users = new Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE>(
       key_memory_acl_mem);
-  acl_user_abacs = new Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
-  abac_objects = new Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+  // acl_user_abacs = new Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+  // abac_objects = new Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
   acl_restrictions = make_unique<Acl_restrictions>();
-  abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
+  // abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
 
   // acl_load() overwrites global_acl_memory, so we need to free it.
   // However, we can't do that immediately, because acl_load() might fail,
@@ -2459,12 +2474,12 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     acl_free(); /* purecov: inspected */
     acl_users = old_acl_users;
     acl_dbs = old_acl_dbs;
-    acl_user_abacs = old_acl_user_abacs;
-    abac_objects = old_abac_objects;
+    // acl_user_abacs = old_acl_user_abacs;
+    // abac_objects = old_abac_objects;
     acl_proxy_users = old_acl_proxy_users;
     global_acl_memory = move(old_mem);
     acl_restrictions = move(old_acl_restrictions);
-    abac_table_priv_hash = old_abac_table_priv_hash;
+    // abac_table_priv_hash = old_abac_table_priv_hash;
     // Revert to the old role caches
     swap_role_cache();
     // Old caches must be pointing to the global role caches right now
@@ -2479,9 +2494,9 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     delete old_acl_dbs;
     delete old_acl_proxy_users;
     delete old_dyn_priv_map;
-    delete old_acl_user_abacs;
-    delete old_abac_objects;
-    delete old_abac_table_priv_hash;
+    // delete old_acl_user_abacs;
+    // delete old_abac_objects;
+    // delete old_abac_table_priv_hash;
     // Delete the old role caches
     delete_old_role_cache();
     old_mem.Clear();
@@ -3822,6 +3837,318 @@ bool assert_acl_cache_write_lock(THD *thd) {
                                                       "", MDL_EXCLUSIVE);
 }
 
+bool abac_load(THD *thd, TABLE_LIST *tables) {
+  TABLE *table;
+  unique_ptr_destroy_only<RowIterator> iterator;
+  bool return_val = true;
+  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  DBUG_TRACE;
+
+  DBUG_EXECUTE_IF(
+      "wl_9262_set_max_length_hostname",
+      thd->security_context()->assign_priv_host("oh_my_gosh_this_is_a_long_"
+                                                "hostname_look_at_it_it_has_60"
+                                                "_char",
+                                                60);
+      thd->security_context()->assign_host("oh_my_gosh_this_is_a_long_"
+                                           "hostname_look_at_it_it_has_60"
+                                           "_char",
+                                           60);
+      thd->security_context()->set_host_or_ip_ptr(););
+
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+  int read_rec_errcode;
+
+  /* Processing user_attrib_val table */
+  if (tables[0].table) {
+    iterator = init_table_iterator(thd, table = tables[0].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      string user = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]));
+      string host = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]));
+      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
+      string hash_value = user;
+      hash_value.push_back('\0');
+      hash_value.append(host);
+      hash_value.push_back('\0');
+      ACL_USER_ABAC *user_abac = new ACL_USER_ABAC();
+      if (!acl_user_abac_hash->count(hash_value)) {
+        user_abac->set_user(&global_acl_memory, user.c_str());
+        user_abac->set_host(&global_acl_memory, host.c_str());
+        user_abac->set_attribute_value(attrib_name, attrib_val);
+        acl_user_abac_hash->emplace(hash_value, user_abac);
+      } else {
+        (*acl_user_abac_hash)[hash_value]->set_attribute_value(attrib_name, attrib_val);
+      }
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing object_attrib_val table */
+  if (tables[1].table) {
+    iterator = init_table_iterator(thd, table = tables[1].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      string db_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
+      string table_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
+      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
+      string hash_value = db_name;
+      hash_value.push_back('\0');
+      hash_value.append(table_name);
+      hash_value.push_back('\0');
+      if (!abac_object_hash->count(hash_value)) {
+        ABAC_OBJECT *object_abac = new ABAC_OBJECT();
+        object_abac->set_db(db_name);
+        object_abac->set_table(table_name);
+        object_abac->set_attribute_value(attrib_name, attrib_val);
+        abac_object_hash->emplace(hash_value, object_abac);
+      } else {
+        (*abac_object_hash)[hash_value]->set_attribute_value(attrib_name, attrib_val);
+      }
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing policy table */
+  if (tables[2].table) {
+    iterator = init_table_iterator(thd, table = tables[2].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_RULE_ID]));
+      ABAC_RULE *abac_rule = new ABAC_RULE();
+      abac_rule->set_id(rule_id);
+      ulong access = 0ll;
+      char *select_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_SELECT_PRIV]);
+      char *insert_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_INSERT_PRIV]);
+      char *delete_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_DELETE_PRIV]);
+      char *update_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_UPDATE_PRIV]);
+      if (select_priv[0] == 'Y') access |= SELECT_ACL;
+      if (insert_priv[0] == 'Y') access |= INSERT_ACL;
+      if (delete_priv[0] == 'Y') access |= DELETE_ACL;
+      if (update_priv[0] == 'Y') access |= UPDATE_ACL;
+      abac_rule->set_access(access);
+      abac_rule_hash->emplace(rule_id, abac_rule);
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing policy_user_aval table */
+  if (tables[3].table) {
+    iterator = init_table_iterator(thd, table = tables[3].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_USER_AVAL_RULE_ID]));
+      string attrib_name = string(get_field(&global_acl_memory, 
+          table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&global_acl_memory, 
+          table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_VAL]));
+      (*abac_rule_hash)[rule_id]->set_user_attribute(attrib_name, attrib_val);
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing policy_object_aval table */
+  if (tables[4].table) {
+    iterator = init_table_iterator(thd, table = tables[4].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_OBJECT_AVAL_RULE_ID]));
+      string attrib_name = string(get_field(&global_acl_memory, 
+          table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&global_acl_memory, 
+          table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_VAL]));
+      (*abac_rule_hash)[rule_id]->set_object_attribute(attrib_name, attrib_val);
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  for (auto rule_hash_it = abac_rule_hash->begin(); rule_hash_it != abac_rule_hash->end(); rule_hash_it++) {
+    for (auto user_hash_it = acl_user_abac_hash->begin(); 
+        user_hash_it != acl_user_abac_hash->end(); user_hash_it++) {
+      bool check = true;
+      user_attribute_map user_map = rule_hash_it->second->user_attrib_map;
+      object_attribute_map object_map = rule_hash_it->second->object_attrib_map;
+      string hash_prefix = string(user_hash_it->second->user);
+      hash_prefix.push_back('\0');
+      hash_prefix.append(string(user_hash_it->second->host.hostname));
+      hash_prefix.push_back('\0');
+
+      for (auto user_map_it = user_map.begin(); user_map_it != user_map.end(); user_map_it++) {
+        if (user_hash_it->second->get_attribute_value(user_map_it->first) != user_map_it->second) {
+          check = false; break;
+        }
+      }
+      if (!check) continue;
+      for (auto object_hash_it = abac_object_hash->begin(); 
+          object_hash_it != abac_object_hash->end(); object_hash_it++) {
+        check = true;
+        for (auto object_map_it = object_map.begin(); 
+            object_map_it != object_map.end(); object_map_it++) {
+          if (object_map_it->second != object_hash_it->second->get_attribute_value(object_map_it->first)) {
+            check = false; break;
+          }
+        }
+        if (!check) continue;
+        string hash = hash_prefix;
+        hash.append(object_hash_it->second->db_name);
+        hash.push_back('\0');
+        hash.append(object_hash_it->second->table_name);
+        hash.push_back('\0');
+
+        if (!abac_table_priv_hash->count(hash)) {
+          ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(object_hash_it->second->db_name,
+                    string(user_hash_it->second->user), object_hash_it->second->table_name, 
+                        user_hash_it->second->host.hostname);
+          table_grant->privs |= rule_hash_it->second->access;
+          abac_table_priv_hash->emplace(hash, table_grant);
+        } else {
+          abac_table_priv_hash->at(hash)->privs |= rule_hash_it->second->access;
+        }
+      }
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+  return_val = false;
+
+  end:
+    thd->variables.sql_mode = old_sql_mode;
+    DBUG_EXECUTE_IF("induce_acl_load_failure", return_val = true;);
+    return return_val;
+} 
+
+void abac_free() {
+  delete abac_object_hash;
+  abac_object_hash = nullptr;
+  delete abac_table_priv_hash;
+  abac_table_priv_hash = nullptr;
+  delete acl_user_abac_hash;
+  acl_user_abac_hash = nullptr;
+  delete abac_rule_hash;
+  abac_rule_hash = nullptr;
+}
+bool abac_init(bool skip_abac_tables = false) {
+  THD *thd;
+  bool return_val;
+  DBUG_TRACE;
+
+  if (skip_abac_tables) return false;
+
+  if (!(thd = new THD)) return true;
+  thd->thread_stack = (char *)&thd;
+  thd->store_globals();
+
+  return_val = abac_reload(thd, false);
+
+  if (return_val && thd->get_stmt_da()->is_error())
+    LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_INIT_GRANT_SUBSYSTEM,
+           thd->get_stmt_da()->message_text());
+
+  // if (opt_mandatory_roles.length > 0) {
+  //   return_val |= check_authorization_id_string(thd, opt_mandatory_roles);
+  // }
+
+  thd->release_resources();
+  delete thd;
+
+  return return_val;
+}
+bool abac_reload(THD *thd, bool mdl_locked) {
+  bool return_val = true;
+  uint flags = mdl_locked
+                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                         MYSQL_OPEN_IGNORE_FLUSH
+                   : MYSQL_LOCK_IGNORE_TIMEOUT;
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  malloc_unordered_map<string, ACL_USER_ABAC*> *old_acl_user_abac_hash = nullptr;
+  malloc_unordered_map<string, ABAC_OBJECT*> *old_abac_object_hash = nullptr;
+  malloc_unordered_map<int, ABAC_RULE*> *old_abac_rule_hash = nullptr;
+  malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
+  DBUG_TRACE;
+
+  /* Don't do anything if running with --skip-grant-tables */
+  if (!initialized) return false;
+
+  TABLE_LIST tables[5] = {
+
+      /*
+        Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+        from SE level.
+      */
+      TABLE_LIST("mysql", "user_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "object_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "policy", TL_READ, MDL_SHARED_READ_ONLY),
+      
+      TABLE_LIST("mysql", "policy_user_aval", TL_READ, MDL_SHARED_READ_ONLY),
+      
+      TABLE_LIST("mysql", "policy_object_aval", TL_READ, MDL_SHARED_READ_ONLY)};
+
+  tables[0].next_local = tables[0].next_global = tables + 1;
+  tables[1].next_local = tables[1].next_global = tables + 2;
+  tables[2].next_local = tables[2].next_global = tables + 3;
+  tables[3].next_local = tables[3].next_global = tables + 4;
+  tables[0].open_type = tables[1].open_type = tables[2].open_type =
+      tables[3].open_type = tables[4].open_type = 
+          OT_BASE_ONLY;
+  tables[0].open_strategy = tables[1].open_strategy = tables[2].open_strategy =
+      tables[3].open_strategy = tables[4].open_strategy = 
+          TABLE_LIST::OPEN_IF_EXISTS;
+
+  if (open_and_lock_tables(thd, tables, flags)) {
+    if (!is_expected_or_transient_error(thd)) {
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
+             thd->get_stmt_da()->message_text());
+    }
+    goto end;
+  }
+
+  if (!acl_cache_lock.lock()) goto end;
+  
+  old_abac_object_hash = abac_object_hash;
+  old_abac_rule_hash = abac_rule_hash;
+  old_acl_user_abac_hash = acl_user_abac_hash;
+  old_abac_table_priv_hash = abac_table_priv_hash;
+
+  abac_object_hash = new malloc_unordered_map<string, ABAC_OBJECT*>(key_memory_acl_memex);
+  abac_rule_hash = new malloc_unordered_map<int, ABAC_RULE*>(key_memory_acl_memex);
+  abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
+  acl_user_abac_hash = new malloc_unordered_map<string, ACL_USER_ABAC*>(key_memory_acl_memex);
+
+  if ((return_val = abac_load(thd, tables))) {
+    abac_free();
+    abac_object_hash = old_abac_object_hash;
+    abac_rule_hash = old_abac_rule_hash;
+    abac_table_priv_hash = old_abac_table_priv_hash;
+    acl_user_abac_hash = old_acl_user_abac_hash;
+  } else {
+    delete old_abac_object_hash;
+    delete old_abac_rule_hash;
+    delete old_abac_table_priv_hash;
+    delete old_acl_user_abac_hash;
+  }
+
+  end:
+    if (!mdl_locked)
+      commit_and_close_mysql_tables(thd);
+    else
+      close_thread_tables(thd);
+    return return_val;
+}
+
 /** Global sysvar: the number of old passwords to check in the history. */
 uint32 global_password_history = 0;
 /** Global sysvar: the number of days before a password can be reused. */
@@ -3885,7 +4212,7 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
 
   if (check_engine_type_for_acl_table(thd, mdl_locked) ||
       check_acl_tables_intact(thd, mdl_locked) || acl_reload(thd, mdl_locked) ||
-      grant_reload(thd, mdl_locked)) {
+      grant_reload(thd, mdl_locked) || abac_reload(thd, mdl_locked)) {
     goto end;
   }
   // If there exists at least a partial revoke then update the sys variable

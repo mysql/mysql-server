@@ -355,12 +355,22 @@ enum mysql_dynamic_priv_table_field {
   MYSQL_DYNAMIC_PRIV_FIELD_COUNT
 };
 
+enum mysql_user_attributes_table_field {
+  MYSQL_USER_ATTRIBUTES_ATTRIB_NAME = 0,
+  MYSQL_USER_ATTRIBUTES_FIELD_COUNT
+};
+
 enum mysql_user_attrib_val_table_field {
   MYSQL_USER_ATTRIB_VAL_USER = 0,
   MYSQL_USER_ATTRIB_VAL_HOST,
   MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME,
   MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL,
   MYSQL_USER_ATTRIB_VAL_FIELD_COUNT
+};
+
+enum mysql_object_attributes_table_field {
+  MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME = 0,
+  MYSQL_OBJECT_ATTRIBUTES_FIELD_COUNT
 };
 
 enum mysql_object_attrib_val_table_field {
@@ -371,12 +381,27 @@ enum mysql_object_attrib_val_table_field {
   MYSQL_OBJECT_ATTRIB_VAL_FIELD_COUNT
 };
 
-enum mysql_pol_table_field {
-  MYSQL_POL_USER_ATTRIB_NAME = 0,
-  MYSQL_POL_USER_ATTRIB_VAL,
-  MYSQL_POL_OBJECT_ATTRIB_NAME,
-  MYSQL_POL_OBJECT_ATTRIB_VAL,
-  MYSQL_POL_FIELD_COUNT
+enum mysql_policy {
+  MYSQL_POLICY_RULE_ID = 0,
+  MYSQL_POLICY_SELECT_PRIV,
+  MYSQL_POLICY_INSERT_PRIV,
+  MYSQL_POLICY_UPDATE_PRIV,
+  MYSQL_POLICY_DELETE_PRIV,
+  MYSQL_POLICY_FIELD_COUNT
+};
+
+enum mysql_policy_user_aval_table_field {
+  MYSQL_POLICY_USER_AVAL_RULE_ID = 0,
+  MYSQL_POLICY_USER_AVAL_USER_ATTRIB_NAME,
+  MYSQL_POLICY_USER_AVAL_USER_ATTRIB_VAL,
+  MYSQL_POLICY_USER_AVAL_FIELD_COUNT
+};
+
+enum mysql_policy_object_aval_table_field {
+  MYSQL_POLICY_OBJECT_AVAL_RULE_ID = 0,
+  MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_NAME,
+  MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_VAL,
+  MYSQL_POLICY_OBJECT_AVAL_FIELD_COUNT
 };
 
 /* When we run mysql_upgrade we must make sure that the server can be run
@@ -788,6 +813,10 @@ void notify_flush_event(THD *thd);
 bool wildcard_db_grant_exists();
 void append_auth_id_string(const THD *thd, const char *user, size_t user_len,
                            const char *host, size_t host_len, String *str);
+void abac_free();
+bool abac_init(bool skip_abac_tables);
+bool abac_reload(THD *thd, bool mdl_locked);
+bool abac_load(THD *thd, TABLE_LIST *tables);
 
 /* sql_authorization */
 bool skip_grant_tables();

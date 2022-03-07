@@ -376,10 +376,12 @@ class ABAC_OBJECT {
 
 class ABAC_RULE {
   public:
-    char *id;
+    int id;
+    int access;
     user_attribute_map user_attrib_map;
     object_attribute_map object_attrib_map;
-    void set_id(MEM_ROOT *mem, const char *id_arg);
+    void set_id(int id_arg);
+    void set_access(int access_arg);
     void set_user_attribute(std::string attrib, std::string value);
     void set_object_attribute(std::string attrib, std::string value);
     std::string get_user_attribute_value(std::string attrib);
@@ -557,10 +559,13 @@ const size_t ACL_PREALLOC_SIZE = 10U;
 extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
 extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
 extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
-extern Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs;
+// extern Prealloced_array<ACL_USER_ABAC, ACL_PREALLOC_SIZE> *acl_user_abacs;
 extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
-extern Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects;
+// extern Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects;
 extern malloc_unordered_map<std::string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
+extern malloc_unordered_map<std::string, ACL_USER_ABAC*> *acl_user_abac_hash;
+extern malloc_unordered_map<std::string, ABAC_OBJECT*> *abac_object_hash;
+extern malloc_unordered_map<int, ABAC_RULE*> *abac_rule_hash;
 extern std::unique_ptr<malloc_unordered_multimap<
     std::string, unique_ptr_destroy_only<GRANT_TABLE>>>
     column_priv_hash;

@@ -192,13 +192,29 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @cmd = "CREATE TABLE IF NOT EXISTS user_attributes ( Attrib_name varchar(20) CHARACTER SET ASCII PRIMARY KEY
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
+SET @str = CONCAT(@CMD, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS object_attributes ( Attrib_name varchar(20) CHARACTER SET ASCII PRIMARY KEY
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Object attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql"; 
+SET @str = CONCAT(@CMD, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 SET @cmd = "CREATE TABLE IF NOT EXISTS user_attrib_val 
 (
   User char(32) binary DEFAULT '' NOT NULL,
   Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
   Attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
   Attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
-  PRIMARY KEY (User, Host, Attrib_name)
+  PRIMARY KEY (User, Host, Attrib_name),
+  FOREIGN KEY (Host, User) REFERENCES user(Host, User),
+  FOREIGN KEY (Attrib_name) REFERENCES user_attributes(Attrib_name)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User attribute values' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
@@ -210,20 +226,47 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS object_attrib_val (
   Table_name varchar(64) CHARACTER SET ASCII DEFAULT '' NOT NULL,
   Attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
   Attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
-  PRIMARY KEY (Db_name, Table_name, Attrib_name)
+  PRIMARY KEY (Db_name, Table_name, Attrib_name),
+  FOREIGN KEY (Attrib_name) REFERENCES object_attributes(Attrib_name)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Object attribute values' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@CMD, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @cmd = "CREATE TABLE IF NOT EXISTS pol (
-  User_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
-  User_attrib_val varchar(10) CHARACTER SET ASCII  NOT NULL,
-  Object_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
-  Object_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
-  PRIMARY KEY (User_attrib_name, User_attrib_val, Object_attrib_name, Object_attrib_val)
+SET @cmd = "CREATE TABLE IF NOT EXISTS policy ( 
+	Rule_id int PRIMARY KEY AUTO_INCREMENT, 
+	Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+	Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+	Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='ABAC Policies' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
+SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS policy_user_aval ( 
+	Rule_id int, 
+  User_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL, 
+  User_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
+	PRIMARY KEY (Rule_id, User_attrib_name),
+	FOREIGN KEY (Rule_id) REFERENCES policy(Rule_id),
+	FOREIGN KEY (User_attrib_name) REFERENCES user_attributes(Attrib_name)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for user attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
+SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS policy_object_aval ( 
+	Rule_id int, 
+  Object_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL, 
+  Object_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
+	PRIMARY KEY (Rule_id, Object_attrib_name),
+	FOREIGN KEY (Rule_id) REFERENCES policy(Rule_id),
+	FOREIGN KEY (Object_attrib_name) REFERENCES object_attributes(Attrib_name)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for object attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;

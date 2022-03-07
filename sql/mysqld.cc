@@ -7542,7 +7542,7 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-  if (abort || acl_init(opt_noacl)) {
+  if (abort || acl_init(opt_noacl) || abac_init(opt_noacl)) {
     if (!abort) LogErr(ERROR_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
     abort = true;
     opt_noacl = true;
