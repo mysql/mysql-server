@@ -1246,6 +1246,7 @@ static void ib_update_col(
   upd_field->orig_len = 0;
 
   upd_field->field_no = dict_col_get_clust_pos(&table->cols[col_no], index);
+  IF_DEBUG(upd_field->field_phy_pos = table->cols[col_no].get_col_phy_pos();)
 }
 
 /** Checks which fields have changed in a row and stores the new data
