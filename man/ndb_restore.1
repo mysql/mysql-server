@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1188,9 +1188,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.25 to a cluster running NDB Cluster 7\&.4\&.35, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.26 to a cluster running NDB Cluster 7\&.4\&.36, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.25 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.26 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1712,6 +1712,31 @@ backup\&. Afterwards, you can restore indexes for all tables at once with multit
 \fB\-\-rebuild\-indexes\fR, which should be faster than rebuilding indexes concurrently for very large tables\&.
 .sp
 In NDB 8\&.0\&.27 and later, this option also drops any foreign keys specified in the backup\&.
+.sp
+Prior to NDB 8\&.0\&.29, attempting to access from MySQL an
+NDB
+table for which one or more indexes could not be found was always rejected with error
+4243
+Index not found\&. Beginning with NDB 8\&.0\&.29, it is possible for MySQL to open such a table, provided the query does not use any of the affected indexes; otherwise the query is rejected with
+ER_NOT_KEYFILE\&. In the latter case, you can temporarily work around the problem by executing an
+ALTER TABLE
+statement such as this one:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ALTER TABLE tbl ALTER INDEX idx INVISIBLE;
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This causes MySQL to ignore the index
+idx
+on table
+tbl\&. See
+Primary Keys and Indexes, for more information\&.
 .RE
 .sp
 .RS 4
@@ -2382,7 +2407,7 @@ T}
 In NDB 8\&.0,
 \fBndb_restore\fR
 does not by default restore shared users and grants (see
-Section\ \&23.6.12, \(lqDistributed MySQL Privileges with NDB_STORED_USER\(rq) to the
+Section\ \&23.6.12, \(lqPrivilege Synchronization and NDB_STORED_USER\(rq) to the
 ndb_sql_metadata
 table\&. Specifying this option causes it to do so\&.
 .RE
@@ -5578,7 +5603,7 @@ binary supplied with the older version of the NDB Cluster software\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

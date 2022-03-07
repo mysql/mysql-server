@@ -2,12 +2,12 @@
 .\"     Title: ndb_import
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/05/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_IMPORT" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_IMPORT" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -199,6 +199,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -559,6 +560,16 @@ Import only this number of input data rows; default is 0, which imports
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--missing-ai-column='name'\fR\fB \fR
+T}:T{
+Indicates that auto-increment values are missing from CSV file to be
+              imported.
+T}:T{
+.PP
+ADDED: NDB 8.0.30
 T}
 T{
 .PP
@@ -2226,6 +2237,52 @@ Import only this number of input data rows; the default is 0, which imports all 
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-missing\-ai\-column\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--missing-ai-column='name'
+T}
+T{
+Introduced
+T}:T{
+8.0.30-ndb-8.0.30
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+This option can be employed when importing a single table, or multiple tables\&. When used, it indicates that the CSV file being imported does not contain any values for an
+AUTO_INCREMENT
+column, and that
+\fBndb_import\fR
+should supply them; if the option is used and the
+AUTO_INCREMENT
+column contains any values, the import operation cannot proceed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-monitor\fR=\fI#\fR
 .TS
 allbox tab(:);
@@ -3309,7 +3366,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
