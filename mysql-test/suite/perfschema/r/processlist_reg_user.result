@@ -8,12 +8,12 @@ CREATE USER 'regular'@'localhost';
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT USAGE ON *.* TO `regular`@`localhost`
-SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
-USER	HOST	INFO
-regular	localhost	SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
-SELECT USER, HOST, INFO FROM performance_schema.processlist;
-USER	HOST	INFO
-regular	localhost	SELECT USER, HOST, INFO FROM performance_schema.processlist
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+USER	INFO
+regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
+SELECT USER, INFO FROM performance_schema.processlist;
+USER	INFO
+regular	SELECT USER, INFO FROM performance_schema.processlist
 SHOW PROCESSLIST;
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
 FROM performance_schema.events_statements_history
@@ -25,12 +25,12 @@ set @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT USAGE ON *.* TO `regular`@`localhost`
-SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
-USER	HOST	INFO
-regular	localhost	SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
-SELECT USER, HOST, INFO FROM performance_schema.processlist;
-USER	HOST	INFO
-regular	localhost	SELECT USER, HOST, INFO FROM performance_schema.processlist
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+USER	INFO
+regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
+SELECT USER, INFO FROM performance_schema.processlist;
+USER	INFO
+regular	SELECT USER, INFO FROM performance_schema.processlist
 SHOW PROCESSLIST;
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT
 FROM performance_schema.events_statements_history
