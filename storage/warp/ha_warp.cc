@@ -702,16 +702,14 @@ int ha_warp::reset_table() {
 
 void ha_warp::update_row_count() {
   DBUG_ENTER("ha_warp::row_count");
-  if(base_table) {
-    delete base_table;
-    base_table = NULL;
+  if(base_table == NULL) {
+    base_table = new ibis::mensa(share->data_dir_name);
   }
 
-  base_table = new ibis::mensa(share->data_dir_name);
   stats.records = base_table->nRows();
 
-  delete base_table;
-  base_table = NULL;
+  //delete base_table;
+  //base_table = NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -827,7 +825,7 @@ void ha_warp::write_buffered_rows_to_disk() {
   writer->write(part_dir.c_str(), part_name);
   writer->clearData();
   free(part_dir_copy);
-  
+  fflush(NULL);
   delete writer;
   writer = NULL;
   
@@ -915,6 +913,14 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
   
+  /*delete cursor;
+  delete filtered_table;
+  delete base_table;
+  cursor = NULL;
+  filtered_table = NULL;
+  base_table = NULL;*/
+
+
   int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
   /* if deadlock or lock timeout return the error*/
   if(lock_taken != LOCK_EX) {
@@ -942,6 +948,8 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   
   ha_statistic_increment(&System_status_var::ha_update_count);
   is_update=false;
+
+  
   DBUG_RETURN(retval);
 }
 
@@ -1370,7 +1378,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
       }
     }
     
-    writer->addColumn(name.c_str(), datatype, NULL, index_spec);
+    writer->addColumn(name.c_str(), datatype, NULL, "none");
 
     /* Columns which are NULLable have a NULL marker.  A better approach might
        to have one NULL bitmap stored as a separate column instead of one byte
@@ -1382,7 +1390,8 @@ void ha_warp::create_writer(TABLE *table_arg) {
       // correspondingly numbered column");
       writer->addColumn(nname.c_str(), ibis::UBYTE,
                         "NULL marker for the correspondingly numbered column",
-                        "<binning none/><encoding equality/>");
+                        //"<binning none/><encoding equality/>");
+                        "none");
     }
   }
   /* This is the psuedo-rowid which is used for deletes and updates */
