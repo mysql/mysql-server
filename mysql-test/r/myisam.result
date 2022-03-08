@@ -828,6 +828,8 @@ xxxxxxxxx	bbbbbb
 xxxxxxxxx	bbbbbb
 DROP TABLE t1;
 SET @@myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE 'myisam_repair%';
 Variable_name	Value
 myisam_repair_threads	2
@@ -1889,6 +1891,8 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
 # Enable keys with parallel repair
 SET @@myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
 SET @@myisam_repair_threads=1;
@@ -2410,6 +2414,8 @@ test.t1	repair	error	myisam_sort_buffer_size is too small
 test.t1	repair	warning	Number of rows changed from 0 to 7168
 test.t1	repair	status	OK
 SET myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
@@ -2487,6 +2493,8 @@ DROP TABLE t1;
 #             cardinalities=1
 #
 SET myisam_repair_threads=2;
+Warnings:
+Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 SET myisam_sort_buffer_size=4096;
 CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a));
 Warnings:

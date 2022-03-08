@@ -99,7 +99,7 @@ include/assert.inc [Default group_replication_recovery_ssl_verify_server_cert is
 include/assert.inc [Default group_replication_recovery_use_ssl is OFF/0]
 include/assert.inc [Default group_replication_ssl_mode is DISABLED]
 include/assert.inc [Default group_replication_start_on_boot is ON/1]
-include/assert.inc [Default group_replication_transaction_size_limit is 0]
+include/assert.inc [Default group_replication_transaction_size_limit is 150000000]
 include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
 include/assert.inc [Default group_replication_member_weight is 50]
 include/assert.inc [Default group_replication_exit_state_action is READ_ONLY]

@@ -785,29 +785,20 @@ BtrBulk::logFreeCheck()
 	}
 }
 
-/** Release all latches */
+/** Release latch on the rightmost leaf page in the index tree */
 void
 BtrBulk::release()
 {
-	ut_ad(m_root_level + 1 == m_page_bulks->size());
-
-	for (ulint level = 0; level <= m_root_level; level++) {
-		PageBulk*    page_bulk = m_page_bulks->at(level);
-
-		page_bulk->release();
-	}
+	PageBulk* page_bulk = m_page_bulks->at(0);
+	page_bulk->release();
 }
 
-/** Re-latch all latches */
+/** Re-latch latch on the rightmost leaf page in the index tree */
 void
 BtrBulk::latch()
 {
-	ut_ad(m_root_level + 1 == m_page_bulks->size());
-
-	for (ulint level = 0; level <= m_root_level; level++) {
-		PageBulk*    page_bulk = m_page_bulks->at(level);
-		page_bulk->latch();
-	}
+	PageBulk* page_bulk = m_page_bulks->at(0);
+	page_bulk->latch();
 }
 
 /** Insert a tuple to page in a level
@@ -840,11 +831,17 @@ BtrBulk::insert(
 		m_root_level = level;
 
 		is_left_most = true;
+		if (level > 0) {
+			new_page_bulk->release();
+		}
 	}
 
 	ut_ad(m_page_bulks->size() > level);
 
 	PageBulk*	page_bulk = m_page_bulks->at(level);
+	if (level > 0) {
+		page_bulk->latch();
+	}
 
 	if (is_left_most && level > 0 && page_bulk->getRecNo() == 0) {
 		/* The node pointer must be marked as the predefined minimum
@@ -866,7 +863,8 @@ BtrBulk::insert(
 		big_rec = dtuple_convert_big_rec(m_index, 0, tuple, &n_ext);
 
 		if (big_rec == NULL) {
-			return(DB_TOO_BIG_RECORD);
+			err = DB_TOO_BIG_RECORD;
+			goto func_exit;
 		}
 
 		rec_size = rec_get_converted_size(m_index, tuple, n_ext);
@@ -919,7 +917,6 @@ BtrBulk::insert(
 
 			logFreeCheck();
 		}
-
 	}
 
 	/* Convert tuple to rec. */
@@ -934,26 +931,15 @@ BtrBulk::insert(
 		ut_ad(dict_index_is_clust(m_index));
 		ut_ad(page_bulk->getLevel() == 0);
 		ut_ad(page_bulk == m_page_bulks->at(0));
-
-		/* Release all latched but leaf node. */
-		for (ulint level = 1; level <= m_root_level; level++) {
-			PageBulk*    page_bulk = m_page_bulks->at(level);
-
-			page_bulk->release();
-		}
-
 		err = page_bulk->storeExt(big_rec, offsets);
-
-		/* Latch */
-		for (ulint level = 1; level <= m_root_level; level++) {
-			PageBulk*    page_bulk = m_page_bulks->at(level);
-			page_bulk->latch();
-		}
 	}
 
 func_exit:
 	if (big_rec != NULL) {
 		dtuple_convert_back_big_rec(m_index, tuple, big_rec);
+	}
+	if (level > 0) {
+		page_bulk->release();
 	}
 
 	return(err);
@@ -987,6 +973,9 @@ BtrBulk::finish(dberr_t	err)
 	/* Finish all page bulks */
 	for (ulint level = 0; level <= m_root_level; level++) {
 		PageBulk*	page_bulk = m_page_bulks->at(level);
+		if (level > 0) {
+			page_bulk->latch();
+		}
 
 		last_page_no = page_bulk->getPageNo();
 

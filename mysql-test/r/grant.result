@@ -3021,3 +3021,10 @@ proxy_native_0123456789	user_name_len_32_012345678901234	user_name_len_22_01234@
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
+#
+# Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+#
+CREATE USER bug33578113;
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+DROP USER bug33578113;

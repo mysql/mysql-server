@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1685,6 +1685,10 @@ bool log_slow_applicable(THD *thd)
   */
   if (unlikely(thd->in_sub_stmt))
     DBUG_RETURN(false);                         // Don't set time for sub stmt
+
+  if (unlikely(thd->is_error()) &&
+      (unlikely(thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR)))
+    DBUG_RETURN(false);
 
   /*
     Do not log administrative statements unless the appropriate option is

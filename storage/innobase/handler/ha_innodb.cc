@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -4990,7 +4990,11 @@ ha_innobase::index_type(
 {
 	dict_index_t*	index = innobase_get_index(keynr);
 
-	if (index && index->type & DICT_FTS) {
+	if (index == NULL) {
+		return("NONE");
+	}
+
+	if (index->type & DICT_FTS) {
 		return("FULLTEXT");
 	} else if (dict_index_is_spatial(index)) {
 		return("SPATIAL");
@@ -16808,26 +16812,31 @@ ha_innobase::get_auto_increment(
 
 	(3) It is restricted only for insert operations. */
 
+
 	if (increment > 1 && thd_sql_command(m_user_thd) != SQLCOM_ALTER_TABLE
 	    && autoinc < col_max_value) {
 
-		ulonglong	prev_auto_inc = autoinc;
+		ulonglong diff = ULLONG_MAX - autoinc;
+		/* Check for overflow */
+		if (increment <= diff) {
 
-		autoinc = ((autoinc - 1) + increment - offset)/ increment;
+			ulonglong prev_auto_inc = autoinc;
 
-		autoinc = autoinc * increment + offset;
+			autoinc = ((autoinc - 1) + increment - offset)/ increment;
 
-		/* If autoinc exceeds the col_max_value then reset
-		to old autoinc value. Because in case of non-strict
-		sql mode, boundary value is not considered as error. */
+			autoinc = autoinc * increment + offset;
 
-		if (autoinc >= col_max_value) {
-			autoinc = prev_auto_inc;
+			/* If autoinc exceeds the col_max_value then reset
+			to old autoinc value. Because in case of non-strict
+			sql mode, boundary value is not considered as error. */
+
+			if (autoinc >= col_max_value) {
+				autoinc = prev_auto_inc;
+			}
+
+			ut_ad(autoinc > 0);
 		}
-
-		ut_ad(autoinc > 0);
 	}
-
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 

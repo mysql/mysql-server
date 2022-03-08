@@ -180,7 +180,7 @@ disconnect con1;
 drop table t1;
 
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = InnoDB: Record with space id \d+ belongs to table which is being truncated therefore skipping this undo record.;
+let SEARCH_PATTERN = InnoDB: Record with space id \d+ belongs to table which is being truncated or tablespace which is missing therefore skipping this undo record.;
 --source include/search_pattern.inc
 
 #cleanup
