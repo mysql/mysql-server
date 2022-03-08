@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /* A place to specify component-wide declarations, including declarations of
   placeholders for Service dependencies. */
 
-extern REQUIRES_SERVICE_PLACEHOLDER(pfs_plugin_table);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_table_v1, pt_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v1,
+                                       pc_string_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1,
+                                       pc_bigint_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_double_v1,
+                                       pc_double_srv);
 
 /* Number of characters * max multibyte length */
 #define COUNTRY_NAME_LEN 20 * 4
