@@ -1076,8 +1076,10 @@ class BtrContext {
   }
 
   /** The btr mtr that is holding the latch on the B-tree index page
-  containing the clustered index record. . */
+  containing the clustered index record.*/
   mtr_t *m_mtr;
+
+  /** Persistent cursor positioned on the clustered index record.*/
   btr_pcur_t *m_pcur;
   dict_index_t *m_index;
   rec_t *m_rec;
@@ -1448,10 +1450,11 @@ struct DeleteContext : public BtrContext {
   /** Is this operation part of rollback? */
   bool m_rollback;
 
+  /** The page size of the tablespace.*/
   page_size_t m_page_size;
 
   /** Add a buffer block that is to be freed.
-  @param[in] buffer block to be freed. */
+  @param[in]  block  buffer block to be freed.*/
   void add_lob_block(buf_block_t *block);
 
   /** Free all the stored lob blocks. */
