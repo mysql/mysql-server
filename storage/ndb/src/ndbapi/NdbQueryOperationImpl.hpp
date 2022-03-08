@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,11 +130,6 @@ public:
   // Consider to introduce these as convenient shortcuts
 //NdbQueryOperationDefImpl& getQueryOperationDef(Uint32 ident) const;
 //NdbQueryOperationDefImpl* getQueryOperationDef(const char* ident) const;
-
-  /** Return number of parameter operands in query.*/
-  Uint32 getNoOfParameters() const;
-  const NdbParamOperand* getParameter(const char* name) const;
-  const NdbParamOperand* getParameter(Uint32 num) const;
 
   /** Get the next tuple(s) from the global cursor on the query.
    * @param fetchAllowed If true, the method may block while waiting for more
@@ -677,9 +672,6 @@ public:
   NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
-
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrieved a new
-                             // value for this NdbQueryOperation
 
   /** Process result data for this operation. Return true if batch complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);

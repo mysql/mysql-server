@@ -1869,24 +1869,6 @@ NdbQuery::getQueryOperation(const char* ident) const
   return (op) ? &op->getInterface() : NULL;
 }
 
-Uint32
-NdbQuery::getNoOfParameters() const
-{
-  return m_impl.getNoOfParameters();
-}
-
-const NdbParamOperand*
-NdbQuery::getParameter(const char* name) const
-{
-  return m_impl.getParameter(name);
-}
-
-const NdbParamOperand*
-NdbQuery::getParameter(Uint32 num) const
-{
-  return m_impl.getParameter(num);
-}
-
 int
 NdbQuery::setBound(const NdbRecord *keyRecord,
                    const NdbIndexScanOperation::IndexBound *bound)
@@ -2071,12 +2053,6 @@ bool
 NdbQueryOperation::isRowNULL() const
 {
   return m_impl.isRowNULL();
-}
-
-bool
-NdbQueryOperation::isRowChanged() const
-{
-  return m_impl.isRowChanged();
 }
 
 /////////////////////////////////////////////////
@@ -2672,24 +2648,6 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
     }
   }
   return NULL;
-}
-
-Uint32
-NdbQueryImpl::getNoOfParameters() const
-{
-  return 0;  // FIXME
-}
-
-const NdbParamOperand*
-NdbQueryImpl::getParameter(const char* name) const
-{
-  return NULL; // FIXME
-}
-
-const NdbParamOperand*
-NdbQueryImpl::getParameter(Uint32 num) const
-{
-  return NULL; // FIXME
 }
 
 /**
@@ -4830,13 +4788,6 @@ bool
 NdbQueryOperationImpl::isRowNULL() const
 {
   return m_isRowNull;
-}
-
-bool
-NdbQueryOperationImpl::isRowChanged() const
-{
-  // FIXME: Need to be implemented as scan linked with scan is now implemented.
-  return true;
 }
 
 static bool isSetInMask(const unsigned char* mask, int bitNo)
