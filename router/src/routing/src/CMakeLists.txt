@@ -26,6 +26,15 @@ IF (NOT PROTOBUF_LITE_LIBRARY)
   MESSAGE(FATAL_ERROR "Routing plugin requires protobuf-lite library")
 ENDIF()
 
+ADD_LIBRARY(sql_lexer STATIC
+  sql_lexer.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
+  )
+TARGET_INCLUDE_DIRECTORIES(sql_lexer
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# generate sql_yacc.h
+ADD_DEPENDENCIES(sql_lexer GenServerSource)
+
 ADD_LIBRARY(routing SHARED
   mysql_routing.cc
   destination.cc
@@ -77,6 +86,7 @@ ADD_LIBRARY(routing SHARED
 
   sql_value.cc
 )
+
 TARGET_LINK_LIBRARIES(routing
   PUBLIC
   harness_stdx
@@ -88,6 +98,7 @@ TARGET_LINK_LIBRARIES(routing
   metadata_cache
   connection_pool
   destination_status
+  sql_lexer
   )
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(routing
