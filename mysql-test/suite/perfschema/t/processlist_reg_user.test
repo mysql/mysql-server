@@ -16,10 +16,10 @@ connect (reg,localhost,regular,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 SHOW GRANTS;
 
 # Self rows only
-SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Self rows only
-SELECT USER, HOST, INFO FROM performance_schema.processlist;
+SELECT USER, INFO FROM performance_schema.processlist;
 
 # Self rows only
 --disable_result_log
@@ -41,10 +41,10 @@ connection reg;
 SHOW GRANTS;
 
 # Self rows only
-SELECT USER, HOST, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Self rows only
-SELECT USER, HOST, INFO FROM performance_schema.processlist;
+SELECT USER, INFO FROM performance_schema.processlist;
 
 # Self rows only
 --disable_result_log
