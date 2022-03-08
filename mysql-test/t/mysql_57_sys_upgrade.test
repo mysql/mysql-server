@@ -1,0 +1,56 @@
+--source include/not_valgrind.inc
+--source include/have_innodb_16k.inc
+--source include/mysql_upgrade_preparation.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57
+
+--echo ###########################################################################
+--echo # Stop the default mtr server
+--echo ###########################################################################
+
+--echo # Stop DB server which was created by MTR default
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+
+--echo ###########################################################################
+--echo # BUG#106616: MS 8.0 upgrade (from MS 5.7) crashes with Assertion failure: dict0dict.cc:1236:table2 == nullptr
+--echo ###########################################################################
+
+
+--echo ###########################################################################
+--echo # Setup the 5.7 data directory
+--echo ###########################################################################
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/sys_table_duplicate_57.zip $MYSQL_TMP_DIR/data57.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1
+--let $wait_counter= 10000
+--source include/start_mysqld_no_echo.inc
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+INSERT INTO t1 VALUES(104);
+INSERT INTO t2 VALUES(null); 
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+
+--let $shutdown_server_timeout = 300
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQL_TMP_DIR/data57.zip
+
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc

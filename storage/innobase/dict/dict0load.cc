@@ -2448,7 +2448,9 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
       table->id = table->id + DICT_MAX_DD_TABLES;
     }
     if (cached) {
-      dict_table_add_to_cache(table, TRUE, heap);
+      auto can_be_evicted =
+          dict_load_is_system_table(table->name.m_name) ? false : true;
+      dict_table_add_to_cache(table, can_be_evicted, heap);
     }
   }
 

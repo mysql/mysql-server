@@ -1,0 +1,27 @@
+# Set different paths for --datadir
+###########################################################################
+# Stop the default mtr server
+###########################################################################
+# Stop DB server which was created by MTR default
+###########################################################################
+# BUG#106616: MS 8.0 upgrade (from MS 5.7) crashes with Assertion failure: dict0dict.cc:1236:table2 == nullptr
+###########################################################################
+###########################################################################
+# Setup the 5.7 data directory
+###########################################################################
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+SELECT * FROM t1;
+i
+100
+101
+SELECT * FROM t2;
+t2_c1
+1
+INSERT INTO t1 VALUES(104);
+INSERT INTO t2 VALUES(null);
+###########################################################################
+# Cleanup
+###########################################################################
+# restart:
