@@ -577,6 +577,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
 */
 bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
   bool update_password = (m_what_to_update.m_what & PLUGIN_ATTR);
+
   switch (m_operation) {
     case Acl_table_operation::OP_INSERT:
     case Acl_table_operation::OP_UPDATE: {
@@ -617,14 +618,15 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           now.
         */
         if (m_revoke_grant) {
-          my_error(ER_NONEXISTING_GRANT, MYF(0), m_combo->user.str,
-                   m_combo->host.str);
+          bool ret = report_missing_user_grant_message(
+              m_thd, false, m_combo->user.str, m_combo->host.str, nullptr,
+              ER_NONEXISTING_GRANT);
           /*
             Return 1 as an indication that expected error occurred during
             handling of REVOKE statement for an unknown user.
           */
-          error = 1;
-          return true;
+          if (ret) error = 1;
+          return ret;
         }
 
         if (m_thd->lex->sql_command == SQLCOM_ALTER_USER) {

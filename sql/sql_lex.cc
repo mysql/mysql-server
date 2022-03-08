@@ -490,6 +490,8 @@ void LEX::reset() {
   m_is_replication_deprecated_syntax_used = false;
   m_was_replication_command_executed = false;
 
+  grant_if_exists = false;
+  ignore_unknown_user = false;
   reset_rewrite_required();
 }
 

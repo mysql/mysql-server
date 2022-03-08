@@ -1475,6 +1475,7 @@ void warn_about_deprecated_binary(THD *thd)
         view_check_option
         signed_num
         opt_num_buckets
+        opt_ignore_unknown_user
 
 
 %type <order_direction>
@@ -13035,6 +13036,11 @@ if_exists:
         | IF EXISTS { $$= 1; }
         ;
 
+opt_ignore_unknown_user:
+          /* empty */ { $$= 0; }
+        | IGNORE_SYM UNKNOWN_SYM USER { $$= 1; }
+        ;
+
 opt_temporary:
           /* empty */ { $$= false; }
         | TEMPORARY   { $$= true; }
@@ -16265,56 +16271,66 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-          REVOKE role_or_privilege_list FROM user_list
+          REVOKE if_exists role_or_privilege_list FROM user_list opt_ignore_unknown_user
           {
-            auto *tmp= NEW_PTN PT_revoke_roles($2, $4);
+            Lex->grant_if_exists = $2;
+            Lex->ignore_unknown_user = $6;
+            auto *tmp= NEW_PTN PT_revoke_roles($3, $5);
             MAKE_CMD(tmp);
           }
-        | REVOKE role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list
+        | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
-            if (apply_privileges(YYTHD, *$2))
+            lex->grant_if_exists = $2;
+            Lex->ignore_unknown_user = $9;
+            if (apply_privileges(YYTHD, *$3))
               MYSQL_YYABORT;
             lex->sql_command= (lex->grant == GLOBAL_ACLS) ? SQLCOM_REVOKE_ALL
                                                           : SQLCOM_REVOKE;
-            if ($4 != Acl_type::TABLE && !lex->columns.is_empty())
+            if ($5 != Acl_type::TABLE && !lex->columns.is_empty())
             {
               YYTHD->syntax_error();
               MYSQL_YYABORT;
             }
-            lex->type= static_cast<ulong>($4);
-            lex->users_list= *$7;
+            lex->type= static_cast<ulong>($5);
+            lex->users_list= *$8;
           }
-        | REVOKE ALL opt_privileges
+        | REVOKE if_exists ALL opt_privileges
           {
+            Lex->grant_if_exists = $2;
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident FROM user_list
+          ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
             lex->sql_command= (lex->grant == (GLOBAL_ACLS & ~GRANT_ACL)) ?
                                                             SQLCOM_REVOKE_ALL
                                                           : SQLCOM_REVOKE;
-            if ($6 != Acl_type::TABLE && !lex->columns.is_empty())
+            if ($7 != Acl_type::TABLE && !lex->columns.is_empty())
             {
               YYTHD->syntax_error();
               MYSQL_YYABORT;
             }
-            lex->type= static_cast<ulong>($6);
-            lex->users_list= *$9;
+            lex->type= static_cast<ulong>($7);
+            lex->users_list= *$10;
+            lex->ignore_unknown_user = $11;
           }
-        | REVOKE ALL opt_privileges ',' GRANT OPTION FROM user_list
+        | REVOKE if_exists ALL opt_privileges ',' GRANT OPTION FROM user_list opt_ignore_unknown_user
           {
+            Lex->grant_if_exists = $2;
+            Lex->ignore_unknown_user = $10;
             Lex->sql_command = SQLCOM_REVOKE_ALL;
-            Lex->users_list= *$8;
+            Lex->users_list= *$9;
           }
-        | REVOKE PROXY_SYM ON_SYM user FROM user_list
+        | REVOKE if_exists PROXY_SYM ON_SYM user FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
+            lex->grant_if_exists = $2;
+            lex->ignore_unknown_user = $8;
             lex->sql_command= SQLCOM_REVOKE;
-            lex->users_list= *$6;
-            lex->users_list.push_front ($4);
+            lex->users_list= *$7;
+            lex->users_list.push_front ($5);
             lex->type= TYPE_ENUM_PROXY;
           }
         ;

@@ -3908,6 +3908,19 @@ struct LEX : public Query_tables_list {
   */
   uint8 context_analysis_only;
   bool drop_if_exists;
+  /**
+    refers to optional IF EXISTS clause in REVOKE sql. This flag when set to
+    true will report warnings in case privilege being granted is not granted to
+    given user/role. When set to false error is reported.
+  */
+  bool grant_if_exists;
+  /**
+    refers to optional IGNORE UNKNOWN USER clause in REVOKE sql. This flag when
+    set to true will report warnings in case target user/role for which
+    privilege being granted does not exists. When set to false error is
+    reported.
+  */
+  bool ignore_unknown_user;
   bool drop_temporary;
   bool autocommit;
   bool verbose, no_write_to_binlog;

@@ -78,7 +78,6 @@
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // acl_authenticate
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_source_logs
 #include "sql/clone_handler.h"
@@ -3983,8 +3982,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
       if (first_table) {
         if (lex->dynamic_privileges.elements > 0) {
-          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
-          goto error;
+          if (thd->lex->grant_if_exists) {
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                ER_ILLEGAL_PRIVILEGE_LEVEL,
+                                ER_THD(thd, ER_ILLEGAL_PRIVILEGE_LEVEL),
+                                all_tables->table_name);
+          } else {
+            my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0),
+                     all_tables->table_name);
+            goto error;
+          }
         }
         if (lex->type == TYPE_ENUM_PROCEDURE ||
             lex->type == TYPE_ENUM_FUNCTION) {
@@ -4014,6 +4021,24 @@ int mysql_execute_command(THD *thd, bool first_level) {
           my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
           goto error;
         } else {
+          /* Dynamic privileges are allowed only for global grants */
+          if (query_block->db && lex->dynamic_privileges.elements > 0) {
+            String privs;
+            bool comma = false;
+            for (const LEX_CSTRING &priv : lex->dynamic_privileges) {
+              if (comma) privs.append(",");
+              privs.append(priv.str, priv.length);
+              comma = true;
+            }
+            if (thd->lex->grant_if_exists) {
+              push_warning_printf(
+                  thd, Sql_condition::SL_WARNING, ER_ILLEGAL_PRIVILEGE_LEVEL,
+                  ER_THD(thd, ER_ILLEGAL_PRIVILEGE_LEVEL), privs.c_ptr());
+            } else {
+              my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
+              goto error;
+            }
+          }
           /* Conditionally writes to binlog */
           res = mysql_grant(
               thd, query_block->db, lex->users_list, lex->grant,

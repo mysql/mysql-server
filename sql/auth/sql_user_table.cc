@@ -851,12 +851,16 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       goto table_error;
 
     if (what == 'N') {  // no row, no revoke
-      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       /*
         Return 1 as an indication that expected error occurred during
         handling of REVOKE statement for an unknown user.
       */
-      return 1;
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = false;
     restore_record(table, s->default_values);
@@ -999,9 +1003,13 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
       goto table_error;
     DBUG_PRINT("info", ("Row not found"));
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
       table->file->ha_index_end();
-      return 1;
+      if (report_missing_user_grant_message(thd, true, user->user.str,
+                                            user->host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = false;
     restore_record(table, s->default_values);
@@ -1170,10 +1178,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       }
 
       if (revoke_grant) {
-        my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
-                 combo.host.str, table_name); /* purecov: inspected */
-        result = 1;                           /* purecov: inspected */
-        continue;                             /* purecov: inspected */
+        if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                              combo.host.str, table_name,
+                                              ER_NONEXISTING_TABLE_GRANT))
+          result = 1;
+        continue; /* purecov: inspected */
       }
       old_row_exists = false;
       restore_record(table, s->default_values);  // Get empty record
@@ -1430,9 +1439,12 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       the user has modified the grant tables directly.
     */
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
-               combo.host.str, table_name); /* purecov: deadcode */
-      return 1;                             /* purecov: deadcode */
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, table_name,
+                                            ER_NONEXISTING_TABLE_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1597,9 +1609,12 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
       the user has modified the grant tables directly.
     */
     if (revoke_grant) {  // no row, no revoke
-      my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), combo.user.str,
-               combo.host.str, routine_name);
-      return 1;
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, routine_name,
+                                            ER_NONEXISTING_PROC_GRANT))
+        return 1;
+      else
+        return 0;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record

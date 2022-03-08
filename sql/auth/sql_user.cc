@@ -1282,6 +1282,19 @@ bool set_and_validate_user_attributes(
   /* copy password expire attributes to individual user */
   Str->alter_status = thd->lex->alter_password;
 
+  if ((!user_exists && thd->lex->ignore_unknown_user) ||
+      (user_exists && thd->lex->grant_if_exists)) {
+    /*
+     REVOKE IF EXISTS ... with missing privilege AND
+     REVOKE ... IGNORE UNKNOWN USER with missing user account
+     should be a no-op and be ignored.
+    */
+    if (command == SQLCOM_REVOKE) {
+      what_to_set.m_what = NONE_ATTR;
+      return false;
+    }
+  }
+
   mysql_mutex_lock(&LOCK_password_history);
   Str->alter_status.password_history_length =
       Str->alter_status.use_default_password_history
