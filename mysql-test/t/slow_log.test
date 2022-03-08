@@ -1,0 +1,77 @@
+--echo #
+--echo # Bug#33732907: Slow query log logs password in plain text on syntax error
+--echo #
+--echo
+
+--source include/not_parallel.inc
+--source include/not_valgrind.inc
+
+SET @save_sqlf=@@global.slow_query_log_file;
+SET @save_sql=@@global.slow_query_log;
+SET @save_lo=@@global.log_output;
+SET @save_lqt=@@session.long_query_time;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/slow33732907.log';
+SET @@global.slow_query_log=1;
+SET @@global.log_output='file,table';
+SET @@session.long_query_time=0;
+
+let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
+
+--echo
+--echo # This succeeds, and the password is correctly obfuscated.
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+--echo # This fails, but the password is still correctly obfuscated.
+--error ER_CANNOT_USER
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+
+--echo
+--echo # Since we throw an error during the parse stage, we don't know which
+--echo # part of the statement is the password (or whether there even is one),
+--echo # so we cannot obfuscate it. In that case, the statement should not be
+--echo # logged, either. The general log also behaves like this by default.
+--error ER_PARSE_ERROR
+CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "general table>",argument
+  FROM mysql.general_log
+ WHERE INSTR(argument,"CREATE USER")=1
+ ORDER BY event_time;
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "slow table>",sql_text
+  FROM mysql.slow_log
+ WHERE INSTR(sql_text,"CREATE USER")=1
+ ORDER BY start_time;
+
+SET @@global.slow_query_log_file=@save_sqlf;
+SET @@global.slow_query_log=@save_sql;
+SET @@global.log_output=@save_lo;
+SET @@session.long_query_time=@save_lqt;
+
+DROP USER 'duplicate_user'@'%';
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+--perl
+   use strict;
+
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /CREATE USER /) {
+       print "slow file>".$line; }
+   }
+   close(FILE);
+EOF
+
+--remove_file $MYSQL_TMP_DIR/slow33732907.log
+TRUNCATE mysql.slow_log;
+TRUNCATE mysql.general_log;
+
+
+--echo #
+--echo # Done.

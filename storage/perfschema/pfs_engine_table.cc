@@ -862,7 +862,8 @@ static bool allow_drop_table_privilege() {
 
   assert(thd->lex != NULL);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
-      (thd->lex->sql_command != SQLCOM_GRANT)) {
+      (thd->lex->sql_command != SQLCOM_GRANT) &&
+      (thd->lex->sql_command != SQLCOM_REVOKE)) {
     return false;
   }
 

@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL NDB Cluster 7.6.12 (and later).
 
-   Last updated: November 2021
+   Last updated: January 2022
 
 Licensing Information
 
@@ -36,7 +36,7 @@ Licensing Information
    reproduced below and can also be found along with its FAQ at
    http://oss.oracle.com/licenses/universal-foss-exception.
 
-   Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+   Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 Election of GPLv2
 

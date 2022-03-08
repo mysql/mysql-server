@@ -112,6 +112,6 @@ SET DEBUG_SYNC= 'now SIGNAL finish_scan';
 connection con1
 connection default
 drop table t1;
-Pattern "InnoDB: Record with space id \d+ belongs to table which is being truncated therefore skipping this undo record." found
+Pattern "InnoDB: Record with space id \d+ belongs to table which is being truncated or tablespace which is missing therefore skipping this undo record." found
 # restart server
 # restart:

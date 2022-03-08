@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -205,7 +205,7 @@ int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
 /* Transaction size limits */
-#define DEFAULT_TRANSACTION_SIZE_LIMIT 0
+#define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
 ulong transaction_size_limit_base_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
