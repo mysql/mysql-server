@@ -59,11 +59,14 @@ class Log_files_dict {
   using Log_files_map_iterator = typename Log_files_map::const_iterator;
 
  public:
-  class Const_iterator
-      : public std::iterator<std::bidirectional_iterator_tag, Log_file,
-                             std::ptrdiff_t, const Log_file *,
-                             const Log_file &> {
+  class Const_iterator {
    public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = Log_file;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const Log_file *;
+    using reference = const Log_file &;
+
     explicit Const_iterator(Log_files_dict::Log_files_map_iterator it);
     const Log_file &operator*() const;
     const Log_file *operator->() const;

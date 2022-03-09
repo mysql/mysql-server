@@ -1362,7 +1362,9 @@ void log_files_governor(log_t *log_ptr) {
 
   ut_d(log.m_files_governor_thd = create_internal_thd());
 
-  log.m_files_stats = {};
+  // We need to initialize a temporary to work around a gcc12 bug.
+  Log_files_stats tmp{};
+  log.m_files_stats = tmp;
 
   while (true) {
     /* We note down value of this event's sig_count before calling the
