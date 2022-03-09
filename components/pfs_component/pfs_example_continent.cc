@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,9 +141,11 @@ int continent_index_read(PSI_index_handle *index, PSI_key_reader *reader,
     case 0: {
       Continent_index_by_name *i = (Continent_index_by_name *)index;
       /* Read all keys on index one by one */
-      mysql_service_pfs_plugin_table->read_key_string(reader, &i->m_name,
-                                                      find_flag);
-    } break;
+      pc_string_srv->read_key_string(reader, &i->m_name, find_flag);
+      /* Remember the number of key parts found. */
+      i->m_fields = pt_srv->get_parts_found(reader);
+      break;
+    }
     default:
       assert(0);
       break;
@@ -196,8 +198,8 @@ int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* NAME */
-      mysql_service_pfs_plugin_table->set_field_char_utf8(
-          field, h->current_row.name, h->current_row.name_length);
+      pc_string_srv->set_char_utf8(field, h->current_row.name,
+                                   h->current_row.name_length);
       break;
     default: /* We should never reach here */
       assert(0);

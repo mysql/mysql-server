@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,8 +167,7 @@ mysql_service_status_t pfs_example_component_population_init() {
    * Call add_table function of pfs_plugin_table service to
    * add component tables in performance schema.
    */
-  if (mysql_service_pfs_plugin_table->add_tables(&share_list[0],
-                                                 share_list_count)) {
+  if (pt_srv->add_tables(&share_list[0], share_list_count)) {
     WRITE_LOG("Error returned from add_tables()\n");
     result = true;
     goto error;
@@ -209,8 +208,7 @@ mysql_service_status_t pfs_example_component_population_deinit() {
    * Call delete_tables function of pfs_plugin_table service to
    * delete component tables from performance schema
    */
-  if (mysql_service_pfs_plugin_table->delete_tables(&share_list[0],
-                                                    share_list_count)) {
+  if (pt_srv->delete_tables(&share_list[0], share_list_count)) {
     WRITE_LOG("Error returned from delete_table()\n");
     result = 1;
     goto error;
@@ -235,10 +233,19 @@ BEGIN_COMPONENT_PROVIDES(pfs_example_component_population)
 END_COMPONENT_PROVIDES();
 
 /* pfs_example_component requires/uses pfs_plugin_table service */
-REQUIRES_SERVICE_PLACEHOLDER(pfs_plugin_table);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_table_v1, pt_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v1, pc_string_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_double_v1, pc_double_srv);
 
 BEGIN_COMPONENT_REQUIRES(pfs_example_component_population)
-REQUIRES_SERVICE(pfs_plugin_table), END_COMPONENT_REQUIRES();
+REQUIRES_SERVICE_AS(pfs_plugin_table_v1, pt_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_string_v1, pc_string_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_year_v1, pc_year_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_double_v1, pc_double_srv),
+    END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(pfs_example_component_population)

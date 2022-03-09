@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -174,11 +174,13 @@ int country_index_read(PSI_index_handle *index, PSI_key_reader *reader,
     case 0: {
       Country_index_by_name *i = (Country_index_by_name *)index;
       /* Read all keys on index one by one */
-      mysql_service_pfs_plugin_table->read_key_string(
-          reader, &i->m_country_name, find_flag);
-      mysql_service_pfs_plugin_table->read_key_string(
-          reader, &i->m_continent_name, find_flag);
-    } break;
+      pc_string_srv->read_key_string(reader, &i->m_country_name, find_flag);
+      pc_string_srv->read_key_string(reader, &i->m_continent_name, find_flag);
+
+      /* Remember the number of key parts found. */
+      i->m_fields = pt_srv->get_parts_found(reader);
+      break;
+    }
     default:
       assert(0);
       break;
@@ -231,25 +233,21 @@ int country_read_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      mysql_service_pfs_plugin_table->set_field_char_utf8(
-          field, h->current_row.name, h->current_row.name_length);
+      pc_string_srv->set_char_utf8(field, h->current_row.name,
+                                   h->current_row.name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      mysql_service_pfs_plugin_table->set_field_char_utf8(
-          field, h->current_row.continent_name,
-          h->current_row.continent_name_length);
+      pc_string_srv->set_char_utf8(field, h->current_row.continent_name,
+                                   h->current_row.continent_name_length);
       break;
     case 2: /* YEAR */
-      mysql_service_pfs_plugin_table->set_field_year(field,
-                                                     h->current_row.year);
+      pc_year_srv->set(field, h->current_row.year);
       break;
     case 3: /* POPULATION */
-      mysql_service_pfs_plugin_table->set_field_bigint(
-          field, h->current_row.population);
+      pc_bigint_srv->set(field, h->current_row.population);
       break;
     case 4: /* GROWTH_FACTOR */
-      mysql_service_pfs_plugin_table->set_field_double(
-          field, h->current_row.growth_factor);
+      pc_double_srv->set(field, h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -313,24 +311,20 @@ int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      mysql_service_pfs_plugin_table->get_field_char_utf8(field, name,
-                                                          name_length);
+      pc_string_srv->get_char_utf8(field, name, name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      mysql_service_pfs_plugin_table->get_field_char_utf8(
-          field, continent_name, continent_name_length);
+      pc_string_srv->get_char_utf8(field, continent_name,
+                                   continent_name_length);
       break;
     case 2: /* YEAR */
-      mysql_service_pfs_plugin_table->get_field_year(field,
-                                                     &h->current_row.year);
+      pc_year_srv->get(field, &h->current_row.year);
       break;
     case 3: /* POPULATION */
-      mysql_service_pfs_plugin_table->get_field_bigint(
-          field, &h->current_row.population);
+      pc_bigint_srv->get(field, &h->current_row.population);
       break;
     case 4: /* GROWTH_FACTOR */
-      mysql_service_pfs_plugin_table->get_field_double(
-          field, &h->current_row.growth_factor);
+      pc_double_srv->get(field, &h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -370,24 +364,20 @@ int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
-      mysql_service_pfs_plugin_table->get_field_char_utf8(field, name,
-                                                          name_length);
+      pc_string_srv->get_char_utf8(field, name, name_length);
       break;
     case 1: /* CONTINENT_NAME */
-      mysql_service_pfs_plugin_table->get_field_char_utf8(
-          field, continent_name, continent_name_length);
+      pc_string_srv->get_char_utf8(field, continent_name,
+                                   continent_name_length);
       break;
     case 2: /* YEAR */
-      mysql_service_pfs_plugin_table->get_field_year(field,
-                                                     &h->current_row.year);
+      pc_year_srv->get(field, &h->current_row.year);
       break;
     case 3: /* POPULATION */
-      mysql_service_pfs_plugin_table->get_field_bigint(
-          field, &h->current_row.population);
+      pc_bigint_srv->get(field, &h->current_row.population);
       break;
     case 4: /* GROWTH_FACTOR */
-      mysql_service_pfs_plugin_table->get_field_double(
-          field, &h->current_row.growth_factor);
+      pc_double_srv->get(field, &h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
       assert(0);

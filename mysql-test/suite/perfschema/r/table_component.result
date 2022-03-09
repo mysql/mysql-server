@@ -190,6 +190,40 @@ NAME	6	3	0	2	1
 NULL	1	0	1	0	0
 delete from performance_schema.setup_objects
 where OBJECT_NAME="pfs_example_country";
+---------- Index fetch with partial key ----------
+INSERT into performance_schema.pfs_example_country values
+("Home", "Europe", 2022, 1, 1),
+("Home", "America", 2022, 2, 2),
+("Canada", "America", 2022, 3, 3);
+SELECT * FROM performance_schema.pfs_example_country
+WHERE NAME = 'nowhere';
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+SELECT * FROM performance_schema.pfs_example_country
+FORCE INDEX(name)
+WHERE NAME = 'nowhere';
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+SELECT * FROM performance_schema.pfs_example_country
+WHERE NAME = 'Canada';
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+Canada	America	2022	3	3.00
+SELECT * FROM performance_schema.pfs_example_country
+FORCE INDEX(name)
+WHERE NAME = 'Canada';
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+Canada	America	2022	3	3.00
+SELECT * FROM performance_schema.pfs_example_country
+WHERE NAME = 'Home'
+  ORDER BY CONTINENT;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+Home	America	2022	2	2.00
+Home	Europe	2022	1	1.00
+SELECT * FROM performance_schema.pfs_example_country
+FORCE INDEX(name)
+WHERE NAME = 'Home'
+  ORDER BY CONTINENT;
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+Home	America	2022	2	2.00
+Home	Europe	2022	1	1.00
 -------------------------------------------------------
 Fetching from component table after component uninstall
 -------------------------------------------------------
